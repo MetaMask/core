@@ -1,16 +1,23 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import { BN } from 'ethereumjs-util';
+import { ControllerMessenger } from '@metamask/base-controller';
+import { NetworksChainId, MAINNET } from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkControllerMessenger,
   NetworkControllerProviderConfigChangeEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
-import { NetworksChainId, MAINNET } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { TokensController } from './TokensController';
+import { BN } from 'ethereumjs-util';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
+import { AssetsContractController } from './AssetsContractController';
+import {
+  formatAggregatorNames,
+  isTokenDetectionSupportedForNetwork,
+  SupportedTokenDetectionNetworks,
+} from './assetsUtil';
+import { TOKEN_END_POINT_API } from './token-service';
 import { TokenDetectionController } from './TokenDetectionController';
 import {
   TokenListController,
@@ -18,14 +25,8 @@ import {
   TokenListStateChange,
   TokenListToken,
 } from './TokenListController';
-import { AssetsContractController } from './AssetsContractController';
-import {
-  formatAggregatorNames,
-  isTokenDetectionSupportedForNetwork,
-  SupportedTokenDetectionNetworks,
-} from './assetsUtil';
 import { Token } from './TokenRatesController';
-import { TOKEN_END_POINT_API } from './token-service';
+import { TokensController } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -197,7 +198,7 @@ describe('TokenDetectionController', () => {
 
     sinon
       .stub(tokensController, '_detectIsERC721')
-      .callsFake(() => Promise.resolve(false));
+      .callsFake(async () => Promise.resolve(false));
   });
 
   afterEach(() => {
@@ -222,14 +223,15 @@ describe('TokenDetectionController', () => {
   });
 
   it('should poll and detect tokens on interval while on supported networks', async () => {
-    await new Promise(async (resolve) => {
-      const mockTokens = sinon.stub(tokenDetection, 'detectTokens');
-      tokenDetection.configure({
-        interval: 10,
-      });
-      await tokenDetection.start();
+    const mockTokens = sinon.stub(tokenDetection, 'detectTokens');
+    tokenDetection.configure({
+      interval: 10,
+    });
+    await tokenDetection.start();
 
-      expect(mockTokens.calledOnce).toBe(true);
+    expect(mockTokens.calledOnce).toBe(true);
+
+    await new Promise((resolve) => {
       setTimeout(() => {
         expect(mockTokens.calledTwice).toBe(true);
         resolve('');
@@ -239,20 +241,20 @@ describe('TokenDetectionController', () => {
 
   it('should detect supported networks correctly', () => {
     tokenDetection.configure({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: SupportedTokenDetectionNetworks.Mainnet,
     });
 
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toStrictEqual(true);
-    tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.bsc });
+    ).toBe(true);
+    tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.Bsc });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toStrictEqual(true);
+    ).toBe(true);
     tokenDetection.configure({ chainId: NetworksChainId.ropsten });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toStrictEqual(false);
+    ).toBe(false);
   });
 
   it('should not autodetect while not on supported networks', async () => {
@@ -467,7 +469,7 @@ describe('TokenDetectionController', () => {
 
     tokenDetection.stop();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkStateChangeListener!({
+    networkStateChangeListener!({
       providerConfig: { chainId: polygonDecimalChainId },
     });
 
@@ -501,7 +503,7 @@ describe('TokenDetectionController', () => {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenListStateChangeListener!({ tokenList: {} });
+    tokenListStateChangeListener!({ tokenList: {} });
 
     expect(getBalancesInSingleCallMock.called).toBe(false);
   });
@@ -534,7 +536,7 @@ describe('TokenDetectionController', () => {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await preferencesStateChangeListener!({
+    preferencesStateChangeListener!({
       selectedAddress: '0x1',
       useTokenDetection: true,
     });
@@ -564,14 +566,14 @@ describe('TokenDetectionController', () => {
       {
         disabled: false,
         isDetectionEnabledFromPreferences: true,
-        chainId: SupportedTokenDetectionNetworks.polygon,
+        chainId: SupportedTokenDetectionNetworks.Polygon,
         isDetectionEnabledForNetwork: true,
         selectedAddress: '0x1',
       },
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkStateChangeListener!({
+    networkStateChangeListener!({
       providerConfig: { chainId: NetworksChainId.mainnet },
     });
 

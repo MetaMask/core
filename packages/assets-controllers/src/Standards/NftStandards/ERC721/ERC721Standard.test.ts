@@ -1,7 +1,8 @@
+import { Web3Provider } from '@ethersproject/providers';
+import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
-import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
-import { Web3Provider } from '@ethersproject/providers';
+
 import { ERC721Standard } from './ERC721Standard';
 
 const MAINNET_PROVIDER_HTTP = new HttpProvider(

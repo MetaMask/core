@@ -203,12 +203,12 @@ describe('AddressBookController', () => {
     const controller = new AddressBookController();
     expect(
       controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo'),
-    ).toStrictEqual(true);
+    ).toBe(true);
   });
 
   it('should return false to indicate an address book entry has NOT been added', () => {
     const controller = new AddressBookController();
-    expect(controller.set('0x00', 'foo')).toStrictEqual(false);
+    expect(controller.set('0x00', 'foo')).toBe(false);
   });
 
   it('should return true to indicate an address book entry has been deleted', () => {
@@ -216,13 +216,13 @@ describe('AddressBookController', () => {
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
     expect(
       controller.delete('1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'),
-    ).toStrictEqual(true);
+    ).toBe(true);
   });
 
   it('should return false to indicate an address book entry has NOT been deleted', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', '0x00');
-    expect(controller.delete('1', '0x01')).toStrictEqual(false);
+    expect(controller.delete('1', '0x01')).toBe(false);
   });
 
   it('should normalize addresses so adding and removing entries work across casings', () => {

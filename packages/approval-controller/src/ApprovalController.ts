@@ -1,11 +1,12 @@
-import type { Patch } from 'immer';
-import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
-import { nanoid } from 'nanoid';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Json } from '@metamask/controller-utils';
+import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
+import type { Patch } from 'immer';
+import { nanoid } from 'nanoid';
+
 import { ApprovalRequestNotFoundError } from './errors';
 
 const controllerName = 'ApprovalController';
@@ -153,11 +154,11 @@ export class ApprovalController extends BaseControllerV2<
   ApprovalControllerState,
   ApprovalControllerMessenger
 > {
-  private _approvals: Map<string, ApprovalCallbacks>;
+  readonly #approvals: Map<string, ApprovalCallbacks>;
 
-  private _origins: Map<string, Set<string>>;
+  readonly #origins: Map<string, Set<string>>;
 
-  private _showApprovalRequest: () => void;
+  readonly #showApprovalRequest: ShowApprovalRequest;
 
   /**
    * Construct an Approval controller.
@@ -180,17 +181,17 @@ export class ApprovalController extends BaseControllerV2<
       state: { ...getDefaultState(), ...state },
     });
 
-    this._approvals = new Map();
-    this._origins = new Map();
-    this._showApprovalRequest = showApprovalRequest;
-    this.registerMessageHandlers();
+    this.#approvals = new Map();
+    this.#origins = new Map();
+    this.#showApprovalRequest = showApprovalRequest;
+    this.#registerMessageHandlers();
   }
 
   /**
    * Constructor helper for registering this controller's messaging system
    * actions.
    */
-  private registerMessageHandlers(): void {
+  #registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
       `${controllerName}:clearRequests` as const,
       this.clear.bind(this),
@@ -198,7 +199,7 @@ export class ApprovalController extends BaseControllerV2<
 
     this.messagingSystem.registerActionHandler(
       `${controllerName}:addRequest` as const,
-      (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
+      async (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
         if (shouldShowRequest) {
           return this.addAndShowApprovalRequest(opts);
         }
@@ -238,14 +239,14 @@ export class ApprovalController extends BaseControllerV2<
    * if any.
    * @returns The approval promise.
    */
-  addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
-    const promise = this._add(
+  async addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
+    const promise = this.#add(
       opts.origin,
       opts.type,
       opts.id,
       opts.requestData,
     );
-    this._showApprovalRequest();
+    await this.#showApprovalRequest();
     return promise;
   }
 
@@ -265,8 +266,8 @@ export class ApprovalController extends BaseControllerV2<
    * if any.
    * @returns The approval promise.
    */
-  add(opts: AddApprovalOptions): Promise<unknown> {
-    return this._add(opts.origin, opts.type, opts.id, opts.requestData);
+  async add(opts: AddApprovalOptions): Promise<unknown> {
+    return this.#add(opts.origin, opts.type, opts.id, opts.requestData);
   }
 
   /**
@@ -301,11 +302,11 @@ export class ApprovalController extends BaseControllerV2<
     const { origin, type: _type } = opts;
 
     if (origin && _type) {
-      return Number(Boolean(this._origins.get(origin)?.has(_type)));
+      return Number(Boolean(this.#origins.get(origin)?.has(_type)));
     }
 
     if (origin) {
-      return this._origins.get(origin)?.size || 0;
+      return this.#origins.get(origin)?.size ?? 0;
     }
 
     // Only "type" was specified
@@ -349,7 +350,7 @@ export class ApprovalController extends BaseControllerV2<
       if (typeof id !== 'string') {
         throw new Error('May not specify non-string id.');
       }
-      return this._approvals.has(id);
+      return this.#approvals.has(id);
     }
 
     if (_type && typeof _type !== 'string') {
@@ -363,9 +364,9 @@ export class ApprovalController extends BaseControllerV2<
 
       // Check origin and type pair if type also specified
       if (_type) {
-        return Boolean(this._origins.get(origin)?.has(_type));
+        return Boolean(this.#origins.get(origin)?.has(_type));
       }
-      return this._origins.has(origin);
+      return this.#origins.has(origin);
     }
 
     if (_type) {
@@ -389,7 +390,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param value - The value to resolve the approval promise with.
    */
   accept(id: string, value?: unknown): void {
-    this._deleteApprovalAndGetCallbacks(id).resolve(value);
+    this.#deleteApprovalAndGetCallbacks(id).resolve(value);
   }
 
   /**
@@ -400,7 +401,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param error - The error to reject the approval promise with.
    */
   reject(id: string, error: unknown): void {
-    this._deleteApprovalAndGetCallbacks(id).reject(error);
+    this.#deleteApprovalAndGetCallbacks(id).reject(error);
   }
 
   /**
@@ -410,10 +411,10 @@ export class ApprovalController extends BaseControllerV2<
    * requests with.
    */
   clear(rejectionError: EthereumRpcError<unknown>): void {
-    for (const id of this._approvals.keys()) {
+    for (const id of this.#approvals.keys()) {
       this.reject(id, rejectionError);
     }
-    this._origins.clear();
+    this.#origins.clear();
     this.update(() => getDefaultState());
   }
 
@@ -426,15 +427,15 @@ export class ApprovalController extends BaseControllerV2<
    * @param requestData - The request data associated with the approval request.
    * @returns The approval promise.
    */
-  private _add(
+  async #add(
     origin: string,
     type: string,
     id: string = nanoid(),
     requestData?: Record<string, Json>,
   ): Promise<unknown> {
-    this._validateAddParams(id, origin, type, requestData);
+    this.#validateAddParams(id, origin, type, requestData);
 
-    if (this._origins.get(origin)?.has(type)) {
+    if (this.#origins.get(origin)?.has(type)) {
       throw ethErrors.rpc.resourceUnavailable(
         getAlreadyPendingMessage(origin, type),
       );
@@ -442,9 +443,9 @@ export class ApprovalController extends BaseControllerV2<
 
     // add pending approval
     return new Promise((resolve, reject) => {
-      this._approvals.set(id, { resolve, reject });
-      this._addPendingApprovalOrigin(origin, type);
-      this._addToStore(id, origin, type, requestData);
+      this.#approvals.set(id, { resolve, reject });
+      this.#addPendingApprovalOrigin(origin, type);
+      this.#addToStore(id, origin, type, requestData);
     });
   }
 
@@ -456,7 +457,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
    */
-  private _validateAddParams(
+  #validateAddParams(
     id: string,
     origin: string,
     type: string,
@@ -465,7 +466,7 @@ export class ApprovalController extends BaseControllerV2<
     let errorMessage = null;
     if (!id || typeof id !== 'string') {
       errorMessage = 'Must specify non-empty string id.';
-    } else if (this._approvals.has(id)) {
+    } else if (this.#approvals.has(id)) {
       errorMessage = `Approval request with id '${id}' already exists.`;
     } else if (!origin || typeof origin !== 'string') {
       errorMessage = 'Must specify non-empty string origin.';
@@ -490,12 +491,12 @@ export class ApprovalController extends BaseControllerV2<
    * @param origin - The origin of the approval request.
    * @param type - The type associated with the approval request.
    */
-  private _addPendingApprovalOrigin(origin: string, type: string): void {
-    const originSet = this._origins.get(origin) || new Set();
+  #addPendingApprovalOrigin(origin: string, type: string): void {
+    const originSet = this.#origins.get(origin) ?? new Set();
     originSet.add(type);
 
-    if (!this._origins.has(origin)) {
-      this._origins.set(origin, originSet);
+    if (!this.#origins.has(origin)) {
+      this.#origins.set(origin, originSet);
     }
   }
 
@@ -508,7 +509,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
    */
-  private _addToStore(
+  #addToStore(
     id: string,
     origin: string,
     type: string,
@@ -519,7 +520,7 @@ export class ApprovalController extends BaseControllerV2<
       origin,
       type,
       time: Date.now(),
-      requestData: requestData || null,
+      requestData: requestData ?? null,
     };
 
     this.update((draftState) => {
@@ -539,17 +540,17 @@ export class ApprovalController extends BaseControllerV2<
    *
    * @param id - The id of the approval request to be deleted.
    */
-  private _delete(id: string): void {
-    this._approvals.delete(id);
+  #delete(id: string): void {
+    this.#approvals.delete(id);
 
     // This method is only called after verifying that the approval with the
     // specified id exists.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const { origin, type } = this.state.pendingApprovals[id]!;
 
-    (this._origins.get(origin) as Set<string>).delete(type);
-    if (this._isEmptyOrigin(origin)) {
-      this._origins.delete(origin);
+    (this.#origins.get(origin) as Set<string>).delete(type);
+    if (this.#isEmptyOrigin(origin)) {
+      this.#origins.delete(origin);
     }
 
     this.update((draftState) => {
@@ -568,13 +569,13 @@ export class ApprovalController extends BaseControllerV2<
    * @param id - The id of the approval request.
    * @returns The promise callbacks associated with the approval request.
    */
-  private _deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
-    const callbacks = this._approvals.get(id);
+  #deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
+    const callbacks = this.#approvals.get(id);
     if (!callbacks) {
       throw new ApprovalRequestNotFoundError(id);
     }
 
-    this._delete(id);
+    this.#delete(id);
     return callbacks;
   }
 
@@ -585,8 +586,8 @@ export class ApprovalController extends BaseControllerV2<
    * @param origin - The origin to check.
    * @returns True if the origin has no approvals, false otherwise.
    */
-  private _isEmptyOrigin(origin: string): boolean {
-    return !this._origins.get(origin)?.size;
+  #isEmptyOrigin(origin: string): boolean {
+    return !this.#origins.get(origin)?.size;
   }
 }
 export default ApprovalController;

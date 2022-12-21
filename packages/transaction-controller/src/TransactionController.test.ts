@@ -1,13 +1,8 @@
-import * as sinon from 'sinon';
-import HttpProvider from 'ethjs-provider-http';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
-import { ESTIMATE_GAS_ERROR } from './utils';
-import {
-  TransactionController,
-  TransactionStatus,
-  TransactionMeta,
-} from './TransactionController';
+import HttpProvider from 'ethjs-provider-http';
+import * as sinon from 'sinon';
+
 import {
   ethTxsMock,
   tokenTxsMock,
@@ -16,6 +11,12 @@ import {
   txsInStateWithOutdatedGasDataMock,
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
+import {
+  TransactionController,
+  TransactionStatus,
+  TransactionMeta,
+} from './TransactionController';
+import { ESTIMATE_GAS_ERROR } from './utils';
 
 jest.mock('uuid', () => {
   return {
@@ -99,11 +100,10 @@ jest.mock('eth-query', () =>
  * @returns The mock `fetch` implementation.
  */
 function mockFetchWithStaticResponse(data: any) {
-  return jest
-    .spyOn(global, 'fetch')
-    .mockImplementation(() =>
-      Promise.resolve(new Response(JSON.stringify(data))),
-    );
+  return jest.spyOn(global, 'fetch').mockImplementation(async () =>
+    // eslint-disable-next-line no-restricted-globals
+    Promise.resolve(new Response(JSON.stringify(data))),
+  );
 }
 
 /**
@@ -114,11 +114,10 @@ function mockFetchWithStaticResponse(data: any) {
  * @returns The mock `fetch` implementation.
  */
 function mockFetchWithDynamicResponse(dataForUrl: any) {
-  return jest
-    .spyOn(global, 'fetch')
-    .mockImplementation((key) =>
-      Promise.resolve(new Response(JSON.stringify(dataForUrl[key.toString()]))),
-    );
+  return jest.spyOn(global, 'fetch').mockImplementation(async (key) =>
+    // eslint-disable-next-line no-restricted-globals
+    Promise.resolve(new Response(JSON.stringify(dataForUrl[key.toString()]))),
+  );
 }
 
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
@@ -275,7 +274,9 @@ const MOCK_FETCH_TX_HISTORY_DATA_ERROR = {
 describe('TransactionController', () => {
   beforeEach(() => {
     for (const key in mockFlags) {
-      mockFlags[key] = null;
+      if (Object.prototype.hasOwnProperty.call(mockFlags, key)) {
+        mockFlags[key] = null;
+      }
     }
   });
 
@@ -313,6 +314,8 @@ describe('TransactionController', () => {
         TransactionController.prototype,
         'queryTransactionStatuses',
       );
+
+      // eslint-disable-next-line no-new
       new TransactionController(
         {
           getNetworkState: () => MOCK_NETWORK.state,
@@ -342,7 +345,7 @@ describe('TransactionController', () => {
     );
     await new Promise((resolve) => {
       setTimeout(() => {
-        controller.poll(1338);
+        controller.poll(1338).catch(console.error);
         expect(mock.called).toBe(true);
         resolve('');
       }, 100);
@@ -511,7 +514,7 @@ describe('TransactionController', () => {
     );
 
     expect(controller.state.transactions[0].status).toBe(
-      TransactionStatus.unapproved,
+      TransactionStatus.Unapproved,
     );
   });
 
@@ -550,7 +553,7 @@ describe('TransactionController', () => {
     );
 
     expect(controller.state.transactions[0].status).toBe(
-      TransactionStatus.unapproved,
+      TransactionStatus.Unapproved,
     );
   });
 
@@ -589,7 +592,7 @@ describe('TransactionController', () => {
     );
 
     expect(controller.state.transactions[0].status).toBe(
-      TransactionStatus.unapproved,
+      TransactionStatus.Unapproved,
     );
   });
 
@@ -605,13 +608,13 @@ describe('TransactionController', () => {
       to: from,
     });
     controller.cancelTransaction('foo');
-    const transactionListener = new Promise(async (resolve) => {
+    const transactionListener = new Promise((resolve) => {
       controller.hub.once(
         `${controller.state.transactions[0].id}:finished`,
         () => {
           expect(controller.state.transactions[0].transaction.from).toBe(from);
           expect(controller.state.transactions[0].status).toBe(
-            TransactionStatus.rejected,
+            TransactionStatus.Rejected,
           );
           resolve('');
         },
@@ -650,7 +653,7 @@ describe('TransactionController', () => {
       from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
       networkID: '3',
-      status: TransactionStatus.submitted,
+      status: TransactionStatus.Submitted,
       transactionHash: '1337',
     } as any);
     controller.wipeTransactions();
@@ -658,36 +661,39 @@ describe('TransactionController', () => {
   });
 
   it('should approve custom network transaction', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
-          onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
-          getProvider: MOCK_CUSTOM_NETWORK.getProvider,
-        },
-        {
-          sign: async (transaction: any) => transaction,
-        },
-      );
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      await controller.addTransaction({
-        from,
-        gas: '0x0',
-        gasPrice: '0x0',
-        to: from,
-        value: '0x0',
-      });
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
+        onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
+        getProvider: MOCK_CUSTOM_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      gas: '0x0',
+      gasPrice: '0x0',
+      to: from,
+      value: '0x0',
+    });
 
+    await new Promise((resolve, reject) => {
       controller.hub.once(
         `${controller.state.transactions[0].id}:finished`,
         () => {
           const { transaction, status } = controller.state.transactions[0];
           expect(transaction.from).toBe(from);
-          expect(status).toBe(TransactionStatus.submitted);
+          expect(status).toBe(TransactionStatus.Submitted);
           resolve('');
         },
       );
-      controller.approveTransaction(controller.state.transactions[0].id);
+
+      controller
+        .approveTransaction(controller.state.transactions[0].id)
+        .catch(reject);
     });
   });
 
@@ -711,7 +717,7 @@ describe('TransactionController', () => {
     const { transaction, status } = controller.state.transactions[0];
     expect(transaction.from).toBe(from);
     expect(transaction.to).toBe(to);
-    expect(status).toBe(TransactionStatus.failed);
+    expect(status).toBe(TransactionStatus.Failed);
     await expect(result).rejects.toThrow('foo');
   });
 
@@ -733,7 +739,7 @@ describe('TransactionController', () => {
       () => {
         const { transaction, status } = controller.state.transactions[0];
         expect(transaction.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
-        expect(status).toBe(TransactionStatus.submitted);
+        expect(status).toBe(TransactionStatus.Submitted);
       },
     );
   });
@@ -756,7 +762,7 @@ describe('TransactionController', () => {
       () => {
         const { transaction, status } = controller.state.transactions[0];
         expect(transaction.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
-        expect(status).toBe(TransactionStatus.submitted);
+        expect(status).toBe(TransactionStatus.Submitted);
       },
     );
   });
@@ -777,7 +783,7 @@ describe('TransactionController', () => {
     const { transaction, status } = controller.state.transactions[0];
     expect(transaction.from).toBe(from);
     expect(transaction.to).toBe(to);
-    expect(status).toBe(TransactionStatus.failed);
+    expect(status).toBe(TransactionStatus.Failed);
     await expect(result).rejects.toThrow('No sign method defined');
   });
 
@@ -800,46 +806,49 @@ describe('TransactionController', () => {
     const { transaction, status } = controller.state.transactions[0];
     expect(transaction.from).toBe(from);
     expect(transaction.to).toBe(to);
-    expect(status).toBe(TransactionStatus.failed);
+    expect(status).toBe(TransactionStatus.Failed);
     await expect(result).rejects.toThrow('No chainId defined');
   });
 
   it('should approve a transaction', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_NETWORK.state,
-          onNetworkStateChange: MOCK_NETWORK.subscribe,
-          getProvider: MOCK_NETWORK.getProvider,
-        },
-        {
-          sign: async (transaction: any) => transaction,
-        },
-      );
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      await controller.addTransaction({
-        from,
-        gas: '0x0',
-        gasPrice: '0x0',
-        to: from,
-        value: '0x0',
-      });
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      gas: '0x0',
+      gasPrice: '0x0',
+      to: from,
+      value: '0x0',
+    });
 
+    await new Promise((resolve, reject) => {
       controller.hub.once(
         `${controller.state.transactions[0].id}:finished`,
         () => {
           const { transaction, status } = controller.state.transactions[0];
           expect(transaction.from).toBe(from);
-          expect(status).toBe(TransactionStatus.submitted);
+          expect(status).toBe(TransactionStatus.Submitted);
           resolve('');
         },
       );
-      controller.approveTransaction(controller.state.transactions[0].id);
+
+      controller
+        .approveTransaction(controller.state.transactions[0].id)
+        .catch(reject);
     });
   });
 
   it('should query transaction statuses', async () => {
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
       const controller = new TransactionController(
         {
           getNetworkState: () => MOCK_NETWORK.state,
@@ -855,7 +864,7 @@ describe('TransactionController', () => {
         id: 'foo',
         networkID: '3',
         chainId: '3',
-        status: TransactionStatus.submitted,
+        status: TransactionStatus.Submitted,
         transactionHash: '1337',
       } as any);
       controller.state.transactions.push({} as any);
@@ -864,18 +873,18 @@ describe('TransactionController', () => {
         `${controller.state.transactions[0].id}:confirmed`,
         () => {
           expect(controller.state.transactions[0].status).toBe(
-            TransactionStatus.confirmed,
+            TransactionStatus.Confirmed,
           );
           resolve('');
         },
       );
-      controller.queryTransactionStatuses();
+      controller.queryTransactionStatuses().catch(reject);
     });
   });
 
   // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
   it('should query transaction statuses with networkID only when there is no chainId', async () => {
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
       const controller = new TransactionController(
         {
           getNetworkState: () => MOCK_NETWORK.state,
@@ -890,7 +899,7 @@ describe('TransactionController', () => {
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '3',
-        status: TransactionStatus.submitted,
+        status: TransactionStatus.Submitted,
         transactionHash: '1337',
       } as any);
       controller.state.transactions.push({} as any);
@@ -899,12 +908,12 @@ describe('TransactionController', () => {
         `${controller.state.transactions[0].id}:confirmed`,
         () => {
           expect(controller.state.transactions[0].status).toBe(
-            TransactionStatus.confirmed,
+            TransactionStatus.Confirmed,
           );
           resolve('');
         },
       );
-      controller.queryTransactionStatuses();
+      controller.queryTransactionStatuses().catch(reject);
     });
   });
 
@@ -923,12 +932,12 @@ describe('TransactionController', () => {
       from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
       networkID: '3',
-      status: TransactionStatus.submitted,
+      status: TransactionStatus.Submitted,
       transactionHash: '1338',
     } as any);
     await controller.queryTransactionStatuses();
     expect(controller.state.transactions[0].status).toBe(
-      TransactionStatus.submitted,
+      TransactionStatus.Submitted,
     );
   });
 
@@ -948,7 +957,7 @@ describe('TransactionController', () => {
       id: 'foo',
       networkID: '3',
       chainId: '3',
-      status: TransactionStatus.confirmed,
+      status: TransactionStatus.Confirmed,
       transactionHash: '1337',
       verifiedOnBlockchain: false,
       transaction: {
@@ -1012,8 +1021,8 @@ describe('TransactionController', () => {
     const ethTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
     ) || { id: '' };
-    expect(tokenTransaction?.id).toStrictEqual('token-transaction-id');
-    expect(ethTransaction?.id).toStrictEqual('eth-transaction-id');
+    expect(tokenTransaction?.id).toBe('token-transaction-id');
+    expect(ethTransaction?.id).toBe('eth-transaction-id');
   });
 
   it('should fetch all the transactions from an address, including incoming transactions, in mainnet from block', async () => {
@@ -1051,12 +1060,12 @@ describe('TransactionController', () => {
 
     const tokenTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
-    ) || { status: TransactionStatus.failed };
+    ) || { status: TransactionStatus.Failed };
     const ethTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
-    ) || { status: TransactionStatus.failed };
-    expect(tokenTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
-    expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
+    ) || { status: TransactionStatus.Failed };
+    expect(tokenTransaction?.status).toStrictEqual(TransactionStatus.Confirmed);
+    expect(ethTransaction?.status).toStrictEqual(TransactionStatus.Confirmed);
   });
 
   it('should fetch and updated all transactions with outdated gas data regarding the data provided by the remote source in mainnet', async () => {
@@ -1082,8 +1091,8 @@ describe('TransactionController', () => {
     const ethTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
     ) || { transaction: { gasUsed: '0x0' } };
-    expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-    expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+    expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+    expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
   });
 
   it('should fetch and updated all transactions with outdated status and gas data regarding the data provided by the remote source in mainnet', async () => {
@@ -1105,14 +1114,14 @@ describe('TransactionController', () => {
 
     const tokenTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
-    ) || { status: TransactionStatus.failed, transaction: { gasUsed: '0' } };
+    ) || { status: TransactionStatus.Failed, transaction: { gasUsed: '0' } };
     const ethTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
-    ) || { status: TransactionStatus.failed, transaction: { gasUsed: '0x0' } };
-    expect(tokenTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
-    expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
-    expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-    expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+    ) || { status: TransactionStatus.Failed, transaction: { gasUsed: '0x0' } };
+    expect(tokenTransaction?.status).toStrictEqual(TransactionStatus.Confirmed);
+    expect(ethTransaction?.status).toStrictEqual(TransactionStatus.Confirmed);
+    expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+    expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
   });
 
   it('should return', async () => {
@@ -1145,7 +1154,7 @@ describe('TransactionController', () => {
       name: 'Eth To Token Swap Input',
     });
 
-    expect(registry.registryMethod).toStrictEqual(
+    expect(registry.registryMethod).toBe(
       'ethToTokenSwapInput(uint256,uint256)',
     );
   });
@@ -1188,7 +1197,7 @@ describe('TransactionController', () => {
       to: from,
       value: '0x0',
     });
-    controller.stopTransaction(controller.state.transactions[0].id);
+    await controller.stopTransaction(controller.state.transactions[0].id);
     await expect(result).rejects.toThrow('User cancelled the transaction');
   });
 
@@ -1201,100 +1210,91 @@ describe('TransactionController', () => {
     const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     await controller.addTransaction({ from, to });
-    controller.stopTransaction('nonexistent');
+    await controller.stopTransaction('nonexistent');
     await expect(
       controller.stopTransaction(controller.state.transactions[0].id),
     ).rejects.toThrow('No sign method defined');
   });
 
   it('should speed up a transaction', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_NETWORK.state,
-          onNetworkStateChange: MOCK_NETWORK.subscribe,
-          getProvider: MOCK_NETWORK.getProvider,
-        },
-        {
-          sign: async (transaction: any) => transaction,
-        },
-      );
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      await controller.addTransaction({
-        from,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: from,
-        value: '0x0',
-      });
-      await controller.speedUpTransaction(controller.state.transactions[0].id);
-      expect(controller.state.transactions).toHaveLength(2);
-      expect(controller.state.transactions[1].transaction.gasPrice).toBe(
-        '0x5916a6d6',
-      );
-      resolve('');
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      gas: '0x0',
+      gasPrice: '0x50fd51da',
+      to: from,
+      value: '0x0',
     });
+    await controller.speedUpTransaction(controller.state.transactions[0].id);
+    expect(controller.state.transactions).toHaveLength(2);
+    expect(controller.state.transactions[1].transaction.gasPrice).toBe(
+      '0x5916a6d6',
+    );
   });
 
   it('should limit tx state to a length of 2', async () => {
-    await new Promise(async (resolve) => {
-      mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_NETWORK.state,
-          onNetworkStateChange: MOCK_NETWORK.subscribe,
-          getProvider: MOCK_NETWORK.getProvider,
-        },
-        {
-          interval: 5000,
-          sign: async (transaction: any) => transaction,
-          txHistoryLimit: 2,
-        },
-      );
-      const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
-      await controller.fetchAll(from);
-      await controller.addTransaction({
-        from,
-        nonce: '55555',
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: from,
-        value: '0x0',
-      });
-      expect(controller.state.transactions).toHaveLength(2);
-      expect(controller.state.transactions[0].transaction.gasPrice).toBe(
-        '0x4a817c800',
-      );
-      resolve('');
+    mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        interval: 5000,
+        sign: async (transaction: any) => transaction,
+        txHistoryLimit: 2,
+      },
+    );
+    const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+    await controller.fetchAll(from);
+    await controller.addTransaction({
+      from,
+      nonce: '55555',
+      gas: '0x0',
+      gasPrice: '0x50fd51da',
+      to: from,
+      value: '0x0',
     });
+    expect(controller.state.transactions).toHaveLength(2);
+    expect(controller.state.transactions[0].transaction.gasPrice).toBe(
+      '0x4a817c800',
+    );
   });
 
   it('should allow tx state to be greater than txHistorylimit due to speed up same nonce', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_NETWORK.state,
-          onNetworkStateChange: MOCK_NETWORK.subscribe,
-          getProvider: MOCK_NETWORK.getProvider,
-        },
-        {
-          interval: 5000,
-          sign: async (transaction: any) => transaction,
-          txHistoryLimit: 1,
-        },
-      );
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      await controller.addTransaction({
-        from,
-        nonce: '1111111',
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: from,
-        value: '0x0',
-      });
-      await controller.speedUpTransaction(controller.state.transactions[0].id);
-      expect(controller.state.transactions).toHaveLength(2);
-      resolve('');
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        interval: 5000,
+        sign: async (transaction: any) => transaction,
+        txHistoryLimit: 1,
+      },
+    );
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      nonce: '1111111',
+      gas: '0x0',
+      gasPrice: '0x50fd51da',
+      to: from,
+      value: '0x0',
     });
+    await controller.speedUpTransaction(controller.state.transactions[0].id);
+    expect(controller.state.transactions).toHaveLength(2);
   });
 });

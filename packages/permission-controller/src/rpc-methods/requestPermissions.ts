@@ -1,21 +1,22 @@
-import { ethErrors } from 'eth-rpc-errors';
+import { isPlainObject } from '@metamask/controller-utils';
 import type {
   JsonRpcEngineEndCallback,
   JsonRpcRequest,
   PendingJsonRpcResponse,
   PermittedHandlerExport,
 } from '@metamask/types';
-import { isPlainObject } from '@metamask/controller-utils';
-import { MethodNames } from '../utils';
+import { ethErrors } from 'eth-rpc-errors';
+
 import { invalidParams } from '../errors';
 import type { PermissionConstraint, RequestedPermissions } from '../Permission';
+import { MethodNames } from '../utils';
 
 export const requestPermissionsHandler: PermittedHandlerExport<
   RequestPermissionsHooks,
   [RequestedPermissions],
   PermissionConstraint[]
 > = {
-  methodNames: [MethodNames.requestPermissions],
+  methodNames: [MethodNames.RequestPermissions],
   implementation: requestPermissionsImplementation,
   hookNames: {
     requestPermissionsForOrigin: true,
@@ -36,13 +37,13 @@ export type RequestPermissionsHooks = {
 /**
  * Request Permissions implementation to be used in JsonRpcEngine middleware.
  *
- * @param req - The JsonRpcEngine request
- * @param res - The JsonRpcEngine result object
- * @param _next - JsonRpcEngine next() callback - unused
- * @param end - JsonRpcEngine end() callback
- * @param options - Method hooks passed to the method implementation
- * @param options.requestPermissionsForOrigin - The specific method hook needed for this method implementation
- * @returns A promise that resolves to nothing
+ * @param req - The JsonRpcEngine request.
+ * @param res - The JsonRpcEngine result object.
+ * @param _next - JsonRpcEngine next() callback - unused.
+ * @param end - JsonRpcEngine end() callback.
+ * @param options - Method hooks passed to the method implementation.
+ * @param options.requestPermissionsForOrigin - The specific method hook needed for this method implementation.
+ * @returns A promise that resolves to nothing.
  */
 async function requestPermissionsImplementation(
   req: JsonRpcRequest<[RequestedPermissions]>,

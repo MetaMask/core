@@ -6,10 +6,10 @@ describe('utils', () => {
       '879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
     );
     const secondNormalized = util.normalizeMessageData('somedata');
-    expect(firstNormalized).toStrictEqual(
+    expect(firstNormalized).toBe(
       '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
     );
-    expect(secondNormalized).toStrictEqual('0x736f6d6564617461');
+    expect(secondNormalized).toBe('0x736f6d6564617461');
   });
 
   describe('validateSignMessageData', () => {

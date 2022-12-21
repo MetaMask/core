@@ -1,4 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+
 import {
   RateLimitControllerActions,
   RateLimitStateChange,
@@ -31,7 +32,7 @@ function getUnrestrictedMessenger() {
 /**
  * Constructs a restricted controller messenger.
  *
- * @param controllerMessenger - An optional unrestricted messenger
+ * @param controllerMessenger - An optional unrestricted messenger.
  * @returns A restricted controller messenger.
  */
 function getRestrictedMessenger(
@@ -65,6 +66,7 @@ describe('RateLimitController', () => {
     const messenger = getRestrictedMessenger(unrestricted);
 
     // Registers action handlers
+    // eslint-disable-next-line no-new
     new RateLimitController({
       implementations,
       messenger,

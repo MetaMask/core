@@ -1,6 +1,4 @@
-import { abiERC1155 } from '@metamask/metamask-eth-abis';
 import { Contract } from '@ethersproject/contracts';
-import { BN } from 'ethereumjs-util';
 import { Web3Provider } from '@ethersproject/providers';
 import {
   ERC1155,
@@ -9,13 +7,16 @@ import {
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
   timeoutFetch,
 } from '@metamask/controller-utils';
+import { abiERC1155 } from '@metamask/metamask-eth-abis';
+import { BN } from 'ethereumjs-util';
+
 import { getFormattedIpfsUrl, ethersBigNumberToBN } from '../../../assetsUtil';
 
 export class ERC1155Standard {
-  private provider: Web3Provider;
+  readonly #provider: Web3Provider;
 
   constructor(provider: Web3Provider) {
-    this.provider = provider;
+    this.#provider = provider;
   }
 
   /**
@@ -27,7 +28,7 @@ export class ERC1155Standard {
   contractSupportsURIMetadataInterface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(
+    return this.#contractSupportsInterface(
       address,
       ERC1155_METADATA_URI_INTERFACE_ID,
     );
@@ -42,7 +43,7 @@ export class ERC1155Standard {
   contractSupportsTokenReceiverInterface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(
+    return this.#contractSupportsInterface(
       address,
       ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
     );
@@ -57,7 +58,7 @@ export class ERC1155Standard {
   contractSupportsBase1155Interface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(address, ERC1155_INTERFACE_ID);
+    return this.#contractSupportsInterface(address, ERC1155_INTERFACE_ID);
   };
 
   /**
@@ -68,7 +69,7 @@ export class ERC1155Standard {
    * @returns Promise resolving to the 'tokenURI'.
    */
   getTokenURI = async (address: string, tokenId: string): Promise<string> => {
-    const contract = new Contract(address, abiERC1155, this.provider);
+    const contract = new Contract(address, abiERC1155, this.#provider);
     return contract.uri(tokenId);
   };
 
@@ -85,7 +86,7 @@ export class ERC1155Standard {
     address: string,
     tokenId: string,
   ): Promise<BN> => {
-    const contract = new Contract(contractAddress, abiERC1155, this.provider);
+    const contract = new Contract(contractAddress, abiERC1155, this.#provider);
     const balance = await contract.balanceOf(address, tokenId);
     return ethersBigNumberToBN(balance);
   };
@@ -109,7 +110,7 @@ export class ERC1155Standard {
     id: string,
     value: string,
   ): Promise<void> => {
-    const contract = new Contract(operator, abiERC1155, this.provider);
+    const contract = new Contract(operator, abiERC1155, this.#provider);
     return new Promise<void>((resolve, reject) => {
       contract.transferSingle(
         operator,
@@ -136,11 +137,11 @@ export class ERC1155Standard {
    * @param interfaceId - Interface identifier.
    * @returns Promise resolving to whether the contract implements `interfaceID`.
    */
-  private contractSupportsInterface = async (
+  readonly #contractSupportsInterface = async (
     address: string,
     interfaceId: string,
   ): Promise<boolean> => {
-    const contract = new Contract(address, abiERC1155, this.provider);
+    const contract = new Contract(address, abiERC1155, this.#provider);
     return contract.supportsInterface(interfaceId);
   };
 
@@ -149,7 +150,7 @@ export class ERC1155Standard {
    *
    * @param address - Asset contract address.
    * @param ipfsGateway - The user's preferred IPFS gateway.
-   * @param tokenId - tokenId of a given token in the contract.
+   * @param tokenId - `tokenId` of a given token in the contract.
    * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
    */
   getDetails = async (

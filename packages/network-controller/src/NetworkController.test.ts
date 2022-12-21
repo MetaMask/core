@@ -1,7 +1,8 @@
-import * as sinon from 'sinon';
-import Web3ProviderEngine from 'web3-provider-engine';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
+import * as sinon from 'sinon';
+import Web3ProviderEngine from 'web3-provider-engine';
+
 import {
   NetworkController,
   NetworkControllerMessenger,
@@ -76,9 +77,9 @@ describe('NetworkController', () => {
 
   (
     ['kovan', 'rinkeby', 'ropsten', 'mainnet', 'localhost'] as NetworkType[]
-  ).forEach((n) => {
-    it(`should create a provider instance for ${n} infura network`, () => {
-      const networkController = setupController(n, messenger);
+  ).forEach((networkType) => {
+    it(`should create a provider instance for ${networkType} infura network`, () => {
+      const networkController = setupController(networkType, messenger);
       expect(networkController.provider instanceof Web3ProviderEngine).toBe(
         true,
       );

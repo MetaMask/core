@@ -1,16 +1,17 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
+import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
-import { PreferencesController } from '@metamask/preferences-controller';
+import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { TokensController } from './TokensController';
-import { Token } from './TokenRatesController';
+import { PreferencesController } from '@metamask/preferences-controller';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
 import { TOKEN_END_POINT_API } from './token-service';
+import { Token } from './TokenRatesController';
+import { TokensController } from './TokensController';
 
 jest.mock('uuid', () => {
   return {
@@ -55,7 +56,7 @@ describe('TokensController', () => {
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', (state, patch) => {
           const touchesProviderConfig = patch.find(
-            (p) => p.path[0] === 'providerConfig',
+            (_patch) => _patch.path[0] === 'providerConfig',
           );
           if (touchesProviderConfig) {
             listener(state);
@@ -950,6 +951,7 @@ describe('TokensController', () => {
         'Invalid decimals "-1": must be 0 <= 36.',
       );
 
+      // eslint-disable-next-line require-atomic-updates
       asset.decimals = 37;
       const result2 = tokensController.watchAsset(asset, type);
       await expect(result2).rejects.toThrow(
@@ -1214,7 +1216,7 @@ describe('TokensController', () => {
         chainId: NetworksChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
-      await tokensController.ignoreTokens(['0x01']);
+      tokensController.ignoreTokens(['0x01']);
       expect(
         tokensController.state.allTokens[NetworksChainId.mainnet][
           selectedAddress
@@ -1228,7 +1230,7 @@ describe('TokensController', () => {
         chainId: NetworksChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
-      await tokensController.ignoreTokens([tokenAddress]);
+      tokensController.ignoreTokens([tokenAddress]);
       await tokensController.addTokens(dummyTokens);
 
       expect(

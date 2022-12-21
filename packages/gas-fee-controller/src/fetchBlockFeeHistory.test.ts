@@ -1,6 +1,7 @@
+import { query, fromHex, toHex } from '@metamask/controller-utils';
 import { BN } from 'ethereumjs-util';
 import { when } from 'jest-when';
-import { query, fromHex, toHex } from '@metamask/controller-utils';
+
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 
 jest.mock('@metamask/controller-utils', () => {
@@ -19,13 +20,13 @@ const mockedQuery = query as jest.Mock<
 /**
  * Calls the given function the given number of times, collecting the results from each call.
  *
- * @param n - The number of times you want to call the function.
+ * @param numberOfTimes - The number of times you want to call the function.
  * @param fn - The function to call.
  * @returns An array of values gleaned from the results of each call to the function.
  */
-function times<T>(n: number, fn: (n: number) => T): T[] {
+function times<T>(numberOfTimes: number, fn: (index: number) => T): T[] {
   const values = [];
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < numberOfTimes; i++) {
     values.push(fn(i));
   }
   return values;

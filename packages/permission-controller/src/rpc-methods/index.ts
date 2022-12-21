@@ -1,8 +1,8 @@
+import { getPermissionsHandler, GetPermissionsHooks } from './getPermissions';
 import {
   requestPermissionsHandler,
   RequestPermissionsHooks,
 } from './requestPermissions';
-import { getPermissionsHandler, GetPermissionsHooks } from './getPermissions';
 
 export type PermittedRpcMethodHooks = RequestPermissionsHooks &
   GetPermissionsHooks;

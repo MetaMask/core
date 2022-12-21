@@ -1,5 +1,5 @@
-import { BN } from 'ethereumjs-util';
 import { query, fromHex, toHex } from '@metamask/controller-utils';
+import { BN } from 'ethereumjs-util';
 
 type EthQuery = any;
 
@@ -99,16 +99,16 @@ export type ExtractPercentileFrom<T> = T extends FeeHistoryBlock<infer P>[]
 const MAX_NUMBER_OF_BLOCKS_PER_ETH_FEE_HISTORY_CALL = 1024;
 
 /**
- * Uses `eth_feeHistory` (an EIP-1559 feature) to obtain information about gas fees from a range of
- * blocks that have occurred recently on a network.
+ * Uses `eth_feeHistory` (an EIP-1559 feature) to obtain information about gas
+ * fees from a range of blocks that have occurred recently on a network.
  *
  * To learn more, see these resources:
  *
- * - <https://infura.io/docs/ethereum#operation/eth_feeHistory>
- * - <https://github.com/zsfelfoldi/feehistory/blob/main/docs/feeHistory.md>
- * - <https://github.com/ethereum/go-ethereum/blob/57a3fab8a75eeb9c2f4fab770b73b51b9fe672c5/eth/gasprice/feehistory.go#L180>
- * - <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md>
- * - <https://gas-api.metaswap.codefi.network/testFeeHistory>
+ * - <https://infura.io/docs/ethereum#operation/eth_feeHistory>.
+ * - <https://github.com/zsfelfoldi/feehistory/blob/main/docs/feeHistory.md>.
+ * - <https://github.com/ethereum/go-ethereum/blob/57a3fab8a75eeb9c2f4fab770b73b51b9fe672c5/eth/gasprice/feehistory.go#L180>.
+ * - <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md>.
+ * - <https://gas-api.metaswap.codefi.network/testFeeHistory>.
  *
  * @param args - The arguments to this function.
  * @param args.ethQuery - An EthQuery instance that wraps a provider for the network in question.
@@ -160,28 +160,30 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
   );
 
   const blockChunks = await Promise.all(
-    requestChunkSpecifiers.map(({ numberOfBlocks, endBlockNumber }, i) => {
-      return i === requestChunkSpecifiers.length - 1
-        ? makeRequestForChunk({
-            ethQuery,
-            numberOfBlocks,
-            endBlockNumber,
-            percentiles,
-            includeNextBlock,
-          })
-        : makeRequestForChunk({
-            ethQuery,
-            numberOfBlocks,
-            endBlockNumber,
-            percentiles,
-            includeNextBlock: false,
-          });
-    }),
+    requestChunkSpecifiers.map(
+      async ({ numberOfBlocks, endBlockNumber }, i) => {
+        return i === requestChunkSpecifiers.length - 1
+          ? makeRequestForChunk({
+              ethQuery,
+              numberOfBlocks,
+              endBlockNumber,
+              percentiles,
+              includeNextBlock,
+            })
+          : makeRequestForChunk({
+              ethQuery,
+              numberOfBlocks,
+              endBlockNumber,
+              percentiles,
+              includeNextBlock: false,
+            });
+      },
+    ),
   );
 
-  return blockChunks.reduce(
+  return blockChunks.reduce<FeeHistoryBlock<Percentile>[]>(
     (array, blocks) => [...array, ...blocks],
-    [] as FeeHistoryBlock<Percentile>[],
+    [],
   );
 }
 
@@ -214,11 +216,13 @@ function buildExistingFeeHistoryBlock<Percentile extends number>({
 }): ExistingFeeHistoryBlock<Percentile> {
   const gasUsedRatio = gasUsedRatios[blockIndex];
   const priorityFeesForEachPercentile = priorityFeePercentileGroups[blockIndex];
-  const priorityFeesByPercentile = percentiles.reduce(
+  const priorityFeesByPercentile = percentiles.reduce<Record<Percentile, BN>>(
     (obj, percentile, percentileIndex) => {
       const priorityFee = priorityFeesForEachPercentile[percentileIndex];
       return { ...obj, [percentile]: fromHex(priorityFee) };
     },
+    // Without this, the return type of `reduce` is inferred improperly.
+    // eslint-disable-next-line @typescript-eslint/prefer-reduce-type-parameter
     {} as Record<Percentile, BN>,
   );
 
@@ -256,7 +260,7 @@ function buildNextFeeHistoryBlock({
 /**
  * Uses eth_feeHistory to request historical data about a group of blocks (max size 1024).
  *
- * @param args - The arguments
+ * @param args - The arguments.
  * @param args.ethQuery - An EthQuery instance.
  * @param args.numberOfBlocks - The number of blocks in the chunk. Must be at most 1024, as this is
  * the maximum that `eth_feeHistory` can return in one call.
@@ -336,18 +340,20 @@ async function makeRequestForChunk<Percentile extends number>({
  *
  * @param endBlockNumber - The final block in the complete desired block range after all
  * `eth_feeHistory` requests have been made.
- * @param totalNumberOfBlocks - The total number of desired blocks after all `eth_feeHistory`
+ * @param givenTotalNumberOfBlocks - The total number of desired blocks after all `eth_feeHistory`
  * requests have been made.
  * @returns A set of arguments that can be used to make requests to `eth_feeHistory` in order to
  * retrieve all of the requested blocks, sorted from oldest block to newest block.
  */
 function determineRequestChunkSpecifiers(
   endBlockNumber: BN,
-  totalNumberOfBlocks: number,
+  givenTotalNumberOfBlocks: number,
 ): RequestChunkSpecifier[] {
-  if (endBlockNumber.lt(new BN(totalNumberOfBlocks))) {
-    totalNumberOfBlocks = endBlockNumber.toNumber();
-  }
+  const totalNumberOfBlocks = endBlockNumber.lt(
+    new BN(givenTotalNumberOfBlocks),
+  )
+    ? endBlockNumber.toNumber()
+    : givenTotalNumberOfBlocks;
 
   const specifiers = [];
   for (

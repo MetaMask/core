@@ -1,7 +1,8 @@
-import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
-import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
-import { validate } from 'jsonschema';
 import { isValidHexAddress } from '@metamask/controller-utils';
+import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
+import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
+import { validate } from 'jsonschema';
+
 import { MessageParams } from './MessageManager';
 import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
@@ -21,7 +22,7 @@ export function normalizeMessageData(data: string) {
     if (stripped.match(hexRe)) {
       return addHexPrefix(stripped);
     }
-  } catch (e) {
+  } catch (error) {
     /* istanbul ignore next */
   }
   return bufferToHex(Buffer.from(data, 'utf8'));
@@ -74,7 +75,7 @@ export function validateTypedSignMessageDataV1(
   try {
     // typedSignatureHash will throw if the data is invalid.
     typedSignatureHash(messageData.data as any);
-  } catch (e) {
+  } catch (error) {
     throw new Error(`Expected EIP712 typed data.`);
   }
 }
@@ -106,7 +107,7 @@ export function validateTypedSignMessageDataV3(
   let data;
   try {
     data = JSON.parse(messageData.data);
-  } catch (e) {
+  } catch (error) {
     throw new Error('Data must be passed as a valid JSON string.');
   }
   const validation = validate(data, TYPED_MESSAGE_SCHEMA);

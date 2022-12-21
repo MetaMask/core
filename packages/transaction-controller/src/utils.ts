@@ -1,10 +1,11 @@
-import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import {
   MAINNET,
   convertHexToDecimal,
   handleFetch,
   isValidHexAddress,
 } from '@metamask/controller-utils';
+import { addHexPrefix, isHexString } from 'ethereumjs-util';
+
 import {
   Transaction,
   FetchAllOptions,
@@ -66,7 +67,7 @@ export function normalizeTransaction(transaction: Transaction) {
   const normalizedTransaction: Transaction = { from: '' };
   let key: keyof Transaction;
   for (key in NORMALIZERS) {
-    if (transaction[key as keyof Transaction]) {
+    if (transaction[key]) {
       normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
     }
   }
@@ -154,21 +155,21 @@ export const isEIP1559Transaction = (transaction: Transaction): boolean => {
  * @param networkType - Network type of desired network.
  * @param address - Address to get the transactions from.
  * @param txHistoryLimit - The maximum number of transactions to fetch.
- * @param opt - Object that can contain fromBlock and Etherscan service API key.
+ * @param options - Object that can contain fromBlock and Etherscan service API key.
  * @returns Responses for both ETH and ERC20 token transactions.
  */
 export async function handleTransactionFetch(
   networkType: string,
   address: string,
   txHistoryLimit: number,
-  opt?: FetchAllOptions,
+  options?: FetchAllOptions,
 ): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
   // transactions
   const urlParams = {
     module: 'account',
     address,
-    startBlock: opt?.fromBlock,
-    apikey: opt?.etherscanApiKey,
+    startBlock: options?.fromBlock,
+    apikey: options?.etherscanApiKey,
     offset: txHistoryLimit.toString(),
     order: 'desc',
   };

@@ -1,10 +1,8 @@
+import type { Json } from '@metamask/controller-utils';
 import { enablePatches, produceWithPatches, applyPatches } from 'immer';
-
 // Imported separately because only the type is used
 // eslint-disable-next-line no-duplicate-imports
 import type { Draft, Patch } from 'immer';
-
-import type { Json } from '@metamask/controller-utils';
 
 import type {
   RestrictedControllerMessenger,
@@ -69,11 +67,11 @@ export interface StatePropertyMetadata<T extends Json> {
 export class BaseController<
   N extends string,
   S extends Record<string, Json>,
-  messenger extends RestrictedControllerMessenger<N, any, any, string, string>,
+  Messenger extends RestrictedControllerMessenger<N, any, any, string, string>,
 > {
-  private internalState: S;
+  #internalState: S;
 
-  protected messagingSystem: messenger;
+  protected messagingSystem: Messenger;
 
   /**
    * The name of the controller.
@@ -107,14 +105,14 @@ export class BaseController<
     name,
     state,
   }: {
-    messenger: messenger;
+    messenger: Messenger;
     metadata: StateMetadata<S>;
     name: N;
     state: S;
   }) {
     this.messagingSystem = messenger;
     this.name = name;
-    this.internalState = state;
+    this.#internalState = state;
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(
@@ -129,7 +127,7 @@ export class BaseController<
    * @returns The current state.
    */
   get state() {
-    return this.internalState;
+    return this.#internalState;
   }
 
   set state(_) {
@@ -159,11 +157,11 @@ export class BaseController<
     const [nextState, patches, inversePatches] = (
       produceWithPatches as unknown as (
         state: S,
-        cb: typeof callback,
+        _callback: typeof callback,
       ) => [S, Patch[], Patch[]]
-    )(this.internalState, callback);
+    )(this.#internalState, callback);
 
-    this.internalState = nextState;
+    this.#internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange` as Namespaced<N, any>,
       nextState,
@@ -181,8 +179,8 @@ export class BaseController<
    * or undo changes.
    */
   protected applyPatches(patches: Patch[]) {
-    const nextState = applyPatches(this.internalState, patches);
-    this.internalState = nextState;
+    const nextState = applyPatches(this.#internalState, patches);
+    this.#internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange` as Namespaced<N, any>,
       nextState,
@@ -251,16 +249,17 @@ function deriveStateFromMetadata<S extends Record<string, Json>>(
   metadata: StateMetadata<S>,
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
-  return Object.keys(state).reduce((persistedState, key) => {
-    const propertyMetadata = metadata[key as keyof S][metadataProperty];
-    const stateProperty = state[key];
-    if (typeof propertyMetadata === 'function') {
-      persistedState[key as string] = propertyMetadata(
-        stateProperty as S[keyof S],
-      );
-    } else if (propertyMetadata) {
-      persistedState[key as string] = stateProperty;
-    }
-    return persistedState;
-  }, {} as Record<string, Json>);
+  return Object.keys(state).reduce<Record<string, Json>>(
+    (persistedState, key) => {
+      const propertyMetadata = metadata[key as keyof S][metadataProperty];
+      const stateProperty = state[key];
+      if (typeof propertyMetadata === 'function') {
+        persistedState[key] = propertyMetadata(stateProperty as S[keyof S]);
+      } else if (propertyMetadata) {
+        persistedState[key] = stateProperty;
+      }
+      return persistedState;
+    },
+    {},
+  );
 }

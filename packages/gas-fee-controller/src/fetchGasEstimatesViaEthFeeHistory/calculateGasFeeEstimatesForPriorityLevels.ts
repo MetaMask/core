@@ -1,8 +1,9 @@
+import { GWEI } from '@metamask/controller-utils';
 import { BN } from 'ethereumjs-util';
 import { fromWei } from 'ethjs-unit';
-import { GWEI } from '@metamask/controller-utils';
-import { Eip1559GasFee, GasFeeEstimates } from '../GasFeeController';
+
 import { FeeHistoryBlock } from '../fetchBlockFeeHistory';
+import { Eip1559GasFee, GasFeeEstimates } from '../GasFeeController';
 import medianOf from './medianOf';
 
 export type PriorityLevel = typeof PRIORITY_LEVELS[number];
@@ -69,7 +70,7 @@ function calculateEstimatesForPriorityLevel(
         ? block.priorityFeesByPercentile[settings.percentile]
         : null;
     })
-    .filter(BN.isBN);
+    .filter(BN.isBN.bind(BN));
   const medianPriorityFee = medianOf(priorityFees);
   const adjustedPriorityFee = medianPriorityFee
     .mul(settings.priorityFeePercentageMultiplier)

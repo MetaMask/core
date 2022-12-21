@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "noEmit": true
+    "noEmit": true,
+    "strictNullChecks": true
   },
   "references": [
     {
@@ -63,5 +64,5 @@
     }
   ],
   "files": [],
-  "include": []
+  "include": ["tests", "scripts"]
 }

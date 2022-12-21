@@ -1,11 +1,5 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import HttpProvider from 'ethjs-provider-http';
-import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
+import { Network } from '@ethersproject/providers';
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
   IPFS_DEFAULT_GATEWAY_URL,
@@ -14,11 +8,18 @@ import {
   ERC721,
   NetworksChainId,
 } from '@metamask/controller-utils';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { Network } from '@ethersproject/providers';
+import {
+  NetworkController,
+  NetworkControllerMessenger,
+} from '@metamask/network-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
+import HttpProvider from 'ethjs-provider-http';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
 import { AssetsContractController } from './AssetsContractController';
-import { NftController } from './NftController';
 import { getFormattedIpfsUrl } from './assetsUtil';
+import { NftController } from './NftController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -50,7 +51,7 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
 jest.mock('@ethersproject/providers', () => {
   const providers = jest.requireActual('@ethersproject/providers');
   const MockWeb3Provider = class extends providers.Web3Provider {
-    detectNetwork(): Promise<Network> {
+    async detectNetwork(): Promise<Network> {
       return Promise.resolve({
         name: 'mainnet',
         chainId: 1,

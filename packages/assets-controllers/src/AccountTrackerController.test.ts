@@ -1,10 +1,11 @@
-import * as sinon from 'sinon';
-import HttpProvider from 'ethjs-provider-http';
+import { query } from '@metamask/controller-utils';
 import {
   ContactEntry,
   PreferencesController,
 } from '@metamask/preferences-controller';
-import { query } from '@metamask/controller-utils';
+import HttpProvider from 'ethjs-provider-http';
+import * as sinon from 'sinon';
+
 import { AccountTrackerController } from './AccountTrackerController';
 
 jest.mock('@metamask/controller-utils', () => {
@@ -79,7 +80,7 @@ describe('AccountTrackerController', () => {
     expect(result[address].balance).toBe('0x10');
   });
 
-  it('should sync addresses', () => {
+  it('should sync addresses', async () => {
     const controller = new AccountTrackerController(
       {
         onPreferencesStateChange: sinon.stub(),
@@ -95,7 +96,7 @@ describe('AccountTrackerController', () => {
         },
       },
     );
-    controller.refresh();
+    await controller.refresh();
     expect(controller.state.accounts).toStrictEqual({
       baz: { balance: '0x0' },
     });

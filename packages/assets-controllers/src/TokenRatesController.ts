@@ -10,9 +10,10 @@ import {
   FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
+
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
-import type { TokensState } from './TokensController';
 import type { CurrencyRateState } from './CurrencyRateController';
+import type { TokensState } from './TokensController';
 
 /**
  * @type CoinGeckoResponse
@@ -130,7 +131,7 @@ function findChainSlug(
       ({ chain_identifier }) =>
         chain_identifier !== null && String(chain_identifier) === chainId,
     ) ?? null;
-  return chain?.id || null;
+  return chain?.id ?? null;
 }
 
 /**
@@ -141,16 +142,16 @@ export class TokenRatesController extends BaseController<
   TokenRatesConfig,
   TokenRatesState
 > {
-  private handle?: ReturnType<typeof setTimeout>;
+  #handle?: ReturnType<typeof setTimeout>;
 
-  private tokenList: Token[] = [];
+  #tokenList: Token[] = [];
 
-  private supportedChains: SupportedChainsCache = {
+  #supportedChains: SupportedChainsCache = {
     timestamp: 0,
     data: null,
   };
 
-  private supportedVsCurrencies: SupportedVsCurrenciesCache = {
+  #supportedVsCurrencies: SupportedVsCurrenciesCache = {
     timestamp: 0,
     data: [],
   };
@@ -220,7 +221,7 @@ export class TokenRatesController extends BaseController<
       this.update({ contractExchangeRates: {} });
       this.configure({ chainId });
     });
-    this.poll();
+    this.poll().catch(console.error);
   }
 
   /**
@@ -230,10 +231,10 @@ export class TokenRatesController extends BaseController<
    */
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.updateExchangeRates());
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
+    this.#handle && clearTimeout(this.#handle);
+    await safelyExecute(async () => this.updateExchangeRates());
+    this.#handle = setTimeout(() => {
+      this.poll(this.config.interval).catch(console.error);
     }, this.config.interval);
   }
 
@@ -245,7 +246,7 @@ export class TokenRatesController extends BaseController<
    * @param _chainId - The current chain ID.
    */
   set chainId(_chainId: string) {
-    !this.disabled && safelyExecute(() => this.updateExchangeRates());
+    !this.disabled && safelyExecute(async () => this.updateExchangeRates());
   }
 
   get chainId() {
@@ -260,8 +261,8 @@ export class TokenRatesController extends BaseController<
    * @param tokens - List of tokens to track exchange rates for.
    */
   set tokens(tokens: Token[]) {
-    this.tokenList = tokens;
-    !this.disabled && safelyExecute(() => this.updateExchangeRates());
+    this.#tokenList = tokens;
+    !this.disabled && safelyExecute(async () => this.updateExchangeRates());
   }
 
   get tokens() {
@@ -279,7 +280,7 @@ export class TokenRatesController extends BaseController<
     chainSlug: string,
     vsCurrency: string,
   ): Promise<CoinGeckoResponse> {
-    const tokenPairs = this.tokenList.map((token) => token.address).join(',');
+    const tokenPairs = this.#tokenList.map((token) => token.address).join(',');
     const query = `contract_addresses=${tokenPairs}&vs_currencies=${vsCurrency.toLowerCase()}`;
     return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
   }
@@ -291,9 +292,9 @@ export class TokenRatesController extends BaseController<
    * @param nativeCurrency - The native currency of the currently active network.
    * @returns A boolean indicating whether it's a supported vsCurrency.
    */
-  private async checkIsSupportedVsCurrency(nativeCurrency: string) {
+  async #checkIsSupportedVsCurrency(nativeCurrency: string) {
     const { threshold } = this.config;
-    const { timestamp, data } = this.supportedVsCurrencies;
+    const { timestamp, data } = this.#supportedVsCurrencies;
 
     const now = Date.now();
 
@@ -301,7 +302,7 @@ export class TokenRatesController extends BaseController<
       const currencies = await handleFetch(
         CoinGeckoApi.getSupportedVsCurrencies(),
       );
-      this.supportedVsCurrencies = {
+      this.#supportedVsCurrencies = {
         data: currencies,
         timestamp: Date.now(),
       };
@@ -319,13 +320,13 @@ export class TokenRatesController extends BaseController<
    */
   async getChainSlug(): Promise<string | null> {
     const { threshold, chainId } = this.config;
-    const { data, timestamp } = this.supportedChains;
+    const { data, timestamp } = this.#supportedChains;
 
     const now = Date.now();
 
     if (now - timestamp > threshold) {
       const platforms = await handleFetch(CoinGeckoApi.getPlatformsURL());
-      this.supportedChains = {
+      this.#supportedChains = {
         data: platforms,
         timestamp: Date.now(),
       };
@@ -339,23 +340,23 @@ export class TokenRatesController extends BaseController<
    * Updates exchange rates for all tokens.
    */
   async updateExchangeRates() {
-    if (this.tokenList.length === 0 || this.disabled) {
+    if (this.#tokenList.length === 0 || this.disabled) {
       return;
     }
     const slug = await this.getChainSlug();
 
     let newContractExchangeRates: ContractExchangeRates = {};
-    if (!slug) {
-      this.tokenList.forEach((token) => {
-        const address = toChecksumHexAddress(token.address);
-        newContractExchangeRates[address] = undefined;
-      });
-    } else {
+    if (slug) {
       const { nativeCurrency } = this.config;
       newContractExchangeRates = await this.fetchAndMapExchangeRates(
         nativeCurrency,
         slug,
       );
+    } else {
+      this.#tokenList.forEach((token) => {
+        const address = toChecksumHexAddress(token.address);
+        newContractExchangeRates[address] = undefined;
+      });
     }
     this.update({ contractExchangeRates: newContractExchangeRates });
   }
@@ -379,14 +380,14 @@ export class TokenRatesController extends BaseController<
     const contractExchangeRates: ContractExchangeRates = {};
 
     // check if native currency is supported as a vs_currency by the API
-    const nativeCurrencySupported = await this.checkIsSupportedVsCurrency(
+    const nativeCurrencySupported = await this.#checkIsSupportedVsCurrency(
       nativeCurrency,
     );
 
     if (nativeCurrencySupported) {
       // If it is we can do a simple fetch against the CoinGecko API
       const prices = await this.fetchExchangeRate(slug, nativeCurrency);
-      this.tokenList.forEach((token) => {
+      this.#tokenList.forEach((token) => {
         const price = prices[token.address.toLowerCase()];
         contractExchangeRates[toChecksumHexAddress(token.address)] = price
           ? price[nativeCurrency.toLowerCase()]

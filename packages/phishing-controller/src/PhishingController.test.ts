@@ -1,7 +1,8 @@
 import { strict as assert } from 'assert';
-import * as sinon from 'sinon';
-import nock from 'nock';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
 import {
   METAMASK_CONFIG_FILE,
   PHISHFORT_HOTLIST_FILE,
@@ -64,6 +65,7 @@ describe('PhishingController', () => {
       .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
+    // eslint-disable-next-line no-new
     new PhishingController({});
 
     expect(nockScope.isDone()).toBe(false);
@@ -211,7 +213,7 @@ describe('PhishingController', () => {
       const clock = sinon.useFakeTimers();
       const controller = new PhishingController({ refreshInterval: 10 });
       await controller.updatePhishingLists();
-      await clock.tick(5);
+      clock.tick(5);
 
       expect(controller.isOutOfDate()).toBe(false);
     });

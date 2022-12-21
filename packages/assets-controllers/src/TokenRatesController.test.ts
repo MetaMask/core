@@ -1,11 +1,12 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import { PreferencesController } from '@metamask/preferences-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
 import { TokenRatesController } from './TokenRatesController';
 import { TokensController } from './TokensController';
 
@@ -155,6 +156,8 @@ describe('TokenRatesController', () => {
     const pollSpy = jest.spyOn(TokenRatesController.prototype, 'poll');
     const interval = 100;
     const times = 5;
+
+    // eslint-disable-next-line no-new
     new TokenRatesController(
       {
         onTokensStateChange: jest.fn(),
@@ -205,7 +208,7 @@ describe('TokenRatesController', () => {
     );
     await new Promise<void>((resolve) => {
       setTimeout(() => {
-        controller.poll(1338);
+        controller.poll(1338).catch(console.error);
         expect(mock.called).toBe(true);
         resolve();
       }, 100);
@@ -213,6 +216,7 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
+    // eslint-disable-next-line no-new
     new NetworkController({ messenger });
     const preferences = new PreferencesController();
     const tokensController = new TokensController({
@@ -243,7 +247,7 @@ describe('TokenRatesController', () => {
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
       ADDRESS,
     );
-    expect(controller.state.contractExchangeRates[ADDRESS]).toStrictEqual(0);
+    expect(controller.state.contractExchangeRates[ADDRESS]).toBe(0);
   });
 
   it('should handle balance not found in API', async () => {
@@ -291,7 +295,7 @@ describe('TokenRatesController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
     // FIXME: This is now being called twice
-    expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
+    expect(updateExchangeRatesStub.callCount).toBe(2);
   });
 
   it('should update exchange rates when native currency changes', async () => {
@@ -317,7 +321,7 @@ describe('TokenRatesController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     currencyRateStateChangeListener!({ nativeCurrency: 'dai' });
     // FIXME: This is now being called twice
-    expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
+    expect(updateExchangeRatesStub.callCount).toBe(2);
   });
 
   it('should update exchange rates when native currency is not supported by coingecko', async () => {
@@ -361,7 +365,7 @@ describe('TokenRatesController', () => {
     await controller.configure({ chainId: '137', nativeCurrency: 'MATIC' });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       tokens: [
         {
           address: '0x02',
@@ -424,7 +428,7 @@ describe('TokenRatesController', () => {
     await controller.configure({ chainId: '1', nativeCurrency: 'ETH' });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       tokens: [
         {
           address: '0x02',
@@ -452,12 +456,12 @@ describe('TokenRatesController', () => {
     });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkChangeListener!({
+    networkChangeListener!({
       providerConfig: { chainId: '4' },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       tokens: [],
       detectedTokens: [],
     });
@@ -496,7 +500,7 @@ describe('TokenRatesController', () => {
     expect(controller.state.contractExchangeRates).toStrictEqual({});
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       detectedTokens: [
         {
           address: '0x02',

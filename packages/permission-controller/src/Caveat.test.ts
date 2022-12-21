@@ -1,5 +1,5 @@
-import * as errors from './errors';
 import { decorateWithCaveats, PermissionConstraint, PermissionType } from '.';
+import * as errors from './errors';
 
 describe('decorateWithCaveats', () => {
   it('decorates a method with caveat', async () => {

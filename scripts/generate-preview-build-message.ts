@@ -1,8 +1,8 @@
 #!yarn ts-node
 
+import execa from 'execa';
 import fs from 'fs';
 import path from 'path';
-import execa from 'execa';
 
 /**
  * Write a preview build message to the path "preview-build-message.txt".

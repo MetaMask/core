@@ -8,14 +8,13 @@ import {
 } from 'json-rpc-engine';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { JsonRpcEngine } from 'json-rpc-engine';
-import { internalError } from './errors';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { PermissionController } from './PermissionController';
+
 import {
   GenericPermissionController,
   PermissionSubjectMetadata,
   RestrictedMethodParameters,
 } from '.';
+import { internalError } from './errors';
 
 type PermissionMiddlewareFactoryOptions = {
   executeRestrictedMethod: GenericPermissionController['_executeRestrictedMethod'];
@@ -39,8 +38,8 @@ type PermissionMiddlewareFactoryOptions = {
  * will be executed. Otherwise, an "unauthorized" error will be returned.
  *
  * @param options - Options bag.
- * @param options.executeRestrictedMethod - {@link PermissionController._executeRestrictedMethod}.
- * @param options.getRestrictedMethod - {@link PermissionController.getRestrictedMethod}.
+ * @param options.executeRestrictedMethod - A {@link PermissionController.#executeRestrictedMethod}.
+ * @param options.getRestrictedMethod - A {@link PermissionController.getRestrictedMethod}.
  * @param options.isUnrestrictedMethod - A function that checks whether a
  * particular method is unrestricted.
  * @returns A permission middleware factory function.

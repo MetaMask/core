@@ -1,8 +1,5 @@
 import { v1 as random } from 'uuid';
-import {
-  validateTypedSignMessageDataV3,
-  validateTypedSignMessageDataV1,
-} from './utils';
+
 import {
   AbstractMessageManager,
   AbstractMessage,
@@ -10,6 +7,10 @@ import {
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import {
+  validateTypedSignMessageDataV3,
+  validateTypedSignMessageDataV1,
+} from './utils';
 
 /**
  * @type TypedMessage
@@ -89,7 +90,7 @@ export class TypedMessageManager extends AbstractMessageManager<
    * @param req - The original request object possibly containing the origin.
    * @returns Promise resolving to the raw data of the signature request.
    */
-  addUnapprovedMessageAsync(
+  async addUnapprovedMessageAsync(
     messageParams: TypedMessageParams,
     version: string,
     req?: OriginalRequest,
@@ -191,7 +192,7 @@ export class TypedMessageManager extends AbstractMessageManager<
    * @param messageParams - The messageParams to modify.
    * @returns Promise resolving to the messageParams with the metamaskId and version properties removed.
    */
-  prepMessageForSigning(
+  async prepMessageForSigning(
     messageParams: TypedMessageParamsMetamask,
   ): Promise<TypedMessageParams> {
     delete messageParams.metamaskId;

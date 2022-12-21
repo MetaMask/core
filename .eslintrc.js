@@ -1,6 +1,9 @@
 module.exports = {
   root: true,
   extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
+  parserOptions: {
+    tsconfigRootDir: __dirname,
+  },
   ignorePatterns: [
     '!.eslintrc.js',
     '!jest.config.js',
@@ -30,17 +33,62 @@ module.exports = {
         // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
         '@typescript-eslint/consistent-type-definitions': 'off',
 
-        // Modified to include the 'ignoreRestSiblings' option
-        // TODO: Migrate this rule change back into `@metamask/eslint-config`
-        '@typescript-eslint/no-unused-vars': [
+        // TODO: Move to `@metamask/eslint-config-typescript`.
+        '@typescript-eslint/naming-convention': [
           'error',
           {
-            vars: 'all',
-            args: 'all',
-            argsIgnorePattern: '[_]+',
-            ignoreRestSiblings: true,
+            selector: 'default',
+            format: ['camelCase'],
+            leadingUnderscore: 'allow',
+            trailingUnderscore: 'forbid',
+          },
+          {
+            selector: 'enumMember',
+            format: ['PascalCase'],
+          },
+          {
+            selector: 'interface',
+            format: ['PascalCase'],
+            custom: {
+              regex: '^I[A-Z]',
+              match: false,
+            },
+          },
+          {
+            selector: 'objectLiteralMethod',
+            format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
+          },
+          {
+            selector: 'objectLiteralProperty',
+            // Allow any casing for object literal properties.
+            format: null,
+          },
+          {
+            selector: 'parameter',
+            modifiers: ['destructured'],
+            format: ['camelCase', 'snake_case'],
+          },
+          {
+            selector: 'typeLike',
+            format: ['PascalCase'],
+          },
+          {
+            selector: 'typeProperty',
+            // We use `snake_case` sometimes, e.g., when working with API
+            // responses.
+            format: ['camelCase', 'snake_case'],
+          },
+          {
+            selector: 'variable',
+            format: ['camelCase', 'UPPER_CASE', 'PascalCase', 'snake_case'],
+            leadingUnderscore: 'allow',
           },
         ],
+
+        // This rule is causing a lot of false positives, and is not worth the
+        // effort to fix.
+        '@typescript-eslint/restrict-template-expressions': 'off',
+        '@typescript-eslint/require-await': 'off',
       },
     },
     {
@@ -56,26 +104,6 @@ module.exports = {
     // names come from external sources or must comply with standards
     // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
     camelcase: 'off',
-
-    // TODO: re-enble most of these rules
-    'function-paren-newline': 'off',
-    'guard-for-in': 'off',
-    'implicit-arrow-linebreak': 'off',
-    'import/no-anonymous-default-export': 'off',
-    'import/no-unassigned-import': 'off',
-    'lines-around-comment': 'off',
-    'no-async-promise-executor': 'off',
-    'no-case-declarations': 'off',
-    'no-invalid-this': 'off',
-    'no-negated-condition': 'off',
-    'no-new': 'off',
-    'no-param-reassign': 'off',
-    radix: 'off',
-    'require-atomic-updates': 'off',
-    'jsdoc/match-description': [
-      'error',
-      { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
-    ],
   },
   settings: {
     'import/resolver': {

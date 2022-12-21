@@ -1,5 +1,6 @@
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
+
 import {
   BaseController,
   getAnonymizedState,
@@ -47,17 +48,11 @@ type CountMessenger = RestrictedControllerMessenger<
  * @returns A restricted controller messenger for the Count controller.
  */
 function getCountMessenger(
-  controllerMessenger?: ControllerMessenger<
+  controllerMessenger: ControllerMessenger<
     CountControllerAction,
     CountControllerEvent
-  >,
+  > = new ControllerMessenger<CountControllerAction, CountControllerEvent>(),
 ): CountMessenger {
-  if (!controllerMessenger) {
-    controllerMessenger = new ControllerMessenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
-  }
   return controllerMessenger.getRestricted<'CountController', never, never>({
     name: countControllerName,
   });
@@ -73,8 +68,7 @@ class CountController extends BaseController<
       state: Draft<CountControllerState>,
     ) => void | CountControllerState,
   ) {
-    const res = super.update(callback);
-    return res;
+    return super.update(callback);
   }
 
   applyPatches(patches: Patch[]) {
@@ -107,6 +101,8 @@ describe('BaseController', () => {
       CountControllerAction,
       CountControllerEvent
     >();
+
+    // eslint-disable-next-line no-new
     new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: countControllerName,
@@ -187,7 +183,7 @@ describe('BaseController', () => {
       draft.count += 1;
     });
 
-    expect(returnObj).not.toBeUndefined();
+    expect(returnObj).toBeDefined();
     expect(returnObj.nextState).toStrictEqual({ count: 1 });
     expect(returnObj.patches).toStrictEqual([
       { op: 'replace', path: ['count'], value: 1 },
@@ -253,7 +249,7 @@ describe('BaseController', () => {
 
     controller.applyPatches(inversePatches);
 
-    expect(listener1.callCount).toStrictEqual(2);
+    expect(listener1.callCount).toBe(2);
     expect(listener1.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
@@ -285,12 +281,12 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(1);
+    expect(listener1.callCount).toBe(1);
     expect(listener1.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
     ]);
-    expect(listener2.callCount).toStrictEqual(1);
+    expect(listener2.callCount).toBe(1);
     expect(listener2.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
@@ -317,7 +313,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(1);
+    expect(listener1.callCount).toBe(1);
     expect(listener1.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
@@ -343,7 +339,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(0);
+    expect(listener1.callCount).toBe(0);
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
@@ -366,7 +362,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(0);
+    expect(listener1.callCount).toBe(0);
   });
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
@@ -374,6 +370,8 @@ describe('BaseController', () => {
       never,
       CountControllerEvent
     >();
+
+    // eslint-disable-next-line no-new
     new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
@@ -408,8 +406,8 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(0);
-    expect(listener2.callCount).toStrictEqual(0);
+    expect(listener1.callCount).toBe(0);
+    expect(listener2.callCount).toBe(0);
   });
 });
 
@@ -874,7 +872,7 @@ describe('getPersistentState', () => {
       visitorController.addVisitor('B');
       visitorController.addVisitor('C'); // this should trigger an overflow
 
-      expect(visitorOverflowController.state.maxVisitors).toStrictEqual(2);
+      expect(visitorOverflowController.state.maxVisitors).toBe(2);
       expect(visitorController.state.visitors).toHaveLength(0);
     });
   });

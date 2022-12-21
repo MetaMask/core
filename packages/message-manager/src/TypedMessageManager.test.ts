@@ -98,8 +98,8 @@ describe('TypedMessageManager', () => {
       expect(unapprovedMessages[keys[0]].status).toBe('signed');
     });
     controller.setMessageStatusSigned(keys[0], rawSig);
-    const sig = await result;
-    expect(sig).toBe(rawSig);
+    const signature = await result;
+    expect(signature).toBe(rawSig);
   });
 
   it("should set message status as 'errored'", async () => {
@@ -160,14 +160,14 @@ describe('TypedMessageManager', () => {
       version,
       originalRequest,
     );
-    expect(messageId).not.toBeUndefined();
+    expect(messageId).toBeDefined();
     const message = controller.getMessage(messageId);
     if (!message) {
       throw new Error('"message" is falsy');
     }
     expect(message.messageParams.from).toBe(messageParams.from);
     expect(message.messageParams.data).toBe(messageParams.data);
-    expect(message.time).not.toBeUndefined();
+    expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
   });
@@ -246,7 +246,7 @@ describe('TypedMessageManager', () => {
     const controller = new TypedMessageManager();
     controller.addMessage(firstMessage);
     controller.addMessage(secondMessage);
-    expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
+    expect(controller.getUnapprovedMessagesCount()).toBe(2);
     expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
       [secondMessage.id]: secondMessage,
@@ -269,7 +269,7 @@ describe('TypedMessageManager', () => {
     if (!message) {
       throw new Error('"message" is falsy');
     }
-    expect(message.status).toStrictEqual('approved');
+    expect(message.status).toBe('approved');
   });
 
   it('should set message status signed', () => {
@@ -285,7 +285,7 @@ describe('TypedMessageManager', () => {
       throw new Error('"message" is falsy');
     }
     expect(message.rawSig).toStrictEqual(rawSig);
-    expect(message.status).toStrictEqual('signed');
+    expect(message.status).toBe('signed');
   });
 
   it('should reject message', () => {
@@ -299,7 +299,7 @@ describe('TypedMessageManager', () => {
     if (!message) {
       throw new Error('"message" is falsy');
     }
-    expect(message.status).toStrictEqual('rejected');
+    expect(message.status).toBe('rejected');
   });
 
   it('should set message status errored', () => {
@@ -313,6 +313,6 @@ describe('TypedMessageManager', () => {
     if (!message) {
       throw new Error('"message" is falsy');
     }
-    expect(message.status).toStrictEqual('errored');
+    expect(message.status).toBe('errored');
   });
 });

@@ -8,8 +8,8 @@ import {
 } from './Permission';
 
 export enum MethodNames {
-  requestPermissions = 'wallet_requestPermissions',
-  getPermissions = 'wallet_getPermissions',
+  RequestPermissions = 'wallet_requestPermissions',
+  GetPermissions = 'wallet_getPermissions',
 }
 
 /**

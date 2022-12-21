@@ -1,4 +1,5 @@
 import nock from 'nock';
+
 import {
   fetchLegacyGasPriceEstimates,
   normalizeGWEIDecimalNumbers,
@@ -196,6 +197,7 @@ describe('gas utils', () => {
         '123456.0000006',
       );
       expect(normalizeGWEIDecimalNumbers(1.000000016025)).toBe('1.000000016');
+      // eslint-disable-next-line @typescript-eslint/no-loss-of-precision
       expect(normalizeGWEIDecimalNumbers(1.0000000160000028)).toBe(
         '1.000000016',
       );

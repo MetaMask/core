@@ -1,5 +1,3 @@
-import { Mutex } from 'async-mutex';
-import type { Patch } from 'immer';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -9,6 +7,9 @@ import {
   FALL_BACK_VS_CURRENCY,
   safelyExecute,
 } from '@metamask/controller-utils';
+import { Mutex } from 'async-mutex';
+import type { Patch } from 'immer';
+
 import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare';
 
 /**
@@ -80,15 +81,15 @@ export class CurrencyRateController extends BaseControllerV2<
   CurrencyRateState,
   CurrencyRateMessenger
 > {
-  private mutex = new Mutex();
+  readonly #mutex = new Mutex();
 
-  private intervalId?: ReturnType<typeof setTimeout>;
+  #intervalId?: ReturnType<typeof setTimeout>;
 
-  private intervalDelay;
+  readonly #intervalDelay;
 
-  private fetchExchangeRate;
+  readonly #fetchExchangeRate;
 
-  private includeUsdRate;
+  readonly #includeUsdRate;
 
   /**
    * A boolean that controls whether or not network requests can be made by the controller
@@ -124,9 +125,9 @@ export class CurrencyRateController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.includeUsdRate = includeUsdRate;
-    this.intervalDelay = interval;
-    this.fetchExchangeRate = fetchExchangeRate;
+    this.#includeUsdRate = includeUsdRate;
+    this.#intervalDelay = interval;
+    this.#fetchExchangeRate = fetchExchangeRate;
     this.#enabled = false;
   }
 
@@ -136,7 +137,7 @@ export class CurrencyRateController extends BaseControllerV2<
   async start() {
     this.#enabled = true;
 
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
@@ -145,7 +146,7 @@ export class CurrencyRateController extends BaseControllerV2<
   stop() {
     this.#enabled = false;
 
-    this.stopPolling();
+    this.#stopPolling();
   }
 
   /**
@@ -155,7 +156,7 @@ export class CurrencyRateController extends BaseControllerV2<
    */
   override destroy() {
     super.destroy();
-    this.stopPolling();
+    this.#stopPolling();
   }
 
   /**
@@ -182,24 +183,26 @@ export class CurrencyRateController extends BaseControllerV2<
     await this.updateExchangeRate();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
   /**
    * Starts a new polling interval.
    */
-  private async startPolling(): Promise<void> {
-    this.stopPolling();
+  async #startPolling(): Promise<void> {
+    this.#stopPolling();
     // TODO: Expose polling currency rate update errors
 
     await safelyExecute(async () => await this.updateExchangeRate());
 
-    this.intervalId = setInterval(async () => {
-      await safelyExecute(async () => await this.updateExchangeRate());
-    }, this.intervalDelay);
+    this.#intervalId = setInterval(() => {
+      safelyExecute(async () => await this.updateExchangeRate()).catch(
+        console.error,
+      );
+    }, this.#intervalDelay);
   }
 
   /**
@@ -214,7 +217,7 @@ export class CurrencyRateController extends BaseControllerV2<
       );
       return this.state;
     }
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     const {
       currentCurrency: stateCurrentCurrency,
       nativeCurrency: stateNativeCurrency,
@@ -245,10 +248,10 @@ export class CurrencyRateController extends BaseControllerV2<
         currentCurrency !== '' &&
         nativeCurrency !== ''
       ) {
-        const fetchExchangeRateResponse = await this.fetchExchangeRate(
+        const fetchExchangeRateResponse = await this.#fetchExchangeRate(
           currentCurrency,
           nativeCurrencyForExchangeRate,
-          this.includeUsdRate,
+          this.#includeUsdRate,
         );
 
         conversionRate = fetchExchangeRateResponse.conversionRate;
