@@ -986,8 +986,8 @@ describe('KeyringController', () => {
             MAINNET,
             {
               name: 'rinkeby',
-              chainId: parseInt('4', NaN),
-              networkId: parseInt('4', NaN),
+              chainId: 4,
+              networkId: 4,
             },
             'london',
           ),
