@@ -183,9 +183,12 @@ export class NftDetectionController extends BaseController<
         return nfts;
       }
 
-      nftApiResponse?.assets?.length === 0
-        ? (pagingFinish = true)
-        : (nfts = [...nfts, ...nftApiResponse.assets]);
+      if (nftApiResponse?.assets?.length === 0) {
+        pagingFinish = true;
+      } else {
+        nfts = [...nfts, ...nftApiResponse.assets];
+      }
+
       offset += 50;
     } while (!pagingFinish);
 

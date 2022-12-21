@@ -605,10 +605,11 @@ export class TokensController extends BaseController<
     const suggestedAssetMeta = {
       asset,
       id: this._generateRandomId(),
-      status: SuggestedAssetStatus.Pending as SuggestedAssetStatus.Pending,
+      status: SuggestedAssetStatus.Pending,
       time: Date.now(),
       type,
-    };
+    } as const;
+
     try {
       switch (type) {
         case 'ERC20':

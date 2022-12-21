@@ -1562,6 +1562,7 @@ __metadata:
     "@lavamoat/allow-scripts": ^2.0.2
     "@metamask/create-release-branch": ^1.0.1
     "@metamask/eslint-config": ^11.0.1
+    "@metamask/eslint-config-browser": ^11.1.0
     "@metamask/eslint-config-jest": ^11.0.0
     "@metamask/eslint-config-nodejs": ^11.0.1
     "@metamask/eslint-config-typescript": ^11.0.0
@@ -1624,6 +1625,16 @@ __metadata:
     typescript: ~4.6.3
   languageName: unknown
   linkType: soft
+
+"@metamask/eslint-config-browser@npm:^11.1.0":
+  version: 11.1.0
+  resolution: "@metamask/eslint-config-browser@npm:11.1.0"
+  peerDependencies:
+    "@metamask/eslint-config": ^11.0.0
+    eslint: ^8.27.0
+  checksum: 43201e5fc0c7314413ecc2bbffdeb4d3e704c05349eac7b02ac1dc7b541f3baa98975df8e1e19cd9ff7e19fe5e3fa0f267a6fbf64a49e9428639864dec083d34
+  languageName: node
+  linkType: hard
 
 "@metamask/eslint-config-jest@npm:^11.0.0":
   version: 11.0.0
