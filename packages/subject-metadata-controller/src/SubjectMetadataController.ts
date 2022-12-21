@@ -153,9 +153,8 @@ export class SubjectMetadataController extends BaseControllerV2<
 
   /**
    * Stores domain metadata for the given origin (subject). Deletes metadata for
-   * subjects without permissions in a FIFO manner once more than
-   * {@link SubjectMetadataController.#subjectCacheLimit} distinct origins have
-   * been added since boot.
+   * subjects without permissions in a FIFO manner once more than the specified
+   * cache limit distinct origins have been added since boot.
    *
    * In order to prevent a degraded user experience,
    * metadata is never deleted for subjects with permissions, since metadata
@@ -197,7 +196,6 @@ export class SubjectMetadataController extends BaseControllerV2<
     this.#subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
-      // Typecast: ts(2589)
       draftState.subjectMetadata[origin] = newMetadata;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];
@@ -220,8 +218,8 @@ export class SubjectMetadataController extends BaseControllerV2<
    */
   trimMetadataState(): void {
     this.update((draftState) => {
+      // @ts-expect-error - ts(2589)
       return SubjectMetadataController.#getTrimmedState(
-        // Typecast: ts(2589)
         draftState,
         this.#subjectHasPermissions,
       );
