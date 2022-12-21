@@ -8,4 +8,8 @@ export * from './TokenDetectionController';
 export * from './TokenListController';
 export * from './TokenRatesController';
 export * from './TokensController';
-export { formatIconUrlWithProxy, getFormattedIpfsUrl } from './assetsUtil';
+export {
+  isTokenDetectionSupportedForNetwork,
+  formatIconUrlWithProxy,
+  getFormattedIpfsUrl,
+} from './assetsUtil';
