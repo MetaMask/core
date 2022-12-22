@@ -51,6 +51,58 @@ describe('AddressBookController', () => {
     });
   });
 
+  it('should add a contact entry with address type contract accounts', () => {
+    const controller = new AddressBookController();
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+      '1',
+      'account 1',
+      AddressType.contractAccounts,
+    );
+
+    expect(controller.state).toStrictEqual({
+      addressBook: {
+        1: {
+          '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
+            address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+            chainId: '1',
+            isEns: false,
+            memo: 'account 1',
+            name: 'foo',
+            addressType: AddressType.contractAccounts,
+          },
+        },
+      },
+    });
+  });
+
+  it('should add a contact entry with address type non accounts', () => {
+    const controller = new AddressBookController();
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+      '1',
+      'account 1',
+      AddressType.nonAccounts,
+    );
+
+    expect(controller.state).toStrictEqual({
+      addressBook: {
+        1: {
+          '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
+            address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+            chainId: '1',
+            isEns: false,
+            memo: 'account 1',
+            name: 'foo',
+            addressType: AddressType.nonAccounts,
+          },
+        },
+      },
+    });
+  });
+
   it('should add multiple contact entries with different chainIds', () => {
     const controller = new AddressBookController();
     controller.set(
