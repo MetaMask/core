@@ -6,13 +6,13 @@
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/controller-utils#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/controller-utils#readme",
   "bugs": {
-    "url": "https://github.com/MetaMask/controllers/issues"
+    "url": "https://github.com/MetaMask/core/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/controllers.git"
+    "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
   "main": "./dist/index.js",

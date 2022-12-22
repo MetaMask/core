@@ -100,7 +100,7 @@ async function renderGraph(dotExecutablePath, dotFilePath, graphFilePath) {
  */
 async function main() {
   const tempDirectory = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), 'controllers-'),
+    path.join(os.tmpdir(), 'metamask-core-'),
   );
   const dotFilePath = path.join(tempDirectory, 'dependency-graph.dot');
   const graphFilePath = path.resolve(
