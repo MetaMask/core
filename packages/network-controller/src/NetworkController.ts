@@ -154,15 +154,14 @@ export class NetworkController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
-
     this.infuraProjectId = infuraProjectId;
-
     this.messagingSystem.registerActionHandler(
       `${this.name}:getProviderConfig`,
       () => {
         return this.state.providerConfig;
       },
     );
+
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
@@ -421,7 +420,6 @@ export class NetworkController extends BaseControllerV2<
         );
       });
     }
-
     return Promise.resolve(true);
   }
 }
