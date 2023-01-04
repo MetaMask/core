@@ -1577,9 +1577,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/controllers-monorepo@workspace:.":
+"@metamask/core-monorepo@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@metamask/controllers-monorepo@workspace:."
+  resolution: "@metamask/core-monorepo@workspace:."
   dependencies:
     "@lavamoat/allow-scripts": ^2.0.2
     "@metamask/create-release-branch": ^1.0.1

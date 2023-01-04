@@ -8,16 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1]
 ### Changed
-- Relax dependency on `@metamask/base-controller` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
+- Relax dependency on `@metamask/base-controller` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/core/pull/998))
 
 ## [1.0.0]
 ### Added
 - Initial release
-  - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/controllers/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/controllers/tree/v33.0.0), namely:
+  - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - Everything in `src/ratelimit`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/rate-limit-controller@1.0.1...HEAD
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/rate-limit-controller@1.0.0...@metamask/rate-limit-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/rate-limit-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@1.0.0...@metamask/rate-limit-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/rate-limit-controller@1.0.0
