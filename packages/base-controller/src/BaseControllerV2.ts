@@ -144,10 +144,10 @@ export class BaseController<
    * state. Otherwise, any changes made within that callback to the draft are
    * applied to the controller state.
    *
-   * @param callback - Callback for updating state, passed a draft state
+   * @param callback - Callback for updating state; passed a draft state
    * object. Return a new state object or mutate the draft to update state.
-   * @returns An object that has the next state, patches applied in the update and inverse patches to
-   * rollback the update.
+   * @returns An object that has the next state, patches applied in the update
+   * and inverse patches to rollback the update.
    */
   protected update(callback: (state: Draft<S>) => void | S): {
     nextState: S;
@@ -163,11 +163,13 @@ export class BaseController<
       ) => [S, Patch[], Patch[]]
     )(this.internalState, callback);
 
+    const prevState = this.internalState;
     this.internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange` as Namespaced<N, any>,
       nextState,
       patches,
+      prevState,
     );
 
     return { nextState, patches, inversePatches };
@@ -181,12 +183,14 @@ export class BaseController<
    * or undo changes.
    */
   protected applyPatches(patches: Patch[]) {
+    const prevState = this.internalState;
     const nextState = applyPatches(this.internalState, patches);
     this.internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange` as Namespaced<N, any>,
       nextState,
       patches,
+      prevState,
     );
   }
 

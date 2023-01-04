@@ -22,7 +22,7 @@ type CountControllerAction = {
 
 type CountControllerEvent = {
   type: `${typeof countControllerName}:stateChange`;
-  payload: [CountControllerState, Patch[]];
+  payload: [CountControllerState, Patch[], CountControllerState];
 };
 
 const countControllerStateMetadata = {
@@ -257,11 +257,13 @@ describe('BaseController', () => {
     expect(listener1.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
+      { count: 0 },
     ]);
 
     expect(listener1.secondCall.args).toStrictEqual([
       { count: 0 },
       [{ op: 'replace', path: [], value: { count: 0 } }],
+      { count: 1 },
     ]);
   });
 
@@ -289,11 +291,13 @@ describe('BaseController', () => {
     expect(listener1.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
+      { count: 0 },
     ]);
     expect(listener2.callCount).toStrictEqual(1);
     expect(listener2.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
+      { count: 0 },
     ]);
   });
 
@@ -321,6 +325,7 @@ describe('BaseController', () => {
     expect(listener1.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
+      { count: 0 },
     ]);
   });
 
