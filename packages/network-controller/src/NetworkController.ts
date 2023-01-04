@@ -114,25 +114,6 @@ const defaultState: NetworkState = {
   properties: { isEIP1559Compatible: false },
 };
 
-//                                                                                     setProviderType            setRpcTarget
-//                                                                                            └───────────┬────────────┘
-// set providerConfig                                                                               refreshNetwork
-//       │ │ └────────────────────────────────────────────┬──────────────────────────────────────────────┘ │
-//       │ │                                     initializeProvider                                        │
-//       │ │                  ┌─────────────────────────┘ │ └─────────────────────────┐                    │
-//       │ │          setupInfuraProvider        setupStandardProvider      getEIP1559Compatibility        │
-//       │ │                  └─────────────┬─────────────┘                                                │
-//       │ │                          updateProvider                                                       │
-//       │ └───────────────┬───────────────┘ └───────────────────────────────┐                             │
-//       │          registerProvider                                  this.provider = ...                  │
-//       │                 ⋮                                                                               │
-//       │   this.provider.on('error', ...)                                                                │
-//       │                 │                                                                               │
-//       │            verifyNetwork                                                                        │
-//       │                 └─────────────────────────────┐                                                 │
-//       └───────────────────────────────────────────────┼─────────────────────────────────────────────────┘
-//                                                 lookupNetwork
-
 /**
  * Controller that creates and manages an Ethereum network provider.
  */
