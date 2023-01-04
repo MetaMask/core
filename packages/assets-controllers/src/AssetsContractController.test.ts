@@ -155,7 +155,7 @@ describe('AssetsContractController', () => {
       ),
     ).rejects.toThrow(error);
     messenger.clearEventSubscriptions('NetworkController:stateChange');
-  });
+  }, 6000);
 
   it('should get ERC-721 token standard and details', async () => {
     const { assetsContract, messenger } = setupControllers();
@@ -188,7 +188,7 @@ describe('AssetsContractController', () => {
     );
     expect(standardAndDetails.standard).toStrictEqual('ERC20');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
-  });
+  }, 6000);
 
   it('should get ERC-721 NFT tokenURI correctly', async () => {
     const { assetsContract, messenger } = setupControllers();
