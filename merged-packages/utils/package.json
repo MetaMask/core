@@ -32,6 +32,7 @@
   "dependencies": {
     "@types/debug": "^4.1.7",
     "debug": "^4.3.4",
+    "semver": "^7.3.8",
     "superstruct": "^0.16.7"
   },
   "devDependencies": {

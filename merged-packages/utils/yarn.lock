@@ -926,6 +926,7 @@ __metadata:
     prettier: ^2.7.1
     prettier-plugin-packagejson: ^2.2.11
     rimraf: ^3.0.2
+    semver: ^7.3.8
     stdio-mock: ^1.2.0
     superstruct: ^0.16.7
     ts-jest: ^29.0.3
