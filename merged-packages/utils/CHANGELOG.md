@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.0]
+### Added
+- Add types and utility functions for validating versions and checksums ([#67](https://github.com/MetaMask/utils/pull/67), [#69](https://github.com/MetaMask/utils/pull/69))
+
+### Fixed
+- JSON-RPC types now have a default generic `Params` value ([#54](https://github.com/MetaMask/utils/pull/54))
+
 ## [3.3.1]
 ### Fixed
 - JSON-RPC parameters are now properly cast to Json upon validation ([#51](https://github.com/MetaMask/utils/pull/51))
@@ -93,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v3.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v3.4.0...HEAD
+[3.4.0]: https://github.com/MetaMask/utils/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/MetaMask/utils/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/MetaMask/utils/compare/v3.2.0...v3.3.0
 [3.2.0]: https://github.com/MetaMask/utils/compare/v3.1.0...v3.2.0
