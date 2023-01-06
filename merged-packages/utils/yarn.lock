@@ -928,7 +928,7 @@ __metadata:
     rimraf: ^3.0.2
     semver: ^7.3.8
     stdio-mock: ^1.2.0
-    superstruct: ^0.16.7
+    superstruct: ^1.0.3
     ts-jest: ^29.0.3
     tsd: ^0.24.1
     typedoc: ^0.23.10
@@ -5934,10 +5934,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"superstruct@npm:^0.16.7":
-  version: 0.16.7
-  resolution: "superstruct@npm:0.16.7"
-  checksum: c8c855ff6945da8a41048c6d236de7b1af5d4d9c31742b3ee54d65647c31597488620281f65e095d5efc9e2fbdaad529b8c8f2506c12569d428467c835a21477
+"superstruct@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "superstruct@npm:1.0.3"
+  checksum: 761790bb111e6e21ddd608299c252f3be35df543263a7ebbc004e840d01fcf8046794c274bcb351bdf3eae4600f79d317d085cdbb19ca05803a4361840cc9bb1
   languageName: node
   linkType: hard
 

@@ -1,5 +1,4 @@
-import * as superstructModule from 'superstruct';
-import { validate } from 'superstruct';
+import { validate, assert as superstructAssert } from 'superstruct';
 
 import {
   assert,
@@ -36,7 +35,19 @@ import {
   NON_SERIALIZABLE_NESTED_OBJECT,
 } from './__fixtures__';
 
+jest.mock('superstruct', () => ({
+  ...jest.requireActual('superstruct'),
+  assert: jest.fn(),
+}));
+
 describe('json', () => {
+  beforeEach(() => {
+    const actual = jest.requireActual('superstruct');
+    (
+      superstructAssert as jest.MockedFunction<typeof superstructAssert>
+    ).mockImplementation(actual.assert);
+  });
+
   describe('JsonStruct', () => {
     it('returns error message', () => {
       const [error] = validate(undefined, JsonStruct);
@@ -104,7 +115,9 @@ describe('json', () => {
     });
 
     it('includes the value thrown in the message if it is not an error', () => {
-      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+      (
+        superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      ).mockImplementation(() => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
@@ -157,7 +170,9 @@ describe('json', () => {
     });
 
     it('includes the value thrown in the message if it is not an error', () => {
-      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+      (
+        superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      ).mockImplementation(() => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
@@ -210,9 +225,11 @@ describe('json', () => {
     });
 
     it('includes the value thrown in the message if it is not an error', () => {
-      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+      (
+        superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      ).mockImplementation(() => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal
-        throw 'oops';
+        throw 'oops.';
       });
 
       expect(() =>
@@ -263,9 +280,11 @@ describe('json', () => {
     });
 
     it('includes the value thrown in the message if it is not an error', () => {
-      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+      (
+        superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      ).mockImplementation(() => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal
-        throw 'oops';
+        throw 'oops.';
       });
 
       expect(() =>
@@ -316,7 +335,9 @@ describe('json', () => {
     });
 
     it('includes the value thrown in the message if it is not an error', () => {
-      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+      (
+        superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      ).mockImplementation(() => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
@@ -361,7 +382,9 @@ describe('json', () => {
     );
 
     it('includes the value thrown in the message if it is not an error', () => {
-      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+      (
+        superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      ).mockImplementation(() => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
@@ -414,9 +437,11 @@ describe('json', () => {
     });
 
     it('includes the value thrown in the message if it is not an error', () => {
-      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+      (
+        superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      ).mockImplementation(() => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal
-        throw 'oops';
+        throw 'oops.';
       });
 
       expect(() =>

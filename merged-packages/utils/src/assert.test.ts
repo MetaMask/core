@@ -1,5 +1,4 @@
-import { string } from 'superstruct';
-import * as superstructModule from 'superstruct';
+import { string, assert as superstructAssert } from 'superstruct';
 
 import {
   assert,
@@ -7,6 +6,11 @@ import {
   AssertionError,
   assertStruct,
 } from './assert';
+
+jest.mock('superstruct', () => ({
+  ...jest.requireActual('superstruct'),
+  assert: jest.fn(),
+}));
 
 describe('assert', () => {
   it('succeeds', () => {
@@ -45,6 +49,13 @@ describe('assertExhaustive', () => {
 });
 
 describe('assertStruct', () => {
+  beforeEach(() => {
+    const actual = jest.requireActual('superstruct');
+    (
+      superstructAssert as jest.MockedFunction<typeof superstructAssert>
+    ).mockImplementation(actual.assert);
+  });
+
   it('does not throw for a valid value', () => {
     expect(() => assertStruct('foo', string())).not.toThrow();
   });
@@ -98,7 +109,9 @@ describe('assertStruct', () => {
   });
 
   it('includes the value thrown in the message if it is not an error', () => {
-    jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+    (
+      superstructAssert as jest.MockedFunction<typeof superstructAssert>
+    ).mockImplementation(() => {
       // eslint-disable-next-line @typescript-eslint/no-throw-literal
       throw 'foo.';
     });
