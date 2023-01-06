@@ -178,6 +178,7 @@ export class NetworkController extends BaseControllerV2<
       case 'rinkeby':
       case 'goerli':
       case 'ropsten':
+      case 'sepolia':
         this.setupInfuraProvider(type);
         break;
       case 'localhost':
@@ -234,6 +235,7 @@ export class NetworkController extends BaseControllerV2<
       chainId !== NetworksChainId.rinkeby &&
       chainId !== NetworksChainId.goerli &&
       chainId !== NetworksChainId.ropsten &&
+      chainId !== NetworksChainId.sepolia &&
       chainId !== NetworksChainId.localhost
     );
   }

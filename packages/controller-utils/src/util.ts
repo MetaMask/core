@@ -112,6 +112,8 @@ export function getBuyURL(
       return 'https://goerli-faucet.slock.it/';
     case '42':
       return 'https://github.com/kovan-testnet/faucet';
+    case '11155111':
+      return 'https://sepoliafaucet.net/';
     default:
       return undefined;
   }

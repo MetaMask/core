@@ -39,6 +39,7 @@ export const TESTNET_TICKER_SYMBOLS = {
   GOERLI: 'GoerliETH',
   ROPSTEN: 'RopstenETH',
   KOVAN: 'KovanETH',
+  SEPOLIA: 'SepoliaETH',
 };
 // TYPED NetworkType TICKER SYMBOLS
 export const TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL: {
@@ -48,6 +49,7 @@ export const TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL: {
   goerli: 'GoerliETH',
   ropsten: 'RopstenETH',
   kovan: 'KovanETH',
+  sepolia: 'SepoliaETH',
   mainnet: '',
   rpc: '',
   localhost: '',

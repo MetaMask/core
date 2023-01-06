@@ -615,7 +615,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethereumjs/common@npm:^2.6.3":
+"@ethereumjs/common@npm:^2.6.1, @ethereumjs/common@npm:^2.6.3":
   version: 2.6.5
   resolution: "@ethereumjs/common@npm:2.6.5"
   dependencies:
@@ -1995,7 +1995,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
-    "@ethereumjs/common": ^2.3.1
+    "@ethereumjs/common": ^2.6.1
     "@ethereumjs/tx": ^3.2.1
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"

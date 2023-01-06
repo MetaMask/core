@@ -8,6 +8,7 @@ export type NetworkType =
   | 'rinkeby'
   | 'goerli'
   | 'ropsten'
+  | 'sepolia'
   | 'rpc';
 
 export enum NetworksChainId {
@@ -16,6 +17,7 @@ export enum NetworksChainId {
   rinkeby = '4',
   goerli = '5',
   ropsten = '3',
+  sepolia = '11155111',
   localhost = '',
   rpc = '',
 }
