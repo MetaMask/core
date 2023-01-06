@@ -867,14 +867,14 @@ __metadata:
   linkType: hard
 
 "@metamask/utils@npm:^3.0.3":
-  version: 3.0.3
-  resolution: "@metamask/utils@npm:3.0.3"
+  version: 3.4.0
+  resolution: "@metamask/utils@npm:3.4.0"
   dependencies:
     "@types/debug": ^4.1.7
     debug: ^4.3.4
-    fast-deep-equal: ^3.1.3
-    superstruct: ^0.16.5
-  checksum: adb48ef6e91291a12dc78cc5156835b9509c7fec6e132a8fb82d234c96e35faafda0c90c625d9f75530ec426f22f3fabd0a24240e2a7d1e041c4f3478b0da3c3
+    semver: ^7.3.8
+    superstruct: ^0.16.7
+  checksum: 7d2b2e5e666587a429b274c1a00a9b89787bf0b590fc594d6a3d2900f0d73bf514191e6a371fa8bfa497ccded8abab0e1fa80606efa3849067aa9ba29891e034
   languageName: node
   linkType: hard
 
@@ -5608,6 +5608,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"semver@npm:^7.3.8":
+  version: 7.3.8
+  resolution: "semver@npm:7.3.8"
+  dependencies:
+    lru-cache: ^6.0.0
+  bin:
+    semver: bin/semver.js
+  checksum: ba9c7cbbf2b7884696523450a61fee1a09930d888b7a8d7579025ad93d459b2d1949ee5bbfeb188b2be5f4ac163544c5e98491ad6152df34154feebc2cc337c1
+  languageName: node
+  linkType: hard
+
 "set-blocking@npm:^2.0.0, set-blocking@npm:~2.0.0":
   version: 2.0.0
   resolution: "set-blocking@npm:2.0.0"
@@ -5922,10 +5933,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"superstruct@npm:^0.16.5":
-  version: 0.16.5
-  resolution: "superstruct@npm:0.16.5"
-  checksum: 9f843c38695b584a605ae9b028629de18a85bd0dca0e9449b4ab98bb7b9ac3d82599870acbab9fbd2ee454c6b187af7e61562e252dfadabd974191ab4ab2e3ce
+"superstruct@npm:^0.16.7":
+  version: 0.16.7
+  resolution: "superstruct@npm:0.16.7"
+  checksum: c8c855ff6945da8a41048c6d236de7b1af5d4d9c31742b3ee54d65647c31597488620281f65e095d5efc9e2fbdaad529b8c8f2506c12569d428467c835a21477
   languageName: node
   linkType: hard
 
