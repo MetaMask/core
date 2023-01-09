@@ -604,14 +604,14 @@
   integrity sha512-/kSXhY692qiV1MXu6EeOZvg5nECLclxNXcKCxJ3cXQgYuRymRHpdx/t7JXfsK+JLjwA1e1c1/SBrlQYpusC29Q==
 
 "@metamask/utils@^3.0.1":
-  version "3.4.0"
-  resolved "https://registry.yarnpkg.com/@metamask/utils/-/utils-3.4.0.tgz#2462a29a5b1281d299aad5f2c40371723e20e9c9"
-  integrity sha512-8Dq1vXwhC/du388iZ2k7Kf3oiIGy8PNKKiaFl3waK9E4S6iKquyqYOsLJoBc1UsnDQ29xuvVbf17OgKYdkcYrg==
+  version "3.4.1"
+  resolved "https://registry.yarnpkg.com/@metamask/utils/-/utils-3.4.1.tgz#7df750733960ee2bde27a00eb58fcfdf80570be2"
+  integrity sha512-FjhJrplzFiPNlNNuYXkY1ave55ULLZ3+kY/d3zaW5SjS5AjszlN7gsWz74VI32qME6VyD/gdoTOgqVbKlcEnag==
   dependencies:
     "@types/debug" "^4.1.7"
     debug "^4.3.4"
     semver "^7.3.8"
-    superstruct "^0.16.7"
+    superstruct "^1.0.3"
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"
@@ -4036,10 +4036,10 @@ strip-json-comments@^3.1.0, strip-json-comments@^3.1.1:
   resolved "https://registry.yarnpkg.com/strip-json-comments/-/strip-json-comments-3.1.1.tgz#31f1281b3832630434831c310c01cccda8cbe006"
   integrity sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==
 
-superstruct@^0.16.7:
-  version "0.16.7"
-  resolved "https://registry.yarnpkg.com/superstruct/-/superstruct-0.16.7.tgz#78bb71209d71e6107a260afc166580b137bd243a"
-  integrity sha512-4ZZTrXlP4XzCrgh4vOfPDL6dL7zZm5aPl78eczwFSrwvxtsEnKRrSGID6Sbt0agycUoo4auRdWSNTX+oQ3KFyA==
+superstruct@^1.0.3:
+  version "1.0.3"
+  resolved "https://registry.yarnpkg.com/superstruct/-/superstruct-1.0.3.tgz#de626a5b49c6641ff4d37da3c7598e7a87697046"
+  integrity sha512-8iTn3oSS8nRGn+C2pgXSKPI3jmpm6FExNazNpjvqS6ZUJQCej3PUXEKM8NjHBOs54ExM+LPW/FBRhymrdcCiSg==
 
 supports-color@^5.3.0:
   version "5.5.0"
