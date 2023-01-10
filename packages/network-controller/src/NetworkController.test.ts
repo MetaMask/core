@@ -165,6 +165,32 @@ describe('NetworkController', () => {
     expect(controller.state.providerConfig.nickname).toBeUndefined();
   });
 
+  it('should set sepolia provider type', () => {
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: '123',
+    });
+    controller.setProviderType('sepolia' as NetworkType);
+    expect(controller.state.providerConfig.type).toBe('sepolia');
+    expect(controller.state.providerConfig.ticker).toBe('SepoliaETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+    expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
+    expect(controller.state.providerConfig.nickname).toBeUndefined();
+  });
+
+  it('should set goerli provider type', () => {
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: '123',
+    });
+    controller.setProviderType('goerli' as NetworkType);
+    expect(controller.state.providerConfig.type).toBe('goerli');
+    expect(controller.state.providerConfig.ticker).toBe('GoerliETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+    expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
+    expect(controller.state.providerConfig.nickname).toBeUndefined();
+  });
+
   it('should set rpcTarget and nickname props to undefined when set a provider type', () => {
     const controller = new NetworkController({
       messenger,
