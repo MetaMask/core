@@ -11,6 +11,14 @@ import {
 
 const RPC_TARGET = 'http://foo';
 
+jest.mock('eth-query', () =>
+  jest.fn().mockImplementation(() => ({
+    sendAsync: (_: any, cb: any) => {
+      cb(null, { baseFeePerGas: true });
+    },
+  })),
+);
+
 const setupController = (
   pType: NetworkType,
   messenger: NetworkControllerMessenger,
@@ -210,6 +218,18 @@ describe('NetworkController', () => {
     expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
       "Unrecognized network type: 'junk'",
     );
+  });
+
+  it('should be EIP1559 compatible', () => {
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: '123',
+      state: {
+        network: 'loading',
+      },
+    });
+    controller.providerConfig = {} as ProviderConfig;
+    expect(controller.state.properties.isEIP1559Compatible).toBe(true);
   });
 
   it('should verify the network on an error', async () => {
