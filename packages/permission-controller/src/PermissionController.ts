@@ -259,6 +259,15 @@ export type RevokePermissionForAllSubjects = {
 };
 
 /**
+ * Updates value of specified caveat type of the specified permission.
+ * Does nothing if subjects, the specified permission or caveat type do not exist.
+ */
+export type UpdateCaveatForAllSubjects = {
+  type: `${typeof controllerName}:updateCaveatForAllSubjects`;
+  handler: GenericPermissionController['updateCaveatForAllSubjects'];
+};
+
+/**
  * Clears all permissions from the {@link PermissionController}.
  */
 export type ClearPermissions = {
@@ -289,7 +298,8 @@ export type PermissionControllerActions =
   | RequestPermissions
   | RevokeAllPermissions
   | RevokePermissionForAllSubjects
-  | RevokePermissions;
+  | RevokePermissions
+  | UpdateCaveatForAllSubjects;
 
 /**
  * The generic state change event of the {@link PermissionController}.
