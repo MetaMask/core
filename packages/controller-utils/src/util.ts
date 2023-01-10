@@ -104,14 +104,8 @@ export function getBuyURL(
   switch (networkCode) {
     case '1':
       return `https://buy.coinbase.com/?code=9ec56d01-7e81-5017-930c-513daa27bb6a&amount=${amount}&address=${address}&crypto_currency=ETH`;
-    case '3':
-      return 'https://faucet.metamask.io/';
-    case '4':
-      return 'https://www.rinkeby.io/';
     case '5':
       return 'https://goerli-faucet.slock.it/';
-    case '42':
-      return 'https://github.com/kovan-testnet/faucet';
     case '11155111':
       return 'https://sepoliafaucet.net/';
     default:

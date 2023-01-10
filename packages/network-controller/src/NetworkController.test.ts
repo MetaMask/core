@@ -74,17 +74,17 @@ describe('NetworkController', () => {
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
-  (
-    ['kovan', 'rinkeby', 'ropsten', 'mainnet', 'localhost'] as NetworkType[]
-  ).forEach((n) => {
-    it(`should create a provider instance for ${n} infura network`, () => {
-      const networkController = setupController(n, messenger);
-      expect(networkController.provider instanceof Web3ProviderEngine).toBe(
-        true,
-      );
-      expect(networkController.state.isCustomNetwork).toBe(false);
-    });
-  });
+  (['sepolia', 'goerli', 'mainnet', 'localhost'] as NetworkType[]).forEach(
+    (n) => {
+      it(`should create a provider instance for ${n} infura network`, () => {
+        const networkController = setupController(n, messenger);
+        expect(networkController.provider instanceof Web3ProviderEngine).toBe(
+          true,
+        );
+        expect(networkController.state.isCustomNetwork).toBe(false);
+      });
+    },
+  );
 
   it('should create a provider instance for optimism network', () => {
     const networkControllerOpts: NetworkControllerOptions = {

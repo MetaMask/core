@@ -173,11 +173,8 @@ export class NetworkController extends BaseControllerV2<
     });
 
     switch (type) {
-      case 'kovan':
       case MAINNET:
-      case 'rinkeby':
       case 'goerli':
-      case 'ropsten':
       case 'sepolia':
         this.setupInfuraProvider(type);
         break;
@@ -231,10 +228,7 @@ export class NetworkController extends BaseControllerV2<
   private getIsCustomNetwork(chainId?: string) {
     return (
       chainId !== NetworksChainId.mainnet &&
-      chainId !== NetworksChainId.kovan &&
-      chainId !== NetworksChainId.rinkeby &&
       chainId !== NetworksChainId.goerli &&
-      chainId !== NetworksChainId.ropsten &&
       chainId !== NetworksChainId.sepolia &&
       chainId !== NetworksChainId.localhost
     );

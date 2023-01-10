@@ -6,7 +6,6 @@ export const FALL_BACK_VS_CURRENCY = 'ETH';
 export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
 
 // NETWORKS ID
-export const RINKEBY_CHAIN_ID = '4';
 export const GANACHE_CHAIN_ID = '1337';
 
 // TOKEN STANDARDS
@@ -35,20 +34,14 @@ export const ASSET_TYPES = {
 
 // TICKER SYMBOLS
 export const TESTNET_TICKER_SYMBOLS = {
-  RINKEBY: 'RinkebyETH',
   GOERLI: 'GoerliETH',
-  ROPSTEN: 'RopstenETH',
-  KOVAN: 'KovanETH',
   SEPOLIA: 'SepoliaETH',
 };
 // TYPED NetworkType TICKER SYMBOLS
 export const TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL: {
   [K in NetworkType]: string;
 } = {
-  rinkeby: 'RinkebyETH',
   goerli: 'GoerliETH',
-  ropsten: 'RopstenETH',
-  kovan: 'KovanETH',
   sepolia: 'SepoliaETH',
   mainnet: '',
   rpc: '',

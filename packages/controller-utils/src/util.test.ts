@@ -27,12 +27,8 @@ describe('util', () => {
     expect(util.getBuyURL('1', 'foo', 1337)).toBe(
       'https://buy.coinbase.com/?code=9ec56d01-7e81-5017-930c-513daa27bb6a&amount=1337&address=foo&crypto_currency=ETH',
     );
-    expect(util.getBuyURL('3')).toBe('https://faucet.metamask.io/');
-    expect(util.getBuyURL('4')).toBe('https://www.rinkeby.io/');
     expect(util.getBuyURL('5')).toBe('https://goerli-faucet.slock.it/');
-    expect(util.getBuyURL('42')).toBe(
-      'https://github.com/kovan-testnet/faucet',
-    );
+    expect(util.getBuyURL('11155111')).toBe('https://sepoliafaucet.net/');
     expect(util.getBuyURL('unrecognized network ID')).toBeUndefined();
   });
 

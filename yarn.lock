@@ -595,16 +595,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethereumjs/common@npm:^2.3.1":
-  version: 2.3.1
-  resolution: "@ethereumjs/common@npm:2.3.1"
-  dependencies:
-    crc-32: ^1.2.0
-    ethereumjs-util: ^7.0.10
-  checksum: 860d79c4c79684b532ba6cdc6f8f34d0c29e75d19edbf462b54f598615949d64aaea9d1e96a2b22da846677471d15b681675508bab3555db739e8276143f760a
-  languageName: node
-  linkType: hard
-
 "@ethereumjs/common@npm:^2.4.0":
   version: 2.4.0
   resolution: "@ethereumjs/common@npm:2.4.0"
@@ -615,7 +605,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethereumjs/common@npm:^2.6.1, @ethereumjs/common@npm:^2.6.3":
+"@ethereumjs/common@npm:^2.6.1, @ethereumjs/common@npm:^2.6.3, @ethereumjs/common@npm:^2.6.4":
   version: 2.6.5
   resolution: "@ethereumjs/common@npm:2.6.5"
   dependencies:
@@ -644,16 +634,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ethereumjs/tx@npm:^3.2.1":
-  version: 3.2.1
-  resolution: "@ethereumjs/tx@npm:3.2.1"
-  dependencies:
-    "@ethereumjs/common": ^2.3.1
-    ethereumjs-util: ^7.0.10
-  checksum: 311404f0569fea03e5133c49d129ed9d814cc8baaca90bebb5fc8eae0d4cbc146cb66c2a2c3c54343d4699ff7e0475376bbe9bb9c38dc8dc1b2df0c6e2aaeb73
-  languageName: node
-  linkType: hard
-
 "@ethereumjs/tx@npm:^3.3.0":
   version: 3.3.0
   resolution: "@ethereumjs/tx@npm:3.3.0"
@@ -661,6 +641,16 @@ __metadata:
     "@ethereumjs/common": ^2.4.0
     ethereumjs-util: ^7.1.0
   checksum: f0720d4c7ccb670c50f61a3c26bf87181f3fddd4fe7f6c93753cca7c1442497719842ffb293db776c8c9a8c7107f18cb03eda3625d53cc5dda1bab736ff2a166
+  languageName: node
+  linkType: hard
+
+"@ethereumjs/tx@npm:^3.5.2":
+  version: 3.5.2
+  resolution: "@ethereumjs/tx@npm:3.5.2"
+  dependencies:
+    "@ethereumjs/common": ^2.6.4
+    ethereumjs-util: ^7.1.5
+  checksum: a34a7228a623b40300484d15875b9f31f0a612cfeab64a845f6866cf0bfe439519e9455ac6396149f29bc527cf0ee277ace082ae013a1075dcbf7193220a0146
   languageName: node
   linkType: hard
 
@@ -1771,8 +1761,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
-    "@ethereumjs/common": ^2.3.1
-    "@ethereumjs/tx": ^3.2.1
+    "@ethereumjs/common": ^2.6.1
+    "@ethereumjs/tx": ^3.5.2
     "@keystonehq/bc-ur-registry-eth": ^0.9.0
     "@keystonehq/metamask-airgapped-keyring": ^0.6.1
     "@metamask/auto-changelog": ^3.1.0
@@ -1996,7 +1986,7 @@ __metadata:
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
     "@ethereumjs/common": ^2.6.1
-    "@ethereumjs/tx": ^3.2.1
+    "@ethereumjs/tx": ^3.5.2
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"

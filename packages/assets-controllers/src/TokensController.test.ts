@@ -262,8 +262,8 @@ describe('TokensController', () => {
   it('should add token by network', async () => {
     const stub = stubCreateEthers(tokensController, false);
 
-    const firstNetworkType = 'rinkeby';
-    const secondNetworkType = 'ropsten';
+    const firstNetworkType = 'sepolia';
+    const secondNetworkType = 'goerli';
     network.setProviderType(firstNetworkType);
     await tokensController.addToken('0x01', 'bar', 2);
     network.setProviderType(secondNetworkType);
@@ -317,8 +317,8 @@ describe('TokensController', () => {
 
   it('should remove token by provider type', async () => {
     const stub = stubCreateEthers(tokensController, false);
-    const firstNetworkType = 'rinkeby';
-    const secondNetworkType = 'ropsten';
+    const firstNetworkType = 'sepolia';
+    const secondNetworkType = 'goerli';
 
     network.setProviderType(firstNetworkType);
     await tokensController.addToken('0x02', 'baz', 2);
@@ -341,7 +341,7 @@ describe('TokensController', () => {
   });
 
   it('should subscribe to new sibling preference controllers', async () => {
-    const networkType = 'rinkeby';
+    const networkType = 'sepolia';
     const address = '0x123';
     preferences.update({ selectedAddress: address });
     expect(preferences.state.selectedAddress).toStrictEqual(address);
@@ -350,7 +350,7 @@ describe('TokensController', () => {
   });
 
   describe('ignoredTokens', () => {
-    const defaultSelectedNetwork: NetworkType = 'rinkeby';
+    const defaultSelectedNetwork: NetworkType = 'sepolia';
     const defaultSelectedAddress = '0x0001';
 
     let createEthersStub: sinon.SinonStub;
@@ -380,7 +380,7 @@ describe('TokensController', () => {
 
     it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
       const selectedAddress = '0x0001';
-      const chain = 'rinkeby';
+      const chain = 'sepolia';
       preferences.setSelectedAddress(selectedAddress);
       network.setProviderType(chain);
       await tokensController.addToken('0x01', 'bar', 2);
@@ -425,8 +425,8 @@ describe('TokensController', () => {
     it('should ignore tokens by [chainID][accountAddress]', async () => {
       const selectedAddress1 = '0x0001';
       const selectedAddress2 = '0x0002';
-      const chain1 = 'rinkeby';
-      const chain2 = 'ropsten';
+      const chain1 = 'sepolia';
+      const chain2 = 'goerli';
 
       preferences.setSelectedAddress(selectedAddress1);
       network.setProviderType(chain1);
@@ -714,7 +714,7 @@ describe('TokensController', () => {
       const DETECTED_CHAINID = '0xDetectedChainId';
 
       const CONFIGURED_ADDRESS = '0xabc';
-      const CONFIGURED_NETWORK = 'rinkeby';
+      const CONFIGURED_NETWORK = 'sepolia';
       preferences.update({ selectedAddress: CONFIGURED_ADDRESS });
       network.setProviderType(CONFIGURED_NETWORK);
 
@@ -1127,8 +1127,8 @@ describe('TokensController', () => {
     it('should remove a token from its state on corresponding network', async function () {
       const stub = stubCreateEthers(tokensController, false);
 
-      const firstNetworkType = 'rinkeby';
-      const secondNetworkType = 'ropsten';
+      const firstNetworkType = 'sepolia';
+      const secondNetworkType = 'goerli';
       network.setProviderType(firstNetworkType);
 
       await tokensController.addToken('0x01', 'A', 4);
