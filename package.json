@@ -1,11 +1,11 @@
 {
-  "name": "@metamask/controllers-monorepo",
-  "version": "37.0.0",
+  "name": "@metamask/core-monorepo",
+  "version": "38.0.0",
   "private": true,
-  "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
+  "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/controllers.git"
+    "url": "https://github.com/MetaMask/core.git"
   },
   "files": [],
   "workspaces": [
@@ -17,6 +17,7 @@
     "build:docs": "yarn workspaces foreach --parallel --interlaced --verbose run build:docs",
     "build:watch": "yarn run build --watch",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
+    "child-workspace-package-names-as-json": "ts-node scripts/child-workspace-package-names-as-json.ts",
     "generate-dependency-graph": "ts-node scripts/generate-dependency-graph.ts",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints",
     "lint:eslint": "eslint . --cache --ext js,ts",
@@ -59,7 +60,7 @@
     "typescript": "~4.6.3",
     "which": "^3.0.0"
   },
-  "packageManager": "yarn@3.2.1",
+  "packageManager": "yarn@3.3.0",
   "engines": {
     "node": ">=14.0.0"
   },

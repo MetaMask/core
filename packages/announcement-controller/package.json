@@ -1,18 +1,18 @@
 {
   "name": "@metamask/announcement-controller",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "Manages in-app announcements",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/announcement-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/announcement-controller#readme",
   "bugs": {
-    "url": "https://github.com/MetaMask/controllers/issues"
+    "url": "https://github.com/MetaMask/core/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/controllers.git"
+    "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
   "main": "./dist/index.js",

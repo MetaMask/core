@@ -1,9 +1,11 @@
 import { Contract } from '@ethersproject/contracts';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { BN, toUtf8 } from 'ethereumjs-util';
-import { AbiCoder } from '@ethersproject/abi';
+import { decodeSingle } from '@metamask/abi-utils';
+
 import { Web3Provider } from '@ethersproject/providers';
 import { ERC20 } from '@metamask/controller-utils';
+import { assertIsStrictHexString } from '@metamask/utils';
 import { ethersBigNumberToBN } from '../assetsUtil';
 
 export class ERC20Standard {
@@ -56,12 +58,10 @@ export class ERC20Standard {
     // Signature for calling `symbol()`
     const payload = { to: address, data: '0x95d89b41' };
     const result = await this.provider.call(payload);
-
-    const abiCoder = new AbiCoder();
-
+    assertIsStrictHexString(result);
     // Parse as string - treat empty string as failure
     try {
-      const decoded = abiCoder.decode(['string'], result)[0];
+      const decoded = decodeSingle('string', result);
       if (decoded?.length > 0) {
         return decoded;
       }

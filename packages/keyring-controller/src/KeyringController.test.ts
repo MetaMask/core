@@ -2,9 +2,8 @@ import { BN, bufferToHex } from 'ethereumjs-util';
 import {
   recoverPersonalSignature,
   recoverTypedSignature,
-  recoverTypedSignature_v4,
-  recoverTypedSignatureLegacy,
-} from 'eth-sig-util';
+  SignTypedDataVersion,
+} from '@metamask/eth-sig-util';
 import * as sinon from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
@@ -21,7 +20,6 @@ import {
   KeyringConfig,
   KeyringController,
   KeyringTypes,
-  SignTypedDataVersion,
 } from './KeyringController';
 
 jest.mock('uuid', () => {
@@ -308,7 +306,7 @@ describe('KeyringController', () => {
   /**
    * If there is only HD Key Tree keyring with 1 account and removeAccount is called passing that account
    * It deletes keyring object also from state - not sure if this is correct behavior.
-   * https://github.com/MetaMask/controllers/issues/801
+   * https://github.com/MetaMask/core/issues/801
    */
   it('should remove HD Key Tree keyring from state when single account associated with it is deleted', async () => {
     const account = initialState.keyrings[0].accounts[0];
@@ -380,13 +378,13 @@ describe('KeyringController', () => {
       data,
       from: account,
     });
-    const recovered = recoverPersonalSignature({ data, sig: signature });
+    const recovered = recoverPersonalSignature({ data, signature });
     expect(account).toBe(recovered);
   });
 
   /**
    * signPersonalMessage does not fail for empty data value
-   * https://github.com/MetaMask/controllers/issues/799
+   * https://github.com/MetaMask/core/issues/799
    */
   it('should sign personal message even if empty data is passed', async () => {
     const account = initialState.keyrings[0].accounts[0];
@@ -394,7 +392,7 @@ describe('KeyringController', () => {
       data: '',
       from: account,
     });
-    const recovered = recoverPersonalSignature({ data: '', sig: signature });
+    const recovered = recoverPersonalSignature({ data: '', signature });
     expect(account).toBe(recovered);
   });
 
@@ -451,9 +449,10 @@ describe('KeyringController', () => {
       { data: typedMsgParams, from: account },
       SignTypedDataVersion.V1,
     );
-    const recovered = recoverTypedSignatureLegacy({
+    const recovered = recoverTypedSignature({
       data: typedMsgParams,
-      sig: signature as string,
+      signature,
+      version: SignTypedDataVersion.V1,
     });
     expect(account).toBe(recovered);
   });
@@ -477,7 +476,7 @@ describe('KeyringController', () => {
           wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
         },
       },
-      primaryType: 'Mail',
+      primaryType: 'Mail' as const,
       types: {
         EIP712Domain: [
           { name: 'name', type: 'string' },
@@ -502,8 +501,9 @@ describe('KeyringController', () => {
       SignTypedDataVersion.V3,
     );
     const recovered = recoverTypedSignature({
-      data: msgParams as any,
-      sig: signature as string,
+      data: msgParams,
+      signature,
+      version: SignTypedDataVersion.V3,
     });
     expect(account).toBe(recovered);
   });
@@ -536,7 +536,7 @@ describe('KeyringController', () => {
           },
         ],
       },
-      primaryType: 'Mail',
+      primaryType: 'Mail' as const,
       types: {
         EIP712Domain: [
           { name: 'name', type: 'string' },
@@ -565,9 +565,10 @@ describe('KeyringController', () => {
       { data: JSON.stringify(msgParams), from: account },
       SignTypedDataVersion.V4,
     );
-    const recovered = recoverTypedSignature_v4({
-      data: msgParams as any,
-      sig: signature as string,
+    const recovered = recoverTypedSignature({
+      data: msgParams,
+      signature,
+      version: SignTypedDataVersion.V4,
     });
     expect(account).toBe(recovered);
   });
@@ -661,7 +662,7 @@ describe('KeyringController', () => {
 
   /**
    * Task added to improve check for valid transaction in signTransaction method
-   * https://github.com/MetaMask/controllers/issues/800
+   * https://github.com/MetaMask/core/issues/800
    */
   it('should not sign transaction if transaction is not valid', async () => {
     await expect(async () => {
@@ -852,7 +853,7 @@ describe('KeyringController', () => {
         data,
         from: account,
       });
-      const recovered = recoverPersonalSignature({ data, sig: signature });
+      const recovered = recoverPersonalSignature({ data, signature });
       expect(account.toLowerCase()).toBe(recovered.toLowerCase());
     });
 
@@ -885,9 +886,10 @@ describe('KeyringController', () => {
         { data: typedMsgParams, from: account },
         SignTypedDataVersion.V1,
       );
-      const recovered = recoverTypedSignatureLegacy({
+      const recovered = recoverTypedSignature({
         data: typedMsgParams,
-        sig: signature as string,
+        signature,
+        version: SignTypedDataVersion.V1,
       });
       expect(account.toLowerCase()).toBe(recovered.toLowerCase());
     });
@@ -917,7 +919,8 @@ describe('KeyringController', () => {
       );
       const recovered = recoverTypedSignature({
         data: JSON.parse(msg),
-        sig: signature as string,
+        signature,
+        version: SignTypedDataVersion.V3,
       });
       expect(account.toLowerCase()).toBe(recovered);
     });
@@ -942,9 +945,10 @@ describe('KeyringController', () => {
         { data: msg, from: account },
         SignTypedDataVersion.V4,
       );
-      const recovered = recoverTypedSignature_v4({
+      const recovered = recoverTypedSignature({
         data: JSON.parse(msg),
-        sig: signature as string,
+        signature,
+        version: SignTypedDataVersion.V4,
       });
       expect(account.toLowerCase()).toBe(recovered);
     });
