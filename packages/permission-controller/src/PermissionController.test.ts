@@ -1685,6 +1685,335 @@ describe('PermissionController', () => {
     });
   });
 
+  describe('updateCaveatForAllSubjects', () => {
+    it('will update all subjects that have the specificed target and caveat type with the given value', () => {
+      const origin1 = 'metamask.io';
+      const origin2 = 'uniswap.org';
+      const origin3 = 'aave.com';
+
+      const controller = getDefaultPermissionController();
+
+      controller.grantPermissions({
+        subject: { origin: origin1 },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {
+            caveats: [
+              { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+            ],
+          },
+        },
+      });
+
+      controller.grantPermissions({
+        subject: { origin: origin2 },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {
+            caveats: [
+              { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+            ],
+          },
+        },
+      });
+
+      controller.grantPermissions({
+        subject: { origin: origin3 },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretObject]: {
+            caveats: [
+              { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+            ],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin1]: {
+            origin: origin1,
+            permissions: {
+              [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+                parentCapability: PermissionNames.wallet_getSecretArray,
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+                ],
+                invoker: origin1,
+              }),
+            },
+          },
+          [origin2]: {
+            origin: origin2,
+            permissions: {
+              [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+                parentCapability: PermissionNames.wallet_getSecretArray,
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+                ],
+                invoker: origin2,
+              }),
+            },
+          },
+          [origin3]: {
+            origin: origin3,
+            permissions: {
+              [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
+                parentCapability: PermissionNames.wallet_getSecretObject,
+                caveats: [
+                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                ],
+                invoker: origin3,
+              }),
+            },
+          },
+        },
+      });
+
+      controller.updateCaveatForAllSubjects(
+        PermissionNames.wallet_getSecretArray,
+        CaveatTypes.filterArrayResponse,
+        ['bar'],
+      );
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin1]: {
+            origin: origin1,
+            permissions: {
+              wallet_getSecretArray: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretArray',
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['bar'] },
+                ],
+                invoker: origin1,
+              }),
+            },
+          },
+          [origin2]: {
+            origin: origin2,
+            permissions: {
+              wallet_getSecretArray: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretArray',
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['bar'] },
+                ],
+                invoker: origin2,
+              }),
+            },
+          },
+          [origin3]: {
+            origin: origin3,
+            permissions: {
+              wallet_getSecretObject: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretObject',
+                caveats: [
+                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                ],
+                invoker: origin3,
+              }),
+            },
+          },
+        },
+      });
+    });
+
+    it('will throw if the caveat value passed to it is undefined', () => {
+      const origin1 = 'metamask.io';
+      const origin2 = 'uniswap.org';
+      const origin3 = 'aave.com';
+
+      const controller = getDefaultPermissionController();
+
+      controller.grantPermissions({
+        subject: { origin: origin1 },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {
+            caveats: [
+              { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+            ],
+          },
+        },
+      });
+
+      controller.grantPermissions({
+        subject: { origin: origin2 },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {
+            caveats: [
+              { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+            ],
+          },
+        },
+      });
+
+      controller.grantPermissions({
+        subject: { origin: origin3 },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretObject]: {
+            caveats: [
+              { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+            ],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin1]: {
+            origin: origin1,
+            permissions: {
+              [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+                parentCapability: PermissionNames.wallet_getSecretArray,
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+                ],
+                invoker: origin1,
+              }),
+            },
+          },
+          [origin2]: {
+            origin: origin2,
+            permissions: {
+              [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+                parentCapability: PermissionNames.wallet_getSecretArray,
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+                ],
+                invoker: origin2,
+              }),
+            },
+          },
+          [origin3]: {
+            origin: origin3,
+            permissions: {
+              [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
+                parentCapability: PermissionNames.wallet_getSecretObject,
+                caveats: [
+                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                ],
+                invoker: origin3,
+              }),
+            },
+          },
+        },
+      });
+
+      expect(() =>
+        controller.updateCaveatForAllSubjects(
+          PermissionNames.wallet_getSecretArray,
+          CaveatTypes.filterArrayResponse,
+          undefined,
+        ),
+      ).toThrow(
+        new errors.CaveatMissingValueError(
+          {
+            type: CaveatTypes.filterArrayResponse,
+            value: undefined,
+          },
+          origin1,
+          PermissionNames.wallet_getSecretArray,
+        ),
+      );
+    });
+
+    it('will throw if the caveat value passed to it is invalid JSON', () => {
+      const origin1 = 'metamask.io';
+      const origin2 = 'uniswap.org';
+      const origin3 = 'aave.com';
+
+      const controller = getDefaultPermissionController();
+
+      controller.grantPermissions({
+        subject: { origin: origin1 },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {
+            caveats: [
+              { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+            ],
+          },
+        },
+      });
+
+      controller.grantPermissions({
+        subject: { origin: origin2 },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {
+            caveats: [
+              { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+            ],
+          },
+        },
+      });
+
+      controller.grantPermissions({
+        subject: { origin: origin3 },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretObject]: {
+            caveats: [
+              { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+            ],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin1]: {
+            origin: origin1,
+            permissions: {
+              [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+                parentCapability: PermissionNames.wallet_getSecretArray,
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+                ],
+                invoker: origin1,
+              }),
+            },
+          },
+          [origin2]: {
+            origin: origin2,
+            permissions: {
+              [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+                parentCapability: PermissionNames.wallet_getSecretArray,
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+                ],
+                invoker: origin2,
+              }),
+            },
+          },
+          [origin3]: {
+            origin: origin3,
+            permissions: {
+              [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
+                parentCapability: PermissionNames.wallet_getSecretObject,
+                caveats: [
+                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                ],
+                invoker: origin3,
+              }),
+            },
+          },
+        },
+      });
+
+      expect(() =>
+        controller.updateCaveatForAllSubjects(
+          PermissionNames.wallet_getSecretArray,
+          CaveatTypes.filterArrayResponse,
+          () => undefined,
+        ),
+      ).toThrow(
+        new errors.CaveatInvalidJsonError(
+          {
+            type: CaveatTypes.filterArrayResponse,
+            value: null,
+          },
+          origin1,
+          PermissionNames.wallet_getSecretArray,
+        ),
+      );
+    });
+  });
+
   describe('removeCaveat', () => {
     it('removes an existing caveat', () => {
       const controller = getDefaultPermissionController();

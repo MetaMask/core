@@ -1182,6 +1182,67 @@ export class PermissionController<
   }
 
   /**
+   * Updates caveat value across all subjects' permissions that have the specified
+   * target and caveat type.
+   *
+   * @template TargetName - The permission target name. Should be inferred.
+   * @template CaveatType - The valid caveat type for the permission. Should
+   * be inferred.
+   * @param target - The target name of the permission.
+   * @param caveatType - The type of the caveat to update.
+   * @param caveatValue - The new value of the caveat.
+   */
+  updateCaveatForAllSubjects<
+    TargetName extends ExtractPermission<
+      ControllerPermissionSpecification,
+      ControllerCaveatSpecification
+    >['parentCapability'],
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatValue extends ExtractCaveatValue<
+      ControllerCaveatSpecification,
+      CaveatType
+    >,
+  >(
+    target: TargetName,
+    caveatType: CaveatType,
+    caveatValue: CaveatValue,
+  ): void {
+    const specification = this.getCaveatSpecification(caveatType);
+    const caveat = { type: caveatType, value: caveatValue };
+
+    this.update((draftState) => {
+      Object.entries(draftState.subjects).forEach(([origin, subject]) => {
+        const { permissions } = subject;
+
+        if (hasProperty(permissions, target)) {
+          const caveatIndex = (
+            permissions[target] as PermissionConstraint
+          ).caveats?.findIndex(
+            (existingCaveat) => existingCaveat.type === caveat.type,
+          );
+          if (caveatIndex !== undefined && caveatIndex !== -1) {
+            if (caveatValue === undefined) {
+              throw new CaveatMissingValueError(caveat, origin, target);
+            }
+
+            if (!isValidJson(caveatValue)) {
+              throw new CaveatInvalidJsonError(caveat, origin, target);
+            }
+
+            // Typecast: TypeScript still believes that the caveat is a PlainObject.
+            specification.validator?.(
+              caveat as CaveatConstraint,
+              origin,
+              target,
+            );
+            permissions[target].caveats?.splice(caveatIndex, 1, caveat);
+          }
+        }
+      });
+    });
+  }
+
+  /**
    * Sets the specified caveat on the specified permission. Overwrites existing
    * caveats of the same type in-place (preserving array order), and adds the
    * caveat to the end of the array otherwise.
