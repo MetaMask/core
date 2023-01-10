@@ -308,13 +308,13 @@ describe('SmartTransactionsController', () => {
 
   describe('onNetworkChange', () => {
     it('is triggered', () => {
-      networkListener({ provider: { chainId: '52' } } as NetworkState);
+      networkListener({ providerConfig: { chainId: '52' } } as NetworkState);
       expect(smartTransactionsController.config.chainId).toBe('52');
     });
 
     it('calls poll', () => {
       const checkPollSpy = jest.spyOn(smartTransactionsController, 'checkPoll');
-      networkListener({ provider: { chainId: '2' } } as NetworkState);
+      networkListener({ providerConfig: { chainId: '2' } } as NetworkState);
       expect(checkPollSpy).toHaveBeenCalled();
     });
   });
@@ -355,7 +355,7 @@ describe('SmartTransactionsController', () => {
         'updateSmartTransactions',
       );
       expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
-      networkListener({ provider: { chainId: '56' } } as NetworkState);
+      networkListener({ providerConfig: { chainId: '56' } } as NetworkState);
       expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
     });
   });

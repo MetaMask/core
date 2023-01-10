@@ -139,7 +139,7 @@ export default class SmartTransactionsController extends BaseController<
     this.initialize();
     this.initializeSmartTransactionsForChainId();
 
-    onNetworkStateChange(({ provider: newProvider }) => {
+    onNetworkStateChange(({ providerConfig: newProvider }) => {
       const { chainId } = newProvider;
       this.configure({ chainId });
       this.initializeSmartTransactionsForChainId();
