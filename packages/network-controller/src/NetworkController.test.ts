@@ -11,11 +11,15 @@ import {
 
 const RPC_TARGET = 'http://foo';
 
+const ethQuerySendAsyncMock = jest
+  .fn()
+  .mockImplementation((_: any, cb: any) => {
+    cb(null, {});
+  });
+
 jest.mock('eth-query', () =>
   jest.fn().mockImplementation(() => ({
-    sendAsync: (_: any, cb: any) => {
-      cb(null, { baseFeePerGas: true });
-    },
+    sendAsync: ethQuerySendAsyncMock,
   })),
 );
 
@@ -221,6 +225,10 @@ describe('NetworkController', () => {
   });
 
   it('should be EIP1559 compatible', () => {
+    ethQuerySendAsyncMock.mockImplementationOnce((_: any, cb: any) => {
+      cb(null, { baseFeePerGas: true });
+    });
+
     const controller = new NetworkController({
       messenger,
       infuraProjectId: '123',
