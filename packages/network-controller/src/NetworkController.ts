@@ -1,7 +1,6 @@
 import EthQuery from 'eth-query';
 import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
-import type { ProviderEngine } from 'web3-provider-engine';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
@@ -218,7 +217,7 @@ export class NetworkController extends BaseControllerV2<
     this.lookupNetwork();
   }
 
-  private registerProvider(provider: ProviderEngine) {
+  private registerProvider(provider: any) {
     provider.on('error', this.verifyNetwork.bind(this));
     this.ethQuery = new EthQuery(provider);
   }
@@ -272,13 +271,13 @@ export class NetworkController extends BaseControllerV2<
     this.updateProvider(createMetamaskProvider(config));
   }
 
-  private updateProvider(provider: ProviderEngine) {
+  private updateProvider(provider: any) {
     this.safelyStopProvider(this.provider);
     this.provider = provider;
     this.registerProvider(provider);
   }
 
-  private safelyStopProvider(provider: ProviderEngine | undefined) {
+  private safelyStopProvider(provider: any) {
     setTimeout(() => {
       provider?.stop();
     }, 500);
@@ -291,7 +290,7 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Ethereum provider object for the current network
    */
-  provider: ProviderEngine | undefined;
+  provider: any;
 
   /**
    * Sets a new configuration for web3-provider-engine.
