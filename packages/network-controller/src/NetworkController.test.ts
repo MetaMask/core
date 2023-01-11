@@ -110,70 +110,68 @@ describe('NetworkController', () => {
     });
 
     describe('set', () => {
+      ['1', '3', '4', '5', '42', ''].forEach((chainId) => {
+        describe(`when the provider config in state contains a chain ID of "${chainId}"`, () => {
+          it('sets isCustomNetwork in state to false', async () => {
+            await withController(
+              {
+                state: {
+                  isCustomNetwork: true,
+                  providerConfig: buildProviderConfig({
+                    chainId,
+                  }),
+                },
+                infuraProjectId: 'infura-project-id',
+              },
+              ({ controller }) => {
+                const fakeInfuraProvider = buildFakeInfuraProvider();
+                createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
+                const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
+                SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
+                const fakeMetamaskProvider = buildFakeMetamaskProvider();
+                createMetamaskProviderMock.mockReturnValue(
+                  fakeMetamaskProvider,
+                );
+
+                controller.providerConfig = buildProviderConfig();
+
+                expect(controller.state.isCustomNetwork).toBe(false);
+              },
+            );
+          });
+        });
+      });
+
+      describe('when the provider config in state contains a chain ID that is not 1, 3, 4, 5, 42, or an empty string', () => {
+        it('sets isCustomNetwork in state to true', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  chainId: '999',
+                }),
+              },
+              infuraProjectId: 'infura-project-id',
+            },
+            ({ controller }) => {
+              const fakeInfuraProvider = buildFakeInfuraProvider();
+              createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
+              const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
+              SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
+              const fakeMetamaskProvider = buildFakeMetamaskProvider();
+              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+              controller.providerConfig = buildProviderConfig();
+
+              expect(controller.state.isCustomNetwork).toBe(true);
+            },
+          );
+        });
+      });
+
       (['kovan', 'mainnet', 'rinkeby', 'goerli', 'ropsten'] as const).forEach(
         (networkType) => {
           describe(`when the provider config in state contains a network type of "${networkType}"`, () => {
-            ['1', '3', '4', '5', '42', ''].forEach((chainId) => {
-              describe(`when the provider config in state contains a chain ID of "${chainId}"`, () => {
-                it('sets isCustomNetwork in state to false', async () => {
-                  await withController(
-                    {
-                      state: {
-                        providerConfig: buildProviderConfig({ chainId }),
-                      },
-                      infuraProjectId: 'infura-project-id',
-                    },
-                    ({ controller }) => {
-                      const fakeInfuraProvider = buildFakeInfuraProvider();
-                      createInfuraProviderMock.mockReturnValue(
-                        fakeInfuraProvider,
-                      );
-                      const fakeInfuraSubprovider =
-                        buildFakeInfuraSubprovider();
-                      SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                      const fakeMetamaskProvider = buildFakeMetamaskProvider();
-                      createMetamaskProviderMock.mockReturnValue(
-                        fakeMetamaskProvider,
-                      );
-
-                      controller.providerConfig = buildProviderConfig();
-
-                      expect(controller.state.isCustomNetwork).toBe(false);
-                    },
-                  );
-                });
-              });
-            });
-
-            describe('when the provider config in state contains a chain ID that is not 1, 3, 4, 5, 42, or an empty string', () => {
-              it('sets isCustomNetwork in state to true', async () => {
-                await withController(
-                  {
-                    state: {
-                      providerConfig: buildProviderConfig({ chainId: '999' }),
-                    },
-                    infuraProjectId: 'infura-project-id',
-                  },
-                  ({ controller }) => {
-                    const fakeInfuraProvider = buildFakeInfuraProvider();
-                    createInfuraProviderMock.mockReturnValue(
-                      fakeInfuraProvider,
-                    );
-                    const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-                    SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                    const fakeMetamaskProvider = buildFakeMetamaskProvider();
-                    createMetamaskProviderMock.mockReturnValue(
-                      fakeMetamaskProvider,
-                    );
-
-                    controller.providerConfig = buildProviderConfig();
-
-                    expect(controller.state.isCustomNetwork).toBe(true);
-                  },
-                );
-              });
-            });
-
             it(`sets the provider to an Infura provider pointed to ${networkType}`, async () => {
               await withController(
                 {
@@ -217,36 +215,6 @@ describe('NetworkController', () => {
                     },
                   });
                   expect(controller.provider).toBe(fakeMetamaskProvider);
-                },
-              );
-            });
-
-            it('calls getEIP1559Compatibility', async () => {
-              await withController(
-                {
-                  state: {
-                    providerConfig: buildProviderConfig({
-                      type: networkType,
-                    }),
-                  },
-                  infuraProjectId: 'infura-project-id',
-                },
-                ({ controller }) => {
-                  const fakeInfuraProvider = buildFakeInfuraProvider();
-                  createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-                  const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-                  SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                  const fakeMetamaskProvider = buildFakeMetamaskProvider();
-                  createMetamaskProviderMock.mockReturnValue(
-                    fakeMetamaskProvider,
-                  );
-                  jest
-                    .spyOn(controller, 'getEIP1559Compatibility')
-                    .mockResolvedValue(undefined);
-
-                  controller.providerConfig = buildProviderConfig();
-
-                  expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
                 },
               );
             });
@@ -397,29 +365,6 @@ describe('NetworkController', () => {
                 ticker: undefined,
               });
               expect(controller.provider).toBe(fakeMetamaskProvider);
-            },
-          );
-        });
-
-        it('calls getEIP1559Compatibility', async () => {
-          await withController(
-            {
-              state: {
-                providerConfig: buildProviderConfig({
-                  type: 'localhost',
-                }),
-              },
-            },
-            ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider();
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest
-                .spyOn(controller, 'getEIP1559Compatibility')
-                .mockResolvedValue(undefined);
-
-              controller.providerConfig = buildProviderConfig();
-
-              expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
             },
           );
         });
@@ -690,6 +635,27 @@ describe('NetworkController', () => {
             );
           });
         });
+      });
+
+      it('calls getEIP1559Compatibility', async () => {
+        await withController(
+          {
+            state: {
+              providerConfig: buildProviderConfig(),
+            },
+          },
+          ({ controller }) => {
+            const fakeMetamaskProvider = buildFakeMetamaskProvider();
+            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+            jest
+              .spyOn(controller, 'getEIP1559Compatibility')
+              .mockResolvedValue(undefined);
+
+            controller.providerConfig = buildProviderConfig();
+
+            expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
+          },
+        );
       });
     });
   });
