@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "rootDir": "../.."
   },
   "references": [
     {
@@ -11,5 +12,5 @@
       "path": "../controller-utils"
     }
   ],
-  "include": ["../../types", "./src", "./tests"]
+  "include": ["../../types", "../../tests", "./src", "./tests"]
 }

@@ -4,8 +4,9 @@ declare global {
   /* eslint-disable-next-line @typescript-eslint/no-namespace */
   namespace jest {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/ban-types
-    interface Matchers<R, T = {}> {
+    interface Matchers<R> {
       toNeverResolve(): Promise<R>;
+      toEventuallyBe(expectedValue: any): Promise<R>;
     }
   }
 }

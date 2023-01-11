@@ -82,6 +82,8 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
 
   #stubs: FakeProviderStub[];
 
+  calledStubs: FakeProviderStub[];
+
   #originalStubs: FakeProviderStub[];
 
   /**
@@ -95,6 +97,7 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
     super();
     this.#originalStubs = stubs;
     this.#stubs = this.#originalStubs.slice();
+    this.calledStubs = [];
     this.#isStopped = false;
   }
 
@@ -110,12 +113,13 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
       throw new Error("Arrays aren't supported");
     }
 
-    const index = this.#stubs.findIndex(
-      (stub) =>
+    const index = this.#stubs.findIndex((stub) => {
+      return (
         stub.request.method === payload.method &&
         (!('params' in stub.request) ||
-          isDeepStrictEqual(stub.request.params, payload.params)),
-    );
+          isDeepStrictEqual(stub.request.params, payload.params))
+      );
+    });
 
     if (this.#isStopped) {
       console.error(`The provider has been stopped, yet sendAsync has somehow been called. If this
@@ -139,17 +143,24 @@ operation that was not fulfilled before the test ended.`);
       } else {
         this.#handleRequest(stub, callback);
       }
+
+      this.calledStubs.push({ ...stub });
     } else {
-      const inspectedOriginalStubs = inspect(this.#originalStubs, {
-        depth: null,
+      const matchingCalledStubs = this.calledStubs.filter((stub) => {
+        return (
+          stub.request.method === payload.method &&
+          (!('params' in stub.request) ||
+            isDeepStrictEqual(stub.request.params, payload.params))
+        );
       });
-      const inspectedStubs = inspect(this.#stubs, { depth: null });
-      const message =
-        `Could not find any stubs matching "${payload.method}". Perhaps they've already been called?\n\n` +
-        'The original set of stubs were:\n\n' +
-        `${inspectedOriginalStubs}\n\n` +
-        'Current set of stubs:\n\n' +
-        `${inspectedStubs}\n\n`;
+      let message = `Could not find any stubs matching "${payload.method}".`;
+
+      if (matchingCalledStubs.length > 0) {
+        message += `\n\nIt appears the following stubs were defined, but have been called already:\n\n${inspect(
+          matchingCalledStubs,
+          { depth: null },
+        )}`;
+      }
 
       throw new Error(message);
     }

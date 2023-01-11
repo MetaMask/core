@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { isDeepStrictEqual } from 'util';
 import { mocked } from 'ts-jest/utils';
 import { ControllerMessenger } from '@metamask/base-controller';
 import * as ethQueryModule from 'eth-query';
@@ -7,6 +8,7 @@ import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import type { ProviderEngine } from 'web3-provider-engine';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Patch } from 'immer';
+import { waitForResult } from '../../../tests/helpers';
 import {
   FakeProviderEngine,
   FakeProviderStub,
@@ -29,9 +31,6 @@ jest.mock('eth-query', () => {
 jest.mock('web3-provider-engine/subproviders/provider');
 jest.mock('eth-json-rpc-infura/src/createProvider');
 jest.mock('web3-provider-engine/zero');
-
-// Store this in case it gets stubbed later
-const originalSetTimeout = global.setTimeout;
 
 const SubproviderMock = mocked(Subprovider);
 const createInfuraProviderMock = mocked(createInfuraProvider);
@@ -496,16 +495,32 @@ describe('NetworkController', () => {
                   }),
                 },
               },
-              ({ controller }) => {
-                const fakeMetamaskProvider = buildFakeMetamaskProvider();
+              async ({ controller }) => {
+                const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: '0x1',
+                    },
+                  },
+                ]);
                 createMetamaskProviderMock.mockReturnValue(
                   fakeMetamaskProvider,
                 );
-                jest.spyOn(controller, 'getEIP1559Compatibility');
 
                 controller.providerConfig = buildProviderConfig();
 
-                expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
+                await expect(() =>
+                  fakeMetamaskProvider.calledStubs.some((stub) => {
+                    return (
+                      stub.request.method === 'eth_getBlockByNumber' &&
+                      isDeepStrictEqual(stub.request.params, ['latest', false])
+                    );
+                  }),
+                ).toEventuallyBe(true);
               },
             );
           });
@@ -3568,7 +3583,7 @@ async function setFakeProvider(
   }
 
   controller.providerConfig = buildProviderConfig();
-  await waitFor(() => controller.provider !== undefined);
+  await waitForResult(true, () => controller.provider !== undefined);
   assert(controller.provider);
 
   if (stubLookupNetworkWhileSetting) {
@@ -3579,32 +3594,6 @@ async function setFakeProvider(
   }
 
   return controller.provider;
-}
-
-/**
- * Calls the given function repeatedly until it returns true.
- *
- * @param check - The function.
- * @returns A promise that resolves to true when the function returns true, or
- * else never resolves.
- */
-async function waitFor(check: () => boolean) {
-  while (!check()) {
-    await wait(50);
-  }
-  return Promise.resolve();
-}
-
-/**
- * Returns a promise that resolves after a while.
- *
- * @param duration - The amount of time to wait in milliseconds.
- * @returns The promise.
- */
-async function wait<ReturnValue>(duration: number): Promise<ReturnValue> {
-  return new Promise<ReturnValue>((resolve) => {
-    originalSetTimeout(resolve, duration);
-  });
 }
 
 /**
