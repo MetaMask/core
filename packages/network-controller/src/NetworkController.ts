@@ -170,7 +170,6 @@ export class NetworkController extends BaseControllerV2<
   }
 
   destroy() {
-    // Prevent out-of-band calls to the provider
     this.provider?.stop();
     this.ethQuery = undefined;
   }
