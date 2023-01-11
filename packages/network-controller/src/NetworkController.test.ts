@@ -274,9 +274,7 @@ describe('NetworkController', () => {
                       createMetamaskProviderMock.mockReturnValue(
                         fakeMetamaskProvider,
                       );
-                      jest
-                        .spyOn(controller, 'lookupNetwork')
-                        .mockResolvedValue(undefined);
+                      jest.spyOn(controller, 'lookupNetwork');
 
                       controller.providerConfig = buildProviderConfig();
                       assert(controller.provider);
@@ -312,9 +310,7 @@ describe('NetworkController', () => {
                       createMetamaskProviderMock.mockReturnValue(
                         fakeMetamaskProvider,
                       );
-                      jest
-                        .spyOn(controller, 'lookupNetwork')
-                        .mockResolvedValue(undefined);
+                      jest.spyOn(controller, 'lookupNetwork');
 
                       controller.providerConfig = buildProviderConfig();
                       assert(controller.provider);
@@ -409,9 +405,7 @@ describe('NetworkController', () => {
                   createMetamaskProviderMock.mockReturnValue(
                     fakeMetamaskProvider,
                   );
-                  jest
-                    .spyOn(controller, 'lookupNetwork')
-                    .mockResolvedValue(undefined);
+                  jest.spyOn(controller, 'lookupNetwork');
 
                   controller.providerConfig = buildProviderConfig();
                   assert(controller.provider);
@@ -439,9 +433,7 @@ describe('NetworkController', () => {
                   createMetamaskProviderMock.mockReturnValue(
                     fakeMetamaskProvider,
                   );
-                  jest
-                    .spyOn(controller, 'lookupNetwork')
-                    .mockResolvedValue(undefined);
+                  jest.spyOn(controller, 'lookupNetwork');
 
                   controller.providerConfig = buildProviderConfig();
                   assert(controller.provider);
@@ -509,9 +501,7 @@ describe('NetworkController', () => {
                 createMetamaskProviderMock.mockReturnValue(
                   fakeMetamaskProvider,
                 );
-                jest
-                  .spyOn(controller, 'getEIP1559Compatibility')
-                  .mockResolvedValue(undefined);
+                jest.spyOn(controller, 'getEIP1559Compatibility');
 
                 controller.providerConfig = buildProviderConfig();
 
@@ -564,9 +554,7 @@ describe('NetworkController', () => {
                     createMetamaskProviderMock.mockReturnValue(
                       fakeMetamaskProvider,
                     );
-                    jest
-                      .spyOn(controller, 'lookupNetwork')
-                      .mockResolvedValue(undefined);
+                    jest.spyOn(controller, 'lookupNetwork');
 
                     controller.providerConfig = buildProviderConfig();
                     assert(controller.provider);
@@ -595,9 +583,7 @@ describe('NetworkController', () => {
                     createMetamaskProviderMock.mockReturnValue(
                       fakeMetamaskProvider,
                     );
-                    jest
-                      .spyOn(controller, 'lookupNetwork')
-                      .mockResolvedValue(undefined);
+                    jest.spyOn(controller, 'lookupNetwork');
 
                     controller.providerConfig = buildProviderConfig();
                     assert(controller.provider);
@@ -647,9 +633,7 @@ describe('NetworkController', () => {
           ({ controller }) => {
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest
-              .spyOn(controller, 'getEIP1559Compatibility')
-              .mockResolvedValue(undefined);
+            jest.spyOn(controller, 'getEIP1559Compatibility');
 
             controller.providerConfig = buildProviderConfig();
 
@@ -1046,9 +1030,7 @@ describe('NetworkController', () => {
             SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest
-              .spyOn(controller, 'getEIP1559Compatibility')
-              .mockResolvedValue(undefined);
+            jest.spyOn(controller, 'getEIP1559Compatibility');
             const promiseForStateChange = new Promise<NetworkState>(
               (resolve) => {
                 messenger.subscribe(
@@ -1148,9 +1130,7 @@ describe('NetworkController', () => {
           SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest
-            .spyOn(controller, 'getEIP1559Compatibility')
-            .mockResolvedValue(undefined);
+          jest.spyOn(controller, 'getEIP1559Compatibility');
 
           controller.setProviderType('mainnet' as const);
 
@@ -1356,9 +1336,7 @@ describe('NetworkController', () => {
               SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
               const fakeMetamaskProvider = buildFakeMetamaskProvider();
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest
-                .spyOn(controller, 'getEIP1559Compatibility')
-                .mockResolvedValue(undefined);
+              jest.spyOn(controller, 'getEIP1559Compatibility');
               const promiseForStateChange = new Promise<NetworkState>(
                 (resolve) => {
                   messenger.subscribe(
@@ -1457,9 +1435,7 @@ describe('NetworkController', () => {
             SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest
-              .spyOn(controller, 'getEIP1559Compatibility')
-              .mockResolvedValue(undefined);
+            jest.spyOn(controller, 'getEIP1559Compatibility');
 
             controller.setProviderType(networkType);
 
@@ -1634,9 +1610,7 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest
-              .spyOn(controller, 'getEIP1559Compatibility')
-              .mockResolvedValue(undefined);
+            jest.spyOn(controller, 'getEIP1559Compatibility');
             const promiseForStateChange = new Promise<NetworkState>(
               (resolve) => {
                 messenger.subscribe(
@@ -1708,9 +1682,7 @@ describe('NetworkController', () => {
         await withController(({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest
-            .spyOn(controller, 'getEIP1559Compatibility')
-            .mockResolvedValue(undefined);
+          jest.spyOn(controller, 'getEIP1559Compatibility');
 
           controller.setProviderType('rpc' as const);
 
@@ -1773,9 +1745,7 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest
-              .spyOn(controller, 'getEIP1559Compatibility')
-              .mockResolvedValue(undefined);
+            jest.spyOn(controller, 'getEIP1559Compatibility');
             const promiseForStateChange = new Promise<NetworkState>(
               (resolve) => {
                 messenger.subscribe(
@@ -1853,9 +1823,7 @@ describe('NetworkController', () => {
         await withController(({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest
-            .spyOn(controller, 'getEIP1559Compatibility')
-            .mockResolvedValue(undefined);
+          jest.spyOn(controller, 'getEIP1559Compatibility');
 
           controller.setProviderType('localhost' as const);
 
@@ -2011,9 +1979,7 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest
-              .spyOn(controller, 'getEIP1559Compatibility')
-              .mockResolvedValue(undefined);
+            jest.spyOn(controller, 'getEIP1559Compatibility');
             const promiseForStateChange = new Promise<NetworkState>(
               (resolve) => {
                 messenger.subscribe(
@@ -2091,9 +2057,7 @@ describe('NetworkController', () => {
         await withController(({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest
-            .spyOn(controller, 'getEIP1559Compatibility')
-            .mockResolvedValue(undefined);
+          jest.spyOn(controller, 'getEIP1559Compatibility');
 
           controller.setRpcTarget('http://example.com', '123');
 
@@ -2252,9 +2216,7 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest
-              .spyOn(controller, 'getEIP1559Compatibility')
-              .mockResolvedValue(undefined);
+            jest.spyOn(controller, 'getEIP1559Compatibility');
             const promiseForStateChange = new Promise<NetworkState>(
               (resolve) => {
                 messenger.subscribe(
@@ -2347,9 +2309,7 @@ describe('NetworkController', () => {
         await withController(({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest
-            .spyOn(controller, 'getEIP1559Compatibility')
-            .mockResolvedValue(undefined);
+          jest.spyOn(controller, 'getEIP1559Compatibility');
 
           controller.setRpcTarget(
             'http://example.com',
