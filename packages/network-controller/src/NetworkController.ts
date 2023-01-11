@@ -211,9 +211,9 @@ export class NetworkController extends BaseControllerV2<
     this.lookupNetwork();
   }
 
-  private registerProvider(provider: any) {
-    provider.on('error', this.verifyNetwork.bind(this));
-    this.ethQuery = new EthQuery(provider);
+  private registerProvider() {
+    this.provider.on('error', this.verifyNetwork.bind(this));
+    this.ethQuery = new EthQuery(this.provider);
   }
 
   private setupInfuraProvider(type: NetworkType) {
@@ -268,7 +268,7 @@ export class NetworkController extends BaseControllerV2<
   private updateProvider(provider: any) {
     this.safelyStopProvider(this.provider);
     this.provider = provider;
-    this.registerProvider(provider);
+    this.registerProvider();
   }
 
   private safelyStopProvider(provider: any) {
@@ -299,7 +299,7 @@ export class NetworkController extends BaseControllerV2<
       this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
     if (this.provider !== undefined) {
-      this.registerProvider(this.provider);
+      this.registerProvider();
     }
     this.lookupNetwork();
   }
