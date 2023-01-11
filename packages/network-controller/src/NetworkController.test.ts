@@ -3520,7 +3520,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({ controller });
   } finally {
-    controller.destroy();
+    controller.provider?.stop();
   }
 }
 

@@ -169,11 +169,6 @@ export class NetworkController extends BaseControllerV2<
     );
   }
 
-  destroy() {
-    this.provider?.stop();
-    this.ethQuery = undefined;
-  }
-
   private initializeProvider(
     type: NetworkType,
     rpcTarget?: string,
