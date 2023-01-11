@@ -32,6 +32,7 @@ jest.mock('web3-provider-engine/zero');
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
+
 const SubproviderMock = mocked(Subprovider);
 const createInfuraProviderMock = mocked(createInfuraProvider);
 const createMetamaskProviderMock = mocked(createMetamaskProvider);
