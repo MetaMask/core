@@ -251,7 +251,7 @@ describe('NetworkController', () => {
               );
             });
 
-            it('stops the provider after a while if one already exists', async () => {
+            it('stops an existing provider eventually', async () => {
               await withController(
                 {
                   state: {
@@ -424,7 +424,7 @@ describe('NetworkController', () => {
           );
         });
 
-        it('stops the provider after a while if one already exists', async () => {
+        it('stops an existing provider eventually', async () => {
           await withController(
             {
               state: {
@@ -575,7 +575,7 @@ describe('NetworkController', () => {
             );
           });
 
-          it('stops the provider after a while if one already exists', async () => {
+          it('stops an existing provider eventually', async () => {
             await withController(
               {
                 state: {
@@ -1192,7 +1192,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('stops the provider after a while if one already exists', async () => {
+      it('stops an existing provider eventually', async () => {
         await withController(({ controller }) => {
           const fakeInfuraProvider = buildFakeInfuraProvider();
           createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
@@ -1501,7 +1501,7 @@ describe('NetworkController', () => {
           });
         });
 
-        it('stops the provider after a while if one already exists', async () => {
+        it('stops an existing provider eventually', async () => {
           await withController(({ controller }) => {
             const fakeInfuraProvider = buildFakeInfuraProvider();
             createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
@@ -1897,7 +1897,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('stops the provider after a while if one already exists', async () => {
+      it('stops an existing provider eventually', async () => {
         await withController(({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
@@ -2135,7 +2135,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('stops the provider after a while if one already exists', async () => {
+      it('stops an existing provider eventually', async () => {
         await withController(({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
@@ -2396,7 +2396,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('stops the provider after a while if one already exists', async () => {
+      it('stops an existing provider eventually', async () => {
         await withController(({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
