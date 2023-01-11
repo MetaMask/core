@@ -602,14 +602,14 @@ describe('NftDetectionController', () => {
     getOpenSeaApiKeyStub.mockImplementation(() => 'FAKE API KEY');
     nftController.setApiKey('FAKE API KEY');
 
-    nock('https://proxy.metaswap.codefi.network:443', {
+    nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
       .get('/opensea/v1/api/v1/assets')
       .query({ owner: selectedAddress, offset: '0', limit: '50' })
       .replyWithError(new Error('Failed to fetch'));
 
-    nock('https://proxy.metaswap.codefi.network:443', {
+    nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
       .get('/opensea/v1/api/v1/assets')
@@ -690,7 +690,7 @@ describe('NftDetectionController', () => {
 
   it('should rethrow error when OpenSea proxy server fails with error other than fetch failure', async () => {
     const selectedAddress = '0x4';
-    nock('https://proxy.metaswap.codefi.network:443', {
+    nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
       .get('/opensea/v1/api/v1/assets')
