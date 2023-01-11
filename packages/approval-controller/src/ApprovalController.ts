@@ -110,13 +110,24 @@ export type RejectRequest = {
   handler: ApprovalController['reject'];
 };
 
+type UpdateRequestDataOptions = {
+  id: string;
+  requestData: Record<string, Json>;
+};
+
+export type UpdateRequestData = {
+  type: `${typeof controllerName}:updateRequestData`;
+  handler: ApprovalController['updateRequestData'];
+};
+
 export type ApprovalControllerActions =
   | GetApprovalsState
   | ClearApprovalRequests
   | AddApprovalRequest
   | HasApprovalRequest
   | AcceptRequest
-  | RejectRequest;
+  | RejectRequest
+  | UpdateRequestData;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -415,6 +426,25 @@ export class ApprovalController extends BaseControllerV2<
     }
     this._origins.clear();
     this.update(() => getDefaultState());
+  }
+
+  /**
+   * Updates the requestData of the approval with the given id.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval request.
+   * @param opts.requestData - Additional data associated with the request
+   */
+  updateRequestData(opts: UpdateRequestDataOptions): void {
+    if (!this.state.pendingApprovals[opts.id]) {
+      throw new ApprovalRequestNotFoundError(opts.id);
+    }
+
+    this.update((draftState) => {
+      // Typecast: ts(2589)
+      draftState.pendingApprovals[opts.id].requestData =
+        opts.requestData as any;
+    });
   }
 
   /**

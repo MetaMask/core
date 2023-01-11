@@ -728,6 +728,46 @@ describe('approval controller', () => {
     });
   });
 
+  describe('updateRequestData', () => {
+    let approvalController: ApprovalController;
+
+    beforeEach(() => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
+    });
+
+    it('updates the requestData of a given approval request', () => {
+      approvalController
+        .add({
+          id: 'foo2',
+          origin: 'bar.baz',
+          type: 'myType',
+          requestData: { foo: 'bar' },
+        })
+        .catch((_error) => undefined);
+
+      approvalController.updateRequestData({
+        id: 'foo2',
+        requestData: { foo: 'foobar' },
+      });
+
+      expect(approvalController.get('foo2')?.requestData).toStrictEqual({
+        foo: 'foobar',
+      });
+    });
+
+    it('throws on unknown id', () => {
+      expect(() =>
+        approvalController.updateRequestData({
+          id: 'foo',
+          requestData: { foo: 'bar' },
+        }),
+      ).toThrow(getIdNotFoundError('foo'));
+    });
+  });
+
   // We test this internal function before resolve, reject, and clear because
   // they are heavily dependent upon it.
   // TODO: Stop using private methods in tests
