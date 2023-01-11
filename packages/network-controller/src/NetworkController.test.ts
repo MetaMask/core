@@ -30,18 +30,6 @@ jest.mock('web3-provider-engine/subproviders/provider');
 jest.mock('eth-json-rpc-infura/src/createProvider');
 jest.mock('web3-provider-engine/zero');
 
-type WithControllerCallback<ReturnValue> = ({
-  controller,
-}: {
-  controller: NetworkController;
-}) => Promise<ReturnValue> | ReturnValue;
-
-type WithControllerOptions = Partial<NetworkControllerOptions>;
-
-type WithControllerArgs<ReturnValue> =
-  | [WithControllerCallback<ReturnValue>]
-  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
-
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
 const SubproviderMock = mocked(Subprovider);
@@ -3497,6 +3485,18 @@ function buildMessenger() {
     ],
   });
 }
+
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+}: {
+  controller: NetworkController;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerOptions = Partial<NetworkControllerOptions>;
+
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
 
 /**
  * Builds a controller based on the given options, and calls the given function
