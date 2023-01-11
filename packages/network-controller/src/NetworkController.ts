@@ -319,31 +319,29 @@ export class NetworkController extends BaseControllerV2<
    * Refreshes the current network code.
    */
   async lookupNetwork() {
-    const releaseLock = await this.mutex.acquire();
-    if (!this.ethQuery || !this.ethQuery.sendAsync) {
-      return;
-    }
-    this.ethQuery.sendAsync(
-      { method: 'net_version' },
-      (error: Error, network: string) => {
-        try {
-          if (this.state.network === network) {
-            return;
-          }
+    await this.mutex.runExclusive(async () => {
+      if (this.ethQuery?.sendAsync) {
+        await new Promise<void>((resolve) => {
+          this.ethQuery.sendAsync(
+            { method: 'net_version' },
+            (error: Error, network: string) => {
+              if (this.state.network !== network) {
+                this.update((state) => {
+                  state.network = error ? 'loading' : network;
+                });
 
-          this.update((state) => {
-            state.network = error ? 'loading' : network;
-          });
+                this.messagingSystem.publish(
+                  `NetworkController:providerConfigChange`,
+                  this.state.providerConfig,
+                );
+              }
 
-          this.messagingSystem.publish(
-            `NetworkController:providerConfigChange`,
-            this.state.providerConfig,
+              resolve();
+            },
           );
-        } finally {
-          releaseLock();
-        }
-      },
-    );
+        });
+      }
+    });
   }
 
   /**

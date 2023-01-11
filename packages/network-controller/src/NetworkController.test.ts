@@ -1094,17 +1094,24 @@ describe('NetworkController', () => {
             jest
               .spyOn(controller, 'getEIP1559Compatibility')
               .mockResolvedValue(undefined);
-            const promiseForStateChange = new Promise<void>((resolve) => {
-              messenger.subscribe('NetworkController:stateChange', () => {
-                resolve();
-              });
-            });
+            const promiseForStateChange = new Promise<NetworkState>(
+              (resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (newState, patches) => {
+                    if (didPropertyChange(patches, 'network')) {
+                      resolve(newState);
+                    }
+                  },
+                );
+              },
+            );
 
             controller.setProviderType('mainnet' as const);
 
-            await promiseForStateChange;
-            expect(controller.state.network).toStrictEqual('loading');
-            expect(controller.state.properties).toStrictEqual({});
+            const newState = await promiseForStateChange;
+            expect(newState.network).toStrictEqual('loading');
+            expect(newState.properties).toStrictEqual({});
           },
         );
       });
@@ -1397,17 +1404,24 @@ describe('NetworkController', () => {
               jest
                 .spyOn(controller, 'getEIP1559Compatibility')
                 .mockResolvedValue(undefined);
-              const promiseForStateChange = new Promise<void>((resolve) => {
-                messenger.subscribe('NetworkController:stateChange', () => {
-                  resolve();
-                });
-              });
+              const promiseForStateChange = new Promise<NetworkState>(
+                (resolve) => {
+                  messenger.subscribe(
+                    'NetworkController:stateChange',
+                    (newState, patches) => {
+                      if (didPropertyChange(patches, 'network')) {
+                        resolve(newState);
+                      }
+                    },
+                  );
+                },
+              );
 
               controller.setProviderType(networkType);
 
-              await promiseForStateChange;
-              expect(controller.state.network).toStrictEqual('loading');
-              expect(controller.state.properties).toStrictEqual({});
+              const newState = await promiseForStateChange;
+              expect(newState.network).toStrictEqual('loading');
+              expect(newState.properties).toStrictEqual({});
             },
           );
         });
@@ -1668,17 +1682,24 @@ describe('NetworkController', () => {
             jest
               .spyOn(controller, 'getEIP1559Compatibility')
               .mockResolvedValue(undefined);
-            const promiseForStateChange = new Promise<void>((resolve) => {
-              messenger.subscribe('NetworkController:stateChange', () => {
-                resolve();
-              });
-            });
+            const promiseForStateChange = new Promise<NetworkState>(
+              (resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (newState, patches) => {
+                    if (didPropertyChange(patches, 'network')) {
+                      resolve(newState);
+                    }
+                  },
+                );
+              },
+            );
 
             controller.setProviderType('rpc' as const);
 
-            await promiseForStateChange;
-            expect(controller.state.network).toStrictEqual('loading');
-            expect(controller.state.properties).toStrictEqual({});
+            const newState = await promiseForStateChange;
+            expect(newState.network).toStrictEqual('loading');
+            expect(newState.properties).toStrictEqual({});
           },
         );
       });
@@ -1800,17 +1821,24 @@ describe('NetworkController', () => {
             jest
               .spyOn(controller, 'getEIP1559Compatibility')
               .mockResolvedValue(undefined);
-            const promiseForStateChange = new Promise<void>((resolve) => {
-              messenger.subscribe('NetworkController:stateChange', () => {
-                resolve();
-              });
-            });
+            const promiseForStateChange = new Promise<NetworkState>(
+              (resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (newState, patches) => {
+                    if (didPropertyChange(patches, 'network')) {
+                      resolve(newState);
+                    }
+                  },
+                );
+              },
+            );
 
             controller.setProviderType('localhost' as const);
 
-            await promiseForStateChange;
-            expect(controller.state.network).toStrictEqual('loading');
-            expect(controller.state.properties).toStrictEqual({});
+            const newState = await promiseForStateChange;
+            expect(newState.network).toStrictEqual('loading');
+            expect(newState.properties).toStrictEqual({});
           },
         );
       });
@@ -2031,17 +2059,24 @@ describe('NetworkController', () => {
             jest
               .spyOn(controller, 'getEIP1559Compatibility')
               .mockResolvedValue(undefined);
-            const promiseForStateChange = new Promise<void>((resolve) => {
-              messenger.subscribe('NetworkController:stateChange', () => {
-                resolve();
-              });
-            });
+            const promiseForStateChange = new Promise<NetworkState>(
+              (resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (newState, patches) => {
+                    if (didPropertyChange(patches, 'network')) {
+                      resolve(newState);
+                    }
+                  },
+                );
+              },
+            );
 
             controller.setRpcTarget('http://example.com', '123');
 
-            await promiseForStateChange;
-            expect(controller.state.network).toStrictEqual('loading');
-            expect(controller.state.properties).toStrictEqual({});
+            const newState = await promiseForStateChange;
+            expect(newState.network).toStrictEqual('loading');
+            expect(newState.properties).toStrictEqual({});
           },
         );
       });
@@ -2265,11 +2300,18 @@ describe('NetworkController', () => {
             jest
               .spyOn(controller, 'getEIP1559Compatibility')
               .mockResolvedValue(undefined);
-            const promiseForStateChange = new Promise<void>((resolve) => {
-              messenger.subscribe('NetworkController:stateChange', () => {
-                resolve();
-              });
-            });
+            const promiseForStateChange = new Promise<NetworkState>(
+              (resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (newState, patches) => {
+                    if (didPropertyChange(patches, 'network')) {
+                      resolve(newState);
+                    }
+                  },
+                );
+              },
+            );
 
             controller.setRpcTarget(
               'http://example.com',
@@ -2278,9 +2320,9 @@ describe('NetworkController', () => {
               'cool network',
             );
 
-            await promiseForStateChange;
-            expect(controller.state.network).toStrictEqual('loading');
-            expect(controller.state.properties).toStrictEqual({});
+            const newState = await promiseForStateChange;
+            expect(newState.network).toStrictEqual('loading');
+            expect(newState.properties).toStrictEqual({});
           },
         );
       });
