@@ -82,15 +82,15 @@ export type SuggestedAssetMetaBase = {
  */
 export type SuggestedAssetMeta =
   | (SuggestedAssetMetaBase & {
-      status: SuggestedAssetStatus.failed;
-      error: Error;
-    })
+    status: SuggestedAssetStatus.failed;
+    error: Error;
+  })
   | (SuggestedAssetMetaBase & {
-      status:
-        | SuggestedAssetStatus.accepted
-        | SuggestedAssetStatus.rejected
-        | SuggestedAssetStatus.pending;
-    });
+    status:
+    | SuggestedAssetStatus.accepted
+    | SuggestedAssetStatus.rejected
+    | SuggestedAssetStatus.pending;
+  });
 
 /**
  * @type TokensState
