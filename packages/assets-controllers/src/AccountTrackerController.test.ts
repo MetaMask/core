@@ -20,7 +20,7 @@ const mockedQuery = query as jest.Mock<
 >;
 
 const provider = new HttpProvider(
-  'https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  'https://goerli.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
 
 describe('AccountTrackerController', () => {

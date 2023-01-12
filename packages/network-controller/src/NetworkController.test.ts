@@ -11,6 +11,18 @@ import {
 
 const RPC_TARGET = 'http://foo';
 
+const ethQuerySendAsyncMock = jest
+  .fn()
+  .mockImplementation((_: any, cb: any) => {
+    cb(null, {});
+  });
+
+jest.mock('eth-query', () =>
+  jest.fn().mockImplementation(() => ({
+    sendAsync: ethQuerySendAsyncMock,
+  })),
+);
+
 const setupController = (
   pType: NetworkType,
   messenger: NetworkControllerMessenger,
@@ -74,17 +86,17 @@ describe('NetworkController', () => {
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
-  (
-    ['kovan', 'rinkeby', 'ropsten', 'mainnet', 'localhost'] as NetworkType[]
-  ).forEach((n) => {
-    it(`should create a provider instance for ${n} infura network`, () => {
-      const networkController = setupController(n, messenger);
-      expect(networkController.provider instanceof Web3ProviderEngine).toBe(
-        true,
-      );
-      expect(networkController.state.isCustomNetwork).toBe(false);
-    });
-  });
+  (['sepolia', 'goerli', 'mainnet', 'localhost'] as NetworkType[]).forEach(
+    (n) => {
+      it(`should create a provider instance for ${n} infura network`, () => {
+        const networkController = setupController(n, messenger);
+        expect(networkController.provider instanceof Web3ProviderEngine).toBe(
+          true,
+        );
+        expect(networkController.state.isCustomNetwork).toBe(false);
+      });
+    },
+  );
 
   it('should create a provider instance for optimism network', () => {
     const networkControllerOpts: NetworkControllerOptions = {
@@ -165,6 +177,32 @@ describe('NetworkController', () => {
     expect(controller.state.providerConfig.nickname).toBeUndefined();
   });
 
+  it('should set sepolia provider type', () => {
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: '123',
+    });
+    controller.setProviderType('sepolia' as NetworkType);
+    expect(controller.state.providerConfig.type).toBe('sepolia');
+    expect(controller.state.providerConfig.ticker).toBe('SepoliaETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+    expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
+    expect(controller.state.providerConfig.nickname).toBeUndefined();
+  });
+
+  it('should set goerli provider type', () => {
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: '123',
+    });
+    controller.setProviderType('goerli' as NetworkType);
+    expect(controller.state.providerConfig.type).toBe('goerli');
+    expect(controller.state.providerConfig.ticker).toBe('GoerliETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+    expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
+    expect(controller.state.providerConfig.nickname).toBeUndefined();
+  });
+
   it('should set rpcTarget and nickname props to undefined when set a provider type', () => {
     const controller = new NetworkController({
       messenger,
@@ -184,6 +222,22 @@ describe('NetworkController', () => {
     expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
       "Unrecognized network type: 'junk'",
     );
+  });
+
+  it('should be EIP1559 compatible', () => {
+    ethQuerySendAsyncMock.mockImplementationOnce((_: any, cb: any) => {
+      cb(null, { baseFeePerGas: true });
+    });
+
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: '123',
+      state: {
+        network: 'loading',
+      },
+    });
+    controller.providerConfig = {} as ProviderConfig;
+    expect(controller.state.properties.isEIP1559Compatible).toBe(true);
   });
 
   it('should verify the network on an error', async () => {
