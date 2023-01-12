@@ -17,6 +17,7 @@ import {
   NetworkController,
   NetworkControllerActions,
   NetworkControllerEvents,
+  NetworkControllerMessenger,
   NetworkControllerOptions,
   NetworkState,
   ProviderConfig,
@@ -31,6 +32,9 @@ jest.mock('eth-query', () => {
 jest.mock('web3-provider-engine/subproviders/provider');
 jest.mock('eth-json-rpc-infura/src/createProvider');
 jest.mock('web3-provider-engine/zero');
+
+// Store this up front so it doesn't get lost when it is stubbed
+const originalSetTimeout = global.setTimeout;
 
 const SubproviderMock = mocked(Subprovider);
 const createInfuraProviderMock = mocked(createInfuraProvider);
@@ -251,9 +255,11 @@ describe('NetworkController', () => {
 
             describe('when an "error" event occurs on the new provider', () => {
               describe('when the network has not been connected to yet', () => {
-                it('calls lookupNetwork twice more after the initial call in the providerConfig setter (due to the "error" event being listened to twice)', async () => {
+                it('retrieves the network version twice more (due to the "error" event being listened to twice) and, assuming success, persists them to state', async () => {
+                  const messenger = buildMessenger();
                   await withController(
                     {
+                      messenger,
                       state: {
                         providerConfig: buildProviderConfig({
                           type: networkType,
@@ -261,7 +267,7 @@ describe('NetworkController', () => {
                       },
                       infuraProjectId: 'infura-project-id',
                     },
-                    ({ controller }) => {
+                    async ({ controller }) => {
                       const fakeInfuraProvider = buildFakeInfuraProvider();
                       createInfuraProviderMock.mockReturnValue(
                         fakeInfuraProvider,
@@ -269,35 +275,78 @@ describe('NetworkController', () => {
                       const fakeInfuraSubprovider =
                         buildFakeInfuraSubprovider();
                       SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                      const fakeMetamaskProvider = buildFakeMetamaskProvider();
+                      const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                        {
+                          request: {
+                            method: 'net_version',
+                          },
+                          response: {
+                            result: '1',
+                          },
+                        },
+                        {
+                          request: {
+                            method: 'net_version',
+                          },
+                          response: {
+                            result: '2',
+                          },
+                        },
+                        {
+                          request: {
+                            method: 'net_version',
+                          },
+                          response: {
+                            result: '3',
+                          },
+                        },
+                      ]);
                       createMetamaskProviderMock.mockReturnValue(
                         fakeMetamaskProvider,
                       );
-                      jest.spyOn(controller, 'lookupNetwork');
+                      const promiseForNetworkChanges = new Promise<void>(
+                        (resolve) => {
+                          const newStates: NetworkState[] = [];
+                          messenger.subscribe(
+                            'NetworkController:stateChange',
+                            (newState, patches) => {
+                              if (didPropertyChange(patches, ['network'])) {
+                                newStates.push(newState);
+
+                                if (newStates.length === 3) {
+                                  resolve();
+                                }
+                              }
+                            },
+                          );
+                        },
+                      );
 
                       controller.providerConfig = buildProviderConfig();
                       assert(controller.provider);
                       controller.provider.emit('error', { some: 'error' });
 
-                      expect(controller.lookupNetwork).toHaveBeenCalledTimes(3);
+                      await promiseForNetworkChanges;
+                      expect(controller.state.network).toBe('3');
                     },
                   );
                 });
               });
 
-              describe('when the network has already been connected to', () => {
-                it('does not call lookupNetwork again after the initial call in the providerConfig setter', async () => {
+              describe('if the network version could be retrieved after using the providerConfig setter', () => {
+                it('does not retrieve the network version again', async () => {
+                  const messenger = buildMessenger();
                   await withController(
                     {
+                      messenger,
                       state: {
-                        network: '1',
                         providerConfig: buildProviderConfig({
                           type: networkType,
                         }),
                       },
                       infuraProjectId: 'infura-project-id',
                     },
-                    ({ controller }) => {
+                    async ({ controller }) => {
                       const fakeInfuraProvider = buildFakeInfuraProvider();
                       createInfuraProviderMock.mockReturnValue(
                         fakeInfuraProvider,
@@ -305,20 +354,36 @@ describe('NetworkController', () => {
                       const fakeInfuraSubprovider =
                         buildFakeInfuraSubprovider();
                       SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                      const fakeMetamaskProvider = buildFakeMetamaskProvider();
+                      const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                        {
+                          request: {
+                            method: 'net_version',
+                          },
+                          response: {
+                            result: '1',
+                          },
+                        },
+                        {
+                          request: {
+                            method: 'net_version',
+                          },
+                          response: {
+                            result: '2',
+                          },
+                        },
+                      ]);
                       createMetamaskProviderMock.mockReturnValue(
                         fakeMetamaskProvider,
                       );
-                      jest.spyOn(controller, 'lookupNetwork');
+                      const promiseForAllNetworkChanges =
+                        await waitForAllStateChanges(messenger, ['network']);
 
                       controller.providerConfig = buildProviderConfig();
                       assert(controller.provider);
-                      expect(controller.state.network).not.toStrictEqual(
-                        'loading',
-                      );
                       controller.provider.emit('error', { some: 'error' });
 
-                      expect(controller.lookupNetwork).toHaveBeenCalledTimes(1);
+                      await promiseForAllNetworkChanges;
+                      expect(controller.state.network).toBe('1');
                     },
                   );
                 });
@@ -390,55 +455,119 @@ describe('NetworkController', () => {
 
         describe('when an "error" event occurs on the new provider', () => {
           describe('when the network has not been connected to yet', () => {
-            it('calls lookupNetwork twice more after the initial call in the providerConfig setter (due to the "error" event being listened to twice)', async () => {
+            it('retrieves the network version twice more (due to the "error" event being listened to twice) and, assuming success, persists them to state', async () => {
+              const messenger = buildMessenger();
               await withController(
                 {
+                  messenger,
                   state: {
                     providerConfig: buildProviderConfig({
                       type: 'localhost',
                     }),
                   },
                 },
-                ({ controller }) => {
-                  const fakeMetamaskProvider = buildFakeMetamaskProvider();
+                async ({ controller }) => {
+                  const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '1',
+                      },
+                    },
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '2',
+                      },
+                    },
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '3',
+                      },
+                    },
+                  ]);
                   createMetamaskProviderMock.mockReturnValue(
                     fakeMetamaskProvider,
                   );
-                  jest.spyOn(controller, 'lookupNetwork');
+                  const promiseForNetworkChanges = new Promise<void>(
+                    (resolve) => {
+                      const newStates: NetworkState[] = [];
+                      messenger.subscribe(
+                        'NetworkController:stateChange',
+                        (newState, patches) => {
+                          if (didPropertyChange(patches, ['network'])) {
+                            newStates.push(newState);
+
+                            if (newStates.length === 3) {
+                              resolve();
+                            }
+                          }
+                        },
+                      );
+                    },
+                  );
 
                   controller.providerConfig = buildProviderConfig();
                   assert(controller.provider);
                   controller.provider.emit('error', { some: 'error' });
 
-                  expect(controller.lookupNetwork).toHaveBeenCalledTimes(3);
+                  await promiseForNetworkChanges;
+                  expect(controller.state.network).toBe('3');
                 },
               );
             });
           });
 
-          describe('when the network has already been connected to', () => {
-            it('does not call lookupNetwork again after the initial call in the providerConfig setter', async () => {
+          describe('if the network version could be retrieved after using the providerConfig setter', () => {
+            it('does not retrieve the network version again', async () => {
+              const messenger = buildMessenger();
               await withController(
                 {
+                  messenger,
                   state: {
-                    network: '1',
                     providerConfig: buildProviderConfig({
                       type: 'localhost',
                     }),
                   },
                 },
-                ({ controller }) => {
-                  const fakeMetamaskProvider = buildFakeMetamaskProvider();
+                async ({ controller }) => {
+                  const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '1',
+                      },
+                    },
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '2',
+                      },
+                    },
+                  ]);
                   createMetamaskProviderMock.mockReturnValue(
                     fakeMetamaskProvider,
                   );
-                  jest.spyOn(controller, 'lookupNetwork');
+                  const promiseForAllNetworkChanges =
+                    await waitForAllStateChanges(messenger, ['network']);
 
                   controller.providerConfig = buildProviderConfig();
                   assert(controller.provider);
                   controller.provider.emit('error', { some: 'error' });
 
-                  expect(controller.lookupNetwork).toHaveBeenCalledTimes(1);
+                  await promiseForAllNetworkChanges;
+                  expect(controller.state.network).toBe('1');
                 },
               );
             });
@@ -485,10 +614,15 @@ describe('NetworkController', () => {
             );
           });
 
-          it('calls getEIP1559Compatibility', async () => {
+          it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+            const messenger = buildMessenger();
             await withController(
               {
+                messenger,
                 state: {
+                  properties: {
+                    isEIP1559Compatible: false,
+                  },
                   providerConfig: buildProviderConfig({
                     type: 'rpc',
                     rpcTarget: 'http://example.com',
@@ -503,24 +637,38 @@ describe('NetworkController', () => {
                       params: ['latest', false],
                     },
                     response: {
-                      result: '0x1',
+                      result: {
+                        baseFeePerGas: '0x1',
+                      },
                     },
                   },
                 ]);
                 createMetamaskProviderMock.mockReturnValue(
                   fakeMetamaskProvider,
                 );
+                const promiseForIsEIP1559CompatibleChange =
+                  new Promise<NetworkState>((resolve) => {
+                    messenger.subscribe(
+                      'NetworkController:stateChange',
+                      (newState, patches) => {
+                        if (
+                          didPropertyChange(patches, [
+                            'properties',
+                            'isEIP1559Compatible',
+                          ])
+                        ) {
+                          resolve(newState);
+                        }
+                      },
+                    );
+                  });
 
                 controller.providerConfig = buildProviderConfig();
 
-                await expect(() =>
-                  fakeMetamaskProvider.calledStubs.some((stub) => {
-                    return (
-                      stub.request.method === 'eth_getBlockByNumber' &&
-                      isDeepStrictEqual(stub.request.params, ['latest', false])
-                    );
-                  }),
-                ).toEventuallyBe(true);
+                await promiseForIsEIP1559CompatibleChange;
+                expect(controller.state.properties.isEIP1559Compatible).toBe(
+                  true,
+                );
               },
             );
           });
@@ -554,9 +702,11 @@ describe('NetworkController', () => {
 
           describe('when an "error" event occurs on the new provider', () => {
             describe('when the network has not been connected to yet', () => {
-              it('calls lookupNetwork twice more after the initial call in the providerConfig setter (due to the "error" event being listened to twice)', async () => {
+              it('retrieves the network version twice more (due to the "error" event being listened to twice) and, assuming success, persists them to state', async () => {
+                const messenger = buildMessenger();
                 await withController(
                   {
+                    messenger,
                     state: {
                       providerConfig: buildProviderConfig({
                         type: 'rpc',
@@ -564,47 +714,109 @@ describe('NetworkController', () => {
                       }),
                     },
                   },
-                  ({ controller }) => {
-                    const fakeMetamaskProvider = buildFakeMetamaskProvider();
+                  async ({ controller }) => {
+                    const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                      {
+                        request: {
+                          method: 'net_version',
+                        },
+                        response: {
+                          result: '1',
+                        },
+                      },
+                      {
+                        request: {
+                          method: 'net_version',
+                        },
+                        response: {
+                          result: '2',
+                        },
+                      },
+                      {
+                        request: {
+                          method: 'net_version',
+                        },
+                        response: {
+                          result: '3',
+                        },
+                      },
+                    ]);
                     createMetamaskProviderMock.mockReturnValue(
                       fakeMetamaskProvider,
                     );
-                    jest.spyOn(controller, 'lookupNetwork');
+                    const promiseForNetworkChanges = new Promise<void>(
+                      (resolve) => {
+                        const newStates: NetworkState[] = [];
+                        messenger.subscribe(
+                          'NetworkController:stateChange',
+                          (newState, patches) => {
+                            if (didPropertyChange(patches, ['network'])) {
+                              newStates.push(newState);
+
+                              if (newStates.length === 3) {
+                                resolve();
+                              }
+                            }
+                          },
+                        );
+                      },
+                    );
 
                     controller.providerConfig = buildProviderConfig();
                     assert(controller.provider);
                     controller.provider.emit('error', { some: 'error' });
 
-                    expect(controller.lookupNetwork).toHaveBeenCalledTimes(3);
+                    await promiseForNetworkChanges;
+                    expect(controller.state.network).toBe('3');
                   },
                 );
               });
             });
 
-            describe('when the network has already been connected to', () => {
-              it('does not call lookupNetwork again after the initial call in the providerConfig setter', async () => {
+            describe('if the network version could be retrieved after using the providerConfig setter', () => {
+              it('does not retrieve the network version again', async () => {
+                const messenger = buildMessenger();
                 await withController(
                   {
+                    messenger,
                     state: {
-                      network: '1',
                       providerConfig: buildProviderConfig({
                         type: 'rpc',
                         rpcTarget: 'http://example.com',
                       }),
                     },
                   },
-                  ({ controller }) => {
-                    const fakeMetamaskProvider = buildFakeMetamaskProvider();
+                  async ({ controller }) => {
+                    const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                      {
+                        request: {
+                          method: 'net_version',
+                        },
+                        response: {
+                          result: '1',
+                        },
+                      },
+                      {
+                        request: {
+                          method: 'net_version',
+                        },
+                        response: {
+                          result: '2',
+                        },
+                      },
+                    ]);
                     createMetamaskProviderMock.mockReturnValue(
                       fakeMetamaskProvider,
                     );
-                    jest.spyOn(controller, 'lookupNetwork');
+                    const promiseForAllNetworkChanges =
+                      await waitForAllStateChanges(messenger, ['network']);
 
                     controller.providerConfig = buildProviderConfig();
                     assert(controller.provider);
                     controller.provider.emit('error', { some: 'error' });
 
-                    expect(controller.lookupNetwork).toHaveBeenCalledTimes(1);
+                    await promiseForAllNetworkChanges;
+                    expect(controller.state.network).toBe('1');
                   },
                 );
               });
@@ -638,21 +850,51 @@ describe('NetworkController', () => {
         });
       });
 
-      it('calls getEIP1559Compatibility', async () => {
+      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+        const messenger = buildMessenger();
         await withController(
           {
+            messenger,
             state: {
               providerConfig: buildProviderConfig(),
             },
           },
-          ({ controller }) => {
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
+          async ({ controller }) => {
+            const fakeMetamaskProvider = buildFakeMetamaskProvider([
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: {
+                    baseFeePerGas: '0x1',
+                  },
+                },
+              },
+            ]);
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest.spyOn(controller, 'getEIP1559Compatibility');
+            const promiseForIsEIP1559CompatibleChange =
+              new Promise<NetworkState>((resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (newState, patches) => {
+                    if (
+                      didPropertyChange(patches, [
+                        'properties',
+                        'isEIP1559Compatible',
+                      ])
+                    ) {
+                      resolve(newState);
+                    }
+                  },
+                );
+              });
 
             controller.providerConfig = buildProviderConfig();
 
-            expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
+            await promiseForIsEIP1559CompatibleChange;
+            expect(controller.state.properties.isEIP1559Compatible).toBe(true);
           },
         );
       });
@@ -1026,48 +1268,6 @@ describe('NetworkController', () => {
         );
       });
 
-      it('resets network and properties in state', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              network: 'whatever',
-              properties: {
-                isEIP1559Compatible: true,
-              },
-            },
-          },
-          async ({ controller }) => {
-            const fakeInfuraProvider = buildFakeInfuraProvider();
-            createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-            const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-            SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest.spyOn(controller, 'getEIP1559Compatibility');
-            const promiseForStateChange = new Promise<NetworkState>(
-              (resolve) => {
-                messenger.subscribe(
-                  'NetworkController:stateChange',
-                  (newState, patches) => {
-                    if (didPropertyChange(patches, 'network')) {
-                      resolve(newState);
-                    }
-                  },
-                );
-              },
-            );
-
-            controller.setProviderType('mainnet' as const);
-
-            const newState = await promiseForStateChange;
-            expect(newState.network).toStrictEqual('loading');
-            expect(newState.properties).toStrictEqual({});
-          },
-        );
-      });
-
       it('sets isCustomNetwork in state to false', async () => {
         const messenger = buildMessenger();
         await withController(
@@ -1090,7 +1290,7 @@ describe('NetworkController', () => {
                 messenger.subscribe(
                   'NetworkController:stateChange',
                   (_, patches) => {
-                    if (didPropertyChange(patches, 'isCustomNetwork')) {
+                    if (didPropertyChange(patches, ['isCustomNetwork'])) {
                       resolve();
                     }
                   },
@@ -1137,20 +1337,54 @@ describe('NetworkController', () => {
         );
       });
 
-      it('calls getEIP1559Compatibility', async () => {
-        await withController(({ controller }) => {
-          const fakeInfuraProvider = buildFakeInfuraProvider();
-          createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-          const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-          SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(controller, 'getEIP1559Compatibility');
+      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController(
+          {
+            messenger,
+          },
+          async ({ controller }) => {
+            const fakeInfuraProvider = buildFakeInfuraProvider();
+            createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
+            const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
+            SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
+            const fakeMetamaskProvider = buildFakeMetamaskProvider([
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: {
+                    baseFeePerGas: '0x1',
+                  },
+                },
+              },
+            ]);
+            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+            const promiseForIsEIP1559CompatibleChange =
+              new Promise<NetworkState>((resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (newState, patches) => {
+                    if (
+                      didPropertyChange(patches, [
+                        'properties',
+                        'isEIP1559Compatible',
+                      ])
+                    ) {
+                      resolve(newState);
+                    }
+                  },
+                );
+              });
 
-          controller.setProviderType('mainnet' as const);
+            controller.setProviderType('mainnet' as const);
 
-          expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
-        });
+            await promiseForIsEIP1559CompatibleChange;
+            expect(controller.state.properties.isEIP1559Compatible).toBe(true);
+          },
+        );
       });
 
       it('stops an existing provider eventually', async () => {
@@ -1172,26 +1406,50 @@ describe('NetworkController', () => {
         });
       });
 
-      it('calls lookupNetwork', async () => {
-        await withController(({ controller }) => {
+      it('records the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController({ messenger }, async ({ controller }) => {
           const fakeInfuraProvider = buildFakeInfuraProvider();
           createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
           const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
           SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'net_version',
+                params: [],
+              },
+              response: {
+                result: '42',
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(controller, 'lookupNetwork');
+          const promiseForNetworkChange = new Promise<NetworkState>(
+            (resolve) => {
+              messenger.subscribe(
+                'NetworkController:stateChange',
+                (newState, patches) => {
+                  if (didPropertyChange(patches, ['network'])) {
+                    resolve(newState);
+                  }
+                },
+              );
+            },
+          );
 
           controller.setProviderType('mainnet' as const);
 
-          expect(controller.lookupNetwork).toHaveBeenCalled();
+          await promiseForNetworkChange;
+          expect(controller.state.network).toBe('42');
         });
       });
 
       describe('when an "error" event occurs on the new provider', () => {
         describe('if the network version could not be retrieved during setProviderType', () => {
-          it('calls lookupNetwork again after the initial call in setProviderType', async () => {
-            await withController(({ controller }) => {
+          it('retrieves the network version again and, assuming success, persists it to state', async () => {
+            const messenger = buildMessenger();
+            await withController({ messenger }, async ({ controller }) => {
               const fakeInfuraProvider = buildFakeInfuraProvider();
               createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
               const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
@@ -1205,21 +1463,39 @@ describe('NetworkController', () => {
                     error: 'oops',
                   },
                 },
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '42',
+                  },
+                },
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(controller, 'lookupNetwork');
+              const promiseForNetworkChange = new Promise<void>((resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (_, patches) => {
+                    if (didPropertyChange(patches, ['network'])) {
+                      resolve();
+                    }
+                  },
+                );
+              });
 
               controller.setProviderType('mainnet' as const);
               assert(controller.provider);
               controller.provider.emit('error', { some: 'error' });
 
-              expect(controller.lookupNetwork).toHaveBeenCalledTimes(2);
+              await promiseForNetworkChange;
+              expect(controller.state.network).toBe('42');
             });
           });
         });
 
         describe('if the network version could be retrieved during setProviderType', () => {
-          it('does not call lookupNetwork again after the initial call in setProviderType', async () => {
+          it('does not retrieve the network version again', async () => {
             const messenger = buildMessenger();
             await withController({ messenger }, async ({ controller }) => {
               const fakeInfuraProvider = buildFakeInfuraProvider();
@@ -1232,29 +1508,35 @@ describe('NetworkController', () => {
                     method: 'net_version',
                   },
                   response: {
-                    result: '0x1',
+                    result: '1',
+                  },
+                },
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '2',
                   },
                 },
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(controller, 'lookupNetwork');
-              const promiseForNetworkChange = new Promise<void>((resolve) => {
-                messenger.subscribe(
-                  'NetworkController:stateChange',
-                  (_, patches) => {
-                    if (didPropertyChange(patches, 'network')) {
-                      resolve();
-                    }
-                  },
-                );
-              });
 
+              const promiseForFirstNetworkChange = waitForStateChange(
+                messenger,
+                ['network'],
+              );
               controller.setProviderType('mainnet' as const);
               assert(controller.provider);
-              await promiseForNetworkChange;
-              controller.provider.emit('error', { some: 'error' });
+              await promiseForFirstNetworkChange;
+              expect(controller.state.network).toBe('1');
 
-              expect(controller.lookupNetwork).toHaveBeenCalledTimes(1);
+              const promiseForNextNetworkChange = waitForStateChange(
+                messenger,
+                ['network'],
+              );
+              controller.provider.emit('error', { some: 'error' });
+              await expect(promiseForNextNetworkChange).toNeverResolve();
             });
           });
         });
@@ -1332,48 +1614,6 @@ describe('NetworkController', () => {
           );
         });
 
-        it('resets network and properties in state', async () => {
-          const messenger = buildMessenger();
-          await withController(
-            {
-              messenger,
-              state: {
-                network: 'whatever',
-                properties: {
-                  isEIP1559Compatible: true,
-                },
-              },
-            },
-            async ({ controller }) => {
-              const fakeInfuraProvider = buildFakeInfuraProvider();
-              createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-              const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-              SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-              const fakeMetamaskProvider = buildFakeMetamaskProvider();
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(controller, 'getEIP1559Compatibility');
-              const promiseForStateChange = new Promise<NetworkState>(
-                (resolve) => {
-                  messenger.subscribe(
-                    'NetworkController:stateChange',
-                    (newState, patches) => {
-                      if (didPropertyChange(patches, 'network')) {
-                        resolve(newState);
-                      }
-                    },
-                  );
-                },
-              );
-
-              controller.setProviderType(networkType);
-
-              const newState = await promiseForStateChange;
-              expect(newState.network).toStrictEqual('loading');
-              expect(newState.properties).toStrictEqual({});
-            },
-          );
-        });
-
         it('sets isCustomNetwork in state to false', async () => {
           const messenger = buildMessenger();
           await withController(
@@ -1395,7 +1635,7 @@ describe('NetworkController', () => {
                   messenger.subscribe(
                     'NetworkController:stateChange',
                     (_, patches) => {
-                      if (didPropertyChange(patches, 'isCustomNetwork')) {
+                      if (didPropertyChange(patches, ['isCustomNetwork'])) {
                         resolve();
                       }
                     },
@@ -1442,20 +1682,56 @@ describe('NetworkController', () => {
           );
         });
 
-        it('calls getEIP1559Compatibility', async () => {
-          await withController(({ controller }) => {
-            const fakeInfuraProvider = buildFakeInfuraProvider();
-            createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-            const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-            SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest.spyOn(controller, 'getEIP1559Compatibility');
+        it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+            },
+            async ({ controller }) => {
+              const fakeInfuraProvider = buildFakeInfuraProvider();
+              createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
+              const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
+              SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: {
+                      baseFeePerGas: '0x1',
+                    },
+                  },
+                },
+              ]);
+              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+              const promiseForIsEIP1559CompatibleChange =
+                new Promise<NetworkState>((resolve) => {
+                  messenger.subscribe(
+                    'NetworkController:stateChange',
+                    (newState, patches) => {
+                      if (
+                        didPropertyChange(patches, [
+                          'properties',
+                          'isEIP1559Compatible',
+                        ])
+                      ) {
+                        resolve(newState);
+                      }
+                    },
+                  );
+                });
 
-            controller.setProviderType(networkType);
+              controller.setProviderType(networkType);
 
-            expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
-          });
+              await promiseForIsEIP1559CompatibleChange;
+              expect(controller.state.properties.isEIP1559Compatible).toBe(
+                true,
+              );
+            },
+          );
         });
 
         it('stops an existing provider eventually', async () => {
@@ -1477,26 +1753,50 @@ describe('NetworkController', () => {
           });
         });
 
-        it('calls lookupNetwork', async () => {
-          await withController(({ controller }) => {
+        it('updates the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+          const messenger = buildMessenger();
+          await withController({ messenger }, async ({ controller }) => {
             const fakeInfuraProvider = buildFakeInfuraProvider();
             createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
             const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
             SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
+            const fakeMetamaskProvider = buildFakeMetamaskProvider([
+              {
+                request: {
+                  method: 'net_version',
+                  params: [],
+                },
+                response: {
+                  result: '42',
+                },
+              },
+            ]);
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest.spyOn(controller, 'lookupNetwork');
+            const promiseForNetworkChange = new Promise<NetworkState>(
+              (resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (newState, patches) => {
+                    if (didPropertyChange(patches, ['network'])) {
+                      resolve(newState);
+                    }
+                  },
+                );
+              },
+            );
 
             controller.setProviderType(networkType);
 
-            expect(controller.lookupNetwork).toHaveBeenCalled();
+            await promiseForNetworkChange;
+            expect(controller.state.network).toBe('42');
           });
         });
 
         describe('when an "error" event occurs on the new provider', () => {
           describe('if the network version could not be retrieved during setProviderType', () => {
-            it('calls lookupNetwork again after the initial call in setProviderType', async () => {
-              await withController(({ controller }) => {
+            it('retrieves the network version again and, assuming success, persists it to state', async () => {
+              const messenger = buildMessenger();
+              await withController({ messenger }, async ({ controller }) => {
                 const fakeInfuraProvider = buildFakeInfuraProvider();
                 createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
                 const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
@@ -1510,23 +1810,41 @@ describe('NetworkController', () => {
                       error: 'oops',
                     },
                   },
+                  {
+                    request: {
+                      method: 'net_version',
+                    },
+                    response: {
+                      result: '42',
+                    },
+                  },
                 ]);
                 createMetamaskProviderMock.mockReturnValue(
                   fakeMetamaskProvider,
                 );
-                jest.spyOn(controller, 'lookupNetwork');
+                const promiseForNetworkChange = new Promise<void>((resolve) => {
+                  messenger.subscribe(
+                    'NetworkController:stateChange',
+                    (_, patches) => {
+                      if (didPropertyChange(patches, ['network'])) {
+                        resolve();
+                      }
+                    },
+                  );
+                });
 
                 controller.setProviderType(networkType);
                 assert(controller.provider);
                 controller.provider.emit('error', { some: 'error' });
 
-                expect(controller.lookupNetwork).toHaveBeenCalledTimes(2);
+                await promiseForNetworkChange;
+                expect(controller.state.network).toBe('42');
               });
             });
           });
 
           describe('if the network version could be retrieved during setProviderType', () => {
-            it('does not call lookupNetwork again after the initial call in setProviderType', async () => {
+            it('does not retrieve the network version again', async () => {
               const messenger = buildMessenger();
               await withController({ messenger }, async ({ controller }) => {
                 const fakeInfuraProvider = buildFakeInfuraProvider();
@@ -1539,31 +1857,36 @@ describe('NetworkController', () => {
                       method: 'net_version',
                     },
                     response: {
-                      result: '0x1',
+                      result: '1',
+                    },
+                  },
+                  {
+                    request: {
+                      method: 'net_version',
+                    },
+                    response: {
+                      result: '2',
                     },
                   },
                 ]);
                 createMetamaskProviderMock.mockReturnValue(
                   fakeMetamaskProvider,
                 );
-                jest.spyOn(controller, 'lookupNetwork');
-                const promiseForNetworkChange = new Promise<void>((resolve) => {
-                  messenger.subscribe(
-                    'NetworkController:stateChange',
-                    (_, patches) => {
-                      if (didPropertyChange(patches, 'network')) {
-                        resolve();
-                      }
-                    },
-                  );
-                });
 
+                const promiseForFirstNetworkChange = waitForStateChange(
+                  messenger,
+                  ['network'],
+                );
                 controller.setProviderType(networkType);
                 assert(controller.provider);
-                await promiseForNetworkChange;
-                controller.provider.emit('error', { some: 'error' });
+                await promiseForFirstNetworkChange;
 
-                expect(controller.lookupNetwork).toHaveBeenCalledTimes(1);
+                const promiseForNextNetworkChange = waitForStateChange(
+                  messenger,
+                  ['network'],
+                );
+                controller.provider.emit('error', { some: 'error' });
+                await expect(promiseForNextNetworkChange).toNeverResolve();
               });
             });
           });
@@ -1610,44 +1933,6 @@ describe('NetworkController', () => {
         );
       });
 
-      it('resets network and properties in state', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              network: 'whatever',
-              properties: {
-                isEIP1559Compatible: true,
-              },
-            },
-          },
-          async ({ controller }) => {
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest.spyOn(controller, 'getEIP1559Compatibility');
-            const promiseForStateChange = new Promise<NetworkState>(
-              (resolve) => {
-                messenger.subscribe(
-                  'NetworkController:stateChange',
-                  (newState, patches) => {
-                    if (didPropertyChange(patches, 'network')) {
-                      resolve(newState);
-                    }
-                  },
-                );
-              },
-            );
-
-            controller.setProviderType('rpc' as const);
-
-            const newState = await promiseForStateChange;
-            expect(newState.network).toStrictEqual('loading');
-            expect(newState.properties).toStrictEqual({});
-          },
-        );
-      });
-
       it('does not set isCustomNetwork in state to false (because the chain ID is cleared)', async () => {
         const messenger = buildMessenger();
         await withController(
@@ -1666,7 +1951,7 @@ describe('NetworkController', () => {
                 messenger.subscribe(
                   'NetworkController:stateChange',
                   (_, patches) => {
-                    if (didPropertyChange(patches, 'isCustomNetwork')) {
+                    if (didPropertyChange(patches, ['isCustomNetwork'])) {
                       resolve();
                     }
                   },
@@ -1693,16 +1978,52 @@ describe('NetworkController', () => {
         });
       });
 
-      it('calls getEIP1559Compatibility', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(controller, 'getEIP1559Compatibility');
+      it('does not update properties.isEIP1559Compatible in state based on the latest block (because the RPC target is cleared)', async () => {
+        const messenger = buildMessenger();
+        await withController(
+          {
+            messenger,
+          },
+          async ({ controller }) => {
+            const fakeMetamaskProvider = buildFakeMetamaskProvider([
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: {
+                    baseFeePerGas: '0x1',
+                  },
+                },
+              },
+            ]);
+            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+            const promiseForIsEIP1559CompatibleChange =
+              new Promise<NetworkState>((resolve) => {
+                messenger.subscribe(
+                  'NetworkController:stateChange',
+                  (newState, patches) => {
+                    if (
+                      didPropertyChange(patches, [
+                        'properties',
+                        'isEIP1559Compatible',
+                      ])
+                    ) {
+                      resolve(newState);
+                    }
+                  },
+                );
+              });
 
-          controller.setProviderType('rpc' as const);
+            controller.setProviderType('rpc' as const);
 
-          expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
-        });
+            await promiseForIsEIP1559CompatibleChange;
+            expect(
+              controller.state.properties.isEIP1559Compatible,
+            ).toBeUndefined();
+          },
+        );
       });
     });
 
@@ -1745,44 +2066,6 @@ describe('NetworkController', () => {
         );
       });
 
-      it('resets network and properties in state', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              network: 'whatever',
-              properties: {
-                isEIP1559Compatible: true,
-              },
-            },
-          },
-          async ({ controller }) => {
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest.spyOn(controller, 'getEIP1559Compatibility');
-            const promiseForStateChange = new Promise<NetworkState>(
-              (resolve) => {
-                messenger.subscribe(
-                  'NetworkController:stateChange',
-                  (newState, patches) => {
-                    if (didPropertyChange(patches, 'network')) {
-                      resolve(newState);
-                    }
-                  },
-                );
-              },
-            );
-
-            controller.setProviderType('localhost' as const);
-
-            const newState = await promiseForStateChange;
-            expect(newState.network).toStrictEqual('loading');
-            expect(newState.properties).toStrictEqual({});
-          },
-        );
-      });
-
       it('sets isCustomNetwork in state to false', async () => {
         const messenger = buildMessenger();
         await withController(
@@ -1800,7 +2083,7 @@ describe('NetworkController', () => {
                 messenger.subscribe(
                   'NetworkController:stateChange',
                   (_, patches) => {
-                    if (didPropertyChange(patches, 'isCustomNetwork')) {
+                    if (didPropertyChange(patches, ['isCustomNetwork'])) {
                       resolve();
                     }
                   },
@@ -1834,15 +2117,45 @@ describe('NetworkController', () => {
         });
       });
 
-      it('calls getEIP1559Compatibility', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request eth_getBlockByNumber is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController({ messenger }, async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['latest', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x1',
+                },
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(controller, 'getEIP1559Compatibility');
+          const promiseForIsEIP1559CompatibleChange = new Promise<NetworkState>(
+            (resolve) => {
+              messenger.subscribe(
+                'NetworkController:stateChange',
+                (newState, patches) => {
+                  if (
+                    didPropertyChange(patches, [
+                      'properties',
+                      'isEIP1559Compatible',
+                    ])
+                  ) {
+                    resolve(newState);
+                  }
+                },
+              );
+            },
+          );
 
           controller.setProviderType('localhost' as const);
 
-          expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
+          await promiseForIsEIP1559CompatibleChange;
+          expect(controller.state.properties.isEIP1559Compatible).toBe(true);
         });
       });
 
@@ -1861,22 +2174,46 @@ describe('NetworkController', () => {
         });
       });
 
-      it('calls lookupNetwork', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+      it('updates the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController({ messenger }, async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'net_version',
+                params: [],
+              },
+              response: {
+                result: '42',
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(controller, 'lookupNetwork');
+          const promiseForNetworkChange = new Promise<NetworkState>(
+            (resolve) => {
+              messenger.subscribe(
+                'NetworkController:stateChange',
+                (newState, patches) => {
+                  if (didPropertyChange(patches, ['network'])) {
+                    resolve(newState);
+                  }
+                },
+              );
+            },
+          );
 
           controller.setProviderType('localhost' as const);
 
-          expect(controller.lookupNetwork).toHaveBeenCalled();
+          await promiseForNetworkChange;
+          expect(controller.state.network).toBe('42');
         });
       });
 
       describe('when an "error" event occurs on the new provider', () => {
         describe('if the network version could not be retrieved during setProviderType', () => {
-          it('calls lookupNetwork again after the initial call in setProviderType', async () => {
-            await withController(({ controller }) => {
+          it('retrieves the network version again and, assuming success, persists it to state', async () => {
+            const messenger = buildMessenger();
+            await withController({ messenger }, async ({ controller }) => {
               const fakeMetamaskProvider = buildFakeMetamaskProvider([
                 {
                   request: {
@@ -1886,40 +2223,21 @@ describe('NetworkController', () => {
                     error: 'oops',
                   },
                 },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(controller, 'lookupNetwork');
-
-              controller.setProviderType('localhost' as const);
-              assert(controller.provider);
-              controller.provider.emit('error', { some: 'error' });
-
-              expect(controller.lookupNetwork).toHaveBeenCalledTimes(2);
-            });
-          });
-        });
-
-        describe('if the network version could be retrieved during setProviderType', () => {
-          it('does not call lookupNetwork again after the initial call in setProviderType', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
                 {
                   request: {
                     method: 'net_version',
                   },
                   response: {
-                    result: '0x1',
+                    result: '42',
                   },
                 },
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(controller, 'lookupNetwork');
               const promiseForNetworkChange = new Promise<void>((resolve) => {
                 messenger.subscribe(
                   'NetworkController:stateChange',
                   (_, patches) => {
-                    if (didPropertyChange(patches, 'network')) {
+                    if (didPropertyChange(patches, ['network'])) {
                       resolve();
                     }
                   },
@@ -1928,10 +2246,53 @@ describe('NetworkController', () => {
 
               controller.setProviderType('localhost' as const);
               assert(controller.provider);
-              await promiseForNetworkChange;
               controller.provider.emit('error', { some: 'error' });
 
-              expect(controller.lookupNetwork).toHaveBeenCalledTimes(1);
+              await promiseForNetworkChange;
+              expect(controller.state.network).toBe('42');
+            });
+          });
+        });
+
+        describe('if the network version could be retrieved during setProviderType', () => {
+          it('does not retrieve the network version again', async () => {
+            const messenger = buildMessenger();
+            await withController({ messenger }, async ({ controller }) => {
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '1',
+                  },
+                },
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '2',
+                  },
+                },
+              ]);
+              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+              const promiseForFirstNetworkChange = waitForStateChange(
+                messenger,
+                ['network'],
+              );
+              controller.setProviderType('localhost' as const);
+              assert(controller.provider);
+              await promiseForFirstNetworkChange;
+              expect(controller.state.network).toBe('1');
+
+              const promiseForNextNetworkChange = waitForStateChange(
+                messenger,
+                ['network'],
+              );
+              controller.provider.emit('error', { some: 'error' });
+              await expect(promiseForNextNetworkChange).toNeverResolve();
             });
           });
         });
@@ -1979,44 +2340,6 @@ describe('NetworkController', () => {
         );
       });
 
-      it('resets network and properties in state', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              network: 'whatever',
-              properties: {
-                isEIP1559Compatible: true,
-              },
-            },
-          },
-          async ({ controller }) => {
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest.spyOn(controller, 'getEIP1559Compatibility');
-            const promiseForStateChange = new Promise<NetworkState>(
-              (resolve) => {
-                messenger.subscribe(
-                  'NetworkController:stateChange',
-                  (newState, patches) => {
-                    if (didPropertyChange(patches, 'network')) {
-                      resolve(newState);
-                    }
-                  },
-                );
-              },
-            );
-
-            controller.setRpcTarget('http://example.com', '123');
-
-            const newState = await promiseForStateChange;
-            expect(newState.network).toStrictEqual('loading');
-            expect(newState.properties).toStrictEqual({});
-          },
-        );
-      });
-
       it('sets isCustomNetwork in state to true', async () => {
         const messenger = buildMessenger();
         await withController(
@@ -2034,7 +2357,7 @@ describe('NetworkController', () => {
                 messenger.subscribe(
                   'NetworkController:stateChange',
                   (_, patches) => {
-                    if (didPropertyChange(patches, 'isCustomNetwork')) {
+                    if (didPropertyChange(patches, ['isCustomNetwork'])) {
                       resolve();
                     }
                   },
@@ -2068,15 +2391,45 @@ describe('NetworkController', () => {
         });
       });
 
-      it('calls getEIP1559Compatibility', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController({ messenger }, async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['latest', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x1',
+                },
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(controller, 'getEIP1559Compatibility');
+          const promiseForIsEIP1559CompatibleChange = new Promise<NetworkState>(
+            (resolve) => {
+              messenger.subscribe(
+                'NetworkController:stateChange',
+                (newState, patches) => {
+                  if (
+                    didPropertyChange(patches, [
+                      'properties',
+                      'isEIP1559Compatible',
+                    ])
+                  ) {
+                    resolve(newState);
+                  }
+                },
+              );
+            },
+          );
 
           controller.setRpcTarget('http://example.com', '123');
 
-          expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
+          await promiseForIsEIP1559CompatibleChange;
+          expect(controller.state.properties.isEIP1559Compatible).toBe(true);
         });
       });
 
@@ -2095,22 +2448,46 @@ describe('NetworkController', () => {
         });
       });
 
-      it('calls lookupNetwork', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+      it('updates the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController({ messenger }, async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'net_version',
+                params: [],
+              },
+              response: {
+                result: '42',
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(controller, 'lookupNetwork');
+          const promiseForNetworkChange = new Promise<NetworkState>(
+            (resolve) => {
+              messenger.subscribe(
+                'NetworkController:stateChange',
+                (newState, patches) => {
+                  if (didPropertyChange(patches, ['network'])) {
+                    resolve(newState);
+                  }
+                },
+              );
+            },
+          );
 
           controller.setRpcTarget('http://example.com', '123');
 
-          expect(controller.lookupNetwork).toHaveBeenCalled();
+          await promiseForNetworkChange;
+          expect(controller.state.network).toBe('42');
         });
       });
 
       describe('when an "error" event occurs on the new provider', () => {
         describe('if the network version could not be retrieved during setRpcTarget', () => {
-          it('calls lookupNetwork again after the initial call in setRpcTarget', async () => {
-            await withController(({ controller }) => {
+          it('retrieves the network version again and, assuming success, persists it to state', async () => {
+            const messenger = buildMessenger();
+            await withController({ messenger }, async ({ controller }) => {
               const fakeMetamaskProvider = buildFakeMetamaskProvider([
                 {
                   request: {
@@ -2120,40 +2497,21 @@ describe('NetworkController', () => {
                     error: 'oops',
                   },
                 },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(controller, 'lookupNetwork');
-
-              controller.setRpcTarget('http://example.com', '123');
-              assert(controller.provider);
-              controller.provider.emit('error', { some: 'error' });
-
-              expect(controller.lookupNetwork).toHaveBeenCalledTimes(2);
-            });
-          });
-        });
-
-        describe('if the network version could be retrieved during setRpcTarget', () => {
-          it('does not call lookupNetwork again after the initial call in setRpcTarget', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
                 {
                   request: {
                     method: 'net_version',
                   },
                   response: {
-                    result: '0x1',
+                    result: '42',
                   },
                 },
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(controller, 'lookupNetwork');
               const promiseForNetworkChange = new Promise<void>((resolve) => {
                 messenger.subscribe(
                   'NetworkController:stateChange',
                   (_, patches) => {
-                    if (didPropertyChange(patches, 'network')) {
+                    if (didPropertyChange(patches, ['network'])) {
                       resolve();
                     }
                   },
@@ -2162,10 +2520,53 @@ describe('NetworkController', () => {
 
               controller.setRpcTarget('http://example.com', '123');
               assert(controller.provider);
-              await promiseForNetworkChange;
               controller.provider.emit('error', { some: 'error' });
 
-              expect(controller.lookupNetwork).toHaveBeenCalledTimes(1);
+              await promiseForNetworkChange;
+              expect(controller.state.network).toBe('42');
+            });
+          });
+        });
+
+        describe('if the network version could be retrieved during setRpcTarget', () => {
+          it('does not retrieve the network version again', async () => {
+            const messenger = buildMessenger();
+            await withController({ messenger }, async ({ controller }) => {
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '1',
+                  },
+                },
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '2',
+                  },
+                },
+              ]);
+              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+              const promiseForFirstNetworkChange = waitForStateChange(
+                messenger,
+                ['network'],
+              );
+              controller.setRpcTarget('http://example.com', '123');
+              assert(controller.provider);
+              await promiseForFirstNetworkChange;
+              expect(controller.state.network).toBe('1');
+
+              const promiseForNextNetworkChange = waitForStateChange(
+                messenger,
+                ['network'],
+              );
+              controller.provider.emit('error', { some: 'error' });
+              await expect(promiseForNextNetworkChange).toNeverResolve();
             });
           });
         });
@@ -2216,49 +2617,6 @@ describe('NetworkController', () => {
         );
       });
 
-      it('resets network and properties in state', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              network: 'whatever',
-              properties: {
-                isEIP1559Compatible: true,
-              },
-            },
-          },
-          async ({ controller }) => {
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest.spyOn(controller, 'getEIP1559Compatibility');
-            const promiseForStateChange = new Promise<NetworkState>(
-              (resolve) => {
-                messenger.subscribe(
-                  'NetworkController:stateChange',
-                  (newState, patches) => {
-                    if (didPropertyChange(patches, 'network')) {
-                      resolve(newState);
-                    }
-                  },
-                );
-              },
-            );
-
-            controller.setRpcTarget(
-              'http://example.com',
-              '123',
-              'ABC',
-              'cool network',
-            );
-
-            const newState = await promiseForStateChange;
-            expect(newState.network).toStrictEqual('loading');
-            expect(newState.properties).toStrictEqual({});
-          },
-        );
-      });
-
       it('sets isCustomNetwork in state to true', async () => {
         const messenger = buildMessenger();
         await withController(
@@ -2276,7 +2634,7 @@ describe('NetworkController', () => {
                 messenger.subscribe(
                   'NetworkController:stateChange',
                   (_, patches) => {
-                    if (didPropertyChange(patches, 'isCustomNetwork')) {
+                    if (didPropertyChange(patches, ['isCustomNetwork'])) {
                       resolve();
                     }
                   },
@@ -2320,11 +2678,40 @@ describe('NetworkController', () => {
         });
       });
 
-      it('calls getEIP1559Compatibility', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController({ messenger }, async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['latest', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x1',
+                },
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(controller, 'getEIP1559Compatibility');
+          const promiseForIsEIP1559CompatibleChange = new Promise<NetworkState>(
+            (resolve) => {
+              messenger.subscribe(
+                'NetworkController:stateChange',
+                (newState, patches) => {
+                  if (
+                    didPropertyChange(patches, [
+                      'properties',
+                      'isEIP1559Compatible',
+                    ])
+                  ) {
+                    resolve(newState);
+                  }
+                },
+              );
+            },
+          );
 
           controller.setRpcTarget(
             'http://example.com',
@@ -2333,7 +2720,8 @@ describe('NetworkController', () => {
             'cool network',
           );
 
-          expect(controller.getEIP1559Compatibility).toHaveBeenCalled();
+          await promiseForIsEIP1559CompatibleChange;
+          expect(controller.state.properties.isEIP1559Compatible).toBe(true);
         });
       });
 
@@ -2362,11 +2750,33 @@ describe('NetworkController', () => {
         });
       });
 
-      it('calls lookupNetwork', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+      it('updates the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController({ messenger }, async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'net_version',
+                params: [],
+              },
+              response: {
+                result: '42',
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(controller, 'lookupNetwork');
+          const promiseForNetworkChange = new Promise<NetworkState>(
+            (resolve) => {
+              messenger.subscribe(
+                'NetworkController:stateChange',
+                (newState, patches) => {
+                  if (didPropertyChange(patches, ['network'])) {
+                    resolve(newState);
+                  }
+                },
+              );
+            },
+          );
 
           controller.setRpcTarget(
             'http://example.com',
@@ -2375,14 +2785,16 @@ describe('NetworkController', () => {
             'cool network',
           );
 
-          expect(controller.lookupNetwork).toHaveBeenCalled();
+          await promiseForNetworkChange;
+          expect(controller.state.network).toBe('42');
         });
       });
 
       describe('when an "error" event occurs on the new provider', () => {
         describe('if the network version could not be retrieved during setRpcTarget', () => {
-          it('calls lookupNetwork again after the initial call in setRpcTarget', async () => {
-            await withController(({ controller }) => {
+          it('retrieves the network version again and, assuming success, persists it to state', async () => {
+            const messenger = buildMessenger();
+            await withController({ messenger }, async ({ controller }) => {
               const fakeMetamaskProvider = buildFakeMetamaskProvider([
                 {
                   request: {
@@ -2392,45 +2804,21 @@ describe('NetworkController', () => {
                     error: 'oops',
                   },
                 },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(controller, 'lookupNetwork');
-
-              controller.setRpcTarget(
-                'http://example.com',
-                '123',
-                'ABC',
-                'cool network',
-              );
-              assert(controller.provider);
-              controller.provider.emit('error', { some: 'error' });
-
-              expect(controller.lookupNetwork).toHaveBeenCalledTimes(2);
-            });
-          });
-        });
-
-        describe('if the network version could be retrieved during setRpcTarget', () => {
-          it('does not call lookupNetwork again after the initial call in setRpcTarget', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
                 {
                   request: {
                     method: 'net_version',
                   },
                   response: {
-                    result: '0x1',
+                    result: '42',
                   },
                 },
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(controller, 'lookupNetwork');
               const promiseForNetworkChange = new Promise<void>((resolve) => {
                 messenger.subscribe(
                   'NetworkController:stateChange',
                   (_, patches) => {
-                    if (didPropertyChange(patches, 'network')) {
+                    if (didPropertyChange(patches, ['network'])) {
                       resolve();
                     }
                   },
@@ -2444,10 +2832,58 @@ describe('NetworkController', () => {
                 'cool network',
               );
               assert(controller.provider);
-              await promiseForNetworkChange;
               controller.provider.emit('error', { some: 'error' });
 
-              expect(controller.lookupNetwork).toHaveBeenCalledTimes(1);
+              await promiseForNetworkChange;
+              expect(controller.state.network).toBe('42');
+            });
+          });
+        });
+
+        describe('if the network version could be retrieved during setRpcTarget', () => {
+          it('does not retrieve the network version again', async () => {
+            const messenger = buildMessenger();
+            await withController({ messenger }, async ({ controller }) => {
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '1',
+                  },
+                },
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '2',
+                  },
+                },
+              ]);
+              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+              const promiseForFirstNetworkChange = waitForStateChange(
+                messenger,
+                ['network'],
+              );
+              controller.setRpcTarget(
+                'http://example.com',
+                '123',
+                'ABC',
+                'cool network',
+              );
+              assert(controller.provider);
+              await promiseForFirstNetworkChange;
+              expect(controller.state.network).toBe('1');
+
+              const promiseForNextNetworkChange = waitForStateChange(
+                messenger,
+                ['network'],
+              );
+              controller.provider.emit('error', { some: 'error' });
+              await expect(promiseForNextNetworkChange).toNeverResolve();
             });
           });
         });
@@ -3597,15 +4033,115 @@ async function setFakeProvider(
 }
 
 /**
+ * Waits for state change events for a particular property to be emitted. As we
+ * aren't able to assume how the state ought to be changed or how many events
+ * ought to be emitted, we assume that if we haven't seen any new state change
+ * events for a half a second, then no more will occur.
+ *
+ * @param messenger - The messenger suited for NetworkController.
+ * @param propertyPath - The path of the property you expect the state changes
+ * to concern.
+ * @returns A promise that resolves to the list of state changes when it is
+ * likely that all of them that concern the property have occurred.
+ */
+async function waitForAllStateChanges(
+  messenger: NetworkControllerMessenger,
+  propertyPath: string[],
+) {
+  const eventType = 'NetworkController:stateChange';
+  const timeBeforeAssumingNoMoreStateChanges = 500;
+
+  return await new Promise<[NetworkState, Patch[]][]>((resolve) => {
+    // We need to declare this variable first, then assign it later, so that
+    // ESLint won't complain that resetTimer is referring to this variable
+    // before it's declared. And we need to use let so that we can assign it
+    // below.
+    /* eslint-disable-next-line prefer-const */
+    let networkStateChangeListener: (
+      newState: NetworkState,
+      patches: Patch[],
+    ) => void;
+    let timer: NodeJS.Timeout | undefined;
+    const stateChanges: [NetworkState, Patch[]][] = [];
+
+    const resetTimer = () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+
+      timer = originalSetTimeout(() => {
+        messenger.unsubscribe(eventType, networkStateChangeListener);
+        resolve(stateChanges);
+      }, timeBeforeAssumingNoMoreStateChanges);
+    };
+
+    networkStateChangeListener = (newState, patches) => {
+      if (didPropertyChange(patches, propertyPath)) {
+        stateChanges.push([newState, patches]);
+        resetTimer();
+      }
+    };
+
+    messenger.subscribe(eventType, networkStateChangeListener);
+    resetTimer();
+  });
+}
+
+/**
+ * Waits for the first state change event for a particular property to be
+ * emitted.
+ *
+ * @param messenger - The messenger suited for NetworkController.
+ * @param propertyPath - The path of the property you expect the state changes
+ * to concern.
+ * @returns A promise that resolves when a state change event has occurred
+ * concerning the property.
+ */
+async function waitForStateChange(
+  messenger: NetworkControllerMessenger,
+  propertyPath: string[],
+) {
+  const eventType = 'NetworkController:stateChange';
+
+  return await new Promise<void>((resolve) => {
+    const networkStateChangeListener = (
+      _newState: NetworkState,
+      patches: Patch[],
+    ) => {
+      if (didPropertyChange(patches, propertyPath)) {
+        messenger.unsubscribe(eventType, networkStateChangeListener);
+        resolve();
+      }
+    };
+
+    messenger.subscribe(eventType, networkStateChangeListener);
+  });
+}
+
+/**
  * Given a set of Immer patches, determines whether the given property was
  * added, removed, or replaced in some way.
  *
  * @param patches - The Immer patches.
- * @param propertyName - The property name.
+ * @param propertyPath - The path to a property. For instance, if you wanted to
+ * know whether `foo` has changed you'd say `["foo"]`; if `foo.bar` then `["foo", "bar"]`.
  * @returns A boolean.
  */
-function didPropertyChange(patches: Patch[], propertyName: string): boolean {
-  return patches.some(
-    (patch) => patch.path.length === 0 || patch.path[0] === propertyName,
+function didPropertyChange(patches: Patch[], propertyPath: string[]): boolean {
+  // Build an array of progressively larger slices of the path.
+  // For instance, `foo.bar` would turn into `[[], ["foo"], ["foo", "bar"]]`.
+  // This is because any part of the path could be inserted, deleted, or
+  // replaced.
+  const possiblePropertyPaths = propertyPath.reduce<string[][]>(
+    (array, path) => {
+      return [...array, [...array[array.length - 1], path]];
+    },
+    [[]],
   );
+
+  return patches.some((patch) => {
+    return possiblePropertyPaths.some((path) => {
+      return isDeepStrictEqual(patch.path, path);
+    });
+  });
 }
