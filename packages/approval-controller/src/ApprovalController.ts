@@ -231,6 +231,11 @@ export class ApprovalController extends BaseControllerV2<
       `${controllerName}:rejectRequest` as const,
       this.reject.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateRequestData` as const,
+      this.updateRequestData.bind(this),
+    );
   }
 
   /**

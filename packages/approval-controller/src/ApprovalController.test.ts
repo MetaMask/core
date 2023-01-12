@@ -871,6 +871,36 @@ describe('approval controller', () => {
       expect(showApprovalSpy.notCalled).toStrictEqual(true);
       expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
     });
+
+    it('updateRequestData', () => {
+      const messenger = new ControllerMessenger<
+        ApprovalControllerActions,
+        ApprovalControllerEvents
+      >();
+
+      const approvalController = new ApprovalController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+        }) as ApprovalControllerMessenger,
+        showApprovalRequest: sinon.spy(),
+      });
+
+      approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'type1',
+        requestData: { foo: 'bar' },
+      });
+
+      messenger.call('ApprovalController:updateRequestData', {
+        id: 'foo',
+        requestData: { foo: 'foobar' },
+      });
+
+      expect(approvalController.get('foo')?.requestData).toStrictEqual({
+        foo: 'foobar',
+      });
+    });
   });
 });
 
