@@ -728,7 +728,7 @@ describe('approval controller', () => {
     });
   });
 
-  describe('updateRequestData', () => {
+  describe('updateRequestState', () => {
     let approvalController: ApprovalController;
 
     beforeEach(() => {
@@ -738,31 +738,31 @@ describe('approval controller', () => {
       });
     });
 
-    it('updates the requestData of a given approval request', () => {
+    it('updates the request state of a given approval request', () => {
       approvalController
         .add({
           id: 'foo2',
           origin: 'bar.baz',
           type: 'myType',
-          requestData: { foo: 'bar' },
+          requestState: { foo: 'bar' },
         })
         .catch((_error) => undefined);
 
-      approvalController.updateRequestData({
+      approvalController.updateRequestState({
         id: 'foo2',
-        requestData: { foo: 'foobar' },
+        requestState: { foo: 'foobar' },
       });
 
-      expect(approvalController.get('foo2')?.requestData).toStrictEqual({
+      expect(approvalController.get('foo2')?.requestState).toStrictEqual({
         foo: 'foobar',
       });
     });
 
     it('throws on unknown id', () => {
       expect(() =>
-        approvalController.updateRequestData({
+        approvalController.updateRequestState({
           id: 'foo',
-          requestData: { foo: 'bar' },
+          requestState: { foo: 'bar' },
         }),
       ).toThrow(getIdNotFoundError('foo'));
     });
@@ -872,7 +872,7 @@ describe('approval controller', () => {
       expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
     });
 
-    it('updateRequestData', () => {
+    it('updateRequestState', () => {
       const messenger = new ControllerMessenger<
         ApprovalControllerActions,
         ApprovalControllerEvents
@@ -889,15 +889,15 @@ describe('approval controller', () => {
         id: 'foo',
         origin: 'bar.baz',
         type: 'type1',
-        requestData: { foo: 'bar' },
+        requestState: { foo: 'bar' },
       });
 
-      messenger.call('ApprovalController:updateRequestData', {
+      messenger.call('ApprovalController:updateRequestState', {
         id: 'foo',
-        requestData: { foo: 'foobar' },
+        requestState: { foo: 'foobar' },
       });
 
-      expect(approvalController.get('foo')?.requestData).toStrictEqual({
+      expect(approvalController.get('foo')?.requestState).toStrictEqual({
         foo: 'foobar',
       });
     });
