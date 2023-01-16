@@ -109,6 +109,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           requestData: null,
+          requestState: null,
           time: 1,
           type: TYPE,
         },
@@ -229,6 +230,7 @@ describe('approval controller', () => {
         id: 'foo',
         origin: 'bar.baz',
         requestData: null,
+        requestState: null,
         type: 'myType',
         time: 1,
       });
