@@ -1069,8 +1069,8 @@ describe('TokenListController', () => {
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${NetworksChainId.ropsten}`)
-      .reply(200, { error: 'ChainId 3 is not supported' })
+      .get(`/tokens/${NetworksChainId.goerli}`)
+      .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56`)
       .reply(200, sampleBinanceTokenList)
       .persist();
@@ -1097,7 +1097,7 @@ describe('TokenListController', () => {
       sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
 
-    network.setProviderType('ropsten');
+    network.setProviderType('goerli');
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
@@ -1157,8 +1157,8 @@ describe('TokenListController', () => {
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${NetworksChainId.ropsten}`)
-      .reply(200, { error: 'ChainId 3 is not supported' })
+      .get(`/tokens/${NetworksChainId.goerli}`)
+      .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56`)
       .reply(200, sampleBinanceTokenList)
       .persist();
@@ -1167,7 +1167,7 @@ describe('TokenListController', () => {
     const { network } = setupNetworkController(controllerMessenger);
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.ropsten,
+      chainId: NetworksChainId.goerli,
       preventPollingOnNetworkRestart: true,
       messenger,
       interval: 100,

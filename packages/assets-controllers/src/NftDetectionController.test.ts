@@ -8,7 +8,7 @@ import { NftDetectionController } from './NftDetectionController';
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
-const ROPSTEN = 'ropsten';
+const GOERLI = 'goerli';
 
 describe('NftDetectionController', () => {
   let nftDetection: NftDetectionController;
@@ -238,7 +238,7 @@ describe('NftDetectionController', () => {
   it('should detect mainnet correctly', () => {
     nftDetection.configure({ networkType: MAINNET });
     expect(nftDetection.isMainnet()).toStrictEqual(true);
-    nftDetection.configure({ networkType: ROPSTEN });
+    nftDetection.configure({ networkType: GOERLI });
     expect(nftDetection.isMainnet()).toStrictEqual(false);
   });
 
@@ -258,7 +258,7 @@ describe('NftDetectionController', () => {
           addNft: nftController.addNft.bind(nftController),
           getNftState: () => nftController.state,
         },
-        { interval: 10, networkType: ROPSTEN },
+        { interval: 10, networkType: GOERLI },
       );
       expect(mockNfts.called).toBe(false);
       resolve('');

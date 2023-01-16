@@ -264,8 +264,8 @@ describe('assetsUtil', () => {
       ).toBe(true);
     });
 
-    it('returns false for testnets such as Ropsten', () => {
-      expect(assetsUtil.isTokenDetectionSupportedForNetwork('3')).toBe(false);
+    it('returns false for testnets such as Goerli', () => {
+      expect(assetsUtil.isTokenDetectionSupportedForNetwork('5')).toBe(false);
     });
   });
 
@@ -296,9 +296,9 @@ describe('assetsUtil', () => {
       ).toBe(true);
     });
 
-    it('returns false for testnets such as Ropsten', () => {
+    it('returns false for testnets such as Goerli', () => {
       expect(
-        assetsUtil.isTokenListSupportedForNetwork(NetworksChainId.ropsten),
+        assetsUtil.isTokenListSupportedForNetwork(NetworksChainId.goerli),
       ).toBe(false);
     });
   });
