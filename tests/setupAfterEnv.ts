@@ -69,8 +69,10 @@ expect.extend({
           message: () => {
             return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
               rejectionValue
-                ? `was rejected with ${inspect(rejectionValue)}`
-                : `resolved with ${inspect(resolutionValue)}`
+                ? `was rejected with ${inspect(rejectionValue, {
+                    depth: null,
+                  })}`
+                : `resolved with ${inspect(resolutionValue, { depth: null })}`
             }`;
           },
           pass: false,

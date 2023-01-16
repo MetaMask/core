@@ -892,14 +892,16 @@ describe('NetworkController', () => {
 
   describe('lookupNetwork', () => {
     describe('if a provider has not been set', () => {
-      it('makes no state changes', async () => {
+      it('does not change network in state', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
-          const promiseForStateChanges = waitForStateChanges(messenger);
+          const promiseForNetworkChanges = waitForStateChanges(messenger, {
+            propertyPath: ['network'],
+          });
 
           await controller.lookupNetwork();
 
-          await expect(promiseForStateChanges).toNeverResolve();
+          await expect(promiseForNetworkChanges).toNeverResolve();
         });
       });
 
@@ -919,7 +921,7 @@ describe('NetworkController', () => {
     });
 
     describe('if a provider has been set, but the resulting EthQuery object does not have a sendAsync method', () => {
-      it('makes no state changes', async () => {
+      it('does not change network in state', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
           const fakeEthQuery = {};
@@ -927,11 +929,13 @@ describe('NetworkController', () => {
           await setFakeProvider(controller, {
             stubLookupNetworkWhileSetting: true,
           });
-          const promiseForStateChanges = waitForStateChanges(messenger);
+          const promiseForNetworkChanges = waitForStateChanges(messenger, {
+            propertyPath: ['network'],
+          });
 
           await controller.lookupNetwork();
 
-          await expect(promiseForStateChanges).toNeverResolve();
+          await expect(promiseForNetworkChanges).toNeverResolve();
         });
       });
 
@@ -1030,7 +1034,7 @@ describe('NetworkController', () => {
       });
 
       describe('if the version of the current network is the same as that in state', () => {
-        it('makes no state changes', async () => {
+        it('does not change network in state', async () => {
           const messenger = buildMessenger();
           await withController(
             { messenger, state: { network: '12345' } },
@@ -1044,11 +1048,13 @@ describe('NetworkController', () => {
                 ],
                 stubLookupNetworkWhileSetting: true,
               });
-              const promiseForStateChanges = waitForStateChanges(messenger);
+              const promiseForNetworkChanges = waitForStateChanges(messenger, {
+                propertyPath: ['network'],
+              });
 
               await controller.lookupNetwork();
 
-              await expect(promiseForStateChanges).toNeverResolve();
+              await expect(promiseForNetworkChanges).toNeverResolve();
             },
           );
         });
@@ -2745,7 +2751,7 @@ describe('NetworkController', () => {
   describe('getEIP1559Compatibility', () => {
     describe('if the state does not have a "properties" property', () => {
       describe("but ethQuery doesn't have a sendAsync function", () => {
-        it('makes no state changes', async () => {
+        it('does not change properties.isEIP1559Compatible in state', async () => {
           const messenger = buildMessenger();
           await withController(
             {
@@ -2762,11 +2768,16 @@ describe('NetworkController', () => {
               await setFakeProvider(controller, {
                 stubGetEIP1559CompatibilityWhileSetting: true,
               });
-              const promiseForStateChanges = waitForStateChanges(messenger);
+              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+                messenger,
+                { propertyPath: ['properties', 'isEIP1559Compatible'] },
+              );
 
               await controller.getEIP1559Compatibility();
 
-              await expect(promiseForStateChanges).toNeverResolve();
+              await expect(
+                promiseForIsEIP1559CompatibleChanges,
+              ).toNeverResolve();
             },
           );
         });
@@ -2875,7 +2886,7 @@ describe('NetworkController', () => {
           });
 
           describe('if the block does not have a "baseFeePerGas" property', () => {
-            it('makes no state changes', async () => {
+            it('does not change properties.isEIP1559Compatible in state', async () => {
               const messenger = buildMessenger();
               await withController(
                 {
@@ -2901,11 +2912,16 @@ describe('NetworkController', () => {
                     ],
                     stubGetEIP1559CompatibilityWhileSetting: true,
                   });
-                  const promiseForStateChanges = waitForStateChanges(messenger);
+                  const promiseForIsEIP1559CompatibleChanges =
+                    waitForStateChanges(messenger, {
+                      propertyPath: ['properties', 'isEIP1559Compatible'],
+                    });
 
                   await controller.getEIP1559Compatibility();
 
-                  await expect(promiseForStateChanges).toNeverResolve();
+                  await expect(
+                    promiseForIsEIP1559CompatibleChanges,
+                  ).toNeverResolve();
                 },
               );
             });
@@ -2946,7 +2962,7 @@ describe('NetworkController', () => {
         });
 
         describe('if an error is thrown while fetching the latest block', () => {
-          it('makes no state changes', async () => {
+          it('does not change properties.isEIP1559Compatible in state', async () => {
             const messenger = buildMessenger();
             await withController(
               {
@@ -2970,7 +2986,10 @@ describe('NetworkController', () => {
                   ],
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
-                const promiseForStateChanges = waitForStateChanges(messenger);
+                const promiseForIsEIP1559CompatibleChanges =
+                  waitForStateChanges(messenger, {
+                    propertyPath: ['properties', 'isEIP1559Compatible'],
+                  });
 
                 try {
                   await controller.getEIP1559Compatibility();
@@ -2978,7 +2997,9 @@ describe('NetworkController', () => {
                   // catch the rejection (it is tested below)
                 }
 
-                await expect(promiseForStateChanges).toNeverResolve();
+                await expect(
+                  promiseForIsEIP1559CompatibleChanges,
+                ).toNeverResolve();
               },
             );
           });
@@ -3021,7 +3042,7 @@ describe('NetworkController', () => {
 
     describe('if the state has a "properties" property, but it does not have an "isEIP1559Compatible" property', () => {
       describe("but ethQuery doesn't have a sendAsync function", () => {
-        it('makes no state changes', async () => {
+        it('does not change properties.isEIP1559Compatible in state', async () => {
           const messenger = buildMessenger();
           await withController(
             {
@@ -3040,11 +3061,16 @@ describe('NetworkController', () => {
               await setFakeProvider(controller, {
                 stubGetEIP1559CompatibilityWhileSetting: true,
               });
-              const promiseForStateChanges = waitForStateChanges(messenger);
+              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+                messenger,
+                { propertyPath: ['properties', 'isEIP1559Compatible'] },
+              );
 
               await controller.getEIP1559Compatibility();
 
-              await expect(promiseForStateChanges).toNeverResolve();
+              await expect(
+                promiseForIsEIP1559CompatibleChanges,
+              ).toNeverResolve();
             },
           );
         });
@@ -3241,7 +3267,7 @@ describe('NetworkController', () => {
         });
 
         describe('if an error is thrown while fetching the latest block', () => {
-          it('makes no state changes', async () => {
+          it('does not change properties.isEIP1559Compatible in state', async () => {
             const messenger = buildMessenger();
             await withController(
               {
@@ -3267,7 +3293,10 @@ describe('NetworkController', () => {
                   ],
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
-                const promiseForStateChanges = waitForStateChanges(messenger);
+                const promiseForIsEIP1559CompatibleChanges =
+                  waitForStateChanges(messenger, {
+                    propertyPath: ['properties', 'isEIP1559Compatible'],
+                  });
 
                 try {
                   await controller.getEIP1559Compatibility();
@@ -3275,7 +3304,9 @@ describe('NetworkController', () => {
                   // catch the rejection (it is tested below)
                 }
 
-                await expect(promiseForStateChanges).toNeverResolve();
+                await expect(
+                  promiseForIsEIP1559CompatibleChanges,
+                ).toNeverResolve();
               },
             );
           });
@@ -3320,7 +3351,7 @@ describe('NetworkController', () => {
 
     describe('if isEIP1559Compatible in state is set to false', () => {
       describe("but ethQuery doesn't have a sendAsync function", () => {
-        it('makes no state changes', async () => {
+        it('does not change properties.isEIP1559Compatible in state', async () => {
           const messenger = buildMessenger();
           await withController(
             {
@@ -3339,11 +3370,16 @@ describe('NetworkController', () => {
               await setFakeProvider(controller, {
                 stubGetEIP1559CompatibilityWhileSetting: true,
               });
-              const promiseForStateChanges = waitForStateChanges(messenger);
+              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+                messenger,
+                { propertyPath: ['properties', 'isEIP1559Compatible'] },
+              );
 
               await controller.getEIP1559Compatibility();
 
-              await expect(promiseForStateChanges).toNeverResolve();
+              await expect(
+                promiseForIsEIP1559CompatibleChanges,
+              ).toNeverResolve();
             },
           );
         });
@@ -3458,7 +3494,7 @@ describe('NetworkController', () => {
           });
 
           describe('if the block does not have a "baseFeePerGas" property', () => {
-            it('makes no state changes', async () => {
+            it('does not change properties.isEIP1559Compatible in state', async () => {
               const messenger = buildMessenger();
               await withController(
                 {
@@ -3486,11 +3522,16 @@ describe('NetworkController', () => {
                     ],
                     stubGetEIP1559CompatibilityWhileSetting: true,
                   });
-                  const promiseForStateChanges = waitForStateChanges(messenger);
+                  const promiseForIsEIP1559CompatibleChanges =
+                    waitForStateChanges(messenger, {
+                      propertyPath: ['properties', 'isEIP1559Compatible'],
+                    });
 
                   await controller.getEIP1559Compatibility();
 
-                  await expect(promiseForStateChanges).toNeverResolve();
+                  await expect(
+                    promiseForIsEIP1559CompatibleChanges,
+                  ).toNeverResolve();
                 },
               );
             });
@@ -3533,7 +3574,7 @@ describe('NetworkController', () => {
         });
 
         describe('if an error is thrown while fetching the latest block', () => {
-          it('makes no state changes', async () => {
+          it('does not change properties.isEIP1559Compatible in state', async () => {
             const messenger = buildMessenger();
             await withController(
               {
@@ -3559,7 +3600,10 @@ describe('NetworkController', () => {
                   ],
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
-                const promiseForStateChanges = waitForStateChanges(messenger);
+                const promiseForIsEIP1559CompatibleChanges =
+                  waitForStateChanges(messenger, {
+                    propertyPath: ['properties', 'isEIP1559Compatible'],
+                  });
 
                 try {
                   await controller.getEIP1559Compatibility();
@@ -3567,7 +3611,9 @@ describe('NetworkController', () => {
                   // catch the rejection (it is tested below)
                 }
 
-                await expect(promiseForStateChanges).toNeverResolve();
+                await expect(
+                  promiseForIsEIP1559CompatibleChanges,
+                ).toNeverResolve();
               },
             );
           });
@@ -3611,7 +3657,7 @@ describe('NetworkController', () => {
     });
 
     describe('if isEIP1559Compatible in state is set to true', () => {
-      it('makes no state changes', async () => {
+      it('does not change properties.isEIP1559Compatible in state', async () => {
         const messenger = buildMessenger();
         await withController(
           {
@@ -3626,11 +3672,14 @@ describe('NetworkController', () => {
             await setFakeProvider(controller, {
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
-            const promiseForStateChanges = waitForStateChanges(messenger);
+            const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+              messenger,
+              { propertyPath: ['properties', 'isEIP1559Compatible'] },
+            );
 
             await controller.getEIP1559Compatibility();
 
-            await expect(promiseForStateChanges).toNeverResolve();
+            await expect(promiseForIsEIP1559CompatibleChanges).toNeverResolve();
           },
         );
       });
