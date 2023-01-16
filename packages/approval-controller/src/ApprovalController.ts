@@ -50,7 +50,7 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
   requestData: RequestData;
 
   /**
-   *
+   * Additional mutable state associated with the request
    */
   requestState: ApprovalRequestState;
 };
@@ -469,8 +469,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param type - The type associated with the approval request.
    * @param id - The id of the approval request.
    * @param requestData - The request data associated with the approval request.
-   * @param requestState- - The request state associated with the approval request.
-   * @param requestState
+   * @param requestState - The request state associated with the approval request.
    * @returns The approval promise.
    */
   private _add(
