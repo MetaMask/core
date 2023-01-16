@@ -153,7 +153,9 @@ operation that was not fulfilled before the test ended.`);
             isDeepStrictEqual(stub.request.params, payload.params))
         );
       });
-      let message = `Could not find any stubs matching "${payload.method}".`;
+      let message = `Could not find any stubs matching: ${inspect(payload, {
+        depth: null,
+      })}`;
 
       if (matchingCalledStubs.length > 0) {
         message += `\n\nIt appears the following stubs were defined, but have been called already:\n\n${inspect(
