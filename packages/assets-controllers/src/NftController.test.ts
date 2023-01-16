@@ -806,8 +806,8 @@ describe('NftController', () => {
 
     it('should add NFT by provider type', async () => {
       const { nftController, network, messenger } = setupController();
-      const firstNetworkType = 'rinkeby';
-      const secondNetworkType = 'ropsten';
+      const firstNetworkType = 'sepolia';
+      const secondNetworkType = 'goerli';
       const { selectedAddress } = nftController.config;
       sinon
         .stub(nftController, 'getNftInformation' as any)
@@ -1365,8 +1365,8 @@ describe('NftController', () => {
       sinon
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
-      const firstNetworkType = 'rinkeby';
-      const secondNetworkType = 'ropsten';
+      const firstNetworkType = 'sepolia';
+      const secondNetworkType = 'goerli';
       network.setProviderType(firstNetworkType);
       await nftController.addNft('0x02', '4321');
       network.setProviderType(secondNetworkType);
@@ -1961,8 +1961,8 @@ describe('NftController', () => {
       it('should check whether the passed NFT is still owned by the the selectedAddress/chainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/chainId are different from those passed', async () => {
         const { nftController, network, preferences, messenger } =
           setupController();
-        const firstNetworkType = 'rinkeby';
-        const secondNetworkType = 'ropsten';
+        const firstNetworkType = 'sepolia';
+        const secondNetworkType = 'goerli';
 
         preferences.update({ selectedAddress: OWNER_ADDRESS });
         network.setProviderType(firstNetworkType);

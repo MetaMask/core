@@ -33,9 +33,9 @@ describe('utils', () => {
     });
 
     it('should return a correctly structured url with testnet subdomain', () => {
-      const ropsten = 'ropsten';
-      const url = util.getEtherscanApiUrl(ropsten, { address, action });
-      expect(url.indexOf(`https://api-${ropsten}`)).toBe(0);
+      const goerli = 'goerli';
+      const url = util.getEtherscanApiUrl(goerli, { address, action });
+      expect(url.indexOf(`https://api-${goerli}`)).toBe(0);
     });
 
     it('should return a correctly structured url with apiKey', () => {

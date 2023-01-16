@@ -123,7 +123,7 @@ function mockFetchWithDynamicResponse(dataForUrl: any) {
 
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider(
-  'https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  'https://goerli.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
@@ -131,12 +131,12 @@ const MAINNET_PROVIDER = new HttpProvider(
 const MOCK_NETWORK = {
   getProvider: () => PROVIDER,
   state: {
-    network: '3',
+    network: '5',
     isCustomNetwork: false,
     properties: { isEIP1559Compatible: false },
     providerConfig: {
-      type: 'ropsten' as NetworkType,
-      chainId: NetworksChainId.ropsten,
+      type: 'goerli' as NetworkType,
+      chainId: NetworksChainId.goerli,
     },
   },
   subscribe: () => undefined,
@@ -157,7 +157,7 @@ const MOCK_NETWORK_CUSTOM = {
 const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
   getProvider: () => PROVIDER,
   isCustomNetwork: false,
-  state: { network: '3', providerConfig: { type: 'ropsten' as NetworkType } },
+  state: { network: '5', providerConfig: { type: 'goerli' as NetworkType } },
   subscribe: () => undefined,
 };
 const MOCK_MAINNET_NETWORK = {
@@ -243,28 +243,28 @@ const TOKEN_TX_HISTORY_DATA_FROM_BLOCK = {
   status: '1',
 };
 
-const ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND = {
+const ETH_TX_HISTORY_DATA_GOERLI_NO_TRANSACTIONS_FOUND = {
   message: 'No transactions found',
   result: [],
   status: '0',
 };
 
 const MOCK_FETCH_TX_HISTORY_DATA_OK = {
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=tokentx&tag=latest&page=1':
-    ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
+  'https://api-goerli.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=tokentx&tag=latest&page=1':
+    ETH_TX_HISTORY_DATA_GOERLI_NO_TRANSACTIONS_FOUND,
   'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=tokentx&tag=latest&page=1':
     TOKEN_TX_HISTORY_DATA,
   'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&offset=40&order=desc&action=tokentx&tag=latest&page=1':
     TOKEN_TX_HISTORY_DATA_FROM_BLOCK,
   'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=txlist&tag=latest&page=1':
     ETH_TX_HISTORY_DATA,
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=txlist&tag=latest&page=1':
+  'https://api-goerli.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=txlist&tag=latest&page=1':
     ETH_TX_HISTORY_DATA,
   'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&offset=40&order=desc&action=txlist&tag=latest&page=1':
     ETH_TX_HISTORY_DATA_FROM_BLOCK,
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=2&order=desc&action=tokentx&tag=latest&page=1':
-    ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=2&order=desc&action=txlist&tag=latest&page=1':
+  'https://api-goerli.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=2&order=desc&action=tokentx&tag=latest&page=1':
+    ETH_TX_HISTORY_DATA_GOERLI_NO_TRANSACTIONS_FOUND,
+  'https://api-goerli.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=2&order=desc&action=txlist&tag=latest&page=1':
     ETH_TX_HISTORY_DATA,
 };
 
@@ -529,7 +529,7 @@ describe('TransactionController', () => {
       getProvider,
     });
 
-    // switch from Ropsten to Mainnet
+    // switch from Goerli to Mainnet
     getNetworkState.returns(MOCK_MAINNET_NETWORK.state);
     getProvider.returns(MAINNET_PROVIDER);
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -568,7 +568,7 @@ describe('TransactionController', () => {
       getProvider,
     });
 
-    // switch from Ropsten to Mainnet
+    // switch from Goerli to Mainnet
     getNetworkState.returns(MOCK_NETWORK_CUSTOM.state);
     getProvider.returns(PROVIDER);
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -649,7 +649,7 @@ describe('TransactionController', () => {
     controller.state.transactions.push({
       from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
-      networkID: '3',
+      networkID: '5',
       status: TransactionStatus.submitted,
       transactionHash: '1337',
     } as any);
@@ -853,8 +853,8 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
-        networkID: '3',
-        chainId: '3',
+        networkID: '5',
+        chainId: '5',
         status: TransactionStatus.submitted,
         transactionHash: '1337',
       } as any);
@@ -889,7 +889,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
-        networkID: '3',
+        networkID: '5',
         status: TransactionStatus.submitted,
         transactionHash: '1337',
       } as any);
@@ -922,7 +922,7 @@ describe('TransactionController', () => {
     controller.state.transactions.push({
       from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
-      networkID: '3',
+      networkID: '5',
       status: TransactionStatus.submitted,
       transactionHash: '1338',
     } as any);
@@ -946,8 +946,8 @@ describe('TransactionController', () => {
     controller.state.transactions.push({
       from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
-      networkID: '3',
-      chainId: '3',
+      networkID: '5',
+      chainId: '5',
       status: TransactionStatus.confirmed,
       transactionHash: '1337',
       verifiedOnBlockchain: false,
@@ -960,7 +960,7 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].transaction.gasUsed).toBe('0x5208');
   });
 
-  it('should fetch all the transactions from an address, including incoming transactions, in ropsten', async () => {
+  it('should fetch all the transactions from an address, including incoming transactions, in goerli', async () => {
     mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_NETWORK.state,

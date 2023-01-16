@@ -181,11 +181,9 @@ export class NetworkController extends BaseControllerV2<
     });
 
     switch (type) {
-      case 'kovan':
       case MAINNET:
-      case 'rinkeby':
       case 'goerli':
-      case 'ropsten':
+      case 'sepolia':
         this.setupInfuraProvider(type);
         break;
       case 'localhost':
@@ -238,10 +236,8 @@ export class NetworkController extends BaseControllerV2<
   private getIsCustomNetwork(chainId?: string) {
     return (
       chainId !== NetworksChainId.mainnet &&
-      chainId !== NetworksChainId.kovan &&
-      chainId !== NetworksChainId.rinkeby &&
       chainId !== NetworksChainId.goerli &&
-      chainId !== NetworksChainId.ropsten &&
+      chainId !== NetworksChainId.sepolia &&
       chainId !== NetworksChainId.localhost
     );
   }
@@ -309,33 +305,53 @@ export class NetworkController extends BaseControllerV2<
     throw new Error('Property only used for setting');
   }
 
+  async #getNetworkId(): Promise<string> {
+    return await new Promise((resolve, reject) => {
+      this.ethQuery.sendAsync(
+        { method: 'net_version' },
+        (error: Error, result: string) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        },
+      );
+    });
+  }
+
   /**
    * Refreshes the current network code.
    */
   async lookupNetwork() {
-    await this.mutex.runExclusive(async () => {
-      if (this.ethQuery?.sendAsync) {
-        await new Promise<void>((resolve) => {
-          this.ethQuery.sendAsync(
-            { method: 'net_version' },
-            (error: Error, network: string) => {
-              if (this.state.network !== network) {
-                this.update((state) => {
-                  state.network = error ? 'loading' : network;
-                });
+    if (!this.ethQuery || !this.ethQuery.sendAsync) {
+      return;
+    }
+    const releaseLock = await this.mutex.acquire();
 
-                this.messagingSystem.publish(
-                  `NetworkController:providerConfigChange`,
-                  this.state.providerConfig,
-                );
-              }
+    try {
+      try {
+        const networkId = await this.#getNetworkId();
+        if (this.state.network === networkId) {
+          return;
+        }
 
-              resolve();
-            },
-          );
+        this.update((state) => {
+          state.network = networkId;
+        });
+      } catch (_error) {
+        this.update((state) => {
+          state.network = 'loading';
         });
       }
-    });
+
+      this.messagingSystem.publish(
+        `NetworkController:providerConfigChange`,
+        this.state.providerConfig,
+      );
+    } finally {
+      releaseLock();
+    }
   }
 
   /**
