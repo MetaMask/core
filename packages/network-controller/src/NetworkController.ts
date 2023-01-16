@@ -294,6 +294,21 @@ export class NetworkController extends BaseControllerV2<
     throw new Error('Property only used for setting');
   }
 
+  async #getNetworkId(): Promise<string> {
+    return await new Promise((resolve, reject) => {
+      this.ethQuery.sendAsync(
+        { method: 'net_version' },
+        (error: Error, result: string) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result);
+          }
+        },
+      );
+    });
+  }
+
   /**
    * Refreshes the current network code.
    */
@@ -303,29 +318,30 @@ export class NetworkController extends BaseControllerV2<
       return;
     }
     const releaseLock = await this.mutex.acquire();
-    this.ethQuery.sendAsync(
-      { method: 'net_version' },
-      (error: Error, network: string) => {
-        try {
-          if (this.state.network === network) {
-            return;
-          }
 
-          this.update((state) => {
-            state.network = error
-              ? /* istanbul ignore next*/ 'loading'
-              : network;
-          });
-
-          this.messagingSystem.publish(
-            `NetworkController:providerConfigChange`,
-            this.state.providerConfig,
-          );
-        } finally {
-          releaseLock();
+    try {
+      try {
+        const networkId = await this.#getNetworkId();
+        if (this.state.network === networkId) {
+          return;
         }
-      },
-    );
+
+        this.update((state) => {
+          state.network = networkId;
+        });
+      } catch (_error) {
+        this.update((state) => {
+          state.network = 'loading';
+        });
+      }
+
+      this.messagingSystem.publish(
+        `NetworkController:providerConfigChange`,
+        this.state.providerConfig,
+      );
+    } finally {
+      releaseLock();
+    }
   }
 
   /**
