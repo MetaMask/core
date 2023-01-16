@@ -1132,7 +1132,7 @@ export class TransactionController extends BaseController<
     const { chainId: currentChainId, type: networkType } = providerConfig;
     const { transactions } = this.state;
 
-    const supportedNetworkIds = ['1', '3', '4', '42'];
+    const supportedNetworkIds = ['1', '5', '11155111'];
     /* istanbul ignore next */
     if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
       return undefined;

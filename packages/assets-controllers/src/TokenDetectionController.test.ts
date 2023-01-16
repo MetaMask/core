@@ -248,7 +248,7 @@ describe('TokenDetectionController', () => {
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toStrictEqual(true);
-    tokenDetection.configure({ chainId: NetworksChainId.ropsten });
+    tokenDetection.configure({ chainId: NetworksChainId.goerli });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toStrictEqual(false);
