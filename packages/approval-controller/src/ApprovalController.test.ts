@@ -92,6 +92,15 @@ describe('approval controller', () => {
           requestData: 'foo',
         } as any),
       ).toThrow(getInvalidRequestDataError());
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'type',
+          requestState: 'foo',
+        } as any),
+      ).toThrow(getInvalidRequestStateError());
     });
 
     it('adds correctly specified entry', () => {
@@ -145,6 +154,24 @@ describe('approval controller', () => {
       expect(approvalController.state[STORE_KEY].foo.requestData).toStrictEqual(
         { foo: 'bar' },
       );
+    });
+
+    it('adds correctly specified entry with request state', () => {
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+          requestState: { foo: 'bar' },
+        }),
+      ).not.toThrow();
+
+      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
+      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
+      expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
+      expect(
+        approvalController.state[STORE_KEY].foo.requestState,
+      ).toStrictEqual({ foo: 'bar' });
     });
 
     it('adds multiple entries for same origin with different types and ids', () => {
@@ -999,6 +1026,18 @@ function getInvalidOriginError() {
 function getInvalidRequestDataError() {
   return getError(
     'Request data must be a plain object if specified.',
+    errorCodes.rpc.internal,
+  );
+}
+
+/**
+ * Get an invalid request state error.
+ *
+ * @returns The invalid request data error.
+ */
+function getInvalidRequestStateError() {
+  return getError(
+    'Request state must be a plain object if specified.',
     errorCodes.rpc.internal,
   );
 }

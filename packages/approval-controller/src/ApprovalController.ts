@@ -292,7 +292,13 @@ export class ApprovalController extends BaseControllerV2<
    * @returns The approval promise.
    */
   add(opts: AddApprovalOptions): Promise<unknown> {
-    return this._add(opts.origin, opts.type, opts.id, opts.requestData);
+    return this._add(
+      opts.origin,
+      opts.type,
+      opts.id,
+      opts.requestData,
+      opts.requestState,
+    );
   }
 
   /**
