@@ -29,6 +29,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/swappable-obj-proxy": "^2.1.0",
@@ -42,8 +43,11 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
     "@types/jest": "^26.0.22",
+    "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",
+    "lodash": "^4.17.21",
+    "nock": "^13.0.7",
     "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
     "typedoc": "^0.22.15",

@@ -336,6 +336,7 @@ export class NetworkController extends BaseControllerV2<
         { method: 'net_version' },
         (error: Error, result: string) => {
           if (error) {
+            console.error(error);
             reject(error);
           } else {
             resolve(result);
@@ -388,7 +389,7 @@ export class NetworkController extends BaseControllerV2<
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
       type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
-      TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
+        TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
         ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
         : 'ETH';
 
@@ -399,6 +400,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.rpcTarget = undefined;
       state.providerConfig.nickname = undefined;
     });
+
     this.refreshNetwork();
   }
 
