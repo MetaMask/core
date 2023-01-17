@@ -1,10 +1,5 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
-import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { OPENSEA_PROXY_URL } from '@metamask/controller-utils';
 import { NftController } from './NftController';
@@ -20,8 +15,7 @@ describe('NftDetectionController', () => {
   let preferences: PreferencesController;
   let nftController: NftController;
   let assetsContract: AssetsContractController;
-  let messenger: NetworkControllerMessenger;
-
+  const networkStateChangeNoop = jest.fn();
   const getOpenSeaApiKeyStub = jest.fn();
   beforeAll(() => {
     nock.disableNetConnect();
@@ -32,27 +26,15 @@ describe('NftDetectionController', () => {
   });
 
   beforeEach(async () => {
-    messenger = new ControllerMessenger().getRestricted({
-      name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
-      allowedActions: [],
-    });
-
-    new NetworkController({
-      messenger,
-      infuraProjectId: 'potato',
-    });
     preferences = new PreferencesController();
     assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChange: networkStateChangeNoop,
     });
 
     nftController = new NftController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChange: networkStateChangeNoop,
       getERC721AssetName:
         assetsContract.getERC721AssetName.bind(assetsContract),
       getERC721AssetSymbol:
@@ -69,8 +51,7 @@ describe('NftDetectionController', () => {
     nftDetection = new NftDetectionController({
       onNftsStateChange: (listener) => nftController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChange: networkStateChangeNoop,
       getOpenSeaApiKey: getOpenSeaApiKeyStub,
       addNft: nftController.addNft.bind(nftController),
       getNftState: () => nftController.state,
@@ -237,8 +218,7 @@ describe('NftDetectionController', () => {
           onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
-          onNetworkStateChange: (listener) =>
-            messenger.subscribe('NetworkController:stateChange', listener),
+          onNetworkStateChange: networkStateChangeNoop,
           getOpenSeaApiKey: () => nftController.openSeaApiKey,
           addNft: nftController.addNft.bind(nftController),
           getNftState: () => nftController.state,
@@ -273,8 +253,7 @@ describe('NftDetectionController', () => {
           onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
-          onNetworkStateChange: (listener) =>
-            messenger.subscribe('NetworkController:stateChange', listener),
+          onNetworkStateChange: networkStateChangeNoop,
           getOpenSeaApiKey: () => nftController.openSeaApiKey,
           addNft: nftController.addNft.bind(nftController),
           getNftState: () => nftController.state,
