@@ -118,7 +118,7 @@ describe('assetsUtil', () => {
         chainId: NetworksChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metaswap.codefi.network/api/v1/tokenIcons/${NetworksChainId.mainnet}/${linkTokenAddress}.png`;
+      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${NetworksChainId.mainnet}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
 
@@ -128,7 +128,7 @@ describe('assetsUtil', () => {
         chainId: `0x${Number(NetworksChainId.mainnet).toString(16)}`,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metaswap.codefi.network/api/v1/tokenIcons/${NetworksChainId.mainnet}/${linkTokenAddress}.png`;
+      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${NetworksChainId.mainnet}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
   });
