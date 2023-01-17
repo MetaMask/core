@@ -3690,6 +3690,48 @@ describe('NetworkController', () => {
       });
     });
   });
+
+  describe('NetworkController:getProviderConfig action', () => {
+    it('returns the provider config in state', async () => {
+      const messenger = buildMessenger();
+      await withController(
+        {
+          messenger,
+          state: {
+            providerConfig: {
+              type: 'mainnet',
+              chainId: '1',
+            },
+          },
+        },
+        async () => {
+          const providerConfig = await messenger.call(
+            'NetworkController:getProviderConfig',
+          );
+
+          expect(providerConfig).toStrictEqual({
+            type: 'mainnet',
+            chainId: '1',
+          });
+        },
+      );
+    });
+  });
+
+  describe('NetworkController:getEthQuery action', () => {
+    it('returns the EthQuery object set after the provider is set', async () => {
+      const messenger = buildMessenger();
+      await withController({ messenger }, async ({ controller }) => {
+        const fakeEthQuery = {};
+        jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
+        setFakeProvider(controller);
+
+        const ethQuery = await messenger.call('NetworkController:getEthQuery');
+
+        expect(ethQuery).toBe(fakeEthQuery);
+      });
+    });
+  });
 });
 
 /**
@@ -3704,7 +3746,10 @@ function buildMessenger() {
     NetworkControllerEvents
   >().getRestricted({
     name: 'NetworkController',
-    allowedActions: [],
+    allowedActions: [
+      'NetworkController:getProviderConfig',
+      'NetworkController:getEthQuery',
+    ],
     allowedEvents: [
       'NetworkController:providerConfigChange',
       'NetworkController:stateChange',
