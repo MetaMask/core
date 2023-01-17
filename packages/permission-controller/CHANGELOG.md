@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 ### Uncategorized
+- **BREAKING:** Update `@metamask/network-controller` peer dependency to v3 ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
 
 ## [1.0.2]
 ### Fixed
@@ -26,8 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/permission-controller@2.0.0...HEAD
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/permission-controller@1.0.2...@metamask/permission-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/permission-controller@1.0.1...@metamask/permission-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/permission-controller@1.0.0...@metamask/permission-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/permission-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@1.0.2...@metamask/permission-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@1.0.1...@metamask/permission-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@1.0.0...@metamask/permission-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/permission-controller@1.0.0

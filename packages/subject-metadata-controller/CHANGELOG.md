@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [1.0.2]
-### Uncategorized
+### Changed
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
 
 ## [1.0.1]
 ### Changed
@@ -23,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     All changes listed after this point were applied to this package following the monorepo conversion.
 - Add method to get subject metadata by origin ([#950](https://github.com/MetaMask/core/pull/950))
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/subject-metadata-controller@1.0.2...HEAD
-[1.0.2]: https://github.com/MetaMask/controllers/compare/@metamask/subject-metadata-controller@1.0.1...@metamask/subject-metadata-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/subject-metadata-controller@1.0.0...@metamask/subject-metadata-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/subject-metadata-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subject-metadata-controller@1.0.2...HEAD
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/subject-metadata-controller@1.0.1...@metamask/subject-metadata-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/subject-metadata-controller@1.0.0...@metamask/subject-metadata-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/subject-metadata-controller@1.0.0

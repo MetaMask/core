@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
-### Uncategorized
-- [network-controller] Make `lookupNetwork` async ([#1063](https://github.com/MetaMask/controllers/pull/1063))
-- Sepolia support ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+### Added
+- Add support for Sepolia as a built-in Infura network ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+
+### Changed
+- **BREAKING:** Make `lookupNetwork` block on completing the lookup ([#1063](https://github.com/MetaMask/controllers/pull/1063))
+  - This function was always `async`, but it would return before completing any async work. Now it will not return until after the network lookup has been completed.
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+
+### Removed
+- **BREAKING:**: Drop support for Ropsten, Rinkeby, and Kovan as built-in Infura networks ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [2.0.0]
 ### Changed
@@ -27,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/network-controller@3.0.0...HEAD
-[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/network-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/network-controller@1.0.0

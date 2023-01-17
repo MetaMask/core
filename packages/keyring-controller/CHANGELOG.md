@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [2.0.0]
-### Uncategorized
-- Sepolia support ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+### Changed
+- **BREAKING:**: Require ES2020 support or greater ([#914](https://github.com/MetaMask/controllers/pull/914))
+    - This change was introduced by an indirect dependency on `ethereumjs/util` v8
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- bump @metamask/eth-sig-util to latest ([#914](https://github.com/MetaMask/controllers/pull/914))
+- Update `@metamask/eth-sig-util` to v5 ([#914](https://github.com/MetaMask/controllers/pull/914))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
 
 ## [1.0.1]
 ### Changed
@@ -24,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/keyring-controller@2.0.0...HEAD
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/keyring-controller@1.0.1...@metamask/keyring-controller@2.0.0
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/keyring-controller@1.0.0...@metamask/keyring-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/keyring-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@1.0.1...@metamask/keyring-controller@2.0.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@1.0.0...@metamask/keyring-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/keyring-controller@1.0.0
