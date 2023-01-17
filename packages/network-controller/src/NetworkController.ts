@@ -267,7 +267,6 @@ export class NetworkController extends BaseControllerV2<
     this.registerProvider();
   }
 
-  // TODO: Test this correctly — don't assume same provider
   private safelyStopProvider(provider: any) {
     setTimeout(() => {
       provider?.stop();

@@ -223,7 +223,7 @@ describe('NetworkController', () => {
             );
           });
 
-          it('stops an existing provider eventually', async () => {
+          it('ensures that the existing provider is stopped while replacing it', async () => {
             await withController(
               {
                 state: {
@@ -238,18 +238,21 @@ describe('NetworkController', () => {
                 createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
                 const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
                 SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                const fakeMetamaskProvider = buildFakeMetamaskProvider();
-                createMetamaskProviderMock.mockReturnValue(
-                  fakeMetamaskProvider,
-                );
-                jest.spyOn(fakeMetamaskProvider, 'stop');
+                const fakeMetamaskProviders = [
+                  buildFakeMetamaskProvider(),
+                  buildFakeMetamaskProvider(),
+                ];
+                jest.spyOn(fakeMetamaskProviders[0], 'stop');
+                createMetamaskProviderMock
+                  .mockImplementationOnce(() => fakeMetamaskProviders[0])
+                  .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
                 controller.providerConfig = buildProviderConfig();
                 controller.providerConfig = buildProviderConfig();
                 assert(controller.provider);
                 jest.runAllTimers();
 
-                expect(controller.provider.stop).toHaveBeenCalled();
+                expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
               },
             );
           });
@@ -430,7 +433,7 @@ describe('NetworkController', () => {
           );
         });
 
-        it('stops an existing provider eventually', async () => {
+        it('ensures that the existing provider is stopped while replacing it', async () => {
           await withController(
             {
               state: {
@@ -440,16 +443,21 @@ describe('NetworkController', () => {
               },
             },
             ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider();
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              jest.spyOn(fakeMetamaskProvider, 'stop');
+              const fakeMetamaskProviders = [
+                buildFakeMetamaskProvider(),
+                buildFakeMetamaskProvider(),
+              ];
+              jest.spyOn(fakeMetamaskProviders[0], 'stop');
+              createMetamaskProviderMock
+                .mockImplementationOnce(() => fakeMetamaskProviders[0])
+                .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
               controller.providerConfig = buildProviderConfig();
               controller.providerConfig = buildProviderConfig();
               assert(controller.provider);
               jest.runAllTimers();
 
-              expect(controller.provider.stop).toHaveBeenCalled();
+              expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
             },
           );
         });
@@ -666,7 +674,7 @@ describe('NetworkController', () => {
             );
           });
 
-          it('stops an existing provider eventually', async () => {
+          it('ensures that the existing provider is stopped while replacing it', async () => {
             await withController(
               {
                 state: {
@@ -677,18 +685,21 @@ describe('NetworkController', () => {
                 },
               },
               ({ controller }) => {
-                const fakeMetamaskProvider = buildFakeMetamaskProvider();
-                createMetamaskProviderMock.mockReturnValue(
-                  fakeMetamaskProvider,
-                );
-                jest.spyOn(fakeMetamaskProvider, 'stop');
+                const fakeMetamaskProviders = [
+                  buildFakeMetamaskProvider(),
+                  buildFakeMetamaskProvider(),
+                ];
+                jest.spyOn(fakeMetamaskProviders[0], 'stop');
+                createMetamaskProviderMock
+                  .mockImplementationOnce(() => fakeMetamaskProviders[0])
+                  .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
                 controller.providerConfig = buildProviderConfig();
                 controller.providerConfig = buildProviderConfig();
+                assert(controller.provider);
                 jest.runAllTimers();
 
-                assert(controller.provider);
-                expect(controller.provider.stop).toHaveBeenCalled();
+                expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
               },
             );
           });
@@ -1353,22 +1364,27 @@ describe('NetworkController', () => {
         );
       });
 
-      it('stops an existing provider eventually', async () => {
+      it('ensures that the existing provider is stopped while replacing it', async () => {
         await withController(({ controller }) => {
           const fakeInfuraProvider = buildFakeInfuraProvider();
           createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
           const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
           SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(fakeMetamaskProvider, 'stop');
+          const fakeMetamaskProviders = [
+            buildFakeMetamaskProvider(),
+            buildFakeMetamaskProvider(),
+          ];
+          jest.spyOn(fakeMetamaskProviders[0], 'stop');
+          createMetamaskProviderMock
+            .mockImplementationOnce(() => fakeMetamaskProviders[0])
+            .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
           controller.setProviderType('mainnet' as const);
           controller.setProviderType('mainnet' as const);
           assert(controller.provider);
           jest.runAllTimers();
 
-          expect(controller.provider.stop).toHaveBeenCalled();
+          expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
         });
       });
 
@@ -1666,22 +1682,27 @@ describe('NetworkController', () => {
           );
         });
 
-        it('stops an existing provider eventually', async () => {
+        it('ensures that the existing provider is stopped while replacing it', async () => {
           await withController(({ controller }) => {
             const fakeInfuraProvider = buildFakeInfuraProvider();
             createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
             const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
             SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            jest.spyOn(fakeMetamaskProvider, 'stop');
+            const fakeMetamaskProviders = [
+              buildFakeMetamaskProvider(),
+              buildFakeMetamaskProvider(),
+            ];
+            jest.spyOn(fakeMetamaskProviders[0], 'stop');
+            createMetamaskProviderMock
+              .mockImplementationOnce(() => fakeMetamaskProviders[0])
+              .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
             controller.setProviderType(networkType);
             controller.setProviderType(networkType);
             assert(controller.provider);
             jest.runAllTimers();
 
-            expect(controller.provider.stop).toHaveBeenCalled();
+            expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
           });
         });
 
@@ -2050,18 +2071,23 @@ describe('NetworkController', () => {
         });
       });
 
-      it('stops an existing provider eventually', async () => {
+      it('ensures that the existing provider is stopped while replacing it', async () => {
         await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(fakeMetamaskProvider, 'stop');
+          const fakeMetamaskProviders = [
+            buildFakeMetamaskProvider(),
+            buildFakeMetamaskProvider(),
+          ];
+          jest.spyOn(fakeMetamaskProviders[0], 'stop');
+          createMetamaskProviderMock
+            .mockImplementationOnce(() => fakeMetamaskProviders[0])
+            .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
           controller.setProviderType('localhost' as const);
           controller.setProviderType('localhost' as const);
           assert(controller.provider);
           jest.runAllTimers();
 
-          expect(controller.provider.stop).toHaveBeenCalled();
+          expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
         });
       });
 
@@ -2301,18 +2327,23 @@ describe('NetworkController', () => {
         });
       });
 
-      it('stops an existing provider eventually', async () => {
+      it('ensures that the existing provider is stopped while replacing it', async () => {
         await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(fakeMetamaskProvider, 'stop');
+          const fakeMetamaskProviders = [
+            buildFakeMetamaskProvider(),
+            buildFakeMetamaskProvider(),
+          ];
+          jest.spyOn(fakeMetamaskProviders[0], 'stop');
+          createMetamaskProviderMock
+            .mockImplementationOnce(() => fakeMetamaskProviders[0])
+            .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
           controller.setRpcTarget('http://example.com', '123');
           controller.setRpcTarget('http://example.com', '123');
           assert(controller.provider);
           jest.runAllTimers();
 
-          expect(controller.provider.stop).toHaveBeenCalled();
+          expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
         });
       });
 
@@ -2570,11 +2601,16 @@ describe('NetworkController', () => {
         });
       });
 
-      it('stops an existing provider eventually', async () => {
+      it('ensures that the existing provider is stopped while replacing it', async () => {
         await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          jest.spyOn(fakeMetamaskProvider, 'stop');
+          const fakeMetamaskProviders = [
+            buildFakeMetamaskProvider(),
+            buildFakeMetamaskProvider(),
+          ];
+          jest.spyOn(fakeMetamaskProviders[0], 'stop');
+          createMetamaskProviderMock
+            .mockImplementationOnce(() => fakeMetamaskProviders[0])
+            .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
           controller.setRpcTarget(
             'http://example.com',
@@ -2591,7 +2627,7 @@ describe('NetworkController', () => {
           assert(controller.provider);
           jest.runAllTimers();
 
-          expect(controller.provider.stop).toHaveBeenCalled();
+          expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
         });
       });
 
