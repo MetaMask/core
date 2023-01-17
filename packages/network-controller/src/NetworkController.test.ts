@@ -4119,7 +4119,7 @@ async function waitForStateChanges(
       options = rest[0];
     }
   }
-  const { propertyPath, count = 1, wait = 150 } = options;
+  const { propertyPath, count, wait } = options;
 
   const filterEventPayload =
     propertyPath === undefined
