@@ -626,7 +626,7 @@ describe('NetworkController', () => {
             );
           });
 
-          it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+          it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request for eth_getBlockByNumber is made successfully)', async () => {
             const messenger = buildMessenger();
             await withController(
               {
@@ -857,7 +857,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request for eth_getBlockByNumber is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController(
           {
@@ -1325,7 +1325,7 @@ describe('NetworkController', () => {
         );
       });
 
-      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request for eth_getBlockByNumber is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController(
           {
@@ -1388,7 +1388,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('records the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+      it('records the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
           const fakeInfuraProvider = buildFakeInfuraProvider();
@@ -1641,7 +1641,7 @@ describe('NetworkController', () => {
           );
         });
 
-        it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+        it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request for eth_getBlockByNumber is made successfully)', async () => {
           const messenger = buildMessenger();
           await withController(
             {
@@ -1706,7 +1706,7 @@ describe('NetworkController', () => {
           });
         });
 
-        it('updates the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+        it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
           const messenger = buildMessenger();
           await withController({ messenger }, async ({ controller }) => {
             const fakeInfuraProvider = buildFakeInfuraProvider();
@@ -2091,7 +2091,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('updates the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+      it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider([
@@ -2297,7 +2297,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request for eth_getBlockByNumber is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider([
@@ -2347,7 +2347,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('updates the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+      it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider([
@@ -2566,7 +2566,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request to eth_getBlockByNumber is made successfully)', async () => {
+      it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request for eth_getBlockByNumber is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider([
@@ -2631,7 +2631,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('updates the version of the current network in state (assuming that the request to net_version is made successfully)', async () => {
+      it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider([
