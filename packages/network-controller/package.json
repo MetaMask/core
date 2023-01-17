@@ -29,6 +29,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "async-mutex": "^0.2.6",
