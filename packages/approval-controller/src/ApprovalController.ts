@@ -15,7 +15,7 @@ type ApprovalPromiseReject = (error?: unknown) => void;
 
 type ApprovalRequestData = Record<string, Json> | null;
 
-type ApprovalRequestState = Record<string, Json> | null;
+type ApprovalRequestState = Record<string, Json>;
 
 type ApprovalCallbacks = {
   resolve: ApprovalPromiseResolve;
@@ -52,7 +52,7 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
   /**
    * Additional mutable state associated with the request
    */
-  requestState: ApprovalRequestState;
+  requestState?: ApprovalRequestState;
 };
 
 type ShowApprovalRequest = () => void | Promise<void>;
@@ -582,7 +582,7 @@ export class ApprovalController extends BaseControllerV2<
       type,
       time: Date.now(),
       requestData: requestData || null,
-      requestState: requestState || null,
+      requestState,
     };
 
     this.update((draftState) => {
