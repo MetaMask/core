@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+### Uncategorized
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
+
 ## [2.0.1]
 ### Fixed
 - This package will now warn if a required package is not present ([#1003](https://github.com/MetaMask/core/pull/1003))
@@ -24,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@2.0.1...HEAD
-[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@2.0.0...@metamask/gas-fee-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@1.0.0...@metamask/gas-fee-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/gas-fee-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/gas-fee-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/gas-fee-controller@2.0.1...@metamask/gas-fee-controller@3.0.0
+[2.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/gas-fee-controller@2.0.0...@metamask/gas-fee-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/gas-fee-controller@1.0.0...@metamask/gas-fee-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/gas-fee-controller@1.0.0

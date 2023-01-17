@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+### Uncategorized
+- Sepolia support ([#1041](https://github.com/MetaMask/controllers/pull/1041))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
+
 ## [1.0.0]
 ### Added
 - Initial release
@@ -45,5 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@1.0.0...HEAD
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/controller-utils@1.0.0
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/controller-utils@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/controller-utils@1.0.0...@metamask/controller-utils@2.0.0
+[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/controller-utils@1.0.0

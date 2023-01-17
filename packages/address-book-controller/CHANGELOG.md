@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+### Uncategorized
+- Add addressType flag in the address book contoller ([#828](https://github.com/MetaMask/controllers/pull/828))
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
+
 ## [1.0.1]
 ### Changed
 - Relax dependencies on `@metamask/base-controller` and `@metamask/controller-utils` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/core/pull/998))
@@ -19,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@1.0.1...HEAD
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@1.0.0...@metamask/address-book-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/address-book-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/address-book-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/controllers/compare/@metamask/address-book-controller@1.0.1...@metamask/address-book-controller@1.1.0
+[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/address-book-controller@1.0.0...@metamask/address-book-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/address-book-controller@1.0.0
