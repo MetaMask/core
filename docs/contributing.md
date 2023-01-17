@@ -32,7 +32,7 @@ If you're a MetaMask contributor, you can create these preview versions via draf
    //npm.pkg.github.com/:_authToken=<your personal access token>
    ```
    Make sure not to commit this file.
-3. Go to GitHub and open up a pull request for this repository, then post a comment on the PR with the text `@metamask-bot preview-build`. (This triggers the `publish-preview` GitHub action.)
+3. Go to GitHub and open up a pull request for this repository, then post a comment on the PR with the text `@metamaskbot publish-preview`. (This triggers the `publish-preview` GitHub action.)
 4. After a few minutes, you will see a new comment indicating that all packages have been published with the format `<package name>-<commit id>`.
 5. Switch back to your project locally and update `package.json` by replacing the versions for the packages you've changed in your PR using the new version format (e.g. `1.2.3-e2df9b4` instead of `~1.2.3`), then run `yarn install`.
 6. Repeat steps 3-5 after pushing new changes to your PR to generate and use new preview versions.
