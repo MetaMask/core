@@ -98,7 +98,7 @@ export type NetworkControllerOptions = {
   state?: Partial<NetworkState>;
 };
 
-const defaultState: NetworkState = {
+export const defaultState: NetworkState = {
   network: 'loading',
   isCustomNetwork: false,
   providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
