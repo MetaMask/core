@@ -1584,6 +1584,7 @@ export class PermissionController<
     const permissions = this.validatePermissions({
       approvedPermissions,
       requestData,
+      origin,
       preserveExistingPermissions,
     });
 
@@ -1619,6 +1620,7 @@ export class PermissionController<
     const permissions = this.validatePermissions({
       approvedPermissions,
       requestData,
+      origin,
       preserveExistingPermissions,
     });
 
@@ -1629,11 +1631,13 @@ export class PermissionController<
   private validatePermissions({
     approvedPermissions,
     requestData,
+    origin,
     preserveExistingPermissions = true,
   }: {
     approvedPermissions: RequestedPermissions;
     preserveExistingPermissions?: boolean;
     requestData?: Record<string, unknown>;
+    origin: string;
   }): SubjectPermissions<
     ExtractPermission<
       ControllerPermissionSpecification,
