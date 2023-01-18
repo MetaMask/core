@@ -46,7 +46,7 @@ export interface AddressBookEntry {
   chainId: string;
   memo: string;
   isEns: boolean;
-  addressType: AddressType;
+  addressType?: AddressType;
 }
 
 /**
@@ -135,7 +135,7 @@ export class AddressBookController extends BaseController<
     name: string,
     chainId = '1',
     memo = '',
-    addressType = undefined as unknown as AddressType,
+    addressType?: AddressType,
   ) {
     address = toChecksumHexAddress(address);
     if (!isValidHexAddress(address)) {
