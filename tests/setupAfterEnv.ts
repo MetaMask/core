@@ -1,16 +1,7 @@
-import { inspect } from 'util';
-import { waitForResult } from './helpers';
-
-// Store this up front in case it gets stubbed later
-const originalSetTimeout = global.setTimeout;
-
 const UNRESOLVED = Symbol('timedOut');
-
+// Store this in case it gets stubbed later
+const originalSetTimeout = global.setTimeout;
 const TIME_TO_WAIT_UNTIL_UNRESOLVED = 100;
-
-// This has to be less than the testTimeout in the Jest config to guarantee that
-// our timeout will get triggered first
-const TEST_TIMEOUT = 2000;
 
 /**
  * Produces a sort of dummy promise which can be used in conjunction with a
@@ -42,7 +33,7 @@ expect.extend({
   async toNeverResolve(promise: Promise<any>) {
     if (this.isNot) {
       throw new Error(
-        "`.not.toNeverResolve(...)` isn't supported. " +
+        'Using `.not.toNeverResolve(...)` is not supported. ' +
           'You probably want to either `await` the promise and test its ' +
           'resolution value or use `.rejects` to test its rejection value instead.',
       );
@@ -69,50 +60,15 @@ expect.extend({
           message: () => {
             return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
               rejectionValue
-                ? `was rejected with ${inspect(rejectionValue, {
-                    depth: null,
-                  })}`
-                : `resolved with ${inspect(resolutionValue, { depth: null })}`
+                ? `was rejected with ${rejectionValue}`
+                : `resolved with ${resolutionValue}`
             }`;
           },
           pass: false,
         };
   },
-
-  async toEventuallyBe(test: () => any, expectedValue: any) {
-    if (this.isNot) {
-      throw new Error(
-        "`.not.toEventuallyBe(...)` isn't supported. Maybe you want to use `.toNeverResolve()` instead?",
-      );
-    }
-
-    const result = await Promise.race([
-      waitForResult(expectedValue, test),
-      treatUnresolvedAfter(TEST_TIMEOUT),
-    ]);
-
-    if (result === UNRESOLVED) {
-      return {
-        message: () =>
-          `Expected function to eventually return ${inspect(
-            expectedValue,
-          )} after ${TEST_TIMEOUT}ms, but it did not.`,
-        pass: false,
-      };
-    } else if (result.pass) {
-      return {
-        message: () => 'This message would get printed if .not were used.',
-        pass: true,
-      };
-    }
-    return {
-      message: () =>
-        `Expected function to eventually return ${inspect(
-          expectedValue,
-        )}, but it did not. (The last value returned was ${inspect(
-          result.lastActualValue,
-        )}.)`,
-      pass: false,
-    };
-  },
 });
+
+// Export something so that TypeScript thinks that we are performing type
+// augmentation
+export {};
