@@ -135,7 +135,7 @@ export class AddressBookController extends BaseController<
     name: string,
     chainId = '1',
     memo = '',
-    addressType = AddressType.externallyOwnedAccounts,
+    addressType = undefined as unknown as AddressType,
   ) {
     address = toChecksumHexAddress(address);
     if (!isValidHexAddress(address)) {

@@ -340,7 +340,7 @@ describe('ComposableController', () => {
                 isEns: false,
                 memo: '',
                 name: 'foo',
-                addressType: AddressType.externallyOwnedAccounts,
+                addressType: undefined,
               },
             },
           },
