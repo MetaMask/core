@@ -8,11 +8,7 @@ describe('AddressBookController', () => {
 
   it('should add a contact entry', () => {
     const controller = new AddressBookController();
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'foo',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     expect(controller.state).toStrictEqual({
       addressBook: {
@@ -35,9 +31,9 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      AddressType.externallyOwnedAccounts,
       '1',
       'account 1',
+      AddressType.externallyOwnedAccounts,
     );
 
     expect(controller.state).toStrictEqual({
@@ -61,9 +57,9 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      AddressType.contractAccounts,
       '1',
       'account 1',
+      AddressType.contractAccounts,
     );
 
     expect(controller.state).toStrictEqual({
@@ -87,9 +83,9 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      AddressType.nonAccounts,
       '1',
       'account 1',
+      AddressType.nonAccounts,
     );
 
     expect(controller.state).toStrictEqual({
@@ -113,7 +109,6 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      AddressType.externallyOwnedAccounts,
       '1',
       'account 2',
     );
@@ -121,7 +116,6 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      AddressType.externallyOwnedAccounts,
       '2',
       'account 2',
     );
@@ -154,17 +148,9 @@ describe('AddressBookController', () => {
 
   it('should update a contact entry', () => {
     const controller = new AddressBookController();
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'foo',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'bar',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'bar');
 
     expect(controller.state).toStrictEqual({
       addressBook: {
@@ -190,11 +176,7 @@ describe('AddressBookController', () => {
 
   it('should remove one contact entry', () => {
     const controller = new AddressBookController();
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'foo',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
     controller.delete('1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
 
     expect(controller.state).toStrictEqual({ addressBook: {} });
@@ -202,17 +184,9 @@ describe('AddressBookController', () => {
 
   it('should remove only one contact entry', () => {
     const controller = new AddressBookController();
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'foo',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
-    controller.set(
-      '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d',
-      'bar',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
     controller.delete('1', '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d');
 
     expect(controller.state).toStrictEqual({
@@ -233,17 +207,9 @@ describe('AddressBookController', () => {
 
   it('should add two contact entries with the same chainId', () => {
     const controller = new AddressBookController();
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'foo',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
-    controller.set(
-      '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d',
-      'bar',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
 
     expect(controller.state).toStrictEqual({
       addressBook: {
@@ -274,7 +240,6 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'metamask.eth',
-      AddressType.externallyOwnedAccounts,
     );
 
     expect(controller.state).toStrictEqual({
@@ -295,17 +260,9 @@ describe('AddressBookController', () => {
 
   it('should clear all contact entries', () => {
     const controller = new AddressBookController();
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'foo',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
-    controller.set(
-      '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d',
-      'bar',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
     controller.clear();
     expect(controller.state).toStrictEqual({ addressBook: {} });
   });
@@ -313,11 +270,7 @@ describe('AddressBookController', () => {
   it('should return true to indicate an address book entry has been added', () => {
     const controller = new AddressBookController();
     expect(
-      controller.set(
-        '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-        'foo',
-        AddressType.externallyOwnedAccounts,
-      ),
+      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo'),
     ).toStrictEqual(true);
   });
 
@@ -330,11 +283,7 @@ describe('AddressBookController', () => {
 
   it('should return true to indicate an address book entry has been deleted', () => {
     const controller = new AddressBookController();
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'foo',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     expect(
       controller.delete('1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'),
@@ -343,27 +292,15 @@ describe('AddressBookController', () => {
 
   it('should return false to indicate an address book entry has NOT been deleted', () => {
     const controller = new AddressBookController();
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      '0x00',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', '0x00');
     expect(controller.delete('1', '0x01')).toStrictEqual(false);
   });
 
   it('should normalize addresses so adding and removing entries work across casings', () => {
     const controller = new AddressBookController();
-    controller.set(
-      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-      'foo',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
-    controller.set(
-      '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d',
-      'bar',
-      AddressType.externallyOwnedAccounts,
-    );
+    controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
 
     controller.delete('1', '0xC38BF1AD06EF69F0C04E29DBEB4152B4175F0A8D');
     expect(controller.state).toStrictEqual({

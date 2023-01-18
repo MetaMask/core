@@ -125,17 +125,17 @@ export class AddressBookController extends BaseController<
    *
    * @param address - Recipient address to add or update.
    * @param name - Nickname to associate with this address.
-   * @param addressType - Contact's address type.
    * @param chainId - Chain id identifies the current chain.
    * @param memo - User's note about address.
+   * @param addressType - Contact's address type.
    * @returns Boolean indicating if the address was successfully set.
    */
   set(
     address: string,
     name: string,
-    addressType: AddressType,
     chainId = '1',
     memo = '',
+    addressType = AddressType.externallyOwnedAccounts,
   ) {
     address = toChecksumHexAddress(address);
     if (!isValidHexAddress(address)) {

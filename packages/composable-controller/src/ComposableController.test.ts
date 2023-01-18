@@ -328,7 +328,6 @@ describe('ComposableController', () => {
       addressBookController.set(
         '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
         'foo',
-        AddressType.externallyOwnedAccounts,
       );
       expect(listener.calledOnce).toBe(true);
       expect(listener.getCall(0).args[0]).toStrictEqual({
