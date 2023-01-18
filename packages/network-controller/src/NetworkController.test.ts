@@ -117,7 +117,7 @@ describe('NetworkController', () => {
     describe('set', () => {
       ['1', '5', '11155111', ''].forEach((chainId) => {
         describe(`when the provider config in state contains a chain ID of "${chainId}"`, () => {
-          it('sets isCustomNetwork in state to false', async () => {
+          it('sets isCustomNetwork in state to false (ignoring the chain ID in the provided config object)', async () => {
             await withController(
               {
                 state: {
@@ -148,7 +148,7 @@ describe('NetworkController', () => {
       });
 
       describe('when the provider config in state contains a chain ID that is not 1, 5, 11155111, or an empty string', () => {
-        it('sets isCustomNetwork in state to true', async () => {
+        it('sets isCustomNetwork in state to true (ignoring the chain ID in the provided config object)', async () => {
           await withController(
             {
               state: {
@@ -402,7 +402,7 @@ describe('NetworkController', () => {
       });
 
       describe(`when the provider config in state contains a network type of "localhost"`, () => {
-        it('sets the provider to a custom RPC provider pointed to localhost and initialized with the configured chain ID, nickname, and ticker', async () => {
+        it('sets the provider to a custom RPC provider pointed to localhost, initialized with the configured chain ID, nickname, and ticker', async () => {
           await withController(
             {
               state: {
