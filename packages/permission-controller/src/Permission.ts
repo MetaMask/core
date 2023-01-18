@@ -2,8 +2,12 @@ import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '@metamask/controller-utils';
 import { CaveatConstraint } from './Caveat';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { PermissionController } from './PermissionController';
+
+import type {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  PermissionController,
+  AllowedActions,
+} from './PermissionController';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Caveat } from './Caveat';
 
@@ -432,6 +436,14 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    * The validator should throw an appropriate JSON-RPC error if validation fails.
    */
   validator?: PermissionValidatorConstraint;
+
+  /**
+   * The side-effect triggered by the permission once it is granted.
+   * The side-effect can only be an action allowed to be called inside the {@link PermissionController}.
+   *
+   * If the side-effect action fails, the permission that triggered it is revoked.
+   */
+  sideEffect?: AllowedActions['type'];
 };
 
 /**

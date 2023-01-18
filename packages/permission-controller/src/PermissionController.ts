@@ -321,7 +321,7 @@ export type PermissionControllerEvents = PermissionControllerStateChange;
  * The external {@link ControllerMessenger} actions available to the
  * {@link PermissionController}.
  */
-type AllowedActions =
+export type AllowedActions =
   | AddApprovalRequest
   | HasApprovalRequest
   | AcceptApprovalRequest
@@ -1581,6 +1581,65 @@ export class PermissionController<
       throw new InvalidSubjectIdentifierError(origin);
     }
 
+    const permissions = this.validatePermissions({
+      approvedPermissions,
+      requestData,
+      preserveExistingPermissions,
+    });
+
+    this.setValidatedPermissions(origin, permissions);
+    return permissions;
+  }
+
+  private _grantPermissions({
+    approvedPermissions,
+    requestData,
+    preserveExistingPermissions = true,
+    subject,
+  }: {
+    approvedPermissions: RequestedPermissions;
+    subject: PermissionSubjectMetadata;
+    preserveExistingPermissions?: boolean;
+    requestData?: Record<string, unknown>;
+  }): {
+    permissions: SubjectPermissions<
+      ExtractPermission<
+        ControllerPermissionSpecification,
+        ControllerCaveatSpecification
+      >
+    >;
+    inversePatches: Patch[];
+  } {
+    const { origin } = subject;
+
+    if (!origin || typeof origin !== 'string') {
+      throw new InvalidSubjectIdentifierError(origin);
+    }
+
+    const permissions = this.validatePermissions({
+      approvedPermissions,
+      requestData,
+      preserveExistingPermissions,
+    });
+
+    const inversePatches = this.setValidatedPermissions(origin, permissions);
+    return { permissions, inversePatches };
+  }
+
+  private validatePermissions({
+    approvedPermissions,
+    requestData,
+    preserveExistingPermissions = true,
+  }: {
+    approvedPermissions: RequestedPermissions;
+    preserveExistingPermissions?: boolean;
+    requestData?: Record<string, unknown>;
+  }): SubjectPermissions<
+    ExtractPermission<
+      ControllerPermissionSpecification,
+      ControllerCaveatSpecification
+    >
+  > {
     const permissions = (
       preserveExistingPermissions
         ? {
@@ -1659,7 +1718,6 @@ export class PermissionController<
       permissions[targetName] = permission;
     }
 
-    this.setValidatedPermissions(origin, permissions);
     return permissions;
   }
 
@@ -1736,6 +1794,7 @@ export class PermissionController<
    *
    * @param origin - The origin of the grantee subject.
    * @param permissions - The new permissions for the grantee subject.
+   * @returns The inverse Patches.
    */
   private setValidatedPermissions(
     origin: OriginString,
@@ -1746,14 +1805,16 @@ export class PermissionController<
         ControllerCaveatSpecification
       >
     >,
-  ): void {
-    this.update((draftState) => {
+  ): Patch[] {
+    const { inversePatches } = this.update((draftState) => {
       if (!draftState.subjects[origin]) {
         draftState.subjects[origin] = { origin, permissions: {} };
       }
 
       draftState.subjects[origin].permissions = castDraft(permissions);
     });
+
+    return inversePatches;
   }
 
   /**
@@ -1892,15 +1953,45 @@ export class PermissionController<
     const { permissions: approvedPermissions, ...requestData } =
       await this.requestUserApproval(permissionsRequest);
 
-    return [
-      this.grantPermissions({
+    const { permissions: grantedPermissions, inversePatches } =
+      this._grantPermissions({
         subject,
         approvedPermissions,
         preserveExistingPermissions,
         requestData,
-      }),
-      metadata,
-    ];
+      });
+
+    const sideEffects = Object.keys(grantedPermissions).reduce<
+      AllowedActions['type'][]
+    >((sideEffectList, targetName) => {
+      const targetKey = this.getTargetKey(targetName);
+
+      if (!targetKey) {
+        throw methodNotFound(targetName, { origin, grantedPermissions });
+      }
+
+      const specification = this.getPermissionSpecification(targetKey);
+
+      if (specification.sideEffect) {
+        sideEffectList.push(specification.sideEffect);
+      }
+
+      return sideEffectList;
+    }, []);
+
+    if (sideEffects.length !== 0) {
+      try {
+        Promise.all(
+          sideEffects.map((sideEffect) =>
+            this.messagingSystem.call(sideEffect, grantedPermissions),
+          ),
+        );
+      } catch {
+        this.applyPatches(inversePatches);
+      }
+    }
+
+    return [grantedPermissions, metadata];
   }
 
   /**
