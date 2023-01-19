@@ -259,6 +259,14 @@ export type RevokePermissionForAllSubjects = {
 };
 
 /**
+ * Updates a caveat value for a specified caveat type belonging to a specific target and origin.
+ */
+export type UpdateCaveat = {
+  type: `${typeof controllerName}:updateCaveat`;
+  handler: GenericPermissionController['updateCaveat'];
+};
+
+/**
  * Clears all permissions from the {@link PermissionController}.
  */
 export type ClearPermissions = {
@@ -289,7 +297,8 @@ export type PermissionControllerActions =
   | RequestPermissions
   | RevokeAllPermissions
   | RevokePermissionForAllSubjects
-  | RevokePermissions;
+  | RevokePermissions
+  | UpdateCaveat;
 
 /**
  * The generic state change event of the {@link PermissionController}.
@@ -754,6 +763,24 @@ export class PermissionController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:revokePermissions` as const,
       this.revokePermissions.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateCaveat` as const,
+      (origin, target, caveatType, caveatValue) => {
+        this.updateCaveat(
+          origin as OriginString,
+          target as ExtractPermission<
+            ControllerPermissionSpecification,
+            ControllerCaveatSpecification
+          >['parentCapability'],
+          caveatType as ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+          caveatValue as ExtractCaveatValue<
+            ControllerCaveatSpecification,
+            ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
+          >,
+        );
+      },
     );
   }
 
