@@ -9,6 +9,7 @@ describe('AddressBookController', () => {
   it('should add a contact entry', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
     expect(controller.state).toStrictEqual({
       addressBook: {
         1: {
@@ -18,7 +19,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'foo',
-            addressType: AddressType.unknown,
+            addressType: undefined,
           },
         },
       },
@@ -110,7 +111,6 @@ describe('AddressBookController', () => {
       'foo',
       '1',
       'account 2',
-      AddressType.externallyOwnedAccounts,
     );
 
     controller.set(
@@ -118,7 +118,6 @@ describe('AddressBookController', () => {
       'foo',
       '2',
       'account 2',
-      AddressType.externallyOwnedAccounts,
     );
 
     expect(controller.state).toStrictEqual({
@@ -130,7 +129,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: 'account 2',
             name: 'foo',
-            addressType: AddressType.externallyOwnedAccounts,
+            addressType: undefined,
           },
         },
         2: {
@@ -140,7 +139,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: 'account 2',
             name: 'foo',
-            addressType: AddressType.externallyOwnedAccounts,
+            addressType: undefined,
           },
         },
       },
@@ -150,7 +149,9 @@ describe('AddressBookController', () => {
   it('should update a contact entry', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'bar');
+
     expect(controller.state).toStrictEqual({
       addressBook: {
         1: {
@@ -160,7 +161,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'bar',
-            addressType: AddressType.unknown,
+            addressType: undefined,
           },
         },
       },
@@ -169,7 +170,7 @@ describe('AddressBookController', () => {
 
   it('should not add invalid contact entry', () => {
     const controller = new AddressBookController();
-    controller.set('0x01', 'foo');
+    controller.set('0x01', 'foo', AddressType.externallyOwnedAccounts);
     expect(controller.state).toStrictEqual({ addressBook: {} });
   });
 
@@ -184,6 +185,7 @@ describe('AddressBookController', () => {
   it('should remove only one contact entry', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
     controller.delete('1', '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d');
 
@@ -196,7 +198,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'foo',
-            addressType: AddressType.unknown,
+            addressType: undefined,
           },
         },
       },
@@ -206,6 +208,7 @@ describe('AddressBookController', () => {
   it('should add two contact entries with the same chainId', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
 
     expect(controller.state).toStrictEqual({
@@ -217,7 +220,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'foo',
-            addressType: AddressType.unknown,
+            addressType: undefined,
           },
           '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D': {
             address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
@@ -225,7 +228,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'bar',
-            addressType: AddressType.unknown,
+            addressType: undefined,
           },
         },
       },
@@ -248,7 +251,7 @@ describe('AddressBookController', () => {
             isEns: true,
             memo: '',
             name: 'metamask.eth',
-            addressType: AddressType.unknown,
+            addressType: undefined,
           },
         },
       },
@@ -258,6 +261,7 @@ describe('AddressBookController', () => {
   it('should clear all contact entries', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
     controller.clear();
     expect(controller.state).toStrictEqual({ addressBook: {} });
@@ -272,12 +276,15 @@ describe('AddressBookController', () => {
 
   it('should return false to indicate an address book entry has NOT been added', () => {
     const controller = new AddressBookController();
-    expect(controller.set('0x00', 'foo')).toStrictEqual(false);
+    expect(
+      controller.set('0x00', 'foo', AddressType.externallyOwnedAccounts),
+    ).toStrictEqual(false);
   });
 
   it('should return true to indicate an address book entry has been deleted', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
     expect(
       controller.delete('1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'),
     ).toStrictEqual(true);
@@ -292,6 +299,7 @@ describe('AddressBookController', () => {
   it('should normalize addresses so adding and removing entries work across casings', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
 
     controller.delete('1', '0xC38BF1AD06EF69F0C04E29DBEB4152B4175F0A8D');
@@ -304,7 +312,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'foo',
-            addressType: AddressType.unknown,
+            addressType: undefined,
           },
         },
       },
