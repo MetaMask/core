@@ -10,7 +10,7 @@ import {
   signTypedData,
 } from '@metamask/eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
-import Keyring from 'eth-keyring-controller';
+import { EthKeyringController } from '@metamask/eth-keyring-controller';
 import { Mutex } from 'async-mutex';
 import {
   MetaMaskKeyring as QRKeyring,
@@ -152,7 +152,7 @@ export class KeyringController extends BaseController<
 
   private setAccountLabel?: PreferencesController['setAccountLabel'];
 
-  #keyring: typeof Keyring;
+  #keyring: typeof EthKeyringController;
 
   /**
    * Creates a KeyringController instance.
@@ -184,7 +184,7 @@ export class KeyringController extends BaseController<
     state?: Partial<KeyringState>,
   ) {
     super(config, state);
-    this.#keyring = new Keyring(Object.assign({ initState: state }, config));
+    this.#keyring = new EthKeyringController(Object.assign({ initState: state }, config));
 
     this.defaultState = {
       ...this.#keyring.store.getState(),
