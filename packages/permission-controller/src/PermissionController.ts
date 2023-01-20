@@ -769,16 +769,10 @@ export class PermissionController<
       `${controllerName}:updateCaveat` as const,
       (origin, target, caveatType, caveatValue) => {
         this.updateCaveat(
-          origin as OriginString,
-          target as ExtractPermission<
-            ControllerPermissionSpecification,
-            ControllerCaveatSpecification
-          >['parentCapability'],
+          origin,
+          target,
           caveatType as ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
-          caveatValue as ExtractCaveatValue<
-            ControllerCaveatSpecification,
-            ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
-          >,
+          caveatValue,
         );
       },
     );
