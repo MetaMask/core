@@ -4685,9 +4685,7 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      const updateCaveatSpy = jest
-        .spyOn(controller, 'updateCaveat')
-        .mockImplementation();
+      const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
 
       await messenger.call(
         'PermissionController:updateCaveat',
@@ -4698,6 +4696,24 @@ describe('PermissionController', () => {
       );
 
       expect(updateCaveatSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          'metamask.io': {
+            origin: 'metamask.io',
+            permissions: {
+              wallet_getSecretArray: {
+                id: 'escwEx9JrOxGZKZk3RkL4',
+                parentCapability: 'wallet_getSecretArray',
+                invoker: 'metamask.io',
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['baz'] },
+                ],
+                date: 1632618373085,
+              },
+            },
+          },
+        },
+      });
     });
   });
 
