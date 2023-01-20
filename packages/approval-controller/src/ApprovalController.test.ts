@@ -92,6 +92,15 @@ describe('approval controller', () => {
           requestData: 'foo',
         } as any),
       ).toThrow(getInvalidRequestDataError());
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'type',
+          requestState: 'foo',
+        } as any),
+      ).toThrow(getInvalidRequestStateError());
     });
 
     it('adds correctly specified entry', () => {
@@ -109,6 +118,7 @@ describe('approval controller', () => {
           id: 'foo',
           origin: 'bar.baz',
           requestData: null,
+          requestState: null,
           time: 1,
           type: TYPE,
         },
@@ -144,6 +154,24 @@ describe('approval controller', () => {
       expect(approvalController.state[STORE_KEY].foo.requestData).toStrictEqual(
         { foo: 'bar' },
       );
+    });
+
+    it('adds correctly specified entry with request state', () => {
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+          requestState: { foo: 'bar' },
+        }),
+      ).not.toThrow();
+
+      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
+      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
+      expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
+      expect(
+        approvalController.state[STORE_KEY].foo.requestState,
+      ).toStrictEqual({ foo: 'bar' });
     });
 
     it('adds multiple entries for same origin with different types and ids', () => {
@@ -229,6 +257,7 @@ describe('approval controller', () => {
         id: 'foo',
         origin: 'bar.baz',
         requestData: null,
+        requestState: null,
         type: 'myType',
         time: 1,
       });
@@ -728,6 +757,46 @@ describe('approval controller', () => {
     });
   });
 
+  describe('updateRequestState', () => {
+    let approvalController: ApprovalController;
+
+    beforeEach(() => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
+    });
+
+    it('updates the request state of a given approval request', () => {
+      approvalController
+        .add({
+          id: 'foo2',
+          origin: 'bar.baz',
+          type: 'myType',
+          requestState: { foo: 'bar' },
+        })
+        .catch((_error) => undefined);
+
+      approvalController.updateRequestState({
+        id: 'foo2',
+        requestState: { foo: 'foobar' },
+      });
+
+      expect(approvalController.get('foo2')?.requestState).toStrictEqual({
+        foo: 'foobar',
+      });
+    });
+
+    it('throws on unknown id', () => {
+      expect(() =>
+        approvalController.updateRequestState({
+          id: 'foo',
+          requestState: { foo: 'bar' },
+        }),
+      ).toThrow(getIdNotFoundError('foo'));
+    });
+  });
+
   // We test this internal function before resolve, reject, and clear because
   // they are heavily dependent upon it.
   // TODO: Stop using private methods in tests
@@ -831,6 +900,36 @@ describe('approval controller', () => {
       expect(showApprovalSpy.notCalled).toStrictEqual(true);
       expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
     });
+
+    it('updateRequestState', () => {
+      const messenger = new ControllerMessenger<
+        ApprovalControllerActions,
+        ApprovalControllerEvents
+      >();
+
+      const approvalController = new ApprovalController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+        }) as ApprovalControllerMessenger,
+        showApprovalRequest: sinon.spy(),
+      });
+
+      approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'type1',
+        requestState: { foo: 'bar' },
+      });
+
+      messenger.call('ApprovalController:updateRequestState', {
+        id: 'foo',
+        requestState: { foo: 'foobar' },
+      });
+
+      expect(approvalController.get('foo')?.requestState).toStrictEqual({
+        foo: 'foobar',
+      });
+    });
   });
 });
 
@@ -927,6 +1026,18 @@ function getInvalidOriginError() {
 function getInvalidRequestDataError() {
   return getError(
     'Request data must be a plain object if specified.',
+    errorCodes.rpc.internal,
+  );
+}
+
+/**
+ * Get an invalid request state error.
+ *
+ * @returns The invalid request data error.
+ */
+function getInvalidRequestStateError() {
+  return getError(
+    'Request state must be a plain object if specified.',
     errorCodes.rpc.internal,
   );
 }

@@ -41,7 +41,7 @@ const privateKey =
   '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';
 const password = 'password123';
 
-const commonConfig = { chain: 'rinkeby', hardfork: 'berlin' };
+const commonConfig = { chain: 'goerli', hardfork: 'berlin' };
 
 describe('KeyringController', () => {
   let keyringController: KeyringController;
@@ -261,10 +261,12 @@ describe('KeyringController', () => {
     ).rejects.toThrow('Unexpected end of JSON input');
 
     const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
+
     const obj = await keyringController.importAccountWithStrategy(
       AccountImportStrategy.json,
       [input, somePassword],
     );
+
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
     const modifiedState = {
       ...initialState,
@@ -616,7 +618,7 @@ describe('KeyringController', () => {
   it('should sign transaction', async () => {
     const account = initialState.keyrings[0].accounts[0];
     const txParams = {
-      chainId: 3,
+      chainId: 5,
       data: '0x1',
       from: account,
       gasLimit: '0x5108',
@@ -641,7 +643,7 @@ describe('KeyringController', () => {
     await expect(async () => {
       const account = initialState.keyrings[0].accounts[0];
       const txParams = {
-        chainId: 3,
+        chainId: 5,
         data: '0x1',
         from: account,
         gasLimit: '0x5108',
@@ -969,7 +971,7 @@ describe('KeyringController', () => {
       const tx = TransactionFactory.fromTxData(
         {
           accessList: [],
-          chainId: '0x4',
+          chainId: '0x5',
           data: '0x',
           gasLimit: '0x5208',
           maxFeePerGas: '0x2540be400',
@@ -986,9 +988,9 @@ describe('KeyringController', () => {
           common: Common.forCustomChain(
             MAINNET,
             {
-              name: 'rinkeby',
-              chainId: parseInt('4'),
-              networkId: parseInt('4'),
+              name: 'goerli',
+              chainId: parseInt('5'),
+              networkId: parseInt('5'),
             },
             'london',
           ),

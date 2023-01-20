@@ -15,13 +15,11 @@ import {
   BNToHex,
   fetchWithErrorHandling,
   MAINNET,
-  RINKEBY_CHAIN_ID,
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
   OPENSEA_API_URL,
   OPENSEA_PROXY_URL,
-  OPENSEA_TEST_API_URL,
   NetworkType,
 } from '@metamask/controller-utils';
 import type {
@@ -180,11 +178,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenId: string;
     useProxy: boolean;
   }) {
-    const { chainId } = this.config;
-
-    if (chainId === RINKEBY_CHAIN_ID) {
-      return `${OPENSEA_TEST_API_URL}/asset/${contractAddress}/${tokenId}`;
-    }
     return useProxy
       ? `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`
       : `${OPENSEA_API_URL}/asset/${contractAddress}/${tokenId}`;
@@ -197,12 +190,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string;
     useProxy: boolean;
   }) {
-    const { chainId } = this.config;
-
-    if (chainId === RINKEBY_CHAIN_ID) {
-      return `${OPENSEA_TEST_API_URL}/asset_contract/${contractAddress}`;
-    }
-
     return useProxy
       ? `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`
       : `${OPENSEA_API_URL}/asset_contract/${contractAddress}`;

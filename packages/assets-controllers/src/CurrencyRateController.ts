@@ -228,7 +228,7 @@ export class CurrencyRateController extends BaseControllerV2<
     const currentCurrency = pendingCurrentCurrency ?? stateCurrentCurrency;
     const nativeCurrency = pendingNativeCurrency ?? stateNativeCurrency;
 
-    // For preloaded testnets (Rinkeby, Ropsten, Goerli, Kovan) we want to fetch exchange rate for real ETH.
+    // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
     const nativeCurrencyForExchangeRate = Object.values(
       TESTNET_TICKER_SYMBOLS,
     ).includes(nativeCurrency)

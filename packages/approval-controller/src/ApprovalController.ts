@@ -15,6 +15,8 @@ type ApprovalPromiseReject = (error?: unknown) => void;
 
 type ApprovalRequestData = Record<string, Json> | null;
 
+type ApprovalRequestState = Record<string, Json> | null;
+
 type ApprovalCallbacks = {
   resolve: ApprovalPromiseResolve;
   reject: ApprovalPromiseReject;
@@ -46,6 +48,11 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
    * TODO:TS4.4 make optional
    */
   requestData: RequestData;
+
+  /**
+   * Additional mutable state associated with the request
+   */
+  requestState: ApprovalRequestState;
 };
 
 type ShowApprovalRequest = () => void | Promise<void>;
@@ -85,6 +92,7 @@ type AddApprovalOptions = {
   origin: string;
   type: string;
   requestData?: Record<string, Json>;
+  requestState?: Record<string, Json>;
 };
 
 export type AddApprovalRequest = {
@@ -110,13 +118,24 @@ export type RejectRequest = {
   handler: ApprovalController['reject'];
 };
 
+type UpdateRequestStateOptions = {
+  id: string;
+  requestState: Record<string, Json>;
+};
+
+export type UpdateRequestState = {
+  type: `${typeof controllerName}:updateRequestState`;
+  handler: ApprovalController['updateRequestState'];
+};
+
 export type ApprovalControllerActions =
   | GetApprovalsState
   | ClearApprovalRequests
   | AddApprovalRequest
   | HasApprovalRequest
   | AcceptRequest
-  | RejectRequest;
+  | RejectRequest
+  | UpdateRequestState;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -220,6 +239,11 @@ export class ApprovalController extends BaseControllerV2<
       `${controllerName}:rejectRequest` as const,
       this.reject.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateRequestState` as const,
+      this.updateRequestState.bind(this),
+    );
   }
 
   /**
@@ -235,6 +259,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.origin - The origin of the approval request.
    * @param opts.type - The type associated with the approval request.
    * @param opts.requestData - Additional data associated with the request,
+   * @param opts.requestState - Additional state associated with the request,
    * if any.
    * @returns The approval promise.
    */
@@ -244,6 +269,7 @@ export class ApprovalController extends BaseControllerV2<
       opts.type,
       opts.id,
       opts.requestData,
+      opts.requestState,
     );
     this._showApprovalRequest();
     return promise;
@@ -266,7 +292,13 @@ export class ApprovalController extends BaseControllerV2<
    * @returns The approval promise.
    */
   add(opts: AddApprovalOptions): Promise<unknown> {
-    return this._add(opts.origin, opts.type, opts.id, opts.requestData);
+    return this._add(
+      opts.origin,
+      opts.type,
+      opts.id,
+      opts.requestData,
+      opts.requestState,
+    );
   }
 
   /**
@@ -418,12 +450,32 @@ export class ApprovalController extends BaseControllerV2<
   }
 
   /**
+   * Updates the request state of the approval with the given id.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval request.
+   * @param opts.requestState - Additional data associated with the request
+   */
+  updateRequestState(opts: UpdateRequestStateOptions): void {
+    if (!this.state.pendingApprovals[opts.id]) {
+      throw new ApprovalRequestNotFoundError(opts.id);
+    }
+
+    this.update((draftState) => {
+      // Typecast: ts(2589)
+      draftState.pendingApprovals[opts.id].requestState =
+        opts.requestState as any;
+    });
+  }
+
+  /**
    * Implementation of add operation.
    *
    * @param origin - The origin of the approval request.
    * @param type - The type associated with the approval request.
    * @param id - The id of the approval request.
    * @param requestData - The request data associated with the approval request.
+   * @param requestState - The request state associated with the approval request.
    * @returns The approval promise.
    */
   private _add(
@@ -431,8 +483,9 @@ export class ApprovalController extends BaseControllerV2<
     type: string,
     id: string = nanoid(),
     requestData?: Record<string, Json>,
+    requestState?: Record<string, Json>,
   ): Promise<unknown> {
-    this._validateAddParams(id, origin, type, requestData);
+    this._validateAddParams(id, origin, type, requestData, requestState);
 
     if (this._origins.get(origin)?.has(type)) {
       throw ethErrors.rpc.resourceUnavailable(
@@ -444,7 +497,7 @@ export class ApprovalController extends BaseControllerV2<
     return new Promise((resolve, reject) => {
       this._approvals.set(id, { resolve, reject });
       this._addPendingApprovalOrigin(origin, type);
-      this._addToStore(id, origin, type, requestData);
+      this._addToStore(id, origin, type, requestData, requestState);
     });
   }
 
@@ -455,12 +508,14 @@ export class ApprovalController extends BaseControllerV2<
    * @param origin - The origin of the approval request.
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
+   * @param requestState - The request state associated with the approval request.
    */
   private _validateAddParams(
     id: string,
     origin: string,
     type: string,
     requestData?: Record<string, Json>,
+    requestState?: Record<string, Json>,
   ): void {
     let errorMessage = null;
     if (!id || typeof id !== 'string') {
@@ -476,6 +531,11 @@ export class ApprovalController extends BaseControllerV2<
       (typeof requestData !== 'object' || Array.isArray(requestData))
     ) {
       errorMessage = 'Request data must be a plain object if specified.';
+    } else if (
+      requestState &&
+      (typeof requestState !== 'object' || Array.isArray(requestState))
+    ) {
+      errorMessage = 'Request state must be a plain object if specified.';
     }
 
     if (errorMessage) {
@@ -507,12 +567,14 @@ export class ApprovalController extends BaseControllerV2<
    * @param origin - The origin of the approval request.
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
+   * @param requestState - The request state associated with the approval request.
    */
   private _addToStore(
     id: string,
     origin: string,
     type: string,
     requestData?: Record<string, Json>,
+    requestState?: Record<string, Json>,
   ): void {
     const approval: ApprovalRequest<Record<string, Json> | null> = {
       id,
@@ -520,6 +582,7 @@ export class ApprovalController extends BaseControllerV2<
       type,
       time: Date.now(),
       requestData: requestData || null,
+      requestState: requestState || null,
     };
 
     this.update((draftState) => {
