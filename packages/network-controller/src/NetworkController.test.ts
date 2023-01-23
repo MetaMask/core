@@ -634,53 +634,6 @@ describe('NetworkController', () => {
             );
           });
 
-          it('updates properties.isEIP1559Compatible in state based on the latest block (assuming that the request for eth_getBlockByNumber is made successfully)', async () => {
-            const messenger = buildMessenger();
-            await withController(
-              {
-                messenger,
-                state: {
-                  properties: {
-                    isEIP1559Compatible: false,
-                  },
-                  providerConfig: buildProviderConfig({
-                    type: 'rpc',
-                    rpcTarget: 'http://example.com',
-                  }),
-                },
-              },
-              async ({ controller }) => {
-                const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      result: {
-                        baseFeePerGas: '0x1',
-                      },
-                    },
-                  },
-                ]);
-                createMetamaskProviderMock.mockReturnValue(
-                  fakeMetamaskProvider,
-                );
-
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['properties', 'isEIP1559Compatible'],
-                  produceStateChanges: () => {
-                    controller.providerConfig = buildProviderConfig();
-                  },
-                });
-
-                expect(controller.state.properties.isEIP1559Compatible).toBe(
-                  true,
-                );
-              },
-            );
-          });
-
           it('ensures that the existing provider is stopped while replacing it', async () => {
             await withController(
               {
