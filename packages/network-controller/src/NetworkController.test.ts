@@ -312,7 +312,7 @@ describe('NetworkController', () => {
                       messenger,
                       'NetworkController:providerConfigChange',
                       {
-                        after: () => {
+                        produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
                           assert(controller.provider);
                         },
@@ -322,7 +322,7 @@ describe('NetworkController', () => {
                     await waitForStateChanges(messenger, {
                       propertyPath: ['network'],
                       count: 2,
-                      after: () => {
+                      produceStateChanges: () => {
                         controller.provider.emit('error', { some: 'error' });
                       },
                     });
@@ -378,7 +378,7 @@ describe('NetworkController', () => {
                       messenger,
                       'NetworkController:providerConfigChange',
                       {
-                        after: () => {
+                        produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
                           assert(controller.provider);
                         },
@@ -388,7 +388,7 @@ describe('NetworkController', () => {
                     await waitForStateChanges(messenger, {
                       propertyPath: ['network'],
                       count: 0,
-                      after: () => {
+                      produceStateChanges: () => {
                         controller.provider.emit('error', { some: 'error' });
                       },
                     });
@@ -514,7 +514,7 @@ describe('NetworkController', () => {
                     messenger,
                     'NetworkController:providerConfigChange',
                     {
-                      after: () => {
+                      produceEvents: () => {
                         controller.providerConfig = buildProviderConfig();
                         assert(controller.provider);
                       },
@@ -524,7 +524,7 @@ describe('NetworkController', () => {
                   await waitForStateChanges(messenger, {
                     propertyPath: ['network'],
                     count: 2,
-                    after: () => {
+                    produceStateChanges: () => {
                       controller.provider.emit('error', { some: 'error' });
                     },
                   });
@@ -573,7 +573,7 @@ describe('NetworkController', () => {
                     messenger,
                     'NetworkController:providerConfigChange',
                     {
-                      after: () => {
+                      produceEvents: () => {
                         controller.providerConfig = buildProviderConfig();
                         assert(controller.provider);
                       },
@@ -583,7 +583,7 @@ describe('NetworkController', () => {
                   await waitForStateChanges(messenger, {
                     propertyPath: ['network'],
                     count: 0,
-                    after: () => {
+                    produceStateChanges: () => {
                       controller.provider.emit('error', { some: 'error' });
                     },
                   });
@@ -669,7 +669,7 @@ describe('NetworkController', () => {
 
                 await waitForStateChanges(messenger, {
                   propertyPath: ['properties', 'isEIP1559Compatible'],
-                  after: () => {
+                  produceStateChanges: () => {
                     controller.providerConfig = buildProviderConfig();
                   },
                 });
@@ -760,7 +760,7 @@ describe('NetworkController', () => {
                       messenger,
                       'NetworkController:providerConfigChange',
                       {
-                        after: () => {
+                        produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
                           assert(controller.provider);
                         },
@@ -770,7 +770,7 @@ describe('NetworkController', () => {
                     await waitForStateChanges(messenger, {
                       propertyPath: ['network'],
                       count: 2,
-                      after: () => {
+                      produceStateChanges: () => {
                         controller.provider.emit('error', { some: 'error' });
                       },
                     });
@@ -820,7 +820,7 @@ describe('NetworkController', () => {
                       messenger,
                       'NetworkController:providerConfigChange',
                       {
-                        after: () => {
+                        produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
                           assert(controller.provider);
                         },
@@ -830,7 +830,7 @@ describe('NetworkController', () => {
                     await waitForStateChanges(messenger, {
                       propertyPath: ['network'],
                       count: 0,
-                      after: () => {
+                      produceStateChanges: () => {
                         controller.provider.emit('error', { some: 'error' });
                       },
                     });
@@ -895,7 +895,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['properties', 'isEIP1559Compatible'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.providerConfig = buildProviderConfig();
               },
             });
@@ -995,7 +995,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
-                after: async () => {
+                produceStateChanges: async () => {
                   await controller.lookupNetwork();
                 },
               });
@@ -1032,7 +1032,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: async () => {
+                  produceEvents: async () => {
                     await controller.lookupNetwork();
                   },
                 },
@@ -1122,7 +1122,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
-                after: async () => {
+                produceStateChanges: async () => {
                   await controller.lookupNetwork();
                 },
               });
@@ -1159,7 +1159,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: async () => {
+                  produceEvents: async () => {
                     await controller.lookupNetwork();
                   },
                 },
@@ -1258,7 +1258,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['network'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setProviderType('mainnet' as const);
               },
             });
@@ -1294,7 +1294,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['isCustomNetwork'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setProviderType('mainnet' as const);
               },
             });
@@ -1363,7 +1363,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['properties', 'isEIP1559Compatible'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setProviderType('mainnet' as const);
               },
             });
@@ -1419,7 +1419,7 @@ describe('NetworkController', () => {
 
           await waitForStateChanges(messenger, {
             propertyPath: ['network'],
-            after: () => {
+            produceStateChanges: () => {
               controller.setProviderType('mainnet' as const);
             },
           });
@@ -1461,7 +1461,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: () => {
+                  produceEvents: () => {
                     controller.setProviderType('mainnet' as const);
                     assert(controller.provider);
                   },
@@ -1470,7 +1470,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
-                after: () => {
+                produceStateChanges: () => {
                   controller.provider.emit('error', { some: 'error' });
                 },
               });
@@ -1511,7 +1511,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: () => {
+                  produceEvents: () => {
                     controller.setProviderType('mainnet' as const);
                     assert(controller.provider);
                   },
@@ -1521,7 +1521,7 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 count: 0,
-                after: () => {
+                produceStateChanges: () => {
                   controller.provider.emit('error', { some: 'error' });
                 },
               });
@@ -1574,7 +1574,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
-                after: () => {
+                produceStateChanges: () => {
                   controller.setProviderType(networkType);
                 },
               });
@@ -1609,7 +1609,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['isCustomNetwork'],
-                after: () => {
+                produceStateChanges: () => {
                   controller.setProviderType(networkType);
                 },
               });
@@ -1678,7 +1678,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['properties', 'isEIP1559Compatible'],
-                after: () => {
+                produceStateChanges: () => {
                   controller.setProviderType(networkType);
                 },
               });
@@ -1736,7 +1736,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['network'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setProviderType(networkType);
               },
             });
@@ -1780,7 +1780,7 @@ describe('NetworkController', () => {
                   messenger,
                   'NetworkController:providerConfigChange',
                   {
-                    after: () => {
+                    produceEvents: () => {
                       controller.setProviderType(networkType);
                       assert(controller.provider);
                     },
@@ -1789,7 +1789,7 @@ describe('NetworkController', () => {
 
                 await waitForStateChanges(messenger, {
                   propertyPath: ['network'],
-                  after: () => {
+                  produceStateChanges: () => {
                     controller.provider.emit('error', { some: 'error' });
                   },
                 });
@@ -1832,7 +1832,7 @@ describe('NetworkController', () => {
                   messenger,
                   'NetworkController:providerConfigChange',
                   {
-                    after: () => {
+                    produceEvents: () => {
                       controller.setProviderType(networkType);
                       assert(controller.provider);
                     },
@@ -1842,7 +1842,7 @@ describe('NetworkController', () => {
                 await waitForStateChanges(messenger, {
                   propertyPath: ['network'],
                   count: 0,
-                  after: () => {
+                  produceStateChanges: () => {
                     controller.provider.emit('error', { some: 'error' });
                   },
                 });
@@ -1876,7 +1876,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['providerConfig'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setProviderType('rpc' as const);
               },
             });
@@ -1953,7 +1953,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['properties', 'isEIP1559Compatible'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setProviderType('rpc' as const);
               },
             });
@@ -1988,7 +1988,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['network'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setProviderType('localhost' as const);
               },
             });
@@ -2019,7 +2019,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['isCustomNetwork'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setProviderType('localhost' as const);
               },
             });
@@ -2067,7 +2067,7 @@ describe('NetworkController', () => {
 
           await waitForStateChanges(messenger, {
             propertyPath: ['properties', 'isEIP1559Compatible'],
-            after: () => {
+            produceStateChanges: () => {
               controller.setProviderType('localhost' as const);
             },
           });
@@ -2114,7 +2114,7 @@ describe('NetworkController', () => {
 
           await waitForStateChanges(messenger, {
             propertyPath: ['network'],
-            after: () => {
+            produceStateChanges: () => {
               controller.setProviderType('localhost' as const);
             },
           });
@@ -2152,7 +2152,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: () => {
+                  produceEvents: () => {
                     controller.setProviderType('localhost' as const);
                     assert(controller.provider);
                   },
@@ -2161,7 +2161,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
-                after: () => {
+                produceStateChanges: () => {
                   controller.provider.emit('error', { some: 'error' });
                 },
               });
@@ -2198,7 +2198,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: () => {
+                  produceEvents: () => {
                     controller.setProviderType('localhost' as const);
                     assert(controller.provider);
                   },
@@ -2208,7 +2208,7 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 count: 0,
-                after: () => {
+                produceStateChanges: () => {
                   controller.provider.emit('error', { some: 'error' });
                 },
               });
@@ -2243,7 +2243,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['network'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setRpcTarget('http://example.com', '123');
               },
             });
@@ -2274,7 +2274,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['isCustomNetwork'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setRpcTarget('http://example.com', '123');
               },
             });
@@ -2322,7 +2322,7 @@ describe('NetworkController', () => {
 
           await waitForStateChanges(messenger, {
             propertyPath: ['properties', 'isEIP1559Compatible'],
-            after: () => {
+            produceStateChanges: () => {
               controller.setRpcTarget('http://example.com', '123');
             },
           });
@@ -2369,7 +2369,7 @@ describe('NetworkController', () => {
 
           await waitForStateChanges(messenger, {
             propertyPath: ['network'],
-            after: () => {
+            produceStateChanges: () => {
               controller.setRpcTarget('http://example.com', '123');
             },
           });
@@ -2407,7 +2407,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: () => {
+                  produceEvents: () => {
                     controller.setRpcTarget('http://example.com', '123');
                     assert(controller.provider);
                   },
@@ -2416,7 +2416,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
-                after: () => {
+                produceStateChanges: () => {
                   controller.provider.emit('error', { some: 'error' });
                 },
               });
@@ -2453,7 +2453,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: () => {
+                  produceEvents: () => {
                     controller.setRpcTarget('http://example.com', '123');
                     assert(controller.provider);
                   },
@@ -2463,7 +2463,7 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 count: 0,
-                after: () => {
+                produceStateChanges: () => {
                   controller.provider.emit('error', { some: 'error' });
                 },
               });
@@ -2496,7 +2496,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['network'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setRpcTarget(
                   'http://example.com',
                   '123',
@@ -2532,7 +2532,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['isCustomNetwork'],
-              after: () => {
+              produceStateChanges: () => {
                 controller.setRpcTarget(
                   'http://example.com',
                   '123',
@@ -2590,7 +2590,7 @@ describe('NetworkController', () => {
 
           await waitForStateChanges(messenger, {
             propertyPath: ['properties', 'isEIP1559Compatible'],
-            after: () => {
+            produceStateChanges: () => {
               controller.setRpcTarget(
                 'http://example.com',
                 '123',
@@ -2652,7 +2652,7 @@ describe('NetworkController', () => {
 
           await waitForStateChanges(messenger, {
             propertyPath: ['network'],
-            after: () => {
+            produceStateChanges: () => {
               controller.setRpcTarget(
                 'http://example.com',
                 '123',
@@ -2695,7 +2695,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: () => {
+                  produceEvents: () => {
                     controller.setRpcTarget(
                       'http://example.com',
                       '123',
@@ -2709,7 +2709,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
-                after: () => {
+                produceStateChanges: () => {
                   controller.provider.emit('error', { some: 'error' });
                 },
               });
@@ -2746,7 +2746,7 @@ describe('NetworkController', () => {
                 messenger,
                 'NetworkController:providerConfigChange',
                 {
-                  after: () => {
+                  produceEvents: () => {
                     controller.setRpcTarget(
                       'http://example.com',
                       '123',
@@ -2761,7 +2761,7 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 count: 0,
-                after: () => {
+                produceStateChanges: () => {
                   controller.provider.emit('error', { some: 'error' });
                 },
               });
@@ -2863,7 +2863,7 @@ describe('NetworkController', () => {
 
                   await waitForStateChanges(messenger, {
                     propertyPath: ['properties', 'isEIP1559Compatible'],
-                    after: async () => {
+                    produceStateChanges: async () => {
                       await controller.getEIP1559Compatibility();
                     },
                   });
@@ -3159,7 +3159,7 @@ describe('NetworkController', () => {
 
                   await waitForStateChanges(messenger, {
                     propertyPath: ['properties', 'isEIP1559Compatible'],
-                    after: async () => {
+                    produceStateChanges: async () => {
                       await controller.getEIP1559Compatibility();
                     },
                   });
@@ -3239,7 +3239,7 @@ describe('NetworkController', () => {
 
                   await waitForStateChanges(messenger, {
                     propertyPath: ['properties', 'isEIP1559Compatible'],
-                    after: async () => {
+                    produceStateChanges: async () => {
                       await controller.getEIP1559Compatibility();
                     },
                   });
@@ -3466,7 +3466,7 @@ describe('NetworkController', () => {
 
                   await waitForStateChanges(messenger, {
                     propertyPath: ['properties', 'isEIP1559Compatible'],
-                    after: async () => {
+                    produceStateChanges: async () => {
                       await controller.getEIP1559Compatibility();
                     },
                   });
@@ -3974,8 +3974,8 @@ async function setFakeProvider(
  * @param options.wait - The amount of time in milliseconds to wait for the
  * expected number of filtered events to occur before resolving the promise that
  * this function returns (default: 150).
- * @param options.after - A function to run that will presumably produce the
- * events in question.
+ * @param options.produceEvents - A function to run that will presumably produce
+ * the events in question.
  * @returns A promise that resolves to the list of payloads for the set of
  * events, optionally filtered, when a specific number of them have occurred.
  */
@@ -3986,14 +3986,14 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
     count: expectedNumberOfEvents = 1,
     filter: isEventPayloadInteresting = () => true,
     wait: timeBeforeAssumingNoMoreEvents = 150,
-    after: produceEvents = () => {
+    produceEvents = () => {
       // do nothing
     },
   }: {
     count?: number;
     filter?: (payload: E['payload']) => boolean;
     wait?: number;
-    after?: () => void | Promise<void>;
+    produceEvents?: () => void | Promise<void>;
   } = {},
 ): Promise<E['payload'][]> {
   const promiseForEventPayloads = new Promise<E['payload'][]>(
@@ -4079,8 +4079,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
  * @param options.wait - The amount of time in milliseconds to wait for the
  * expected number of filtered events to occur before resolving the promise that
  * this function returns (default: 150).
- * @param options.after - A function to run that will presumably produce the
- * state changes in question.
+ * @param options.produceStateChanges - A function to run that will presumably
+ * produce the state changes in question.
  * @returns A promise that resolves to the list of state changes, optionally
  * filtered by the property, when a specific number of them have occurred.
  */
@@ -4090,9 +4090,9 @@ async function waitForStateChanges(
     propertyPath,
     count,
     wait,
-    after,
+    produceStateChanges,
   }: {
-    after?: () => void | Promise<void>;
+    produceStateChanges?: () => void | Promise<void>;
     propertyPath?: string[];
     count?: number;
     wait?: number;
@@ -4107,7 +4107,7 @@ async function waitForStateChanges(
   return await waitForPublishedEvents<NetworkControllerStateChangeEvent>(
     messenger,
     'NetworkController:stateChange',
-    { after, count, filter, wait },
+    { produceEvents: produceStateChanges, count, filter, wait },
   );
 }
 
