@@ -12,6 +12,7 @@ import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import * as uuid from 'uuid';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { MAINNET } from '@metamask/controller-utils';
+import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
@@ -51,9 +52,12 @@ describe('KeyringController', () => {
     keyrings: Keyring[];
   };
   const additionalKeyrings = [QRKeyring];
+  const additionalKeyringBuilders = additionalKeyrings.map((keyringType) =>
+    keyringBuilderFactory(keyringType),
+  );
   const baseConfig: Partial<KeyringConfig> = {
     encryptor: new MockEncryptor(),
-    keyringTypes: additionalKeyrings,
+    keyringBuilders: additionalKeyringBuilders,
   };
 
   beforeEach(async () => {
@@ -123,9 +127,10 @@ describe('KeyringController', () => {
 
   it('should restore same vault if old seedWord is used', async () => {
     const currentSeedWord = await keyringController.exportSeedPhrase(password);
+
     const currentState = await keyringController.createNewVaultAndRestore(
       password,
-      currentSeedWord.toString(),
+      currentSeedWord,
     );
     expect(initialState).toStrictEqual(currentState);
   });
@@ -139,7 +144,9 @@ describe('KeyringController', () => {
   it('should throw error if creating new vault and restoring without seed phrase', async () => {
     await expect(
       keyringController.createNewVaultAndRestore(password, ''),
-    ).rejects.toThrow('Seed phrase is invalid');
+    ).rejects.toThrow(
+      'Eth-Hd-Keyring: Deserialize method cannot be called with an opts value for numberOfAccounts and no menmonic',
+    );
   });
 
   it('should create new vault, mnemonic and keychain', async () => {
@@ -350,13 +357,13 @@ describe('KeyringController', () => {
     expect(signature).not.toBe('');
   });
 
-  it('should not sign message even if empty data is passed', async () => {
-    await expect(
+  it('should not sign message if empty data is passed', async () => {
+    await expect(() =>
       keyringController.signMessage({
         data: '',
         from: initialState.keyrings[0].accounts[0],
       }),
-    ).rejects.toThrow('Expected message to be an Uint8Array with length 32');
+    ).toThrow("Can't sign an empty message");
   });
 
   it('should not sign message if from account is not passed', async () => {

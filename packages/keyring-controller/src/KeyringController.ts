@@ -10,7 +10,7 @@ import {
   signTypedData,
 } from '@metamask/eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
-import { EthKeyringController } from '@metamask/eth-keyring-controller';
+import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
 import { Mutex } from 'async-mutex';
 import {
   MetaMaskKeyring as QRKeyring,
@@ -86,7 +86,7 @@ export interface KeyringMemState extends BaseState {
  */
 export interface KeyringConfig extends BaseConfig {
   encryptor?: any;
-  keyringTypes?: any[];
+  keyringBuilders?: any[];
 }
 
 /**
@@ -431,6 +431,9 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to a signed message string.
    */
   signMessage(messageParams: PersonalMessageParams) {
+    if (!messageParams.data) {
+      throw new Error("Can't sign an empty message");
+    }
     return this.#keyring.signMessage(messageParams);
   }
 
@@ -588,14 +591,15 @@ export class KeyringController extends BaseController<
       throw new Error('Cannot verify an empty keyring.');
     }
 
-    const TestKeyringClass = this.#keyring.getKeyringClassForType(
+    const hdKeyringBuilder = this.#keyring.getKeyringBuilderForType(
       KeyringTypes.hd,
     );
-    const testKeyring = new TestKeyringClass({
+    const hdKeyring = hdKeyringBuilder();
+    hdKeyring.deserialize({
       mnemonic: seedWords,
       numberOfAccounts: accounts.length,
     });
-    const testAccounts = await testKeyring.getAccounts();
+    const testAccounts = await hdKeyring.getAccounts();
     /* istanbul ignore if */
     if (testAccounts.length !== accounts.length) {
       throw new Error('Seed phrase imported incorrect number of accounts.');
