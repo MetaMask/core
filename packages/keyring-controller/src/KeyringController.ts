@@ -184,7 +184,9 @@ export class KeyringController extends BaseController<
     state?: Partial<KeyringState>,
   ) {
     super(config, state);
-    this.#keyring = new EthKeyringController(Object.assign({ initState: state }, config));
+    this.#keyring = new EthKeyringController(
+      Object.assign({ initState: state }, config),
+    );
 
     this.defaultState = {
       ...this.#keyring.store.getState(),
