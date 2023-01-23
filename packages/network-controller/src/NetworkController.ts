@@ -38,7 +38,7 @@ export type Block = {
   baseFeePerGas?: string;
 };
 
-export type NetworkProperties = {
+export type NetworkDetails = {
   isEIP1559Compatible?: boolean;
 };
 
@@ -54,7 +54,7 @@ export type NetworkState = {
   network: string;
   isCustomNetwork: boolean;
   providerConfig: ProviderConfig;
-  properties: NetworkProperties;
+  networkDetails: NetworkDetails;
 };
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
@@ -110,7 +110,7 @@ export const defaultState: NetworkState = {
   network: 'loading',
   isCustomNetwork: false,
   providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
-  properties: { isEIP1559Compatible: false },
+  networkDetails: { isEIP1559Compatible: false },
 };
 
 /**
@@ -141,7 +141,7 @@ export class NetworkController extends BaseControllerV2<
           persist: true,
           anonymous: false,
         },
-        properties: {
+        networkDetails: {
           persist: true,
           anonymous: false,
         },
@@ -202,7 +202,7 @@ export class NetworkController extends BaseControllerV2<
   private refreshNetwork() {
     this.update((state) => {
       state.network = 'loading';
-      state.properties = {};
+      state.networkDetails = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker);
@@ -401,9 +401,9 @@ export class NetworkController extends BaseControllerV2<
   }
 
   getEIP1559Compatibility() {
-    const { properties = {} } = this.state;
+    const { networkDetails = {} } = this.state;
 
-    if (!properties.isEIP1559Compatible) {
+    if (!networkDetails.isEIP1559Compatible) {
       if (typeof this.ethQuery?.sendAsync !== 'function') {
         return Promise.resolve(true);
       }
@@ -416,9 +416,10 @@ export class NetworkController extends BaseControllerV2<
             } else {
               const isEIP1559Compatible =
                 typeof block.baseFeePerGas !== 'undefined';
-              if (properties.isEIP1559Compatible !== isEIP1559Compatible) {
+              if (networkDetails.isEIP1559Compatible !== isEIP1559Compatible) {
                 this.update((state) => {
-                  state.properties.isEIP1559Compatible = isEIP1559Compatible;
+                  state.networkDetails.isEIP1559Compatible =
+                    isEIP1559Compatible;
                 });
               }
               resolve(isEIP1559Compatible);
