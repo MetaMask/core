@@ -122,7 +122,7 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
     });
 
     if (this.#isStopped) {
-      console.error(`The provider has been stopped, yet sendAsync has somehow been called. If this
+      console.warn(`The provider has been stopped, yet sendAsync has somehow been called. If this
 were not a fake provider, it's likely nothing would happen and the request would
 be sent anyway, but this probably means you have a test that ran an asynchronous
 operation that was not fulfilled before the test ended.`);
