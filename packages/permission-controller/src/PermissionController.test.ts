@@ -4654,6 +4654,67 @@ describe('PermissionController', () => {
 
       expect(requestPermissionsSpy).toHaveBeenCalledTimes(1);
     });
+
+    it('action: PermissionController:updateCaveat', async () => {
+      const messenger = getUnrestrictedMessenger();
+      const state = {
+        subjects: {
+          'metamask.io': {
+            origin: 'metamask.io',
+            permissions: {
+              wallet_getSecretArray: {
+                id: 'escwEx9JrOxGZKZk3RkL4',
+                parentCapability: 'wallet_getSecretArray',
+                invoker: 'metamask.io',
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['bar'] },
+                ],
+                date: 1632618373085,
+              },
+            },
+          },
+        },
+      };
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+        state,
+      });
+
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
+
+      await messenger.call(
+        'PermissionController:updateCaveat',
+        'metamask.io',
+        'wallet_getSecretArray',
+        CaveatTypes.filterArrayResponse,
+        ['baz'],
+      );
+
+      expect(updateCaveatSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          'metamask.io': {
+            origin: 'metamask.io',
+            permissions: {
+              wallet_getSecretArray: {
+                id: 'escwEx9JrOxGZKZk3RkL4',
+                parentCapability: 'wallet_getSecretArray',
+                invoker: 'metamask.io',
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['baz'] },
+                ],
+                date: 1632618373085,
+              },
+            },
+          },
+        },
+      });
+    });
   });
 
   describe('permission middleware', () => {

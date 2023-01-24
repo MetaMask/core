@@ -233,7 +233,7 @@ describe('CurrencyRateController', () => {
 
     expect(controller.state.conversionRate).toStrictEqual(1);
 
-    await controller.setNativeCurrency(TESTNET_TICKER_SYMBOLS.RINKEBY);
+    await controller.setNativeCurrency(TESTNET_TICKER_SYMBOLS.GOERLI);
 
     expect(controller.state.conversionRate).toStrictEqual(10);
 

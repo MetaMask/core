@@ -95,7 +95,7 @@ describe('TokensController', () => {
       address: '0x01',
       decimals: 2,
       image:
-        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
@@ -105,7 +105,7 @@ describe('TokensController', () => {
       address: '0x01',
       decimals: 2,
       image:
-        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
@@ -250,7 +250,7 @@ describe('TokensController', () => {
       address: '0x01',
       decimals: 2,
       image:
-        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
@@ -262,8 +262,8 @@ describe('TokensController', () => {
   it('should add token by network', async () => {
     const stub = stubCreateEthers(tokensController, false);
 
-    const firstNetworkType = 'rinkeby';
-    const secondNetworkType = 'ropsten';
+    const firstNetworkType = 'sepolia';
+    const secondNetworkType = 'goerli';
     network.setProviderType(firstNetworkType);
     await tokensController.addToken('0x01', 'bar', 2);
     network.setProviderType(secondNetworkType);
@@ -275,7 +275,7 @@ describe('TokensController', () => {
       address: '0x01',
       decimals: 2,
       image:
-        'https://static.metaswap.codefi.network/api/v1/tokenIcons/4/0x01.png',
+        'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
@@ -307,7 +307,7 @@ describe('TokensController', () => {
       address: '0x02',
       decimals: 2,
       image:
-        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x02.png',
+        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
@@ -317,8 +317,8 @@ describe('TokensController', () => {
 
   it('should remove token by provider type', async () => {
     const stub = stubCreateEthers(tokensController, false);
-    const firstNetworkType = 'rinkeby';
-    const secondNetworkType = 'ropsten';
+    const firstNetworkType = 'sepolia';
+    const secondNetworkType = 'goerli';
 
     network.setProviderType(firstNetworkType);
     await tokensController.addToken('0x02', 'baz', 2);
@@ -332,7 +332,7 @@ describe('TokensController', () => {
       address: '0x02',
       decimals: 2,
       image:
-        'https://static.metaswap.codefi.network/api/v1/tokenIcons/4/0x02.png',
+        'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
@@ -341,7 +341,7 @@ describe('TokensController', () => {
   });
 
   it('should subscribe to new sibling preference controllers', async () => {
-    const networkType = 'rinkeby';
+    const networkType = 'sepolia';
     const address = '0x123';
     preferences.update({ selectedAddress: address });
     expect(preferences.state.selectedAddress).toStrictEqual(address);
@@ -350,7 +350,7 @@ describe('TokensController', () => {
   });
 
   describe('ignoredTokens', () => {
-    const defaultSelectedNetwork: NetworkType = 'rinkeby';
+    const defaultSelectedNetwork: NetworkType = 'sepolia';
     const defaultSelectedAddress = '0x0001';
 
     let createEthersStub: sinon.SinonStub;
@@ -380,7 +380,7 @@ describe('TokensController', () => {
 
     it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
       const selectedAddress = '0x0001';
-      const chain = 'rinkeby';
+      const chain = 'sepolia';
       preferences.setSelectedAddress(selectedAddress);
       network.setProviderType(chain);
       await tokensController.addToken('0x01', 'bar', 2);
@@ -425,8 +425,8 @@ describe('TokensController', () => {
     it('should ignore tokens by [chainID][accountAddress]', async () => {
       const selectedAddress1 = '0x0001';
       const selectedAddress2 = '0x0002';
-      const chain1 = 'rinkeby';
-      const chain2 = 'ropsten';
+      const chain1 = 'sepolia';
+      const chain2 = 'goerli';
 
       preferences.setSelectedAddress(selectedAddress1);
       network.setProviderType(chain1);
@@ -471,7 +471,7 @@ describe('TokensController', () => {
         address: '0x01',
         decimals: 4,
         image:
-          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
         isERC721: false,
         symbol: 'A',
         aggregators: [],
@@ -480,7 +480,7 @@ describe('TokensController', () => {
         address: '0x02',
         decimals: 5,
         image:
-          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x02.png',
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
         isERC721: false,
         symbol: 'B',
         aggregators: [],
@@ -593,7 +593,7 @@ describe('TokensController', () => {
             symbol: 'REST',
             isERC721: true,
             image:
-              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
+              'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
             decimals: 4,
             aggregators: [],
           },
@@ -634,7 +634,7 @@ describe('TokensController', () => {
             symbol: 'LEST',
             isERC721: false,
             image:
-              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
+              'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
             decimals: 5,
             aggregators: [],
           },
@@ -686,7 +686,7 @@ describe('TokensController', () => {
       const dummyAddedToken: Token = {
         ...dummyDetectedToken,
         image:
-          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
       };
 
       await tokensController.addDetectedTokens([dummyDetectedToken]);
@@ -714,7 +714,7 @@ describe('TokensController', () => {
       const DETECTED_CHAINID = '0xDetectedChainId';
 
       const CONFIGURED_ADDRESS = '0xabc';
-      const CONFIGURED_NETWORK = 'rinkeby';
+      const CONFIGURED_NETWORK = 'sepolia';
       preferences.update({ selectedAddress: CONFIGURED_ADDRESS });
       network.setProviderType(CONFIGURED_NETWORK);
 
@@ -725,7 +725,7 @@ describe('TokensController', () => {
         aggregators: [],
         isERC721: false,
         image:
-          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
       };
 
       const directlyAddedToken: Token = {
@@ -733,7 +733,7 @@ describe('TokensController', () => {
         decimals: 5,
         symbol: 'B',
         image:
-          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x02.png',
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
         isERC721: false,
         aggregators: [],
       };
@@ -1091,7 +1091,7 @@ describe('TokensController', () => {
           address: '0x01',
           decimals: 4,
           image:
-            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
           isERC721: false,
           symbol: 'A',
           aggregators: [],
@@ -1100,7 +1100,7 @@ describe('TokensController', () => {
           address: '0x02',
           decimals: 5,
           image:
-            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x02.png',
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
           isERC721: false,
           symbol: 'B',
           aggregators: [],
@@ -1112,7 +1112,7 @@ describe('TokensController', () => {
           address: '0x03',
           decimals: 6,
           image:
-            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x03.png',
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x03.png',
           isERC721: false,
           symbol: 'C',
           aggregators: [],
@@ -1127,8 +1127,8 @@ describe('TokensController', () => {
     it('should remove a token from its state on corresponding network', async function () {
       const stub = stubCreateEthers(tokensController, false);
 
-      const firstNetworkType = 'rinkeby';
-      const secondNetworkType = 'ropsten';
+      const firstNetworkType = 'sepolia';
+      const secondNetworkType = 'goerli';
       network.setProviderType(firstNetworkType);
 
       await tokensController.addToken('0x01', 'A', 4);
@@ -1149,7 +1149,7 @@ describe('TokensController', () => {
           address: '0x01',
           decimals: 4,
           image:
-            'https://static.metaswap.codefi.network/api/v1/tokenIcons/4/0x01.png',
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
           isERC721: false,
           symbol: 'A',
           aggregators: [],
@@ -1158,7 +1158,7 @@ describe('TokensController', () => {
           address: '0x02',
           decimals: 5,
           image:
-            'https://static.metaswap.codefi.network/api/v1/tokenIcons/4/0x02.png',
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
           isERC721: false,
           symbol: 'B',
           aggregators: [],
@@ -1170,7 +1170,7 @@ describe('TokensController', () => {
           address: '0x03',
           decimals: 4,
           image:
-            'https://static.metaswap.codefi.network/api/v1/tokenIcons/3/0x03.png',
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x03.png',
           isERC721: false,
           symbol: 'C',
           aggregators: [],
@@ -1179,7 +1179,7 @@ describe('TokensController', () => {
           address: '0x04',
           decimals: 5,
           image:
-            'https://static.metaswap.codefi.network/api/v1/tokenIcons/3/0x04.png',
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x04.png',
           isERC721: false,
           symbol: 'D',
           aggregators: [],

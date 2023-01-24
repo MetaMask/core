@@ -1,10 +1,5 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
-import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { OPENSEA_PROXY_URL } from '@metamask/controller-utils';
 import { NftController } from './NftController';
@@ -13,15 +8,14 @@ import { NftDetectionController } from './NftDetectionController';
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
-const ROPSTEN = 'ropsten';
+const GOERLI = 'goerli';
 
 describe('NftDetectionController', () => {
   let nftDetection: NftDetectionController;
   let preferences: PreferencesController;
   let nftController: NftController;
   let assetsContract: AssetsContractController;
-  let messenger: NetworkControllerMessenger;
-
+  const networkStateChangeNoop = jest.fn();
   const getOpenSeaApiKeyStub = jest.fn();
   beforeAll(() => {
     nock.disableNetConnect();
@@ -32,27 +26,15 @@ describe('NftDetectionController', () => {
   });
 
   beforeEach(async () => {
-    messenger = new ControllerMessenger().getRestricted({
-      name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
-      allowedActions: [],
-    });
-
-    new NetworkController({
-      messenger,
-      infuraProjectId: 'potato',
-    });
     preferences = new PreferencesController();
     assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChange: networkStateChangeNoop,
     });
 
     nftController = new NftController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChange: networkStateChangeNoop,
       getERC721AssetName:
         assetsContract.getERC721AssetName.bind(assetsContract),
       getERC721AssetSymbol:
@@ -69,8 +51,7 @@ describe('NftDetectionController', () => {
     nftDetection = new NftDetectionController({
       onNftsStateChange: (listener) => nftController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChange: networkStateChangeNoop,
       getOpenSeaApiKey: getOpenSeaApiKeyStub,
       addNft: nftController.addNft.bind(nftController),
       getNftState: () => nftController.state,
@@ -237,8 +218,7 @@ describe('NftDetectionController', () => {
           onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
-          onNetworkStateChange: (listener) =>
-            messenger.subscribe('NetworkController:stateChange', listener),
+          onNetworkStateChange: networkStateChangeNoop,
           getOpenSeaApiKey: () => nftController.openSeaApiKey,
           addNft: nftController.addNft.bind(nftController),
           getNftState: () => nftController.state,
@@ -258,7 +238,7 @@ describe('NftDetectionController', () => {
   it('should detect mainnet correctly', () => {
     nftDetection.configure({ networkType: MAINNET });
     expect(nftDetection.isMainnet()).toStrictEqual(true);
-    nftDetection.configure({ networkType: ROPSTEN });
+    nftDetection.configure({ networkType: GOERLI });
     expect(nftDetection.isMainnet()).toStrictEqual(false);
   });
 
@@ -273,13 +253,12 @@ describe('NftDetectionController', () => {
           onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
-          onNetworkStateChange: (listener) =>
-            messenger.subscribe('NetworkController:stateChange', listener),
+          onNetworkStateChange: networkStateChangeNoop,
           getOpenSeaApiKey: () => nftController.openSeaApiKey,
           addNft: nftController.addNft.bind(nftController),
           getNftState: () => nftController.state,
         },
-        { interval: 10, networkType: ROPSTEN },
+        { interval: 10, networkType: GOERLI },
       );
       expect(mockNfts.called).toBe(false);
       resolve('');
@@ -623,14 +602,14 @@ describe('NftDetectionController', () => {
     getOpenSeaApiKeyStub.mockImplementation(() => 'FAKE API KEY');
     nftController.setApiKey('FAKE API KEY');
 
-    nock('https://proxy.metaswap.codefi.network:443', {
+    nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
       .get('/opensea/v1/api/v1/assets')
       .query({ owner: selectedAddress, offset: '0', limit: '50' })
       .replyWithError(new Error('Failed to fetch'));
 
-    nock('https://proxy.metaswap.codefi.network:443', {
+    nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
       .get('/opensea/v1/api/v1/assets')
@@ -711,7 +690,7 @@ describe('NftDetectionController', () => {
 
   it('should rethrow error when OpenSea proxy server fails with error other than fetch failure', async () => {
     const selectedAddress = '0x4';
-    nock('https://proxy.metaswap.codefi.network:443', {
+    nock('https://proxy.metafi.codefi.network:443', {
       encodedQueryParams: true,
     })
       .get('/opensea/v1/api/v1/assets')

@@ -23,6 +23,12 @@ export interface ContactEntry {
   importTime?: number;
 }
 
+export enum AddressType {
+  externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
+  contractAccounts = 'CONTRACT_ACCOUNTS',
+  nonAccounts = 'NON_ACCOUNTS',
+}
+
 /**
  * @type AddressBookEntry
  *
@@ -32,6 +38,7 @@ export interface ContactEntry {
  * @property chainId - Chain id identifies the current chain
  * @property memo - User's note about address
  * @property isEns - is the entry an ENS name
+ * @property addressType - is the type of this address
  */
 export interface AddressBookEntry {
   address: string;
@@ -39,6 +46,7 @@ export interface AddressBookEntry {
   chainId: string;
   memo: string;
   isEns: boolean;
+  addressType?: AddressType;
 }
 
 /**
@@ -119,9 +127,16 @@ export class AddressBookController extends BaseController<
    * @param name - Nickname to associate with this address.
    * @param chainId - Chain id identifies the current chain.
    * @param memo - User's note about address.
+   * @param addressType - Contact's address type.
    * @returns Boolean indicating if the address was successfully set.
    */
-  set(address: string, name: string, chainId = '1', memo = '') {
+  set(
+    address: string,
+    name: string,
+    chainId = '1',
+    memo = '',
+    addressType?: AddressType,
+  ) {
     address = toChecksumHexAddress(address);
     if (!isValidHexAddress(address)) {
       return false;
@@ -133,6 +148,7 @@ export class AddressBookController extends BaseController<
       isEns: false,
       memo,
       name,
+      addressType,
     };
 
     const ensName = normalizeEnsName(name);
