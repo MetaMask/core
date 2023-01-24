@@ -73,6 +73,10 @@ export type NetworkControllerProviderConfigChangeEvent = {
   payload: [ProviderConfig];
 };
 
+export type NetworkControllerEvents =
+  | NetworkControllerStateChangeEvent
+  | NetworkControllerProviderConfigChangeEvent;
+
 export type NetworkControllerGetProviderConfigAction = {
   type: `NetworkController:getProviderConfig`;
   handler: () => ProviderConfig;
@@ -82,6 +86,10 @@ export type NetworkControllerGetEthQueryAction = {
   type: `NetworkController:getEthQuery`;
   handler: () => EthQuery;
 };
+
+export type NetworkControllerActions =
+  | NetworkControllerGetProviderConfigAction
+  | NetworkControllerGetEthQueryAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -286,7 +294,9 @@ export class NetworkController extends BaseControllerV2<
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
-    this.registerProvider();
+    if (this.provider !== undefined) {
+      this.registerProvider();
+    }
     this.lookupNetwork();
   }
 
@@ -313,7 +323,6 @@ export class NetworkController extends BaseControllerV2<
    * Refreshes the current network code.
    */
   async lookupNetwork() {
-    /* istanbul ignore if */
     if (!this.ethQuery || !this.ethQuery.sendAsync) {
       return;
     }

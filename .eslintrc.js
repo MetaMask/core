@@ -8,7 +8,6 @@ module.exports = {
     'dist',
     'docs',
     'coverage',
-    '*.d.ts',
   ],
   overrides: [
     {
@@ -44,6 +43,12 @@ module.exports = {
       },
     },
     {
+      files: ['*.d.ts'],
+      rules: {
+        'import/unambiguous': 'off',
+      },
+    },
+    {
       files: ['scripts/*.ts'],
       rules: {
         // All scripts will have shebangs.
@@ -52,6 +57,21 @@ module.exports = {
     },
   ],
   rules: {
+    // This is already set in the newest version of eslint-config
+    'padding-line-between-statements': [
+      'error',
+      {
+        blankLine: 'always',
+        prev: 'directive',
+        next: '*',
+      },
+      {
+        blankLine: 'any',
+        prev: 'directive',
+        next: 'directive',
+      },
+    ],
+
     // Left disabled because various properties throughough this repo are snake_case because the
     // names come from external sources or must comply with standards
     // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
