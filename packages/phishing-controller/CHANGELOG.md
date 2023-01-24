@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1]
+### Changed
+- Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+
 ## [1.1.0]
 ### Added
 - Add method to conditionally update the phishing lists ([#986](https://github.com/MetaMask/core/pull/986))
@@ -23,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.1...HEAD
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.0...@metamask/phishing-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.0.0...@metamask/phishing-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/phishing-controller@1.0.0
