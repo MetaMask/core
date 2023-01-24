@@ -1,33 +1,13 @@
 import * as sinon from 'sinon';
 import type { Patch } from 'immer';
 import {
-  TokensController,
-  NftController,
-  AssetsContractController,
-} from '@metamask/assets-controllers';
-import {
-  AddressBookController,
-  AddressType,
-} from '@metamask/address-book-controller';
-import { EnsController } from '@metamask/ens-controller';
-import {
   BaseController,
   BaseState,
   BaseControllerV2,
   ControllerMessenger,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-  NetworkControllerStateChangeEvent,
-} from '@metamask/network-controller';
-import { NetworksChainId } from '@metamask/controller-utils';
-import {
-  ComposableController,
-  ComposableControllerRestrictedMessenger,
-} from './ComposableController';
+import { ComposableController } from './ComposableController';
 
 // Mock BaseControllerV2 classes
 
@@ -97,81 +77,25 @@ class BarController extends BaseController<never, BarControllerState> {
   }
 }
 
-const setupControllers = () => {
-  const mainMessenger = new ControllerMessenger<
-    never,
-    NetworkControllerStateChangeEvent
-  >();
-
-  const messenger: NetworkControllerMessenger = mainMessenger.getRestricted({
-    name: 'NetworkController',
-    allowedEvents: ['NetworkController:stateChange'],
-    allowedActions: [],
-  });
-
-  const composableMessenger: ComposableControllerRestrictedMessenger =
-    mainMessenger.getRestricted({
-      name: 'ComposableController',
-      allowedEvents: ['NetworkController:stateChange'],
-      allowedActions: [],
-    });
-
-  const networkController = new NetworkController({
-    messenger,
-    infuraProjectId: 'potato',
-  });
-  const preferencesController = new PreferencesController();
-
-  const assetContractController = new AssetsContractController({
-    onPreferencesStateChange: (listener) =>
-      preferencesController.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
-  });
-
-  const nftController = new NftController({
-    onPreferencesStateChange: (listener) =>
-      preferencesController.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
-    getERC721AssetName: assetContractController.getERC721AssetName.bind(
-      assetContractController,
-    ),
-    getERC721AssetSymbol: assetContractController.getERC721AssetSymbol.bind(
-      assetContractController,
-    ),
-    getERC721TokenURI: assetContractController.getERC721TokenURI.bind(
-      assetContractController,
-    ),
-    getERC721OwnerOf: assetContractController.getERC721OwnerOf.bind(
-      assetContractController,
-    ),
-    getERC1155BalanceOf: assetContractController.getERC1155BalanceOf.bind(
-      assetContractController,
-    ),
-    getERC1155TokenURI: assetContractController.getERC1155TokenURI.bind(
-      assetContractController,
-    ),
-    onNftAdded: jest.fn(),
-  });
-
-  const tokensController = new TokensController({
-    onPreferencesStateChange: (listener) =>
-      preferencesController.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
-  });
-
-  return {
-    messenger,
-    composableMessenger,
-    networkController,
-    preferencesController,
-    assetContractController,
-    nftController,
-    tokensController,
+interface BazControllerState extends BaseState {
+  baz: string;
+}
+class BazController extends BaseController<never, BazControllerState> {
+  defaultState = {
+    baz: 'baz',
   };
-};
+
+  override name = 'BazController';
+
+  constructor() {
+    super();
+    this.initialize();
+  }
+
+  updateBaz(baz: string) {
+    super.update({ baz });
+  }
+}
 
 describe('ComposableController', () => {
   afterEach(() => {
@@ -180,170 +104,59 @@ describe('ComposableController', () => {
 
   describe('BaseController', () => {
     it('should compose controller state', () => {
-      const {
-        messenger,
-        composableMessenger,
-        networkController,
-        assetContractController,
-        nftController,
-        tokensController,
-        preferencesController,
-      } = setupControllers();
-
+      const composableMessenger = new ControllerMessenger().getRestricted<
+        'ComposableController',
+        never,
+        never
+      >({ name: 'ComposableController' });
       const controller = new ComposableController(
-        [
-          new AddressBookController(),
-          nftController,
-          assetContractController,
-          new EnsController(),
-          networkController,
-          preferencesController,
-          tokensController,
-        ],
+        [new BarController(), new BazController()],
         composableMessenger,
       );
 
       expect(controller.state).toStrictEqual({
-        AddressBookController: { addressBook: {} },
-        AssetsContractController: {},
-        NftController: {
-          allNftContracts: {},
-          allNfts: {},
-          ignoredNfts: [],
-        },
-        TokensController: {
-          allTokens: {},
-          ignoredTokens: [],
-          allIgnoredTokens: {},
-          suggestedAssets: [],
-          tokens: [],
-          detectedTokens: [],
-          allDetectedTokens: {},
-        },
-        EnsController: {
-          ensEntries: {},
-        },
-        NetworkController: {
-          network: 'loading',
-          isCustomNetwork: false,
-          properties: { isEIP1559Compatible: false },
-          providerConfig: { type: 'mainnet', chainId: NetworksChainId.mainnet },
-        },
-        PreferencesController: {
-          featureFlags: {},
-          frequentRpcList: [],
-          identities: {},
-          ipfsGateway: 'https://ipfs.io/ipfs/',
-          lostIdentities: {},
-          selectedAddress: '',
-          useTokenDetection: true,
-          useNftDetection: false,
-          openSeaEnabled: false,
-        },
+        BarController: { bar: 'bar' },
+        BazController: { baz: 'baz' },
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should compose flat controller state', () => {
-      const {
-        messenger,
-        composableMessenger,
-        networkController,
-        assetContractController,
-        nftController,
-        tokensController,
-        preferencesController,
-      } = setupControllers();
-
+      const composableMessenger = new ControllerMessenger().getRestricted<
+        'ComposableController',
+        never,
+        never
+      >({ name: 'ComposableController' });
       const controller = new ComposableController(
-        [
-          new AddressBookController(),
-          nftController,
-          assetContractController,
-          new EnsController(),
-          networkController,
-          preferencesController,
-          tokensController,
-        ],
+        [new BarController(), new BazController()],
         composableMessenger,
       );
+
       expect(controller.flatState).toStrictEqual({
-        addressBook: {},
-        allNftContracts: {},
-        allNfts: {},
-        allTokens: {},
-        ensEntries: {},
-        featureFlags: {},
-        frequentRpcList: [],
-        identities: {},
-        ignoredNfts: [],
-        ignoredTokens: [],
-        allIgnoredTokens: {},
-        detectedTokens: [],
-        allDetectedTokens: {},
-        ipfsGateway: 'https://ipfs.io/ipfs/',
-        lostIdentities: {},
-        network: 'loading',
-        isCustomNetwork: false,
-        properties: { isEIP1559Compatible: false },
-        providerConfig: { type: 'mainnet', chainId: NetworksChainId.mainnet },
-        selectedAddress: '',
-        useTokenDetection: true,
-        useNftDetection: false,
-        openSeaEnabled: false,
-        suggestedAssets: [],
-        tokens: [],
+        bar: 'bar',
+        baz: 'baz',
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
-    });
-
-    it('should set initial state', () => {
-      const state = {
-        addressBook: {
-          '0x1': {
-            '0x1234': {
-              address: 'bar',
-              chainId: '1',
-              isEns: false,
-              memo: '',
-              name: 'foo',
-              addressType: AddressType.externallyOwnedAccounts,
-            },
-          },
-        },
-      };
-      const controller = new ComposableController([
-        new AddressBookController(undefined, state),
-      ]);
-      expect(controller.state).toStrictEqual({ AddressBookController: state });
     });
 
     it('should notify listeners of nested state change', () => {
-      const addressBookController = new AddressBookController();
-      const controller = new ComposableController([addressBookController]);
+      const composableMessenger = new ControllerMessenger().getRestricted<
+        'ComposableController',
+        never,
+        never
+      >({ name: 'ComposableController' });
+      const barController = new BarController();
+      const controller = new ComposableController(
+        [barController],
+        composableMessenger,
+      );
       const listener = sinon.stub();
       controller.subscribe(listener);
-      addressBookController.set(
-        '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-        'foo',
-      );
+
+      barController.updateBar('something different');
+
       expect(listener.calledOnce).toBe(true);
       expect(listener.getCall(0).args[0]).toStrictEqual({
-        AddressBookController: {
-          addressBook: {
-            1: {
-              '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
-                address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-                chainId: '1',
-                isEns: false,
-                memo: '',
-                name: 'foo',
-                addressType: undefined,
-              },
-            },
-          },
+        BarController: {
+          bar: 'something different',
         },
       });
     });
