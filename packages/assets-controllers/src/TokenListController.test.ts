@@ -1,7 +1,11 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { NetworkControllerProviderConfigChangeEvent } from '@metamask/network-controller';
+import {
+  NetworkControllerProviderConfigChangeEvent,
+  NetworkState,
+  ProviderConfig,
+} from '@metamask/network-controller';
 import { NetworksChainId } from '@metamask/controller-utils';
 import {
   TokenListController,
@@ -609,7 +613,9 @@ describe('TokenListController', () => {
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
-    let onNetworkStateChangeCallback: any;
+    let onNetworkStateChangeCallback!: (
+      state: NetworkState | ProviderConfig,
+    ) => void;
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
       onNetworkStateChange: (cb) => (onNetworkStateChangeCallback = cb),
@@ -622,7 +628,7 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
-    onNetworkStateChangeCallback({ chainId: '5' });
+    onNetworkStateChangeCallback({ chainId: '5' } as ProviderConfig);
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
     expect(controller.state.tokenList).toStrictEqual({});
