@@ -91,10 +91,6 @@ class BazController extends BaseController<never, BazControllerState> {
     super();
     this.initialize();
   }
-
-  updateBaz(baz: string) {
-    super.update({ baz });
-  }
 }
 
 describe('ComposableController', () => {
