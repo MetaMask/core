@@ -79,7 +79,13 @@
       "web3-provider-engine>ethereumjs-util>keccak": false,
       "web3-provider-engine>ethereumjs-util>secp256k1": false,
       "web3-provider-engine>ethereumjs-util>ethereum-cryptography>keccak": false,
-      "web3-provider-engine>ethereumjs-util>ethereum-cryptography>secp256k1": false
+      "web3-provider-engine>ethereumjs-util>ethereum-cryptography>secp256k1": false,
+      "web3-provider-engine>eth-json-rpc-middleware>eth-sig-util>ethereumjs-abi>ethereumjs-util>keccak": false,
+      "web3-provider-engine>eth-json-rpc-middleware>eth-sig-util>ethereumjs-abi>ethereumjs-util>secp256k1": false,
+      "web3-provider-engine>eth-sig-util>ethereumjs-abi>ethereumjs-util>keccak": false,
+      "web3-provider-engine>eth-sig-util>ethereumjs-abi>ethereumjs-util>secp256k1": false,
+      "web3-provider-engine>ethereumjs-vm>ethereumjs-util>keccak": false,
+      "web3-provider-engine>ethereumjs-vm>ethereumjs-util>secp256k1": false
     }
   }
 }
