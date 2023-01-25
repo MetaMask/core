@@ -1380,7 +1380,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/address-book-controller@workspace:^, @metamask/address-book-controller@workspace:packages/address-book-controller":
+"@metamask/address-book-controller@workspace:packages/address-book-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/address-book-controller@workspace:packages/address-book-controller"
   dependencies:
@@ -1435,7 +1435,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@workspace:^, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -1523,14 +1523,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/composable-controller@workspace:packages/composable-controller"
   dependencies:
-    "@metamask/address-book-controller": "workspace:^"
-    "@metamask/assets-controllers": "workspace:^"
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
-    "@metamask/controller-utils": "workspace:^"
-    "@metamask/ens-controller": "workspace:^"
-    "@metamask/network-controller": "workspace:^"
-    "@metamask/preferences-controller": "workspace:^"
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     immer: ^9.0.6
@@ -1627,7 +1621,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/ens-controller@workspace:^, @metamask/ens-controller@workspace:packages/ens-controller":
+"@metamask/ens-controller@workspace:packages/ens-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/ens-controller@workspace:packages/ens-controller"
   dependencies:
