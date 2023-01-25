@@ -1,12 +1,12 @@
 import { Hotlist, PhishingDetectState } from './PhishingController';
 
-const buildListMap = (list: string[]): Record<string, true> =>
+export const buildListMap = (list: string[]): Record<string, true> =>
   list.reduce((acc, cur) => {
     acc[cur] = true;
     return acc;
   }, {} as Record<string, true>);
 
-const convertMapToList = (map: Record<string, boolean>): string[] =>
+export const convertMapToList = (map: Record<string, boolean>): string[] =>
   Object.entries(map).reduce<string[]>((acc, [domain, isIncluded]) => {
     if (isIncluded) {
       acc.push(domain);
@@ -14,6 +14,7 @@ const convertMapToList = (map: Record<string, boolean>): string[] =>
     return acc;
   }, []);
 
+// Handles epoch time in seconds.
 export const fetchTimeNow = (): number => Math.round(Date.now() / 1000);
 
 export const convertStalelistToMap = (stalelist: PhishingDetectState) => {

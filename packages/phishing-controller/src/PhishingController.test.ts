@@ -70,9 +70,8 @@ describe('PhishingController', () => {
     expect(nockScope.isDone()).toBe(false);
   });
 
-  describe('maybeUpdateStalelist', () => {
+  describe('maybeUpdateState', () => {
     let nockScope: nock.Scope;
-
     beforeEach(() => {
       nockScope = nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
@@ -84,10 +83,22 @@ describe('PhishingController', () => {
           version: 0,
         })
         .get(METAMASK_HOTLIST_DIFF_FILE)
-        .reply(200, []);
+        .reply(200, [
+          {
+            url: 'this-should-not-be-in-default-blocklist.com',
+            timestamp: 1,
+            isRemoval: true,
+            targetList: 'blocklist',
+          },
+          {
+            url: 'this-should-not-be-in-default-blocklist.com',
+            timestamp: 2,
+            targetList: 'blocklist',
+          },
+        ]);
     });
 
-    it('should not be out of date immediately after maybeUpdateStalelist is called', async () => {
+    it('should not have stalelist be out of date immediately after maybeUpdateState is called', async () => {
       const clock = sinon.useFakeTimers();
       const controller = new PhishingController({
         stalelistRefreshInterval: 10,
@@ -96,7 +107,6 @@ describe('PhishingController', () => {
       expect(controller.isStalelistOutOfDate()).toBe(true);
       await controller.maybeUpdateState();
       expect(controller.isStalelistOutOfDate()).toBe(false);
-
       expect(nockScope.isDone()).toBe(true);
     });
 
@@ -168,6 +178,34 @@ describe('PhishingController', () => {
       });
 
       expect(nockScope.isDone()).toBe(true);
+    });
+
+    it('should not have hotlist be out of date immediately after maybeUpdateState is called', async () => {
+      nockScope = nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_HOTLIST_DIFF_FILE)
+        .reply(200, [
+          {
+            url: 'this-should-not-be-in-default-blocklist.com',
+            timestamp: 1,
+            isRemoval: true,
+            targetList: 'blocklist',
+          },
+          {
+            url: 'this-should-not-be-in-default-blocklist.com',
+            timestamp: 2,
+            targetList: 'blocklist',
+          },
+        ]);
+      const clock = sinon.useFakeTimers(50);
+      const controller = new PhishingController({
+        hotlistRefreshInterval: 10,
+        stalelistRefreshInterval: 50,
+      });
+      clock.tick(1000 * 10);
+      expect(controller.isHotlistOutOfDate()).toBe(true);
+      await controller.maybeUpdateState();
+      expect(controller.isHotlistOutOfDate()).toBe(false);
+      // expect(nockScope.isDone()).toBe(true);
     });
   });
 
@@ -248,12 +286,133 @@ describe('PhishingController', () => {
     });
   });
 
+  describe('isHotlistOutOfDate', () => {
+    it('should not be out of date upon construction', () => {
+      sinon.useFakeTimers();
+      const controller = new PhishingController({
+        hotlistRefreshInterval: 10,
+      });
+
+      expect(controller.isHotlistOutOfDate()).toBe(false);
+    });
+
+    it('should not be out of date after some of the refresh interval has passed', () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({
+        hotlistRefreshInterval: 10,
+      });
+      clock.tick(1000 * 5);
+
+      expect(controller.isHotlistOutOfDate()).toBe(false);
+    });
+
+    it('should be out of date after the refresh interval has passed', () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({
+        hotlistRefreshInterval: 10,
+      });
+      clock.tick(1000 * 10);
+
+      expect(controller.isHotlistOutOfDate()).toBe(true);
+    });
+
+    it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({
+        hotlistRefreshInterval: 10,
+      });
+      clock.tick(1000 * 10);
+      const pendingUpdate = controller.updateHotlist();
+
+      expect(controller.isHotlistOutOfDate()).toBe(true);
+
+      // Cleanup pending operations
+      await pendingUpdate;
+    });
+
+    it('should not re-request when an update is in progress', async () => {
+      const clock = sinon.useFakeTimers();
+      const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_HOTLIST_DIFF_FILE)
+        .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
+        .reply(200, [
+          {
+            url: 'this-should-not-be-in-default-blocklist.com',
+            timestamp: 1,
+            isRemoval: true,
+            targetList: 'blocklist',
+          },
+          {
+            url: 'this-should-not-be-in-default-blocklist.com',
+            timestamp: 2,
+            targetList: 'blocklist',
+          },
+        ]);
+
+      const controller = new PhishingController({
+        hotlistRefreshInterval: 10,
+      });
+      clock.tick(1000 * 10);
+      const pendingUpdate = controller.updateHotlist();
+
+      expect(controller.isHotlistOutOfDate()).toBe(true);
+      const pendingUpdateTwo = controller.updateHotlist();
+      expect(nockScope.activeMocks()).toHaveLength(1);
+
+      // Cleanup pending operations
+      await pendingUpdate;
+      await pendingUpdateTwo;
+    });
+
+    it('should not be out of date if the phishing lists were just updated', async () => {
+      sinon.useFakeTimers();
+      const controller = new PhishingController({
+        hotlistRefreshInterval: 10,
+      });
+      await controller.updateHotlist();
+
+      expect(controller.isHotlistOutOfDate()).toBe(false);
+    });
+
+    it('should not be out of date if the phishing lists were recently updated', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({
+        hotlistRefreshInterval: 10,
+      });
+      await controller.updateHotlist();
+      await clock.tick(1000 * 5);
+
+      expect(controller.isHotlistOutOfDate()).toBe(false);
+    });
+
+    it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({
+        hotlistRefreshInterval: 10,
+      });
+      await controller.updateHotlist();
+      clock.tick(1000 * 10);
+
+      expect(controller.isHotlistOutOfDate()).toBe(true);
+    });
+  });
+
   it('should be able to change the stalelistRefreshInterval', async () => {
     sinon.useFakeTimers();
     const controller = new PhishingController({ stalelistRefreshInterval: 10 });
     controller.setStalelistRefreshInterval(0);
 
     expect(controller.isStalelistOutOfDate()).toBe(true);
+  });
+
+  it('should be able to change the hotlistRefreshInterval', async () => {
+    sinon.useFakeTimers();
+    const controller = new PhishingController({
+      hotlistRefreshInterval: 10,
+    });
+    controller.setHotlistRefreshInterval(0);
+
+    expect(controller.isHotlistOutOfDate()).toBe(true);
   });
 
   it('should return negative result for safe domain from default config', () => {
@@ -777,6 +936,7 @@ describe('PhishingController', () => {
       sinon.useFakeTimers(2);
 
       const exampleBlockedUrl = 'example-blocked-website.com';
+      const exampleBlockedUrlTwo = 'another-example-blocked-website.com';
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
@@ -790,6 +950,11 @@ describe('PhishingController', () => {
         .get(METAMASK_HOTLIST_DIFF_FILE)
         .reply(200, [
           {
+            url: exampleBlockedUrlTwo,
+            timestamp: 1,
+            targetList: 'blocklist',
+          },
+          {
             url: exampleBlockedUrl,
             timestamp: 1,
             targetList: 'blocklist',
@@ -802,7 +967,7 @@ describe('PhishingController', () => {
 
       expect(controller.state.listState).toStrictEqual({
         allowlist: [],
-        blocklist: [],
+        blocklist: [exampleBlockedUrlTwo],
         fuzzylist: [],
         tolerance: 0,
         lastUpdated: 0,
@@ -811,9 +976,24 @@ describe('PhishingController', () => {
       });
     });
 
-    it('should not update phishing lists if disabled', async () => {
+    it('should not update stale list if disabled', async () => {
       const controller = new PhishingController({ disabled: true });
       await controller.updateStalelist();
+
+      expect(controller.state.listState).toStrictEqual({
+        allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
+        blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
+        fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
+        tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
+        name: `MetaMask`,
+        version: DEFAULT_PHISHING_RESPONSE.version,
+        lastUpdated: 0,
+      });
+    });
+
+    it('should not update hotlist lists if disabled', async () => {
+      const controller = new PhishingController({ disabled: true });
+      await controller.updateHotlist();
 
       expect(controller.state.listState).toStrictEqual({
         allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
