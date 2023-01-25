@@ -73,7 +73,13 @@
       "eth-sig-util>ethereumjs-util>secp256k1": true,
       "ethereumjs-util>ethereum-cryptography>keccak": true,
       "ethereumjs-util>ethereum-cryptography>secp256k1": true,
-      "simple-git-hooks": false
+      "simple-git-hooks": false,
+      "web3-provider-engine>@ethereumjs/tx>ethereumjs-util>ethereum-cryptography>keccak": false,
+      "web3-provider-engine>@ethereumjs/tx>ethereumjs-util>ethereum-cryptography>secp256k1": false,
+      "web3-provider-engine>ethereumjs-util>keccak": false,
+      "web3-provider-engine>ethereumjs-util>secp256k1": false,
+      "web3-provider-engine>ethereumjs-util>ethereum-cryptography>keccak": false,
+      "web3-provider-engine>ethereumjs-util>ethereum-cryptography>secp256k1": false
     }
   }
 }
