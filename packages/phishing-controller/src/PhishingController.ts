@@ -127,7 +127,6 @@ export interface PhishingConfig extends BaseConfig {
 export interface PhishingState extends BaseState {
   listState: PhishingDetectState;
   whitelist: string[];
-  lastFetched: number;
   hotlistLastFetched: number;
   stalelistLastFetched: number;
 }
@@ -190,7 +189,6 @@ export class PhishingController extends BaseController<
         lastUpdated: 0,
       },
       whitelist: [],
-      lastFetched: 0,
       hotlistLastFetched: 0,
       stalelistLastFetched: 0,
     };
