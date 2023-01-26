@@ -628,7 +628,10 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
-    onNetworkStateChangeCallback({ chainId: '5' } as ProviderConfig);
+    onNetworkStateChangeCallback({
+      chainId: '5',
+      type: 'rpc',
+    });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
     expect(controller.state.tokenList).toStrictEqual({});
