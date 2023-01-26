@@ -624,7 +624,7 @@ describe('TokensController', () => {
           'LINK',
           18,
         );
-        changeNetwork({ chainId: '5', type: 'goerli' });
+        changeNetwork(GOERLI);
         await expect(addTokenPromise).rejects.toThrow(
           'TokensController Error: Switched networks while adding token',
         );
