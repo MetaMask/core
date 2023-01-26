@@ -208,13 +208,37 @@ export class CurrencyRateController extends BaseControllerV2<
    * @returns The controller state.
    */
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
+    const releaseLock = await this.mutex.acquire();
     if (!this.#enabled) {
       console.info(
         '[CurrencyRateController] Not updating exchange rate since network requests have been disabled',
       );
+      const {
+        currentCurrency: stateCurrentCurrency,
+        nativeCurrency: stateNativeCurrency,
+        pendingCurrentCurrency,
+        pendingNativeCurrency,
+      } = this.state;
+      const currentCurrency = pendingCurrentCurrency ?? stateCurrentCurrency;
+      const nativeCurrency = pendingNativeCurrency ?? stateNativeCurrency;
+      try {
+        this.update(() => {
+          return {
+            ...this.state,
+            // we currently allow and handle an empty string as a valid nativeCurrency
+            // in cases where a user has not entered a native ticker symbol for a custom network
+            // currentCurrency is not from user input but this protects us from unexpected changes.
+            nativeCurrency,
+            currentCurrency,
+            pendingCurrentCurrency: null,
+            pendingNativeCurrency: null,
+          };
+        });
+      } finally {
+        releaseLock();
+      }
       return this.state;
     }
-    const releaseLock = await this.mutex.acquire();
     const {
       currentCurrency: stateCurrentCurrency,
       nativeCurrency: stateNativeCurrency,
