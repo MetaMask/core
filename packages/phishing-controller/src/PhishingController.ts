@@ -7,7 +7,7 @@ import {
   BaseState,
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
-import { applyDiffs, fetchTimeNow } from './helpers';
+import { applyDiffs, fetchTimeNow } from './utils';
 
 /**
  * @type EthPhishingResponse
@@ -135,19 +135,12 @@ export interface PhishingState extends BaseState {
 export const PHISHING_CONFIG_BASE_URL =
   'https://static.metafi.codefi.network/api/v1/lists';
 
-export const METAMASK_CONFIG_FILE = '/eth_phishing_detect_config.json';
-
-export const PHISHFORT_HOTLIST_FILE = '/phishfort_hotlist.json';
-
 export const METAMASK_STALELIST_FILE = '/stalelist.json';
 
 export const METAMASK_HOTLIST_DIFF_FILE = '/hotlist.json';
 
 export const HOTLIST_REFRESH_INTERVAL = 30 * 60; // 30 mins in seconds
 export const STALELIST_REFRESH_INTERVAL = 4 * 24 * 60 * 60; // 4 days in seconds
-
-export const METAMASK_CONFIG_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_CONFIG_FILE}`;
-export const PHISHFORT_HOTLIST_URL = `${PHISHING_CONFIG_BASE_URL}${PHISHFORT_HOTLIST_FILE}`;
 
 export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`;
 export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
@@ -299,7 +292,7 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Update the phishing configuration.
+   * Update the hotlist.
    *
    * If an update is in progress, no additional update will be made. Instead this will wait until
    * the in-progress update has finished.
@@ -319,7 +312,7 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Update the phishing configuration.
+   * Update the stalelist.
    *
    * If an update is in progress, no additional update will be made. Instead this will wait until
    * the in-progress update has finished.
@@ -357,8 +350,8 @@ export class PhishingController extends BaseController<
         this.queryConfig<Hotlist>(METAMASK_HOTLIST_DIFF_URL),
       ]);
     } finally {
-      // Set `stalelistLastFetched` even for failed requests to prevent server from being overwhelmed with
-      // traffic after a network disruption.
+      // Set `stalelistLastFetched` and `hotlistLastFetched` even for failed requests to prevent server
+      // from being overwhelmed with traffic after a network disruption.
       const timeNow = fetchTimeNow();
       this.update({
         stalelistLastFetched: timeNow,
@@ -369,7 +362,7 @@ export class PhishingController extends BaseController<
     if (!stalelist || !hotlistDiffs) {
       return;
     }
-    // Correctly shaping MetaMask config.
+    // Correctly shaping eth-phishing-detect state by applying hotlist diffs to the stalelist.
     const newListState: PhishingDetectState = applyDiffs(
       stalelist,
       hotlistDiffs,
