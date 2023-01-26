@@ -3,8 +3,9 @@ import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
-  NetworkController,
-  NetworkControllerMessenger,
+  NetworkState,
+  ProviderConfig,
+  defaultState as defaultNetworkState,
 } from '@metamask/network-controller';
 import {
   OPENSEA_PROXY_URL,
@@ -14,7 +15,6 @@ import {
   ERC721,
   NetworksChainId,
 } from '@metamask/controller-utils';
-import { ControllerMessenger } from '@metamask/base-controller';
 import { Network } from '@ethersproject/providers';
 import { AssetsContractController } from './AssetsContractController';
 import { NftController } from './NftController';
@@ -46,6 +46,9 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
   true,
 );
 
+const SEPOLIA = { chainId: '11155111', type: 'sepolia' as const };
+const GOERLI = { chainId: '5', type: 'goerli' as const };
+
 // Mock out detectNetwork function for cleaner tests, Ethers calls this a bunch of times because the Web3Provider is paranoid.
 jest.mock('@ethersproject/providers', () => {
   const providers = jest.requireActual('@ethersproject/providers');
@@ -73,28 +76,28 @@ jest.mock('@ethersproject/providers', () => {
 function setupController({
   includeOnNftAdded = false,
 }: { includeOnNftAdded?: boolean } = {}) {
-  const messenger: NetworkControllerMessenger =
-    new ControllerMessenger().getRestricted({
-      name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
-      allowedActions: [],
-    });
   const preferences = new PreferencesController();
-  const network = new NetworkController({
-    messenger,
-    infuraProjectId: 'potato',
-  });
+  const onNetworkStateChangeListeners: ((state: NetworkState) => void)[] = [];
+  const changeNetwork = (providerConfig: ProviderConfig) => {
+    onNetworkStateChangeListeners.forEach((listener) => {
+      listener({
+        ...defaultNetworkState,
+        providerConfig,
+      });
+    });
+  };
+
   const assetsContract = new AssetsContractController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChangeListeners.push(listener),
   });
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
 
   const nftController = new NftController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChangeListeners.push(listener),
     getERC721AssetName: assetsContract.getERC721AssetName.bind(assetsContract),
     getERC721AssetSymbol:
       assetsContract.getERC721AssetSymbol.bind(assetsContract),
@@ -114,10 +117,9 @@ function setupController({
   return {
     assetsContract,
     nftController,
-    network,
     onNftAddedSpy,
     preferences,
-    messenger,
+    changeNetwork,
   };
 }
 
@@ -193,19 +195,18 @@ describe('NftController', () => {
   });
 
   it('should set default state', () => {
-    const { nftController, messenger } = setupController();
+    const { nftController } = setupController();
 
     expect(nftController.state).toStrictEqual({
       allNftContracts: {},
       allNfts: {},
       ignoredNfts: [],
     });
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   describe('addNft', () => {
     it('should add NFT and NFT contract', async () => {
-      const { nftController, messenger } = setupController();
+      const { nftController } = setupController();
 
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft('0x01', '1', {
@@ -239,12 +240,10 @@ describe('NftController', () => {
         symbol: 'FOO',
         totalSupply: 0,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should call onNftAdded callback correctly when NFT is manually added', async () => {
-      const { nftController, onNftAddedSpy, messenger } = setupController({
+      const { nftController, onNftAddedSpy } = setupController({
         includeOnNftAdded: true,
       });
 
@@ -263,12 +262,10 @@ describe('NftController', () => {
         standard: 'ERC1155',
         symbol: 'FOO',
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should call onNftAdded callback correctly when NFT is added via detection', async () => {
-      const { nftController, onNftAddedSpy, messenger } = setupController({
+      const { nftController, onNftAddedSpy } = setupController({
         includeOnNftAdded: true,
       });
 
@@ -294,12 +291,10 @@ describe('NftController', () => {
         standard: 'ERC721',
         symbol: 'FOO',
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add NFT by selected address', async () => {
-      const { nftController, preferences, messenger } = setupController();
+      const { nftController, preferences } = setupController();
       const { chainId } = nftController.config;
       const firstAddress = '0x123';
       const secondAddress = '0x321';
@@ -323,12 +318,10 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should update NFT if image is different', async () => {
-      const { nftController, messenger } = setupController();
+      const { nftController } = setupController();
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
@@ -372,12 +365,10 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not duplicate NFT nor NFT contract if already added', async () => {
-      const { nftController, messenger } = setupController();
+      const { nftController } = setupController();
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft('0x01', '1', {
         name: 'name',
@@ -402,12 +393,10 @@ describe('NftController', () => {
       expect(
         nftController.state.allNftContracts[selectedAddress][chainId],
       ).toHaveLength(1);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add NFT and get information from OpenSea', async () => {
-      const { nftController, messenger } = setupController();
+      const { nftController } = setupController();
 
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft('0x01', '1');
@@ -424,12 +413,10 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add NFT erc721 and aggregate NFT data from both contract and OpenSea', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       nock(OPENSEA_PROXY_URL)
         .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
         .reply(200, {
@@ -562,12 +549,10 @@ describe('NftController', () => {
         name: 'KudosToken',
         symbol: 'KDO',
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add NFT erc1155 and get NFT information from contract when OpenSea Proxy API fails to fetch and no OpenSeaAPI key is set', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -680,12 +665,10 @@ describe('NftController', () => {
         imageOriginal: 'image.uri',
         numberOfSales: 1,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add NFT erc721 and get NFT information only from contract', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       nock('https://ipfs.gitcoin.co:443')
         .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
         .reply(200, {
@@ -800,33 +783,29 @@ describe('NftController', () => {
         name: 'KudosToken',
         symbol: 'KDO',
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add NFT by provider type', async () => {
-      const { nftController, network, messenger } = setupController();
-      const firstNetworkType = 'sepolia';
-      const secondNetworkType = 'goerli';
+      const { nftController, changeNetwork } = setupController();
       const { selectedAddress } = nftController.config;
       sinon
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
 
-      network.setProviderType(firstNetworkType);
+      changeNetwork(SEPOLIA);
       await nftController.addNft('0x01', '1234');
-      network.setProviderType(secondNetworkType);
-      network.setProviderType(firstNetworkType);
+      changeNetwork(GOERLI);
+      changeNetwork(SEPOLIA);
 
       expect(
         nftController.state.allNfts[selectedAddress]?.[
-          NetworksChainId[secondNetworkType]
+          NetworksChainId[GOERLI.type]
         ],
       ).toBeUndefined();
 
       expect(
         nftController.state.allNfts[selectedAddress][
-          NetworksChainId[firstNetworkType]
+          NetworksChainId[SEPOLIA.type]
         ][0],
       ).toStrictEqual({
         address: '0x01',
@@ -837,12 +816,10 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not add NFTs with no contract information when auto detecting', async () => {
-      const { nftController, messenger } = setupController();
+      const { nftController } = setupController();
       nock(OPENSEA_PROXY_URL)
         .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
         .reply(200, {
@@ -921,12 +898,10 @@ describe('NftController', () => {
           totalSupply: 10,
         },
       ]);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not add duplicate NFTs to the ignoredNfts list', async () => {
-      const { nftController, messenger } = setupController();
+      const { nftController } = setupController();
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
@@ -971,12 +946,10 @@ describe('NftController', () => {
         nftController.state.allNfts[selectedAddress][chainId],
       ).toHaveLength(1);
       expect(nftController.state.ignoredNfts).toHaveLength(1);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add NFT with metadata hosted in IPFS', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1083,12 +1056,10 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add NFT erc721 and get NFT information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       nock(OPENSEA_PROXY_URL)
         .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
         .replyWithError(new Error('Failed to fetch'))
@@ -1223,14 +1194,12 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
   });
 
   describe('addNftVerifyOwnership', () => {
     it('should verify ownership by selected address and add NFT', async () => {
-      const { nftController, preferences, messenger } = setupController();
+      const { nftController, preferences } = setupController();
       const firstAddress = '0x123';
       const secondAddress = '0x321';
       const { chainId } = nftController.config;
@@ -1256,12 +1225,10 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should throw an error if selected address is not owner of input NFT', async () => {
-      const { nftController, preferences, messenger } = setupController();
+      const { nftController, preferences } = setupController();
       sinon.stub(nftController, 'isNftOwner' as any).returns(false);
       const firstAddress = '0x123';
       preferences.update({ selectedAddress: firstAddress });
@@ -1269,14 +1236,12 @@ describe('NftController', () => {
         await nftController.addNftVerifyOwnership('0x01', '1234');
       const error = 'This NFT is not owned by the user';
       await expect(result).rejects.toThrow(error);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
   });
 
   describe('removeNft', () => {
     it('should remove NFT and NFT contract', async () => {
-      const { nftController, messenger } = setupController();
+      const { nftController } = setupController();
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
@@ -1293,12 +1258,10 @@ describe('NftController', () => {
       expect(
         nftController.state.allNftContracts[selectedAddress][chainId],
       ).toHaveLength(0);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not remove NFT contract if NFT still exists', async () => {
-      const { nftController, messenger } = setupController();
+      const { nftController } = setupController();
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
@@ -1322,12 +1285,10 @@ describe('NftController', () => {
       expect(
         nftController.state.allNftContracts[selectedAddress][chainId],
       ).toHaveLength(1);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should remove NFT by selected address', async () => {
-      const { nftController, preferences, messenger } = setupController();
+      const { nftController, preferences } = setupController();
       const { chainId } = nftController.config;
       sinon
         .stub(nftController, 'getNftInformation' as any)
@@ -1354,37 +1315,29 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should remove NFT by provider type', async () => {
-      const { nftController, network, messenger } = setupController();
+      const { nftController, changeNetwork } = setupController();
       const { selectedAddress } = nftController.config;
 
       sinon
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
-      const firstNetworkType = 'sepolia';
-      const secondNetworkType = 'goerli';
-      network.setProviderType(firstNetworkType);
+      changeNetwork(SEPOLIA);
       await nftController.addNft('0x02', '4321');
-      network.setProviderType(secondNetworkType);
+      changeNetwork(GOERLI);
       await nftController.addNft('0x01', '1234');
       // nftController.removeToken('0x01');
       nftController.removeNft('0x01', '1234');
       expect(
-        nftController.state.allNfts[selectedAddress][
-          NetworksChainId[secondNetworkType]
-        ],
+        nftController.state.allNfts[selectedAddress][GOERLI.chainId],
       ).toHaveLength(0);
 
-      network.setProviderType(firstNetworkType);
+      changeNetwork(SEPOLIA);
 
       expect(
-        nftController.state.allNfts[selectedAddress][
-          NetworksChainId[firstNetworkType]
-        ][0],
+        nftController.state.allNfts[selectedAddress][SEPOLIA.chainId][0],
       ).toStrictEqual({
         address: '0x02',
         description: 'description',
@@ -1394,13 +1347,11 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
   });
 
   it('should be able to clear the ignoredNfts list', async () => {
-    const { nftController, messenger } = setupController();
+    const { nftController } = setupController();
     const { selectedAddress, chainId } = nftController.config;
 
     await nftController.addNft('0x02', '1', {
@@ -1424,20 +1375,17 @@ describe('NftController', () => {
 
     nftController.clearIgnoredNfts();
     expect(nftController.state.ignoredNfts).toHaveLength(0);
-
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set api key correctly', () => {
-    const { nftController, messenger } = setupController();
+    const { nftController } = setupController();
     nftController.setApiKey('new-api-key');
     expect(nftController.openSeaApiKey).toBe('new-api-key');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   describe('isNftOwner', () => {
     it('should verify the ownership of an ERC-721 NFT with the correct owner address', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1465,12 +1413,10 @@ describe('NftController', () => {
         String(ERC721_NFT_ID),
       );
       expect(isOwner).toBe(true);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not verify the ownership of an ERC-721 NFT with the wrong owner address', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1498,12 +1444,10 @@ describe('NftController', () => {
         String(ERC721_NFT_ID),
       );
       expect(isOwner).toBe(false);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should verify the ownership of an ERC-1155 NFT with the correct owner address', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1547,12 +1491,10 @@ describe('NftController', () => {
         ERC1155_NFT_ID,
       );
       expect(isOwner).toBe(true);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not verify the ownership of an ERC-1155 NFT with the wrong owner address', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1597,12 +1539,10 @@ describe('NftController', () => {
         ERC1155_NFT_ID,
       );
       expect(isOwner).toBe(false);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should throw an error for an unsupported standard', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const error =
         'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect';
@@ -1614,14 +1554,12 @@ describe('NftController', () => {
         );
       };
       await expect(result).rejects.toThrow(error);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
   });
 
   describe('updateNftFavoriteStatus', () => {
     it('should set NFT as favorite', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft(
@@ -1644,12 +1582,10 @@ describe('NftController', () => {
           favorite: true,
         }),
       );
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should set NFT as favorite and then unset it', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft(
@@ -1688,12 +1624,10 @@ describe('NftController', () => {
           favorite: false,
         }),
       );
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should keep the favorite status as true after updating metadata', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft(
@@ -1745,12 +1679,10 @@ describe('NftController', () => {
       expect(
         nftController.state.allNfts[selectedAddress][chainId],
       ).toHaveLength(1);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should keep the favorite status as false after updating metadata', async () => {
-      const { assetsContract, nftController, messenger } = setupController();
+      const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft(
@@ -1796,14 +1728,12 @@ describe('NftController', () => {
       expect(
         nftController.state.allNfts[selectedAddress][chainId],
       ).toHaveLength(1);
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     describe('checkAndUpdateNftsOwnershipStatus', () => {
       describe('checkAndUpdateAllNftsOwnershipStatus', () => {
         it('should check whether NFTs for the current selectedAddress/chainId combination are still owned by the selectedAddress and update the isCurrentlyOwned value to false when NFT is not still owned', async () => {
-          const { nftController, messenger } = setupController();
+          const { nftController } = setupController();
           sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
           const { selectedAddress, chainId } = nftController.config;
@@ -1825,13 +1755,11 @@ describe('NftController', () => {
             nftController.state.allNfts[selectedAddress][chainId][0]
               .isCurrentlyOwned,
           ).toBe(false);
-
-          messenger.clearEventSubscriptions('NetworkController:stateChange');
         });
       });
 
       it('should check whether NFTs for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave/set the isCurrentlyOwned value to true when NFT is still owned', async () => {
-        const { nftController, messenger } = setupController();
+        const { nftController } = setupController();
         sinon.stub(nftController, 'isNftOwner' as any).returns(true);
 
         const { selectedAddress, chainId } = nftController.config;
@@ -1853,12 +1781,10 @@ describe('NftController', () => {
           nftController.state.allNfts[selectedAddress][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
-
-        messenger.clearEventSubscriptions('NetworkController:stateChange');
       });
 
       it('should check whether NFTs for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave the isCurrentlyOwned value as is when NFT ownership check fails', async () => {
-        const { nftController, messenger } = setupController();
+        const { nftController } = setupController();
         sinon
           .stub(nftController, 'isNftOwner' as any)
           .throws(new Error('Unable to verify ownership'));
@@ -1882,13 +1808,11 @@ describe('NftController', () => {
           nftController.state.allNfts[selectedAddress][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
-
-        messenger.clearEventSubscriptions('NetworkController:stateChange');
       });
 
       describe('checkAndUpdateSingleNftOwnershipStatus', () => {
         it('should check whether the passed NFT is still owned by the the current selectedAddress/chainId combination and update its isCurrentlyOwned property in state if batch is false and isNftOwner returns false', async () => {
-          const { nftController, messenger } = setupController();
+          const { nftController } = setupController();
           const { selectedAddress, chainId } = nftController.config;
           const nft = {
             address: '0x02',
@@ -1918,13 +1842,11 @@ describe('NftController', () => {
             nftController.state.allNfts[selectedAddress][chainId][0]
               .isCurrentlyOwned,
           ).toBe(false);
-
-          messenger.clearEventSubscriptions('NetworkController:stateChange');
         });
       });
 
       it('should check whether the passed NFT is still owned by the the current selectedAddress/chainId combination and return the updated NFT object without updating state if batch is true', async () => {
-        const { nftController, messenger } = setupController();
+        const { nftController } = setupController();
         const { selectedAddress, chainId } = nftController.config;
         const nft = {
           address: '0x02',
@@ -1954,18 +1876,13 @@ describe('NftController', () => {
         ).toBe(true);
 
         expect(updatedNft.isCurrentlyOwned).toBe(false);
-
-        messenger.clearEventSubscriptions('NetworkController:stateChange');
       });
 
       it('should check whether the passed NFT is still owned by the the selectedAddress/chainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/chainId are different from those passed', async () => {
-        const { nftController, network, preferences, messenger } =
-          setupController();
-        const firstNetworkType = 'sepolia';
-        const secondNetworkType = 'goerli';
+        const { nftController, changeNetwork, preferences } = setupController();
 
         preferences.update({ selectedAddress: OWNER_ADDRESS });
-        network.setProviderType(firstNetworkType);
+        changeNetwork(SEPOLIA);
 
         const { selectedAddress, chainId } = nftController.config;
         const nft = {
@@ -1988,20 +1905,17 @@ describe('NftController', () => {
         sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
         preferences.update({ selectedAddress: SECOND_OWNER_ADDRESS });
-        network.setProviderType(secondNetworkType);
+        changeNetwork(GOERLI);
 
         await nftController.checkAndUpdateSingleNftOwnershipStatus(nft, false, {
           userAddress: OWNER_ADDRESS,
-          chainId: NetworksChainId[firstNetworkType],
+          chainId: SEPOLIA.chainId,
         });
 
         expect(
-          nftController.state.allNfts[OWNER_ADDRESS][
-            NetworksChainId[firstNetworkType]
-          ][0].isCurrentlyOwned,
+          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId][0]
+            .isCurrentlyOwned,
         ).toBe(false);
-
-        messenger.clearEventSubscriptions('NetworkController:stateChange');
       });
     });
   });
@@ -2016,12 +1930,8 @@ describe('NftController', () => {
       standard: 'standard',
       favorite: false,
     };
-    const { nftController, messenger } = setupController();
+    const { nftController } = setupController();
     const { selectedAddress, chainId } = nftController.config;
-
-    afterAll(() => {
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
-    });
 
     it('should return null if the NFT does not exist in the state', async () => {
       expect(
@@ -2051,7 +1961,7 @@ describe('NftController', () => {
   });
 
   describe('updateNftByAddressAndTokenId', () => {
-    const { nftController, messenger } = setupController();
+    const { nftController } = setupController();
 
     const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
     const mockNft = {
@@ -2076,10 +1986,6 @@ describe('NftController', () => {
     };
 
     const { selectedAddress, chainId } = nftController.config;
-
-    afterAll(() => {
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
-    });
 
     it('should update the NFT if the NFT exist', async () => {
       nftController.state.allNfts = {
@@ -2115,7 +2021,7 @@ describe('NftController', () => {
   });
 
   describe('resetNftTransactionStatusByTransactionId', () => {
-    const { nftController, messenger } = setupController();
+    const { nftController } = setupController();
 
     const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
     const nonExistTransactionId = '0123';
@@ -2132,10 +2038,6 @@ describe('NftController', () => {
     };
 
     const { selectedAddress, chainId } = nftController.config;
-
-    afterAll(() => {
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
-    });
 
     it('should not update any NFT state and should return false when passed a transaction id that does not match that of any NFT', async () => {
       expect(
