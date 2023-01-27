@@ -1310,9 +1310,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ledgerhq/metamask-keyring@npm:0.3.2":
-  version: 0.3.2
-  resolution: "@ledgerhq/metamask-keyring@npm:0.3.2"
+"@ledgerhq/metamask-keyring@npm:0.3.3":
+  version: 0.3.3
+  resolution: "@ledgerhq/metamask-keyring@npm:0.3.3"
   dependencies:
     "@ethereumjs/tx": ^3.5.0
     "@ledgerhq/hw-app-eth": 6.26.1
@@ -1320,7 +1320,7 @@ __metadata:
     buffer: ^6.0.3
     eth-sig-util: ^3.0.1
     ethereumjs-util: ^7.1.4
-  checksum: 446109a59b7cb10af20c53a509ccef9322962f87a515cb2848172e4de8d91ff44fdec97063359e984ae4c9d0824d645c23e2e19ae6b521821d2e94df342dceb2
+  checksum: e459d8b2ce11b11e1bef5c0f21880c7e0900989f2a9f0073159dc6143b41f789c01e105f772ae01f5dafab75ecfd685d3887d91edaa5b2ee43be03f5d415d268
   languageName: node
   linkType: hard
 
@@ -1749,7 +1749,7 @@ __metadata:
     "@keystonehq/bc-ur-registry-eth": ^0.9.0
     "@keystonehq/metamask-airgapped-keyring": ^0.6.1
     "@ledgerhq/hw-transport": 6.24.1
-    "@ledgerhq/metamask-keyring": 0.3.2
+    "@ledgerhq/metamask-keyring": 0.3.3
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
