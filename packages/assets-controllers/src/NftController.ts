@@ -619,7 +619,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           nftMetadata,
           existingEntry,
         );
-        if (differentMetadata) {
+        if (differentMetadata || !existingEntry.isCurrentlyOwned) {
           // TODO: Switch to indexToUpdate
           const indexToRemove = nfts.findIndex(
             (nft) =>
