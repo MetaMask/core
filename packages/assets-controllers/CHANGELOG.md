@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1]
+### Fixed
+- Update Nft Controller to add the NFT back to its own group if we are re-importing it ([#1082](https://github.com/MetaMask/core.git/pull/1082))
+
 ## [4.0.0]
 ### Added
 - Add Sepolia support to the currency rate controller ([#1041](https://github.com/MetaMask/controllers/pull/1041))
@@ -70,10 +74,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@4.0.0...HEAD
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@3.0.1...@metamask/assets-controllers@4.0.0
-[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@3.0.0...@metamask/assets-controllers@3.0.1
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/assets-controllers@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@4.0.0...@metamask/assets-controllers@4.0.1
+[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@3.0.1...@metamask/assets-controllers@4.0.0
+[3.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@3.0.0...@metamask/assets-controllers@3.0.1
+[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
+[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
+[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/assets-controllers@1.0.0
