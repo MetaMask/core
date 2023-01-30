@@ -216,7 +216,7 @@ describe('GasFeeController', () => {
       getChainId,
       messenger,
       getCurrentNetworkLegacyGasAPICompatibility,
-      getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkController.state.properties.isEIP1559Compatible ???
+      getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkDetails.state.networkDetails.isEIP1559Compatible ???
       legacyAPIEndpoint,
       EIP1559APIEndpoint,
       clientId,
