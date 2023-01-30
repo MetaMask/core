@@ -400,7 +400,7 @@ export class NetworkController extends BaseControllerV2<
     this.refreshNetwork();
   }
 
-  private getLatestBlock(): Promise<Block> {
+  #getLatestBlock(): Promise<Block> {
     return new Promise((resolve, reject) => {
       this.ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
@@ -425,7 +425,7 @@ export class NetworkController extends BaseControllerV2<
       return true;
     }
 
-    const latestBlock = await this.getLatestBlock();
+    const latestBlock = await this.#getLatestBlock();
     const isEIP1559Compatible =
       typeof latestBlock.baseFeePerGas !== 'undefined';
     if (networkDetails.isEIP1559Compatible !== isEIP1559Compatible) {
