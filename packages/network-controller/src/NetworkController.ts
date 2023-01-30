@@ -400,7 +400,7 @@ export class NetworkController extends BaseControllerV2<
     this.refreshNetwork();
   }
 
-  getLatestBlock(): Promise<Block> {
+  private getLatestBlock(): Promise<Block> {
     return new Promise((resolve, reject) => {
       this.ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
