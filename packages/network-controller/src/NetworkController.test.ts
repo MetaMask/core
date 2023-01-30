@@ -3908,7 +3908,7 @@ async function setFakeProvider(
     lookupNetworkMock.mockResolvedValue(undefined);
   }
   if (stubGetEIP1559CompatibilityWhileSetting) {
-    lookupGetEIP1559CompatibilityMock.mockResolvedValue(undefined);
+    lookupGetEIP1559CompatibilityMock.mockResolvedValue(false);
   }
 
   controller.providerConfig = buildProviderConfig();

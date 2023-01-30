@@ -400,35 +400,40 @@ export class NetworkController extends BaseControllerV2<
     this.refreshNetwork();
   }
 
-  getEIP1559Compatibility() {
+  getLatestBlock(): Promise<Block> {
+    return new Promise((resolve, reject) => {
+      this.ethQuery.sendAsync(
+        { method: 'eth_getBlockByNumber', params: ['latest', false] },
+        (error: Error, block: Block) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(block);
+          }
+        },
+      );
+    });
+  }
+
+  async getEIP1559Compatibility() {
     const { networkDetails = {} } = this.state;
 
-    if (!networkDetails.isEIP1559Compatible) {
-      if (typeof this.ethQuery?.sendAsync !== 'function') {
-        return Promise.resolve(true);
-      }
-      return new Promise((resolve, reject) => {
-        this.ethQuery.sendAsync(
-          { method: 'eth_getBlockByNumber', params: ['latest', false] },
-          (error: Error, block: Block) => {
-            if (error) {
-              reject(error);
-            } else {
-              const isEIP1559Compatible =
-                typeof block.baseFeePerGas !== 'undefined';
-              if (networkDetails.isEIP1559Compatible !== isEIP1559Compatible) {
-                this.update((state) => {
-                  state.networkDetails.isEIP1559Compatible =
-                    isEIP1559Compatible;
-                });
-              }
-              resolve(isEIP1559Compatible);
-            }
-          },
-        );
+    if (
+      networkDetails.isEIP1559Compatible ||
+      typeof this.ethQuery?.sendAsync !== 'function'
+    ) {
+      return true;
+    }
+
+    const latestBlock = await this.getLatestBlock();
+    const isEIP1559Compatible =
+      typeof latestBlock.baseFeePerGas !== 'undefined';
+    if (networkDetails.isEIP1559Compatible !== isEIP1559Compatible) {
+      this.update((state) => {
+        state.networkDetails.isEIP1559Compatible = isEIP1559Compatible;
       });
     }
-    return Promise.resolve(true);
+    return isEIP1559Compatible;
   }
 }
 
