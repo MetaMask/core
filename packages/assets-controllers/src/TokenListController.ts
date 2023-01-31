@@ -11,6 +11,7 @@ import {
   NetworkState,
   ProviderConfig,
 } from '@metamask/network-controller';
+import { PreferencesState } from '../../preferences-controller/src/PreferencesController';
 import {
   isTokenListSupportedForNetwork,
   formatAggregatorNames,
@@ -96,6 +97,8 @@ export class TokenListController extends BaseControllerV2<
 
   private cacheRefreshThreshold: number;
 
+  private selectedAddress: string;
+
   private chainId: string;
 
   private abortController: WhatwgAbortController;
@@ -105,6 +108,8 @@ export class TokenListController extends BaseControllerV2<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
+   * @param options.selectedAddress - Vault selected address
+   * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
@@ -114,7 +119,9 @@ export class TokenListController extends BaseControllerV2<
    */
   constructor({
     chainId,
+    selectedAddress,
     preventPollingOnNetworkRestart = false,
+    onPreferencesStateChange,
     onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
@@ -122,7 +129,11 @@ export class TokenListController extends BaseControllerV2<
     state,
   }: {
     chainId: string;
+    selectedAddress: string;
     preventPollingOnNetworkRestart?: boolean;
+    onPreferencesStateChange?: (
+      listener: (preferencesState: PreferencesState) => void,
+    ) => void;
     onNetworkStateChange?: (
       listener: (networkState: NetworkState | ProviderConfig) => void,
     ) => void;
@@ -140,8 +151,20 @@ export class TokenListController extends BaseControllerV2<
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
+    this.selectedAddress = selectedAddress;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new WhatwgAbortController();
+    if (onPreferencesStateChange) {
+      onPreferencesStateChange(({ selectedAddress: newSelectedAddress }) => {
+        const currentSelectedAddress = this.selectedAddress;
+        const isSelectedAddressChanged =
+          newSelectedAddress !== currentSelectedAddress;
+        if (isSelectedAddressChanged) {
+          this.fetchTokenList();
+        }
+      });
+    }
+
     if (onNetworkStateChange) {
       onNetworkStateChange(async (networkStateOrProviderConfig) => {
         // this check for "provider" is for testing purposes, since in the extension this callback will receive
