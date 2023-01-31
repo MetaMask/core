@@ -1,6 +1,28 @@
 import stringify from 'json-stable-stringify';
 import type { Payload } from '../types';
 
+/**
+ * The cache strategy to use for a given method.
+ */
+export enum CacheStrategy {
+  /**
+   * Cache per-block.
+   */
+  Block = 'block',
+  /**
+   * Cache until a chain reorganization occurs.
+   */
+  Fork = 'fork',
+  /**
+   * Never cache.
+   */
+  Never = 'never',
+  /**
+   * Permanently cache.
+   */
+  Permanent = 'perma',
+}
+
 export function cacheIdentifierForPayload(
   payload: Payload,
   skipBlockRef?: boolean,
@@ -21,7 +43,7 @@ export function cacheIdentifierForPayload(
  * @returns Whether the method can be cached.
  */
 export function canCache(method?: string): boolean {
-  return cacheTypeForMethod(method) !== 'never';
+  return cacheTypeForMethod(method) !== CacheStrategy.Never;
 }
 
 export function blockTagForPayload(payload: Payload): string | undefined {
@@ -89,7 +111,7 @@ export function blockTagParamIndex(method?: string): number | undefined {
  * @param method - A JSON-RPC method.
  * @returns The cache type to use for that method.
  */
-export function cacheTypeForMethod(method?: string): string {
+export function cacheTypeForMethod(method?: string): CacheStrategy {
   switch (method) {
     // cache permanently
     case 'web3_clientVersion':
@@ -109,7 +131,7 @@ export function cacheTypeForMethod(method?: string): string {
     case 'eth_compileSerpent':
     case 'shh_version':
     case 'test_permaCache':
-      return 'perma';
+      return CacheStrategy.Permanent;
 
     // cache until fork
     case 'eth_getBlockByNumber':
@@ -118,7 +140,7 @@ export function cacheTypeForMethod(method?: string): string {
     case 'eth_getTransactionByBlockNumberAndIndex':
     case 'eth_getUncleByBlockNumberAndIndex':
     case 'test_forkCache':
-      return 'fork';
+      return CacheStrategy.Fork;
 
     // cache for block
     case 'eth_gasPrice':
@@ -131,10 +153,10 @@ export function cacheTypeForMethod(method?: string): string {
     case 'eth_getFilterLogs':
     case 'eth_getLogs':
     case 'test_blockCache':
-      return 'block';
+      return CacheStrategy.Block;
 
     // never cache
     default:
-      return 'never';
+      return CacheStrategy.Never;
   }
 }

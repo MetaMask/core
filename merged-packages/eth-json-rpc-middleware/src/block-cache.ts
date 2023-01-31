@@ -6,6 +6,7 @@ import {
   blockTagForPayload,
   cacheTypeForMethod,
   canCache,
+  CacheStrategy,
 } from './utils/cache';
 import type {
   Payload,
@@ -151,10 +152,11 @@ export function createBlockCacheMiddleware({
 
   // create caching strategies
   const blockCache: BlockCacheStrategy = new BlockCacheStrategy();
-  const strategies: Record<string, BlockCacheStrategy> = {
-    perma: blockCache,
-    block: blockCache,
-    fork: blockCache,
+  const strategies: Record<CacheStrategy, BlockCacheStrategy | undefined> = {
+    [CacheStrategy.Permanent]: blockCache,
+    [CacheStrategy.Block]: blockCache,
+    [CacheStrategy.Fork]: blockCache,
+    [CacheStrategy.Never]: undefined,
   };
 
   return createAsyncMiddleware(
@@ -164,8 +166,8 @@ export function createBlockCacheMiddleware({
         return next();
       }
       // check type and matching strategy
-      const type: string = cacheTypeForMethod(req.method);
-      const strategy: BlockCacheStrategy = strategies[type];
+      const type = cacheTypeForMethod(req.method);
+      const strategy = strategies[type];
       // If there's no strategy in place, pass it down the chain.
       if (!strategy) {
         return next();
