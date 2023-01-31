@@ -1,4 +1,5 @@
 import stringify from 'json-stable-stringify';
+import { JsonRpcRequest } from 'json-rpc-engine';
 import type { Payload } from '../types';
 
 /**
@@ -46,18 +47,28 @@ export function canCache(method?: string): boolean {
   return cacheTypeForMethod(method) !== CacheStrategy.Never;
 }
 
-export function blockTagForPayload(payload: Payload): string | undefined {
-  if (!payload.params) {
+/**
+ * Return the block parameter for the given request, if it has one.
+ *
+ * @param request - The JSON-RPC request.
+ * @returns The block parameter in the given request, or `undefined` if none was found.
+ */
+export function blockTagForRequest(request: JsonRpcRequest<unknown>): unknown {
+  if (!request.params) {
     return undefined;
   }
-  const index: number | undefined = blockTagParamIndex(payload.method);
+  const index: number | undefined = blockTagParamIndex(request.method);
 
   // Block tag param not passed.
-  if (index === undefined || index >= payload.params.length) {
+  if (
+    index === undefined ||
+    !Array.isArray(request.params) ||
+    index >= request.params.length
+  ) {
     return undefined;
   }
 
-  return payload.params[index];
+  return request.params[index];
 }
 
 export function paramsWithoutBlockTag(payload: Payload): string[] {

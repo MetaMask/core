@@ -1,9 +1,9 @@
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { createAsyncMiddleware } from 'json-rpc-engine';
+import { createAsyncMiddleware, JsonRpcRequest } from 'json-rpc-engine';
 import { projectLogger, createModuleLogger } from './logging-utils';
 import {
   cacheIdentifierForPayload,
-  blockTagForPayload,
+  blockTagForRequest,
   cacheTypeForMethod,
   canCache,
   CacheStrategy,
@@ -88,13 +88,13 @@ class BlockCacheStrategy {
     blockCache[identifier] = result;
   }
 
-  canCacheRequest(payload: Payload): boolean {
+  canCacheRequest(request: JsonRpcRequest<unknown>): boolean {
     // check request method
-    if (!canCache(payload.method)) {
+    if (!canCache(request.method)) {
       return false;
     }
     // check blockTag
-    const blockTag: string | undefined = blockTagForPayload(payload);
+    const blockTag = blockTagForRequest(request);
 
     if (blockTag === 'pending') {
       return false;
@@ -179,10 +179,11 @@ export function createBlockCacheMiddleware({
       }
 
       // get block reference (number or keyword)
-      let blockTag: string | undefined = blockTagForPayload(req);
-      if (!blockTag) {
-        blockTag = 'latest';
-      }
+      const requestBlockTag = blockTagForRequest(req);
+      const blockTag =
+        requestBlockTag && typeof requestBlockTag === 'string'
+          ? requestBlockTag
+          : 'latest';
 
       log('blockTag = %o, req = %o', blockTag, req);
 

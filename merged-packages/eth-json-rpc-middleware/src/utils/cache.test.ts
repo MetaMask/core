@@ -1,4 +1,9 @@
-import { blockTagParamIndex, cacheTypeForMethod, canCache } from './cache';
+import {
+  blockTagForRequest,
+  blockTagParamIndex,
+  cacheTypeForMethod,
+  canCache,
+} from './cache';
 
 const knownMethods = [
   'web3_clientVersion',
@@ -46,6 +51,76 @@ describe('cache utils', () => {
 
     it('should not be able to cache an unknown method', () => {
       expect(canCache('this_method_does_not_exist')).toBe(false);
+    });
+  });
+
+  describe('blockTagForRequest', () => {
+    it('should return undefined for a request with no parameters', () => {
+      const blockTag = blockTagForRequest({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_getBlockByNumber',
+      });
+
+      expect(blockTag).toBeUndefined();
+    });
+
+    it('should return undefined for an unrecognized method', () => {
+      const blockTag = blockTagForRequest({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'this_method_does_not_exist',
+        params: ['latest'],
+      });
+
+      expect(blockTag).toBeUndefined();
+    });
+
+    it('should return undefined for a method with no block parameter', () => {
+      const blockTag = blockTagForRequest({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_gasPrice',
+        params: ['latest'],
+      });
+
+      expect(blockTag).toBeUndefined();
+    });
+
+    it('should return undefined for a request that has object parameters', () => {
+      const blockTag = blockTagForRequest({
+        id: 1,
+        jsonrpc: '2.0',
+        // `eth_getBlockByNumber` chosen because it is recognized as having a block parameter, at
+        // index 0. It's not a realistic test of this behavior because it doesn't accept params as
+        // an object, but none of the methods supported by this middleware do.
+        method: 'eth_getBlockByNumber',
+        params: { block: 'latest' },
+      });
+
+      expect(blockTag).toBeUndefined();
+    });
+
+    it('should return undefined for a request where the block parameter is missing', () => {
+      const blockTag = blockTagForRequest({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_getTransactionCount',
+        params: ['0x0000000000000000000000000000000000000000'],
+      });
+
+      expect(blockTag).toBeUndefined();
+    });
+
+    it('should return the block parameter', () => {
+      const blockTag = blockTagForRequest({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_getTransactionCount',
+        params: ['0x0000000000000000000000000000000000000000', 'latest'],
+      });
+
+      expect(blockTag).toBe('latest');
     });
   });
 
