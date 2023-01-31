@@ -47,16 +47,42 @@ export interface EthPhishingDetectConfig {
 }
 
 /**
- * @type PhishingDetectState
+ * @type PhishingStalelist
  *
- * Interface defining expected type of the stalelist.json file. Also matches the state object.
+ * Interface defining expected type of the stalelist.json file.
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
  */
-export interface PhishingDetectState extends EthPhishingDetectConfig {
+export interface PhishingStalelist {
+  allowlist: string[];
+  blocklist: string[];
+  fuzzylist: string[];
+  tolerance: number;
+  name: string;
+  version: number;
+  lastUpdated: number;
+}
+
+/**
+ * @type PhishingStalelist
+ *
+ * Interface defining the state object.
+ * @property allowlist - List of approved origins (legacy naming "whitelist")
+ * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property tolerance - Fuzzy match tolerance level
+ * @property lastUpdated - Timestamp of last update.
+ */
+export interface PhishingListState {
+  allowlist: string[];
+  blocklist: string[];
+  fuzzylist: string[];
+  tolerance: number;
+  name: string;
+  version: number;
   lastUpdated: number;
 }
 
@@ -97,7 +123,7 @@ export interface HotlistDiff {
 /**
  * @type Hotlist
  *
- * Interface that describes the result of the `test` method.
+ * Type defining expected type of the hotlist.json file.
  * @property url - Url of the diff entry.
  * @property timestamp - Timestamp at which the diff was identified.
  * @property targetList - The list name where the diff was identified.
@@ -125,7 +151,7 @@ export interface PhishingConfig extends BaseConfig {
  * @property whitelist - array of temporarily-approved origins
  */
 export interface PhishingState extends BaseState {
-  listState: PhishingDetectState;
+  listState: PhishingListState;
   whitelist: string[];
   hotlistLastFetched: number;
   stalelistLastFetched: number;
@@ -194,7 +220,23 @@ export class PhishingController extends BaseController<
     };
 
     this.initialize();
-    this.detector = new PhishingDetector([this.state.listState]);
+    this.updatePhishingDetector();
+  }
+
+  /**
+   * Updates this.detector with an instance of PhishingDetector using the current state.
+   */
+  updatePhishingDetector() {
+    this.detector = new PhishingDetector([
+      {
+        allowlist: this.state.listState.allowlist,
+        blocklist: this.state.listState.blocklist,
+        fuzzylist: this.state.listState.fuzzylist,
+        tolerance: this.state.listState.tolerance,
+        name: `MetaMask`,
+        version: this.state.listState.version,
+      },
+    ]);
   }
 
   /**
@@ -344,7 +386,7 @@ export class PhishingController extends BaseController<
     let hotlistDiffs;
     try {
       [stalelist, hotlistDiffs] = await Promise.all([
-        this.queryConfig<PhishingDetectState>(METAMASK_STALELIST_URL),
+        this.queryConfig<PhishingStalelist>(METAMASK_STALELIST_URL),
         this.queryConfig<Hotlist>(METAMASK_HOTLIST_DIFF_URL),
       ]);
     } finally {
@@ -361,15 +403,12 @@ export class PhishingController extends BaseController<
       return;
     }
     // Correctly shaping eth-phishing-detect state by applying hotlist diffs to the stalelist.
-    const newListState: PhishingDetectState = applyDiffs(
-      stalelist,
-      hotlistDiffs,
-    );
+    const newListState: PhishingListState = applyDiffs(stalelist, hotlistDiffs);
 
-    this.detector = new PhishingDetector([newListState]);
     this.update({
       listState: newListState,
     });
+    this.updatePhishingDetector();
   }
 
   /**
@@ -398,15 +437,15 @@ export class PhishingController extends BaseController<
       return;
     }
     // Correctly shaping MetaMask config.
-    const newListState: PhishingDetectState = applyDiffs(
+    const newListState: PhishingListState = applyDiffs(
       this.state.listState,
       hotlistDiffs,
     );
 
-    this.detector = new PhishingDetector([newListState]);
     this.update({
       listState: newListState,
     });
+    this.updatePhishingDetector();
   }
 
   private async queryConfig<ResponseType>(

@@ -1,4 +1,8 @@
-import { Hotlist, PhishingDetectState } from './PhishingController';
+import {
+  Hotlist,
+  PhishingListState,
+  PhishingStalelist,
+} from './PhishingController';
 
 /**
  * Composes an object mapping from domain to it's inclusion in list state. This is used to initialize the
@@ -42,7 +46,7 @@ export const fetchTimeNow = (): number => Math.round(Date.now() / 1000);
  * @param listState - the stalelist or the existing liststate that diffs will be applied to.
  * @returns the domain inclusion map on a per-list-type basis
  */
-export const convertListStateToMap = (listState: PhishingDetectState) => ({
+export const convertListStateToMap = (listState: PhishingListState) => ({
   allowlist: buildListMap(listState.allowlist),
   fuzzylist: buildListMap(listState.fuzzylist),
   blocklist: buildListMap(listState.blocklist),
@@ -56,9 +60,9 @@ export const convertListStateToMap = (listState: PhishingDetectState) => ({
  * @returns the new list state
  */
 export const applyDiffs = (
-  listState: PhishingDetectState,
+  listState: PhishingListState | PhishingStalelist,
   hotlistDiffs: Hotlist,
-): PhishingDetectState => {
+): PhishingListState => {
   const diffsToApply = hotlistDiffs.filter(
     ({ timestamp }) => timestamp > listState.lastUpdated,
   );
