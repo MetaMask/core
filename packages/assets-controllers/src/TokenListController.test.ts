@@ -15,7 +15,6 @@ import {
   TokenListState,
 } from './TokenListController';
 import { TOKEN_END_POINT_API } from './token-service';
-import { PreferencesState } from '../../preferences-controller/src/PreferencesController';
 
 const name = 'TokenListController';
 const timestamp = Date.now();
