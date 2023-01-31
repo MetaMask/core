@@ -113,6 +113,7 @@ const setupTokenListController = (
 
   const tokenList = new TokenListController({
     chainId: NetworksChainId.mainnet,
+    selectedAddress: '0x1',
     preventPollingOnNetworkRestart: false,
     messenger: tokenListMessenger,
   });
