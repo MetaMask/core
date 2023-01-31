@@ -1,5 +1,5 @@
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
+import { createAsyncMiddleware } from 'json-rpc-engine';
 import { projectLogger, createModuleLogger } from './logging-utils';
 import {
   cacheIdentifierForPayload,
@@ -12,6 +12,7 @@ import type {
   Block,
   BlockCache,
   Cache,
+  JsonRpcCacheMiddleware,
   JsonRpcRequestToCache,
 } from './types';
 
@@ -140,7 +141,7 @@ class BlockCacheStrategy {
 
 export function createBlockCacheMiddleware({
   blockTracker,
-}: BlockCacheMiddlewareOptions = {}): JsonRpcMiddleware<string[], Block> {
+}: BlockCacheMiddlewareOptions = {}): JsonRpcCacheMiddleware<string[], Block> {
   // validate options
   if (!blockTracker) {
     throw new Error(
@@ -156,80 +157,82 @@ export function createBlockCacheMiddleware({
     fork: blockCache,
   };
 
-  return createAsyncMiddleware(async (req, res, next) => {
-    // allow cach to be skipped if so specified
-    if ((req as JsonRpcRequestToCache).skipCache) {
-      return next();
-    }
-    // check type and matching strategy
-    const type: string = cacheTypeForMethod(req.method);
-    const strategy: BlockCacheStrategy = strategies[type];
-    // If there's no strategy in place, pass it down the chain.
-    if (!strategy) {
-      return next();
-    }
+  return createAsyncMiddleware(
+    async (req: JsonRpcRequestToCache<string[]>, res, next) => {
+      // allow cach to be skipped if so specified
+      if (req.skipCache) {
+        return next();
+      }
+      // check type and matching strategy
+      const type: string = cacheTypeForMethod(req.method);
+      const strategy: BlockCacheStrategy = strategies[type];
+      // If there's no strategy in place, pass it down the chain.
+      if (!strategy) {
+        return next();
+      }
 
-    // If the strategy can't cache this request, ignore it.
-    if (!strategy.canCacheRequest(req)) {
-      return next();
-    }
+      // If the strategy can't cache this request, ignore it.
+      if (!strategy.canCacheRequest(req)) {
+        return next();
+      }
 
-    // get block reference (number or keyword)
-    let blockTag: string | undefined = blockTagForPayload(req);
-    if (!blockTag) {
-      blockTag = 'latest';
-    }
+      // get block reference (number or keyword)
+      let blockTag: string | undefined = blockTagForPayload(req);
+      if (!blockTag) {
+        blockTag = 'latest';
+      }
 
-    log('blockTag = %o, req = %o', blockTag, req);
+      log('blockTag = %o, req = %o', blockTag, req);
 
-    // get exact block number
-    let requestedBlockNumber: string;
-    if (blockTag === 'earliest') {
-      // this just exists for symmetry with "latest"
-      requestedBlockNumber = '0x00';
-    } else if (blockTag === 'latest') {
-      // fetch latest block number
-      log('Fetching latest block number to determine cache key');
-      const latestBlockNumber = await blockTracker.getLatestBlock();
-      // clear all cache before latest block
-      log(
-        'Clearing values stored under block numbers before %o',
-        latestBlockNumber,
-      );
-      blockCache.clearBefore(latestBlockNumber);
-      requestedBlockNumber = latestBlockNumber;
-    } else {
-      // We have a hex number
-      requestedBlockNumber = blockTag;
-    }
-    // end on a hit, continue on a miss
-    const cacheResult: Block | undefined = await strategy.get(
-      req,
-      requestedBlockNumber,
-    );
-    if (cacheResult === undefined) {
-      // cache miss
-      // wait for other middleware to handle request
-      log(
-        'No cache stored under block number %o, carrying request forward',
+      // get exact block number
+      let requestedBlockNumber: string;
+      if (blockTag === 'earliest') {
+        // this just exists for symmetry with "latest"
+        requestedBlockNumber = '0x00';
+      } else if (blockTag === 'latest') {
+        // fetch latest block number
+        log('Fetching latest block number to determine cache key');
+        const latestBlockNumber = await blockTracker.getLatestBlock();
+        // clear all cache before latest block
+        log(
+          'Clearing values stored under block numbers before %o',
+          latestBlockNumber,
+        );
+        blockCache.clearBefore(latestBlockNumber);
+        requestedBlockNumber = latestBlockNumber;
+      } else {
+        // We have a hex number
+        requestedBlockNumber = blockTag;
+      }
+      // end on a hit, continue on a miss
+      const cacheResult: Block | undefined = await strategy.get(
+        req,
         requestedBlockNumber,
       );
-      // eslint-disable-next-line node/callback-return
-      await next();
+      if (cacheResult === undefined) {
+        // cache miss
+        // wait for other middleware to handle request
+        log(
+          'No cache stored under block number %o, carrying request forward',
+          requestedBlockNumber,
+        );
+        // eslint-disable-next-line node/callback-return
+        await next();
 
-      // add result to cache
-      // it's safe to cast res.result as Block, due to runtime type checks
-      // performed when strategy.set is called
-      log('Populating cache with', res);
-      await strategy.set(req, requestedBlockNumber, res.result as Block);
-    } else {
-      // fill in result from cache
-      log(
-        'Cache hit, reusing cache result stored under block number %o',
-        requestedBlockNumber,
-      );
-      res.result = cacheResult;
-    }
-    return undefined;
-  });
+        // add result to cache
+        // it's safe to cast res.result as Block, due to runtime type checks
+        // performed when strategy.set is called
+        log('Populating cache with', res);
+        await strategy.set(req, requestedBlockNumber, res.result as Block);
+      } else {
+        // fill in result from cache
+        log(
+          'Cache hit, reusing cache result stored under block number %o',
+          requestedBlockNumber,
+        );
+        res.result = cacheResult;
+      }
+      return undefined;
+    },
+  );
 }

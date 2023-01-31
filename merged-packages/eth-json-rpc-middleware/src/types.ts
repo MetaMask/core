@@ -1,11 +1,22 @@
-import { JsonRpcRequest, JsonRpcResponse } from 'json-rpc-engine';
+import {
+  JsonRpcMiddleware,
+  JsonRpcRequest,
+  JsonRpcResponse,
+} from 'json-rpc-engine';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 
 export type Payload = Partial<JsonRpcRequest<any[]>>;
 
-export interface JsonRpcRequestToCache extends JsonRpcRequest<string[]> {
-  skipCache: boolean;
+export interface JsonRpcRequestToCache<T> extends JsonRpcRequest<T> {
+  skipCache?: boolean;
 }
+
+export type JsonRpcCacheMiddleware<T, U> = JsonRpcMiddleware<T, U> extends (
+  req: JsonRpcRequest<T>,
+  ...args: infer X
+) => infer Y
+  ? (req: JsonRpcRequestToCache<T>, ...args: X) => Y
+  : never;
 
 export type BlockData = string | string[];
 
