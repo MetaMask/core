@@ -67,9 +67,9 @@ export interface PhishingStalelist {
 }
 
 /**
- * @type PhishingStalelist
+ * @type PhishingListState
  *
- * Interface defining the state object.
+ * Interface defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
  * @property fuzzylist - List of fuzzy-matched unapproved origins
@@ -107,7 +107,7 @@ export interface EthPhishingDetectResult {
 /**
  * @type HotlistDiff
  *
- * Interface defining expected type of the hotlist.json file.
+ * Interface defining the expected type of the diffs in hotlist.json file.
  * @property url - Url of the diff entry.
  * @property timestamp - Timestamp at which the diff was identified.
  * @property targetList - The list name where the diff was identified.
@@ -123,7 +123,7 @@ export interface HotlistDiff {
 /**
  * @type Hotlist
  *
- * Type defining expected type of the hotlist.json file.
+ * Type defining expected hotlist.json file.
  * @property url - Url of the diff entry.
  * @property timestamp - Timestamp at which the diff was identified.
  * @property targetList - The list name where the diff was identified.
@@ -240,7 +240,9 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Set the interval at which the stale phishing list will be refetched. Fetching will only occur on the next call to test/bypass. For immediate update to the phishing list, call updateStalelist directly.
+   * Set the interval at which the stale phishing list will be refetched.
+   * Fetching will only occur on the next call to test/bypass.
+   * For immediate update to the phishing list, call {@link updateStalelist} directly.
    *
    * @param interval - the new interval, in ms.
    */
@@ -249,7 +251,9 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Set the interval at which the hot list will be refetched. Fetching will only occur on the next call to test/bypass. For immediate update to the phishing list, call updateHotlist directly.
+   * Set the interval at which the hot list will be refetched.
+   * Fetching will only occur on the next call to test/bypass.
+   * For immediate update to the phishing list, call {@link updateHotlist} directly.
    *
    * @param interval - the new interval, in ms.
    */
@@ -284,8 +288,10 @@ export class PhishingController extends BaseController<
   /**
    * Conditionally update the phishing configuration.
    *
-   * If the phishing configuration is out of date, this function will call `updatePhishingLists`
-   * to update the configuration.
+   * If the stalelist configuration is out of date, this function will call `updateStalelist`
+   * to update the configuration. This will automatically grab the hotlist,
+   * so it isn't necessary to continue on to download the hotlist.
+   *
    */
   async maybeUpdateState() {
     const staleListOutOfDate = this.isStalelistOutOfDate();
@@ -302,9 +308,9 @@ export class PhishingController extends BaseController<
   /**
    * Determines if a given origin is unapproved.
    *
-   * It is strongly recommended that you call {@link isOutOfDate} before calling this,
-   * to check whether the phishing configuration is up-to-date. It can be
-   * updated by calling {@link updatePhishingLists}.
+   * It is strongly recommended that you call {@link maybeUpdateState} before calling this,
+   * to check whether the phishing configuration is up-to-date. It will be updated if necessary
+   * by calling {@link updateStalelist} or {@link updateHotlist}.
    *
    * @param origin - Domain origin of a website.
    * @returns Whether the origin is an unapproved origin.
