@@ -1,53 +1,53 @@
 {
-    "name": "@metamask/logging-controller",
-    "version": "1.0.1",
-    "description": "Manages a list of logs for signature requests",
-    "keywords": [
-        "MetaMask",
-        "Ethereum"
-    ],
-    "homepage": "https://github.com/MetaMask/core/tree/main/packages/logging-controller#readme",
-    "bugs": {
-        "url": "https://github.com/MetaMask/core/issues"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/MetaMask/core.git"
-    },
-    "license": "MIT",
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "files": [
-        "dist/"
-    ],
-    "scripts": {
-        "build:docs": "typedoc",
-        "changelog:validate": "../../scripts/validate-changelog.sh @metamask/logging-controller",
-        "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
-        "publish:preview": "yarn npm publish --tag preview",
-        "test": "jest",
-        "test:watch": "jest --watch"
-    },
-    "dependencies": {
-        "@metamask/base-controller": "workspace:^",
-        "@metamask/controller-utils": "workspace:^",
-        "uuid": "^9.0.0"
-    },
-    "devDependencies": {
-        "@metamask/auto-changelog": "^3.1.0",
-        "@types/jest": "^26.0.22",
-        "deepmerge": "^4.2.2",
-        "jest": "^26.4.2",
-        "ts-jest": "^26.5.2",
-        "typedoc": "^0.22.15",
-        "typedoc-plugin-missing-exports": "^0.22.6",
-        "typescript": "~4.6.3"
-    },
-    "engines": {
-        "node": ">=14.0.0"
-    },
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.org/"
-    }
+  "name": "@metamask/logging-controller",
+  "version": "1.0.1",
+  "description": "Manages a list of logs for signature requests",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/logging-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/logging-controller",
+    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
+    "publish:preview": "yarn npm publish --tag preview",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "workspace:^",
+    "@metamask/controller-utils": "workspace:^",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.1.0",
+    "@types/jest": "^26.0.22",
+    "deepmerge": "^4.2.2",
+    "jest": "^26.4.2",
+    "ts-jest": "^26.5.2",
+    "typedoc": "^0.22.15",
+    "typedoc-plugin-missing-exports": "^0.22.6",
+    "typescript": "~4.6.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }
