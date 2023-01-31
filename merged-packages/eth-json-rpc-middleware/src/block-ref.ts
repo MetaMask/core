@@ -32,7 +32,7 @@ export function createBlockRefMiddleware({
   }
 
   return createAsyncMiddleware(async (req, res, next) => {
-    const blockRefIndex = blockTagParamIndex(req);
+    const blockRefIndex = blockTagParamIndex(req.method);
 
     // skip if method does not include blockRef
     if (blockRefIndex === undefined) {

@@ -48,7 +48,7 @@ export function createRetryOnEmptyMiddleware({
   }
 
   return createAsyncMiddleware(async (req, res, next) => {
-    const blockRefIndex: number | undefined = blockTagParamIndex(req);
+    const blockRefIndex: number | undefined = blockTagParamIndex(req.method);
     // skip if method does not include blockRef
     if (blockRefIndex === undefined) {
       return next();

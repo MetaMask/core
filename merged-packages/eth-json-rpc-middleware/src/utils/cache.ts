@@ -8,21 +8,27 @@ export function cacheIdentifierForPayload(
   const simpleParams: string[] = skipBlockRef
     ? paramsWithoutBlockTag(payload)
     : payload.params ?? [];
-  if (canCache(payload)) {
+  if (canCache(payload.method)) {
     return `${payload.method}:${stringify(simpleParams)}`;
   }
   return null;
 }
 
-export function canCache(payload: Payload): boolean {
-  return cacheTypeForPayload(payload) !== 'never';
+/**
+ * Return whether a method can be cached or not.
+ *
+ * @param method - The method to check.
+ * @returns Whether the method can be cached.
+ */
+export function canCache(method?: string): boolean {
+  return cacheTypeForMethod(method) !== 'never';
 }
 
 export function blockTagForPayload(payload: Payload): string | undefined {
   if (!payload.params) {
     return undefined;
   }
-  const index: number | undefined = blockTagParamIndex(payload);
+  const index: number | undefined = blockTagParamIndex(payload.method);
 
   // Block tag param not passed.
   if (index === undefined || index >= payload.params.length) {
@@ -36,7 +42,7 @@ export function paramsWithoutBlockTag(payload: Payload): string[] {
   if (!payload.params) {
     return [];
   }
-  const index: number | undefined = blockTagParamIndex(payload);
+  const index: number | undefined = blockTagParamIndex(payload.method);
 
   // Block tag param not passed.
   if (index === undefined || index >= payload.params.length) {
@@ -50,8 +56,15 @@ export function paramsWithoutBlockTag(payload: Payload): string[] {
   return payload.params.slice(0, index);
 }
 
-export function blockTagParamIndex(payload: Payload): number | undefined {
-  switch (payload.method) {
+/**
+ * Returns the index of the block parameter for the given method.
+ *
+ * @param method - A JSON-RPC method.
+ * @returns The index of the block parameter for that method, or `undefined` if
+ * there is no known block parameter.
+ */
+export function blockTagParamIndex(method?: string): number | undefined {
+  switch (method) {
     // blockTag is at index 2
     case 'eth_getStorageAt':
       return 2;
@@ -70,8 +83,14 @@ export function blockTagParamIndex(payload: Payload): number | undefined {
   }
 }
 
-export function cacheTypeForPayload(payload: Payload): string {
-  switch (payload.method) {
+/**
+ * Return the cache type used for the given method.
+ *
+ * @param method - A JSON-RPC method.
+ * @returns The cache type to use for that method.
+ */
+export function cacheTypeForMethod(method?: string): string {
+  switch (method) {
     // cache permanently
     case 'web3_clientVersion':
     case 'web3_sha3':
