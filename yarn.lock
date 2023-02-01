@@ -1853,7 +1853,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^26.4.2
     lodash: ^4.17.21
-    nock: ^13.3.0
+    nock: ^13.0.7
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -8904,18 +8904,6 @@ __metadata:
     lodash.set: ^4.3.2
     propagate: ^2.0.0
   checksum: 022f388ab360321a04b5f661dc273001cbdda39d3f87623efaf3672f0e36bd2c771b4a24125717668bda082bbd8ad704ee2d86c26a9260d0facebb378436cc4c
-  languageName: node
-  linkType: hard
-
-"nock@npm:^13.3.0":
-  version: 13.3.0
-  resolution: "nock@npm:13.3.0"
-  dependencies:
-    debug: ^4.1.0
-    json-stringify-safe: ^5.0.1
-    lodash: ^4.17.21
-    propagate: ^2.0.0
-  checksum: 118d04e95a17f493898a82b5dfecc03762776e1980d9c3b2077479747e60b77109c5f7c0df969d1a8f6039260abe5961733553a5841f0f627bb35238576a0009
   languageName: node
   linkType: hard
 
