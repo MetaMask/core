@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **BREAKING:** Update type of state object by renaming `properties` property to `networkDetails` ([#1074](https://github.com/MetaMask/core/pull/1074))
   - Consumers are recommended to add a state migration for this change.
-- **BREAKING:** Rename `NetworkProperties` to `NetworkDetails` ([#1074](https://github.com/MetaMask/core/pull/1074))
+- **BREAKING:** Rename `NetworkProperties` type to `NetworkDetails` ([#1074](https://github.com/MetaMask/core/pull/1074))
 - Change `getEIP1559Compatibility` to use async await syntax ([#1084](https://github.com/MetaMask/core/pull/1084))
 
 ## [3.0.0]
