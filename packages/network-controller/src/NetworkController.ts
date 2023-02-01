@@ -2,6 +2,8 @@ import EthQuery from 'eth-query';
 import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
+import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import {
@@ -62,6 +64,14 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 const name = 'NetworkController';
 
 export type EthQuery = any;
+
+type Provider = any;
+
+export type ProviderProxy = SwappableProxy<Provider>;
+
+type BlockTracker = any;
+
+type BlockTrackerProxy = SwappableProxy<BlockTracker>;
 
 export type NetworkControllerStateChangeEvent = {
   type: `NetworkController:stateChange`;
@@ -128,6 +138,12 @@ export class NetworkController extends BaseControllerV2<
   private infuraProjectId: string | undefined;
 
   private mutex = new Mutex();
+
+  #provider: Provider | undefined;
+
+  #providerProxy: ProviderProxy | undefined;
+
+  #blockTrackerProxy: BlockTrackerProxy | undefined;
 
   constructor({ messenger, state, infuraProjectId }: NetworkControllerOptions) {
     super({
@@ -199,6 +215,16 @@ export class NetworkController extends BaseControllerV2<
     this.getEIP1559Compatibility();
   }
 
+  getProviderAndBlockTracker(): {
+    provider: SwappableProxy<Provider> | undefined;
+    blockTracker: SwappableProxy<BlockTracker> | undefined;
+  } {
+    return {
+      provider: this.#providerProxy,
+      blockTracker: this.#blockTrackerProxy,
+    };
+  }
+
   private refreshNetwork() {
     this.update((state) => {
       state.network = 'loading';
@@ -210,8 +236,12 @@ export class NetworkController extends BaseControllerV2<
   }
 
   private registerProvider() {
-    this.provider.on('error', this.verifyNetwork.bind(this));
-    this.ethQuery = new EthQuery(this.provider);
+    const { provider } = this.getProviderAndBlockTracker();
+
+    if (provider) {
+      provider.on('error', this.verifyNetwork.bind(this));
+      this.ethQuery = new EthQuery(provider);
+    }
   }
 
   private setupInfuraProvider(type: NetworkType) {
@@ -261,13 +291,16 @@ export class NetworkController extends BaseControllerV2<
     this.updateProvider(createMetamaskProvider(config));
   }
 
-  private updateProvider(provider: any) {
-    this.safelyStopProvider(this.provider);
-    this.provider = provider;
+  private updateProvider(provider: Provider) {
+    this.safelyStopProvider(this.#provider);
+    this.#setProviderAndBlockTracker({
+      provider,
+      blockTracker: provider._blockTracker,
+    });
     this.registerProvider();
   }
 
-  private safelyStopProvider(provider: any) {
+  private safelyStopProvider(provider: Provider | undefined) {
     setTimeout(() => {
       provider?.stop();
     }, 500);
@@ -276,11 +309,6 @@ export class NetworkController extends BaseControllerV2<
   private verifyNetwork() {
     this.state.network === 'loading' && this.lookupNetwork();
   }
-
-  /**
-   * Ethereum provider object for the current network
-   */
-  provider: any;
 
   /**
    * Sets a new configuration for web3-provider-engine.
@@ -294,9 +322,7 @@ export class NetworkController extends BaseControllerV2<
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
-    if (this.provider !== undefined) {
-      this.registerProvider();
-    }
+    this.registerProvider();
     this.lookupNetwork();
   }
 
@@ -431,6 +457,29 @@ export class NetworkController extends BaseControllerV2<
       });
     }
     return isEIP1559Compatible;
+  }
+
+  #setProviderAndBlockTracker({
+    provider,
+    blockTracker,
+  }: {
+    provider: Provider;
+    blockTracker: BlockTracker;
+  }) {
+    if (this.#providerProxy) {
+      this.#providerProxy.setTarget(provider);
+    } else {
+      this.#providerProxy = createEventEmitterProxy(provider);
+    }
+    this.#provider = provider;
+
+    if (this.#blockTrackerProxy) {
+      this.#blockTrackerProxy.setTarget(blockTracker);
+    } else {
+      this.#blockTrackerProxy = createEventEmitterProxy(blockTracker, {
+        eventFilter: 'skipInternal',
+      });
+    }
   }
 }
 
