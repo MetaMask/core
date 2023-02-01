@@ -1,6 +1,5 @@
 import stringify from 'json-stable-stringify';
 import { JsonRpcRequest } from 'json-rpc-engine';
-import type { Payload } from '../types';
 
 /**
  * The cache strategy to use for a given method.
@@ -24,15 +23,30 @@ export enum CacheStrategy {
   Permanent = 'perma',
 }
 
-export function cacheIdentifierForPayload(
-  payload: Payload,
+/*
+ * Return a cache identifier for the given request.
+ *
+ * This identifier should include any request details that might impact the
+ * response, with the exception of the block parameter if the `skipBlockRef`
+ * option is set,
+ *
+ * If the request cannot be cached, this will return `null`.
+ *
+ * @param request - The JSON-RPC request.
+ * @param skipBlockRef - Skip the block parameter when generating the cache
+ * identifier.
+ * @returns The cache identifier for this request, or `null` if it can't be
+ * cached.
+ */
+export function cacheIdentifierForRequest(
+  request: JsonRpcRequest<unknown>,
   skipBlockRef?: boolean,
 ): string | null {
-  const simpleParams: string[] = skipBlockRef
-    ? paramsWithoutBlockTag(payload)
-    : payload.params ?? [];
-  if (canCache(payload.method)) {
-    return `${payload.method}:${stringify(simpleParams)}`;
+  const simpleParams = skipBlockRef
+    ? paramsWithoutBlockTag(request)
+    : request.params ?? [];
+  if (canCache(request.method)) {
+    return `${request.method}:${stringify(simpleParams)}`;
   }
   return null;
 }
@@ -43,7 +57,7 @@ export function cacheIdentifierForPayload(
  * @param method - The method to check.
  * @returns Whether the method can be cached.
  */
-export function canCache(method?: string): boolean {
+export function canCache(method: string): boolean {
   return cacheTypeForMethod(method) !== CacheStrategy.Never;
 }
 
@@ -71,22 +85,32 @@ export function blockTagForRequest(request: JsonRpcRequest<unknown>): unknown {
   return request.params[index];
 }
 
-export function paramsWithoutBlockTag(payload: Payload): string[] {
-  if (!payload.params) {
+/**
+ * Return the request parameters without the block parameter.
+ *
+ * @param request - The JSON-RPC request.
+ * @returns The request parameters with the block parameter removed, if one was found.
+ */
+function paramsWithoutBlockTag(request: JsonRpcRequest<unknown>): unknown {
+  if (!request.params) {
     return [];
   }
-  const index: number | undefined = blockTagParamIndex(payload.method);
+  const index: number | undefined = blockTagParamIndex(request.method);
 
   // Block tag param not passed.
-  if (index === undefined || index >= payload.params.length) {
-    return payload.params;
+  if (
+    index === undefined ||
+    !Array.isArray(request.params) ||
+    index >= request.params.length
+  ) {
+    return request.params;
   }
 
   // eth_getBlockByNumber has the block tag first, then the optional includeTx? param
-  if (payload.method === 'eth_getBlockByNumber') {
-    return payload.params.slice(1);
+  if (request.method === 'eth_getBlockByNumber') {
+    return request.params.slice(1);
   }
-  return payload.params.slice(0, index);
+  return request.params.slice(0, index);
 }
 
 /**
@@ -96,7 +120,7 @@ export function paramsWithoutBlockTag(payload: Payload): string[] {
  * @returns The index of the block parameter for that method, or `undefined` if
  * there is no known block parameter.
  */
-export function blockTagParamIndex(method?: string): number | undefined {
+export function blockTagParamIndex(method: string): number | undefined {
   switch (method) {
     // blockTag is at index 2
     case 'eth_getStorageAt':
@@ -122,7 +146,7 @@ export function blockTagParamIndex(method?: string): number | undefined {
  * @param method - A JSON-RPC method.
  * @returns The cache type to use for that method.
  */
-export function cacheTypeForMethod(method?: string): CacheStrategy {
+export function cacheTypeForMethod(method: string): CacheStrategy {
   switch (method) {
     // cache permanently
     case 'web3_clientVersion':

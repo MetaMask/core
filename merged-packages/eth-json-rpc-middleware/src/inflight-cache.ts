@@ -1,7 +1,7 @@
 import clone from 'clone';
 import { createAsyncMiddleware, PendingJsonRpcResponse } from 'json-rpc-engine';
 import { projectLogger, createModuleLogger } from './logging-utils';
-import { cacheIdentifierForPayload } from './utils/cache';
+import { cacheIdentifierForRequest } from './utils/cache';
 import type {
   Block,
   JsonRpcRequestToCache,
@@ -28,7 +28,7 @@ export function createInflightCacheMiddleware(): JsonRpcCacheMiddleware<
         return next();
       }
       // get cacheId, if cacheable
-      const cacheId: string | null = cacheIdentifierForPayload(req);
+      const cacheId: string | null = cacheIdentifierForRequest(req);
       // if not cacheable, skip
       if (!cacheId) {
         log('Request is not cacheable, proceeding. req = %o', req);

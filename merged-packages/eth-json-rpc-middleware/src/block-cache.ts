@@ -2,14 +2,13 @@ import { PollingBlockTracker } from 'eth-block-tracker';
 import { createAsyncMiddleware, JsonRpcRequest } from 'json-rpc-engine';
 import { projectLogger, createModuleLogger } from './logging-utils';
 import {
-  cacheIdentifierForPayload,
+  cacheIdentifierForRequest,
   blockTagForRequest,
   cacheTypeForMethod,
   canCache,
   CacheStrategy,
 } from './utils/cache';
 import type {
-  Payload,
   Block,
   BlockCache,
   Cache,
@@ -36,10 +35,7 @@ class BlockCacheStrategy {
     this.cache = {};
   }
 
-  getBlockCacheForPayload(
-    _payload: Payload,
-    blockNumberHex: string,
-  ): BlockCache {
+  getBlockCache(blockNumberHex: string): BlockCache {
     const blockNumber: number = Number.parseInt(blockNumberHex, 16);
     let blockCache: BlockCache = this.cache[blockNumber];
     // create new cache if necesary
@@ -52,39 +48,33 @@ class BlockCacheStrategy {
   }
 
   async get(
-    payload: Payload,
+    request: JsonRpcRequest<unknown>,
     requestedBlockNumber: string,
   ): Promise<Block | undefined> {
     // lookup block cache
-    const blockCache: BlockCache = this.getBlockCacheForPayload(
-      payload,
-      requestedBlockNumber,
-    );
+    const blockCache: BlockCache = this.getBlockCache(requestedBlockNumber);
     // lookup payload in block cache
-    const identifier: string | null = cacheIdentifierForPayload(payload, true);
+    const identifier: string | null = cacheIdentifierForRequest(request, true);
     return identifier ? blockCache[identifier] : undefined;
   }
 
   async set(
-    payload: Payload,
+    request: JsonRpcRequest<unknown>,
     requestedBlockNumber: string,
     result: Block,
   ): Promise<void> {
     // check if we can cached this result
-    const canCacheResult: boolean = this.canCacheResult(payload, result);
+    const canCacheResult: boolean = this.canCacheResult(request, result);
     if (!canCacheResult) {
       return;
     }
 
     // set the value in the cache
-    const identifier: string | null = cacheIdentifierForPayload(payload, true);
+    const identifier: string | null = cacheIdentifierForRequest(request, true);
     if (!identifier) {
       return;
     }
-    const blockCache: BlockCache = this.getBlockCacheForPayload(
-      payload,
-      requestedBlockNumber,
-    );
+    const blockCache: BlockCache = this.getBlockCache(requestedBlockNumber);
     blockCache[identifier] = result;
   }
 
@@ -103,7 +93,7 @@ class BlockCacheStrategy {
     return true;
   }
 
-  canCacheResult(payload: Payload, result: Block): boolean {
+  canCacheResult(request: JsonRpcRequest<unknown>, result: Block): boolean {
     // never cache empty values (e.g. undefined)
     if (emptyValues.includes(result as any)) {
       return false;
@@ -111,9 +101,9 @@ class BlockCacheStrategy {
 
     // check if transactions have block reference before caching
     if (
-      payload.method &&
+      request.method &&
       ['eth_getTransactionByHash', 'eth_getTransactionReceipt'].includes(
-        payload.method,
+        request.method,
       )
     ) {
       if (

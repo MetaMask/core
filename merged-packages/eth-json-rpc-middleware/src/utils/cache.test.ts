@@ -2,6 +2,7 @@ import {
   blockTagForRequest,
   blockTagParamIndex,
   cacheTypeForMethod,
+  cacheIdentifierForRequest,
   canCache,
 } from './cache';
 
@@ -42,6 +43,386 @@ const knownMethods = [
 ];
 
 describe('cache utils', () => {
+  describe('cacheIdentifierForRequest', () => {
+    it('returns null for an unrecognized method', () => {
+      const identifier = cacheIdentifierForRequest({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'this_method_does_not_exist',
+        params: [],
+      });
+
+      expect(identifier).toBeNull();
+    });
+
+    describe('skipBlockRef disabled', () => {
+      it('returns cache identifier for request with no params property', () => {
+        const identifier = cacheIdentifierForRequest({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+        });
+
+        expect(identifier).toMatchInlineSnapshot(`"eth_gasPrice:[]"`);
+      });
+
+      it('returns cache identifier for request with empty parameters', () => {
+        const identifier = cacheIdentifierForRequest({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        });
+
+        expect(identifier).toMatchInlineSnapshot(`"eth_gasPrice:[]"`);
+      });
+
+      describe('array parameters', () => {
+        it('returns cache identifier for request that does not accept any block parameter', () => {
+          const identifier = cacheIdentifierForRequest({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getBlockByHash',
+            params: ['0x0000000000000000000000000000000000000000'],
+          });
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByHash:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter first', () => {
+          const identifier = cacheIdentifierForRequest({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getBlockByNumber',
+            params: ['latest'],
+          });
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByNumber:[\\"latest\\"]"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter first with some additional parameter', () => {
+          const identifier = cacheIdentifierForRequest({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getBlockByNumber',
+            params: ['latest', true],
+          });
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByNumber:[\\"latest\\",true]"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter last after some additional parameter', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getBalance',
+              params: ['0x0000000000000000000000000000000000000000', 'latest'],
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBalance:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+          );
+        });
+
+        it('returns cache identifier for request with a missing block parameter', () => {
+          const identifier = cacheIdentifierForRequest({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getCode',
+            params: ['0x0000000000000000000000000000000000000000'],
+          });
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getCode:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+          );
+        });
+      });
+
+      describe('object parameters', () => {
+        it('returns cache identifier for request that does not accept any block parameter', () => {
+          const identifier = cacheIdentifierForRequest({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getBlockByHash',
+            // Note that this is not a valid request, this is just to test how this middleware handles object params.
+            params: { hash: '0x0000000000000000000000000000000000000000' },
+          });
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByHash:{\\"hash\\":\\"0x0000000000000000000000000000000000000000\\"}"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter first', () => {
+          const identifier = cacheIdentifierForRequest({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getBlockByNumber',
+            // Note that this is not a valid request, this is just to test how this middleware handles object params.
+            params: { block: 'latest' },
+          });
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByNumber:{\\"block\\":\\"latest\\"}"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter first with some additional parameter', () => {
+          const identifier = cacheIdentifierForRequest({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getBlockByNumber',
+            // Note that this is not a valid request, this is just to test how this middleware handles object params.
+            params: { block: 'latest', showTransactionDetails: true },
+          });
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByNumber:{\\"block\\":\\"latest\\",\\"showTransactionDetails\\":true}"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter last after some additional parameter', () => {
+          const identifier = cacheIdentifierForRequest({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getBalance',
+            // Note that this is not a valid request, this is just to test how this middleware handles object params.
+            params: {
+              address: '0x0000000000000000000000000000000000000000',
+              block: 'latest',
+            },
+          });
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBalance:{\\"address\\":\\"0x0000000000000000000000000000000000000000\\",\\"block\\":\\"latest\\"}"`,
+          );
+        });
+
+        it('returns cache identifier for request with a missing block parameter', () => {
+          const identifier = cacheIdentifierForRequest({
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getCode',
+            // Note that this is not a valid request, this is just to test how this middleware handles object params.
+            params: { data: '0x0000000000000000000000000000000000000000' },
+          });
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getCode:{\\"data\\":\\"0x0000000000000000000000000000000000000000\\"}"`,
+          );
+        });
+      });
+    });
+
+    describe('skipBlockRef enabled', () => {
+      it('returns cache identifier for request with no params property', () => {
+        const identifier = cacheIdentifierForRequest(
+          {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_gasPrice',
+          },
+          true,
+        );
+
+        expect(identifier).toMatchInlineSnapshot(`"eth_gasPrice:[]"`);
+      });
+
+      it('returns cache identifier for request with empty parameters', () => {
+        const identifier = cacheIdentifierForRequest(
+          {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_gasPrice',
+            params: [],
+          },
+          true,
+        );
+
+        expect(identifier).toMatchInlineSnapshot(`"eth_gasPrice:[]"`);
+      });
+
+      describe('array parameters', () => {
+        it('returns cache identifier for request that does not accept any block parameter', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getBlockByHash',
+              params: ['0x0000000000000000000000000000000000000000'],
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByHash:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter first', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getBlockByNumber',
+              params: ['latest'],
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(`"eth_getBlockByNumber:[]"`);
+        });
+
+        it('returns cache identifier for request that includes a block parameter first with some additional parameter', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getBlockByNumber',
+              params: ['latest', true],
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByNumber:[true]"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter last after some additional parameter', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getBalance',
+              params: ['0x0000000000000000000000000000000000000000', 'latest'],
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBalance:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+          );
+        });
+
+        it('returns cache identifier for request with a missing block parameter', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getCode',
+              params: ['0x0000000000000000000000000000000000000000'],
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getCode:[\\"0x0000000000000000000000000000000000000000\\"]"`,
+          );
+        });
+      });
+
+      describe('object parameters', () => {
+        it('returns cache identifier for request that does not accept any block parameter', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getBlockByHash',
+              // Note that this is not a valid request, this is just to test how this middleware handles object params.
+              params: { hash: '0x0000000000000000000000000000000000000000' },
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByHash:{\\"hash\\":\\"0x0000000000000000000000000000000000000000\\"}"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter first', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getBlockByNumber',
+              // Note that this is not a valid request, this is just to test how this middleware handles object params.
+              params: { block: 'latest' },
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByNumber:{\\"block\\":\\"latest\\"}"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter first with some additional parameter', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getBlockByNumber',
+              // Note that this is not a valid request, this is just to test how this middleware handles object params.
+              params: { block: 'latest', showTransactionDetails: true },
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBlockByNumber:{\\"block\\":\\"latest\\",\\"showTransactionDetails\\":true}"`,
+          );
+        });
+
+        it('returns cache identifier for request that includes a block parameter last after some additional parameter', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getBalance',
+              // Note that this is not a valid request, this is just to test how this middleware handles object params.
+              params: {
+                address: '0x0000000000000000000000000000000000000000',
+                block: 'latest',
+              },
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getBalance:{\\"address\\":\\"0x0000000000000000000000000000000000000000\\",\\"block\\":\\"latest\\"}"`,
+          );
+        });
+
+        it('returns cache identifier for request with a missing block parameter', () => {
+          const identifier = cacheIdentifierForRequest(
+            {
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'eth_getCode',
+              // Note that this is not a valid request, this is just to test how this middleware handles object params.
+              params: { data: '0x0000000000000000000000000000000000000000' },
+            },
+            true,
+          );
+
+          expect(identifier).toMatchInlineSnapshot(
+            `"eth_getCode:{\\"data\\":\\"0x0000000000000000000000000000000000000000\\"}"`,
+          );
+        });
+      });
+    });
+  });
+
   describe('canCache', () => {
     for (const method of knownMethods) {
       it(`should be able to cache '${method}'`, () => {
