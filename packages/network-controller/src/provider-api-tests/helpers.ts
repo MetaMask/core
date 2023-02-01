@@ -1,6 +1,5 @@
 import nock, { Scope as NockScope } from 'nock';
 import sinon from 'sinon';
-
 import {
   JSONRPCResponse,
   JSONRPCResponseResult,
@@ -165,6 +164,7 @@ type CurriedMockRpcCallOptions = {
    */
   times?: number;
 };
+
 type MockRpcCallOptions = {
   // A nock scope (a set of mocked requests scoped to a certain base URL).
   nockScope: nock.Scope;
