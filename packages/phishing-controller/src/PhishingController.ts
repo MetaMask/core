@@ -270,11 +270,14 @@ export class PhishingController extends BaseController<
       configs.push(metamaskConfig);
     }
 
+    // Create Set from metamaskConfig.blocklist to improve look up performance when used within filter.
+    const mmConfigBlocklist = new Set(metamaskConfig.blocklist);
+
     // Correctly shaping PhishFort config.
     const phishfortConfig: EthPhishingDetectConfig = {
       allowlist: [],
       blocklist: (phishfortHotlist || []).filter(
-        (i) => !metamaskConfig.blocklist.includes(i),
+        (i) => !mmConfigBlocklist.has(i),
       ), // Removal of duplicates.
       fuzzylist: [],
       tolerance: 0,
