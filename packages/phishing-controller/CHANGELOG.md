@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.2]
 ### Fixed
-- Create a Set from `metamaskConfig.blocklist` in the `PhishingController`. Use a `Set` + `has` method instead of `includes` in array ([#1086](https://github.com/MetaMask/core/pull/1086))
+- Improve performance of phishing list update ([#1086](https://github.com/MetaMask/core/pull/1086))
+  - We now use a `Set` + `has` method instead of the array `includes` method for detecting overlap between phishing lists after an update.
+  
 ## [1.1.1]
 ### Changed
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
