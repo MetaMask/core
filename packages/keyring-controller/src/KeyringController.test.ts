@@ -6,7 +6,7 @@ import {
 } from '@metamask/eth-sig-util';
 import * as sinon from 'sinon';
 import Common from '@ethereumjs/common';
-import { TransactionFactory } from '@ethereumjs/tx';
+import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import LedgerKeyring from '@ledgerhq/metamask-keyring';
@@ -14,6 +14,7 @@ import * as uuid from 'uuid';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { MAINNET } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
+import Transport from '@ledgerhq/hw-transport';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
@@ -1175,7 +1176,7 @@ describe('KeyringController', () => {
       const data =
         '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
 
-      const account = await ledgerKeyring?.getDefaultAccount();
+      const account = await ledgerKeyring.getDefaultAccount();
       const signature = await keyringController.signMessage({
         data,
         from: account,
@@ -1200,7 +1201,7 @@ describe('KeyringController', () => {
       const data =
         '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
 
-      const account = await ledgerKeyring?.getDefaultAccount();
+      const account = await ledgerKeyring.getDefaultAccount();
       const signature = await keyringController.signPersonalMessage({
         data,
         from: account,
@@ -1242,16 +1243,18 @@ describe('KeyringController', () => {
         },
       );
 
-      const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signTransaction');
-
-      confirmSignatureStub.resolves({
+      const mockedSignatureValue: TypedTransaction = {
         ...tx,
         r: new BN('1'),
         s: new BN('2'),
         v: new BN('3'),
-      } as any);
+      } as TypedTransaction;
 
-      const account = await ledgerKeyring?.getDefaultAccount();
+      const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signTransaction');
+
+      confirmSignatureStub.resolves(mockedSignatureValue);
+
+      const account = await ledgerKeyring.getDefaultAccount();
 
       const { r, s, v } = await keyringController.signTransaction(tx, account);
       expect(r.toString()).toBe('1');
@@ -1324,7 +1327,7 @@ describe('KeyringController', () => {
             },
           ],
         },
-        primaryType: 'Mail',
+        primaryType: 'Mail' as const,
         types: {
           EIP712Domain: [
             { name: 'name', type: 'string' },
@@ -1360,8 +1363,8 @@ describe('KeyringController', () => {
         SignTypedDataVersion.V4,
       );
       const recovered = recoverTypedSignature({
-        data: msgParams as any,
-        signature: signature as string,
+        data: msgParams,
+        signature,
         version: SignTypedDataVersion.V4,
       });
       expect(account).toBe(recovered);
@@ -1383,6 +1386,90 @@ describe('KeyringController', () => {
       );
 
       expect(keyring).toBe(KeyringTypes.ledger);
+    });
+
+    it('should connect to ledger hardware', async () => {
+      const setTransportStub = sinon.stub(ledgerKeyring, 'setTransport');
+      setTransportStub.resolves();
+
+      const getAppAndVersionStub = sinon.stub(
+        ledgerKeyring,
+        'getAppAndVersion',
+      );
+
+      const mockedAppVersionValue = {
+        appName: 'mockApp',
+        version: 'mockVersion',
+      };
+      getAppAndVersionStub.resolves(mockedAppVersionValue);
+
+      const mockTransport = {} as Transport;
+      const mockDeviceId = 'mockDeviceId';
+
+      const appName = await keyringController.connectLedgerHardware(
+        mockTransport,
+        mockDeviceId,
+      );
+
+      expect(appName).toBe(mockedAppVersionValue.appName);
+    });
+
+    it('should open ethereum app on ledger', async () => {
+      const openEthereumAppOnLedgerStub = sinon.stub(
+        ledgerKeyring,
+        'openEthApp',
+      );
+      openEthereumAppOnLedgerStub.resolves();
+      await keyringController.openEthereumAppOnLedger();
+      expect(openEthereumAppOnLedgerStub.callCount).toBe(1);
+    });
+
+    it('should close running ledger app on ledger', async () => {
+      const getAppAndVersionStub = sinon.stub(
+        ledgerKeyring,
+        'getAppAndVersion',
+      );
+
+      const mockedAppVersionValue = {
+        appName: 'mockApp',
+        version: 'mockVersion',
+      };
+
+      const mockedAppVersionValueBolos = {
+        appName: 'BOLOS',
+        version: 'mockVersion',
+      };
+
+      getAppAndVersionStub.onCall(0).resolves(mockedAppVersionValue);
+      getAppAndVersionStub.onCall(1).resolves(mockedAppVersionValueBolos);
+
+      const quitAppSpy = sinon.stub(ledgerKeyring, 'quitApp');
+      quitAppSpy.resolves();
+
+      await keyringController.closeRunningAppOnLedger();
+      expect(quitAppSpy.callCount).toBe(1);
+
+      // Testing the path when app name is not BOLOS
+      await keyringController.closeRunningAppOnLedger();
+      expect(quitAppSpy.callCount).toBe(1);
+    });
+
+    it('should unlock default account on ledger', async () => {
+      const fullUpdateSpy = sinon.spy(keyringController, 'fullUpdate');
+      const account = await keyringController.unlockLedgerDefaultAccount();
+
+      expect(fullUpdateSpy.callCount).toBe(1);
+
+      const { keyrings } = await fullUpdateSpy.returnValues[0];
+
+      expect(keyrings[1].accounts).toStrictEqual([
+        '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+      ]);
+
+      expect(account).toStrictEqual({
+        address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        balance: '0x0',
+      });
     });
   });
 });
