@@ -20,7 +20,7 @@ const log = createModuleLogger(projectLogger, 'block-ref');
 export function createBlockRefMiddleware({
   provider,
   blockTracker,
-}: BlockRefMiddlewareOptions = {}): JsonRpcMiddleware<string[], Block> {
+}: BlockRefMiddlewareOptions = {}): JsonRpcMiddleware<unknown, unknown> {
   if (!provider) {
     throw Error('BlockRefMiddleware - mandatory "provider" option is missing.');
   }
@@ -39,7 +39,9 @@ export function createBlockRefMiddleware({
       return next();
     }
 
-    const blockRef = req.params?.[blockRefIndex] ?? 'latest';
+    const blockRef = Array.isArray(req.params)
+      ? req.params[blockRefIndex] ?? 'latest'
+      : 'latest';
 
     // skip if not "latest"
     if (blockRef !== 'latest') {
@@ -56,7 +58,7 @@ export function createBlockRefMiddleware({
     // create child request with specific block-ref
     const childRequest = clone(req);
 
-    if (childRequest.params) {
+    if (Array.isArray(childRequest.params)) {
       childRequest.params[blockRefIndex] = latestBlockNumber;
     }
 

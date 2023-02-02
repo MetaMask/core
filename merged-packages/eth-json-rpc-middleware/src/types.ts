@@ -5,8 +5,6 @@ import {
 } from 'json-rpc-engine';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 
-export type Payload = Partial<JsonRpcRequest<any[]>>;
-
 export interface JsonRpcRequestToCache<T> extends JsonRpcRequest<T> {
   skipCache?: boolean;
 }

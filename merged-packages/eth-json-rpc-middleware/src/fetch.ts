@@ -1,6 +1,10 @@
-import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
+import {
+  createAsyncMiddleware,
+  JsonRpcMiddleware,
+  JsonRpcRequest,
+} from 'json-rpc-engine';
 import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
-import type { Payload, Block } from './types';
+import type { Block } from './types';
 
 /* eslint-disable @typescript-eslint/no-require-imports,@typescript-eslint/no-shadow */
 const fetch = global.fetch || require('node-fetch');
@@ -18,7 +22,7 @@ const RETRIABLE_ERRORS: string[] = [
   'Failed to fetch',
 ];
 
-export interface PayloadWithOrigin extends Payload {
+export interface PayloadWithOrigin extends JsonRpcRequest<unknown> {
   origin?: string;
 }
 interface Request {
@@ -42,7 +46,7 @@ interface FetchMiddlewareFromReqOptions extends FetchMiddlewareOptions {
 export function createFetchMiddleware({
   rpcUrl,
   originHttpHeaderKey,
-}: FetchMiddlewareOptions): JsonRpcMiddleware<string[], Block> {
+}: FetchMiddlewareOptions): JsonRpcMiddleware<unknown, unknown> {
   return createAsyncMiddleware(async (req, res, _next) => {
     const { fetchUrl, fetchParams } = createFetchConfigFromReq({
       req,
@@ -135,7 +139,7 @@ export function createFetchConfigFromReq({
 
   // prepare payload
   // copy only canonical json rpc properties
-  const payload: Payload = {
+  const payload: JsonRpcRequest<unknown> = {
     id: req.id,
     jsonrpc: req.jsonrpc,
     method: req.method,

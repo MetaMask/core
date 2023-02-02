@@ -1,9 +1,9 @@
 import { JsonRpcEngine, JsonRpcMiddleware } from 'json-rpc-engine';
-import type { SafeEventEmitterProvider, Block } from './types';
+import type { SafeEventEmitterProvider } from './types';
 import { providerFromEngine } from './providerFromEngine';
 
 export function providerFromMiddleware(
-  middleware: JsonRpcMiddleware<string[], Block>,
+  middleware: JsonRpcMiddleware<unknown, unknown>,
 ): SafeEventEmitterProvider {
   const engine: JsonRpcEngine = new JsonRpcEngine();
   engine.push(middleware);

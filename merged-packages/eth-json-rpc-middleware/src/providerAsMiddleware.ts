@@ -1,9 +1,9 @@
 import { JsonRpcMiddleware, PendingJsonRpcResponse } from 'json-rpc-engine';
-import type { Block, SafeEventEmitterProvider } from './types';
+import type { SafeEventEmitterProvider } from './types';
 
 export function providerAsMiddleware(
   provider: SafeEventEmitterProvider,
-): JsonRpcMiddleware<string[], Block> {
+): JsonRpcMiddleware<unknown, unknown> {
   return (req, res, _next, end) => {
     // send request to provider
     provider.sendAsync(
@@ -23,7 +23,7 @@ export function providerAsMiddleware(
 
 export function ethersProviderAsMiddleware(
   provider: SafeEventEmitterProvider,
-): JsonRpcMiddleware<string[], Block> {
+): JsonRpcMiddleware<unknown, unknown> {
   return (req, res, _next, end) => {
     // send request to provider
     provider.send(

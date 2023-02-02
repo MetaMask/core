@@ -1,8 +1,10 @@
-import { createFetchConfigFromReq, PayloadWithOrigin } from '.';
+import { createFetchConfigFromReq } from '.';
 
 describe('fetch', () => {
   it('should create a fetch config from a request', async () => {
     const req = {
+      id: 1,
+      jsonrpc: '2.0' as const,
       method: 'eth_getBlockByNumber',
       params: ['0x482103', true],
     };
@@ -20,17 +22,17 @@ describe('fetch', () => {
   });
 
   it('should create a fetch config with origin header', async () => {
-    const req: PayloadWithOrigin = {
+    const request = {
+      id: 1,
+      jsonrpc: '2.0' as const,
       method: 'eth_getBlockByNumber',
       params: ['0x482103', true],
-      origin: 'happydapp.gov',
     };
-    const reqSanitized = Object.assign({}, req);
-    delete reqSanitized.origin;
+    const requestWithOrigin = { ...request, origin: 'happydapp.gov' };
     const rpcUrl = 'http://www.xyz.io/rabbit:3456?id=100';
     const originHttpHeaderKey = 'x-dapp-origin';
     const { fetchUrl, fetchParams } = createFetchConfigFromReq({
-      req,
+      req: requestWithOrigin,
       rpcUrl,
       originHttpHeaderKey,
     });
@@ -42,7 +44,7 @@ describe('fetch', () => {
         'Content-Type': 'application/json',
         'x-dapp-origin': 'happydapp.gov',
       },
-      body: JSON.stringify(reqSanitized),
+      body: JSON.stringify(request),
     });
   });
 });
