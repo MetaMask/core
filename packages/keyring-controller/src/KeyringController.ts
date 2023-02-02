@@ -836,7 +836,7 @@ export class KeyringController extends BaseController<
   /**
    * Automatically opens the Ethereum app on the Ledger device.
    */
-  async openEthereumApp(): Promise<void> {
+  async openEthereumAppOnLedger(): Promise<void> {
     const keyring = await this.getLedgerKeyring();
     await keyring.openEthApp();
   }
@@ -844,7 +844,7 @@ export class KeyringController extends BaseController<
   /**
    * Automatically closes the current app on the Ledger device.
    */
-  async closeRunningApp(): Promise<void> {
+  async closeRunningAppOnLedger(): Promise<void> {
     const keyring = await this.getLedgerKeyring();
     const { appName } = await keyring.getAppAndVersion();
 
