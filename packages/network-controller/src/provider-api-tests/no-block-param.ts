@@ -1,3 +1,5 @@
+/* eslint-disable jest/require-top-level-describe, jest/no-export, jest/no-identical-title, jest/no-if, jest/expect-expect */
+
 import {
   MockCommunications,
   waitForNextBlockTracker,
@@ -532,7 +534,7 @@ export const testsForRpcMethodAssumingNoBlockParam = (
             },
           );
 
-          expect(result).toBe(undefined);
+          expect(result).toBeUndefined();
         });
       });
     }
@@ -796,7 +798,7 @@ export const testsForRpcMethodAssumingNoBlockParam = (
             },
           );
 
-          expect(result).toBe(undefined);
+          expect(result).toBeUndefined();
         });
       });
     }
@@ -891,7 +893,7 @@ export const testsForRpcMethodAssumingNoBlockParam = (
             },
           );
 
-          expect(result).toBe(undefined);
+          expect(result).toBeUndefined();
         });
       });
     }

@@ -11,7 +11,11 @@ module.exports = {
   ],
   overrides: [
     {
-      files: ['*.test.ts', '*.test.js'],
+      files: [
+        '*.test.ts',
+        '*.test.js',
+        './packages/network-controller/src/provider-api-tests/**/*.ts',
+      ],
       extends: ['@metamask/eslint-config-jest'],
     },
     {

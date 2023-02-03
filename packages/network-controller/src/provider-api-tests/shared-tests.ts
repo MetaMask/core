@@ -1,3 +1,5 @@
+/* eslint-disable jest/require-top-level-describe, jest/no-export, jest/no-identical-title, jest/no-if */
+
 import { fill } from 'lodash';
 import {
   buildMockParams,
@@ -990,7 +992,7 @@ export const testsForRpcMethodSupportingBlockParam = (
                 );
               },
             );
-            expect(result).toBe(undefined);
+            expect(result).toBeUndefined();
           });
         });
       }
@@ -1140,7 +1142,7 @@ export const testsForRpcMethodSupportingBlockParam = (
             },
           );
 
-          expect(result).toBe(undefined);
+          expect(result).toBeUndefined();
         });
       });
     }
@@ -1576,7 +1578,7 @@ export const testsForRpcMethodSupportingBlockParam = (
             },
           );
 
-          expect(result).toBe(undefined);
+          expect(result).toBeUndefined();
         });
       });
     }
@@ -1716,7 +1718,7 @@ export const testsForRpcMethodSupportingBlockParam = (
             },
           );
 
-          expect(result).toBe(undefined);
+          expect(result).toBeUndefined();
         });
       });
     }
