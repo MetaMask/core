@@ -2082,170 +2082,84 @@ export const testsForRpcMethodSupportingBlockParam = (
         });
 
         for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-          if (providerType === 'infura') {
-            it(`retries up to 10 times if a "${emptyValue}" response is returned, returning successful non-empty response if there is one on the 10th try`, async () => {
-              const request = {
+          it(`does not retry an empty response of "${emptyValue}"`, async () => {
+            const request = {
+              method,
+              // Note that `blockParam` is `0x100` here
+              params: buildMockParams({ blockParamIndex, blockParam }),
+            };
+            const mockResult = emptyValue;
+
+            await withMockedCommunications({ providerType }, async (comms) => {
+              // The first time a block-cacheable request is made, the latest block
+              // number is retrieved through the block tracker first.
+              comms.mockNextBlockTrackerRequest({
+                blockNumber: currentBlockNumber,
+              });
+              comms.mockRpcCall({
+                request: buildRequestWithReplacedBlockParam(
+                  request,
+                  blockParamIndex,
+                  '0x100',
+                ),
+                response: { result: mockResult },
+              });
+
+              const result = await withNetworkClient(
+                { providerType },
+                ({ makeRpcCall }) => makeRpcCall(request),
+              );
+
+              expect(result).toStrictEqual(mockResult);
+            });
+          });
+
+          it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
+            const requests = [
+              {
                 method,
                 // Note that `blockParam` is `0x100` here
                 params: buildMockParams({ blockParamIndex, blockParam }),
-              };
-
-              await withMockedCommunications(
-                { providerType },
-                async (comms) => {
-                  // The first time a block-cacheable request is made, the latest block
-                  // number is retrieved through the block tracker first.
-                  comms.mockNextBlockTrackerRequest({
-                    blockNumber: currentBlockNumber,
-                  });
-                  comms.mockRpcCall({
-                    request,
-                    response: { result: emptyValue },
-                    times: 9,
-                  });
-                  comms.mockRpcCall({
-                    request,
-                    response: { result: 'some value' },
-                  });
-
-                  const result = await withNetworkClient(
-                    { providerType },
-                    ({ makeRpcCall, clock }) =>
-                      waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                        makeRpcCall(request),
-                        clock,
-                      ),
-                  );
-
-                  expect(result).toStrictEqual('some value');
-                },
-              );
-            });
-
-            it(`retries up to 10 times if a "${emptyValue}" response is returned, failing after the 10th try`, async () => {
-              const request = {
+              },
+              {
                 method,
                 // Note that `blockParam` is `0x100` here
                 params: buildMockParams({ blockParamIndex, blockParam }),
-              };
-              const mockResult = emptyValue;
+              },
+            ];
+            const mockResults = [emptyValue, { blockHash: '0x100' }];
 
-              await withMockedCommunications(
+            await withMockedCommunications({ providerType }, async (comms) => {
+              // The first time a block-cacheable request is made, the latest block
+              // number is retrieved through the block tracker first.
+              comms.mockNextBlockTrackerRequest({
+                blockNumber: currentBlockNumber,
+              });
+              comms.mockRpcCall({
+                request: buildRequestWithReplacedBlockParam(
+                  requests[0],
+                  blockParamIndex,
+                  '0x100',
+                ),
+                response: { result: mockResults[0] },
+              });
+              comms.mockRpcCall({
+                request: buildRequestWithReplacedBlockParam(
+                  requests[1],
+                  blockParamIndex,
+                  '0x100',
+                ),
+                response: { result: mockResults[1] },
+              });
+
+              const results = await withNetworkClient(
                 { providerType },
-                async (comms) => {
-                  // The first time a block-cacheable request is made, the latest block
-                  // number is retrieved through the block tracker first.
-                  comms.mockNextBlockTrackerRequest({
-                    blockNumber: currentBlockNumber,
-                  });
-                  comms.mockRpcCall({
-                    request,
-                    response: { result: mockResult },
-                    times: 10,
-                  });
-
-                  const promiseForResult = withNetworkClient(
-                    { providerType },
-                    ({ makeRpcCall, clock }) =>
-                      waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                        makeRpcCall(request),
-                        clock,
-                      ),
-                  );
-
-                  await expect(promiseForResult).rejects.toThrow(
-                    'RetryOnEmptyMiddleware - retries exhausted',
-                  );
-                },
+                ({ makeRpcCallsInSeries }) => makeRpcCallsInSeries(requests),
               );
+
+              expect(results).toStrictEqual(mockResults);
             });
-          } else {
-            it(`does not retry an empty response of "${emptyValue}"`, async () => {
-              const request = {
-                method,
-                // Note that `blockParam` is `0x100` here
-                params: buildMockParams({ blockParamIndex, blockParam }),
-              };
-              const mockResult = emptyValue;
-
-              await withMockedCommunications(
-                { providerType },
-                async (comms) => {
-                  // The first time a block-cacheable request is made, the latest block
-                  // number is retrieved through the block tracker first.
-                  comms.mockNextBlockTrackerRequest({
-                    blockNumber: currentBlockNumber,
-                  });
-                  comms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      request,
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: { result: mockResult },
-                  });
-
-                  const result = await withNetworkClient(
-                    { providerType },
-                    ({ makeRpcCall }) => makeRpcCall(request),
-                  );
-
-                  expect(result).toStrictEqual(mockResult);
-                },
-              );
-            });
-
-            it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
-              const requests = [
-                {
-                  method,
-                  // Note that `blockParam` is `0x100` here
-                  params: buildMockParams({ blockParamIndex, blockParam }),
-                },
-                {
-                  method,
-                  // Note that `blockParam` is `0x100` here
-                  params: buildMockParams({ blockParamIndex, blockParam }),
-                },
-              ];
-              const mockResults = [emptyValue, { blockHash: '0x100' }];
-
-              await withMockedCommunications(
-                { providerType },
-                async (comms) => {
-                  // The first time a block-cacheable request is made, the latest block
-                  // number is retrieved through the block tracker first.
-                  comms.mockNextBlockTrackerRequest({
-                    blockNumber: currentBlockNumber,
-                  });
-                  comms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      requests[0],
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: { result: mockResults[0] },
-                  });
-                  comms.mockRpcCall({
-                    request: buildRequestWithReplacedBlockParam(
-                      requests[1],
-                      blockParamIndex,
-                      '0x100',
-                    ),
-                    response: { result: mockResults[1] },
-                  });
-
-                  const results = await withNetworkClient(
-                    { providerType },
-                    ({ makeRpcCallsInSeries }) =>
-                      makeRpcCallsInSeries(requests),
-                  );
-
-                  expect(results).toStrictEqual(mockResults);
-                },
-              );
-            });
-          }
+          });
         }
       });
 
