@@ -394,8 +394,8 @@ export const withNetworkClient = async (
 
   const getEIP1559CompatibilityMock = jest
     .spyOn(NetworkController.prototype, 'getEIP1559Compatibility')
-    .mockImplementation(() => {
-      return Promise.resolve();
+    .mockImplementation(async () => {
+      return true;
     });
 
   const lookupNetworkMock = jest
