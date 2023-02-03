@@ -2080,11 +2080,20 @@ export const testsForProviderType = (providerType: 'infura' | 'custom') => {
         // { name: 'eth_sendTransaction', numberOfParameters: 1 },
         // { name: 'eth_sign', numberOfParameters: 2 },
 
+        { name: 'eth_createAccessList', numberOfParameters: 2 },
         { name: 'eth_getLogs', numberOfParameters: 1 },
+        { name: 'eth_getProof', numberOfParameters: 3 },
         { name: 'eth_getWork', numberOfParameters: 0 },
+        { name: 'eth_maxPriorityFeePerGas', numberOfParameters: 0 },
+        { name: 'eth_submitHashRate', numberOfParameters: 2 },
         { name: 'eth_submitWork', numberOfParameters: 3 },
         { name: 'eth_syncing', numberOfParameters: 0 },
         { name: 'eth_feeHistory', numberOfParameters: 3 },
+        { name: 'debug_getRawHeader', numberOfParameters: 1 },
+        { name: 'debug_getRawBlock', numberOfParameters: 1 },
+        { name: 'debug_getRawTransaction', numberOfParameters: 1 },
+        { name: 'debug_getRawReceipts', numberOfParameters: 1 },
+        { name: 'debug_getBadBlocks', numberOfParameters: 0 },
       ];
       notHandledByMiddleware.forEach(({ name, numberOfParameters }) => {
         describe(`method name: ${name}`, () => {
@@ -2302,6 +2311,37 @@ export const testsForProviderType = (providerType: 'infura' | 'custom') => {
             );
 
             expect(networkId).toStrictEqual('0x1');
+          });
+        });
+      });
+
+      describe('eth_signTransaction', () => {
+        it('throws an error', async () => {
+          const address = '0x0000000000000000000000000000000000000000';
+          const dummyTransaction = {
+            from: address,
+            to: address,
+            gasLimit: '21000',
+            maxFeePerGas: '300',
+            maxPriorityFeePerGas: '10',
+            nonce: '0',
+            value: '10000000000',
+          };
+          const request = {
+            method: 'eth_signTransaction',
+            params: [dummyTransaction],
+          };
+          const expectedResult = `Unknown address - unable to sign transaction for this address: "${address}"`;
+
+          await withMockedCommunications({ providerType }, async (comms) => {
+            comms.mockNextBlockTrackerRequest({ blockNumber: '0x1' });
+
+            const promiseForResult = withNetworkClient(
+              { providerType },
+              async ({ makeRpcCall }) => makeRpcCall(request),
+            );
+
+            await expect(promiseForResult).rejects.toThrow(expectedResult);
           });
         });
       });
