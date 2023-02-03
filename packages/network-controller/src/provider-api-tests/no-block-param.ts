@@ -159,9 +159,31 @@ export const testsForRpcMethodAssumingNoBlockParam = (
     });
   });
 
-  it.each([null, undefined, '\u003cnil\u003e'])(
-    'does not reuse the result of a previous request if it was `%s`',
-    async (emptyValue) => {
+  for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
+    it(`does not retry an empty response of "${emptyValue}"`, async () => {
+      const request = { method };
+      const mockResult = emptyValue;
+
+      await withMockedCommunications({ providerType }, async (comms) => {
+        // The first time a block-cacheable request is made, the latest block
+        // number is retrieved through the block tracker first. It doesn't
+        // matter what this is — it's just used as a cache key.
+        comms.mockNextBlockTrackerRequest();
+        comms.mockRpcCall({
+          request,
+          response: { result: mockResult },
+        });
+
+        const result = await withNetworkClient(
+          { providerType },
+          ({ makeRpcCall }) => makeRpcCall(request),
+        );
+
+        expect(result).toStrictEqual(mockResult);
+      });
+    });
+
+    it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
       const requests = [{ method }, { method }];
       const mockResults = [emptyValue, 'some result'];
 
@@ -174,7 +196,6 @@ export const testsForRpcMethodAssumingNoBlockParam = (
           request: requests[0],
           response: { result: mockResults[0] },
         });
-
         comms.mockRpcCall({
           request: requests[1],
           response: { result: mockResults[1] },
@@ -187,8 +208,8 @@ export const testsForRpcMethodAssumingNoBlockParam = (
 
         expect(results).toStrictEqual(mockResults);
       });
-    },
-  );
+    });
+  }
 
   it('queues requests while a previous identical call is still pending, then runs the queue when it finishes, reusing the result from the first request', async () => {
     const requests = [{ method }, { method }, { method }];
