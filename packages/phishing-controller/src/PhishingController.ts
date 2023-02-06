@@ -36,6 +36,7 @@ export interface EthPhishingResponse {
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
+ * @property name - Name describing the source list
  */
 export interface EthPhishingDetectConfig {
   allowlist: string[];
@@ -55,13 +56,13 @@ export interface EthPhishingDetectConfig {
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
+ * @property version - Stalelist data structure iteration.
  */
 export interface PhishingStalelist {
   allowlist: string[];
   blocklist: string[];
   fuzzylist: string[];
   tolerance: number;
-  name: string;
   version: number;
   lastUpdated: number;
 }
@@ -75,15 +76,16 @@ export interface PhishingStalelist {
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
+ * @property version - Version of the phishing list state.
  */
 export interface PhishingListState {
   allowlist: string[];
   blocklist: string[];
   fuzzylist: string[];
   tolerance: number;
-  name: string;
   version: number;
   lastUpdated: number;
+  name: string;
 }
 
 /**
@@ -210,8 +212,8 @@ export class PhishingController extends BaseController<
         blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
         fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
         tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-        name: `MetaMask`,
         version: DEFAULT_PHISHING_RESPONSE.version,
+        name: 'MetaMask',
         lastUpdated: 0,
       },
       whitelist: [],

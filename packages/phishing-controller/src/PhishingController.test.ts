@@ -52,7 +52,7 @@ describe('PhishingController', () => {
     });
   });
 
-  it('does not call updateStalelist upon construction', async () => {
+  it('does not call update stalelist or hotlist upon construction', async () => {
     const nockScope = nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -68,6 +68,40 @@ describe('PhishingController', () => {
     new PhishingController({});
 
     expect(nockScope.isDone()).toBe(false);
+  });
+
+  it('should not re-request when an update is in progress', async () => {
+    const clock = sinon.useFakeTimers();
+    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_HOTLIST_DIFF_FILE)
+      .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
+      .reply(200, [
+        {
+          url: 'this-should-not-be-in-default-blocklist.com',
+          timestamp: 1,
+          isRemoval: true,
+          targetList: 'blocklist',
+        },
+        {
+          url: 'this-should-not-be-in-default-blocklist.com',
+          timestamp: 2,
+          targetList: 'blocklist',
+        },
+      ]);
+
+    const controller = new PhishingController({
+      hotlistRefreshInterval: 10,
+    });
+    clock.tick(1000 * 10);
+    const pendingUpdate = controller.updateHotlist();
+
+    expect(controller.isHotlistOutOfDate()).toBe(true);
+    const pendingUpdateTwo = controller.updateHotlist();
+    expect(nockScope.activeMocks()).toHaveLength(1);
+
+    // Cleanup pending operations
+    await pendingUpdate;
+    await pendingUpdateTwo;
   });
 
   describe('maybeUpdateState', () => {
@@ -205,7 +239,6 @@ describe('PhishingController', () => {
       expect(controller.isHotlistOutOfDate()).toBe(true);
       await controller.maybeUpdateState();
       expect(controller.isHotlistOutOfDate()).toBe(false);
-      // expect(nockScope.isDone()).toBe(true);
     });
   });
 
@@ -328,40 +361,6 @@ describe('PhishingController', () => {
 
       // Cleanup pending operations
       await pendingUpdate;
-    });
-
-    it('should not re-request when an update is in progress', async () => {
-      const clock = sinon.useFakeTimers();
-      const nockScope = nock(PHISHING_CONFIG_BASE_URL)
-        .get(METAMASK_HOTLIST_DIFF_FILE)
-        .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
-        .reply(200, [
-          {
-            url: 'this-should-not-be-in-default-blocklist.com',
-            timestamp: 1,
-            isRemoval: true,
-            targetList: 'blocklist',
-          },
-          {
-            url: 'this-should-not-be-in-default-blocklist.com',
-            timestamp: 2,
-            targetList: 'blocklist',
-          },
-        ]);
-
-      const controller = new PhishingController({
-        hotlistRefreshInterval: 10,
-      });
-      clock.tick(1000 * 10);
-      const pendingUpdate = controller.updateHotlist();
-
-      expect(controller.isHotlistOutOfDate()).toBe(true);
-      const pendingUpdateTwo = controller.updateHotlist();
-      expect(nockScope.activeMocks()).toHaveLength(1);
-
-      // Cleanup pending operations
-      await pendingUpdate;
-      await pendingUpdateTwo;
     });
 
     it('should not be out of date if the phishing lists were just updated', async () => {
@@ -558,8 +557,6 @@ describe('PhishingController', () => {
   });
 
   it('should return positive result for unsafe unicode domain from MetaMask config', async () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -583,7 +580,6 @@ describe('PhishingController', () => {
   });
 
   it('should return a blocklist result for unsafe unicode domain if the MetaMask config returns 500 - as it falls back to default config', async () => {
-    sinon.useFakeTimers(2);
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(500)
@@ -599,8 +595,6 @@ describe('PhishingController', () => {
   });
 
   it('should return positive result for unsafe punycode domain from MetaMask config', async () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -624,8 +618,6 @@ describe('PhishingController', () => {
   });
 
   it('should return positive result for unsafe unicode domain from the MetaMask hotlist (blocklist)', async () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -657,8 +649,6 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for unsafe unicode domain if the MetaMask hotlist (blocklist) returns 500', async () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -683,8 +673,6 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for safe fuzzylist domain from MetaMask config', async () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -708,8 +696,6 @@ describe('PhishingController', () => {
   });
 
   it('should return positive result for domain very close to fuzzylist from MetaMask config', async () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -733,8 +719,6 @@ describe('PhishingController', () => {
   });
 
   it('should return fuzzylist result for domain very close to fuzzylist if MetaMask config returns 500 - as controller falls back to static config', async () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(500)
@@ -750,8 +734,6 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for domain not very close to fuzzylist from MetaMask config', async () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -776,8 +758,6 @@ describe('PhishingController', () => {
   });
 
   it('should bypass a given domain, and return a negative result', () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -806,8 +786,6 @@ describe('PhishingController', () => {
   });
 
   it('should ignore second attempt to bypass a domain, and still return a negative result', () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -837,8 +815,6 @@ describe('PhishingController', () => {
   });
 
   it('should bypass a given unicode domain, and return a negative result', () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -867,8 +843,6 @@ describe('PhishingController', () => {
   });
 
   it('should bypass a given punycode domain, and return a negative result', () => {
-    sinon.useFakeTimers(2);
-
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -899,7 +873,6 @@ describe('PhishingController', () => {
   describe('updateStalelist', () => {
     it('should update lists with addition to hotlist', async () => {
       sinon.useFakeTimers(2);
-
       const exampleBlockedUrl = 'https://example-blocked-website.com';
       const exampleBlockedUrlOne =
         'https://another-example-blocked-website.com';
@@ -934,7 +907,6 @@ describe('PhishingController', () => {
 
     it('should update lists with removal diff from hotlist', async () => {
       sinon.useFakeTimers(2);
-
       const exampleBlockedUrl = 'example-blocked-website.com';
       const exampleBlockedUrlTwo = 'another-example-blocked-website.com';
       nock(PHISHING_CONFIG_BASE_URL)

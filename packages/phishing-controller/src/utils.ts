@@ -18,7 +18,7 @@ export const fetchTimeNow = (): number => Math.round(Date.now() / 1000);
  * @returns the new list state
  */
 export const applyDiffs = (
-  listState: PhishingListState | PhishingStalelist,
+  listState: PhishingStalelist,
   hotlistDiffs: Hotlist,
 ): PhishingListState => {
   const diffsToApply = hotlistDiffs.filter(
@@ -46,8 +46,8 @@ export const applyDiffs = (
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
     version: listState.version,
-    tolerance: listState.tolerance,
     name: 'MetaMask',
+    tolerance: listState.tolerance,
     lastUpdated: now,
   };
 };

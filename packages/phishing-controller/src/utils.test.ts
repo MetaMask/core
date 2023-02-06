@@ -1,6 +1,5 @@
 import sinon from 'sinon';
 import { applyDiffs, fetchTimeNow } from './utils';
-import { HotlistDiff } from './PhishingController';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
 const exampleBlockedUrlOne = 'https://another-example-blocked-website.com';
@@ -22,17 +21,17 @@ const exampleListState = {
 };
 
 const exampleAddDiff = {
-  targetList: 'blocklist',
+  targetList: 'blocklist' as const,
   url: exampleBlockedUrlTwo,
   timestamp: 1000000000,
-} as HotlistDiff;
+};
 
 const exampleRemoveDiff = {
-  targetList: 'blocklist',
+  targetList: 'blocklist' as const,
   url: exampleBlockedUrlTwo,
   timestamp: 1000000000,
   isRemoval: true,
-} as HotlistDiff;
+};
 
 describe('fetchTimeNow', () => {
   it('correctly converts time from milliseconds to seconds', () => {
