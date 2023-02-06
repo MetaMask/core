@@ -1989,7 +1989,7 @@ export class PermissionController<
         } catch (error) {
           this.applyPatches(inversePatches);
           throw internalError(
-            "Something went wrong with side-effects failure handling and wasn't able to recover.",
+            "Something went wrong with side-effects success handling and wasn't able to recover.",
             { error },
           );
         }
