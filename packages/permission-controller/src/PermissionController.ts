@@ -67,6 +67,7 @@ import {
   hasSpecificationType,
   OriginString,
   PermissionConstraint,
+  PermissionSideEffect,
   PermissionSpecificationConstraint,
   PermissionSpecificationMap,
   PermissionType,
@@ -321,7 +322,7 @@ export type PermissionControllerEvents = PermissionControllerStateChange;
  * The external {@link ControllerMessenger} actions available to the
  * {@link PermissionController}.
  */
-export type AllowedActions =
+type AllowedActions =
   | AddApprovalRequest
   | HasApprovalRequest
   | AcceptApprovalRequest
@@ -440,6 +441,13 @@ export type ExtractEndowmentPermission<
   Extract<ControllerPermissionSpecification, EndowmentSpecificationConstraint>,
   ControllerCaveatSpecification
 >;
+
+export type GrantPermissionsOptions = {
+  approvedPermissions: RequestedPermissions;
+  subject: PermissionSubjectMetadata;
+  preserveExistingPermissions?: boolean;
+  requestData?: Record<string, unknown>;
+};
 
 /**
  * Options for the {@link PermissionController} constructor.
@@ -1549,46 +1557,25 @@ export class PermissionController<
    *
    * @see {@link PermissionController.requestPermissions} For initiating a
    * permissions request requiring user approval.
-   * @param options - Options bag.
-   * @param options.approvedPermissions - The requested permissions approved by
+   * @param opts - Options bag.
+   * @param opts.approvedPermissions - The requested permissions approved by
    * the user.
-   * @param options.requestData - Permission request data. Passed to permission
+   * @param opts.requestData - Permission request data. Passed to permission
    * factory functions.
-   * @param options.preserveExistingPermissions - Whether to preserve the
+   * @param opts.preserveExistingPermissions - Whether to preserve the
    * subject's existing permissions.
-   * @param options.subject - The subject to grant permissions to.
+   * @param opts.subject - The subject to grant permissions to.
    * @returns The granted permissions.
    */
-  grantPermissions({
-    approvedPermissions,
-    requestData,
-    preserveExistingPermissions = true,
-    subject,
-  }: {
-    approvedPermissions: RequestedPermissions;
-    subject: PermissionSubjectMetadata;
-    preserveExistingPermissions?: boolean;
-    requestData?: Record<string, unknown>;
-  }): SubjectPermissions<
+  grantPermissions(
+    opts: GrantPermissionsOptions,
+  ): SubjectPermissions<
     ExtractPermission<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >
   > {
-    const { origin } = subject;
-
-    if (!origin || typeof origin !== 'string') {
-      throw new InvalidSubjectIdentifierError(origin);
-    }
-
-    const permissions = this.validatePermissions({
-      approvedPermissions,
-      requestData,
-      origin,
-      preserveExistingPermissions,
-    });
-
-    this.setValidatedPermissions(origin, permissions);
+    const { permissions } = this._grantPermissions(opts);
     return permissions;
   }
 
@@ -1597,12 +1584,7 @@ export class PermissionController<
     requestData,
     preserveExistingPermissions = true,
     subject,
-  }: {
-    approvedPermissions: RequestedPermissions;
-    subject: PermissionSubjectMetadata;
-    preserveExistingPermissions?: boolean;
-    requestData?: Record<string, unknown>;
-  }): {
+  }: GrantPermissionsOptions): {
     permissions: SubjectPermissions<
       ExtractPermission<
         ControllerPermissionSpecification,
@@ -1617,33 +1599,6 @@ export class PermissionController<
       throw new InvalidSubjectIdentifierError(origin);
     }
 
-    const permissions = this.validatePermissions({
-      approvedPermissions,
-      requestData,
-      origin,
-      preserveExistingPermissions,
-    });
-
-    const inversePatches = this.setValidatedPermissions(origin, permissions);
-    return { permissions, inversePatches };
-  }
-
-  private validatePermissions({
-    approvedPermissions,
-    requestData,
-    origin,
-    preserveExistingPermissions = true,
-  }: {
-    approvedPermissions: RequestedPermissions;
-    preserveExistingPermissions?: boolean;
-    requestData?: Record<string, unknown>;
-    origin: string;
-  }): SubjectPermissions<
-    ExtractPermission<
-      ControllerPermissionSpecification,
-      ControllerCaveatSpecification
-    >
-  > {
     const permissions = (
       preserveExistingPermissions
         ? {
@@ -1722,7 +1677,8 @@ export class PermissionController<
       permissions[targetName] = permission;
     }
 
-    return permissions;
+    const inversePatches = this.setValidatedPermissions(origin, permissions);
+    return { permissions, inversePatches };
   }
 
   /**
@@ -1965,33 +1921,78 @@ export class PermissionController<
         requestData,
       });
 
-    const sideEffects = Object.keys(grantedPermissions).reduce<
-      AllowedActions['type'][]
-    >((sideEffectList, targetName) => {
-      const targetKey = this.getTargetKey(targetName);
+    const sideEffects = Object.keys(grantedPermissions).reduce<{
+      permittedHandlers: PermissionSideEffect['onPermitted'][];
+      failureHandlers: PermissionSideEffect['onFailure'][];
+      successHandlers: PermissionSideEffect['onSuccess'][];
+    }>(
+      (sideEffectList, targetName) => {
+        const targetKey = this.getTargetKey(targetName);
 
-      if (!targetKey) {
-        throw methodNotFound(targetName, { origin, grantedPermissions });
-      }
+        if (!targetKey) {
+          throw methodNotFound(targetName, { origin, grantedPermissions });
+        }
 
-      const specification = this.getPermissionSpecification(targetKey);
+        const specification = this.getPermissionSpecification(targetKey);
 
-      if (specification.sideEffect) {
-        sideEffectList.push(specification.sideEffect);
-      }
+        if (specification.sideEffect) {
+          return {
+            permittedHandlers: [
+              ...sideEffectList.permittedHandlers,
+              specification.sideEffect.onPermitted,
+            ],
+            failureHandlers: [
+              ...sideEffectList.failureHandlers,
+              specification.sideEffect.onFailure,
+            ],
+            successHandlers: [
+              ...sideEffectList.successHandlers,
+              specification.sideEffect.onSuccess,
+            ],
+          };
+        }
 
-      return sideEffectList;
-    }, []);
+        return sideEffectList;
+      },
+      { permittedHandlers: [], failureHandlers: [], successHandlers: [] },
+    );
 
-    if (sideEffects.length !== 0) {
-      try {
-        Promise.all(
-          sideEffects.map((sideEffect) =>
-            this.messagingSystem.call(sideEffect, grantedPermissions),
-          ),
-        );
-      } catch {
-        this.applyPatches(inversePatches);
+    if (sideEffects.permittedHandlers.length !== 0) {
+      const promiseResults = await Promise.allSettled(
+        sideEffects.permittedHandlers.map(async (permittedHandler) =>
+          permittedHandler(),
+        ),
+      );
+
+      if (promiseResults.find((promise) => promise.status === 'rejected')) {
+        try {
+          await Promise.all(
+            sideEffects.failureHandlers.map((failureHandler) =>
+              failureHandler(),
+            ),
+          );
+          this.applyPatches(inversePatches);
+        } catch (error) {
+          this.applyPatches(inversePatches);
+          throw internalError(
+            "Something went wrong with side-effects failure handling and wasn't able to recover.",
+            { error },
+          );
+        }
+      } else if (sideEffects.successHandlers.length !== 0) {
+        try {
+          await Promise.all(
+            sideEffects.successHandlers.map((successHandler) =>
+              successHandler?.(),
+            ),
+          );
+        } catch (error) {
+          this.applyPatches(inversePatches);
+          throw internalError(
+            "Something went wrong with side-effects failure handling and wasn't able to recover.",
+            { error },
+          );
+        }
       }
     }
 

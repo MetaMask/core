@@ -6,7 +6,6 @@ import { CaveatConstraint } from './Caveat';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   PermissionController,
-  AllowedActions,
 } from './PermissionController';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Caveat } from './Caveat';
@@ -353,6 +352,12 @@ export type PermissionValidatorConstraint = (
   target?: string,
 ) => void;
 
+export type PermissionSideEffect = {
+  onPermitted: () => void;
+  onFailure: () => void;
+  onSuccess?: () => void;
+};
+
 /**
  * A utility type for ensuring that the given permission target key conforms to
  * our naming conventions.
@@ -443,7 +448,7 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    *
    * If the side-effect action fails, the permission that triggered it is revoked.
    */
-  sideEffect?: AllowedActions['type'];
+  sideEffect?: PermissionSideEffect;
 };
 
 /**
