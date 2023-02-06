@@ -1,21 +1,12 @@
 import sinon from 'sinon';
-import {
-  applyDiffs,
-  buildListMap,
-  convertMapToList,
-  convertListStateToMap,
-  fetchTimeNow,
-} from './utils';
+import { applyDiffs, fetchTimeNow } from './utils';
 import { HotlistDiff } from './PhishingController';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
 const exampleBlockedUrlOne = 'https://another-example-blocked-website.com';
 const exampleBlockedUrlTwo = 'https://final-example-blocked-website.com';
 const exampleBlocklist = [exampleBlockedUrl, exampleBlockedUrlOne];
-const blocklistMap = {
-  [exampleBlockedUrl]: true,
-  [exampleBlockedUrlOne]: true,
-};
+
 const exampleAllowUrl = 'https://example-allowlist-item.com';
 const exampleFuzzyUrl = 'https://example-fuzzylist-item.com';
 const exampleAllowlist = [exampleAllowUrl];
@@ -28,15 +19,6 @@ const exampleListState = {
   version: 0,
   name: 'MetaMask',
   lastUpdated: 0,
-};
-const exampleListStateMap = {
-  fuzzylist: {
-    [exampleFuzzyUrl]: true,
-  },
-  blocklist: blocklistMap,
-  allowlist: {
-    [exampleAllowUrl]: true,
-  },
 };
 
 const exampleAddDiff = {
@@ -52,41 +34,12 @@ const exampleRemoveDiff = {
   isRemoval: true,
 } as HotlistDiff;
 
-describe('buildListMap', () => {
-  it('formats list of domains into a domain inclusion object', () => {
-    const result = buildListMap(exampleBlocklist);
-    expect(result).toStrictEqual(blocklistMap);
-  });
-});
-
-describe('convertMapToList', () => {
-  it('formats domain inclusion map to new domain list', () => {
-    const result = convertMapToList(blocklistMap);
-    expect(result).toStrictEqual(exampleBlocklist);
-  });
-
-  it('correctly handles removal items by not including them in the output object', () => {
-    const result = convertMapToList({
-      ...blocklistMap,
-      [exampleBlockedUrlTwo]: false,
-    });
-    expect(result).toStrictEqual(exampleBlocklist);
-  });
-});
-
 describe('fetchTimeNow', () => {
   it('correctly converts time from milliseconds to seconds', () => {
     const testTime = 1674773005000;
     sinon.useFakeTimers(testTime);
     const result = fetchTimeNow();
     expect(result).toBe(1674773005);
-  });
-});
-
-describe('convertListStateToMap', () => {
-  it('converts ListState to a domain inclusion map by list type', () => {
-    const result = convertListStateToMap(exampleListState);
-    expect(result).toStrictEqual(exampleListStateMap);
   });
 });
 
