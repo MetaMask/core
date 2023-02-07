@@ -206,7 +206,10 @@ export class KeyringController extends BaseController<
    *
    * @returns Promise resolving to current state when the account is added.
    */
-  async addNewAccount(): Promise<KeyringMemState> {
+  async addNewAccount(): Promise<{
+    addedAccountAddress: string;
+    keyringState: KeyringMemState;
+  }> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
@@ -219,12 +222,14 @@ export class KeyringController extends BaseController<
     await this.verifySeedPhrase();
 
     this.updateIdentities(newAccounts);
+    let addedAccountAddress = '';
     newAccounts.forEach((selectedAddress: string) => {
       if (!oldAccounts.includes(selectedAddress)) {
-        this.setSelectedAddress(selectedAddress);
+        addedAccountAddress = selectedAddress;
       }
     });
-    return this.fullUpdate();
+    const keyringState = await this.fullUpdate();
+    return { addedAccountAddress, keyringState };
   }
 
   /**
@@ -356,7 +361,10 @@ export class KeyringController extends BaseController<
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
     args: any[],
-  ): Promise<KeyringMemState> {
+  ): Promise<{
+    importedAccountAddress: string;
+    keyringState: KeyringMemState;
+  }> {
     let privateKey;
     switch (strategy) {
       case 'privateKey':
@@ -399,8 +407,9 @@ export class KeyringController extends BaseController<
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
-    this.setSelectedAddress(accounts[0]);
-    return this.fullUpdate();
+    const importedAccountAddress = accounts[0];
+    const keyringState = await this.fullUpdate();
+    return { importedAccountAddress, keyringState };
   }
 
   /**
@@ -723,7 +732,7 @@ export class KeyringController extends BaseController<
     }
   }
 
-  async unlockQRHardwareWalletAccount(index: number): Promise<void> {
+  async unlockQRHardwareWalletAccount(index: number): Promise<string> {
     const keyring = await this.getOrAddQRKeyring();
 
     keyring.setAccountToUnlock(index);
@@ -731,31 +740,41 @@ export class KeyringController extends BaseController<
     await this.#keyring.addNewAccount(keyring);
     const newAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(newAccounts);
+    let newHardwareWalletAddress = '';
     newAccounts.forEach((address: string) => {
       if (!oldAccounts.includes(address)) {
         if (this.setAccountLabel) {
           this.setAccountLabel(address, `${keyring.getName()} ${index}`);
         }
-        this.setSelectedAddress(address);
+        newHardwareWalletAddress = address;
       }
     });
     await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();
+    return newHardwareWalletAddress;
   }
 
   async getAccountKeyringType(account: string): Promise<KeyringTypes> {
     return (await this.#keyring.getKeyringForAccount(account)).type;
   }
 
-  async forgetQRDevice(): Promise<void> {
+  async forgetQRDevice(): Promise<{
+    removedAccounts: string[];
+    remainingAccounts: string[];
+  }> {
     const keyring = await this.getOrAddQRKeyring();
+    const accountsIncludingHardware =
+      (await this.#keyring.getAccounts()) as string[];
     keyring.forgetDevice();
-    const accounts = (await this.#keyring.getAccounts()) as string[];
-    accounts.forEach((account) => {
-      this.setSelectedAddress(account);
-    });
+    const remainingAccounts = (await this.#keyring.getAccounts()) as string[];
+    const removedAccounts = accountsIncludingHardware.filter(
+      (address) => !remainingAccounts.includes(address),
+    );
+    this.updateIdentities(remainingAccounts);
     await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();
+    // Return list of removed accounts as well as remaining accounts for the app to use.
+    return { removedAccounts, remainingAccounts };
   }
 }
 
