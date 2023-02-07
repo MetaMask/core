@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+### Uncategorized
+- API-149 - Refactor to Cost-Optimized Phishing List Data Architecture. ([#1080](https://github.com/MetaMask/core/pull/1080))
+
 ## [1.1.2]
 ### Fixed
 - Improve performance of phishing list update ([#1086](https://github.com/MetaMask/core/pull/1086))
@@ -33,7 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.2...@metamask/phishing-controller@2.0.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.1...@metamask/phishing-controller@1.1.2
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.0...@metamask/phishing-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.0.0...@metamask/phishing-controller@1.1.0
