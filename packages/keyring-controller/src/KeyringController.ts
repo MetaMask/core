@@ -205,7 +205,7 @@ export class KeyringController extends BaseController<
   /**
    * Adds a new account to the default (first) HD seed phrase keyring.
    *
-   * @returns Promise resolving to current state when the account is added.
+   * @returns Promise resolving the latest added address and the current state of the keyring.
    */
   async addNewAccount(): Promise<{
     addedAccountAddress: string;
@@ -357,7 +357,7 @@ export class KeyringController extends BaseController<
    * @param strategy - Import strategy name.
    * @param args - Array of arguments to pass to the underlying stategy.
    * @throws Will throw when passed an unrecognized strategy.
-   * @returns Promise resolving to current state when the import is complete.
+   * @returns Promise resolving the latest added address and the current state of the keyring.
    */
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
