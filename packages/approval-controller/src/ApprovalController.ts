@@ -5,7 +5,7 @@ import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { Json } from '@metamask/controller-utils';
+import { Json, SideEffects } from '@metamask/controller-utils';
 import { ApprovalRequestNotFoundError } from './errors';
 
 const controllerName = 'ApprovalController';
@@ -20,6 +20,7 @@ type ApprovalRequestState = Record<string, Json> | null;
 type ApprovalCallbacks = {
   resolve: ApprovalPromiseResolve;
   reject: ApprovalPromiseReject;
+  sideEffects?: SideEffects;
 };
 
 export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
@@ -93,6 +94,7 @@ type AddApprovalOptions = {
   type: string;
   requestData?: Record<string, Json>;
   requestState?: Record<string, Json>;
+  sideEffects?: SideEffects;
 };
 
 export type AddApprovalRequest = {
@@ -259,8 +261,8 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.origin - The origin of the approval request.
    * @param opts.type - The type associated with the approval request.
    * @param opts.requestData - Additional data associated with the request,
-   * @param opts.requestState - Additional state associated with the request,
-   * if any.
+   * @param opts.requestState - Additional state associated with the request, if any.
+   * @param opts.sideEffects - side effects associated with the request.
    * @returns The approval promise.
    */
   addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
@@ -270,6 +272,7 @@ export class ApprovalController extends BaseControllerV2<
       opts.id,
       opts.requestData,
       opts.requestState,
+      opts.sideEffects,
     );
     this._showApprovalRequest();
     return promise;
@@ -420,7 +423,21 @@ export class ApprovalController extends BaseControllerV2<
    * @param id - The id of the approval request.
    * @param value - The value to resolve the approval promise with.
    */
-  accept(id: string, value?: unknown): void {
+  async accept(id: string, value?: unknown): Promise<void> {
+    try {
+      const permission = this._approvals.get(id);
+
+      if (!permission) {
+        throw new ApprovalRequestNotFoundError(id);
+      }
+
+      if (permission.sideEffects) {
+        await this._handleSideEffects(permission.sideEffects);
+      }
+    } catch (err) {
+      this._deleteApprovalAndGetCallbacks(id).reject(err);
+    }
+
     this._deleteApprovalAndGetCallbacks(id).resolve(value);
   }
 
@@ -476,6 +493,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param id - The id of the approval request.
    * @param requestData - The request data associated with the approval request.
    * @param requestState - The request state associated with the approval request.
+   * @param sideEffects - The request side effects associeted with the approval request.
    * @returns The approval promise.
    */
   private _add(
@@ -484,6 +502,7 @@ export class ApprovalController extends BaseControllerV2<
     id: string = nanoid(),
     requestData?: Record<string, Json>,
     requestState?: Record<string, Json>,
+    sideEffects?: SideEffects,
   ): Promise<unknown> {
     this._validateAddParams(id, origin, type, requestData, requestState);
 
@@ -495,7 +514,7 @@ export class ApprovalController extends BaseControllerV2<
 
     // add pending approval
     return new Promise((resolve, reject) => {
-      this._approvals.set(id, { resolve, reject });
+      this._approvals.set(id, { resolve, reject, sideEffects });
       this._addPendingApprovalOrigin(origin, type);
       this._addToStore(id, origin, type, requestData, requestState);
     });
@@ -639,6 +658,42 @@ export class ApprovalController extends BaseControllerV2<
 
     this._delete(id);
     return callbacks;
+  }
+
+  private async _handleSideEffects(sideEffects: SideEffects) {
+    if (sideEffects.permittedHandlers.length !== 0) {
+      const promiseResults = await Promise.allSettled(
+        sideEffects.permittedHandlers.map(async (permittedHandler) =>
+          permittedHandler(),
+        ),
+      );
+
+      if (promiseResults.find((promise) => promise.status === 'rejected')) {
+        try {
+          await Promise.all(
+            sideEffects.failureHandlers.map((failureHandler) =>
+              failureHandler(),
+            ),
+          );
+        } catch (error) {
+          throw ethErrors.rpc.internal(
+            "Something went wrong with side-effects failure handling and wasn't able to recover.",
+          );
+        }
+      } else if (sideEffects.successHandlers.length !== 0) {
+        try {
+          await Promise.all(
+            sideEffects.successHandlers.map((successHandler) =>
+              successHandler?.(),
+            ),
+          );
+        } catch (error) {
+          throw ethErrors.rpc.internal(
+            "Something went wrong with side-effects success handling and wasn't able to recover.",
+          );
+        }
+      }
+    }
   }
 
   /**

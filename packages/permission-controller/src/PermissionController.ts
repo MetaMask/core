@@ -67,7 +67,6 @@ import {
   hasSpecificationType,
   OriginString,
   PermissionConstraint,
-  PermissionSideEffect,
   PermissionSpecificationConstraint,
   PermissionSpecificationMap,
   PermissionType,
@@ -1913,88 +1912,12 @@ export class PermissionController<
     const { permissions: approvedPermissions, ...requestData } =
       await this.requestUserApproval(permissionsRequest);
 
-    const { permissions: grantedPermissions, inversePatches } =
-      this._grantPermissions({
-        subject,
-        approvedPermissions,
-        preserveExistingPermissions,
-        requestData,
-      });
-
-    const sideEffects = Object.keys(grantedPermissions).reduce<{
-      permittedHandlers: PermissionSideEffect['onPermitted'][];
-      failureHandlers: PermissionSideEffect['onFailure'][];
-      successHandlers: PermissionSideEffect['onSuccess'][];
-    }>(
-      (sideEffectList, targetName) => {
-        const targetKey = this.getTargetKey(targetName);
-
-        if (!targetKey) {
-          throw methodNotFound(targetName, { origin, grantedPermissions });
-        }
-
-        const specification = this.getPermissionSpecification(targetKey);
-
-        if (specification.sideEffect) {
-          return {
-            permittedHandlers: [
-              ...sideEffectList.permittedHandlers,
-              specification.sideEffect.onPermitted,
-            ],
-            failureHandlers: [
-              ...sideEffectList.failureHandlers,
-              specification.sideEffect.onFailure,
-            ],
-            successHandlers: [
-              ...sideEffectList.successHandlers,
-              specification.sideEffect.onSuccess,
-            ],
-          };
-        }
-
-        return sideEffectList;
-      },
-      { permittedHandlers: [], failureHandlers: [], successHandlers: [] },
-    );
-
-    if (sideEffects.permittedHandlers.length !== 0) {
-      const promiseResults = await Promise.allSettled(
-        sideEffects.permittedHandlers.map(async (permittedHandler) =>
-          permittedHandler(),
-        ),
-      );
-
-      if (promiseResults.find((promise) => promise.status === 'rejected')) {
-        try {
-          await Promise.all(
-            sideEffects.failureHandlers.map((failureHandler) =>
-              failureHandler(),
-            ),
-          );
-          this.applyPatches(inversePatches);
-        } catch (error) {
-          this.applyPatches(inversePatches);
-          throw internalError(
-            "Something went wrong with side-effects failure handling and wasn't able to recover.",
-            { error },
-          );
-        }
-      } else if (sideEffects.successHandlers.length !== 0) {
-        try {
-          await Promise.all(
-            sideEffects.successHandlers.map((successHandler) =>
-              successHandler?.(),
-            ),
-          );
-        } catch (error) {
-          this.applyPatches(inversePatches);
-          throw internalError(
-            "Something went wrong with side-effects success handling and wasn't able to recover.",
-            { error },
-          );
-        }
-      }
-    }
+    const { permissions: grantedPermissions } = this._grantPermissions({
+      subject,
+      approvedPermissions,
+      preserveExistingPermissions,
+      requestData,
+    });
 
     return [grantedPermissions, metadata];
   }
@@ -2074,6 +1997,7 @@ export class PermissionController<
    */
   private async requestUserApproval(permissionsRequest: PermissionsRequest) {
     const { origin, id } = permissionsRequest.metadata;
+
     const approvedRequest = await this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
