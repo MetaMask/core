@@ -892,46 +892,7 @@ describe('NetworkController', () => {
       });
     });
 
-    describe('if a provider has been set, but the resulting EthQuery object does not have a sendAsync method', () => {
-      it('does not change network in state', async () => {
-        const messenger = buildMessenger();
-        await withController({ messenger }, async ({ controller }) => {
-          const fakeEthQuery = {};
-          jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
-          await setFakeProvider(controller, {
-            stubLookupNetworkWhileSetting: true,
-          });
-          const promiseForNetworkChanges = waitForStateChanges(messenger, {
-            propertyPath: ['network'],
-          });
-
-          await controller.lookupNetwork();
-
-          await expect(promiseForNetworkChanges).toNeverResolve();
-        });
-      });
-
-      it('does not publish NetworkController:providerConfigChange', async () => {
-        const messenger = buildMessenger();
-        await withController({ messenger }, async ({ controller }) => {
-          const fakeEthQuery = {};
-          jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
-          await setFakeProvider(controller, {
-            stubLookupNetworkWhileSetting: true,
-          });
-          const promiseForProviderConfigChange = waitForPublishedEvents(
-            messenger,
-            'NetworkController:providerConfigChange',
-          );
-
-          await controller.lookupNetwork();
-
-          await expect(promiseForProviderConfigChange).toNeverResolve();
-        });
-      });
-    });
-
-    describe('if a provider has been set and the resulting EthQuery object has a sendAsync method', () => {
+    describe('if a provider has been set', () => {
       describe('assuming that the version of the current network is different from the network in state', () => {
         it('updates the network in state to match', async () => {
           const messenger = buildMessenger();
@@ -2738,217 +2699,84 @@ describe('NetworkController', () => {
 
   describe('getEIP1559Compatibility', () => {
     describe('if the state does not have a "networkDetails" property', () => {
-      describe("but ethQuery doesn't have a sendAsync function", () => {
-        it('does not change networkDetails.isEIP1559Compatible in state', async () => {
-          const messenger = buildMessenger();
-          await withController(
-            {
-              messenger,
-              state: {
-                // no "networkDetails" property
-              },
-            },
-            async ({ controller }) => {
-              const fakeEthQuery = {};
-              jest
-                .spyOn(ethQueryModule, 'default')
-                .mockReturnValue(fakeEthQuery);
-              await setFakeProvider(controller, {
-                stubGetEIP1559CompatibilityWhileSetting: true,
-              });
-              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+      describe('if no error is thrown while fetching the latest block', () => {
+        describe('if the block has a "baseFeePerGas" property', () => {
+          it('updates isEIP1559Compatible in state to true', async () => {
+            const messenger = buildMessenger();
+            await withController(
+              {
                 messenger,
-                { propertyPath: ['networkDetails', 'isEIP1559Compatible'] },
-              );
-
-              await controller.getEIP1559Compatibility();
-
-              await expect(
-                promiseForIsEIP1559CompatibleChanges,
-              ).toNeverResolve();
-            },
-          );
-        });
-
-        it('returns a promise that resolves to true', async () => {
-          await withController(
-            {
-              state: {
-                // no "networkDetails" property
+                state: {
+                  // no "networkDetails" property
+                },
               },
-            },
-            async ({ controller }) => {
-              const fakeEthQuery = {};
-              jest
-                .spyOn(ethQueryModule, 'default')
-                .mockReturnValue(fakeEthQuery);
-              await setFakeProvider(controller, {
-                stubGetEIP1559CompatibilityWhileSetting: true,
-              });
-
-              const result = await controller.getEIP1559Compatibility();
-
-              expect(result).toBe(true);
-            },
-          );
-        });
-      });
-
-      describe('and ethQuery has a sendAsync function', () => {
-        describe('if no error is thrown while fetching the latest block', () => {
-          describe('if the block has a "baseFeePerGas" property', () => {
-            it('updates isEIP1559Compatible in state to true', async () => {
-              const messenger = buildMessenger();
-              await withController(
-                {
-                  messenger,
-                  state: {
-                    // no "networkDetails" property
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            baseFeePerGas: '0x100',
-                          },
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    {
+                      request: {
+                        method: 'eth_getBlockByNumber',
+                        params: ['latest', false],
+                      },
+                      response: {
+                        result: {
+                          baseFeePerGas: '0x100',
                         },
                       },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  await waitForStateChanges(messenger, {
-                    propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                    produceStateChanges: async () => {
-                      await controller.getEIP1559Compatibility();
                     },
-                  });
+                  ],
+                  stubGetEIP1559CompatibilityWhileSetting: true,
+                });
 
-                  expect(
-                    controller.state.networkDetails.isEIP1559Compatible,
-                  ).toBe(true);
-                },
-              );
-            });
-
-            it('returns a promise that resolves to true', async () => {
-              await withController(
-                {
-                  state: {
-                    // no "networkDetails" property
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            baseFeePerGas: '0x100',
-                          },
-                        },
-                      },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  const isEIP1559Compatible =
+                await waitForStateChanges(messenger, {
+                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+                  produceStateChanges: async () => {
                     await controller.getEIP1559Compatibility();
+                  },
+                });
 
-                  expect(isEIP1559Compatible).toBe(true);
-                },
-              );
-            });
+                expect(
+                  controller.state.networkDetails.isEIP1559Compatible,
+                ).toBe(true);
+              },
+            );
           });
 
-          describe('if the block does not have a "baseFeePerGas" property', () => {
-            it('does not change networkDetails.isEIP1559Compatible in state', async () => {
-              const messenger = buildMessenger();
-              await withController(
-                {
-                  messenger,
-                  state: {
-                    // no "networkDetails" property
-                  },
+          it('returns a promise that resolves to true', async () => {
+            await withController(
+              {
+                state: {
+                  // no "networkDetails" property
                 },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            // no "baseFeePerGas" property
-                          },
+              },
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    {
+                      request: {
+                        method: 'eth_getBlockByNumber',
+                        params: ['latest', false],
+                      },
+                      response: {
+                        result: {
+                          baseFeePerGas: '0x100',
                         },
                       },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-                  const promiseForIsEIP1559CompatibleChanges =
-                    waitForStateChanges(messenger, {
-                      propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                    });
+                    },
+                  ],
+                  stubGetEIP1559CompatibilityWhileSetting: true,
+                });
 
+                const isEIP1559Compatible =
                   await controller.getEIP1559Compatibility();
 
-                  await expect(
-                    promiseForIsEIP1559CompatibleChanges,
-                  ).toNeverResolve();
-                },
-              );
-            });
-
-            it('returns a promise that resolves to false', async () => {
-              await withController(
-                {
-                  state: {
-                    // no "networkDetails" property
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            // no "baseFeePerGas" property
-                          },
-                        },
-                      },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  const isEIP1559Compatible =
-                    await controller.getEIP1559Compatibility();
-
-                  expect(isEIP1559Compatible).toBe(false);
-                },
-              );
-            });
+                expect(isEIP1559Compatible).toBe(true);
+              },
+            );
           });
         });
 
-        describe('if an error is thrown while fetching the latest block', () => {
+        describe('if the block does not have a "baseFeePerGas" property', () => {
           it('does not change networkDetails.isEIP1559Compatible in state', async () => {
             const messenger = buildMessenger();
             await withController(
@@ -2967,7 +2795,9 @@ describe('NetworkController', () => {
                         params: ['latest', false],
                       },
                       response: {
-                        error: 'oops',
+                        result: {
+                          // no "baseFeePerGas" property
+                        },
                       },
                     },
                   ],
@@ -2978,11 +2808,7 @@ describe('NetworkController', () => {
                     propertyPath: ['networkDetails', 'isEIP1559Compatible'],
                   });
 
-                try {
-                  await controller.getEIP1559Compatibility();
-                } catch (error) {
-                  // catch the rejection (it is tested below)
-                }
+                await controller.getEIP1559Compatibility();
 
                 await expect(
                   promiseForIsEIP1559CompatibleChanges,
@@ -2991,7 +2817,7 @@ describe('NetworkController', () => {
             );
           });
 
-          it('returns a promise that rejects with the error', async () => {
+          it('returns a promise that resolves to false', async () => {
             await withController(
               {
                 state: {
@@ -3007,252 +2833,109 @@ describe('NetworkController', () => {
                         params: ['latest', false],
                       },
                       response: {
-                        error: 'oops',
+                        result: {
+                          // no "baseFeePerGas" property
+                        },
                       },
                     },
                   ],
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
 
-                const promiseForIsEIP1559Compatible =
-                  controller.getEIP1559Compatibility();
+                const isEIP1559Compatible =
+                  await controller.getEIP1559Compatibility();
 
-                await expect(promiseForIsEIP1559Compatible).rejects.toThrow(
-                  'oops',
-                );
+                expect(isEIP1559Compatible).toBe(false);
               },
             );
           });
+        });
+      });
+
+      describe('if an error is thrown while fetching the latest block', () => {
+        it('does not change networkDetails.isEIP1559Compatible in state', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: {
+                // no "networkDetails" property
+              },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      error: 'oops',
+                    },
+                  },
+                ],
+                stubGetEIP1559CompatibilityWhileSetting: true,
+              });
+              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+                messenger,
+                {
+                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+                },
+              );
+
+              try {
+                await controller.getEIP1559Compatibility();
+              } catch (error) {
+                // catch the rejection (it is tested below)
+              }
+
+              await expect(
+                promiseForIsEIP1559CompatibleChanges,
+              ).toNeverResolve();
+            },
+          );
+        });
+
+        it('returns a promise that rejects with the error', async () => {
+          await withController(
+            {
+              state: {
+                // no "networkDetails" property
+              },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      error: 'oops',
+                    },
+                  },
+                ],
+                stubGetEIP1559CompatibilityWhileSetting: true,
+              });
+
+              const promiseForIsEIP1559Compatible =
+                controller.getEIP1559Compatibility();
+
+              await expect(promiseForIsEIP1559Compatible).rejects.toThrow(
+                'oops',
+              );
+            },
+          );
         });
       });
     });
 
     describe('if the state has a "networkDetails" property, but it does not have an "isEIP1559Compatible" property', () => {
-      describe("but ethQuery doesn't have a sendAsync function", () => {
-        it('does not change networkDetails.isEIP1559Compatible in state', async () => {
-          const messenger = buildMessenger();
-          await withController(
-            {
-              messenger,
-              state: {
-                networkDetails: {
-                  // no "isEIP1559Compatible" property
-                },
-              },
-            },
-            async ({ controller }) => {
-              const fakeEthQuery = {};
-              jest
-                .spyOn(ethQueryModule, 'default')
-                .mockReturnValue(fakeEthQuery);
-              await setFakeProvider(controller, {
-                stubGetEIP1559CompatibilityWhileSetting: true,
-              });
-              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
-                messenger,
-                { propertyPath: ['networkDetails', 'isEIP1559Compatible'] },
-              );
-
-              await controller.getEIP1559Compatibility();
-
-              await expect(
-                promiseForIsEIP1559CompatibleChanges,
-              ).toNeverResolve();
-            },
-          );
-        });
-
-        it('returns a promise that resolves to true', async () => {
-          await withController(
-            {
-              state: {
-                networkDetails: {
-                  // no "isEIP1559Compatible" property
-                },
-              },
-            },
-            async ({ controller }) => {
-              const fakeEthQuery = {};
-              jest
-                .spyOn(ethQueryModule, 'default')
-                .mockReturnValue(fakeEthQuery);
-              await setFakeProvider(controller, {
-                stubGetEIP1559CompatibilityWhileSetting: true,
-              });
-
-              const result = await controller.getEIP1559Compatibility();
-
-              expect(result).toBe(true);
-            },
-          );
-        });
-      });
-
-      describe('and ethQuery has a sendAsync function', () => {
-        describe('if no error is thrown while fetching the latest block', () => {
-          describe('if the block has a "baseFeePerGas" property', () => {
-            it('updates isEIP1559Compatible in state to true', async () => {
-              const messenger = buildMessenger();
-              await withController(
-                {
-                  messenger,
-                  state: {
-                    networkDetails: {
-                      // no "isEIP1559Compatible" property
-                    },
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            baseFeePerGas: '0x100',
-                          },
-                        },
-                      },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  await waitForStateChanges(messenger, {
-                    propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                    produceStateChanges: async () => {
-                      await controller.getEIP1559Compatibility();
-                    },
-                  });
-
-                  expect(
-                    controller.state.networkDetails.isEIP1559Compatible,
-                  ).toBe(true);
-                },
-              );
-            });
-
-            it('returns a promise that resolves to true', async () => {
-              await withController(
-                {
-                  state: {
-                    networkDetails: {
-                      // no "isEIP1559Compatible" property
-                    },
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            baseFeePerGas: '0x100',
-                          },
-                        },
-                      },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  const isEIP1559Compatible =
-                    await controller.getEIP1559Compatibility();
-
-                  expect(isEIP1559Compatible).toBe(true);
-                },
-              );
-            });
-          });
-
-          describe('if the block does not have a "baseFeePerGas" property', () => {
-            it('updates isEIP1559Compatible in state to false', async () => {
-              const messenger = buildMessenger();
-              await withController(
-                {
-                  messenger,
-                  state: {
-                    networkDetails: {
-                      // no "isEIP1559Compatible" property
-                    },
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            // no "baseFeePerGas" property
-                          },
-                        },
-                      },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  await waitForStateChanges(messenger, {
-                    propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                    produceStateChanges: async () => {
-                      await controller.getEIP1559Compatibility();
-                    },
-                  });
-
-                  expect(
-                    controller.state.networkDetails.isEIP1559Compatible,
-                  ).toBe(false);
-                },
-              );
-            });
-
-            it('returns a promise that resolves to false', async () => {
-              await withController(
-                {
-                  state: {
-                    networkDetails: {
-                      // no "isEIP1559Compatible" property
-                    },
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            // no "baseFeePerGas" property
-                          },
-                        },
-                      },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  const isEIP1559Compatible =
-                    await controller.getEIP1559Compatibility();
-
-                  expect(isEIP1559Compatible).toBe(false);
-                },
-              );
-            });
-          });
-        });
-
-        describe('if an error is thrown while fetching the latest block', () => {
-          it('does not change networkDetails.isEIP1559Compatible in state', async () => {
+      describe('if no error is thrown while fetching the latest block', () => {
+        describe('if the block has a "baseFeePerGas" property', () => {
+          it('updates isEIP1559Compatible in state to true', async () => {
             const messenger = buildMessenger();
             await withController(
               {
@@ -3272,31 +2955,30 @@ describe('NetworkController', () => {
                         params: ['latest', false],
                       },
                       response: {
-                        error: 'oops',
+                        result: {
+                          baseFeePerGas: '0x100',
+                        },
                       },
                     },
                   ],
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
-                const promiseForIsEIP1559CompatibleChanges =
-                  waitForStateChanges(messenger, {
-                    propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                  });
 
-                try {
-                  await controller.getEIP1559Compatibility();
-                } catch (error) {
-                  // catch the rejection (it is tested below)
-                }
+                await waitForStateChanges(messenger, {
+                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+                  produceStateChanges: async () => {
+                    await controller.getEIP1559Compatibility();
+                  },
+                });
 
-                await expect(
-                  promiseForIsEIP1559CompatibleChanges,
-                ).toNeverResolve();
+                expect(
+                  controller.state.networkDetails.isEIP1559Compatible,
+                ).toBe(true);
               },
             );
           });
 
-          it('returns a promise that rejects with the error', async () => {
+          it('returns a promise that resolves to true', async () => {
             await withController(
               {
                 state: {
@@ -3314,250 +2996,272 @@ describe('NetworkController', () => {
                         params: ['latest', false],
                       },
                       response: {
-                        error: 'oops',
+                        result: {
+                          baseFeePerGas: '0x100',
+                        },
                       },
                     },
                   ],
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
 
-                const promiseForIsEIP1559Compatible =
-                  controller.getEIP1559Compatibility();
+                const isEIP1559Compatible =
+                  await controller.getEIP1559Compatibility();
 
-                await expect(promiseForIsEIP1559Compatible).rejects.toThrow(
-                  'oops',
-                );
+                expect(isEIP1559Compatible).toBe(true);
               },
             );
           });
+        });
+
+        describe('if the block does not have a "baseFeePerGas" property', () => {
+          it('updates isEIP1559Compatible in state to false', async () => {
+            const messenger = buildMessenger();
+            await withController(
+              {
+                messenger,
+                state: {
+                  networkDetails: {
+                    // no "isEIP1559Compatible" property
+                  },
+                },
+              },
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    {
+                      request: {
+                        method: 'eth_getBlockByNumber',
+                        params: ['latest', false],
+                      },
+                      response: {
+                        result: {
+                          // no "baseFeePerGas" property
+                        },
+                      },
+                    },
+                  ],
+                  stubGetEIP1559CompatibilityWhileSetting: true,
+                });
+
+                await waitForStateChanges(messenger, {
+                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+                  produceStateChanges: async () => {
+                    await controller.getEIP1559Compatibility();
+                  },
+                });
+
+                expect(
+                  controller.state.networkDetails.isEIP1559Compatible,
+                ).toBe(false);
+              },
+            );
+          });
+
+          it('returns a promise that resolves to false', async () => {
+            await withController(
+              {
+                state: {
+                  networkDetails: {
+                    // no "isEIP1559Compatible" property
+                  },
+                },
+              },
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    {
+                      request: {
+                        method: 'eth_getBlockByNumber',
+                        params: ['latest', false],
+                      },
+                      response: {
+                        result: {
+                          // no "baseFeePerGas" property
+                        },
+                      },
+                    },
+                  ],
+                  stubGetEIP1559CompatibilityWhileSetting: true,
+                });
+
+                const isEIP1559Compatible =
+                  await controller.getEIP1559Compatibility();
+
+                expect(isEIP1559Compatible).toBe(false);
+              },
+            );
+          });
+        });
+      });
+
+      describe('if an error is thrown while fetching the latest block', () => {
+        it('does not change networkDetails.isEIP1559Compatible in state', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: {
+                networkDetails: {
+                  // no "isEIP1559Compatible" property
+                },
+              },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      error: 'oops',
+                    },
+                  },
+                ],
+                stubGetEIP1559CompatibilityWhileSetting: true,
+              });
+              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+                messenger,
+                {
+                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+                },
+              );
+
+              try {
+                await controller.getEIP1559Compatibility();
+              } catch (error) {
+                // catch the rejection (it is tested below)
+              }
+
+              await expect(
+                promiseForIsEIP1559CompatibleChanges,
+              ).toNeverResolve();
+            },
+          );
+        });
+
+        it('returns a promise that rejects with the error', async () => {
+          await withController(
+            {
+              state: {
+                networkDetails: {
+                  // no "isEIP1559Compatible" property
+                },
+              },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      error: 'oops',
+                    },
+                  },
+                ],
+                stubGetEIP1559CompatibilityWhileSetting: true,
+              });
+
+              const promiseForIsEIP1559Compatible =
+                controller.getEIP1559Compatibility();
+
+              await expect(promiseForIsEIP1559Compatible).rejects.toThrow(
+                'oops',
+              );
+            },
+          );
         });
       });
     });
 
     describe('if isEIP1559Compatible in state is set to false', () => {
-      describe("but ethQuery doesn't have a sendAsync function", () => {
-        it('does not change networkDetails.isEIP1559Compatible in state', async () => {
-          const messenger = buildMessenger();
-          await withController(
-            {
-              messenger,
-              state: {
-                networkDetails: {
-                  isEIP1559Compatible: false,
-                },
-              },
-            },
-            async ({ controller }) => {
-              const fakeEthQuery = {};
-              jest
-                .spyOn(ethQueryModule, 'default')
-                .mockReturnValue(fakeEthQuery);
-              await setFakeProvider(controller, {
-                stubGetEIP1559CompatibilityWhileSetting: true,
-              });
-              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+      describe('if no error is thrown while fetching the latest block', () => {
+        describe('if the block has a "baseFeePerGas" property', () => {
+          it('updates isEIP1559Compatible in state to true', async () => {
+            const messenger = buildMessenger();
+            await withController(
+              {
                 messenger,
-                { propertyPath: ['networkDetails', 'isEIP1559Compatible'] },
-              );
-
-              await controller.getEIP1559Compatibility();
-
-              await expect(
-                promiseForIsEIP1559CompatibleChanges,
-              ).toNeverResolve();
-            },
-          );
-        });
-
-        it('returns a promise that resolves to true', async () => {
-          await withController(
-            {
-              state: {
-                networkDetails: {
-                  isEIP1559Compatible: false,
+                state: {
+                  networkDetails: {
+                    isEIP1559Compatible: false,
+                  },
                 },
               },
-            },
-            async ({ controller }) => {
-              const fakeEthQuery = {};
-              jest
-                .spyOn(ethQueryModule, 'default')
-                .mockReturnValue(fakeEthQuery);
-              await setFakeProvider(controller, {
-                stubGetEIP1559CompatibilityWhileSetting: true,
-              });
-
-              const result = await controller.getEIP1559Compatibility();
-
-              expect(result).toBe(true);
-            },
-          );
-        });
-      });
-
-      describe('and ethQuery has a sendAsync function', () => {
-        describe('if no error is thrown while fetching the latest block', () => {
-          describe('if the block has a "baseFeePerGas" property', () => {
-            it('updates isEIP1559Compatible in state to true', async () => {
-              const messenger = buildMessenger();
-              await withController(
-                {
-                  messenger,
-                  state: {
-                    networkDetails: {
-                      isEIP1559Compatible: false,
-                    },
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            baseFeePerGas: '0x100',
-                          },
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    {
+                      request: {
+                        method: 'eth_getBlockByNumber',
+                        params: ['latest', false],
+                      },
+                      response: {
+                        result: {
+                          baseFeePerGas: '0x100',
                         },
                       },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  await waitForStateChanges(messenger, {
-                    propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                    produceStateChanges: async () => {
-                      await controller.getEIP1559Compatibility();
                     },
-                  });
+                  ],
+                  stubGetEIP1559CompatibilityWhileSetting: true,
+                });
 
-                  expect(
-                    controller.state.networkDetails.isEIP1559Compatible,
-                  ).toBe(true);
-                },
-              );
-            });
-
-            it('returns a promise that resolves to true', async () => {
-              await withController(
-                {
-                  state: {
-                    networkDetails: {
-                      isEIP1559Compatible: false,
-                    },
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            baseFeePerGas: '0x100',
-                          },
-                        },
-                      },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  const isEIP1559Compatible =
+                await waitForStateChanges(messenger, {
+                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+                  produceStateChanges: async () => {
                     await controller.getEIP1559Compatibility();
+                  },
+                });
 
-                  expect(isEIP1559Compatible).toBe(true);
-                },
-              );
-            });
+                expect(
+                  controller.state.networkDetails.isEIP1559Compatible,
+                ).toBe(true);
+              },
+            );
           });
 
-          describe('if the block does not have a "baseFeePerGas" property', () => {
-            it('does not change networkDetails.isEIP1559Compatible in state', async () => {
-              const messenger = buildMessenger();
-              await withController(
-                {
-                  messenger,
-                  state: {
-                    networkDetails: {
-                      isEIP1559Compatible: false,
-                    },
+          it('returns a promise that resolves to true', async () => {
+            await withController(
+              {
+                state: {
+                  networkDetails: {
+                    isEIP1559Compatible: false,
                   },
                 },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            // no "baseFeePerGas" property
-                          },
+              },
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    {
+                      request: {
+                        method: 'eth_getBlockByNumber',
+                        params: ['latest', false],
+                      },
+                      response: {
+                        result: {
+                          baseFeePerGas: '0x100',
                         },
                       },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-                  const promiseForIsEIP1559CompatibleChanges =
-                    waitForStateChanges(messenger, {
-                      propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                    });
+                    },
+                  ],
+                  stubGetEIP1559CompatibilityWhileSetting: true,
+                });
 
+                const isEIP1559Compatible =
                   await controller.getEIP1559Compatibility();
 
-                  await expect(
-                    promiseForIsEIP1559CompatibleChanges,
-                  ).toNeverResolve();
-                },
-              );
-            });
-
-            it('returns a promise that resolves to false', async () => {
-              await withController(
-                {
-                  state: {
-                    networkDetails: {
-                      isEIP1559Compatible: false,
-                    },
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            // no "baseFeePerGas" property
-                          },
-                        },
-                      },
-                    ],
-                    stubGetEIP1559CompatibilityWhileSetting: true,
-                  });
-
-                  const isEIP1559Compatible =
-                    await controller.getEIP1559Compatibility();
-
-                  expect(isEIP1559Compatible).toBe(false);
-                },
-              );
-            });
+                expect(isEIP1559Compatible).toBe(true);
+              },
+            );
           });
         });
 
-        describe('if an error is thrown while fetching the latest block', () => {
+        describe('if the block does not have a "baseFeePerGas" property', () => {
           it('does not change networkDetails.isEIP1559Compatible in state', async () => {
             const messenger = buildMessenger();
             await withController(
@@ -3578,7 +3282,9 @@ describe('NetworkController', () => {
                         params: ['latest', false],
                       },
                       response: {
-                        error: 'oops',
+                        result: {
+                          // no "baseFeePerGas" property
+                        },
                       },
                     },
                   ],
@@ -3589,11 +3295,7 @@ describe('NetworkController', () => {
                     propertyPath: ['networkDetails', 'isEIP1559Compatible'],
                   });
 
-                try {
-                  await controller.getEIP1559Compatibility();
-                } catch (error) {
-                  // catch the rejection (it is tested below)
-                }
+                await controller.getEIP1559Compatibility();
 
                 await expect(
                   promiseForIsEIP1559CompatibleChanges,
@@ -3602,7 +3304,7 @@ describe('NetworkController', () => {
             );
           });
 
-          it('returns a promise that rejects with the error', async () => {
+          it('returns a promise that resolves to false', async () => {
             await withController(
               {
                 state: {
@@ -3620,22 +3322,105 @@ describe('NetworkController', () => {
                         params: ['latest', false],
                       },
                       response: {
-                        error: 'oops',
+                        result: {
+                          // no "baseFeePerGas" property
+                        },
                       },
                     },
                   ],
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
 
-                const promiseForIsEIP1559Compatible =
-                  controller.getEIP1559Compatibility();
+                const isEIP1559Compatible =
+                  await controller.getEIP1559Compatibility();
 
-                await expect(promiseForIsEIP1559Compatible).rejects.toThrow(
-                  'oops',
-                );
+                expect(isEIP1559Compatible).toBe(false);
               },
             );
           });
+        });
+      });
+
+      describe('if an error is thrown while fetching the latest block', () => {
+        it('does not change networkDetails.isEIP1559Compatible in state', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: {
+                networkDetails: {
+                  isEIP1559Compatible: false,
+                },
+              },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      error: 'oops',
+                    },
+                  },
+                ],
+                stubGetEIP1559CompatibilityWhileSetting: true,
+              });
+              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+                messenger,
+                {
+                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+                },
+              );
+
+              try {
+                await controller.getEIP1559Compatibility();
+              } catch (error) {
+                // catch the rejection (it is tested below)
+              }
+
+              await expect(
+                promiseForIsEIP1559CompatibleChanges,
+              ).toNeverResolve();
+            },
+          );
+        });
+
+        it('returns a promise that rejects with the error', async () => {
+          await withController(
+            {
+              state: {
+                networkDetails: {
+                  isEIP1559Compatible: false,
+                },
+              },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      error: 'oops',
+                    },
+                  },
+                ],
+                stubGetEIP1559CompatibilityWhileSetting: true,
+              });
+
+              const promiseForIsEIP1559Compatible =
+                controller.getEIP1559Compatibility();
+
+              await expect(promiseForIsEIP1559Compatible).rejects.toThrow(
+                'oops',
+              );
+            },
+          );
         });
       });
     });
@@ -3722,7 +3507,9 @@ describe('NetworkController', () => {
     it('returns the EthQuery object set after the provider is set', async () => {
       const messenger = buildMessenger();
       await withController({ messenger }, async ({ controller }) => {
-        const fakeEthQuery = {};
+        const fakeEthQuery = {
+          sendAsync: jest.fn(),
+        };
         jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
         setFakeProvider(controller);
 
