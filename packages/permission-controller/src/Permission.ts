@@ -353,9 +353,18 @@ export type PermissionValidatorConstraint = (
 ) => void;
 
 export type PermissionSideEffect = {
-  onPermitted: () => void;
-  onFailure: () => void;
-  onSuccess?: () => void;
+  /**
+   * A method triggered when the permission is accepted by the user
+   */
+  onPermitted: () => Promise<void>;
+  /**
+   * A method triggered if a `onPemitted` method rejected.
+   */
+  onFailure: () => Promise<void>;
+  /**
+   * A method triggered after `onPermitted` method resolved
+   */
+  onSuccess?: () => Promise<void>;
 };
 
 /**

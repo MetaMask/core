@@ -301,6 +301,7 @@ export class ApprovalController extends BaseControllerV2<
       opts.id,
       opts.requestData,
       opts.requestState,
+      opts.sideEffects,
     );
   }
 
@@ -424,21 +425,24 @@ export class ApprovalController extends BaseControllerV2<
    * @param value - The value to resolve the approval promise with.
    */
   async accept(id: string, value?: unknown): Promise<void> {
-    try {
-      const permission = this._approvals.get(id);
+    const permission = this._approvals.get(id);
 
-      if (!permission) {
-        throw new ApprovalRequestNotFoundError(id);
-      }
-
-      if (permission.sideEffects) {
-        await this._handleSideEffects(permission.sideEffects);
-      }
-    } catch (err) {
-      this._deleteApprovalAndGetCallbacks(id).reject(err);
+    if (!permission) {
+      throw new ApprovalRequestNotFoundError(id);
     }
 
-    this._deleteApprovalAndGetCallbacks(id).resolve(value);
+    const { resolve, reject, sideEffects } =
+      this._deleteApprovalAndGetCallbacks(id);
+
+    try {
+      if (sideEffects) {
+        await this._handleSideEffects(sideEffects);
+      }
+    } catch (err) {
+      reject(err);
+    }
+
+    resolve(value);
   }
 
   /**
@@ -661,37 +665,31 @@ export class ApprovalController extends BaseControllerV2<
   }
 
   private async _handleSideEffects(sideEffects: SideEffects) {
-    if (sideEffects.permittedHandlers.length !== 0) {
-      const promiseResults = await Promise.allSettled(
-        sideEffects.permittedHandlers.map(async (permittedHandler) =>
-          permittedHandler(),
-        ),
-      );
+    const promiseResults = await Promise.allSettled(
+      sideEffects.permittedHandlers.map(async (permittedHandler) =>
+        permittedHandler(),
+      ),
+    );
 
-      if (promiseResults.find((promise) => promise.status === 'rejected')) {
-        try {
-          await Promise.all(
-            sideEffects.failureHandlers.map((failureHandler) =>
-              failureHandler(),
-            ),
-          );
-        } catch (error) {
-          throw ethErrors.rpc.internal(
-            "Something went wrong with side-effects failure handling and wasn't able to recover.",
-          );
-        }
-      } else if (sideEffects.successHandlers.length !== 0) {
-        try {
-          await Promise.all(
-            sideEffects.successHandlers.map((successHandler) =>
-              successHandler?.(),
-            ),
-          );
-        } catch (error) {
-          throw ethErrors.rpc.internal(
-            "Something went wrong with side-effects success handling and wasn't able to recover.",
-          );
-        }
+    if (promiseResults.find((promise) => promise.status === 'rejected')) {
+      try {
+        await Promise.all(
+          sideEffects.failureHandlers.map((failureHandler) => failureHandler()),
+        );
+      } catch (error) {
+        throw new Error(
+          `Something went wrong with side-effects failure handling and wasn't able to recover: ${error}`,
+        );
+      }
+    } else if (sideEffects.successHandlers.length !== 0) {
+      try {
+        await Promise.all(
+          sideEffects.successHandlers.map((successHandler) => successHandler()),
+        );
+      } catch (error) {
+        throw new Error(
+          `Something went wrong with side-effects success handling and wasn't able to recover: ${error}`,
+        );
       }
     }
   }

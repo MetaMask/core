@@ -591,10 +591,145 @@ describe('approval controller', () => {
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
 
-    it('throws on unknown id', () => {
-      expect(() => approvalController.accept('foo')).toThrow(
-        getIdNotFoundError('foo'),
+    it('triggers permitted handlers', async () => {
+      numDeletions = 1;
+      const permitterHandlerMock = jest.fn(() => Promise.resolve());
+      const failureHandlerMock = jest.fn(() => Promise.resolve());
+
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+        sideEffects: {
+          permittedHandlers: [permitterHandlerMock, permitterHandlerMock],
+          failureHandlers: [failureHandlerMock],
+          successHandlers: [],
+        },
+      });
+      await approvalController.accept('foo', 'success');
+
+      const result = await approvalPromise;
+      expect(result).toStrictEqual('success');
+      expect(permitterHandlerMock).toHaveBeenCalledTimes(2);
+      expect(failureHandlerMock).not.toHaveBeenCalled();
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+    });
+
+    it('triggers failure handlers on rejected permitted handler', async () => {
+      numDeletions = 1;
+      const permitterHandlerMock = jest.fn(() =>
+        Promise.reject(new Error('failed')),
       );
+      const failureHandlerMock = jest.fn(() => Promise.resolve());
+
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+        sideEffects: {
+          permittedHandlers: [permitterHandlerMock],
+          failureHandlers: [failureHandlerMock, failureHandlerMock],
+          successHandlers: [],
+        },
+      });
+      await approvalController.accept('foo', 'success');
+
+      const result = await approvalPromise;
+      expect(result).toStrictEqual('success');
+      expect(permitterHandlerMock).toHaveBeenCalled();
+      expect(failureHandlerMock).toHaveBeenCalledTimes(2);
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+    });
+
+    it('triggers success handlers when permitted handler resolved', async () => {
+      numDeletions = 1;
+      const permitterHandlerMock = jest.fn(() => Promise.resolve());
+      const failureHandlerMock = jest.fn(() => Promise.resolve());
+      const successHandlerMock = jest.fn(() => Promise.resolve());
+
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+        sideEffects: {
+          permittedHandlers: [permitterHandlerMock, permitterHandlerMock],
+          failureHandlers: [failureHandlerMock],
+          successHandlers: [successHandlerMock, successHandlerMock],
+        },
+      });
+      await approvalController.accept('foo', 'success');
+
+      const result = await approvalPromise;
+      expect(result).toStrictEqual('success');
+      expect(permitterHandlerMock).toHaveBeenCalledTimes(2);
+      expect(failureHandlerMock).not.toHaveBeenCalled();
+      expect(successHandlerMock).toHaveBeenCalledTimes(2);
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+    });
+
+    it('rejects the approval if failure handlers throws', async () => {
+      numDeletions = 1;
+      const permitterHandlerMock = jest.fn(() =>
+        Promise.reject(new Error('failed')),
+      );
+      const failureHandlerMock = jest.fn(() =>
+        Promise.reject(new Error('failed')),
+      );
+
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+        sideEffects: {
+          permittedHandlers: [permitterHandlerMock],
+          failureHandlers: [failureHandlerMock, failureHandlerMock],
+          successHandlers: [],
+        },
+      });
+      await approvalController.accept('foo', 'success');
+
+      await expect(async () => approvalPromise).rejects.toThrow(
+        "Something went wrong with side-effects failure handling and wasn't able to recover: Error: failed",
+      );
+      expect(permitterHandlerMock).toHaveBeenCalled();
+      expect(failureHandlerMock).toHaveBeenCalledTimes(2);
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+    });
+
+    it('rejects the approval if success handlers throws', async () => {
+      numDeletions = 1;
+      const permitterHandlerMock = jest.fn(() => Promise.resolve());
+      const failureHandlerMock = jest.fn(() => Promise.resolve());
+
+      const successHandlerMock = jest.fn(() =>
+        Promise.reject(new Error('failed')),
+      );
+
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+        sideEffects: {
+          permittedHandlers: [permitterHandlerMock],
+          failureHandlers: [failureHandlerMock],
+          successHandlers: [successHandlerMock, successHandlerMock],
+        },
+      });
+      await approvalController.accept('foo', 'success');
+
+      await expect(async () => approvalPromise).rejects.toThrow(
+        "Something went wrong with side-effects success handling and wasn't able to recover: Error: failed",
+      );
+      expect(permitterHandlerMock).toHaveBeenCalled();
+      expect(failureHandlerMock).not.toHaveBeenCalled();
+      expect(successHandlerMock).toHaveBeenCalledTimes(2);
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+    });
+
+    it('throws on unknown id', async () => {
+      await expect(async () =>
+        approvalController.accept('foo'),
+      ).rejects.toThrow(getIdNotFoundError('foo'));
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
   });
