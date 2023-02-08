@@ -14,7 +14,7 @@ import * as uuid from 'uuid';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { MAINNET } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
-import Transport from '@ledgerhq/hw-transport';
+import { MockTransport } from '../tests/mocks/mockLedgerTransport';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
@@ -1403,8 +1403,8 @@ describe('KeyringController', () => {
       };
       getAppAndVersionStub.resolves(mockedAppVersionValue);
 
-      const mockTransport = await Transport.create();
       const mockDeviceId = 'mockDeviceId';
+      const mockTransport = new MockTransport();
 
       const appName = await keyringController.connectLedgerHardware(
         mockTransport,
