@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This change includes the removal of the exports:
     - `METAMASK_CONFIG_FILE` and `PHISHFORT_HOTLIST_FILE` (replaced by `METAMASK_STALELIST_FILE` and `METAMASK_HOTLIST_DIFF_FILE`)
     - `METAMASK_CONFIG_URL` and `PHISHFORT_HOTLIST_URL` (replaced by `METAMASK_STALELIST_URL` and `METAMASK_HOTLIST_DIFF_URL`)
-    - `EthPhishingResponse` (replaced by `EthPhishingDetectConfig` for the API response and `PhishingStalelist` for the list in controller state, as they're now different)
+    - `EthPhishingResponse` (replaced by `PhishingStalelist` for the API response and `PhishingListState` for the list in controller state, as they're now different)
   - The configuration has changed:
     - Instead of accepting a `refreshInterval`, we now accept a separate interval for the stalelist and hotlist (`stalelistRefreshInterval` and `hotlistRefreshInterval`)
   - The controller state has been updated:
