@@ -3507,7 +3507,9 @@ describe('NetworkController', () => {
     it('returns the EthQuery object set after the provider is set', async () => {
       const messenger = buildMessenger();
       await withController({ messenger }, async ({ controller }) => {
-        const fakeEthQuery = {};
+        const fakeEthQuery = {
+          sendAsync: jest.fn(),
+        };
         jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
         setFakeProvider(controller);
 
