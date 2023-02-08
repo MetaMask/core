@@ -1394,7 +1394,7 @@ describe('KeyringController', () => {
       };
       getAppAndVersionStub.resolves(mockedAppVersionValue);
 
-      const mockTransport = {} as Transport;
+      const mockTransport = await Transport.create();
       const mockDeviceId = 'mockDeviceId';
 
       const appName = await keyringController.connectLedgerHardware(
@@ -1454,6 +1454,61 @@ describe('KeyringController', () => {
       const { keyrings } = await fullUpdateSpy.returnValues[0];
 
       expect(keyrings[1].accounts).toStrictEqual([
+        '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+      ]);
+
+      expect(account).toStrictEqual({
+        address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        balance: '0x0',
+      });
+    });
+
+    it('should update the state when unlocking the default account on ledger', async () => {
+      // creating a new keyring controller without adding a ledger account
+      const locallyUsedKeyring = new KeyringController(
+        {
+          setAccountLabel: preferences.setAccountLabel.bind(preferences),
+          removeIdentity: preferences.removeIdentity.bind(preferences),
+          syncIdentities: preferences.syncIdentities.bind(preferences),
+          updateIdentities: preferences.updateIdentities.bind(preferences),
+          setSelectedAddress: preferences.setSelectedAddress.bind(preferences),
+        },
+        baseConfig,
+      );
+
+      await locallyUsedKeyring.createNewVaultAndKeychain(password);
+      const localLedgerKeyring = await locallyUsedKeyring.getLedgerKeyring();
+
+      localLedgerKeyring.setApp({
+        signTransaction: sinon.stub(),
+        getAddress: sinon.stub().resolves({
+          address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        }),
+        signEIP712HashedMessage: sinon.stub(),
+        signPersonalMessage: sinon.stub(),
+      });
+
+      const fullUpdateSpy = sinon.spy(locallyUsedKeyring, 'fullUpdate');
+      await locallyUsedKeyring.fullUpdate();
+
+      expect(fullUpdateSpy.callCount).toBe(1);
+
+      const { keyrings: beforeAddingLedger } = await fullUpdateSpy
+        .returnValues[0];
+
+      // we check for the accounts in the index 1 position because 0 is the Hd Key tree.
+      expect(beforeAddingLedger[1].accounts).toStrictEqual([]);
+
+      // now adding the ledger account
+      const account = await locallyUsedKeyring.unlockLedgerDefaultAccount();
+
+      expect(fullUpdateSpy.callCount).toBe(2);
+
+      const { keyrings: keyringAfterAddingLedger } = await fullUpdateSpy
+        .returnValues[1];
+
+      // we check for the accounts in the index 1 position because 0 is the Hd Key tree.
+      expect(keyringAfterAddingLedger[1].accounts).toStrictEqual([
         '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
       ]);
 
