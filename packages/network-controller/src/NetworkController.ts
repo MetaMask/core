@@ -323,7 +323,7 @@ export class NetworkController extends BaseControllerV2<
    * Refreshes the current network code.
    */
   async lookupNetwork() {
-    if (!this.ethQuery || !this.ethQuery.sendAsync) {
+    if (!this.ethQuery) {
       return;
     }
     const releaseLock = await this.mutex.acquire();
@@ -418,10 +418,7 @@ export class NetworkController extends BaseControllerV2<
   async getEIP1559Compatibility() {
     const { networkDetails = {} } = this.state;
 
-    if (
-      networkDetails.isEIP1559Compatible ||
-      typeof this.ethQuery?.sendAsync !== 'function'
-    ) {
+    if (networkDetails.isEIP1559Compatible || !this.ethQuery) {
       return true;
     }
 
