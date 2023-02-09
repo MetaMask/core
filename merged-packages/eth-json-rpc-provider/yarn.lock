@@ -1293,9 +1293,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/module-template@workspace:.":
+"@metamask/eth-json-rpc-provider@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@metamask/module-template@workspace:."
+  resolution: "@metamask/eth-json-rpc-provider@workspace:."
   dependencies:
     "@lavamoat/allow-scripts": ^2.0.3
     "@metamask/auto-changelog": ^3.1.0

@@ -9,11 +9,3 @@ Are there any issues or other links reviewers should consult to understand this 
 * Fixes #12345
 * See: #67890
 -->
-
-## Examples
-
-<!--
-Are there any examples of this change being used in another repository?
-
-When considering changes to the MetaMask module template, it's strongly preferred that the change be experimented with in another repository first. This gives reviewers a better sense of how the change works, making it less likely the change will need to be reverted or adjusted later.
--->
