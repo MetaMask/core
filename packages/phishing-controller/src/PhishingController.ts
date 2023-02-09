@@ -29,25 +29,6 @@ export interface EthPhishingResponse {
 }
 
 /**
- * @type EthPhishingDetectConfig
- *
- * Interface defining expected input to PhishingDetector.
- * @property allowlist - List of approved origins (legacy naming "whitelist")
- * @property blocklist - List of unapproved origins (legacy naming "blacklist")
- * @property fuzzylist - List of fuzzy-matched unapproved origins
- * @property tolerance - Fuzzy match tolerance level
- * @property name - Name describing the source list
- */
-export interface EthPhishingDetectConfig {
-  allowlist: string[];
-  blocklist: string[];
-  fuzzylist: string[];
-  tolerance: number;
-  name: string;
-  version: number;
-}
-
-/**
  * @type PhishingStalelist
  *
  * Interface defining expected type of the stalelist.json file.
