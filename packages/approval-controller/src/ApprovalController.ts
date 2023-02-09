@@ -681,6 +681,9 @@ export class ApprovalController extends BaseControllerV2<
           `Something went wrong with side-effects failure handling and wasn't able to recover: ${error}`,
         );
       }
+      throw new Error(
+        'Permitted handlers failed, side effects have been reverted.',
+      );
     } else if (sideEffects.successHandlers.length !== 0) {
       try {
         await Promise.all(

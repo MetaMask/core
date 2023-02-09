@@ -634,8 +634,9 @@ describe('approval controller', () => {
       });
       await approvalController.accept('foo', 'success');
 
-      const result = await approvalPromise;
-      expect(result).toStrictEqual('success');
+      await expect(async () => approvalPromise).rejects.toThrow(
+        'Permitted handlers failed, side effects have been reverted.',
+      );
       expect(permitterHandlerMock).toHaveBeenCalled();
       expect(failureHandlerMock).toHaveBeenCalledTimes(2);
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
