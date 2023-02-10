@@ -867,7 +867,6 @@ __metadata:
     "@types/pify": ^3.0.2
     "@typescript-eslint/eslint-plugin": ^4.21.0
     "@typescript-eslint/parser": ^4.21.0
-    btoa: ^1.2.1
     clone: ^2.1.1
     eslint: ^7.14.0
     eslint-config-prettier: ^8.1.0
@@ -1880,15 +1879,6 @@ __metadata:
   dependencies:
     node-int64: ^0.4.0
   checksum: 9ba4dc58ce86300c862bffc3ae91f00b2a03b01ee07f3564beeeaf82aa243b8b03ba53f123b0b842c190d4399b94697970c8e7cf7b1ea44b61aa28c3526a4449
-  languageName: node
-  linkType: hard
-
-"btoa@npm:^1.2.1":
-  version: 1.2.1
-  resolution: "btoa@npm:1.2.1"
-  bin:
-    btoa: bin/btoa.js
-  checksum: afbf004fb1b1d530e053ffa66ef5bd3878b101c59d808ac947fcff96810b4452abba2b54be687adadea2ba9efc7af48b04228742789bf824ef93f103767e690c
   languageName: node
   linkType: hard
 

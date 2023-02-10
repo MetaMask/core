@@ -6,10 +6,6 @@ import {
 import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
 import type { Block } from './types';
 
-/* eslint-disable @typescript-eslint/no-require-imports,@typescript-eslint/no-shadow */
-const btoa = global.btoa || require('btoa');
-/* eslint-enable @typescript-eslint/no-require-imports,@typescript-eslint/no-shadow */
-
 const RETRIABLE_ERRORS: string[] = [
   // ignore server overload errors
   'Gateway timeout',
@@ -38,6 +34,7 @@ interface FetchConfig {
  * Create middleware for sending a JSON-RPC request to the given RPC URL.
  *
  * @param options - Options
+ * @param options.btoa - Generates a base64-encoded string from a binary string.
  * @param options.fetch - The `fetch` function; expected to be equivalent to `window.fetch`.
  * @param options.rpcUrl - The URL to send the request to.
  * @param options.originHttpHeaderKey - If provider, the origin field for each JSON-RPC request
@@ -46,16 +43,20 @@ interface FetchConfig {
  */
 export function createFetchMiddleware({
   // eslint-disable-next-line @typescript-eslint/no-shadow
+  btoa,
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   fetch,
   rpcUrl,
   originHttpHeaderKey,
 }: {
+  btoa: (stringToEncode: string) => string;
   fetch: typeof global.fetch;
   rpcUrl: string;
   originHttpHeaderKey?: string;
 }): JsonRpcMiddleware<unknown, unknown> {
   return createAsyncMiddleware(async (req, res, _next) => {
     const { fetchUrl, fetchParams } = createFetchConfigFromReq({
+      btoa,
       req,
       rpcUrl,
       originHttpHeaderKey,
@@ -136,11 +137,24 @@ function parseResponse(fetchRes: Response, body: Record<string, Block>): Block {
   return body.result;
 }
 
+/**
+ * Generate `fetch` configuration for sending the given request to an RPC API.
+ *
+ * @param options - Options
+ * @param options.btoa - Generates a base64-encoded string from a binary string.
+ * @param options.rpcUrl - The URL to send the request to.
+ * @param options.originHttpHeaderKey - If provider, the origin field for each JSON-RPC request
+ * will be attached to each outgoing fetch request under this header.
+ * @returns The fetch middleware.
+ */
 export function createFetchConfigFromReq({
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  btoa,
   req,
   rpcUrl,
   originHttpHeaderKey,
 }: {
+  btoa: (stringToEncode: string) => string;
   rpcUrl: string;
   originHttpHeaderKey?: string;
   req: PayloadWithOrigin;

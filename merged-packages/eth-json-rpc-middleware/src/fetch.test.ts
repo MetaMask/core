@@ -1,5 +1,17 @@
 import { createFetchConfigFromReq } from '.';
 
+/**
+ * Generate a base64-encoded string from a binary string. This should be equivalent to
+ * `window.btoa`.
+ *
+ * @param stringToEncode - The string to encode.
+ * @returns The base64-encoded string.
+ */
+// eslint-disable-next-line @typescript-eslint/no-shadow
+function btoa(stringToEncode: string) {
+  return Buffer.from(stringToEncode).toString('base64');
+}
+
 describe('fetch', () => {
   it('should create a fetch config from a request', async () => {
     const req = {
@@ -9,7 +21,11 @@ describe('fetch', () => {
       params: ['0x482103', true],
     };
     const rpcUrl = 'http://www.xyz.io/rabbit:3456?id=100';
-    const { fetchUrl, fetchParams } = createFetchConfigFromReq({ req, rpcUrl });
+    const { fetchUrl, fetchParams } = createFetchConfigFromReq({
+      btoa,
+      req,
+      rpcUrl,
+    });
     expect(fetchUrl).toStrictEqual(rpcUrl);
     expect(fetchParams).toStrictEqual({
       method: 'POST',
@@ -32,6 +48,7 @@ describe('fetch', () => {
     const rpcUrl = 'http://www.xyz.io/rabbit:3456?id=100';
     const originHttpHeaderKey = 'x-dapp-origin';
     const { fetchUrl, fetchParams } = createFetchConfigFromReq({
+      btoa,
       req: requestWithOrigin,
       rpcUrl,
       originHttpHeaderKey,
