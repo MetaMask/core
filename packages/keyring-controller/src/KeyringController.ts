@@ -223,14 +223,18 @@ export class KeyringController extends BaseController<
     await this.verifySeedPhrase();
 
     this.updateIdentities(newAccounts);
-    let addedAccountAddress = '';
-    newAccounts.forEach((selectedAddress: string) => {
-      if (!oldAccounts.includes(selectedAddress)) {
-        addedAccountAddress = selectedAddress;
-      }
-    });
+
+    const newAccountArray = newAccounts.filter((address: string) =>
+      oldAccounts.includes(address),
+    );
+
+    if (newAccountArray.length === 1) {
     const keyringState = await this.fullUpdate();
-    return { addedAccountAddress, keyringState };
+      return { addedAccountAddress: newAccountArray[0], keyringState };
+    }
+
+    // TO DO: Include error message in case newAccountArray is empty or it has more than 1 new account
+    throw new Error('XXX');
   }
 
   /**
