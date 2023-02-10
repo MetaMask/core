@@ -10,7 +10,7 @@ import {
   signTypedData,
 } from '@metamask/eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
-import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
+import Keyring from 'eth-keyring-controller';
 import { Mutex } from 'async-mutex';
 import {
   MetaMaskKeyring as QRKeyring,
@@ -89,7 +89,7 @@ export interface KeyringMemState extends BaseState {
  */
 export interface KeyringConfig extends BaseConfig {
   encryptor?: any;
-  keyringBuilders?: any[];
+  keyringTypes?: any[];
 }
 
 /**
@@ -155,7 +155,7 @@ export class KeyringController extends BaseController<
 
   private setAccountLabel?: PreferencesController['setAccountLabel'];
 
-  #keyring: typeof EthKeyringController;
+  #keyring: typeof Keyring;
 
   /**
    * Creates a KeyringController instance.
@@ -187,9 +187,7 @@ export class KeyringController extends BaseController<
     state?: Partial<KeyringState>,
   ) {
     super(config, state);
-    this.#keyring = new EthKeyringController(
-      Object.assign({ initState: state }, config),
-    );
+    this.#keyring = new Keyring(Object.assign({ initState: state }, config));
 
     this.defaultState = {
       ...this.#keyring.store.getState(),
@@ -434,9 +432,6 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to a signed message string.
    */
   signMessage(messageParams: PersonalMessageParams) {
-    if (!messageParams.data) {
-      throw new Error("Can't sign an empty message");
-    }
     return this.#keyring.signMessage(messageParams);
   }
 
@@ -602,15 +597,14 @@ export class KeyringController extends BaseController<
       throw new Error('Cannot verify an empty keyring.');
     }
 
-    const hdKeyringBuilder = this.#keyring.getKeyringBuilderForType(
+    const TestKeyringClass = this.#keyring.getKeyringClassForType(
       KeyringTypes.hd,
     );
-    const hdKeyring = hdKeyringBuilder();
-    hdKeyring.deserialize({
+    const testKeyring = new TestKeyringClass({
       mnemonic: seedWords,
       numberOfAccounts: accounts.length,
     });
-    const testAccounts = await hdKeyring.getAccounts();
+    const testAccounts = await testKeyring.getAccounts();
     /* istanbul ignore if */
     if (testAccounts.length !== accounts.length) {
       throw new Error('Seed phrase imported incorrect number of accounts.');
