@@ -7,7 +7,6 @@ import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
 import type { Block } from './types';
 
 /* eslint-disable @typescript-eslint/no-require-imports,@typescript-eslint/no-shadow */
-const fetch = global.fetch || require('node-fetch');
 const btoa = global.btoa || require('btoa');
 /* eslint-enable @typescript-eslint/no-require-imports,@typescript-eslint/no-shadow */
 
@@ -34,19 +33,27 @@ interface FetchConfig {
   fetchUrl: string;
   fetchParams: Request;
 }
-interface FetchMiddlewareOptions {
-  rpcUrl: string;
-  originHttpHeaderKey?: string;
-}
 
-interface FetchMiddlewareFromReqOptions extends FetchMiddlewareOptions {
-  req: PayloadWithOrigin;
-}
-
+/**
+ * Create middleware for sending a JSON-RPC request to the given RPC URL.
+ *
+ * @param options - Options
+ * @param options.fetch - The `fetch` function; expected to be equivalent to `window.fetch`.
+ * @param options.rpcUrl - The URL to send the request to.
+ * @param options.originHttpHeaderKey - If provider, the origin field for each JSON-RPC request
+ * will be attached to each outgoing fetch request under this header.
+ * @returns The fetch middleware.
+ */
 export function createFetchMiddleware({
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  fetch,
   rpcUrl,
   originHttpHeaderKey,
-}: FetchMiddlewareOptions): JsonRpcMiddleware<unknown, unknown> {
+}: {
+  fetch: typeof global.fetch;
+  rpcUrl: string;
+  originHttpHeaderKey?: string;
+}): JsonRpcMiddleware<unknown, unknown> {
   return createAsyncMiddleware(async (req, res, _next) => {
     const { fetchUrl, fetchParams } = createFetchConfigFromReq({
       req,
@@ -59,7 +66,7 @@ export function createFetchMiddleware({
     const retryInterval = 1000;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const fetchRes: Response = await fetch(fetchUrl, fetchParams);
+        const fetchRes = await fetch(fetchUrl, fetchParams);
         // check for http errrors
         checkForHttpErrors(fetchRes);
         // parse response body
@@ -133,7 +140,11 @@ export function createFetchConfigFromReq({
   req,
   rpcUrl,
   originHttpHeaderKey,
-}: FetchMiddlewareFromReqOptions): FetchConfig {
+}: {
+  rpcUrl: string;
+  originHttpHeaderKey?: string;
+  req: PayloadWithOrigin;
+}): FetchConfig {
   const parsedUrl: URL = new URL(rpcUrl);
   const fetchUrl: string = normalizeUrlFromParsed(parsedUrl);
 

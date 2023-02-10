@@ -37,7 +37,6 @@
     "eth-rpc-errors": "^4.0.3",
     "json-rpc-engine": "^6.1.0",
     "json-stable-stringify": "^1.0.1",
-    "node-fetch": "^2.6.7",
     "pify": "^3.0.0"
   },
   "devDependencies": {
