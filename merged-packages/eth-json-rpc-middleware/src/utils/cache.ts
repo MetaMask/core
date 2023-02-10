@@ -1,5 +1,7 @@
-import stringify from 'json-stable-stringify';
+import { configure } from 'safe-stable-stringify';
 import { JsonRpcRequest } from 'json-rpc-engine';
+
+const stringify = configure({ bigint: false, circularValue: Error });
 
 /**
  * The cache strategy to use for a given method.
