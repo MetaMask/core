@@ -773,7 +773,6 @@ export class KeyringController extends BaseController<
     this.updateIdentities(remainingAccounts);
     await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();
-    // Return list of removed accounts as well as remaining accounts for the app to use.
     return { removedAccounts, remainingAccounts };
   }
 }
