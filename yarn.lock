@@ -1806,20 +1806,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-sig-util@npm:^5.0.2":
-  version: 5.0.2
-  resolution: "@metamask/eth-sig-util@npm:5.0.2"
-  dependencies:
-    "@ethereumjs/util": ^8.0.0
-    bn.js: ^4.11.8
-    ethereum-cryptography: ^1.1.2
-    ethjs-util: ^0.1.6
-    tweetnacl: ^1.0.3
-    tweetnacl-util: ^0.15.1
-  checksum: 1fbf1a0f5e654058f0219c9018dbebadf53036c9c3b47c8faf1cac54816532bb18996821736f526ac4e3d579afcaf502af4ad07e88158a50f015141858b08a90
-  languageName: node
-  linkType: hard
-
 "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller"
@@ -1864,13 +1850,13 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
-    "@metamask/eth-sig-util": ^5.0.2
     "@metamask/message-manager": "workspace:^"
     "@metamask/preferences-controller": "workspace:^"
     "@types/jest": ^26.0.22
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
     eth-keyring-controller: ^7.0.2
+    eth-sig-util: ^3.0.0
     ethereumjs-util: ^7.0.10
     ethereumjs-wallet: ^1.0.1
     jest: ^26.4.2

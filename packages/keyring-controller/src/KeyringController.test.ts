@@ -2,8 +2,9 @@ import { BN, bufferToHex } from 'ethereumjs-util';
 import {
   recoverPersonalSignature,
   recoverTypedSignature,
-  SignTypedDataVersion,
-} from '@metamask/eth-sig-util';
+  recoverTypedSignature_v4,
+  recoverTypedSignatureLegacy,
+} from 'eth-sig-util';
 import * as sinon from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
@@ -21,6 +22,7 @@ import {
   KeyringConfig,
   KeyringController,
   KeyringTypes,
+  SignTypedDataVersion,
 } from './KeyringController';
 
 jest.mock('uuid', () => {
@@ -381,7 +383,7 @@ describe('KeyringController', () => {
       data,
       from: account,
     });
-    const recovered = recoverPersonalSignature({ data, signature });
+    const recovered = recoverPersonalSignature({ data, sig: signature });
     expect(account).toBe(recovered);
   });
 
@@ -395,7 +397,7 @@ describe('KeyringController', () => {
       data: '',
       from: account,
     });
-    const recovered = recoverPersonalSignature({ data: '', signature });
+    const recovered = recoverPersonalSignature({ data: '', sig: signature });
     expect(account).toBe(recovered);
   });
 
@@ -452,10 +454,9 @@ describe('KeyringController', () => {
       { data: typedMsgParams, from: account },
       SignTypedDataVersion.V1,
     );
-    const recovered = recoverTypedSignature({
+    const recovered = recoverTypedSignatureLegacy({
       data: typedMsgParams,
-      signature,
-      version: SignTypedDataVersion.V1,
+      sig: signature as string,
     });
     expect(account).toBe(recovered);
   });
@@ -479,7 +480,7 @@ describe('KeyringController', () => {
           wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
         },
       },
-      primaryType: 'Mail' as const,
+      primaryType: 'Mail',
       types: {
         EIP712Domain: [
           { name: 'name', type: 'string' },
@@ -504,9 +505,8 @@ describe('KeyringController', () => {
       SignTypedDataVersion.V3,
     );
     const recovered = recoverTypedSignature({
-      data: msgParams,
-      signature,
-      version: SignTypedDataVersion.V3,
+      data: msgParams as any,
+      sig: signature as string,
     });
     expect(account).toBe(recovered);
   });
@@ -539,7 +539,7 @@ describe('KeyringController', () => {
           },
         ],
       },
-      primaryType: 'Mail' as const,
+      primaryType: 'Mail',
       types: {
         EIP712Domain: [
           { name: 'name', type: 'string' },
@@ -568,10 +568,9 @@ describe('KeyringController', () => {
       { data: JSON.stringify(msgParams), from: account },
       SignTypedDataVersion.V4,
     );
-    const recovered = recoverTypedSignature({
-      data: msgParams,
-      signature,
-      version: SignTypedDataVersion.V4,
+    const recovered = recoverTypedSignature_v4({
+      data: msgParams as any,
+      sig: signature as string,
     });
     expect(account).toBe(recovered);
   });
@@ -856,7 +855,7 @@ describe('KeyringController', () => {
         data,
         from: account,
       });
-      const recovered = recoverPersonalSignature({ data, signature });
+      const recovered = recoverPersonalSignature({ data, sig: signature });
       expect(account.toLowerCase()).toBe(recovered.toLowerCase());
     });
 
@@ -889,10 +888,9 @@ describe('KeyringController', () => {
         { data: typedMsgParams, from: account },
         SignTypedDataVersion.V1,
       );
-      const recovered = recoverTypedSignature({
+      const recovered = recoverTypedSignatureLegacy({
         data: typedMsgParams,
-        signature,
-        version: SignTypedDataVersion.V1,
+        sig: signature as string,
       });
       expect(account.toLowerCase()).toBe(recovered.toLowerCase());
     });
@@ -922,8 +920,7 @@ describe('KeyringController', () => {
       );
       const recovered = recoverTypedSignature({
         data: JSON.parse(msg),
-        signature,
-        version: SignTypedDataVersion.V3,
+        sig: signature as string,
       });
       expect(account.toLowerCase()).toBe(recovered);
     });
@@ -948,10 +945,9 @@ describe('KeyringController', () => {
         { data: msg, from: account },
         SignTypedDataVersion.V4,
       );
-      const recovered = recoverTypedSignature({
+      const recovered = recoverTypedSignature_v4({
         data: JSON.parse(msg),
-        signature,
-        version: SignTypedDataVersion.V4,
+        sig: signature as string,
       });
       expect(account.toLowerCase()).toBe(recovered);
     });
