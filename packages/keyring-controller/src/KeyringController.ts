@@ -750,7 +750,7 @@ export class KeyringController extends BaseController<
     );
 
     if (newAccountsArray.length === 0) {
-      // TO DO: Include error message in case newAccountArray is empty or it has more than 1 new account
+      // TO DO: Include error message in case newAccountArray is empty
       throw new Error('XXX');
     }
 
