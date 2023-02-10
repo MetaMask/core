@@ -6,4 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-provider/
+## [1.0.0]
+### Added
+- Initial release, including `providerFromEngine` and `providerFromMiddleware`
+
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-provider/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/eth-json-rpc-provider/releases/tag/v1.0.0
