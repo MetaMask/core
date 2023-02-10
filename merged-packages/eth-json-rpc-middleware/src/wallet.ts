@@ -17,10 +17,11 @@ export interface MessageParams extends TransactionParams {
   data: string;
 }
 
-interface TypedMessageParams extends MessageParams {
+export interface TypedMessageParams extends MessageParams {
   version: string;
 }
-interface WalletMiddlewareOptions {
+
+export interface WalletMiddlewareOptions {
   getAccounts: (
     req: JsonRpcRequest<unknown>,
     options?: {
@@ -30,15 +31,15 @@ interface WalletMiddlewareOptions {
   processDecryptMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest<unknown>,
-  ) => Promise<Record<string, unknown>>;
+  ) => Promise<string>;
   processEncryptionPublicKey?: (
     address: string,
     req: JsonRpcRequest<unknown>,
-  ) => Promise<Record<string, unknown>>;
+  ) => Promise<string>;
   processEthSignMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest<unknown>,
-  ) => Promise<Record<string, unknown>>;
+  ) => Promise<string>;
   processPersonalMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest<unknown>,
@@ -60,12 +61,12 @@ interface WalletMiddlewareOptions {
     msgParams: TypedMessageParams,
     req: JsonRpcRequest<unknown>,
     version: string,
-  ) => Promise<Record<string, unknown>>;
+  ) => Promise<string>;
   processTypedMessageV4?: (
     msgParams: TypedMessageParams,
     req: JsonRpcRequest<unknown>,
     version: string,
-  ) => Promise<Record<string, unknown>>;
+  ) => Promise<string>;
 }
 
 export function createWalletMiddleware({
