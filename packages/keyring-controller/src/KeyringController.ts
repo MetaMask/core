@@ -229,7 +229,7 @@ export class KeyringController extends BaseController<
     );
 
     if (newAccountArray.length === 1) {
-    const keyringState = await this.fullUpdate();
+      const keyringState = await this.fullUpdate();
       return { addedAccountAddress: newAccountArray[0], keyringState };
     }
 
@@ -750,18 +750,26 @@ export class KeyringController extends BaseController<
     await this.#keyring.addNewAccount(keyring);
     const newAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(newAccounts);
-    let newHardwareWalletAddress = '';
-    newAccounts.forEach((address: string) => {
-      if (!oldAccounts.includes(address)) {
-        if (this.setAccountLabel) {
-          this.setAccountLabel(address, `${keyring.getName()} ${index}`);
-        }
-        newHardwareWalletAddress = address;
+
+    const newAccountsArray = newAccounts.filter((address: string) =>
+      oldAccounts.includes(address),
+    );
+
+    if (newAccountsArray.length === 0) {
+      // TO DO: Include error message in case newAccountArray is empty or it has more than 1 new account
+      throw new Error('XXX');
+    }
+
+    newAccountsArray.forEach((address: string) => {
+      if (this.setAccountLabel) {
+        this.setAccountLabel(address, `${keyring.getName()} ${index}`);
       }
     });
+
     await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();
-    return newHardwareWalletAddress;
+    // Return the first address of the array as the new active account
+    return newAccountsArray[0];
   }
 
   async getAccountKeyringType(account: string): Promise<KeyringTypes> {
