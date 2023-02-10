@@ -1351,10 +1351,9 @@ describe('KeyringController', () => {
         { data: JSON.stringify(msgParams), from: account },
         SignTypedDataVersion.V4,
       );
-      const recovered = recoverTypedSignature({
+      const recovered = recoverTypedSignature_v4({
         data: msgParams,
-        signature,
-        version: SignTypedDataVersion.V4,
+        sig: signature,
       });
       expect(account).toBe(recovered);
     });
