@@ -2,9 +2,7 @@ import { BN, bufferToHex } from 'ethereumjs-util';
 import {
   recoverPersonalSignature,
   recoverTypedSignature,
-  recoverTypedSignature_v4,
-  recoverTypedSignatureLegacy,
-} from 'eth-sig-util';
+} from '@metamask/eth-sig-util';
 import * as sinon from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
@@ -14,7 +12,6 @@ import LedgerKeyring from '@ledgerhq/metamask-keyring';
 import * as uuid from 'uuid';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { MAINNET } from '@metamask/controller-utils';
-import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import Transport from '@ledgerhq/hw-transport';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
@@ -382,7 +379,7 @@ describe('KeyringController', () => {
       data,
       from: account,
     });
-    const recovered = recoverPersonalSignature({ data, sig: signature });
+    const recovered = recoverPersonalSignature({ data, signature });
     expect(account).toBe(recovered);
   });
 
@@ -396,7 +393,7 @@ describe('KeyringController', () => {
       data: '',
       from: account,
     });
-    const recovered = recoverPersonalSignature({ data: '', sig: signature });
+    const recovered = recoverPersonalSignature({ data: '', signature });
     expect(account).toBe(recovered);
   });
 
@@ -453,9 +450,10 @@ describe('KeyringController', () => {
       { data: typedMsgParams, from: account },
       SignTypedDataVersion.V1,
     );
-    const recovered = recoverTypedSignatureLegacy({
+    const recovered = recoverTypedSignature({
       data: typedMsgParams,
-      sig: signature as string,
+      signature: signature as string,
+      version: SignTypedDataVersion.V1,
     });
     expect(account).toBe(recovered);
   });
@@ -505,7 +503,8 @@ describe('KeyringController', () => {
     );
     const recovered = recoverTypedSignature({
       data: msgParams as any,
-      sig: signature as string,
+      signature: signature as string,
+      version: SignTypedDataVersion.V3,
     });
     expect(account).toBe(recovered);
   });
@@ -567,9 +566,10 @@ describe('KeyringController', () => {
       { data: JSON.stringify(msgParams), from: account },
       SignTypedDataVersion.V4,
     );
-    const recovered = recoverTypedSignature_v4({
+    const recovered = recoverTypedSignature({
       data: msgParams as any,
-      sig: signature as string,
+      signature: signature as string,
+      version: SignTypedDataVersion.V4,
     });
     expect(account).toBe(recovered);
   });
@@ -854,7 +854,7 @@ describe('KeyringController', () => {
         data,
         from: account,
       });
-      const recovered = recoverPersonalSignature({ data, sig: signature });
+      const recovered = recoverPersonalSignature({ data, signature });
       expect(account.toLowerCase()).toBe(recovered.toLowerCase());
     });
 
@@ -887,9 +887,10 @@ describe('KeyringController', () => {
         { data: typedMsgParams, from: account },
         SignTypedDataVersion.V1,
       );
-      const recovered = recoverTypedSignatureLegacy({
+      const recovered = recoverTypedSignature({
         data: typedMsgParams,
-        sig: signature as string,
+        signature: signature as string,
+        version: SignTypedDataVersion.V1,
       });
       expect(account.toLowerCase()).toBe(recovered.toLowerCase());
     });
@@ -919,7 +920,8 @@ describe('KeyringController', () => {
       );
       const recovered = recoverTypedSignature({
         data: JSON.parse(msg),
-        sig: signature as string,
+        signature: signature as string,
+        version: SignTypedDataVersion.V3,
       });
       expect(account.toLowerCase()).toBe(recovered);
     });
@@ -944,9 +946,10 @@ describe('KeyringController', () => {
         { data: msg, from: account },
         SignTypedDataVersion.V4,
       );
-      const recovered = recoverTypedSignature_v4({
+      const recovered = recoverTypedSignature({
         data: JSON.parse(msg),
-        sig: signature as string,
+        signature: signature as string,
+        version: SignTypedDataVersion.V4,
       });
       expect(account.toLowerCase()).toBe(recovered);
     });

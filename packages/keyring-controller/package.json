@@ -34,11 +34,11 @@
     "@ledgerhq/metamask-keyring": "0.3.3",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/eth-sig-util": "^4.0.1",
     "@metamask/message-manager": "workspace:^",
     "@metamask/preferences-controller": "workspace:^",
     "async-mutex": "^0.2.6",
     "eth-keyring-controller": "^7.0.2",
-    "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1"
   },
