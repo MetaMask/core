@@ -24,6 +24,10 @@
     "test": "jest && jest-it-up",
     "test:watch": "jest --watch"
   },
+  "dependencies": {
+    "@metamask/safe-event-emitter": "^2.0.0",
+    "json-rpc-engine": "^6.1.0"
+  },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.0.3",
     "@metamask/auto-changelog": "^3.1.0",

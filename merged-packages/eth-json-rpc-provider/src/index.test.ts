@@ -1,9 +1,12 @@
-import greeter from '.';
+import * as allExports from '.';
 
-describe('Test', () => {
-  it('greets', () => {
-    const name = 'Huey';
-    const result = greeter(name);
-    expect(result).toBe('Hello, Huey!');
+describe('Package exports', () => {
+  it('has expected exports', () => {
+    expect(Object.keys(allExports)).toMatchInlineSnapshot(`
+      Array [
+        "providerFromEngine",
+        "providerFromMiddleware",
+      ]
+    `);
   });
 });
