@@ -12,6 +12,7 @@ import LedgerKeyring from '@ledgerhq/metamask-keyring';
 import * as uuid from 'uuid';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { MAINNET } from '@metamask/controller-utils';
+import EthKeyring from 'eth-keyring-controller';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import { MockTransport } from '../tests/mocks/mockLedgerTransport';
 import {
