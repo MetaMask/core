@@ -389,17 +389,6 @@ export const withNetworkClient = async (
       allowedActions: ['NetworkController:getEthQuery'],
     });
 
-  const getEIP1559CompatibilityMock = jest
-    .spyOn(NetworkController.prototype, 'getEIP1559Compatibility')
-    .mockImplementation(async () => {
-      return true;
-    });
-
-  const lookupNetworkMock = jest
-    .spyOn(NetworkController.prototype, 'lookupNetwork')
-    .mockImplementation(() => {
-      return Promise.resolve();
-    });
 
   const clock = sinon.useFakeTimers();
 
@@ -407,6 +396,18 @@ export const withNetworkClient = async (
     messenger,
     infuraProjectId: MOCK_INFURA_PROJECT_ID,
   });
+
+  const getEIP1559CompatibilityMock = jest
+    .spyOn(controller, 'getEIP1559Compatibility')
+    .mockImplementation(async () => {
+      return true;
+    });
+
+  const lookupNetworkMock = jest
+    .spyOn(controller, 'lookupNetwork')
+    .mockImplementation(() => {
+      return Promise.resolve();
+    });
 
   if (providerType === 'infura') {
     controller.setProviderType(infuraNetwork);
