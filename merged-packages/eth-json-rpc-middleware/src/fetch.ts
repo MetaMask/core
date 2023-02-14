@@ -4,6 +4,7 @@ import {
   JsonRpcRequest,
 } from 'json-rpc-engine';
 import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
+import { timeout } from './utils/timeout';
 import type { Block } from './types';
 
 const RETRIABLE_ERRORS: string[] = [
@@ -222,8 +223,4 @@ function createTimeoutError(): EthereumRpcError<unknown> {
   let msg = `Gateway timeout. The request took too long to process. `;
   msg += `This can happen when querying logs over too wide a block range.`;
   return ethErrors.rpc.internal({ message: msg });
-}
-
-function timeout(duration: number): Promise<NodeJS.Timeout> {
-  return new Promise((resolve) => setTimeout(resolve, duration));
 }

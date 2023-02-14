@@ -8,6 +8,7 @@ import {
 import pify from 'pify';
 import { projectLogger, createModuleLogger } from './logging-utils';
 import { blockTagParamIndex } from './utils/cache';
+import { timeout } from './utils/timeout';
 import { Block, SafeEventEmitterProvider } from './types';
 
 //
@@ -141,8 +142,4 @@ async function retry(
   }
   log('Retries exhausted');
   throw new Error('RetryOnEmptyMiddleware - retries exhausted');
-}
-
-function timeout(duration: number): Promise<NodeJS.Timeout> {
-  return new Promise((resolve) => setTimeout(resolve, duration));
 }
