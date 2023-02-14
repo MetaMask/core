@@ -140,10 +140,10 @@ const mockAllBlockTrackerRequests = ({
 
 type Request = { method: string; params?: any[] };
 type Response = {
+  id?: number | string;
   error?: any;
   result?: any;
   httpStatus?: number;
-  [k: string]: any;
 };
 type ResponseBody = { body: JSONRPCResponse };
 type BodyOrResponse = ResponseBody | Response;
@@ -186,19 +186,20 @@ const mockRpcCall = ({
   // eth-query always passes `params`, so even if we don't supply this property,
   // for consistency with makeRpcCall, assume that the `body` contains it
   const { method, params = [], ...rest } = request;
-  const httpStatus = (response as Response)?.httpStatus ?? 200;
+  let httpStatus = 200;
   let completeResponse: JSONRPCResponse = { id: 2, jsonrpc: '2.0' };
   if (response !== undefined) {
-    if (response.body === undefined) {
-      completeResponse = { id: 2, jsonrpc: '2.0' };
-      ['id', 'jsonrpc', 'result', 'error'].forEach((prop) => {
-        const val = (response as Response)[prop];
-        if (val !== undefined) {
-          completeResponse[prop] = val;
-        }
-      });
-    } else {
+    if ('body' in response) {
       completeResponse = response.body;
+    } else {
+      if (response.error) {
+        completeResponse.error = response.error;
+      } else {
+        completeResponse.result = response.result;
+      }
+      if (response.httpStatus) {
+        httpStatus = response.httpStatus;
+      }
     }
   }
   const url = (nockScope as any).basePath.includes('infura.io')
@@ -235,10 +236,12 @@ const mockRpcCall = ({
     return nockRequest.replyWithError(error);
   } else if (completeResponse !== undefined) {
     return nockRequest.reply(httpStatus, (_, requestBody: any) => {
-      if ((response as Response).id !== undefined) {
-        completeResponse.id = (response as Response).id;
-      } else {
-        completeResponse.id = requestBody.id;
+      if (response !== undefined && !('body' in response)) {
+        if (response.id !== undefined) {
+          completeResponse.id = response?.id;
+        } else {
+          completeResponse.id = requestBody.id;
+        }
       }
       debug('Nock returning Response', completeResponse);
       return completeResponse;
