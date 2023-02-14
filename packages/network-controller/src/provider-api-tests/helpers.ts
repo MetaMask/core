@@ -111,8 +111,7 @@ const mockNextBlockTrackerRequest = ({
     response: {
       result: { ...block, number: blockNumber, hash: `0x${Math.random()}` },
     },
-    // times: 2,
-  }) as NockScope;
+  });
 };
 
 const mockAllBlockTrackerRequests = ({
