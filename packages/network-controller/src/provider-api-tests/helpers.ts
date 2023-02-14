@@ -47,8 +47,12 @@ const DEFAULT_BLOCK = {
  * @param args - The arguments that `console.log` takes.
  */
 function debug(...args: any) {
-  // eslint-disable-next-line
   if (process.env.DEBUG_PROVIDER_TESTS === '1') {
+    if (args[0] instanceof Error) {
+      console.error(args[0]);
+      return;
+    }
+    // eslint-disable-next-line
     console.log(...args);
   }
 }
@@ -354,7 +358,7 @@ export const waitForPromiseToBeFulfilledAfterRunningAllTimers = async (
 
   promise
     .catch((e: any) => {
-      console.error(e);
+      debug(e);
     })
     .finally(() => {
       hasPromiseBeenFulfilled = true;
