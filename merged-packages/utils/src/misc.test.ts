@@ -109,10 +109,7 @@ describe('miscellaneous', () => {
         [
           [{}, 'a'],
           [{ a: 1 }, 'b'],
-          // Object.hasOwnProperty does not work for arrays
-          // [['foo'], 0],
-          // [['foo'], '0'],
-        ] as any[]
+        ] as const
       ).forEach(([objectValue, property]) => {
         expect(hasProperty(objectValue, property)).toBe(false);
       });

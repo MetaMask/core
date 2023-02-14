@@ -1,6 +1,6 @@
 import { expectAssignable, expectNotAssignable } from 'tsd';
 
-import { isObject, hasProperty, RuntimeObject } from '.';
+import { isObject, hasProperty, RuntimeObject } from './misc';
 
 //=============================================================================
 // isObject
@@ -34,6 +34,20 @@ expectNotAssignable<Record<'foo', unknown>>(unknownObject);
 // Establish that `RuntimeObject` is not accepted when a specific property is needed.
 if (isObject(unknownObject)) {
   expectNotAssignable<Record<'foo', unknown>>(unknownObject);
+}
+
+// An object is accepted after `hasProperty` is used to prove that it has the required property.
+if (isObject(unknownObject) && hasProperty(unknownObject, 'foo')) {
+  expectAssignable<Record<'foo', unknown>>(unknownObject);
+}
+
+// An object is accepted after `hasProperty` is used to prove that it has all required properties.
+if (
+  isObject(unknownObject) &&
+  hasProperty(unknownObject, 'foo') &&
+  hasProperty(unknownObject, 'bar')
+) {
+  expectAssignable<Record<'foo' | 'bar', unknown>>(unknownObject);
 }
 
 // An object is not accepted after `hasProperty` has only been used to establish that some required properties exist.
