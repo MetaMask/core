@@ -273,9 +273,11 @@ const makeRpcCall = (
   });
 };
 
+export type ProviderType = 'infura' | 'custom';
+
 export type MockOptions = {
   infuraNetwork?: NetworkType;
-  providerType: 'infura' | 'custom';
+  providerType: ProviderType;
   customRpcUrl?: string;
   customChainId?: string;
 };
@@ -296,12 +298,6 @@ export const withMockedCommunications = async (
   }: MockOptions,
   fn: (comms: MockCommunications) => Promise<void>,
 ): Promise<any> => {
-  if (providerType !== 'infura' && providerType !== 'custom') {
-    throw new Error(
-      `providerType must be either "infura" or "custom", was "${providerType}" instead`,
-    );
-  }
-
   const rpcUrl =
     providerType === 'infura'
       ? `https://${infuraNetwork}.infura.io`
@@ -386,11 +382,6 @@ export const withNetworkClient = async (
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<any>,
 ): Promise<any> => {
-  if (providerType !== 'infura' && providerType !== 'custom') {
-    throw new Error(
-      `providerType must be either "infura" or "custom", was "${providerType}" instead`,
-    );
-  }
   const messenger: NetworkControllerMessenger =
     new ControllerMessenger().getRestricted({
       name: 'NetworkController',

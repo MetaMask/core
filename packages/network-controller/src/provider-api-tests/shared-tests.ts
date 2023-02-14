@@ -4,6 +4,7 @@ import { fill } from 'lodash';
 import {
   buildMockParams,
   buildRequestWithReplacedBlockParam,
+  ProviderType,
   waitForNextBlockTracker,
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
@@ -28,7 +29,7 @@ export const buildFetchFailedErrorMessage = (url: string, reason: string) => {
 };
 
 type TestsForRpcMethodNotHandledByMiddlewareOptions = {
-  providerType: 'infura' | 'custom';
+  providerType: ProviderType;
   numberOfParameters: number;
 };
 
@@ -39,12 +40,6 @@ export const testsForRpcMethodNotHandledByMiddleware = (
     numberOfParameters,
   }: TestsForRpcMethodNotHandledByMiddlewareOptions,
 ) => {
-  if (providerType !== 'infura' && providerType !== 'custom') {
-    throw new Error(
-      `providerType must be either "infura" or "custom", was "${providerType}" instead`,
-    );
-  }
-
   it('attempts to pass the request off to the RPC endpoint', async () => {
     const request = {
       method,
@@ -69,7 +64,7 @@ export const testsForRpcMethodNotHandledByMiddleware = (
 };
 
 type TestsForRpcMethodWithStaticResult = {
-  providerType: 'infura' | 'custom';
+  providerType: ProviderType;
   numberOfParameters: number;
   result: any;
 };
@@ -82,12 +77,6 @@ export const testsForRpcMethodWithStaticResult = (
     result,
   }: TestsForRpcMethodWithStaticResult,
 ) => {
-  if (providerType !== 'infura' && providerType !== 'custom') {
-    throw new Error(
-      `providerType must be either "infura" or "custom", was "${providerType}" instead`,
-    );
-  }
-
   it('attempts to pass the request off to the RPC endpoint', async () => {
     const request = {
       method,
@@ -107,7 +96,7 @@ export const testsForRpcMethodWithStaticResult = (
 };
 
 type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
-  providerType: 'infura' | 'custom';
+  providerType: ProviderType;
   numberOfParameters: number;
 };
 
@@ -118,12 +107,6 @@ export const testsForRpcMethodsThatCheckForBlockHashInResponse = (
     numberOfParameters,
   }: TestsForRpcMethodThatCheckForBlockHashInResponseOptions,
 ) => {
-  if (providerType !== 'infura' && providerType !== 'custom') {
-    throw new Error(
-      `providerType must be either "infura" or "custom", was "${providerType}" instead`,
-    );
-  }
-
   it('does not hit the RPC endpoint more than once for identical requests and it has a valid blockHash', async () => {
     const requests = [{ method }, { method }];
     const mockResult = { blockHash: '0x1' };
@@ -337,9 +320,9 @@ export const testsForRpcMethodsThatCheckForBlockHashInResponse = (
 };
 
 type TestsForRpcMethodSupportingBlockParam = {
+  providerType: ProviderType;
   blockParamIndex: number;
   numberOfParameters: number;
-  providerType: 'infura' | 'custom';
 };
 
 export const testsForRpcMethodSupportingBlockParam = (
@@ -883,7 +866,6 @@ export const testsForRpcMethodSupportingBlockParam = (
           ),
           response: {
             id: 12345,
-            jsonrpc: '2.0',
             error: 'some error',
             httpStatus: 420,
           },
@@ -2310,7 +2292,7 @@ export const testsForRpcMethodSupportingBlockParam = (
   }
 };
 
-export const testsForProviderType = (providerType: 'infura' | 'custom') => {
+export const testsForProviderType = (providerType: ProviderType) => {
   describe('methods included in the Ethereum JSON-RPC spec', () => {
     describe('methods not handled by middleware', () => {
       const notHandledByMiddleware = [
