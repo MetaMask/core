@@ -8,7 +8,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworkType } from '@metamask/controller-utils';
 import {
   NetworkController,
-  EthQuery as TEthQuery,
+  EthQuery,
   NetworkControllerMessenger,
 } from '../NetworkController';
 
@@ -249,7 +249,7 @@ const mockRpcCall = ({
 };
 
 const makeRpcCall = (
-  ethQuery: TEthQuery,
+  ethQuery: EthQuery,
   request: Request,
   clock: any,
 ): Promise<JSONRPCResponseResult> => {
