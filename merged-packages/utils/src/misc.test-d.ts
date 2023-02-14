@@ -1,4 +1,4 @@
-import { expectAssignable, expectNotAssignable } from 'tsd';
+import { expectAssignable, expectNotAssignable, expectType } from 'tsd';
 
 import { isObject, hasProperty, RuntimeObject } from './misc';
 
@@ -61,6 +61,34 @@ if (hasProperty(overlappingTypesExample, 'foo')) {
   expectAssignable<Record<'baz', unknown>>(overlappingTypesExample);
 }
 
+const exampleErrorWithCode = new Error('test');
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+exampleErrorWithCode.code = 999;
+
+// Establish that trying to check for a custom property on an error results in failure
+expectNotAssignable<{ code: any }>(exampleErrorWithCode);
+
+// Using custom Error property is allowed after checking with `hasProperty`
+if (hasProperty(exampleErrorWithCode, 'code')) {
+  expectType<unknown>(exampleErrorWithCode.code);
+}
+
+// `hasProperty` is compatible with interfaces
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+interface HasPropertyInterfaceExample {
+  a: number;
+}
+const hasPropertyInterfaceExample: HasPropertyInterfaceExample = { a: 0 };
+hasProperty(hasPropertyInterfaceExample, 'a');
+
+// `hasProperty` is compatible with classes
+class HasPropertyClassExample {
+  a!: number;
+}
+const hasPropertyClassExample = new HasPropertyClassExample();
+hasProperty(hasPropertyClassExample, 'a');
+
 //=============================================================================
 // RuntimeObject
 //=============================================================================
@@ -101,14 +129,14 @@ expectNotAssignable<RuntimeObject>(Symbol('test'));
 // The RuntimeObject type gets confused by interfaces. This interface is a valid object,
 // but it's incompatible with the RuntimeObject type.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-interface A {
+interface RuntimeObjectInterfaceExample {
   a: number;
 }
-const a: A = { a: 0 };
-expectNotAssignable<RuntimeObject>(a);
+const runtimeObjectInterfaceExample: RuntimeObjectInterfaceExample = { a: 0 };
+expectNotAssignable<RuntimeObject>(runtimeObjectInterfaceExample);
 
-class Foo {
+class RuntimeObjectClassExample {
   a!: number;
 }
-const foo = new Foo();
-expectNotAssignable<RuntimeObject>(foo);
+const runtimeObjectClassExample = new RuntimeObjectClassExample();
+expectNotAssignable<RuntimeObject>(runtimeObjectClassExample);
