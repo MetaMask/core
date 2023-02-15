@@ -77,7 +77,7 @@ export const testsForRpcMethodWithStaticResult = (
     result,
   }: TestsForRpcMethodWithStaticResult,
 ) => {
-  it('attempts to pass the request off to the RPC endpoint', async () => {
+  it('method is handled by middleware and the request is never sent to the network', async () => {
     const request = {
       method,
       params: fill(Array(numberOfParameters), 'some value'),
