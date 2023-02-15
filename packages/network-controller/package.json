@@ -29,7 +29,6 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/swappable-obj-proxy": "^2.1.0",
@@ -41,6 +40,7 @@
     "web3-provider-engine": "^16.0.3"
   },
   "devDependencies": {
+    "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/auto-changelog": "^3.1.0",
     "@types/jest": "^26.0.22",
     "@types/lodash": "^4.14.191",
