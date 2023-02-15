@@ -22,6 +22,7 @@ import {
   isValidJson,
   Json,
   NonEmptyArray,
+  SideEffects,
 } from '@metamask/controller-utils';
 import {
   CaveatConstraint,
@@ -1979,6 +1980,41 @@ export class PermissionController<
   private async requestUserApproval(permissionsRequest: PermissionsRequest) {
     const { origin, id } = permissionsRequest.metadata;
 
+    const sideEffects = Object.keys(
+      permissionsRequest.permissions,
+    ).reduce<SideEffects>(
+      (sideEffectList, targetName) => {
+        const targetKey = this.getTargetKey(targetName);
+
+        if (!targetKey) {
+          throw methodNotFound(targetName, {
+            origin,
+            permissions: permissionsRequest.permissions,
+          });
+        }
+
+        const specification = this.getPermissionSpecification(targetKey);
+
+        if (specification.sideEffect) {
+          sideEffectList.permittedHandlers.push(
+            specification.sideEffect.onPermitted,
+          );
+          sideEffectList.failureHandlers.push(
+            specification.sideEffect.onFailure,
+          );
+
+          if (specification.sideEffect.onSuccess) {
+            sideEffectList.successHandlers.push(
+              specification.sideEffect.onSuccess,
+            );
+          }
+        }
+
+        return sideEffectList;
+      },
+      { permittedHandlers: [], failureHandlers: [], successHandlers: [] },
+    );
+
     const approvedRequest = await this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
@@ -1986,6 +2022,7 @@ export class PermissionController<
         origin,
         requestData: permissionsRequest,
         type: MethodNames.requestPermissions,
+        sideEffects,
       },
       true,
     );
