@@ -426,11 +426,12 @@ export class ApprovalController extends BaseControllerV2<
    */
   async accept(id: string, value?: unknown): Promise<void> {
     const permission = this._approvals.get(id);
-    const { requestData } = this.state.pendingApprovals[id];
 
     if (!permission) {
       throw new ApprovalRequestNotFoundError(id);
     }
+
+    const { requestData } = this.state.pendingApprovals[id];
 
     const { resolve, reject, sideEffects } =
       this._deleteApprovalAndGetCallbacks(id);
