@@ -1743,7 +1743,6 @@ export class PermissionController<
    *
    * @param origin - The origin of the grantee subject.
    * @param permissions - The new permissions for the grantee subject.
-   * @returns The inverse Patches.
    */
   private setValidatedPermissions(
     origin: OriginString,
@@ -1754,16 +1753,14 @@ export class PermissionController<
         ControllerCaveatSpecification
       >
     >,
-  ): Patch[] {
-    const { inversePatches } = this.update((draftState) => {
+  ): void {
+    this.update((draftState) => {
       if (!draftState.subjects[origin]) {
         draftState.subjects[origin] = { origin, permissions: {} };
       }
 
       draftState.subjects[origin].permissions = castDraft(permissions);
     });
-
-    return inversePatches;
   }
 
   /**
@@ -1902,14 +1899,15 @@ export class PermissionController<
     const { permissions: approvedPermissions, ...requestData } =
       await this.requestUserApproval(permissionsRequest);
 
-    const grantedPermissions = this.grantPermissions({
-      subject,
-      approvedPermissions,
-      preserveExistingPermissions,
-      requestData,
-    });
-
-    return [grantedPermissions, metadata];
+    return [
+      this.grantPermissions({
+        subject,
+        approvedPermissions,
+        preserveExistingPermissions,
+        requestData,
+      }),
+      metadata,
+    ];
   }
 
   /**
