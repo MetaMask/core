@@ -22,7 +22,7 @@ export async function waitForResult(
   let lastActualValue: any;
 
   while (numIterations < maxNumIterations) {
-    const actualValue = it();
+    const actualValue = test();
     if (actualValue === expectedValue) {
       return { pass: true };
     }
