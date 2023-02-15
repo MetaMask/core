@@ -1556,42 +1556,32 @@ export class PermissionController<
    *
    * @see {@link PermissionController.requestPermissions} For initiating a
    * permissions request requiring user approval.
-   * @param opts - Options bag.
-   * @param opts.approvedPermissions - The requested permissions approved by
+   * @param options - Options bag.
+   * @param options.approvedPermissions - The requested permissions approved by
    * the user.
-   * @param opts.requestData - Permission request data. Passed to permission
+   * @param options.requestData - Permission request data. Passed to permission
    * factory functions.
-   * @param opts.preserveExistingPermissions - Whether to preserve the
+   * @param options.preserveExistingPermissions - Whether to preserve the
    * subject's existing permissions.
-   * @param opts.subject - The subject to grant permissions to.
+   * @param options.subject - The subject to grant permissions to.
    * @returns The granted permissions.
    */
-  grantPermissions(
-    opts: GrantPermissionsOptions,
-  ): SubjectPermissions<
+  grantPermissions({
+    approvedPermissions,
+    requestData,
+    preserveExistingPermissions = true,
+    subject,
+  }: {
+    approvedPermissions: RequestedPermissions;
+    subject: PermissionSubjectMetadata;
+    preserveExistingPermissions?: boolean;
+    requestData?: Record<string, unknown>;
+  }): SubjectPermissions<
     ExtractPermission<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >
   > {
-    const { permissions } = this._grantPermissions(opts);
-    return permissions;
-  }
-
-  private _grantPermissions({
-    approvedPermissions,
-    requestData,
-    preserveExistingPermissions = true,
-    subject,
-  }: GrantPermissionsOptions): {
-    permissions: SubjectPermissions<
-      ExtractPermission<
-        ControllerPermissionSpecification,
-        ControllerCaveatSpecification
-      >
-    >;
-    inversePatches: Patch[];
-  } {
     const { origin } = subject;
 
     if (!origin || typeof origin !== 'string') {
@@ -1676,8 +1666,8 @@ export class PermissionController<
       permissions[targetName] = permission;
     }
 
-    const inversePatches = this.setValidatedPermissions(origin, permissions);
-    return { permissions, inversePatches };
+    this.setValidatedPermissions(origin, permissions);
+    return permissions;
   }
 
   /**
@@ -1912,7 +1902,7 @@ export class PermissionController<
     const { permissions: approvedPermissions, ...requestData } =
       await this.requestUserApproval(permissionsRequest);
 
-    const { permissions: grantedPermissions } = this._grantPermissions({
+    const grantedPermissions = this.grantPermissions({
       subject,
       approvedPermissions,
       preserveExistingPermissions,

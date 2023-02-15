@@ -13,7 +13,7 @@ const controllerName = 'ApprovalController';
 type ApprovalPromiseResolve = (value?: unknown) => void;
 type ApprovalPromiseReject = (error?: unknown) => void;
 
-type ApprovalRequestData = Record<string, Json> | null;
+export type ApprovalRequestData = Record<string, Json> | null;
 
 type ApprovalRequestState = Record<string, Json> | null;
 
@@ -426,6 +426,7 @@ export class ApprovalController extends BaseControllerV2<
    */
   async accept(id: string, value?: unknown): Promise<void> {
     const permission = this._approvals.get(id);
+    const { requestData } = this.state.pendingApprovals[id];
 
     if (!permission) {
       throw new ApprovalRequestNotFoundError(id);
@@ -436,7 +437,7 @@ export class ApprovalController extends BaseControllerV2<
 
     try {
       if (sideEffects) {
-        await this._handleSideEffects(sideEffects);
+        await this._handleSideEffects(sideEffects, requestData);
       }
     } catch (err) {
       reject(err);
@@ -664,17 +665,22 @@ export class ApprovalController extends BaseControllerV2<
     return callbacks;
   }
 
-  private async _handleSideEffects(sideEffects: SideEffects) {
+  private async _handleSideEffects(
+    sideEffects: SideEffects,
+    requestData: ApprovalRequestData,
+  ) {
     const promiseResults = await Promise.allSettled(
       sideEffects.permittedHandlers.map(async (permittedHandler) =>
-        permittedHandler(),
+        permittedHandler(requestData),
       ),
     );
 
     if (promiseResults.find((promise) => promise.status === 'rejected')) {
       try {
         await Promise.all(
-          sideEffects.failureHandlers.map((failureHandler) => failureHandler()),
+          sideEffects.failureHandlers.map((failureHandler) =>
+            failureHandler(requestData),
+          ),
         );
       } catch (error) {
         throw new Error(
@@ -687,7 +693,9 @@ export class ApprovalController extends BaseControllerV2<
     } else if (sideEffects.successHandlers.length !== 0) {
       try {
         await Promise.all(
-          sideEffects.successHandlers.map((successHandler) => successHandler()),
+          sideEffects.successHandlers.map((successHandler) =>
+            successHandler(requestData),
+          ),
         );
       } catch (error) {
         throw new Error(
