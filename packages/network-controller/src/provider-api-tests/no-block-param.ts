@@ -470,43 +470,43 @@ export const testsForRpcMethodAssumingNoBlockParam = (
         );
       });
     });
+  });
 
-    it('retries the request to the RPC endpoint up to 5 times if an "ETIMEDOUT" error is thrown while making the request, returning the successful result if there is one on the 5th try', async () => {
-      await withMockedCommunications({ providerType }, async (comms) => {
-        const request = { method };
+  it('retries the request to the RPC endpoint up to 5 times if an "ETIMEDOUT" error is thrown while making the request, returning the successful result if there is one on the 5th try', async () => {
+    await withMockedCommunications({ providerType }, async (comms) => {
+      const request = { method };
 
-        // The first time a block-cacheable request is made, the latest block
-        // number is retrieved through the block tracker first. It doesn't
-        // matter what this is — it's just used as a cache key.
-        comms.mockNextBlockTrackerRequest();
-        // Here we have the request fail for the first 4 tries, then succeed
-        // on the 5th try.
-        comms.mockRpcCall({
-          request,
-          error: 'ETIMEDOUT: Some message',
-          times: 4,
-        });
-
-        comms.mockRpcCall({
-          request,
-          response: {
-            result: 'the result',
-            httpStatus: 200,
-          },
-        });
-
-        const result = await withNetworkClient(
-          { providerType },
-          async ({ makeRpcCall, clock }) => {
-            return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-              makeRpcCall(request),
-              clock,
-            );
-          },
-        );
-
-        expect(result).toStrictEqual('the result');
+      // The first time a block-cacheable request is made, the latest block
+      // number is retrieved through the block tracker first. It doesn't
+      // matter what this is — it's just used as a cache key.
+      comms.mockNextBlockTrackerRequest();
+      // Here we have the request fail for the first 4 tries, then succeed
+      // on the 5th try.
+      comms.mockRpcCall({
+        request,
+        error: 'ETIMEDOUT: Some message',
+        times: 4,
       });
+
+      comms.mockRpcCall({
+        request,
+        response: {
+          result: 'the result',
+          httpStatus: 200,
+        },
+      });
+
+      const result = await withNetworkClient(
+        { providerType },
+        async ({ makeRpcCall, clock }) => {
+          return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
+            makeRpcCall(request),
+            clock,
+          );
+        },
+      );
+
+      expect(result).toStrictEqual('the result');
     });
 
     // Both the Infura and fetch middleware detect ETIMEDOUT errors and will
