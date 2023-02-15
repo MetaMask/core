@@ -2,6 +2,7 @@
 
 import {
   MockCommunications,
+  ProviderType,
   waitForNextBlockTracker,
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
@@ -41,7 +42,7 @@ const returnsErrorAfterRetries = async (
 };
 
 type TestsForRpcMethodAssumingNoBlockParamOptions = {
-  providerType: 'infura' | 'custom';
+  providerType: ProviderType
   numberOfParameters: number;
 };
 
@@ -52,12 +53,6 @@ export const testsForRpcMethodAssumingNoBlockParam = (
     providerType,
   }: TestsForRpcMethodAssumingNoBlockParamOptions,
 ) => {
-  if (providerType !== 'infura' && providerType !== 'custom') {
-    throw new Error(
-      `providerType must be either "infura" or "custom", was "${providerType}" instead`,
-    );
-  }
-
   it('does not hit the RPC endpoint more than once for identical requests', async () => {
     const requests = [{ method }, { method }];
     const mockResults = ['first result', 'second result'];
