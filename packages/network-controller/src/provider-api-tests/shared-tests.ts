@@ -2143,7 +2143,7 @@ export const testsForProviderType = (providerType: ProviderType) => {
       });
     });
 
-    describe('methods handled by middleware that returns static a result', () => {
+    describe('methods handled by middleware that returns a static result', () => {
       const notHandledByMiddleware = [
         { name: 'eth_accounts', numberOfParameters: 0, result: [] },
         { name: 'eth_coinbase', numberOfParameters: 0, result: null },
@@ -2387,7 +2387,7 @@ export const testsForProviderType = (providerType: ProviderType) => {
   });
 
   describe('methods not included in the Ethereum JSON-RPC spec', () => {
-    describe('methods handled by middleware that returns static a result', () => {
+    describe('methods handled by middleware that returns a static result', () => {
       const notHandledByMiddleware = [
         { name: 'net_listening', numberOfParameters: 0, result: true },
         {
