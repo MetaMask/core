@@ -910,7 +910,7 @@ export const testsForRpcMethodSupportingBlockParam = (
           });
         });
       } else {
-        it(`produces an empty response if the request to the RPC endpoint returns a ${httpStatus} response 5 times in a row`, async () => {
+        it(`produces a response without a result if the request to the RPC endpoint returns a ${httpStatus} response 5 times in a row`, async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
             const request = {
               method,
@@ -1040,7 +1040,7 @@ export const testsForRpcMethodSupportingBlockParam = (
         });
       });
     } else {
-      it('produces an empty response if an "ETIMEDOUT" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
+      it('produces a response without a result if an "ETIMEDOUT" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
@@ -1421,7 +1421,7 @@ export const testsForRpcMethodSupportingBlockParam = (
         });
       });
 
-      it('produces an empty response if a "failed to parse response body" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
+      it('produces a response without a result if a "failed to parse response body" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
@@ -1542,7 +1542,7 @@ export const testsForRpcMethodSupportingBlockParam = (
         });
       });
 
-      it('produces an empty response if a "Failed to fetch" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
+      it('produces a response without a result if a "Failed to fetch" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
