@@ -353,12 +353,11 @@ export const testsForRpcMethodSupportingBlockParam = (
         // tracker to determine the cache key.
         comms.mockNextBlockTrackerRequest();
         comms.mockRpcCall({
-          request: requests[0],
-          // request: buildRequestWithReplacedBlockParam(
-          //   requests[0],
-          //   blockParamIndex,
-          //   blockParam === undefined ? null : 'latest',
-          // ),
+          request: buildRequestWithReplacedBlockParam(
+            requests[0],
+            blockParamIndex,
+            blockParam === undefined ? null : 'latest',
+          ),
           response: { result: mockResults[0] },
         });
 
