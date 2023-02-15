@@ -456,10 +456,6 @@ export const buildMockParams = ({
   blockParam,
   blockParamIndex,
 }: BuildMockParamsOptions) => {
-  if (blockParamIndex === undefined) {
-    throw new Error(`Missing 'blockParamIndex'`);
-  }
-
   const params = new Array(blockParamIndex).fill('some value');
   params[blockParamIndex] = blockParam;
 
