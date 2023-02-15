@@ -42,7 +42,7 @@ const returnsErrorAfterRetries = async (
 };
 
 type TestsForRpcMethodAssumingNoBlockParamOptions = {
-  providerType: ProviderType
+  providerType: ProviderType;
   numberOfParameters: number;
 };
 

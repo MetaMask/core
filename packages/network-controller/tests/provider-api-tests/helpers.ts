@@ -389,7 +389,6 @@ export const withNetworkClient = async (
       allowedActions: ['NetworkController:getEthQuery'],
     });
 
-
   const clock = sinon.useFakeTimers();
 
   const controller = new NetworkController({
