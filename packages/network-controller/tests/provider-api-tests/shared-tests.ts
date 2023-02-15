@@ -11,6 +11,7 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcMethodAssumingNoBlockParam } from './no-block-param';
+import { testsForRpcMethodNotHandledByMiddleware } from './not-handled-by-middleware';
 
 export const buildInfuraClientRetriesExhaustedErrorMessage = (
   reason: string,
@@ -26,41 +27,6 @@ export const buildFetchFailedErrorMessage = (url: string, reason: string) => {
     `^request to ${url}(/[^/ ]*)+ failed, reason: ${reason}`,
     'us',
   );
-};
-
-type TestsForRpcMethodNotHandledByMiddlewareOptions = {
-  providerType: ProviderType;
-  numberOfParameters: number;
-};
-
-export const testsForRpcMethodNotHandledByMiddleware = (
-  method: string,
-  {
-    providerType,
-    numberOfParameters,
-  }: TestsForRpcMethodNotHandledByMiddlewareOptions,
-) => {
-  it('attempts to pass the request off to the RPC endpoint', async () => {
-    const request = {
-      method,
-      params: fill(Array(numberOfParameters), 'some value'),
-    };
-    const expectedResult = 'the result';
-
-    await withMockedCommunications({ providerType }, async (comms) => {
-      comms.mockNextBlockTrackerRequest({ blockNumber: '0x1' });
-      comms.mockRpcCall({
-        request,
-        response: { result: expectedResult },
-      });
-      const actualResult = await withNetworkClient(
-        { providerType },
-        ({ makeRpcCall }) => makeRpcCall(request),
-      );
-
-      expect(actualResult).toStrictEqual(expectedResult);
-    });
-  });
 };
 
 type TestsForRpcMethodWithStaticResult = {
