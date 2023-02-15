@@ -64,19 +64,10 @@ function debug(...args: any) {
  * @returns The nock scope.
  */
 function buildScopeForMockingRequests(rpcUrl: string) {
-  // return nock(rpcUrl).filteringRequestBody((body) => {
-  //   const copyOfBody = JSON.parse(body);
-  //   // Some IDs are random, so remove them entirely from the request to make it
-  //   // possible to mock these requests
-  //   delete copyOfBody.id;
-  //   return JSON.stringify(copyOfBody);
-  // });
-
   return nock(rpcUrl).filteringRequestBody((body) => {
     debug('Nock Received Request: ', body);
     return body;
   });
-  // return nock(rpcUrl);
 }
 
 type MockBlockTrackerRequestOptions = {
