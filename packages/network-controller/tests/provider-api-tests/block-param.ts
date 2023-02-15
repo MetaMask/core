@@ -7,7 +7,10 @@ import {
   withMockedCommunications,
   withNetworkClient,
 } from './helpers';
-import { buildFetchFailedErrorMessage, buildInfuraClientRetriesExhaustedErrorMessage } from './shared-tests';
+import {
+  buildFetchFailedErrorMessage,
+  buildInfuraClientRetriesExhaustedErrorMessage,
+} from './shared-tests';
 
 type TestsForRpcMethodSupportingBlockParam = {
   providerType: ProviderType;
@@ -1272,7 +1275,7 @@ export const testsForRpcMethodSupportingBlockParam = (
     ['given a block tag of "earliest"', 'earliest', 'earliest'],
     ['given a block number', 'block number', '0x100'],
   ])('%s', (_desc, blockParamType, blockParam) => {
-    it('does not hit the RPC endpoint more than once for identical requests', async () => {
+    it(`does not hit the RPC endpoint more than once for identical requests when block param is ${blockParam} and param type of ${blockParamType}`, async () => {
       const requests = [
         {
           method,

@@ -12,21 +12,17 @@ module.exports = {
   ],
   overrides: [
     {
-      files: [
-        '*.test.ts',
-        '*.test.js',
-        '**/tests/**/*',
-        '!**/tests/**/helpers.ts',
-        './packages/network-controller/src/provider-api-tests/**/*.ts',
-      ],
+      files: ['*.test.ts', '*.test.js', '**/tests/**/*.test.ts'],
       extends: ['@metamask/eslint-config-jest'],
     },
     {
-      files: ['**/tests/**/helpers.ts'],
+      files: ['**/tests/**/*', '!**/tests/**/*.test.ts'],
       extends: ['@metamask/eslint-config-jest'],
       rules: {
         'node/no-process-env': 'off',
         'jest/no-export': 'off',
+        'jest/require-top-level-describe': 'off',
+        'jest/no-if': 'off',
       },
     },
     {
