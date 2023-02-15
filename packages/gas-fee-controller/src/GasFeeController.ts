@@ -23,7 +23,6 @@ import {
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
-const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
 export type unknownString = 'unknown';
@@ -279,8 +278,7 @@ export class GasFeeController extends BaseControllerV2<
    * network state change event.
    * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
    * testing purposes.
-   * @param options.EIP1559APIEndpoint - The EIP-1559 gas price API URL. This option is primarily
-   * for testing purposes.
+   * @param options.EIP1559APIEndpoint - The EIP-1559 gas price API URL.
    * @param options.clientId - The client ID used to identify to the gas estimation API who is
    * asking for estimates.
    */
@@ -295,7 +293,7 @@ export class GasFeeController extends BaseControllerV2<
     getProvider,
     onNetworkStateChange,
     legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
-    EIP1559APIEndpoint = GAS_FEE_API,
+    EIP1559APIEndpoint,
     clientId,
   }: {
     interval?: number;
@@ -308,7 +306,7 @@ export class GasFeeController extends BaseControllerV2<
     getProvider: () => NetworkController['provider'];
     onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
-    EIP1559APIEndpoint?: string;
+    EIP1559APIEndpoint: string;
     clientId?: string;
   }) {
     super({
