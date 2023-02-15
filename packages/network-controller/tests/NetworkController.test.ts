@@ -13,7 +13,7 @@ import { waitForResult } from '../../../tests/helpers';
 import {
   FakeProviderEngine,
   FakeProviderStub,
-} from '../tests/fake-provider-engine';
+} from './fake-provider-engine';
 import {
   NetworkController,
   NetworkControllerActions,
@@ -23,7 +23,7 @@ import {
   NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderConfig,
-} from './NetworkController';
+} from '../src/NetworkController';
 
 jest.mock('eth-query', () => {
   return {
@@ -3955,8 +3955,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
             // Using a string instead of an Error leads to better backtraces.
             /* eslint-disable-next-line prefer-promise-reject-errors */
             reject(
-              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
-                interestingEventPayloads.length
+              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${interestingEventPayloads.length
               } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
                 allEventPayloads,
                 { depth: null },
@@ -4039,7 +4038,7 @@ async function waitForStateChanges(
     propertyPath === undefined
       ? () => true
       : ([_newState, patches]: [NetworkState, Patch[]]) =>
-          didPropertyChange(patches, propertyPath);
+        didPropertyChange(patches, propertyPath);
 
   return await waitForPublishedEvents<NetworkControllerStateChangeEvent>(
     messenger,

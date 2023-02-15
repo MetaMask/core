@@ -10,7 +10,7 @@ import {
   NetworkController,
   EthQuery,
   NetworkControllerMessenger,
-} from '../NetworkController';
+} from '../../src/NetworkController';
 
 /**
  * A dummy value for the `infuraProjectId` option that `createInfuraClient`
