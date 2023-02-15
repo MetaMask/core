@@ -441,13 +441,6 @@ export type ExtractEndowmentPermission<
   ControllerCaveatSpecification
 >;
 
-export type GrantPermissionsOptions = {
-  approvedPermissions: RequestedPermissions;
-  subject: PermissionSubjectMetadata;
-  preserveExistingPermissions?: boolean;
-  requestData?: Record<string, unknown>;
-};
-
 /**
  * Options for the {@link PermissionController} constructor.
  *
