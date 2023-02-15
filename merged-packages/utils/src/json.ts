@@ -24,14 +24,12 @@ import {
   isPlainObject,
   JsonSize,
 } from './misc';
-import { arrayFromEntries, objectFromEntries } from './object';
 
 export const JsonStruct = define<Json>('Json', (value) => {
-  const { valid } = validateJsonAndGetSize(value, true);
-  if (!valid) {
-    return 'The value must be one of: null, boolean, number, string, JSON array, or JSON object';
+  const [isValid] = validateJsonAndGetSize(value, true);
+  if (!isValid) {
+    return 'Expected a valid JSON-serializable value';
   }
-
   return true;
 });
 
@@ -50,69 +48,11 @@ export type Json =
  * Check if the given value is a valid {@link Json} value, i.e., a value that is
  * serializable to JSON.
  *
- * In order to validate the size of the value, use {@link createJson} with the
- * `maxSize` option instead.
- *
  * @param value - The value to check.
  * @returns Whether the value is a valid {@link Json} value.
  */
 export function isValidJson(value: unknown): value is Json {
   return is(value, JsonStruct);
-}
-
-/**
- * Assert that the given value is a valid {@link Json} value, i.e., a value that
- * is serializable to JSON.
- *
- * In order to validate the size of the value, use {@link createJson} with the
- * `maxSize` option instead.
- *
- * @param value - The value to check.
- * @param ErrorWrapper - The error class to throw if the assertion fails.
- * Defaults to {@link AssertionError}.
- * @throws {ErrorWrapper} If the value is not a valid {@link Json} value.
- */
-export function assertIsJson(
-  value: unknown,
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  ErrorWrapper?: AssertionErrorConstructor,
-): asserts value is Json {
-  assertStruct(
-    value,
-    JsonStruct,
-    'Invalid JSON-serializable value',
-    ErrorWrapper,
-  );
-}
-
-/**
- * Validate that the given value is a valid {@link Json} value, and return the
- * processed value.
- *
- * If a `maxSize` is provided, the value will be validated against the given
- * maximum size, and an error will be thrown if the value exceeds the maximum
- * size.
- *
- * @param value - The value to validate.
- * @param maxSize - The maximum size of the value, in bytes.
- * @returns The validated, processed value.
- */
-export function createJson(value: unknown, maxSize?: number): Json {
-  const { valid, result, size } = validateJsonAndGetSize(value, !maxSize);
-
-  if (!valid) {
-    throw new Error(
-      'Invalid JSON-serializable value: The value must be one of: null, boolean, number, string, JSON array, or JSON object.',
-    );
-  }
-
-  if (maxSize && size > maxSize) {
-    throw new Error(
-      `Invalid JSON-serializable value: The provided JSON value exceeds the maximum size (${size} bytes > ${maxSize} bytes).`,
-    );
-  }
-
-  return result;
 }
 
 /**
@@ -544,212 +484,142 @@ export function getJsonRpcIdValidator(options?: JsonRpcValidatorOptions) {
   return isValidJsonRpcId;
 }
 
-export type JsonValidationResult =
-  | {
-      valid: true;
-      result: Json;
-      size: number;
-    }
-  | {
-      valid: false;
-      result: undefined;
-      size: 0;
-    };
-
-const INVALID_JSON: JsonValidationResult = {
-  valid: false,
-  result: undefined,
-  size: 0,
-};
-
 /**
  * Checks whether a value is JSON serializable and counts the total number
  * of bytes needed to store the serialized version of the value.
  *
  * @param jsObject - Potential JSON serializable object.
  * @param skipSizingProcess - Skip JSON size calculation (default: false).
- * @returns A {@link JsonValidationResult} object.
+ * @returns Tuple [isValid, plainTextSizeInBytes] containing a boolean that signals whether
+ * the value was serializable and a number of bytes that it will use when serialized to JSON.
  */
 export function validateJsonAndGetSize(
   jsObject: unknown,
   skipSizingProcess = false,
-): JsonValidationResult {
+): [isValid: boolean, plainTextSizeInBytes: number] {
   const seenObjects = new Set();
-
-  /**
-   * Get the value as it would be serialized by {@link JSON.stringify}. This
-   * checks if the value has a `toJSON` method and calls it if so.
-   *
-   * @param value - The value to get the JSON serializable value of.
-   * @returns The JSON serializable value of the given value.
-   */
-  function getJsonValue(value: unknown) {
-    const optionalToJson = value as { toJSON?: () => unknown };
-
-    // Note: We cannot use `hasProperty` here, because the value isn't
-    // guaranteed to be an object.
-    if (optionalToJson?.toJSON && typeof optionalToJson.toJSON === 'function') {
-      return optionalToJson.toJSON();
-    }
-
-    return value;
-  }
-
   /**
    * Checks whether a value is JSON serializable and counts the total number
    * of bytes needed to store the serialized version of the value.
    *
    * This function assumes the encoding of the JSON is done in UTF-8.
    *
-   * @param rawValue - Potential JSON serializable value.
+   * @param value - Potential JSON serializable value.
    * @param skipSizing - Skip JSON size calculation (default: false).
-   * @returns A {@link JsonValidationResult} object.
+   * @returns Tuple [isValid, plainTextSizeInBytes] containing a boolean that signals whether
+   * the value was serializable and a number of bytes that it will use when serialized to JSON.
    */
   function getJsonSerializableInfo(
-    rawValue: unknown,
+    value: unknown,
     skipSizing: boolean,
-  ): JsonValidationResult {
-    const value = getJsonValue(rawValue);
-
+  ): [isValid: boolean, plainTextSizeInBytes: number] {
     if (value === undefined) {
-      return INVALID_JSON;
+      return [false, 0];
     } else if (value === null) {
       // Return already specified constant size for null (special object)
-      return {
-        valid: true,
-        result: value,
-        size: skipSizing ? 0 : JsonSize.Null,
-      };
+      return [true, skipSizing ? 0 : JsonSize.Null];
     }
 
     // Check and calculate sizes for basic (and some special) types
-    if (typeof value === 'function') {
-      return INVALID_JSON;
-    } else if (typeof value === 'string' || value instanceof String) {
-      return {
-        valid: true,
-        // An instance of `String` is not assignable to our `Json` type.
-        result: String(value),
-        size: skipSizing
-          ? 0
-          : calculateStringSize(String(value)) + JsonSize.Quote * 2,
-      };
-    } else if (typeof value === 'boolean' || value instanceof Boolean) {
-      if (skipSizing) {
-        return {
-          valid: true,
-          // An instance of `Boolean` is not assignable to our `Json` type.
-          // eslint-disable-next-line eqeqeq
-          result: value == true,
-          size: 0,
-        };
+    const typeOfValue = typeof value;
+    try {
+      if (typeOfValue === 'function') {
+        return [false, 0];
+      } else if (typeOfValue === 'string' || value instanceof String) {
+        return [
+          true,
+          skipSizing
+            ? 0
+            : calculateStringSize(value as string) + JsonSize.Quote * 2,
+        ];
+      } else if (typeOfValue === 'boolean' || value instanceof Boolean) {
+        if (skipSizing) {
+          return [true, 0];
+        }
+        // eslint-disable-next-line eqeqeq
+        return [true, value == true ? JsonSize.True : JsonSize.False];
+      } else if (typeOfValue === 'number' || value instanceof Number) {
+        if (skipSizing) {
+          return [true, 0];
+        }
+        return [true, calculateNumberSize(value as number)];
+      } else if (value instanceof Date) {
+        if (skipSizing) {
+          return [true, 0];
+        }
+        return [
+          true,
+          // Note: Invalid dates will serialize to null
+          isNaN(value.getDate())
+            ? JsonSize.Null
+            : JsonSize.Date + JsonSize.Quote * 2,
+        ];
       }
-
-      return {
-        valid: true,
-        // An instance of `Boolean` is not assignable to our `Json` type.
-        // eslint-disable-next-line eqeqeq
-        result: value == true,
-        // eslint-disable-next-line eqeqeq
-        size: value == true ? JsonSize.True : JsonSize.False,
-      };
-    } else if (typeof value === 'number' || value instanceof Number) {
-      return {
-        valid: true,
-        // An instance of `Number` is not assignable to our `Json` type.
-        result: Number(value),
-        size: skipSizing ? 0 : calculateNumberSize(Number(value)),
-      };
+    } catch (_) {
+      return [false, 0];
     }
 
     // If object is not plain and cannot be serialized properly,
     // stop here and return false for serialization
     if (!isPlainObject(value) && !Array.isArray(value)) {
-      return INVALID_JSON;
+      return [false, 0];
     }
 
     // Circular object detection (handling)
     // Check if the same object already exists
     if (seenObjects.has(value)) {
-      return INVALID_JSON;
+      return [false, 0];
     }
-
     // Add new object to the seen objects set
     // Only the plain objects should be added (Primitive types are skipped)
     seenObjects.add(value);
 
     // Continue object decomposition
-    const parsedObject = Object.entries(value).reduce<{
-      size: number;
-      entries: [string, any][];
-    }>(
-      (validatedValue, [key, nestedValue], index, entries) => {
-        // Recursively process next nested object or primitive type
-        const { valid, size, result } = getJsonSerializableInfo(
-          nestedValue,
-          skipSizing,
-        );
+    try {
+      return [
+        true,
+        Object.entries(value).reduce(
+          (sum, [key, nestedValue], idx, arr) => {
+            // Recursively process next nested object or primitive type
+            // eslint-disable-next-line prefer-const
+            let [valid, size] = getJsonSerializableInfo(
+              nestedValue,
+              skipSizing,
+            );
+            if (!valid) {
+              throw new Error(
+                'JSON validation did not pass. Validation process stopped.',
+              );
+            }
 
-        if (!valid) {
-          throw new Error(
-            'JSON validation did not pass. Validation process stopped.',
-          );
-        }
+            // Circular object detection
+            // Once a child node is visited and processed remove it from the set.
+            // This will prevent false positives with the same adjacent objects.
+            seenObjects.delete(value);
 
-        // Circular object detection
-        // Once a child node is visited and processed remove it from the set.
-        // This will prevent false positives with the same adjacent objects.
-        seenObjects.delete(value);
+            if (skipSizing) {
+              return 0;
+            }
 
-        const newEntries = [
-          ...validatedValue.entries,
-          [key, result] as [string, any],
-        ];
+            // Objects will have be serialized with "key": value,
+            // therefore we include the key in the calculation here
+            const keySize = Array.isArray(value)
+              ? 0
+              : key.length + JsonSize.Comma + JsonSize.Colon * 2;
 
-        if (skipSizing) {
-          return {
-            size: 0,
-            entries: newEntries,
-          };
-        }
+            const separator = idx < arr.length - 1 ? JsonSize.Comma : 0;
 
-        // Objects will have be serialized with "key": value,
-        // therefore we include the key in the calculation here
-        const keySize = Array.isArray(value)
-          ? 0
-          : key.length + JsonSize.Comma + JsonSize.Colon * 2;
-
-        const separator = index < entries.length - 1 ? JsonSize.Comma : 0;
-
-        return {
-          size: validatedValue.size + keySize + size + separator,
-          entries: newEntries,
-        };
-      },
-      {
-        // Starts at 2 because the serialized JSON string data (plain text)
-        // will minimally contain {}/[].
-        size: skipSizing ? 0 : JsonSize.Wrapper * 2,
-        entries: [],
-      },
-    );
-
-    // `Object.fromEntries` does not create arrays, so we check if the original
-    // value was an array and return an array if so.
-    const newValue = Array.isArray(value)
-      ? arrayFromEntries(parsedObject.entries)
-      : objectFromEntries(parsedObject.entries);
-
-    return {
-      valid: true,
-      result: newValue,
-      size: parsedObject.size,
-    };
+            return sum + keySize + size + separator;
+          },
+          // Starts at 2 because the serialized JSON string data (plain text)
+          // will minimally contain {}/[]
+          skipSizing ? 0 : JsonSize.Wrapper * 2,
+        ),
+      ];
+    } catch (_) {
+      return [false, 0];
+    }
   }
 
-  try {
-    return getJsonSerializableInfo(jsObject, skipSizingProcess);
-  } catch (_) {
-    return INVALID_JSON;
-  }
+  return getJsonSerializableInfo(jsObject, skipSizingProcess);
 }
