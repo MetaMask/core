@@ -54,6 +54,10 @@ type FilterObjectCaveat = Caveat<
 
 type NoopCaveat = Caveat<typeof CaveatTypes.noopCaveat, null>;
 
+const onPermittedMock = jest.fn(() => Promise.resolve());
+const onFailureMock = jest.fn(() => Promise.resolve());
+const onSuccessMock = jest.fn(() => Promise.resolve());
+
 /**
  * Gets caveat specifications for:
  * - {@link FilterArrayCaveat}
@@ -178,6 +182,7 @@ const PermissionKeys = {
   wallet_getSecretArray: 'wallet_getSecretArray',
   wallet_getSecretObject: 'wallet_getSecretObject',
   wallet_noop: 'wallet_noop',
+  wallet_noopWithSideEffects: 'wallet_noopWithSideEffects',
   wallet_noopWithValidator: 'wallet_noopWithValidator',
   wallet_noopWithFactory: 'wallet_noopWithFactory',
   'wallet_getSecret_*': 'wallet_getSecret_*',
@@ -210,6 +215,7 @@ const PermissionNames = {
   wallet_getSecretObject: PermissionKeys.wallet_getSecretObject,
   wallet_noop: PermissionKeys.wallet_noop,
   wallet_noopWithValidator: PermissionKeys.wallet_noopWithValidator,
+  wallet_noopWithSideEffects: PermissionKeys.wallet_noopWithSideEffects,
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
   endowmentPermission1: PermissionKeys.endowmentPermission1,
   endowmentPermission2: PermissionKeys.endowmentPermission2,
@@ -297,6 +303,19 @@ function getDefaultPermissionSpecifications() {
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
+      },
+    },
+    [PermissionKeys.wallet_noopWithSideEffects]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetKey: PermissionKeys.wallet_noopWithSideEffects,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      sideEffect: {
+        onPermitted: onPermittedMock,
+        onFailure: onFailureMock,
+        onSuccess: onSuccessMock,
       },
     },
     // This one exists to check some permission validator logic
@@ -2934,6 +2953,61 @@ describe('PermissionController', () => {
           requestData: {
             metadata: { id: expect.any(String), origin },
             permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
+    it('requests a permission that requires side-effects', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      expect(
+        await controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_noopWithSideEffects]: {},
+          },
+        ),
+      ).toMatchObject([
+        {
+          [PermissionNames.wallet_noopWithSideEffects]: getPermissionMatcher({
+            parentCapability: PermissionNames.wallet_noopWithSideEffects,
+            caveats: null,
+            invoker: origin,
+          }),
+        },
+        { id: expect.any(String), origin },
+      ]);
+
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: { [PermissionNames.wallet_noopWithSideEffects]: {} },
+          },
+          sideEffects: {
+            permittedHandlers: [onPermittedMock],
+            failureHandlers: [onFailureMock],
+            successHandlers: [onSuccessMock],
           },
           type: MethodNames.requestPermissions,
         },

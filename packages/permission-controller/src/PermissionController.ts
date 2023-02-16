@@ -1986,30 +1986,24 @@ export class PermissionController<
       (sideEffectList, targetName) => {
         const targetKey = this.getTargetKey(targetName);
 
-        if (!targetKey) {
-          throw methodNotFound(targetName, {
-            origin,
-            permissions: permissionsRequest.permissions,
-          });
-        }
+        if (targetKey) {
+          const specification = this.getPermissionSpecification(targetKey);
 
-        const specification = this.getPermissionSpecification(targetKey);
-
-        if (specification.sideEffect) {
-          sideEffectList.permittedHandlers.push(
-            specification.sideEffect.onPermitted,
-          );
-          sideEffectList.failureHandlers.push(
-            specification.sideEffect.onFailure,
-          );
-
-          if (specification.sideEffect.onSuccess) {
-            sideEffectList.successHandlers.push(
-              specification.sideEffect.onSuccess,
+          if (specification.sideEffect) {
+            sideEffectList.permittedHandlers.push(
+              specification.sideEffect.onPermitted,
             );
+            sideEffectList.failureHandlers.push(
+              specification.sideEffect.onFailure,
+            );
+
+            if (specification.sideEffect.onSuccess) {
+              sideEffectList.successHandlers.push(
+                specification.sideEffect.onSuccess,
+              );
+            }
           }
         }
-
         return sideEffectList;
       },
       { permittedHandlers: [], failureHandlers: [], successHandlers: [] },
@@ -2022,7 +2016,8 @@ export class PermissionController<
         origin,
         requestData: permissionsRequest,
         type: MethodNames.requestPermissions,
-        sideEffects,
+        sideEffects:
+          sideEffects.permittedHandlers.length !== 0 ? sideEffects : undefined,
       },
       true,
     );
