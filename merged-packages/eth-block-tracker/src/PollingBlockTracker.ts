@@ -1,16 +1,16 @@
 import getCreateRandomId from 'json-rpc-random-id';
 import pify from 'pify';
 import { JsonRpcRequest } from 'json-rpc-engine';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { BaseBlockTracker } from './BaseBlockTracker';
 import { projectLogger, createModuleLogger } from './logging-utils';
-import { Provider } from './types';
 
 const log = createModuleLogger(projectLogger, 'polling-block-tracker');
 const createRandomId = getCreateRandomId();
 const sec = 1000;
 
 export interface PollingBlockTrackerOptions {
-  provider?: Provider;
+  provider?: SafeEventEmitterProvider;
   pollingInterval?: number;
   retryTimeout?: number;
   keepEventLoopActive?: boolean;
@@ -23,7 +23,7 @@ interface ExtendedJsonRpcRequest<T> extends JsonRpcRequest<T> {
 }
 
 export class PollingBlockTracker extends BaseBlockTracker {
-  private _provider: Provider;
+  private _provider: SafeEventEmitterProvider;
 
   private _pollingInterval: number;
 

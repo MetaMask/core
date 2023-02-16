@@ -1,12 +1,12 @@
 import getCreateRandomId from 'json-rpc-random-id';
 import { JsonRpcNotification, JsonRpcSuccess } from 'json-rpc-engine';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { BaseBlockTracker } from './BaseBlockTracker';
-import { Provider } from './types';
 
 const createRandomId = getCreateRandomId();
 
 export interface SubscribeBlockTrackerOptions {
-  provider?: Provider;
+  provider?: SafeEventEmitterProvider;
   blockResetDuration?: number;
 }
 
@@ -16,7 +16,7 @@ interface SubscriptionNotificationParams {
 }
 
 export class SubscribeBlockTracker extends BaseBlockTracker {
-  private _provider: Provider;
+  private _provider: SafeEventEmitterProvider;
 
   private _subscriptionId: string | null;
 

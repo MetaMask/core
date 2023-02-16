@@ -1,10 +1,14 @@
 import util from 'util';
-import SafeEventEmitter from '@metamask/safe-event-emitter';
-import { JsonRpcRequest, JsonRpcResponse } from 'json-rpc-engine';
+import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import {
+  JsonRpcEngine,
+  JsonRpcRequest,
+  JsonRpcResponse,
+} from 'json-rpc-engine';
 import {
   PollingBlockTracker,
   PollingBlockTrackerOptions,
-  Provider,
   SubscribeBlockTracker,
   SubscribeBlockTrackerOptions,
 } from '../src';
@@ -15,7 +19,7 @@ interface WithPollingBlockTrackerOptions {
 }
 
 type WithPollingBlockTrackerCallback = (args: {
-  provider: FakeProvider;
+  provider: SafeEventEmitterProvider;
   blockTracker: PollingBlockTracker;
 }) => void | Promise<void>;
 
@@ -25,7 +29,7 @@ interface WithSubscribeBlockTrackerOptions {
 }
 
 type WithSubscribeBlockTrackerCallback = (args: {
-  provider: FakeProvider;
+  provider: SafeEventEmitterProvider;
   blockTracker: SubscribeBlockTracker;
 }) => void | Promise<void>;
 
@@ -73,111 +77,101 @@ interface FakeProviderOptions {
 }
 
 /**
- * FakeProvider is an implementation of the provider that a subclass of
- * BaseBlockTracker is expected to take, supporting the same expected methods
- * with the same expected interface, except that fake responses for the various
- * RPC methods that the provider supports can be supplied. This ends up easier
- * to define than using `jest.spyOn(...).mockImplementationOnce(...)` due to the
- * types that `sendAsync` takes.
+ * Constructs a provider that returns fake responses for the various
+ * RPC methods that the provider supports can be supplied.
+ *
+ * @param options - The options.
+ * @param options.stubs - A set of objects that allow specifying the behavior
+ * of specific invocations of `sendAsync` matching a `methodName`.
+ * @returns The fake provider.
  */
-class FakeProvider extends SafeEventEmitter implements Provider {
-  #stubs: FakeProviderStub[];
+function getFakeProvider({
+  stubs: initialStubs = [],
+}: {
+  stubs?: FakeProviderStub[];
+} = {}) {
+  const originalStubs = initialStubs.slice();
 
-  #originalStubs: FakeProviderStub[];
-
-  /**
-   * Makes a new instance of the fake provider.
-   *
-   * @param options - The options.
-   * @param options.stubs - A set of objects that allow specifying the behavior
-   * of specific invocations of `sendAsync` matching a `methodName`.
-   */
-  constructor({ stubs = [] }: FakeProviderOptions = {}) {
-    super();
-    this.#stubs = this.#buildStubsFrom(stubs);
-    this.#originalStubs = this.#stubs.slice();
+  const stubs = initialStubs.slice();
+  if (!stubs.some((stub) => stub.methodName === 'eth_blockNumber')) {
+    stubs.push({
+      methodName: 'eth_blockNumber',
+      response: {
+        result: '0x0',
+      },
+    });
   }
 
-  sendAsync<T, U>(
-    request: JsonRpcRequest<T>,
-    callback: (err: Error, response: JsonRpcResponse<U>) => void,
-  ) {
-    const index = this.#stubs.findIndex(
-      (stub) => stub.methodName === request.method,
-    );
+  if (!stubs.some((stub) => stub.methodName === 'eth_subscribe')) {
+    stubs.push({
+      methodName: 'eth_subscribe',
+      response: {
+        result: '0x0',
+      },
+    });
+  }
 
-    if (index !== -1) {
-      const stub = this.#stubs[index];
-      this.#stubs.splice(index, 1);
-      if ('implementation' in stub) {
-        stub.implementation();
-      } else if ('response' in stub) {
-        if ('result' in stub.response) {
-          callback(null as unknown as Error, {
-            jsonrpc: '2.0',
-            id: 1,
-            result: stub.response.result,
-          });
-        } else if ('error' in stub.response) {
-          callback(null as unknown as Error, {
-            jsonrpc: '2.0',
-            id: 1,
-            error: {
-              code: -999,
-              message: stub.response.error,
-            },
-          });
+  if (!stubs.some((stub) => stub.methodName === 'eth_unsubscribe')) {
+    stubs.push({
+      methodName: 'eth_unsubscribe',
+      response: {
+        result: true,
+      },
+    });
+  }
+
+  const provider = providerFromEngine(new JsonRpcEngine());
+  jest
+    .spyOn(provider, 'sendAsync')
+    .mockImplementation(
+      (
+        request: JsonRpcRequest<unknown>,
+        callback: (err: unknown, response?: JsonRpcResponse<unknown>) => void,
+      ) => {
+        const index = stubs.findIndex(
+          (stub) => stub.methodName === request.method,
+        );
+
+        if (index !== -1) {
+          const stub = stubs[index];
+          stubs.splice(index, 1);
+          if ('implementation' in stub) {
+            stub.implementation();
+          } else if ('response' in stub) {
+            if ('result' in stub.response) {
+              callback(null, {
+                jsonrpc: '2.0',
+                id: 1,
+                result: stub.response.result,
+              });
+            } else if ('error' in stub.response) {
+              callback(null, {
+                jsonrpc: '2.0',
+                id: 1,
+                error: {
+                  code: -999,
+                  message: stub.response.error,
+                },
+              });
+            }
+          } else if ('error' in stub) {
+            callback(new Error(stub.error));
+          }
+          return;
         }
-      } else if ('error' in stub) {
-        callback(new Error(stub.error), null as unknown as JsonRpcResponse<U>);
-      }
-      return;
-    }
 
-    callback(
-      new Error(
-        `Could not find any stubs matching "${request.method}". Perhaps they've already been called?\n\n` +
-          'The original set of stubs were:\n\n' +
-          `${util.inspect(this.#originalStubs, { depth: null })}\n\n` +
-          'Current set of stubs:\n\n' +
-          `${util.inspect(this.#stubs, { depth: null })}\n\n`,
-      ),
-      null as unknown as JsonRpcResponse<U>,
+        callback(
+          new Error(
+            `Could not find any stubs matching "${request.method}". Perhaps they've already been called?\n\n` +
+              'The original set of stubs were:\n\n' +
+              `${util.inspect(originalStubs, { depth: null })}\n\n` +
+              'Current set of stubs:\n\n' +
+              `${util.inspect(stubs, { depth: null })}\n\n`,
+          ),
+        );
+      },
     );
-  }
-
-  #buildStubsFrom(givenStubs: FakeProviderStub[]): FakeProviderStub[] {
-    const stubs = givenStubs.slice();
-
-    if (!stubs.some((stub) => stub.methodName === 'eth_blockNumber')) {
-      stubs.push({
-        methodName: 'eth_blockNumber',
-        response: {
-          result: '0x0',
-        },
-      });
-    }
-
-    if (!stubs.some((stub) => stub.methodName === 'eth_subscribe')) {
-      stubs.push({
-        methodName: 'eth_subscribe',
-        response: {
-          result: '0x0',
-        },
-      });
-    }
-
-    if (!stubs.some((stub) => stub.methodName === 'eth_unsubscribe')) {
-      stubs.push({
-        methodName: 'eth_unsubscribe',
-        response: {
-          result: true,
-        },
-      });
-    }
-
-    return stubs;
-  }
+  return provider;
 }
 
 /**
@@ -214,8 +208,8 @@ async function withPollingBlockTracker(
   const [options, callback] = args.length === 2 ? args : [{}, args[0]];
   const provider =
     options.provider === undefined
-      ? new FakeProvider()
-      : new FakeProvider(options.provider);
+      ? getFakeProvider()
+      : getFakeProvider(options.provider);
   const blockTrackerOptions =
     options.blockTracker === undefined
       ? { provider }
@@ -262,8 +256,8 @@ async function withSubscribeBlockTracker(
   const [options, callback] = args.length === 2 ? args : [{}, args[0]];
   const provider =
     options.provider === undefined
-      ? new FakeProvider()
-      : new FakeProvider(options.provider);
+      ? getFakeProvider()
+      : getFakeProvider(options.provider);
 
   const blockTrackerOptions =
     options.blockTracker === undefined
