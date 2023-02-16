@@ -43,16 +43,35 @@ export type NetworkDetails = {
 };
 
 /**
- * @type NetworkState
+ * Usually, you can use the provider object that the network controller exposes
+ * to talk to a network. However, the controller may be in a preliminary state,
+ * where no such provider exists, or an intermediate state, where a provider
+ * exists but the network is not accessible. This enum represents the positive
+ * and negative states.
  *
+ * @property active - Represents the state in which a provider object has been
+ * created for the currently selected network and the network is provably
+ * accessible.
+ * @property loading - Represents the state in which a provider object does not
+ * exist for the currently selected network, or it does exist but the network is
+ * provably inaccessible.
+ */
+export enum NetworkStatus {
+  active = 'active',
+  loading = 'loading',
+}
+
+/**
  * Network controller state
- * @property network - Network ID as per net_version
- * @property isCustomNetwork - Identifies if the network is a custom network
- * @property provider - RPC URL and network name provider settings
+ *
+ * @property networkStatus - Whether we've created a provider for the currently
+ * selected network and the endpoint is accessible, or whether we have yet to do
+ * this.
+ * @property providerConfig - The connection details for a network which is used
+ * to create the provider object.
  */
 export type NetworkState = {
-  network: string;
-  isCustomNetwork: boolean;
+  networkStatus: NetworkStatus;
   providerConfig: ProviderConfig;
   networkDetails: NetworkDetails;
 };
@@ -107,8 +126,7 @@ export type NetworkControllerOptions = {
 };
 
 export const defaultState: NetworkState = {
-  network: 'loading',
-  isCustomNetwork: false,
+  networkStatus: NetworkStatus.loading,
   providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
   networkDetails: { isEIP1559Compatible: false },
 };
@@ -133,11 +151,7 @@ export class NetworkController extends BaseControllerV2<
     super({
       name,
       metadata: {
-        network: {
-          persist: true,
-          anonymous: false,
-        },
-        isCustomNetwork: {
+        networkStatus: {
           persist: true,
           anonymous: false,
         },
@@ -176,10 +190,6 @@ export class NetworkController extends BaseControllerV2<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update((state) => {
-      state.isCustomNetwork = this.getIsCustomNetwork(chainId);
-    });
-
     switch (type) {
       case MAINNET:
       case 'goerli':
@@ -201,7 +211,7 @@ export class NetworkController extends BaseControllerV2<
 
   private refreshNetwork() {
     this.update((state) => {
-      state.network = 'loading';
+      state.networkStatus = NetworkStatus.loading;
       state.networkDetails = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
@@ -231,15 +241,6 @@ export class NetworkController extends BaseControllerV2<
       },
     };
     this.updateProvider(createMetamaskProvider(config));
-  }
-
-  private getIsCustomNetwork(chainId?: string) {
-    return (
-      chainId !== NetworksChainId.mainnet &&
-      chainId !== NetworksChainId.goerli &&
-      chainId !== NetworksChainId.sepolia &&
-      chainId !== NetworksChainId.localhost
-    );
   }
 
   private setupStandardProvider(
@@ -274,7 +275,7 @@ export class NetworkController extends BaseControllerV2<
   }
 
   private verifyNetwork() {
-    this.state.network === 'loading' && this.lookupNetwork();
+    this.state.networkStatus === NetworkStatus.loading && this.lookupNetwork();
   }
 
   /**
@@ -326,21 +327,24 @@ export class NetworkController extends BaseControllerV2<
     if (!this.ethQuery) {
       return;
     }
+
     const releaseLock = await this.mutex.acquire();
 
     try {
       try {
-        const networkId = await this.#getNetworkId();
-        if (this.state.network === networkId) {
+        await this.#getNetworkId();
+        if (this.state.networkStatus === NetworkStatus.active) {
           return;
         }
 
         this.update((state) => {
-          state.network = networkId;
+          state.networkStatus = NetworkStatus.active;
         });
-      } catch (_error) {
+      } catch (error) {
+        console.error(error);
+
         this.update((state) => {
-          state.network = 'loading';
+          state.networkStatus = NetworkStatus.loading;
         });
       }
 
