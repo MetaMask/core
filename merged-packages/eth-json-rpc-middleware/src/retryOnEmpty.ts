@@ -5,11 +5,12 @@ import {
   JsonRpcMiddleware,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import pify from 'pify';
 import { projectLogger, createModuleLogger } from './logging-utils';
 import { blockTagParamIndex } from './utils/cache';
 import { timeout } from './utils/timeout';
-import { Block, SafeEventEmitterProvider } from './types';
+import { Block } from './types';
 
 //
 // RetryOnEmptyMiddleware will retry any request with an empty response that has

@@ -1,5 +1,5 @@
 import { JsonRpcMiddleware, PendingJsonRpcResponse } from 'json-rpc-engine';
-import type { SafeEventEmitterProvider } from './types';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 
 export function providerAsMiddleware(
   provider: SafeEventEmitterProvider,
@@ -28,10 +28,12 @@ export function ethersProviderAsMiddleware(
     // send request to provider
     provider.send(
       req,
-      (err: Error, providerRes: PendingJsonRpcResponse<any>) => {
+      (err: unknown, providerRes: PendingJsonRpcResponse<any>) => {
         // forward any error
         if (err) {
-          return end(err);
+          // TODO: Remove this cast when next major `json-rpc-engine` release is out
+          // The next release changes how errors are propogated.
+          return end(err as Error);
         }
         // copy provider response onto original response
         Object.assign(res, providerRes);

@@ -6,9 +6,10 @@ import {
 } from 'json-rpc-engine';
 import clone from 'clone';
 import pify from 'pify';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { projectLogger, createModuleLogger } from './logging-utils';
 import { blockTagParamIndex } from './utils/cache';
-import type { Block, SafeEventEmitterProvider } from './types';
+import type { Block } from './types';
 
 interface BlockRefMiddlewareOptions {
   blockTracker?: PollingBlockTracker;

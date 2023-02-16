@@ -856,8 +856,8 @@ __metadata:
     "@metamask/eslint-config-jest": ^8.0.0
     "@metamask/eslint-config-nodejs": ^8.0.0
     "@metamask/eslint-config-typescript": ^8.0.0
+    "@metamask/eth-json-rpc-provider": ^1.0.0
     "@metamask/eth-sig-util": ^5.0.0
-    "@metamask/safe-event-emitter": ^2.0.0
     "@metamask/utils": ^3.0.3
     "@types/btoa": ^1.2.3
     "@types/clone": ^2.1.0
@@ -887,6 +887,16 @@ __metadata:
     typescript: ~4.2.4
   languageName: unknown
   linkType: soft
+
+"@metamask/eth-json-rpc-provider@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@metamask/eth-json-rpc-provider@npm:1.0.0"
+  dependencies:
+    "@metamask/safe-event-emitter": ^2.0.0
+    json-rpc-engine: ^6.1.0
+  checksum: 27865d84d90030db1a9e5a66bc0b0ae079706fb7be635ec1e9bd4f64771e819aae78f0a026c6629d3a1a2eb277fcd51977315c049c47a70df1dd95d1d4106982
+  languageName: node
+  linkType: hard
 
 "@metamask/eth-sig-util@npm:^5.0.0":
   version: 5.0.2

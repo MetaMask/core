@@ -5,7 +5,7 @@ import {
   JsonRpcResponse,
   JsonRpcMiddleware,
 } from 'json-rpc-engine';
-import { SafeEventEmitterProvider } from '../../src';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 
 /**
  * An object that can be used to assign a canned response to a request made via
