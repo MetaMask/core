@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.0]
+### Changed
+- Improve the `hasProperty` function ([#79](https://github.com/MetaMask/utils/pull/79), [#80](https://github.com/MetaMask/utils/pull/80))
+  - This function now acts as a type guard, informing TypeScript that the property exists.
+  - The function is now compatible with more types of objects, such as Errors and class instances.
+
 ## [3.4.1]
 ### Fixed
 - Bump `superstruct` to `^1.0.3` ([#71](https://github.com/MetaMask/utils/pull/71))
@@ -104,7 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v3.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v3.5.0...HEAD
+[3.5.0]: https://github.com/MetaMask/utils/compare/v3.4.1...v3.5.0
 [3.4.1]: https://github.com/MetaMask/utils/compare/v3.4.0...v3.4.1
 [3.4.0]: https://github.com/MetaMask/utils/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/MetaMask/utils/compare/v3.3.0...v3.3.1
