@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+### Removed
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+  - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
+
 ## [1.1.0]
 ### Changed
 - Add optional `addressType` property to address book entries ([#828](https://github.com/MetaMask/controllers/pull/828), [#1068](https://github.com/MetaMask/core/pull/1068))
@@ -25,7 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@1.1.0...@metamask/address-book-controller@2.0.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@1.0.1...@metamask/address-book-controller@1.1.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@1.0.0...@metamask/address-book-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/address-book-controller@1.0.0

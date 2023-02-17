@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+### Removed
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+  - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
+
 ## [2.0.0]
 ### Added
 - Add `updateCaveat` action ([#1071](https://github.com/MetaMask/core/pull/1071))
@@ -31,7 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@2.0.0...@metamask/permission-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@1.0.2...@metamask/permission-controller@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@1.0.1...@metamask/permission-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@1.0.0...@metamask/permission-controller@1.0.1
