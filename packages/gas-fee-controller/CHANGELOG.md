@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.0]
+### Changed
+- **BREAKING:** Make the EIP-1559 endpoint a required argument ([#1083](https://github.com/MetaMask/core/pull/1083))
+
 ### Removed
 - **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
   - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
