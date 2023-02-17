@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     All changes listed after this point were applied to this package following the monorepo conversion.
 - Add method to get subject metadata by origin ([#950](https://github.com/MetaMask/core/pull/950))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subject-metadata-controller@1.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subject-metadata-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/subject-metadata-controller@1.0.2...@metamask/subject-metadata-controller@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/subject-metadata-controller@1.0.1...@metamask/subject-metadata-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/subject-metadata-controller@1.0.0...@metamask/subject-metadata-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/subject-metadata-controller@1.0.0
