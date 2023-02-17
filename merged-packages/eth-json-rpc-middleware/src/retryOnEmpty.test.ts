@@ -1,4 +1,4 @@
-import { PollingBlockTracker, Provider } from 'eth-block-tracker';
+import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   JsonRpcEngine,
   JsonRpcMiddleware,
@@ -647,7 +647,7 @@ async function withTestSetup<T>(
   const engine = new JsonRpcEngine();
   const provider = providerFromEngine(engine);
   const blockTracker = new PollingBlockTracker({
-    provider: provider as Provider,
+    provider,
   });
 
   const {

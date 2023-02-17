@@ -1,4 +1,4 @@
-import { PollingBlockTracker, Provider } from 'eth-block-tracker';
+import { PollingBlockTracker } from 'eth-block-tracker';
 import { JsonRpcEngine } from 'json-rpc-engine';
 import pify from 'pify';
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
@@ -13,7 +13,7 @@ function createTestSetup() {
   const provider = providerFromEngine(engine);
 
   const blockTracker = new PollingBlockTracker({
-    provider: provider as Provider,
+    provider,
   });
 
   return { engine, provider, blockTracker };

@@ -1,4 +1,4 @@
-import { PollingBlockTracker, Provider } from 'eth-block-tracker';
+import { PollingBlockTracker } from 'eth-block-tracker';
 import { JsonRpcEngine, JsonRpcMiddleware } from 'json-rpc-engine';
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
@@ -458,7 +458,7 @@ async function withTestSetup<T>(
   const engine = new JsonRpcEngine();
   const provider = providerFromEngine(engine);
   const blockTracker = new PollingBlockTracker({
-    provider: provider as Provider,
+    provider,
   });
 
   const {
