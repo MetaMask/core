@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.0]
-### Uncategorized
+### Removed
 - BREAKING: Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
 - rename network controller properties state property ([#1074](https://github.com/MetaMask/controllers/pull/1074))
 
