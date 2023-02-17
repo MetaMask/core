@@ -35,8 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/transaction-controller@4.0.0...HEAD
-[4.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/transaction-controller@3.0.0...@metamask/transaction-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/transaction-controller@2.0.0...@metamask/transaction-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/transaction-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@3.0.0...@metamask/transaction-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@2.0.0...@metamask/transaction-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/transaction-controller@1.0.0

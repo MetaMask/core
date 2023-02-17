@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/controller-utils@3.0.0...HEAD
-[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/controller-utils@2.0.0...@metamask/controller-utils@3.0.0
-[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/controller-utils@1.0.0...@metamask/controller-utils@2.0.0
-[1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/controller-utils@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@2.0.0...@metamask/controller-utils@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@1.0.0...@metamask/controller-utils@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/controller-utils@1.0.0
