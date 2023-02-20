@@ -1,9 +1,11 @@
 import {
   array,
+  boolean,
   define,
   Infer,
   integer,
   is,
+  lazy,
   literal,
   nullable,
   number,
@@ -18,20 +20,6 @@ import {
 } from 'superstruct';
 
 import { AssertionErrorConstructor, assertStruct } from './assert';
-import {
-  calculateNumberSize,
-  calculateStringSize,
-  isPlainObject,
-  JsonSize,
-} from './misc';
-
-export const JsonStruct = define<Json>('Json', (value) => {
-  const [isValid] = validateJsonAndGetSize(value, true);
-  if (!isValid) {
-    return 'Expected a valid JSON-serializable value';
-  }
-  return true;
-});
 
 /**
  * Any JSON-compatible value.
@@ -45,6 +33,89 @@ export type Json =
   | { [prop: string]: Json };
 
 /**
+ * A struct to check if the given value is finite number. Superstruct's
+ * `number()` struct does not check if the value is finite.
+ *
+ * @returns A struct to check if the given value is finite number.
+ */
+const finiteNumber = () =>
+  define<number>('finite number', (value) => {
+    return is(value, number()) && Number.isFinite(value);
+  });
+
+/**
+ * A struct to check if the given value is a valid JSON-serializable value.
+ *
+ * Note that this struct is unsafe. For safe validation, use {@link JsonStruct}.
+ */
+// We cannot infer the type of the struct, because it is recursive.
+export const UnsafeJsonStruct: Struct<Json> = union([
+  literal(null),
+  boolean(),
+  finiteNumber(),
+  string(),
+  array(lazy(() => UnsafeJsonStruct)),
+  record(
+    string(),
+    lazy(() => UnsafeJsonStruct),
+  ),
+]);
+
+/**
+ * A struct to check if the given value is a valid JSON-serializable value.
+ *
+ * This struct sanitizes the value before validating it, so that it is safe to
+ * use with untrusted input.
+ */
+export const JsonStruct = define<Json>('Json', (value, context) => {
+  /**
+   * Helper function that runs the given struct validator and returns the
+   * validation errors, if any. If the value is valid, it returns `true`.
+   *
+   * @param innerValue - The value to validate.
+   * @param struct - The struct to use for validation.
+   * @returns The validation errors, or `true` if the value is valid.
+   */
+  function checkStruct<Type>(innerValue: unknown, struct: Struct<Type>) {
+    const iterator = struct.validator(innerValue, context);
+    const errors = [...iterator];
+
+    if (errors.length > 0) {
+      return errors;
+    }
+
+    return true;
+  }
+
+  try {
+    // The plain value must be a valid JSON value, but it may be altered in the
+    // process of JSON serialization, so we need to validate it again after
+    // serialization. This has the added benefit that the returned error messages
+    // will be more helpful, as they will point to the exact location of the
+    // invalid value.
+    //
+    // This seems overcomplicated, but without checking the plain value first,
+    // there are some cases where the validation passes, even though the value is
+    // not valid JSON. For example, `undefined` is not valid JSON, but serializing
+    // it will remove it from the object, so the validation will pass.
+    const unsafeResult = checkStruct(value, UnsafeJsonStruct);
+    if (unsafeResult !== true) {
+      return unsafeResult;
+    }
+
+    // JavaScript engines are highly optimized for this specific use case of
+    // JSON parsing and stringifying, so there should be no performance impact.
+    return checkStruct(JSON.parse(JSON.stringify(value)), UnsafeJsonStruct);
+  } catch (error) {
+    if (error instanceof RangeError) {
+      return 'Circular reference detected';
+    }
+
+    return false;
+  }
+});
+
+/**
  * Check if the given value is a valid {@link Json} value, i.e., a value that is
  * serializable to JSON.
  *
@@ -53,6 +124,19 @@ export type Json =
  */
 export function isValidJson(value: unknown): value is Json {
   return is(value, JsonStruct);
+}
+
+/**
+ * Get the size of a JSON value in bytes. This also validates the value.
+ *
+ * @param value - The JSON value to get the size of.
+ * @returns The size of the JSON value in bytes.
+ */
+export function getJsonSize(value: unknown): number {
+  assertStruct(value, JsonStruct, 'Invalid JSON value');
+
+  const json = JSON.stringify(value);
+  return new TextEncoder().encode(json).byteLength;
 }
 
 /**
@@ -482,144 +566,4 @@ export function getJsonRpcIdValidator(options?: JsonRpcValidatorOptions) {
   };
 
   return isValidJsonRpcId;
-}
-
-/**
- * Checks whether a value is JSON serializable and counts the total number
- * of bytes needed to store the serialized version of the value.
- *
- * @param jsObject - Potential JSON serializable object.
- * @param skipSizingProcess - Skip JSON size calculation (default: false).
- * @returns Tuple [isValid, plainTextSizeInBytes] containing a boolean that signals whether
- * the value was serializable and a number of bytes that it will use when serialized to JSON.
- */
-export function validateJsonAndGetSize(
-  jsObject: unknown,
-  skipSizingProcess = false,
-): [isValid: boolean, plainTextSizeInBytes: number] {
-  const seenObjects = new Set();
-  /**
-   * Checks whether a value is JSON serializable and counts the total number
-   * of bytes needed to store the serialized version of the value.
-   *
-   * This function assumes the encoding of the JSON is done in UTF-8.
-   *
-   * @param value - Potential JSON serializable value.
-   * @param skipSizing - Skip JSON size calculation (default: false).
-   * @returns Tuple [isValid, plainTextSizeInBytes] containing a boolean that signals whether
-   * the value was serializable and a number of bytes that it will use when serialized to JSON.
-   */
-  function getJsonSerializableInfo(
-    value: unknown,
-    skipSizing: boolean,
-  ): [isValid: boolean, plainTextSizeInBytes: number] {
-    if (value === undefined) {
-      return [false, 0];
-    } else if (value === null) {
-      // Return already specified constant size for null (special object)
-      return [true, skipSizing ? 0 : JsonSize.Null];
-    }
-
-    // Check and calculate sizes for basic (and some special) types
-    const typeOfValue = typeof value;
-    try {
-      if (typeOfValue === 'function') {
-        return [false, 0];
-      } else if (typeOfValue === 'string' || value instanceof String) {
-        return [
-          true,
-          skipSizing
-            ? 0
-            : calculateStringSize(value as string) + JsonSize.Quote * 2,
-        ];
-      } else if (typeOfValue === 'boolean' || value instanceof Boolean) {
-        if (skipSizing) {
-          return [true, 0];
-        }
-        // eslint-disable-next-line eqeqeq
-        return [true, value == true ? JsonSize.True : JsonSize.False];
-      } else if (typeOfValue === 'number' || value instanceof Number) {
-        if (skipSizing) {
-          return [true, 0];
-        }
-        return [true, calculateNumberSize(value as number)];
-      } else if (value instanceof Date) {
-        if (skipSizing) {
-          return [true, 0];
-        }
-        return [
-          true,
-          // Note: Invalid dates will serialize to null
-          isNaN(value.getDate())
-            ? JsonSize.Null
-            : JsonSize.Date + JsonSize.Quote * 2,
-        ];
-      }
-    } catch (_) {
-      return [false, 0];
-    }
-
-    // If object is not plain and cannot be serialized properly,
-    // stop here and return false for serialization
-    if (!isPlainObject(value) && !Array.isArray(value)) {
-      return [false, 0];
-    }
-
-    // Circular object detection (handling)
-    // Check if the same object already exists
-    if (seenObjects.has(value)) {
-      return [false, 0];
-    }
-    // Add new object to the seen objects set
-    // Only the plain objects should be added (Primitive types are skipped)
-    seenObjects.add(value);
-
-    // Continue object decomposition
-    try {
-      return [
-        true,
-        Object.entries(value).reduce(
-          (sum, [key, nestedValue], idx, arr) => {
-            // Recursively process next nested object or primitive type
-            // eslint-disable-next-line prefer-const
-            let [valid, size] = getJsonSerializableInfo(
-              nestedValue,
-              skipSizing,
-            );
-            if (!valid) {
-              throw new Error(
-                'JSON validation did not pass. Validation process stopped.',
-              );
-            }
-
-            // Circular object detection
-            // Once a child node is visited and processed remove it from the set.
-            // This will prevent false positives with the same adjacent objects.
-            seenObjects.delete(value);
-
-            if (skipSizing) {
-              return 0;
-            }
-
-            // Objects will have be serialized with "key": value,
-            // therefore we include the key in the calculation here
-            const keySize = Array.isArray(value)
-              ? 0
-              : key.length + JsonSize.Comma + JsonSize.Colon * 2;
-
-            const separator = idx < arr.length - 1 ? JsonSize.Comma : 0;
-
-            return sum + keySize + size + separator;
-          },
-          // Starts at 2 because the serialized JSON string data (plain text)
-          // will minimally contain {}/[]
-          skipSizing ? 0 : JsonSize.Wrapper * 2,
-        ),
-      ];
-    } catch (_) {
-      return [false, 0];
-    }
-  }
-
-  return getJsonSerializableInfo(jsObject, skipSizingProcess);
 }
