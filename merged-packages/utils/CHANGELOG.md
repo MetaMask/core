@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.6.0]
+### Added
+- Add `Keyring` types ([#74](https://github.com/MetaMask/utils/pull/74))
+  -  New data types added. These are `Keyring`, `Transaction` (`LegacyTransaction`, `EIP2930Transaction`, `EIP1559Transaction`), `SignedTransaction`, `Signature`, and `Eip1024EncryptedData`.
+
 ## [3.5.0]
 ### Changed
 - Improve the `hasProperty` function ([#79](https://github.com/MetaMask/utils/pull/79), [#80](https://github.com/MetaMask/utils/pull/80))
@@ -110,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v3.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v3.6.0...HEAD
+[3.6.0]: https://github.com/MetaMask/utils/compare/v3.5.0...v3.6.0
 [3.5.0]: https://github.com/MetaMask/utils/compare/v3.4.1...v3.5.0
 [3.4.1]: https://github.com/MetaMask/utils/compare/v3.4.0...v3.4.1
 [3.4.0]: https://github.com/MetaMask/utils/compare/v3.3.1...v3.4.0
