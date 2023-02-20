@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+### Changed
+- Export new modules (`keyring`, `transaction-types`, and `encryption-types`) ([#86](https://github.com/MetaMask/utils/pull/86))
+- **BREAKING:** Improve JSON validation ([#85](https://github.com/MetaMask/utils/pull/85))
+  - Fixes edge cases in our JSON validation logic.
+  - The previous function used for JSON validation (`validateJsonAndGetSize`) was removed.
+    - The `isValidJson` function now uses the new JSON validation logic.
+    - To get the size of a JSON value, you can use the `getJsonSize` function.
+
 ## [3.6.0]
 ### Added
 - Add `Keyring` types ([#74](https://github.com/MetaMask/utils/pull/74))
@@ -115,7 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v3.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/utils/compare/v3.6.0...v4.0.0
 [3.6.0]: https://github.com/MetaMask/utils/compare/v3.5.0...v3.6.0
 [3.5.0]: https://github.com/MetaMask/utils/compare/v3.4.1...v3.5.0
 [3.4.1]: https://github.com/MetaMask/utils/compare/v3.4.0...v3.4.1
