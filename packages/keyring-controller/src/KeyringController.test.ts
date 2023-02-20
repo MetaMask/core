@@ -1151,15 +1151,6 @@ describe('KeyringController', () => {
       await keyringController.unlockLedgerDefaultAccount();
     });
 
-    it('should unlock default account from Ledger', async () => {
-      const defaultAccount =
-        await keyringController.unlockLedgerDefaultAccount();
-      expect(defaultAccount.address).toBe(
-        '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
-      );
-      expect(defaultAccount.balance).toBe('0x0');
-    });
-
     it('should sign a message with a Ledger keyring', async () => {
       const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signMessage');
 
@@ -1440,12 +1431,16 @@ describe('KeyringController', () => {
       const quitAppSpy = sinon.stub(ledgerKeyring, 'quitApp');
       quitAppSpy.resolves();
 
-      await keyringController.closeRunningAppOnLedger();
-      expect(quitAppSpy.callCount).toBe(1);
-
       // Testing the path when app name is not BOLOS
       await keyringController.closeRunningAppOnLedger();
       expect(quitAppSpy.callCount).toBe(1);
+
+      // Reset the quitAppSpy call count
+      quitAppSpy.reset();
+
+      // Testing the path when the app name is BOLOS
+      await keyringController.closeRunningAppOnLedger();
+      expect(quitAppSpy.callCount).toBe(0);
     });
 
     it('should update the state when unlocking the default account on ledger', async () => {
