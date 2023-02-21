@@ -9,6 +9,7 @@ import {
   AddApprovalRequest,
   HasApprovalRequest,
   RejectRequest as RejectApprovalRequest,
+  SideEffects,
 } from '@metamask/approval-controller';
 import {
   BaseControllerV2,
@@ -22,7 +23,6 @@ import {
   isValidJson,
   Json,
   NonEmptyArray,
-  SideEffects,
 } from '@metamask/controller-utils';
 import {
   CaveatConstraint,

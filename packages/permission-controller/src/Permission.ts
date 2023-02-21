@@ -1,7 +1,7 @@
 import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '@metamask/controller-utils';
-import { ApprovalRequestData } from '@metamask/approval-controller';
+import { SideEffectParams } from '@metamask/approval-controller';
 import { CaveatConstraint } from './Caveat';
 
 import type {
@@ -357,15 +357,15 @@ export type PermissionSideEffect = {
   /**
    * A method triggered when the permission is accepted by the user
    */
-  onPermitted: (requestData?: ApprovalRequestData) => Promise<void>;
+  onPermitted: (params: SideEffectParams) => Promise<void>;
   /**
    * A method triggered if a `onPemitted` method rejected.
    */
-  onFailure: (requestData?: ApprovalRequestData) => Promise<void>;
+  onFailure: (params: SideEffectParams) => Promise<void>;
   /**
    * A method triggered after `onPermitted` method resolved
    */
-  onSuccess?: (requestData?: ApprovalRequestData) => Promise<void>;
+  onSuccess?: (params: SideEffectParams) => Promise<void>;
 };
 
 /**

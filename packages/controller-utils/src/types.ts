@@ -42,15 +42,3 @@ export type Json =
   | string
   | Json[]
   | { [prop: string]: Json };
-
-export type SideEffects = {
-  permittedHandlers: ((
-    requestData?: Record<string, Json> | null,
-  ) => Promise<void>)[];
-  failureHandlers: ((
-    requestData?: Record<string, Json> | null,
-  ) => Promise<void>)[];
-  successHandlers: ((
-    requestData?: Record<string, Json> | null,
-  ) => Promise<void>)[];
-};
