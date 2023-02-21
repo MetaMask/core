@@ -5,8 +5,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [11.0.0]
 ### Changed
-- Replace `fast-stable-stringify` dependency with `safe-stable-stringify`
+- **BREAKING:** Update `eth-block-tracker` to v7 ([#196](https://github.com/MetaMask/eth-json-rpc-middleware/pull/196), [#188](https://github.com/MetaMask/eth-json-rpc-middleware/pull/188))
+  - This changes the expected type of the `blockTracker` parameter for the following functions:
+    - `createBlockCacheMiddleware`
+    - `createBlockRefMiddleware`
+    - `createBlockRefRewriteMiddleware`
+    - `createBlockTrackerInspectorMiddleware`
+    - `createRetryOnEmptyMiddleware`
+  - Only the type change is breaking; there is no functional change here.
+- **BREAKING:** Add new required parameters for the `fetch` middleware ([#192](https://github.com/MetaMask/eth-json-rpc-middleware/pull/192), [#190](https://github.com/MetaMask/eth-json-rpc-middleware/pull/190))
+  - The required parameters are `fetch` and `btoa`. Previously we would either use the global by that name (if one existed), or a polyfill. Those polyfills have been removed.
+- Replace `json-stable-stringify` with `safe-stable-stringify` ([#104](https://github.com/MetaMask/eth-json-rpc-middleware/pull/104))
+  - This should slightly improve performance of the inlight cache and block cache middleware
+
+### Removed
+- **BREAKING:** Remove `providerFromEngine` and `providerFromMiddleware` ([#194](https://github.com/MetaMask/eth-json-rpc-middleware/pull/194))
+  - These are now provided by the package `@metamask/eth-json-rpc-provider` instead
+- **BREAKING:** Remove unnecessary `suppressUnauthorized` option ([#193](https://github.com/MetaMask/eth-json-rpc-middleware/pull/193))
+
+### Fixed
+- **BREAKING:** Fix types for `createWalletMiddleware` ([#111](https://github.com/MetaMask/eth-json-rpc-middleware/pull/111))
+  - This middleware had previously included a number of errors, where the type contradicted the Ethereum JSON-RPC specification and how we've been using this middleware in practice. They should all now match the specification.
 
 ## [10.0.0]
 ### Changed
@@ -103,7 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v10.0.0...v11.0.0
 [10.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v9.0.1...v10.0.0
 [9.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v9.0.0...v9.0.1
 [9.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.1.0...v9.0.0
