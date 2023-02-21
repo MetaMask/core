@@ -5,7 +5,7 @@ import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { Json, SideEffects } from '@metamask/controller-utils';
+import { Json } from '@metamask/controller-utils';
 import { ApprovalRequestNotFoundError } from './errors';
 
 const controllerName = 'ApprovalController';
@@ -21,6 +21,24 @@ type ApprovalCallbacks = {
   resolve: ApprovalPromiseResolve;
   reject: ApprovalPromiseReject;
   sideEffects?: SideEffects;
+};
+
+export type SideEffectParams = {
+  requestData: Record<string, Json> | null;
+  callAction: (
+    action: string,
+  ) =>
+    | boolean
+    | void
+    | ApprovalControllerState
+    | Promise<unknown>
+    | Promise<void>;
+};
+
+export type SideEffects = {
+  permittedHandlers: ((params: SideEffectParams) => Promise<void>)[];
+  failureHandlers: ((params: SideEffectParams) => Promise<void>)[];
+  successHandlers: ((params: SideEffectParams) => Promise<void>)[];
 };
 
 export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
@@ -150,7 +168,7 @@ export type ApprovalControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   ApprovalControllerActions,
   ApprovalControllerEvents,
-  never,
+  string,
   never
 >;
 
@@ -438,7 +456,10 @@ export class ApprovalController extends BaseControllerV2<
 
     try {
       if (sideEffects) {
-        await this._handleSideEffects(sideEffects, requestData);
+        await this._handleSideEffects(sideEffects, {
+          requestData,
+          callAction: this.messagingSystem.call,
+        });
       }
     } catch (err) {
       reject(err);
@@ -668,11 +689,11 @@ export class ApprovalController extends BaseControllerV2<
 
   private async _handleSideEffects(
     sideEffects: SideEffects,
-    requestData: ApprovalRequestData,
+    params: SideEffectParams,
   ) {
     const promiseResults = await Promise.allSettled(
       sideEffects.permittedHandlers.map(async (permittedHandler) =>
-        permittedHandler(requestData),
+        permittedHandler(params),
       ),
     );
 
@@ -680,7 +701,7 @@ export class ApprovalController extends BaseControllerV2<
       try {
         await Promise.all(
           sideEffects.failureHandlers.map((failureHandler) =>
-            failureHandler(requestData),
+            failureHandler(params),
           ),
         );
       } catch (error) {
@@ -688,6 +709,7 @@ export class ApprovalController extends BaseControllerV2<
           `Something went wrong with side-effects failure handling and wasn't able to recover: ${error}`,
         );
       }
+
       throw new Error(
         'Permitted handlers failed, side effects have been reverted.',
       );
@@ -695,7 +717,7 @@ export class ApprovalController extends BaseControllerV2<
       try {
         await Promise.all(
           sideEffects.successHandlers.map((successHandler) =>
-            successHandler(requestData),
+            successHandler(params),
           ),
         );
       } catch (error) {
