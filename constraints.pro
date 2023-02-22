@@ -2,12 +2,13 @@
 % Utility predicates
 %===============================================================================
 
-% True if and only if VersionRange is a value that we would expect to see
-% following a package in a "*dependencies" field within a `package.json`.
-is_valid_version_range(VersionRange) :-
-  VersionRange = 'workspace:^';
-  VersionRange = 'workspace:~';
-  parse_version_range(VersionRange, _, _, _, _).
+% True if and only if DependencySpecifier is a value that we would expect to see
+% on the right hand side of an entry in a "*dependencies" section.
+is_valid_dependency_specifier(DependencySpecifier) :-
+  DependencySpecifier = 'workspace:^';
+  DependencySpecifier = 'workspace:~';
+  sub_atom(DependencySpecifier, 0, _, _, 'github:');
+  parse_version_range(DependencySpecifier, _, _, _, _).
 
 % Succeeds if Number can be unified with Atom converted to a number; throws if
 % not.
@@ -253,9 +254,9 @@ gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
 
 % All dependency ranges must be recognizable (this makes it possible to apply
 % the next two rules effectively).
-gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally starting with ^ or ~', DependencyType) :-
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a version range optionally starting with ^ or ~, or a repo reference starting with "github:"', DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
-  \+ is_valid_version_range(DependencyRange).
+  \+ is_valid_dependency_specifier(DependencyRange).
 
 % All dependency ranges for a package must be synchronized across the monorepo
 % (the least version range wins), regardless of which "*dependencies" field
