@@ -231,7 +231,7 @@ describe('PreferencesController', () => {
 
   it('should set disabledRpcMethodPreferences', () => {
     const controller = new PreferencesController();
-    controller.setDisabledRpcMethodPreferences('eth_sign', true);
+    controller.setDisabledRpcMethodPreference('eth_sign', true);
     expect(
       controller.state.disabledRpcMethodPreferences.eth_sign,
     ).toStrictEqual(true);
