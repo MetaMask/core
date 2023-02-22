@@ -99,7 +99,7 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
 
 3. **Submit a pull request for the release branch so that it can be reviewed and tested.**
 
-   Make sure the title of the pull request follows the pattern "Release \<new version\>".
+   **IMPORTANT:** Make sure you change title of the pull request to follow the pattern "Release \<new version\>". Failing to do so will cause the release to be skipped.
 
    If changes are made to the base branch, the release branch will need to be updated with these changes and review/QA will need to restart again. As such, it's probably best to avoid merging other PRs into the base branch while review is underway.
 
