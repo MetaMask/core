@@ -14,7 +14,7 @@ describe('PreferencesController', () => {
       useNftDetection: false,
       openSeaEnabled: false,
       disabledRpcMethodPreferences: {
-        eth_sign: false
+        eth_sign: false,
       },
     });
   });
@@ -231,7 +231,9 @@ describe('PreferencesController', () => {
 
   it('should set disabledRpcMethodPreferences', () => {
     const controller = new PreferencesController();
-    controller.setDisabledRpcMethodPreferences("eth_sign", true);
-    expect(controller.state.disabledRpcMethodPreferences.eth_sign).toStrictEqual(true);
-  })
+    controller.setDisabledRpcMethodPreferences('eth_sign', true);
+    expect(
+      controller.state.disabledRpcMethodPreferences.eth_sign,
+    ).toStrictEqual(true);
+  });
 });

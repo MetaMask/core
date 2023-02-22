@@ -66,7 +66,7 @@ export interface PreferencesState extends BaseState {
   openSeaEnabled: boolean;
   disabledRpcMethodPreferences: {
     [methodName: string]: boolean;
-  }
+  };
 }
 
 /**
@@ -346,10 +346,10 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * A setter for the user preferences to enable/disable rpc methods
+   * A setter for the user preferences to enable/disable rpc methods.
    *
-   * @param {string} methodName - The RPC method name to change the setting of
-   * @param {bool} isEnabled - true to enable the rpc method
+   * @param methodName - The RPC method name to change the setting of.
+   * @param isEnabled - true to enable the rpc method, false to disable it.
    */
   setDisabledRpcMethodPreferences(methodName: string, isEnabled: boolean) {
     const { disabledRpcMethodPreferences } = this.state;
