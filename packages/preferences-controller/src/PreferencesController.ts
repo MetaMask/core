@@ -64,6 +64,9 @@ export interface PreferencesState extends BaseState {
   useTokenDetection: boolean;
   useNftDetection: boolean;
   openSeaEnabled: boolean;
+  disabledRpcMethodPreferences: {
+    [methodName: string]: boolean;
+  };
 }
 
 /**
@@ -96,6 +99,9 @@ export class PreferencesController extends BaseController<
       useTokenDetection: true,
       useNftDetection: false,
       openSeaEnabled: false,
+      disabledRpcMethodPreferences: {
+        eth_sign: false,
+      },
     };
     this.initialize();
   }
@@ -337,6 +343,21 @@ export class PreferencesController extends BaseController<
     if (!openSeaEnabled) {
       this.update({ useNftDetection: false });
     }
+  }
+
+  /**
+   * A setter for the user preferences to enable/disable rpc methods.
+   *
+   * @param methodName - The RPC method name to change the setting of.
+   * @param isEnabled - true to enable the rpc method, false to disable it.
+   */
+  setDisabledRpcMethodPreference(methodName: string, isEnabled: boolean) {
+    const { disabledRpcMethodPreferences } = this.state;
+    const newDisabledRpcMethods = {
+      ...disabledRpcMethodPreferences,
+      [methodName]: isEnabled,
+    };
+    this.update({ disabledRpcMethodPreferences: newDisabledRpcMethods });
   }
 }
 
