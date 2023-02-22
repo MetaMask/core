@@ -458,7 +458,7 @@ export class ApprovalController extends BaseControllerV2<
       if (sideEffects) {
         await this._handleSideEffects(sideEffects, {
           requestData,
-          callAction: this.messagingSystem.call,
+          callAction: this.messagingSystem.call.bind(this.messagingSystem),
         });
       }
     } catch (err) {
@@ -697,7 +697,11 @@ export class ApprovalController extends BaseControllerV2<
       ),
     );
 
-    if (promiseResults.find((promise) => promise.status === 'rejected')) {
+    const rejectedHandlers = promiseResults.filter(
+      (promise) => promise.status === 'rejected',
+    );
+
+    if (rejectedHandlers.length !== 0) {
       try {
         await Promise.all(
           sideEffects.failureHandlers.map((failureHandler) =>
@@ -710,8 +714,12 @@ export class ApprovalController extends BaseControllerV2<
         );
       }
 
+      // @ts-expect-error wrong typing ?
+      const reasons = rejectedHandlers.map((handler) => handler.reason);
       throw new Error(
-        'Permitted handlers failed, side effects have been reverted.',
+        `Permitted handlers failed, side effects have been reverted:\n${reasons.join(
+          '\n',
+        )}`,
       );
     } else if (sideEffects.successHandlers.length !== 0) {
       try {
