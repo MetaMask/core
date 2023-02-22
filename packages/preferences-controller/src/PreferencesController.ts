@@ -351,7 +351,7 @@ export class PreferencesController extends BaseController<
    * @param methodName - The RPC method name to change the setting of.
    * @param isEnabled - true to enable the rpc method, false to disable it.
    */
-  setDisabledRpcMethodPreferences(methodName: string, isEnabled: boolean) {
+  setDisabledRpcMethodPreference(methodName: string, isEnabled: boolean) {
     const { disabledRpcMethodPreferences } = this.state;
     const newDisabledRpcMethods = {
       ...disabledRpcMethodPreferences,
