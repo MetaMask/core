@@ -31,7 +31,7 @@
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
-    "@metamask/swappable-obj-proxy": "github:MetaMask/swappable-obj-proxy#dc618e57efb98f6c3beb4c13b844c4fa07c66068",
+    "@metamask/swappable-obj-proxy": "github:MetaMask/swappable-obj-proxy#d468c5d65f1ea42d24a7934bfc348413c143ccbd",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-json-rpc-infura": "^5.1.0",
