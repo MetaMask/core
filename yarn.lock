@@ -1834,7 +1834,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
-    "@metamask/swappable-obj-proxy": "github:MetaMask/swappable-obj-proxy#d468c5d65f1ea42d24a7934bfc348413c143ccbd"
+    "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^26.0.22
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
@@ -2002,10 +2002,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/swappable-obj-proxy@github:MetaMask/swappable-obj-proxy#d468c5d65f1ea42d24a7934bfc348413c143ccbd":
-  version: 2.0.0
-  resolution: "@metamask/swappable-obj-proxy@https://github.com/MetaMask/swappable-obj-proxy.git#commit=d468c5d65f1ea42d24a7934bfc348413c143ccbd"
-  checksum: ed324fd072f560ce1c5eb413d394a3eaa544c5ccaf957893380dfc1b480dc7526d2a447852c6d2037e509eae1c9a14c513390b6bcef525b2f74ffc851e0836e2
+"@metamask/swappable-obj-proxy@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "@metamask/swappable-obj-proxy@npm:2.1.0"
+  checksum: b15cebee7fb189d1143d3a755a38a7d88f56f91e1277425a51f63c50c432dfb4e6e22650ef67474ae4ef2a97344231af00be6780f126c47d401a23c8a8fb3c9c
   languageName: node
   linkType: hard
 
