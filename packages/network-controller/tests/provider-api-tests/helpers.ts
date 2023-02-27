@@ -407,7 +407,7 @@ export const withNetworkClient = async (
   }
 
   const ethQuery = messenger.call('NetworkController:getEthQuery');
-  const blockTracker = controller.provider._blockTracker;
+  const { provider, blockTracker } = controller.getProviderAndBlockTracker();
 
   const curriedMakeRpcCall = (request: Request) =>
     makeRpcCall(ethQuery, request, clock);
@@ -432,7 +432,8 @@ export const withNetworkClient = async (
     getEIP1559CompatibilityMock.mockRestore();
     lookupNetworkMock.mockRestore();
     blockTracker.removeAllListeners();
-    controller.provider.stop();
+    provider.stop();
+    clock.restore();
   }
 };
 
