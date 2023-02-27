@@ -11,8 +11,8 @@ import type {
   NetworkControllerGetEthQueryAction,
   NetworkControllerGetProviderConfigAction,
   NetworkControllerProviderConfigChangeEvent,
-  NetworkController,
   NetworkState,
+  ProviderProxy,
 } from '@metamask/network-controller';
 import {
   fetchGasEstimates,
@@ -303,7 +303,7 @@ export class GasFeeController extends BaseControllerV2<
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
     getChainId?: () => `0x${string}` | `${number}` | number;
-    getProvider: () => NetworkController['provider'];
+    getProvider: () => ProviderProxy;
     onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint: string;

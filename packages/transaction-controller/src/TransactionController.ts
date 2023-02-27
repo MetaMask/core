@@ -12,10 +12,7 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import type {
-  NetworkState,
-  NetworkController,
-} from '@metamask/network-controller';
+import type { NetworkState, ProviderProxy } from '@metamask/network-controller';
 import {
   BNToHex,
   fractionBN,
@@ -425,7 +422,7 @@ export class TransactionController extends BaseController<
     }: {
       getNetworkState: () => NetworkState;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
-      getProvider: () => NetworkController['provider'];
+      getProvider: () => ProviderProxy;
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,

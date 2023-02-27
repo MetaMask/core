@@ -1834,6 +1834,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
+    "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^26.0.22
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
@@ -2000,6 +2001,13 @@ __metadata:
     typescript: ~4.6.3
   languageName: unknown
   linkType: soft
+
+"@metamask/swappable-obj-proxy@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "@metamask/swappable-obj-proxy@npm:2.1.0"
+  checksum: b15cebee7fb189d1143d3a755a38a7d88f56f91e1277425a51f63c50c432dfb4e6e22650ef67474ae4ef2a97344231af00be6780f126c47d401a23c8a8fb3c9c
+  languageName: node
+  linkType: hard
 
 "@metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local

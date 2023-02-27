@@ -31,6 +31,7 @@
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/swappable-obj-proxy": "^2.1.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-json-rpc-infura": "^5.1.0",
