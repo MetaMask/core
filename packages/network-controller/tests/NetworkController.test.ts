@@ -11,10 +11,6 @@ import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Patch } from 'immer';
 import { waitForResult } from '../../../tests/helpers';
 import {
-  FakeProviderEngine,
-  FakeProviderStub,
-} from '../tests/fake-provider-engine';
-import {
   NetworkController,
   NetworkControllerActions,
   NetworkControllerEvents,
@@ -23,7 +19,8 @@ import {
   NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderConfig,
-} from './NetworkController';
+} from '../src/NetworkController';
+import { FakeProviderEngine, FakeProviderStub } from './fake-provider-engine';
 
 jest.mock('eth-query', () => {
   return {

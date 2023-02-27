@@ -1274,6 +1274,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@json-rpc-specification/meta-schema@npm:^1.0.6":
+  version: 1.0.6
+  resolution: "@json-rpc-specification/meta-schema@npm:1.0.6"
+  checksum: 2eb9c6c6c73bb38350c7180d1ad3c5b8462406926cae753741895b457d7b1b9f0b74148daf3462bb167cef39efdd1d9090308edf4d4938956863acb643c146eb
+  languageName: node
+  linkType: hard
+
 "@keystonehq/base-eth-keyring@npm:^0.7.1":
   version: 0.7.1
   resolution: "@keystonehq/base-eth-keyring@npm:0.7.1"
@@ -1831,11 +1838,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
+    "@json-rpc-specification/meta-schema": ^1.0.6
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^26.0.22
+    "@types/lodash": ^4.14.191
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
@@ -1843,6 +1852,8 @@ __metadata:
     eth-query: ^2.1.2
     immer: ^9.0.6
     jest: ^26.4.2
+    lodash: ^4.17.21
+    nock: ^13.0.7
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -2470,6 +2481,13 @@ __metadata:
   version: 0.0.29
   resolution: "@types/json5@npm:0.0.29"
   checksum: e60b153664572116dfea673c5bda7778dbff150498f44f998e34b5886d8afc47f16799280e4b6e241c0472aef1bc36add771c569c68fc5125fc2ae519a3eb9ac
+  languageName: node
+  linkType: hard
+
+"@types/lodash@npm:^4.14.191":
+  version: 4.14.191
+  resolution: "@types/lodash@npm:4.14.191"
+  checksum: ba0d5434e10690869f32d5ea49095250157cae502f10d57de0a723fd72229ce6c6a4979576f0f13e0aa9fbe3ce2457bfb9fa7d4ec3d6daba56730a51906d1491
   languageName: node
   linkType: hard
 
