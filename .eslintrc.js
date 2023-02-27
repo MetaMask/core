@@ -8,22 +8,11 @@ module.exports = {
     'dist',
     'docs',
     'coverage',
-    'tests/helpers.ts', // todo: fix this file so it doesnt give linting errors
   ],
   overrides: [
     {
-      files: ['*.test.ts', '*.test.js', '**/tests/**/*.test.ts'],
+      files: ['*.test.ts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
-    },
-    {
-      files: ['**/tests/**/*', '!**/tests/**/*.test.ts'],
-      extends: ['@metamask/eslint-config-jest'],
-      rules: {
-        'node/no-process-env': 'off',
-        'jest/no-export': 'off',
-        'jest/require-top-level-describe': 'off',
-        'jest/no-if': 'off',
-      },
     },
     {
       files: ['*.js'],

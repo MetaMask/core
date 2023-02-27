@@ -1,4 +1,4 @@
-/* eslint-disable jest/require-top-level-describe, jest/no-export, jest/no-identical-title, jest/no-if, jest/expect-expect */
+/* eslint-disable no-loop-func */
 
 import {
   MockCommunications,

@@ -1,3 +1,4 @@
+/* eslint-disable node/no-process-env */
 import nock, { Scope as NockScope } from 'nock';
 import sinon from 'sinon';
 import {

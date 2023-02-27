@@ -1,3 +1,4 @@
+/* eslint-disable no-loop-func */
 import {
   ProviderType,
   waitForNextBlockTracker,

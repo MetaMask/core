@@ -388,7 +388,7 @@ export class NetworkController extends BaseControllerV2<
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
       type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
-        TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
+      TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
         ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
         : 'ETH';
 
