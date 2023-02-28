@@ -1,4 +1,4 @@
-import { NetworkType } from './types';
+import { NetworksChainId, NetworkType } from './types';
 
 export const MAINNET = 'mainnet';
 export const RPC = 'rpc';
