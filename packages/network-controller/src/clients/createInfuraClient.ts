@@ -12,7 +12,9 @@ import {
   providerFromMiddleware,
 } from 'eth-json-rpc-middleware';
 
-import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
+import { createInfuraMiddleware, CreateInfuraMiddlewareOptions } from '@metamask/eth-json-rpc-infura';
+
+import { InfuraJsonRpcSupportedNetwork } from '@metamask/eth-json-rpc-infura/dist/types'; // todo: export this from main?
 import { PollingBlockTracker } from 'eth-block-tracker';
 
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
@@ -33,11 +35,11 @@ export type InfuraNetworkType =
  * @returns The network middleware and the block tracker.
  */
 export default function createInfuraClient(
-  network: InfuraNetworkType,
-  projectId: string,
+  network: NetworkType,
+  projectId: CreateInfuraMiddlewareOptions["projectId"],
 ): CreateClientResult {
   const infuraMiddleware = createInfuraMiddleware({
-    network,
+    network: network as InfuraJsonRpcSupportedNetwork,
     projectId,
     maxAttempts: 5,
     source: 'metamask',
@@ -49,7 +51,7 @@ export default function createInfuraClient(
   });
 
   const networkMiddleware = mergeMiddleware([
-    createNetworkAndChainIdMiddleware(network),
+    createNetworkAndChainIdMiddleware(network as NetworkType),
     createBlockCacheMiddleware({ blockTracker: blockTracker as any }) as any, // something wrong with typing
     createInflightCacheMiddleware(),
     createBlockRefMiddleware({
@@ -77,7 +79,7 @@ export default function createInfuraClient(
 function createNetworkAndChainIdMiddleware(
   network: NetworkType,
 ): JsonRpcMiddleware<any, any> {
-  const chainId = NetworksChainId[network] === undefined;
+  const chainId = NetworksChainId[network];
 
   if (typeof chainId === undefined) {
     throw new Error(`createInfuraClient - unknown network "${network}"`);
