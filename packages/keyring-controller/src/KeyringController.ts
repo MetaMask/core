@@ -791,6 +791,17 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Restores the Ledger Keyring. This is only used at the time the user resets the account's password at the moment.
+   *
+   * @param keyringSerialized - The serialized keyring;
+   */
+  async restoreLedgerKeyring(keyringSerialized: any): Promise<void> {
+    (await this.getLedgerKeyring()).deserialize(keyringSerialized);
+    this.updateIdentities(await this.#keyring.getAccounts());
+    await this.fullUpdate();
+  }
+
+  /**
    * Connects to the ledger device by requesting some metadata from it.
    *
    * @param transport - The transport to use to connect to the device
