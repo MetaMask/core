@@ -1198,6 +1198,22 @@ describe('KeyringController', () => {
       confirmSignatureStub.reset();
     });
 
+    it('should restore the Ledger keyring', async () => {
+      const serializedLedgerKeyring = {
+        accounts: [
+          {
+            address: '0x3f60aaa3df2D1a6de9e8233b564a5BB82c3975FD',
+            hdPath: "m/44'/60'/0'/0/0",
+          },
+        ],
+        deviceId: '2A522280-CD5B-3B38-759F-8729D4A2CCCD',
+        hdPath: "m/44'/60'/0'/0/0",
+      };
+      await keyringController.restoreLedgerKeyring(serializedLedgerKeyring);
+
+      expect(keyringController.state.keyrings[1].accounts).toHaveLength(1);
+    });
+
     it('should sign transaction with Ledger keyring', async () => {
       const tx = TransactionFactory.fromTxData(
         {
