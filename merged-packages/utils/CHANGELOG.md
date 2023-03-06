@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+### Changed
+- **BREAKING:** Update `Keyring` type ([#89](https://github.com/MetaMask/utils/pull/89))
+  - The `Keyring` class now uses the data types `TypedTransaction` and `TxData` from `@ethereumjs/tx` (`v4.1.1`).
+  - The `Keyring` now exposes a new optional method called `generateRandomMnemonic`.
+
 ## [4.0.0]
 ### Changed
 - Export new modules (`keyring`, `transaction-types`, and `encryption-types`) ([#86](https://github.com/MetaMask/utils/pull/86))
@@ -124,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/utils/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/MetaMask/utils/compare/v3.6.0...v4.0.0
 [3.6.0]: https://github.com/MetaMask/utils/compare/v3.5.0...v3.6.0
 [3.5.0]: https://github.com/MetaMask/utils/compare/v3.4.1...v3.5.0
