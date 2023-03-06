@@ -1,7 +1,8 @@
+import type { TypedTransaction, TxData } from '@ethereumjs/tx';
+
 import type { Eip1024EncryptedData } from './encryption-types';
 import { Hex } from './hex';
 import { Json } from './json';
-import type { Transaction, SignedTransaction } from './transaction-types';
 
 /**
  * A Keyring class.
@@ -135,9 +136,9 @@ export type Keyring<State extends Json> = {
    */
   signTransaction?(
     address: Hex,
-    transaction: Transaction,
+    transaction: TypedTransaction,
     options?: Record<string, unknown>,
-  ): Promise<SignedTransaction>;
+  ): Promise<TxData>;
 
   /**
    * Sign a message. This is equivalent to an older version of the the
@@ -246,4 +247,10 @@ export type Keyring<State extends Json> = {
     account: Hex,
     encryptedData: Eip1024EncryptedData,
   ): Promise<string>;
+
+  /**
+   * Generates the properties for the keyring based on the given
+   * BIP39-compliant mnemonic.
+   */
+  generateRandomMnemonic?(): void;
 };
