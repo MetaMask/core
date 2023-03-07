@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "1.1.2",
+  "version": "3.0.0",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "MetaMask",
@@ -33,7 +33,6 @@
     "@metamask/controller-utils": "workspace:^",
     "@types/punycode": "^2.1.0",
     "eth-phishing-detect": "^1.2.0",
-    "isomorphic-fetch": "^3.0.0",
     "punycode": "^2.1.1"
   },
   "devDependencies": {

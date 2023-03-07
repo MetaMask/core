@@ -3,9 +3,11 @@ import {
   fetchLegacyGasPriceEstimates,
   normalizeGWEIDecimalNumbers,
   fetchGasEstimates,
+  calculateTimeEstimate,
 } from './gas-util';
+import { GasFeeEstimates } from './GasFeeController';
 
-const mockEIP1559ApiResponses = [
+const mockEIP1559ApiResponses: GasFeeEstimates[] = [
   {
     low: {
       minWaitTimeEstimate: 120000,
@@ -26,6 +28,12 @@ const mockEIP1559ApiResponses = [
       suggestedMaxFeePerGas: '60',
     },
     estimatedBaseFee: '30',
+    networkCongestion: 0.98305,
+    latestPriorityFeeRange: ['1', '24.213017451'],
+    historicalPriorityFeeRange: ['0.195374415', '1045.316256132'],
+    historicalBaseFeeRange: ['199.804625585', '442.03686925'],
+    priorityFeeTrend: 'level',
+    baseFeeTrend: 'up',
   },
   {
     low: {
@@ -47,6 +55,12 @@ const mockEIP1559ApiResponses = [
       suggestedMaxFeePerGas: '1.000000016522',
     },
     estimatedBaseFee: '32.000000016522',
+    networkCongestion: 0.98305,
+    latestPriorityFeeRange: ['1', '24.213017451'],
+    historicalPriorityFeeRange: ['0.195374415', '1045.316256132'],
+    historicalBaseFeeRange: ['199.804625585', '442.03686925'],
+    priorityFeeTrend: 'level',
+    baseFeeTrend: 'up',
   },
 ];
 
@@ -186,7 +200,7 @@ describe('gas utils', () => {
       expect(normalizeGWEIDecimalNumbers(0.5676)).toBe('0.5676');
     });
 
-    it('should handle inputs with more than 9 decimal places', () => {
+    it('should handle inputs with > 9 decimal places', () => {
       expect(normalizeGWEIDecimalNumbers(1.0000000162)).toBe('1.000000016');
       expect(normalizeGWEIDecimalNumbers(1.0000000165)).toBe('1.000000017');
       expect(normalizeGWEIDecimalNumbers(1.0000000199)).toBe('1.00000002');
@@ -221,6 +235,116 @@ describe('gas utils', () => {
 
     it('should handle NaN', () => {
       expect(normalizeGWEIDecimalNumbers(NaN)).toBe('0');
+    });
+  });
+
+  describe('calculateTimeEstimate', () => {
+    const mockGasEstimates = mockEIP1559ApiResponses[0];
+    // The lower of this vs the maxPriorityFeePerGas is used in the function. This sets the upper bound
+    const maxFeePerGas = '9999999999';
+
+    it('should return an unknown upper bound and null lower bound if the max priority fee is < the max of the low estimate', () => {
+      const maxPriorityFeePerGas = '2';
+      const lowSuggestedMaxPriorityFee = '2000';
+
+      const result = calculateTimeEstimate(maxPriorityFeePerGas, maxFeePerGas, {
+        ...mockGasEstimates,
+        low: {
+          ...mockGasEstimates.low,
+          suggestedMaxPriorityFeePerGas: lowSuggestedMaxPriorityFee,
+        },
+      });
+
+      expect(result).toMatchObject({
+        upperTimeBound: 'unknown',
+        lowerTimeBound: null,
+      });
+    });
+
+    it('should return low min/max wait time estimates when max priority fee is >= the low fee but < med one', () => {
+      const lowSuggestedMaxPriorityFee = '1';
+      const maxPriorityFeePerGas = '2';
+      const medSuggestedMaxPriorityFee = '2000';
+
+      const result = calculateTimeEstimate(maxPriorityFeePerGas, maxFeePerGas, {
+        ...mockGasEstimates,
+        low: {
+          ...mockGasEstimates.low,
+          suggestedMaxPriorityFeePerGas: lowSuggestedMaxPriorityFee,
+        },
+        medium: {
+          ...mockGasEstimates.medium,
+          suggestedMaxPriorityFeePerGas: medSuggestedMaxPriorityFee,
+        },
+        estimatedBaseFee: maxPriorityFeePerGas,
+      });
+
+      expect(result).toMatchObject({
+        upperTimeBound: mockGasEstimates.low.maxWaitTimeEstimate,
+        lowerTimeBound: mockGasEstimates.low.minWaitTimeEstimate,
+      });
+    });
+
+    it('should return medium min/max wait time estimates when max priority fee is >= the medium suggested priority fee but < high suggested priority fee', () => {
+      const medSuggestedMaxPriorityFee = '1';
+      const maxPriorityFeePerGas = '2';
+      const highSuggestedMaxPriorityFee = '2000';
+
+      const result = calculateTimeEstimate(maxPriorityFeePerGas, maxFeePerGas, {
+        ...mockGasEstimates,
+        medium: {
+          ...mockGasEstimates.medium,
+          suggestedMaxPriorityFeePerGas: medSuggestedMaxPriorityFee,
+        },
+        high: {
+          ...mockGasEstimates.high,
+          suggestedMaxPriorityFeePerGas: highSuggestedMaxPriorityFee,
+        },
+        estimatedBaseFee: maxPriorityFeePerGas,
+      });
+
+      expect(result).toMatchObject({
+        upperTimeBound: mockGasEstimates.medium.maxWaitTimeEstimate,
+        lowerTimeBound: mockGasEstimates.medium.minWaitTimeEstimate,
+      });
+    });
+
+    it('should return high min/max wait time estimates when max priority fee is equals the high priority fee', () => {
+      const maxPriorityFeePerGas = '123456789';
+      const suggestedMaxPriorityFee = maxPriorityFeePerGas;
+
+      const result = calculateTimeEstimate(maxPriorityFeePerGas, maxFeePerGas, {
+        ...mockGasEstimates,
+        high: {
+          ...mockGasEstimates.high,
+          suggestedMaxPriorityFeePerGas: suggestedMaxPriorityFee,
+        },
+        estimatedBaseFee: maxPriorityFeePerGas,
+      });
+
+      expect(result).toMatchObject({
+        upperTimeBound: mockGasEstimates.high.maxWaitTimeEstimate,
+        lowerTimeBound: mockGasEstimates.high.minWaitTimeEstimate,
+      });
+    });
+
+    it('should return a lower bound wait time of 0 and an upper bound of the max high wait time if the priority fee is > the highest time estimate', () => {
+      const maxPriorityFeePerGas = '123456789';
+      const suggestedMaxPriorityFee = '1';
+
+      const result = calculateTimeEstimate(maxPriorityFeePerGas, maxFeePerGas, {
+        ...mockGasEstimates,
+        high: {
+          ...mockGasEstimates.high,
+          suggestedMaxPriorityFeePerGas: suggestedMaxPriorityFee,
+        },
+        estimatedBaseFee: maxPriorityFeePerGas,
+      });
+
+      expect(result).toMatchObject({
+        upperTimeBound: mockGasEstimates.high.maxWaitTimeEstimate,
+        lowerTimeBound: 0,
+      });
     });
   });
 });

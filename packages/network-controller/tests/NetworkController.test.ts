@@ -1,4 +1,4 @@
-import { inspect, isDeepStrictEqual } from 'util';
+import { inspect, isDeepStrictEqual, promisify } from 'util';
 import assert from 'assert';
 
 import { mocked } from 'ts-jest/utils';
@@ -11,10 +11,6 @@ import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Patch } from 'immer';
 import { waitForResult } from '../../../tests/helpers';
 import {
-  FakeProviderEngine,
-  FakeProviderStub,
-} from '../tests/fake-provider-engine';
-import {
   NetworkController,
   NetworkControllerActions,
   NetworkControllerEvents,
@@ -23,7 +19,8 @@ import {
   NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderConfig,
-} from './NetworkController';
+} from '../src/NetworkController';
+import { FakeProviderEngine, FakeProviderStub } from './fake-provider-engine';
 
 jest.mock('eth-query', () => {
   return {
@@ -186,12 +183,21 @@ describe('NetworkController', () => {
                 },
                 infuraProjectId: 'infura-project-id',
               },
-              ({ controller }) => {
+              async ({ controller }) => {
                 const fakeInfuraProvider = buildFakeInfuraProvider();
                 createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
                 const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
                 SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                const fakeMetamaskProvider = buildFakeMetamaskProvider();
+                const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                  {
+                    request: {
+                      method: 'eth_chainId',
+                    },
+                    response: {
+                      result: '0x1337',
+                    },
+                  },
+                ]);
                 createMetamaskProviderMock.mockReturnValue(
                   fakeMetamaskProvider,
                 );
@@ -218,7 +224,17 @@ describe('NetworkController', () => {
                     pollingInterval: 12000,
                   },
                 });
-                expect(controller.provider).toBe(fakeMetamaskProvider);
+                const { provider } = controller.getProviderAndBlockTracker();
+                assert(provider, 'Provider is not set');
+                const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+                  provider,
+                );
+                const chainIdResult = await promisifiedSendAsync({
+                  id: 1,
+                  jsonrpc: '2.0',
+                  method: 'eth_chainId',
+                });
+                expect(chainIdResult.result).toBe('0x1337');
               },
             );
           });
@@ -249,7 +265,7 @@ describe('NetworkController', () => {
 
                 controller.providerConfig = buildProviderConfig();
                 controller.providerConfig = buildProviderConfig();
-                assert(controller.provider);
+                assert(controller.getProviderAndBlockTracker().provider);
                 jest.runAllTimers();
 
                 expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -314,7 +330,9 @@ describe('NetworkController', () => {
                       {
                         produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
+                          assert(
+                            controller.getProviderAndBlockTracker().provider,
+                          );
                         },
                       },
                     );
@@ -323,7 +341,9 @@ describe('NetworkController', () => {
                       propertyPath: ['network'],
                       count: 2,
                       produceStateChanges: () => {
-                        controller.provider.emit('error', { some: 'error' });
+                        controller
+                          .getProviderAndBlockTracker()
+                          .provider.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.network).toBe('2');
@@ -380,7 +400,9 @@ describe('NetworkController', () => {
                       {
                         produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
+                          assert(
+                            controller.getProviderAndBlockTracker().provider,
+                          );
                         },
                       },
                     );
@@ -389,7 +411,9 @@ describe('NetworkController', () => {
                       propertyPath: ['network'],
                       count: 0,
                       produceStateChanges: () => {
-                        controller.provider.emit('error', { some: 'error' });
+                        controller
+                          .getProviderAndBlockTracker()
+                          .provider.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.network).toBe('1');
@@ -415,8 +439,17 @@ describe('NetworkController', () => {
                 }),
               },
             },
-            ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider();
+            async ({ controller }) => {
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'eth_chainId',
+                  },
+                  response: {
+                    result: '0x1337',
+                  },
+                },
+              ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
               controller.providerConfig = buildProviderConfig({
@@ -432,7 +465,14 @@ describe('NetworkController', () => {
                 rpcUrl: 'http://localhost:8545',
                 ticker: undefined,
               });
-              expect(controller.provider).toBe(fakeMetamaskProvider);
+              const { provider } = controller.getProviderAndBlockTracker();
+              const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+                provider,
+              );
+              const chainIdResult = await promisifiedSendAsync({
+                method: 'eth_chainId',
+              });
+              expect(chainIdResult.result).toBe('0x1337');
             },
           );
         });
@@ -458,7 +498,7 @@ describe('NetworkController', () => {
 
               controller.providerConfig = buildProviderConfig();
               controller.providerConfig = buildProviderConfig();
-              assert(controller.provider);
+              assert(controller.getProviderAndBlockTracker().provider);
               jest.runAllTimers();
 
               expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -516,7 +556,9 @@ describe('NetworkController', () => {
                     {
                       produceEvents: () => {
                         controller.providerConfig = buildProviderConfig();
-                        assert(controller.provider);
+                        assert(
+                          controller.getProviderAndBlockTracker().provider,
+                        );
                       },
                     },
                   );
@@ -525,7 +567,9 @@ describe('NetworkController', () => {
                     propertyPath: ['network'],
                     count: 2,
                     produceStateChanges: () => {
-                      controller.provider.emit('error', { some: 'error' });
+                      controller
+                        .getProviderAndBlockTracker()
+                        .provider.emit('error', { some: 'error' });
                     },
                   });
                   expect(controller.state.network).toBe('2');
@@ -575,7 +619,9 @@ describe('NetworkController', () => {
                     {
                       produceEvents: () => {
                         controller.providerConfig = buildProviderConfig();
-                        assert(controller.provider);
+                        assert(
+                          controller.getProviderAndBlockTracker().provider,
+                        );
                       },
                     },
                   );
@@ -584,7 +630,9 @@ describe('NetworkController', () => {
                     propertyPath: ['network'],
                     count: 0,
                     produceStateChanges: () => {
-                      controller.provider.emit('error', { some: 'error' });
+                      controller
+                        .getProviderAndBlockTracker()
+                        .provider.emit('error', { some: 'error' });
                     },
                   });
                   expect(controller.state.network).toBe('1');
@@ -610,8 +658,17 @@ describe('NetworkController', () => {
                   },
                 },
               },
-              ({ controller }) => {
-                const fakeMetamaskProvider = buildFakeMetamaskProvider();
+              async ({ controller }) => {
+                const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                  {
+                    request: {
+                      method: 'eth_chainId',
+                    },
+                    response: {
+                      result: '0x1337',
+                    },
+                  },
+                ]);
                 createMetamaskProviderMock.mockReturnValue(
                   fakeMetamaskProvider,
                 );
@@ -629,7 +686,14 @@ describe('NetworkController', () => {
                   rpcUrl: 'http://example.com',
                   ticker: 'ABC',
                 });
-                expect(controller.provider).toBe(fakeMetamaskProvider);
+                const { provider } = controller.getProviderAndBlockTracker();
+                const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+                  provider,
+                );
+                const chainIdResult = await promisifiedSendAsync({
+                  method: 'eth_chainId',
+                });
+                expect(chainIdResult.result).toBe('0x1337');
               },
             );
           });
@@ -656,7 +720,7 @@ describe('NetworkController', () => {
 
                 controller.providerConfig = buildProviderConfig();
                 controller.providerConfig = buildProviderConfig();
-                assert(controller.provider);
+                assert(controller.getProviderAndBlockTracker().provider);
                 jest.runAllTimers();
 
                 expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -715,7 +779,9 @@ describe('NetworkController', () => {
                       {
                         produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
+                          assert(
+                            controller.getProviderAndBlockTracker().provider,
+                          );
                         },
                       },
                     );
@@ -724,7 +790,9 @@ describe('NetworkController', () => {
                       propertyPath: ['network'],
                       count: 2,
                       produceStateChanges: () => {
-                        controller.provider.emit('error', { some: 'error' });
+                        controller
+                          .getProviderAndBlockTracker()
+                          .provider.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.network).toBe('2');
@@ -775,7 +843,9 @@ describe('NetworkController', () => {
                       {
                         produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
+                          assert(
+                            controller.getProviderAndBlockTracker().provider,
+                          );
                         },
                       },
                     );
@@ -784,7 +854,9 @@ describe('NetworkController', () => {
                       propertyPath: ['network'],
                       count: 0,
                       produceStateChanges: () => {
-                        controller.provider.emit('error', { some: 'error' });
+                        controller
+                          .getProviderAndBlockTracker()
+                          .provider.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.network).toBe('1');
@@ -796,7 +868,7 @@ describe('NetworkController', () => {
         });
 
         describe('if the RPC target is not set', () => {
-          it('does not set the provider', async () => {
+          it('does not set a provider or block tracker', async () => {
             await withController(
               {
                 state: {
@@ -814,7 +886,10 @@ describe('NetworkController', () => {
                 controller.providerConfig = buildProviderConfig();
 
                 expect(createMetamaskProviderMock).not.toHaveBeenCalled();
-                expect(controller.provider).toBeUndefined();
+                const { provider, blockTracker } =
+                  controller.getProviderAndBlockTracker();
+                expect(provider).toBeUndefined();
+                expect(blockTracker).toBeUndefined();
               },
             );
           });
@@ -1225,12 +1300,21 @@ describe('NetworkController', () => {
           {
             infuraProjectId: 'infura-project-id',
           },
-          ({ controller }) => {
+          async ({ controller }) => {
             const fakeInfuraProvider = buildFakeInfuraProvider();
             createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
             const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
             SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
+            const fakeMetamaskProvider = buildFakeMetamaskProvider([
+              {
+                request: {
+                  method: 'eth_chainId',
+                },
+                response: {
+                  result: '0x1337',
+                },
+              },
+            ]);
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             controller.setProviderType('mainnet' as const);
@@ -1246,7 +1330,14 @@ describe('NetworkController', () => {
                 pollingInterval: 12000,
               },
             });
-            expect(controller.provider).toBe(fakeMetamaskProvider);
+            const { provider } = controller.getProviderAndBlockTracker();
+            const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+              provider,
+            );
+            const chainIdResult = await promisifiedSendAsync({
+              method: 'eth_chainId',
+            });
+            expect(chainIdResult.result).toBe('0x1337');
           },
         );
       });
@@ -1308,7 +1399,7 @@ describe('NetworkController', () => {
 
           controller.setProviderType('mainnet' as const);
           controller.setProviderType('mainnet' as const);
-          assert(controller.provider);
+          assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -1381,7 +1472,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setProviderType('mainnet' as const);
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -1389,7 +1480,9 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('42');
@@ -1431,7 +1524,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setProviderType('mainnet' as const);
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -1440,7 +1533,9 @@ describe('NetworkController', () => {
                 propertyPath: ['network'],
                 count: 0,
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('1');
@@ -1542,12 +1637,21 @@ describe('NetworkController', () => {
             {
               infuraProjectId: 'infura-project-id',
             },
-            ({ controller }) => {
+            async ({ controller }) => {
               const fakeInfuraProvider = buildFakeInfuraProvider();
               createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
               const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
               SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-              const fakeMetamaskProvider = buildFakeMetamaskProvider();
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'eth_chainId',
+                  },
+                  response: {
+                    result: '0x1337',
+                  },
+                },
+              ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
               controller.setProviderType(networkType);
@@ -1563,7 +1667,14 @@ describe('NetworkController', () => {
                   pollingInterval: 12000,
                 },
               });
-              expect(controller.provider).toBe(fakeMetamaskProvider);
+              const { provider } = controller.getProviderAndBlockTracker();
+              const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+                provider,
+              );
+              const chainIdResult = await promisifiedSendAsync({
+                method: 'eth_chainId',
+              });
+              expect(chainIdResult.result).toBe('0x1337');
             },
           );
         });
@@ -1625,7 +1736,7 @@ describe('NetworkController', () => {
 
             controller.setProviderType(networkType);
             controller.setProviderType(networkType);
-            assert(controller.provider);
+            assert(controller.getProviderAndBlockTracker().provider);
             jest.runAllTimers();
 
             expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -1700,7 +1811,7 @@ describe('NetworkController', () => {
                   {
                     produceEvents: () => {
                       controller.setProviderType(networkType);
-                      assert(controller.provider);
+                      assert(controller.getProviderAndBlockTracker().provider);
                     },
                   },
                 );
@@ -1708,7 +1819,9 @@ describe('NetworkController', () => {
                 await waitForStateChanges(messenger, {
                   propertyPath: ['network'],
                   produceStateChanges: () => {
-                    controller.provider.emit('error', { some: 'error' });
+                    controller
+                      .getProviderAndBlockTracker()
+                      .provider.emit('error', { some: 'error' });
                   },
                 });
                 expect(controller.state.network).toBe('42');
@@ -1752,7 +1865,7 @@ describe('NetworkController', () => {
                   {
                     produceEvents: () => {
                       controller.setProviderType(networkType);
-                      assert(controller.provider);
+                      assert(controller.getProviderAndBlockTracker().provider);
                     },
                   },
                 );
@@ -1761,7 +1874,9 @@ describe('NetworkController', () => {
                   propertyPath: ['network'],
                   count: 0,
                   produceStateChanges: () => {
-                    controller.provider.emit('error', { some: 'error' });
+                    controller
+                      .getProviderAndBlockTracker()
+                      .provider.emit('error', { some: 'error' });
                   },
                 });
                 expect(controller.state.network).toBe('1');
@@ -1843,7 +1958,9 @@ describe('NetworkController', () => {
           controller.setProviderType('rpc' as const);
 
           expect(createMetamaskProviderMock).not.toHaveBeenCalled();
-          expect(controller.provider).toBeUndefined();
+          expect(
+            controller.getProviderAndBlockTracker().provider,
+          ).toBeUndefined();
         });
       });
 
@@ -1948,8 +2065,17 @@ describe('NetworkController', () => {
       });
 
       it('sets the provider to a custom RPC provider pointed to localhost, leaving chain ID undefined', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+        await withController(async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'eth_chainId',
+              },
+              response: {
+                result: '0x1337',
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
           controller.setProviderType('localhost' as const);
@@ -1961,7 +2087,14 @@ describe('NetworkController', () => {
             rpcUrl: 'http://localhost:8545',
             ticker: undefined,
           });
-          expect(controller.provider).toBe(fakeMetamaskProvider);
+          const { provider } = controller.getProviderAndBlockTracker();
+          const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+            provider,
+          );
+          const chainIdResult = await promisifiedSendAsync({
+            method: 'eth_chainId',
+          });
+          expect(chainIdResult.result).toBe('0x1337');
         });
       });
 
@@ -2009,7 +2142,7 @@ describe('NetworkController', () => {
 
           controller.setProviderType('localhost' as const);
           controller.setProviderType('localhost' as const);
-          assert(controller.provider);
+          assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -2074,7 +2207,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setProviderType('localhost' as const);
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2082,7 +2215,9 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('42');
@@ -2120,7 +2255,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setProviderType('localhost' as const);
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2129,7 +2264,9 @@ describe('NetworkController', () => {
                 propertyPath: ['network'],
                 count: 0,
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('1');
@@ -2205,8 +2342,17 @@ describe('NetworkController', () => {
       });
 
       it('sets the provider to a custom RPC provider initialized with the RPC target and chain ID, leaving nickname and ticker undefined', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+        await withController(async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'eth_chainId',
+              },
+              response: {
+                result: '0x1337',
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
           controller.setRpcTarget('http://example.com', '123');
@@ -2218,7 +2364,14 @@ describe('NetworkController', () => {
             rpcUrl: 'http://example.com',
             ticker: undefined,
           });
-          expect(controller.provider).toBe(fakeMetamaskProvider);
+          const { provider } = controller.getProviderAndBlockTracker();
+          const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+            provider,
+          );
+          const chainIdResult = await promisifiedSendAsync({
+            method: 'eth_chainId',
+          });
+          expect(chainIdResult.result).toBe('0x1337');
         });
       });
 
@@ -2266,7 +2419,7 @@ describe('NetworkController', () => {
 
           controller.setRpcTarget('http://example.com', '123');
           controller.setRpcTarget('http://example.com', '123');
-          assert(controller.provider);
+          assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -2331,7 +2484,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setRpcTarget('http://example.com', '123');
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2339,7 +2492,9 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('42');
@@ -2377,7 +2532,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setRpcTarget('http://example.com', '123');
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2386,7 +2541,9 @@ describe('NetworkController', () => {
                 propertyPath: ['network'],
                 count: 0,
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('1');
@@ -2470,8 +2627,17 @@ describe('NetworkController', () => {
       });
 
       it('sets the provider to a custom RPC provider initialized with the RPC target, chain ID, and ticker, ignoring the nickname', async () => {
-        await withController(({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
+        await withController(async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'eth_chainId',
+              },
+              response: {
+                result: '0x1337',
+              },
+            },
+          ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
           controller.setRpcTarget(
@@ -2488,7 +2654,14 @@ describe('NetworkController', () => {
             rpcUrl: 'http://example.com',
             ticker: 'ABC',
           });
-          expect(controller.provider).toBe(fakeMetamaskProvider);
+          const { provider } = controller.getProviderAndBlockTracker();
+          const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+            provider,
+          );
+          const chainIdResult = await promisifiedSendAsync({
+            method: 'eth_chainId',
+          });
+          expect(chainIdResult.result).toBe('0x1337');
         });
       });
 
@@ -2551,7 +2724,7 @@ describe('NetworkController', () => {
             'ABC',
             'cool network',
           );
-          assert(controller.provider);
+          assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -2626,7 +2799,7 @@ describe('NetworkController', () => {
                       'ABC',
                       'cool network',
                     );
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2634,7 +2807,9 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('42');
@@ -2677,7 +2852,7 @@ describe('NetworkController', () => {
                       'ABC',
                       'cool network',
                     );
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2686,7 +2861,9 @@ describe('NetworkController', () => {
                 propertyPath: ['network'],
                 count: 0,
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('1');
@@ -3578,7 +3755,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({ controller });
   } finally {
-    controller.provider?.stop();
+    controller.getProviderAndBlockTracker().provider?.stop();
   }
 }
 
@@ -3608,7 +3785,11 @@ function buildFakeInfuraProvider() {
  * @returns The object.
  */
 function buildFakeInfuraSubprovider() {
-  return {};
+  return {
+    handleRequest(_payload: any, _next: any, _end: any) {
+      // do nothing
+    },
+  };
 }
 
 /**
@@ -3699,8 +3880,11 @@ async function setFakeProvider(
   }
 
   controller.providerConfig = buildProviderConfig();
-  await waitForResult(true, () => controller.provider !== undefined);
-  assert(controller.provider);
+  await waitForResult(
+    true,
+    () => controller.getProviderAndBlockTracker().provider !== undefined,
+  );
+  assert(controller.getProviderAndBlockTracker().provider);
 
   if (stubLookupNetworkWhileSetting) {
     lookupNetworkMock.mockRestore();
@@ -3709,7 +3893,7 @@ async function setFakeProvider(
     lookupGetEIP1559CompatibilityMock.mockRestore();
   }
 
-  return controller.provider;
+  return controller.getProviderAndBlockTracker().provider;
 }
 
 /**
@@ -3842,10 +4026,10 @@ async function waitForStateChanges(
     wait,
     produceStateChanges,
   }: {
-    produceStateChanges?: () => void | Promise<void>;
     propertyPath?: string[];
     count?: number;
     wait?: number;
+    produceStateChanges?: () => void | Promise<void>;
   } = {},
 ): Promise<[NetworkState, Patch[]][]> {
   const filter =

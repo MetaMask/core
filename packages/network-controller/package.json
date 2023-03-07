@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -31,6 +31,7 @@
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/swappable-obj-proxy": "^2.1.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-json-rpc-infura": "^5.1.0",
@@ -39,10 +40,14 @@
     "web3-provider-engine": "^16.0.3"
   },
   "devDependencies": {
+    "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/auto-changelog": "^3.1.0",
     "@types/jest": "^26.0.22",
+    "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",
+    "lodash": "^4.17.21",
+    "nock": "^13.0.7",
     "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
     "typedoc": "^0.22.15",

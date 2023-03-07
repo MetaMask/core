@@ -1274,6 +1274,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@json-rpc-specification/meta-schema@npm:^1.0.6":
+  version: 1.0.6
+  resolution: "@json-rpc-specification/meta-schema@npm:1.0.6"
+  checksum: 2eb9c6c6c73bb38350c7180d1ad3c5b8462406926cae753741895b457d7b1b9f0b74148daf3462bb167cef39efdd1d9090308edf4d4938956863acb643c146eb
+  languageName: node
+  linkType: hard
+
 "@keystonehq/base-eth-keyring@npm:^0.7.1":
   version: 0.7.1
   resolution: "@keystonehq/base-eth-keyring@npm:0.7.1"
@@ -1656,7 +1663,6 @@ __metadata:
     ethereumjs-util: ^7.0.10
     ethjs-unit: ^0.1.6
     fast-deep-equal: ^3.1.3
-    isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
     nock: ^13.0.7
     ts-jest: ^26.5.2
@@ -1933,10 +1939,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
+    "@json-rpc-specification/meta-schema": ^1.0.6
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
+    "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^26.0.22
+    "@types/lodash": ^4.14.191
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
@@ -1944,6 +1953,8 @@ __metadata:
     eth-query: ^2.1.2
     immer: ^9.0.6
     jest: ^26.4.2
+    lodash: ^4.17.21
+    nock: ^13.0.7
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -2020,7 +2031,6 @@ __metadata:
     "@types/punycode": ^2.1.0
     deepmerge: ^4.2.2
     eth-phishing-detect: ^1.2.0
-    isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
     nock: ^13.0.7
     punycode: ^2.1.1
@@ -2104,6 +2114,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/swappable-obj-proxy@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "@metamask/swappable-obj-proxy@npm:2.1.0"
+  checksum: b15cebee7fb189d1143d3a755a38a7d88f56f91e1277425a51f63c50c432dfb4e6e22650ef67474ae4ef2a97344231af00be6780f126c47d401a23c8a8fb3c9c
+  languageName: node
+  linkType: hard
+
 "@metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
@@ -2124,7 +2141,6 @@ __metadata:
     eth-rpc-errors: ^4.0.0
     ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
-    isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
     sinon: ^9.2.4
     ts-jest: ^26.5.2
@@ -2566,6 +2582,13 @@ __metadata:
   version: 0.0.29
   resolution: "@types/json5@npm:0.0.29"
   checksum: e60b153664572116dfea673c5bda7778dbff150498f44f998e34b5886d8afc47f16799280e4b6e241c0472aef1bc36add771c569c68fc5125fc2ae519a3eb9ac
+  languageName: node
+  linkType: hard
+
+"@types/lodash@npm:^4.14.191":
+  version: 4.14.191
+  resolution: "@types/lodash@npm:4.14.191"
+  checksum: ba0d5434e10690869f32d5ea49095250157cae502f10d57de0a723fd72229ce6c6a4979576f0f13e0aa9fbe3ce2457bfb9fa7d4ec3d6daba56730a51906d1491
   languageName: node
   linkType: hard
 
@@ -12181,9 +12204,9 @@ __metadata:
   linkType: hard
 
 "whatwg-fetch@npm:^3.4.1":
-  version: 3.4.1
-  resolution: "whatwg-fetch@npm:3.4.1"
-  checksum: c27cd1a06bdb661a39ae632806dc539e0b45e0e09b0c43aa0796366727fd3c419a29d39978c769dda3cb860c4970d51079e99ee748aa5eb53cc2496374da4de6
+  version: 3.6.2
+  resolution: "whatwg-fetch@npm:3.6.2"
+  checksum: ee976b7249e7791edb0d0a62cd806b29006ad7ec3a3d89145921ad8c00a3a67e4be8f3fb3ec6bc7b58498724fd568d11aeeeea1f7827e7e1e5eae6c8a275afed
   languageName: node
   linkType: hard
 
