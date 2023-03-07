@@ -1127,6 +1127,14 @@ describe('KeyringController', () => {
       await signProcessKeyringController.cancelQRSignRequest();
       expect(cancelSignRequestStub.called).toBe(true);
     });
+
+    it('tests unspecific error when connecting qr hardware', async () => {
+      readAccountSub.rejects();
+
+      await expect(
+        signProcessKeyringController.connectQRHardware,
+      ).rejects.toThrow('Unspecified error when connect QR Hardware');
+    });
   });
 
   describe('Ledger Keyring', () => {
@@ -1571,6 +1579,39 @@ describe('KeyringController', () => {
           address.toLowerCase(),
         ),
       ).toStrictEqual(['0xe908e4378431418759b4f87b4bf7966e8aaa5cf2']);
+    });
+
+    it("tests that if setAccountLabel is not defined, we don't set a label", async () => {
+      const setAccountLabelSpy = sinon.spy(preferences, 'setAccountLabel');
+
+      // creating a new keyring controller without adding a ledger account
+      const locallyUsedKeyring = new KeyringController(
+        {
+          removeIdentity: preferences.removeIdentity.bind(preferences),
+          syncIdentities: preferences.syncIdentities.bind(preferences),
+          updateIdentities: preferences.updateIdentities.bind(preferences),
+          setSelectedAddress: preferences.setSelectedAddress.bind(preferences),
+        },
+        baseConfig,
+      );
+
+      await locallyUsedKeyring.createNewVaultAndKeychain(password);
+      const localLedgerKeyring = await locallyUsedKeyring.getLedgerKeyring();
+
+      localLedgerKeyring.setApp({
+        signTransaction: sinon.stub(),
+        getAddress: sinon.stub().resolves({
+          address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        }),
+        signEIP712HashedMessage: sinon.stub(),
+        signPersonalMessage: sinon.stub(),
+      });
+
+      // Start of test
+      await locallyUsedKeyring.fullUpdate();
+
+      await locallyUsedKeyring.unlockLedgerDefaultAccount();
+      expect(setAccountLabelSpy.callCount).toBe(0);
     });
   });
 });
