@@ -663,6 +663,7 @@ export class TokensController extends BaseController<
    * @param suggestedAssetID - The ID of the suggestedAsset to accept.
    */
   async acceptWatchAsset(suggestedAssetID: string): Promise<void> {
+    const { selectedAddress } = this.config;
     const { suggestedAssets } = this.state;
     const index = suggestedAssets.findIndex(
       ({ id }) => suggestedAssetID === id,
@@ -672,7 +673,13 @@ export class TokensController extends BaseController<
       switch (suggestedAssetMeta.type) {
         case 'ERC20':
           const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
-          await this.addToken(address, symbol, decimals, image);
+          await this.addToken(
+            address,
+            symbol,
+            decimals,
+            image,
+            suggestedAssetMeta?.interactingAddress || selectedAddress,
+          );
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
