@@ -1001,6 +1001,42 @@ describe('TokensController', () => {
       generateRandomIdStub.restore();
     });
 
+    it('should store token correctly under interacting address if user confirms', async function () {
+      const generateRandomIdStub = sinon
+        .stub(tokensController, '_generateRandomId')
+        .callsFake(() => '12345');
+      type = 'ERC20';
+      tokensController.configure({
+        selectedAddress: defaultSelectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      await tokensController.watchAsset(asset, type, interactingAddress);
+      await tokensController.acceptWatchAsset('12345');
+
+      expect(tokensController.state.suggestedAssets).toStrictEqual([]);
+      expect(tokensController.state.tokens).toHaveLength(0);
+      expect(tokensController.state.tokens).toStrictEqual([]);
+      expect(
+        tokensController.state.allTokens[NetworksChainId.mainnet][
+          interactingAddress
+        ],
+      ).toHaveLength(1);
+      expect(
+        tokensController.state.allTokens[NetworksChainId.mainnet][
+          interactingAddress
+        ],
+      ).toStrictEqual([
+        {
+          isERC721: false,
+          aggregators: [],
+          ...asset,
+          image: 'image',
+        },
+      ]);
+
+      generateRandomIdStub.restore();
+    });
+
     it('should fail an invalid type suggested asset via watchAsset', async () => {
       await expect(
         tokensController.watchAsset(
