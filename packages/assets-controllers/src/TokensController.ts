@@ -598,16 +598,24 @@ export class TokensController extends BaseController<
    *
    * @param asset - The asset to be watched. For now only ERC20 tokens are accepted.
    * @param type - The asset type.
+   * @param interactingAddress - The address of the account that is requesting to watch the asset.
    * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
    */
-  async watchAsset(asset: Token, type: string): Promise<AssetSuggestionResult> {
-    const suggestedAssetMeta = {
+  async watchAsset(
+    asset: Token,
+    type: string,
+    interactingAddress?: string,
+  ): Promise<AssetSuggestionResult> {
+    const suggestedAssetMeta: SuggestedAssetMeta = {
       asset,
       id: this._generateRandomId(),
       status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
       time: Date.now(),
       type,
     };
+    if (interactingAddress) {
+      suggestedAssetMeta.interactingAddress = interactingAddress;
+    }
     try {
       switch (type) {
         case 'ERC20':
