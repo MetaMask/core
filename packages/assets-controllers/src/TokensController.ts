@@ -265,6 +265,7 @@ export class TokensController extends BaseController<
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals the token uses.
    * @param image - Image of the token.
+   * @param interactingAddress - The address of the account to add a token to.
    * @returns Current token list.
    */
   async addToken(
@@ -272,12 +273,21 @@ export class TokensController extends BaseController<
     symbol: string,
     decimals: number,
     image?: string,
+    interactingAddress?: string,
   ): Promise<Token[]> {
-    const currentChainId = this.config.chainId;
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+    const { chainId: currentChainId, selectedAddress } = this.config;
+    const accountAddress = interactingAddress || selectedAddress;
+    const isInteractingWithWalletAccount = accountAddress === selectedAddress;
     const releaseLock = await this.mutex.acquire();
+
     try {
       address = toChecksumHexAddress(address);
-      const { tokens, ignoredTokens, detectedTokens } = this.state;
+      const tokens = allTokens[currentChainId]?.[accountAddress] || [];
+      const ignoredTokens =
+        allIgnoredTokens[currentChainId]?.[accountAddress] || [];
+      const detectedTokens =
+        allDetectedTokens[currentChainId]?.[accountAddress] || [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this._detectIsERC721(address),
@@ -323,16 +333,26 @@ export class TokensController extends BaseController<
           newTokens,
           newIgnoredTokens,
           newDetectedTokens,
+          detectionAddress: accountAddress,
         });
 
-      this.update({
-        tokens: newTokens,
-        ignoredTokens: newIgnoredTokens,
-        detectedTokens: newDetectedTokens,
+      let newState: Partial<TokensState> = {
         allTokens: newAllTokens,
         allIgnoredTokens: newAllIgnoredTokens,
         allDetectedTokens: newAllDetectedTokens,
-      });
+      };
+
+      // Only update active tokens if user is interacting with their active wallet account.
+      if (isInteractingWithWalletAccount) {
+        newState = {
+          ...newState,
+          tokens: newTokens,
+          ignoredTokens: newIgnoredTokens,
+          detectedTokens: newDetectedTokens,
+        };
+      }
+
+      this.update(newState);
       return newTokens;
     } finally {
       releaseLock();
