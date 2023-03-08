@@ -841,6 +841,8 @@ describe('TokensController', () => {
 
   describe('on watchAsset', function () {
     let asset: any, type: any;
+    const defaultSelectedAddress = '0x1';
+    const interactingAddress = '0x2';
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
@@ -945,6 +947,28 @@ describe('TokensController', () => {
         {
           id: '12345',
           status: 'pending',
+          time: 1, // uses the fakeTimers clock
+          type: 'ERC20',
+          asset,
+        },
+      ]);
+
+      generateRandomIdStub.restore();
+      clock.restore();
+    });
+
+    it('should handle ERC20 type and add to suggestedAssets with interacting address', async function () {
+      const clock = sinon.useFakeTimers(1);
+      const generateRandomIdStub = sinon
+        .stub(tokensController, '_generateRandomId')
+        .callsFake(() => '12345');
+      type = 'ERC20';
+      await tokensController.watchAsset(asset, type, interactingAddress);
+      expect(tokensController.state.suggestedAssets).toStrictEqual([
+        {
+          id: '12345',
+          status: 'pending',
+          interactingAddress,
           time: 1, // uses the fakeTimers clock
           type: 'ERC20',
           asset,
