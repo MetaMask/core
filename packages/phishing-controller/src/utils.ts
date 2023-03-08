@@ -1,7 +1,9 @@
 import {
   Hotlist,
+  ListKeys,
+  ListTypes,
+  phishingListKeyNameMap,
   PhishingListState,
-  PhishingStalelist,
 } from './PhishingController';
 /**
  * Fetches current epoch time in seconds.
@@ -15,39 +17,52 @@ export const fetchTimeNow = (): number => Math.round(Date.now() / 1000);
  *
  * @param listState - the stalelist or the existing liststate that diffs will be applied to.
  * @param hotlistDiffs - the diffs to apply to the listState if valid.
+ * @param listKey - the key associated with the input/output phishing list state.
  * @returns the new list state
  */
 export const applyDiffs = (
-  listState: PhishingStalelist,
+  listState: PhishingListState,
   hotlistDiffs: Hotlist,
+  listKey: ListKeys,
 ): PhishingListState => {
+  // filter to remove diffs that were added before the lastUpdate time.
+  // filter to remove diffs that aren't applicable to the specified list (by listKey).
   const diffsToApply = hotlistDiffs.filter(
-    ({ timestamp }) => timestamp > listState.lastUpdated,
+    ({ timestamp, targetList }) =>
+      timestamp > listState.lastUpdated &&
+      (targetList.split('.')[0] as ListKeys) === listKey,
   );
+
+  // the reason behind using latestDiffTimestamp as the lastUpdated time
+  // is so that we can benefit server-side from memoization due to end client's
+  // `GET /v1/diffSince/:timestamp` requests lining up with
+  // our periodic updates (which create diffs at specific timestamps).
+  let latestDiffTimestamp = listState.lastUpdated;
 
   const listSets = {
     allowlist: new Set(listState.allowlist),
     blocklist: new Set(listState.blocklist),
     fuzzylist: new Set(listState.fuzzylist),
   };
-
-  for (const { isRemoval, targetList, url } of diffsToApply) {
+  for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
+    const targetListType = targetList.split('.')[1] as ListTypes;
+    if (timestamp > latestDiffTimestamp) {
+      latestDiffTimestamp = timestamp;
+    }
     if (isRemoval) {
-      listSets[targetList].delete(url);
+      listSets[targetListType].delete(url);
     } else {
-      listSets[targetList].add(url);
+      listSets[targetListType].add(url);
     }
   }
-
-  const now = fetchTimeNow();
 
   return {
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
     version: listState.version,
-    name: 'MetaMask',
+    name: phishingListKeyNameMap[listKey],
     tolerance: listState.tolerance,
-    lastUpdated: now,
+    lastUpdated: latestDiffTimestamp,
   };
 };

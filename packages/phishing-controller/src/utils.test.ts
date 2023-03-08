@@ -1,4 +1,5 @@
 import sinon from 'sinon';
+import { ListKeys } from './PhishingController';
 import { applyDiffs, fetchTimeNow } from './utils';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
@@ -21,13 +22,13 @@ const exampleListState = {
 };
 
 const exampleAddDiff = {
-  targetList: 'blocklist' as const,
+  targetList: 'eth_phishing_detect_config.blocklist' as const,
   url: exampleBlockedUrlTwo,
   timestamp: 1000000000,
 };
 
 const exampleRemoveDiff = {
-  targetList: 'blocklist' as const,
+  targetList: 'eth_phishing_detect_config.blocklist' as const,
   url: exampleBlockedUrlTwo,
   timestamp: 1000000000,
   isRemoval: true,
@@ -43,27 +44,28 @@ describe('fetchTimeNow', () => {
 });
 
 describe('applyDiffs', () => {
-  it('adds a valid addition diff to the state', () => {
-    const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
-    const result = applyDiffs(exampleListState, [exampleAddDiff]);
+  it('adds a valid addition diff to the state then sets lastUpdated to be the time of the latest diff', () => {
+    const result = applyDiffs(
+      exampleListState,
+      [exampleAddDiff],
+      ListKeys.EthPhishingDetectConfig,
+    );
     expect(result).toStrictEqual({
       ...exampleListState,
       blocklist: [...exampleListState.blocklist, exampleBlockedUrlTwo],
-      lastUpdated: 1674773005,
+      lastUpdated: exampleAddDiff.timestamp,
     });
   });
 
-  it('removes a valid removal diff to the state', () => {
-    const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
-    const result = applyDiffs(exampleListState, [
-      exampleAddDiff,
-      exampleRemoveDiff,
-    ]);
+  it('removes a valid removal diff to the state then sets lastUpdated to be the time of the latest diff', () => {
+    const result = applyDiffs(
+      exampleListState,
+      [exampleAddDiff, exampleRemoveDiff],
+      ListKeys.EthPhishingDetectConfig,
+    );
     expect(result).toStrictEqual({
       ...exampleListState,
-      lastUpdated: 1674773005,
+      lastUpdated: exampleRemoveDiff.timestamp,
     });
   });
 
@@ -71,7 +73,11 @@ describe('applyDiffs', () => {
     const testTime = 1674773005000;
     sinon.useFakeTimers(testTime);
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
-    const result = applyDiffs(testExistingState, [exampleAddDiff]);
+    const result = applyDiffs(
+      testExistingState,
+      [exampleAddDiff],
+      ListKeys.EthPhishingDetectConfig,
+    );
     expect(result).toStrictEqual(testExistingState);
   });
 
@@ -82,14 +88,18 @@ describe('applyDiffs', () => {
       ...exampleListState,
       lastUpdated: 1674773005,
     };
-    const result = applyDiffs(testExistingState, [
-      { ...exampleAddDiff, timestamp: 1674773009 },
-      { ...exampleRemoveDiff, timestamp: 1674773004 },
-    ]);
+    const result = applyDiffs(
+      testExistingState,
+      [
+        { ...exampleAddDiff, timestamp: 1674773009 },
+        { ...exampleRemoveDiff, timestamp: 1674773004 },
+      ],
+      ListKeys.EthPhishingDetectConfig,
+    );
     expect(result).toStrictEqual({
       ...exampleListState,
       blocklist: [...exampleListState.blocklist, exampleBlockedUrlTwo],
-      lastUpdated: 1674773005,
+      lastUpdated: 1674773009,
     });
   });
 });
