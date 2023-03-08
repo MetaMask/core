@@ -333,7 +333,7 @@ export class TokensController extends BaseController<
           newTokens,
           newIgnoredTokens,
           newDetectedTokens,
-          detectionAddress: accountAddress,
+          interactingAddress: accountAddress,
         });
 
       let newState: Partial<TokensState> = {
@@ -518,15 +518,17 @@ export class TokensController extends BaseController<
         }
       });
 
-      const { selectedAddress: detectionAddress, chainId: detectionChainId } =
-        detectionDetails || {};
+      const {
+        selectedAddress: interactingAddress,
+        chainId: interactingChainId,
+      } = detectionDetails || {};
 
       const { newAllTokens, newAllDetectedTokens } = this._getNewAllTokensState(
         {
           newTokens,
           newDetectedTokens,
-          detectionAddress,
-          detectionChainId,
+          interactingAddress,
+          interactingChainId,
         },
       );
 
@@ -751,29 +753,29 @@ export class TokensController extends BaseController<
    * @param params.newTokens - The new tokens to set for the current network and selected account.
    * @param params.newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
    * @param params.newDetectedTokens - The new detected tokens to set for the current network and selected account.
-   * @param params.detectionAddress - The address on which the detected tokens to add were detected.
-   * @param params.detectionChainId - The chainId on which the detected tokens to add were detected.
+   * @param params.interactingAddress - The account address to use to store the tokens.
+   * @param params.interactingChainId - The chainId to use to store the tokens.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
   _getNewAllTokensState(params: {
     newTokens?: Token[];
     newIgnoredTokens?: string[];
     newDetectedTokens?: Token[];
-    detectionAddress?: string;
-    detectionChainId?: string;
+    interactingAddress?: string;
+    interactingChainId?: string;
   }) {
     const {
       newTokens,
       newIgnoredTokens,
       newDetectedTokens,
-      detectionAddress,
-      detectionChainId,
+      interactingAddress,
+      interactingChainId,
     } = params;
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId, selectedAddress } = this.config;
 
-    const userAddressToAddTokens = detectionAddress ?? selectedAddress;
-    const chainIdToAddTokens = detectionChainId ?? chainId;
+    const userAddressToAddTokens = interactingAddress ?? selectedAddress;
+    const chainIdToAddTokens = interactingChainId ?? chainId;
 
     let newAllTokens = allTokens;
     if (
