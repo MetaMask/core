@@ -14,6 +14,7 @@ export enum NetworksChainId {
   sepolia = '11155111',
   localhost = '',
   rpc = '',
+  test = 'test',
 }
 
 export type Json =
