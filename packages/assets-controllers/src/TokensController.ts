@@ -66,6 +66,7 @@ export type SuggestedAssetMetaBase = {
   time: number;
   type: string;
   asset: Token;
+  interactingAddress?: string;
 };
 
 /**
