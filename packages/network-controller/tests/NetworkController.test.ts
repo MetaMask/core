@@ -112,7 +112,7 @@ describe('NetworkController', () => {
     });
 
     describe('set', () => {
-      ['1', '5', '11155111', ''].forEach((chainId) => {
+      ['1', '5', '11155111', '', '59140'].forEach((chainId) => {
         describe(`when the provider config in state contains a chain ID of "${chainId}"`, () => {
           it('sets isCustomNetwork in state to false (ignoring the chain ID in the provided config object)', async () => {
             await withController(
@@ -144,7 +144,7 @@ describe('NetworkController', () => {
         });
       });
 
-      describe('when the provider config in state contains a chain ID that is not 1, 5, 11155111, or an empty string', () => {
+      describe('when the provider config in state contains a chain ID that is not 1, 5, 11155111, 59140 or an empty string', () => {
         it('sets isCustomNetwork in state to true (ignoring the chain ID in the provided config object)', async () => {
           await withController(
             {
@@ -587,6 +587,224 @@ describe('NetworkController', () => {
                   state: {
                     providerConfig: buildProviderConfig({
                       type: 'localhost',
+                    }),
+                  },
+                },
+                async ({ controller }) => {
+                  const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '1',
+                      },
+                    },
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '2',
+                      },
+                    },
+                  ]);
+                  createMetamaskProviderMock.mockReturnValue(
+                    fakeMetamaskProvider,
+                  );
+
+                  await waitForPublishedEvents(
+                    messenger,
+                    'NetworkController:providerConfigChange',
+                    {
+                      produceEvents: () => {
+                        controller.providerConfig = buildProviderConfig();
+                        assert(
+                          controller.getProviderAndBlockTracker().provider,
+                        );
+                      },
+                    },
+                  );
+
+                  await waitForStateChanges(messenger, {
+                    propertyPath: ['network'],
+                    count: 0,
+                    produceStateChanges: () => {
+                      controller
+                        .getProviderAndBlockTracker()
+                        .provider.emit('error', { some: 'error' });
+                    },
+                  });
+                  expect(controller.state.network).toBe('1');
+                },
+              );
+            });
+          });
+        });
+      });
+
+      describe(`when the provider config in state contains a network type of "placeholdernet"`, () => {
+        it('sets the provider to a custom RPC provider pointed to placeholdernet, initialized with the configured chain ID, nickname, and ticker', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: 'placeholdernet',
+                  chainId: '59140',
+                  nickname: "doesn't matter",
+                  rpcTarget: 'http://doesntmatter.com',
+                  ticker: 'ABC',
+                }),
+              },
+            },
+            async ({ controller }) => {
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'eth_chainId',
+                  },
+                  response: {
+                    result: '0xe704',
+                  },
+                },
+              ]);
+              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+              controller.providerConfig = buildProviderConfig({
+                // NOTE: The type does not need to match the type in state
+                type: 'mainnet',
+              });
+
+              expect(createMetamaskProviderMock).toHaveBeenCalledWith({
+                type: 'mainnet',
+                chainId: undefined,
+                engineParams: { pollingInterval: 12000 },
+                nickname: undefined,
+                rpcUrl: 'https://rpc.goerli.placeholdernet.consensys.net',
+                ticker: undefined,
+              });
+              const { provider } = controller.getProviderAndBlockTracker();
+              const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+                provider,
+              );
+              const chainIdResult = await promisifiedSendAsync({
+                method: 'eth_chainId',
+              });
+              expect(chainIdResult.result).toBe('0xe704');
+            },
+          );
+        });
+
+        it('ensures that the existing provider is stopped while replacing it', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: 'placeholdernet',
+                }),
+              },
+            },
+            ({ controller }) => {
+              const fakeMetamaskProviders = [
+                buildFakeMetamaskProvider(),
+                buildFakeMetamaskProvider(),
+              ];
+              jest.spyOn(fakeMetamaskProviders[0], 'stop');
+              createMetamaskProviderMock
+                .mockImplementationOnce(() => fakeMetamaskProviders[0])
+                .mockImplementationOnce(() => fakeMetamaskProviders[1]);
+
+              controller.providerConfig = buildProviderConfig();
+              controller.providerConfig = buildProviderConfig();
+              assert(controller.getProviderAndBlockTracker().provider);
+              jest.runAllTimers();
+
+              expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
+            },
+          );
+        });
+
+        describe('when an "error" event occurs on the new provider', () => {
+          describe('if the network version could not be retrieved while providerConfig was being set', () => {
+            it('retrieves the network version twice more (due to the "error" event being listened to twice) and, assuming success, persists it to state', async () => {
+              const messenger = buildMessenger();
+              await withController(
+                {
+                  messenger,
+                  state: {
+                    providerConfig: buildProviderConfig({
+                      type: 'placeholdernet',
+                    }),
+                  },
+                },
+                async ({ controller }) => {
+                  const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        error: 'oops',
+                      },
+                    },
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '1',
+                      },
+                    },
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '2',
+                      },
+                    },
+                  ]);
+                  createMetamaskProviderMock.mockReturnValue(
+                    fakeMetamaskProvider,
+                  );
+
+                  await waitForPublishedEvents(
+                    messenger,
+                    'NetworkController:providerConfigChange',
+                    {
+                      produceEvents: () => {
+                        controller.providerConfig = buildProviderConfig();
+                        assert(
+                          controller.getProviderAndBlockTracker().provider,
+                        );
+                      },
+                    },
+                  );
+
+                  await waitForStateChanges(messenger, {
+                    propertyPath: ['network'],
+                    count: 2,
+                    produceStateChanges: () => {
+                      controller
+                        .getProviderAndBlockTracker()
+                        .provider.emit('error', { some: 'error' });
+                    },
+                  });
+                  expect(controller.state.network).toBe('2');
+                },
+              );
+            });
+          });
+
+          describe('if the network version could be retrieved while providerConfig was being set', () => {
+            it('does not retrieve the network version again', async () => {
+              const messenger = buildMessenger();
+              await withController(
+                {
+                  messenger,
+                  state: {
+                    providerConfig: buildProviderConfig({
+                      type: 'placeholdernet',
                     }),
                   },
                 },

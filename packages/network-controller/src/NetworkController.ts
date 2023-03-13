@@ -60,6 +60,7 @@ export type NetworkState = {
 };
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
+const PLACEHOLDER_NET_URL = 'https://rpc.goerli.placeholdernet.consensys.net';
 
 const name = 'NetworkController';
 
@@ -202,6 +203,9 @@ export class NetworkController extends BaseControllerV2<
       case 'sepolia':
         this.setupInfuraProvider(type);
         break;
+      case 'placeholdernet':
+        this.setupStandardProvider(PLACEHOLDER_NET_URL);
+        break;
       case 'localhost':
         this.setupStandardProvider(LOCALHOST_RPC_URL);
         break;
@@ -268,6 +272,7 @@ export class NetworkController extends BaseControllerV2<
       chainId !== NetworksChainId.mainnet &&
       chainId !== NetworksChainId.goerli &&
       chainId !== NetworksChainId.sepolia &&
+      chainId !== NetworksChainId.placeholdernet &&
       chainId !== NetworksChainId.localhost
     );
   }

@@ -36,6 +36,7 @@ export const ASSET_TYPES = {
 export const TESTNET_TICKER_SYMBOLS = {
   GOERLI: 'GoerliETH',
   SEPOLIA: 'SepoliaETH',
+  PLACEHOLDER_NET: 'crETH',
 };
 // TYPED NetworkType TICKER SYMBOLS
 export const TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL: {
@@ -44,6 +45,7 @@ export const TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL: {
   goerli: 'GoerliETH',
   sepolia: 'SepoliaETH',
   mainnet: '',
+  placeholdernet: 'crETH',
   rpc: '',
   localhost: '',
 };
