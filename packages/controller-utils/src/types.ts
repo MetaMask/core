@@ -6,14 +6,14 @@ export type NetworkType =
   | 'mainnet'
   | 'goerli'
   | 'sepolia'
-  | 'placeholdernet'
+  | 'lineatestnet'
   | 'rpc';
 
 export enum NetworksChainId {
   mainnet = '1',
   goerli = '5',
   sepolia = '11155111',
-  placeholdernet = '59140',
+  lineatestnet = '59140',
   localhost = '',
   rpc = '',
 }

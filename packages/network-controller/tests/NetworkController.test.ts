@@ -643,13 +643,13 @@ describe('NetworkController', () => {
         });
       });
 
-      describe(`when the provider config in state contains a network type of "placeholdernet"`, () => {
-        it('sets the provider to a custom RPC provider pointed to placeholdernet, initialized with the configured chain ID, nickname, and ticker', async () => {
+      describe(`when the provider config in state contains a network type of "linea testnet"`, () => {
+        it('sets the provider to a custom RPC provider pointed to linea testnet, initialized with the configured chain ID, nickname, and ticker', async () => {
           await withController(
             {
               state: {
                 providerConfig: buildProviderConfig({
-                  type: 'placeholdernet',
+                  type: 'lineatestnet',
                   chainId: '59140',
                   nickname: "doesn't matter",
                   rpcTarget: 'http://doesntmatter.com',
@@ -680,7 +680,7 @@ describe('NetworkController', () => {
                 chainId: undefined,
                 engineParams: { pollingInterval: 12000 },
                 nickname: undefined,
-                rpcUrl: 'https://rpc.goerli.placeholdernet.consensys.net',
+                rpcUrl: 'https://rpc.goerli.linea.build',
                 ticker: undefined,
               });
               const { provider } = controller.getProviderAndBlockTracker();
@@ -700,7 +700,7 @@ describe('NetworkController', () => {
             {
               state: {
                 providerConfig: buildProviderConfig({
-                  type: 'placeholdernet',
+                  type: 'lineatestnet',
                 }),
               },
             },
@@ -733,7 +733,7 @@ describe('NetworkController', () => {
                   messenger,
                   state: {
                     providerConfig: buildProviderConfig({
-                      type: 'placeholdernet',
+                      type: 'lineatestnet',
                     }),
                   },
                 },
@@ -804,7 +804,7 @@ describe('NetworkController', () => {
                   messenger,
                   state: {
                     providerConfig: buildProviderConfig({
-                      type: 'placeholdernet',
+                      type: 'lineatestnet',
                     }),
                   },
                 },
