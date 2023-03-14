@@ -85,6 +85,7 @@ describe('TokensController', () => {
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
     await tokensController.addToken('0x01', 'baz', 2);
     expect(tokensController.state.tokens[0]).toStrictEqual({
@@ -95,6 +96,7 @@ describe('TokensController', () => {
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
     stub.restore();
   });
@@ -113,6 +115,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'barA',
       aggregators: [],
+      name: undefined,
     });
 
     expect(tokensController.state.tokens[1]).toStrictEqual({
@@ -121,6 +124,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'barB',
       aggregators: [],
+      name: undefined,
     });
 
     await tokensController.addTokens([
@@ -144,6 +148,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'bazA',
       aggregators: [],
+      name: undefined,
     });
 
     expect(tokensController.state.tokens[1]).toStrictEqual({
@@ -152,6 +157,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'bazB',
       aggregators: [],
+      name: undefined,
     });
 
     stub.restore();
@@ -172,6 +178,7 @@ describe('TokensController', () => {
       symbol: 'barA',
       aggregators: [],
       isERC721: undefined,
+      name: undefined,
     });
 
     expect(tokensController.state.detectedTokens[1]).toStrictEqual({
@@ -181,6 +188,7 @@ describe('TokensController', () => {
       symbol: 'barB',
       aggregators: [],
       isERC721: undefined,
+      name: undefined,
     });
 
     await tokensController.addDetectedTokens([
@@ -190,6 +198,7 @@ describe('TokensController', () => {
         decimals: 2,
         aggregators: [],
         isERC721: undefined,
+        name: undefined,
       },
       {
         address: '0x02',
@@ -197,6 +206,7 @@ describe('TokensController', () => {
         decimals: 2,
         aggregators: [],
         isERC721: undefined,
+        name: undefined,
       },
     ]);
 
@@ -207,6 +217,7 @@ describe('TokensController', () => {
       symbol: 'bazA',
       aggregators: [],
       isERC721: undefined,
+      name: undefined,
     });
 
     expect(tokensController.state.detectedTokens[1]).toStrictEqual({
@@ -216,6 +227,7 @@ describe('TokensController', () => {
       symbol: 'bazB',
       aggregators: [],
       isERC721: undefined,
+      name: undefined,
     });
 
     stub.restore();
@@ -240,6 +252,7 @@ describe('TokensController', () => {
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
 
     stub.restore();
@@ -262,6 +275,7 @@ describe('TokensController', () => {
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
 
     stub.restore();
@@ -294,6 +308,7 @@ describe('TokensController', () => {
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
     stub.restore();
   });
@@ -316,6 +331,7 @@ describe('TokensController', () => {
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
     stub.restore();
   });
@@ -449,6 +465,7 @@ describe('TokensController', () => {
         isERC721: false,
         symbol: 'A',
         aggregators: [],
+        name: undefined,
       },
       {
         address: '0x02',
@@ -458,6 +475,7 @@ describe('TokensController', () => {
         isERC721: false,
         symbol: 'B',
         aggregators: [],
+        name: undefined,
       },
     ]);
 
@@ -570,6 +588,7 @@ describe('TokensController', () => {
               'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
             decimals: 4,
             aggregators: [],
+            name: undefined,
           },
         ]);
 
@@ -611,6 +630,7 @@ describe('TokensController', () => {
               'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
             decimals: 5,
             aggregators: [],
+            name: undefined,
           },
         ]);
 
@@ -654,6 +674,7 @@ describe('TokensController', () => {
         aggregators: [],
         image: undefined,
         isERC721: false,
+        name: undefined,
       };
       const dummyAddedToken: Token = {
         ...dummyDetectedToken,
@@ -696,7 +717,8 @@ describe('TokensController', () => {
         aggregators: [],
         isERC721: false,
         image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
+        name: undefined,
       };
 
       const directlyAddedToken: Token = {
@@ -704,9 +726,10 @@ describe('TokensController', () => {
         decimals: 5,
         symbol: 'B',
         image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
         isERC721: false,
         aggregators: [],
+        name: undefined,
       };
 
       // detectionDetails object is passed as second arg with details about where token was detected
@@ -720,6 +743,7 @@ describe('TokensController', () => {
         directlyAddedToken.address,
         directlyAddedToken.symbol,
         directlyAddedToken.decimals,
+        undefined,
         directlyAddedToken.image,
       );
 
@@ -747,6 +771,7 @@ describe('TokensController', () => {
           decimals: 2,
           aggregators: [],
           image: undefined,
+          name: undefined,
         },
         {
           address: '0x02',
@@ -754,6 +779,7 @@ describe('TokensController', () => {
           decimals: 2,
           aggregators: [],
           image: undefined,
+          name: undefined,
         },
       ];
       const dummyDetectedTokens: Token[] = [
@@ -971,6 +997,7 @@ describe('TokensController', () => {
           aggregators: [],
           ...asset,
           image: 'image',
+          name: undefined,
         },
       ]);
 
@@ -1066,6 +1093,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'A',
           aggregators: [],
+          name: undefined,
         },
         {
           address: '0x02',
@@ -1075,6 +1103,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'B',
           aggregators: [],
+          name: undefined,
         },
       ]);
       preferences.setSelectedAddress('0x2');
@@ -1087,6 +1116,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'C',
           aggregators: [],
+          name: undefined,
         },
       ]);
 
@@ -1122,6 +1152,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'A',
           aggregators: [],
+          name: undefined,
         },
         {
           address: '0x02',
@@ -1131,6 +1162,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'B',
           aggregators: [],
+          name: undefined,
         },
       ]);
 
@@ -1143,6 +1175,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'C',
           aggregators: [],
+          name: undefined,
         },
         {
           address: '0x04',
@@ -1152,6 +1185,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'D',
           aggregators: [],
+          name: undefined,
         },
       ]);
 
@@ -1220,6 +1254,102 @@ describe('TokensController', () => {
           selectedAddress
         ],
       ).toStrictEqual([]);
+    });
+  });
+  describe('updateTokensName', () => {
+    const tokenList = [
+      {
+        address: '0x123',
+        name: '',
+        symbol: 'ABC',
+        aggregators: [],
+        decimals: 0,
+        iconUrl: '',
+        occurrences: 1,
+      },
+      {
+        address: '0x456',
+        name: '',
+        symbol: 'DEF',
+        aggregators: [],
+        decimals: 0,
+        iconUrl: '',
+        occurrences: 1,
+      },
+      {
+        address: '0x789',
+        name: '',
+        symbol: 'GHI',
+        aggregators: [],
+        decimals: 0,
+        iconUrl: '',
+        occurrences: 1,
+      },
+    ];
+
+    it('update token name when a matching token is found in the tokenList', async () => {
+      const initialTokens = {
+        '0x123': {
+          address: '0x123',
+          name: 'Token1',
+          symbol: 'ABC',
+          aggregators: [],
+          decimals: 0,
+          iconUrl: '',
+          occurrences: 1,
+        },
+        '0x456': {
+          address: '0x456',
+          name: 'Token2',
+          symbol: 'DEF',
+          aggregators: [],
+          decimals: 0,
+          iconUrl: '',
+          occurrences: 1,
+        },
+        '0x789': {
+          address: '0x789',
+          name: 'Token3',
+          symbol: 'GHI',
+          aggregators: [],
+          decimals: 0,
+          iconUrl: '',
+          occurrences: 1,
+        },
+      };
+
+      const expectedTokenList = [
+        {
+          address: '0x123',
+          name: 'Token1',
+          symbol: 'ABC',
+          aggregators: [],
+          decimals: 0,
+          image: undefined,
+        },
+        {
+          address: '0x456',
+          name: 'Token2',
+          symbol: 'DEF',
+          aggregators: [],
+          decimals: 0,
+          image: undefined,
+        },
+        {
+          address: '0x789',
+          name: 'Token3',
+          symbol: 'GHI',
+          aggregators: [],
+          decimals: 0,
+          image: undefined,
+        },
+      ];
+
+      await tokensController.addTokens(tokenList);
+
+      tokensController.updateTokensName(initialTokens);
+
+      expect(tokensController.state.tokens).toStrictEqual(expectedTokenList);
     });
   });
 });

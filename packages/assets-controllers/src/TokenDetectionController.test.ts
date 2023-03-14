@@ -77,6 +77,7 @@ const sampleTokenA: Token = {
     'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
+  name: 'Chainlink',
 };
 const sampleTokenB: Token = {
   address: tokenBFromList.address,
@@ -86,6 +87,7 @@ const sampleTokenB: Token = {
     'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
+  name: 'Bancor',
 };
 
 type MainControllerMessenger = ControllerMessenger<
@@ -174,6 +176,7 @@ describe('TokenDetectionController', () => {
     const tokenListSetup = setupTokenListController(controllerMessenger);
     tokenList = tokenListSetup.tokenList;
     await tokenList.start();
+    const stub = sinon.stub();
     getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
@@ -192,6 +195,7 @@ describe('TokenDetectionController', () => {
       getTokenListState: () => tokenList.state,
       getNetworkState: () => defaultNetworkState,
       getPreferencesState: () => preferences.state,
+      updateTokensName: stub,
     });
 
     sinon
@@ -318,6 +322,7 @@ describe('TokenDetectionController', () => {
       sampleTokenB.address,
       sampleTokenB.symbol,
       sampleTokenB.decimals,
+      sampleTokenB.name,
     );
 
     tokensController.ignoreTokens([sampleTokenA.address]);
@@ -418,6 +423,7 @@ describe('TokenDetectionController', () => {
         onNetworkStateChange,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
+        updateTokensName: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
         getNetworkState: () => defaultNetworkState,
@@ -462,6 +468,7 @@ describe('TokenDetectionController', () => {
         addDetectedTokens: stub,
         getTokensState: stub,
         getTokenListState: stub,
+        updateTokensName: stub,
         getNetworkState: () => defaultNetworkState,
         getPreferencesState: () => preferences.state,
       },
@@ -492,6 +499,7 @@ describe('TokenDetectionController', () => {
         onNetworkStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
+        updateTokensName: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
         getNetworkState: () => defaultNetworkState,
@@ -528,6 +536,7 @@ describe('TokenDetectionController', () => {
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
+        updateTokensName: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
         getNetworkState: () => defaultNetworkState,

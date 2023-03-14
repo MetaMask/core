@@ -20,7 +20,7 @@ import {
   ERC721_INTERFACE_ID,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
-import { TokenListToken } from './TokenListController';
+import { TokenListMap, TokenListToken } from './TokenListController';
 import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
@@ -264,6 +264,7 @@ export class TokensController extends BaseController<
    * @param address - Hex address of the token contract.
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals the token uses.
+   * @param name - Name of the token.
    * @param image - Image of the token.
    * @returns Current token list.
    */
@@ -271,6 +272,7 @@ export class TokensController extends BaseController<
     address: string,
     symbol: string,
     decimals: number,
+    name?: string,
     image?: string,
   ): Promise<Token[]> {
     const currentChainId = this.config.chainId;
@@ -300,6 +302,7 @@ export class TokensController extends BaseController<
           }),
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
+        name,
       };
       const previousEntry = newTokens.find(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -345,7 +348,6 @@ export class TokensController extends BaseController<
    * @param tokensToImport - Array of tokens to import.
    */
   async addTokens(tokensToImport: Token[]) {
-    const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
     // Used later to dedupe imported tokens
@@ -356,7 +358,8 @@ export class TokensController extends BaseController<
 
     try {
       tokensToImport.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators } = tokenToAdd;
+        const { address, symbol, decimals, image, aggregators, name } =
+          tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const formattedToken: Token = {
           address: checksumAddress,
@@ -364,6 +367,7 @@ export class TokensController extends BaseController<
           decimals,
           image,
           aggregators,
+          name,
         };
         newTokensMap[address] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
@@ -457,8 +461,15 @@ export class TokensController extends BaseController<
 
     try {
       incomingDetectedTokens.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators, isERC721 } =
-          tokenToAdd;
+        const {
+          address,
+          symbol,
+          decimals,
+          image,
+          aggregators,
+          isERC721,
+          name,
+        } = tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
           address: checksumAddress,
@@ -467,6 +478,7 @@ export class TokensController extends BaseController<
           image,
           isERC721,
           aggregators,
+          name,
         };
         const previousImportedEntry = newTokens.find(
           (token) =>
@@ -544,6 +556,24 @@ export class TokensController extends BaseController<
     tokens[tokenIndex].isERC721 = isERC721;
     this.update({ tokens });
     return tokens[tokenIndex];
+  }
+
+  /**
+   * This is a function that updates the tokens name for the tokens name if it is not defined.
+   *
+   * @param tokenList - Represents the fetched token list from service API
+   */
+  updateTokensName(tokenList: TokenListMap) {
+    const { tokens } = this.state;
+
+    const newTokens = tokens.map((token) => {
+      const newToken = tokenList[token.address.toLowerCase()];
+      return !token.name && newToken?.name
+        ? { ...token, name: newToken.name }
+        : { ...token };
+    });
+
+    this.update({ tokens: newTokens });
   }
 
   /**
@@ -664,7 +694,12 @@ export class TokensController extends BaseController<
       switch (suggestedAssetMeta.type) {
         case 'ERC20':
           const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
-          await this.addToken(address, symbol, decimals, image);
+          /**
+           *
+           * The reason for this undefined is that the wallet_watchAsset doesn't return the name
+           * more info: https://docs.metamask.io/guide/rpc-api.html#wallet-watchasset
+           */
+          await this.addToken(address, symbol, decimals, undefined, image);
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
