@@ -10,6 +10,7 @@ import {
   FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
 import type { TokensState } from './TokensController';
 import type { CurrencyRateState } from './CurrencyRateController';
@@ -44,6 +45,7 @@ export interface CoinGeckoPlatform {
  * @property decimals - Number of decimals the token uses
  * @property symbol - Symbol of the token
  * @property image - Image of the token, url or bit32 image
+ * @property name - Name of the token
  */
 export interface Token {
   address: string;
@@ -53,6 +55,7 @@ export interface Token {
   image?: string;
   balanceError?: unknown;
   isERC721?: boolean;
+  name?: string;
 }
 
 /**
@@ -71,6 +74,9 @@ export interface TokenRatesConfig extends BaseConfig {
   chainId: string;
   tokens: Token[];
   threshold: number;
+  exchangeRateNativeCurrency: string;
+  selectedAddress: string;
+  lastSelectedAddress: string;
 }
 
 interface ContractExchangeRates {
@@ -167,6 +173,7 @@ export class TokenRatesController extends BaseController<
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
    * @param options.onCurrencyRateStateChange - Allows subscribing to currency rate controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network state changes.
+   * @param options.onPreferencesStateChange - Allows subscribing to preferences state changes.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -185,6 +192,9 @@ export class TokenRatesController extends BaseController<
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
       ) => void;
+      onPreferencesStateChange: (
+        listener: (preferencesState: PreferencesState) => void,
+      ) => void;
     },
     config?: Partial<TokenRatesConfig>,
     state?: Partial<TokenRatesState>,
@@ -197,6 +207,9 @@ export class TokenRatesController extends BaseController<
       chainId: '',
       tokens: [],
       threshold: 6 * 60 * 60 * 1000,
+      exchangeRateNativeCurrency: '',
+      selectedAddress: '',
+      lastSelectedAddress: '',
     };
 
     this.defaultState = {
@@ -209,6 +222,9 @@ export class TokenRatesController extends BaseController<
 
     onTokensStateChange(({ tokens, detectedTokens }) => {
       this.configure({ tokens: [...tokens, ...detectedTokens] });
+      if (!tokens.length) {
+        this.updateExchangeRates(true);
+      }
     });
 
     onCurrencyRateStateChange((currencyRateState) => {
@@ -217,7 +233,6 @@ export class TokenRatesController extends BaseController<
 
     onNetworkStateChange(({ providerConfig }) => {
       const { chainId } = providerConfig;
-      this.update({ contractExchangeRates: {} });
       this.configure({ chainId });
     });
     this.poll();
@@ -231,7 +246,8 @@ export class TokenRatesController extends BaseController<
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.updateExchangeRates());
+
+    await safelyExecute(() => this.updateExchangeRates(true));
     this.handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
@@ -337,8 +353,10 @@ export class TokenRatesController extends BaseController<
 
   /**
    * Updates exchange rates for all tokens.
+   *
+   * @param forceFetch - Forces to fetch the exchange rates.
    */
-  async updateExchangeRates() {
+  async updateExchangeRates(forceFetch = false) {
     if (this.tokenList.length === 0 || this.disabled) {
       return;
     }
@@ -352,10 +370,18 @@ export class TokenRatesController extends BaseController<
       });
     } else {
       const { nativeCurrency } = this.config;
-      newContractExchangeRates = await this.fetchAndMapExchangeRates(
-        nativeCurrency,
-        slug,
-      );
+      if (
+        this.config.selectedAddress !== this.config.lastSelectedAddress ||
+        this.config.exchangeRateNativeCurrency !== nativeCurrency ||
+        forceFetch
+      ) {
+        newContractExchangeRates = await this.fetchAndMapExchangeRates(
+          nativeCurrency,
+          slug,
+        );
+      } else {
+        newContractExchangeRates = this.state.contractExchangeRates;
+      }
     }
     this.update({ contractExchangeRates: newContractExchangeRates });
   }
@@ -376,6 +402,12 @@ export class TokenRatesController extends BaseController<
     nativeCurrency: string,
     slug: string,
   ): Promise<ContractExchangeRates> {
+    this.configure({
+      exchangeRateNativeCurrency: nativeCurrency,
+      lastSelectedAddress: this.config.selectedAddress,
+    });
+    this.update({ contractExchangeRates: {} });
+
     const contractExchangeRates: ContractExchangeRates = {};
 
     // check if native currency is supported as a vs_currency by the API
@@ -406,6 +438,7 @@ export class TokenRatesController extends BaseController<
           fetchNativeExchangeRate(nativeCurrency, FALL_BACK_VS_CURRENCY, false),
         ]);
       } catch (error) {
+        this.update({ contractExchangeRates: {} });
         if (
           error instanceof Error &&
           error.message.includes('market does not exist for this coin pair')

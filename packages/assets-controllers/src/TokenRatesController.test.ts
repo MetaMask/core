@@ -118,6 +118,7 @@ describe('TokenRatesController', () => {
       onTokensStateChange: sinon.stub(),
       onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
+      onPreferencesStateChange: sinon.stub(),
     });
     expect(controller.state).toStrictEqual({
       contractExchangeRates: {},
@@ -129,6 +130,7 @@ describe('TokenRatesController', () => {
       onTokensStateChange: sinon.stub(),
       onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
+      onPreferencesStateChange: sinon.stub(),
     });
     expect(controller.config).toStrictEqual({
       disabled: false,
@@ -137,6 +139,9 @@ describe('TokenRatesController', () => {
       chainId: '',
       tokens: [],
       threshold: 21600000,
+      exchangeRateNativeCurrency: '',
+      selectedAddress: '',
+      lastSelectedAddress: '',
     });
   });
 
@@ -145,6 +150,7 @@ describe('TokenRatesController', () => {
       onTokensStateChange: sinon.stub(),
       onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
+      onPreferencesStateChange: sinon.stub(),
     });
     expect(() => console.log(controller.tokens)).toThrow(
       'Property only used for setting',
@@ -160,6 +166,7 @@ describe('TokenRatesController', () => {
         onTokensStateChange: jest.fn(),
         onCurrencyRateStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
+        onPreferencesStateChange: jest.fn(),
       },
       {
         interval,
@@ -182,6 +189,7 @@ describe('TokenRatesController', () => {
         onTokensStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
+        onPreferencesStateChange: sinon.stub(),
       },
       {
         interval: 10,
@@ -200,6 +208,7 @@ describe('TokenRatesController', () => {
         onTokensStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
+        onPreferencesStateChange: sinon.stub(),
       },
       { interval: 1337 },
     );
@@ -226,6 +235,7 @@ describe('TokenRatesController', () => {
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: (listener) =>
           messenger.subscribe('NetworkController:stateChange', listener),
+        onPreferencesStateChange: sinon.stub(),
       },
       { interval: 10, chainId: '1' },
     );
@@ -252,6 +262,7 @@ describe('TokenRatesController', () => {
         onTokensStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
+        onPreferencesStateChange: sinon.stub(),
       },
       { interval: 10 },
     );
@@ -275,11 +286,13 @@ describe('TokenRatesController', () => {
     });
     const onCurrencyRateStateChange = sinon.stub();
     const onNetworkStateChange = sinon.stub();
+    const onPreferencesStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         onTokensStateChange,
         onCurrencyRateStateChange,
         onNetworkStateChange,
+        onPreferencesStateChange,
       },
       { interval: 10 },
     );
@@ -289,9 +302,13 @@ describe('TokenRatesController', () => {
       'updateExchangeRates',
     );
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
-    // FIXME: This is now being called twice
-    expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
+    tokenStateChangeListener!({
+      tokens: [],
+      detectedTokens: [],
+    });
+    // FIXME: This is now being called three times when the tokens array is empty
+    // It's called two times when the token array isn't empty
+    expect(updateExchangeRatesStub.callCount).toStrictEqual(3);
   });
 
   it('should update exchange rates when native currency changes', async () => {
@@ -301,11 +318,13 @@ describe('TokenRatesController', () => {
       currencyRateStateChangeListener = listener;
     });
     const onNetworkStateChange = sinon.stub();
+    const onPreferencesStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         onTokensStateChange,
         onCurrencyRateStateChange,
         onNetworkStateChange,
+        onPreferencesStateChange,
       },
       { interval: 10 },
     );
@@ -355,6 +374,7 @@ describe('TokenRatesController', () => {
         onTokensStateChange,
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange,
+        onPreferencesStateChange: sinon.stub(),
       },
       { interval: 10 },
     );
@@ -388,7 +408,7 @@ describe('TokenRatesController', () => {
     );
   });
 
-  it('should clear contractExchangeRates state when network is changed', async () => {
+  it('should not clear contractExchangeRates state when network is changed', async () => {
     nock(COINGECKO_API)
       .get(`${COINGECKO_ETH_PATH}`)
       .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
@@ -417,6 +437,7 @@ describe('TokenRatesController', () => {
         onTokensStateChange,
         onNetworkStateChange,
         onCurrencyRateStateChange: sinon.stub(),
+        onPreferencesStateChange: sinon.stub(),
       },
       { interval: 10 },
     );
@@ -462,7 +483,10 @@ describe('TokenRatesController', () => {
       detectedTokens: [],
     });
 
-    expect(controller.state.contractExchangeRates).toStrictEqual({});
+    expect(controller.state.contractExchangeRates).toStrictEqual({
+      '0x02': 0.001,
+      '0x03': 0.002,
+    });
   });
 
   it('should update exchange rates when detected tokens are added', async () => {
@@ -489,6 +513,7 @@ describe('TokenRatesController', () => {
         onTokensStateChange,
         onNetworkStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
+        onPreferencesStateChange: sinon.stub(),
       },
       { interval: 10, chainId: '1', nativeCurrency: 'ETH' },
     );
