@@ -9,7 +9,7 @@ import {
   PHISHING_CONFIG_BASE_URL,
 } from './PhishingController';
 
-const defaultHotlistRefreshInterval = 15 * 60;
+const defaultHotlistRefreshInterval = 30 * 60;
 const defaultStalelistRefreshInterval = 4 * 24 * 60 * 60;
 
 describe('PhishingController', () => {
@@ -1031,20 +1031,20 @@ describe('PhishingController', () => {
       expect(controller.state.phishingLists).toStrictEqual([
         {
           allowlist: [],
-          blocklist: [],
-          fuzzylist: [],
-          tolerance: 0,
-          lastUpdated: 1,
-          name: 'Phishfort',
-          version: 0,
-        },
-        {
-          allowlist: [],
           blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 2,
           name: 'MetaMask',
+          version: 0,
+        },
+        {
+          allowlist: [],
+          blocklist: [],
+          fuzzylist: [],
+          tolerance: 0,
+          lastUpdated: 1,
+          name: 'Phishfort',
           version: 0,
         },
       ]);
@@ -1093,15 +1093,6 @@ describe('PhishingController', () => {
 
       expect(controller.state.phishingLists).toStrictEqual([
         {
-          blocklist: [],
-          allowlist: [],
-          fuzzylist: [],
-          tolerance: 0,
-          version: 0,
-          lastUpdated: 1,
-          name: 'Phishfort',
-        },
-        {
           allowlist: [],
           blocklist: [exampleBlockedUrlTwo],
           fuzzylist: [],
@@ -1109,6 +1100,15 @@ describe('PhishingController', () => {
           version: 0,
           lastUpdated: 2,
           name: 'MetaMask',
+        },
+        {
+          blocklist: [],
+          allowlist: [],
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 1,
+          name: 'Phishfort',
         },
       ]);
     });
