@@ -53,6 +53,7 @@ export interface Token {
   image?: string;
   balanceError?: unknown;
   isERC721?: boolean;
+  name?: string;
 }
 
 /**
