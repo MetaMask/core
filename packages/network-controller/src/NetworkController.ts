@@ -31,7 +31,7 @@ import {
 export type ProviderConfig = {
   rpcTarget?: string;
   type: NetworkType;
-  chainId: string;
+  chainId?: string;
   ticker?: string;
   nickname?: string;
 };
@@ -169,6 +169,7 @@ export class NetworkController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
+    this.setProviderConfig(this.state.providerConfig);
     this.infuraProjectId = infuraProjectId;
     this.messagingSystem.registerActionHandler(
       `${this.name}:getProviderConfig`,
@@ -183,6 +184,54 @@ export class NetworkController extends BaseControllerV2<
         return this.ethQuery;
       },
     );
+  }
+
+  public start() {
+    if (['rpc', 'localhost'].indexOf(this.state.providerConfig.type) === -1) {
+      return this.setProviderType(this.state.providerConfig.type);
+    }
+
+    const { rpcTarget, chainId, nickname, ticker } = this.state.providerConfig;
+    if (rpcTarget === undefined) {
+      throw new Error(
+        "Cannot setRpcTarget without having an rpcTarget in the providerConfig"
+      );
+    }
+    if (chainId === undefined) {
+      throw new Error(
+        "Cannot setRpcTarget without having a chainId in the providerConfig"
+      );
+    }
+    return this.setRpcTarget(
+      rpcTarget,
+      chainId,
+      ticker,
+      nickname,
+    );
+  }
+
+  public setProviderConfig(providerConfig: ProviderConfig) {
+    const { type, nickname } = providerConfig;
+    let { chainId, rpcTarget, ticker } = providerConfig;
+    if (type === "localhost") {
+      rpcTarget = LOCALHOST_RPC_URL;
+    }
+    if (type !== "rpc" && type !== "localhost") {
+      chainId = NetworksChainId[type];
+      ticker =
+        type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
+          TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
+          ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
+          : 'ETH';
+    }
+
+    this.update((state) => {
+      state.providerConfig.type = type;
+      state.providerConfig.ticker = ticker;
+      state.providerConfig.chainId = chainId;
+      state.providerConfig.rpcTarget = rpcTarget;
+      state.providerConfig.nickname = nickname;
+    });
   }
 
   private initializeProvider(
@@ -212,7 +261,7 @@ export class NetworkController extends BaseControllerV2<
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
     }
-    this.getEIP1559Compatibility();
+    return this.getEIP1559Compatibility();
   }
 
   getProviderAndBlockTracker(): {
@@ -232,7 +281,8 @@ export class NetworkController extends BaseControllerV2<
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker);
-    this.lookupNetwork();
+    this.registerProvider();
+    return this.lookupNetwork();
   }
 
   private registerProvider() {
@@ -251,7 +301,7 @@ export class NetworkController extends BaseControllerV2<
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
-      ...this.internalProviderConfig,
+      ...this.state.providerConfig,
       ...{
         dataSubprovider: infuraSubprovider,
         engineParams: {
@@ -275,18 +325,11 @@ export class NetworkController extends BaseControllerV2<
   private setupStandardProvider(
     rpcTarget: string,
     chainId?: string,
-    ticker?: string,
-    nickname?: string,
   ) {
     const config = {
-      ...this.internalProviderConfig,
-      ...{
-        chainId,
-        engineParams: { pollingInterval: 12000 },
-        nickname,
-        rpcUrl: rpcTarget,
-        ticker,
-      },
+      chainId: chainId || this.state.providerConfig.chainId,
+      engineParams: { pollingInterval: 12000 },
+      rpcUrl: rpcTarget || this.state.providerConfig.rpcTarget,
     };
     this.updateProvider(createMetamaskProvider(config));
   }
@@ -307,7 +350,9 @@ export class NetworkController extends BaseControllerV2<
   }
 
   private verifyNetwork() {
-    this.state.network === 'loading' && this.lookupNetwork();
+    if (this.state.network === 'loading') {
+      return this.lookupNetwork();
+    }
   }
 
   /**
@@ -318,6 +363,7 @@ export class NetworkController extends BaseControllerV2<
    * @param providerConfig - The web3-provider-engine configuration.
    */
   set providerConfig(providerConfig: ProviderConfig) {
+    this.setProviderConfig(providerConfig);
     this.internalProviderConfig = providerConfig;
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
@@ -388,7 +434,7 @@ export class NetworkController extends BaseControllerV2<
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
       type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
-      TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
+        TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
         ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
         : 'ETH';
 
@@ -399,7 +445,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.rpcTarget = undefined;
       state.providerConfig.nickname = undefined;
     });
-    this.refreshNetwork();
+    return this.refreshNetwork();
   }
 
   /**
@@ -423,7 +469,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.ticker = ticker;
       state.providerConfig.nickname = nickname;
     });
-    this.refreshNetwork();
+    return this.refreshNetwork();
   }
 
   #getLatestBlock(): Promise<Block> {
