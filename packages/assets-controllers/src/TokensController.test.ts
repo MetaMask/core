@@ -2,7 +2,7 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { NetworksChainId } from '@metamask/controller-utils';
+import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import {
   NetworkState,
   ProviderConfig,
@@ -27,8 +27,8 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   });
 };
 
-const SEPOLIA = { chainId: '11155111', type: 'sepolia' as const };
-const GOERLI = { chainId: '5', type: 'goerli' as const };
+const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
+const GOERLI = { chainId: '5', type: NetworkType.goerli };
 
 describe('TokensController', () => {
   let tokensController: TokensController;

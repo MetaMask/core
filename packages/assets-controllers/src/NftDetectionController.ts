@@ -6,7 +6,6 @@ import {
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import {
-  MAINNET,
   OPENSEA_PROXY_URL,
   OPENSEA_API_URL,
   NetworkType,
@@ -240,7 +239,7 @@ export class NftDetectionController extends BaseController<
     super(config, state);
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
-      networkType: MAINNET,
+      networkType: NetworkType.mainnet,
       chainId: '1',
       selectedAddress: '',
       disabled: true,
@@ -320,7 +319,7 @@ export class NftDetectionController extends BaseController<
    *
    * @returns Whether current network is mainnet.
    */
-  isMainnet = (): boolean => this.config.networkType === MAINNET;
+  isMainnet = (): boolean => this.config.networkType === NetworkType.mainnet;
 
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are

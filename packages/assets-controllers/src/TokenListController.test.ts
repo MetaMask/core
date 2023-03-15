@@ -6,7 +6,7 @@ import {
   NetworkState,
   ProviderConfig,
 } from '@metamask/network-controller';
-import { NetworksChainId } from '@metamask/controller-utils';
+import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import {
   TokenListController,
   TokenListStateChange,
@@ -629,8 +629,8 @@ describe('TokenListController', () => {
       sampleSingleChainState.tokenList,
     );
     onNetworkStateChangeCallback({
-      chainId: '5',
-      type: 'rpc',
+      chainId: NetworksChainId.goerli,
+      type: NetworkType.goerli,
     });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
@@ -1020,7 +1020,7 @@ describe('TokenListController', () => {
     );
 
     controllerMessenger.publish('NetworkController:providerConfigChange', {
-      type: 'goerli',
+      type: NetworkType.goerli,
       chainId: NetworksChainId.goerli,
     });
 
@@ -1034,7 +1034,7 @@ describe('TokenListController', () => {
     );
 
     controllerMessenger.publish('NetworkController:providerConfigChange', {
-      type: 'rpc',
+      type: NetworkType.rpc,
       chainId: '56',
       rpcTarget: 'http://localhost:8545',
     });
@@ -1095,7 +1095,7 @@ describe('TokenListController', () => {
     });
     await controller.start();
     controllerMessenger.publish('NetworkController:providerConfigChange', {
-      type: 'mainnet',
+      type: NetworkType.mainnet,
       chainId: NetworksChainId.mainnet,
     });
 
@@ -1136,7 +1136,7 @@ describe('TokenListController', () => {
       });
 
       controllerMessenger.publish('NetworkController:providerConfigChange', {
-        type: 'rpc',
+        type: NetworkType.rpc,
         chainId: '56',
         rpcTarget: 'http://localhost:8545',
       });

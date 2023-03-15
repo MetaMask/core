@@ -12,12 +12,12 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import {
-  MAINNET,
-  RPC,
-  TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL,
   NetworksChainId,
   NetworkType,
   isSafeChainId,
+  NetworksTicker,
+  isNetworkType,
+  BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
 
 import { assertIsStrictHexString } from '@metamask/utils';
@@ -39,7 +39,8 @@ export type ProviderConfig = {
   chainId: string;
   ticker?: string;
   nickname?: string;
-  id?: string;
+  rpcPrefs?: { blockExplorerUrl?: string };
+  id?: NetworkConfigurationId;
 };
 
 export type Block = {
@@ -148,7 +149,10 @@ export type NetworkControllerOptions = {
 export const defaultState: NetworkState = {
   network: 'loading',
   isCustomNetwork: false,
-  providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
+  providerConfig: {
+    type: NetworkType.mainnet,
+    chainId: NetworksChainId.mainnet,
+  },
   networkDetails: { isEIP1559Compatible: false },
   networkConfigurations: {},
 };
@@ -165,6 +169,8 @@ type MetaMetricsEventPayload = {
   currency?: string;
   value?: number;
 };
+
+type NetworkConfigurationId = string;
 
 /**
  * Controller that creates and manages an Ethereum network provider.
@@ -183,6 +189,8 @@ export class NetworkController extends BaseControllerV2<
   private trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
 
   private mutex = new Mutex();
+
+  #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
 
   #provider: Provider | undefined;
 
@@ -238,6 +246,8 @@ export class NetworkController extends BaseControllerV2<
         return this.ethQuery;
       },
     );
+
+    this.#previousNetworkSpecifier = this.state.providerConfig.type;
   }
 
   private initializeProvider(
@@ -252,15 +262,15 @@ export class NetworkController extends BaseControllerV2<
     });
 
     switch (type) {
-      case MAINNET:
-      case 'goerli':
-      case 'sepolia':
+      case NetworkType.mainnet:
+      case NetworkType.goerli:
+      case NetworkType.sepolia:
         this.setupInfuraProvider(type);
         break;
-      case 'localhost':
+      case NetworkType.localhost:
         this.setupStandardProvider(LOCALHOST_RPC_URL);
         break;
-      case RPC:
+      case NetworkType.rpc:
         rpcTarget &&
           this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
@@ -435,24 +445,38 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
+   * Convenience method to set the current provider config to the private providerConfig class variable.
+   */
+  #setCurrentAsPreviousProvider() {
+    const { type, id } = this.state.providerConfig;
+    if (type === NetworkType.rpc && id) {
+      this.#previousNetworkSpecifier = id;
+    } else {
+      this.#previousNetworkSpecifier = type;
+    }
+  }
+
+  /**
    * Convenience method to update provider network type settings.
    *
    * @param type - Human readable network name.
    */
   setProviderType(type: NetworkType) {
+    this.#setCurrentAsPreviousProvider();
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
-      type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
-      TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
-        ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
+      type in NetworksTicker && NetworksTicker[type].length > 0
+        ? NetworksTicker[type]
         : 'ETH';
 
     this.update((state) => {
       state.providerConfig.type = type;
       state.providerConfig.ticker = ticker;
       state.providerConfig.chainId = NetworksChainId[type];
+      state.providerConfig.rpcPrefs = BUILT_IN_NETWORKS[type].rpcPrefs;
       state.providerConfig.rpcTarget = undefined;
       state.providerConfig.nickname = undefined;
+      state.providerConfig.id = undefined;
     });
     this.refreshNetwork();
   }
@@ -463,6 +487,8 @@ export class NetworkController extends BaseControllerV2<
    * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
   setActiveNetwork(networkConfigurationId: string) {
+    this.#setCurrentAsPreviousProvider();
+
     const targetNetwork =
       this.state.networkConfigurations[networkConfigurationId];
 
@@ -473,11 +499,12 @@ export class NetworkController extends BaseControllerV2<
     }
 
     this.update((state) => {
-      state.providerConfig.type = RPC;
+      state.providerConfig.type = NetworkType.rpc;
       state.providerConfig.rpcTarget = targetNetwork.rpcUrl;
       state.providerConfig.chainId = targetNetwork.chainId;
       state.providerConfig.ticker = targetNetwork.ticker;
       state.providerConfig.nickname = targetNetwork.nickname;
+      state.providerConfig.rpcPrefs = targetNetwork.rpcPrefs;
       state.providerConfig.id = targetNetwork.id;
     });
 
@@ -663,6 +690,18 @@ export class NetworkController extends BaseControllerV2<
     this.update((state) => {
       delete state.networkConfigurations[networkConfigurationId];
     });
+  }
+
+  /**
+   * Rolls back provider config to the previous provider in case of errors or inability to connect during network switch.
+   */
+  rollbackToPreviousProvider() {
+    const specifier = this.#previousNetworkSpecifier;
+    if (isNetworkType(specifier)) {
+      this.setProviderType(specifier);
+    } else if (typeof specifier === 'string') {
+      this.setActiveNetwork(specifier);
+    }
   }
 }
 
