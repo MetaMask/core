@@ -251,6 +251,18 @@ describe('AssetsContractController', () => {
     expect(Number(decimals)).toStrictEqual(18);
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
+  it('should get ERC-20 token name', async () => {
+    const { assetsContract, messenger } = setupControllers();
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+
+    // DAI stable coin ERC20 token address https://etherscan.io/token/0x6b175474e89094c44da98b954eedeac495271d0f
+    const name = await assetsContract.getERC20TokenName(
+      '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+    );
+
+    expect(name).toStrictEqual('Dai Stablecoin');
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
+  });
 
   it('should get ERC-721 NFT ownership', async () => {
     const { assetsContract, messenger } = setupControllers();
