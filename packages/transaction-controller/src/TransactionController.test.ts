@@ -138,6 +138,7 @@ const MOCK_NETWORK = {
       type: 'goerli' as NetworkType,
       chainId: NetworksChainId.goerli,
     },
+    networkConfigurations: {},
   },
   subscribe: () => undefined,
 };
@@ -151,13 +152,18 @@ const MOCK_NETWORK_CUSTOM = {
       type: 'rpc' as NetworkType,
       chainId: '10',
     },
+    networkConfigurations: {},
   },
   subscribe: () => undefined,
 };
 const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
   getProvider: () => PROVIDER,
   isCustomNetwork: false,
-  state: { network: '5', providerConfig: { type: 'goerli' as NetworkType } },
+  state: {
+    network: '5',
+    providerConfig: { type: 'goerli' as NetworkType },
+    networkConfigurations: {},
+  },
   subscribe: () => undefined,
 };
 const MOCK_MAINNET_NETWORK = {
@@ -170,6 +176,7 @@ const MOCK_MAINNET_NETWORK = {
       type: 'mainnet' as NetworkType,
       chainId: NetworksChainId.mainnet,
     },
+    networkConfigurations: {},
   },
   subscribe: () => undefined,
 };
@@ -183,6 +190,7 @@ const MOCK_CUSTOM_NETWORK = {
       type: 'rpc' as NetworkType,
       chainId: '80001',
     },
+    networkConfigurations: {},
   },
   subscribe: () => undefined,
 };

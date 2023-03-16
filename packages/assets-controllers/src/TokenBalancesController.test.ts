@@ -130,6 +130,7 @@ describe('TokenBalancesController', () => {
     new NetworkController({
       messenger,
       infuraProjectId: 'potato',
+      trackMetaMetricsEvent: jest.fn(),
     });
     const preferences = new PreferencesController();
     return { messenger, preferences };

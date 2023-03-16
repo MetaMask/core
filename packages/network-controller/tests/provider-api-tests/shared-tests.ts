@@ -367,7 +367,7 @@ export const testsForProviderType = (providerType: ProviderType) => {
       describe('net_version', () => {
         it('does hit RPC endpoint to get net_version', async () => {
           await withMockedCommunications(
-            { providerType, infuraNetwork: 'goerli', customChainId: '5' },
+            { providerType, infuraNetwork: 'goerli' },
             async (comms) => {
               comms.mockRpcCall({
                 request: { method: 'net_version' },
