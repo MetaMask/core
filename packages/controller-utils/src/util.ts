@@ -134,7 +134,7 @@ export function getBuyURL(
  * @returns A BN instance.
  */
 export function hexToBN(inputHex: string) {
-  return new BN(inputHex ? stripHexPrefix(inputHex) : inputHex, 16);
+  return new BN(stripHexPrefix(inputHex), 16);
 }
 
 /**
