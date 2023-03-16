@@ -1,13 +1,14 @@
 import {
-  BaseController,
-  BaseConfig,
-  BaseState,
+  BaseControllerV2,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
+
+const name = 'EnsController';
 
 /**
  * @type EnsEntry
@@ -29,39 +30,71 @@ export interface EnsEntry {
  * ENS controller state
  * @property ensEntries - Object of ENS entry objects
  */
-export interface EnsState extends BaseState {
-  ensEntries: { [chainId: string]: { [ensName: string]: EnsEntry } };
-}
+export type EnsState = {
+  ensEntries: {
+    [chainId: string]: {
+      [ensName: string]: EnsEntry;
+    };
+  };
+};
+
+export type EnsControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  never,
+  never,
+  never,
+  never
+>;
+
+const metadata = {
+  ensEntries: { persist: true, anonymous: false },
+};
+
+const defaultState = {
+  ensEntries: {},
+};
 
 /**
  * Controller that manages a list ENS names and their resolved addresses
  * by chainId. A null address indicates an unresolved ENS name.
  */
-export class EnsController extends BaseController<BaseConfig, EnsState> {
+export class EnsController extends BaseControllerV2<
+  typeof name,
+  EnsState,
+  EnsControllerMessenger
+> {
   /**
-   * Name of this controller used during composition
-   */
-  override name = 'EnsController';
-
-  /**
-   * Creates an EnsController instance.
+   * Creates a EnsController instance.
    *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param options - Constructor options.
+   * @param options.messenger - A reference to the messaging system.
+   * @param options.state - Initial state to set on this controller.
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<EnsState>) {
-    super(config, state);
-
-    this.defaultState = { ensEntries: {} };
-
-    this.initialize();
+  constructor({
+    messenger,
+    state,
+  }: {
+    messenger: EnsControllerMessenger;
+    state?: Partial<EnsState>;
+  }) {
+    super({
+      name,
+      metadata,
+      messenger,
+      state: {
+        ...defaultState,
+        ...state,
+      },
+    });
   }
 
   /**
    * Remove all chain Ids and ENS entries from state.
    */
   clear() {
-    this.update({ ensEntries: {} });
+    this.update((state) => {
+      state.ensEntries = {};
+    });
   }
 
   /**
@@ -88,7 +121,9 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
       delete ensEntries[chainId];
     }
 
-    this.update({ ensEntries });
+    this.update((state) => {
+      state.ensEntries = ensEntries;
+    });
     return true;
   }
 
@@ -146,8 +181,8 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
       return false;
     }
 
-    this.update({
-      ensEntries: {
+    this.update((state) => {
+      state.ensEntries = {
         ...this.state.ensEntries,
         [chainId]: {
           ...this.state.ensEntries[chainId],
@@ -157,7 +192,7 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
             ensName: normalizedEnsName,
           },
         },
-      },
+      };
     });
     return true;
   }
