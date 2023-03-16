@@ -375,24 +375,13 @@ export class NetworkController extends BaseControllerV2<
     this.state.network === 'loading' && this.lookupNetwork();
   }
 
-  /**
-   * Sets a new configuration for web3-provider-engine.
-   *
-   * TODO: Replace this wth a method.
-   *
-   * @param providerConfig - The web3-provider-engine configuration.
-   */
-  set providerConfig(providerConfig: ProviderConfig) {
+  setProviderConfig(providerConfig: ProviderConfig) {
     this.internalProviderConfig = providerConfig;
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
     this.registerProvider();
     this.lookupNetwork();
-  }
-
-  get providerConfig() {
-    throw new Error('Property only used for setting');
   }
 
   async #getNetworkId(): Promise<string> {

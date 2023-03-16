@@ -164,16 +164,6 @@ describe('NetworkController', () => {
   });
 
   describe('providerConfig property', () => {
-    describe('get', () => {
-      it('throws', async () => {
-        await withController(({ controller }) => {
-          expect(() => controller.providerConfig).toThrow(
-            'Property only used for setting',
-          );
-        });
-      });
-    });
-
     describe('set', () => {
       ['1', '5', '11155111', ''].forEach((chainId) => {
         describe(`when the provider config in state contains a chain ID of "${chainId}"`, () => {
@@ -198,7 +188,7 @@ describe('NetworkController', () => {
                   fakeMetamaskProvider,
                 );
 
-                controller.providerConfig = buildProviderConfig();
+                controller.setProviderConfig(buildProviderConfig());
 
                 expect(controller.state.isCustomNetwork).toBe(false);
               },
@@ -226,7 +216,7 @@ describe('NetworkController', () => {
               const fakeMetamaskProvider = buildFakeMetamaskProvider();
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-              controller.providerConfig = buildProviderConfig();
+              controller.setProviderConfig(buildProviderConfig());
 
               expect(controller.state.isCustomNetwork).toBe(true);
             },
@@ -266,13 +256,11 @@ describe('NetworkController', () => {
                     fakeMetamaskProvider,
                   );
 
-                  controller.providerConfig = {
-                    // NOTE: Neither the type nor chainId needs to match the
-                    // values in state, or match each other
+                  controller.setProviderConfig({
                     type: NetworkType.mainnet,
                     chainId: '99999',
                     nickname: 'some nickname',
-                  };
+                  });
 
                   expect(createInfuraProviderMock).toHaveBeenCalledWith({
                     network: networkType,
@@ -327,8 +315,8 @@ describe('NetworkController', () => {
                     .mockImplementationOnce(() => fakeMetamaskProviders[0])
                     .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
-                  controller.providerConfig = buildProviderConfig();
-                  controller.providerConfig = buildProviderConfig();
+                  controller.setProviderConfig(buildProviderConfig());
+                  controller.setProviderConfig(buildProviderConfig());
                   assert(controller.getProviderAndBlockTracker().provider);
                   jest.runAllTimers();
 
@@ -394,7 +382,7 @@ describe('NetworkController', () => {
                         'NetworkController:providerConfigChange',
                         {
                           produceEvents: () => {
-                            controller.providerConfig = buildProviderConfig();
+                            controller.setProviderConfig(buildProviderConfig());
                             assert(
                               controller.getProviderAndBlockTracker().provider,
                             );
@@ -465,7 +453,7 @@ describe('NetworkController', () => {
                         'NetworkController:providerConfigChange',
                         {
                           produceEvents: () => {
-                            controller.providerConfig = buildProviderConfig();
+                            controller.setProviderConfig(buildProviderConfig());
                             assert(
                               controller.getProviderAndBlockTracker().provider,
                             );
@@ -519,10 +507,11 @@ describe('NetworkController', () => {
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-              controller.providerConfig = buildProviderConfig({
-                // NOTE: The type does not need to match the type in state
-                type: NetworkType.mainnet,
-              });
+              controller.setProviderConfig(
+                buildProviderConfig({
+                  type: NetworkType.mainnet,
+                }),
+              );
 
               expect(createMetamaskProviderMock).toHaveBeenCalledWith({
                 type: NetworkType.mainnet,
@@ -563,8 +552,8 @@ describe('NetworkController', () => {
                 .mockImplementationOnce(() => fakeMetamaskProviders[0])
                 .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
-              controller.providerConfig = buildProviderConfig();
-              controller.providerConfig = buildProviderConfig();
+              controller.setProviderConfig(buildProviderConfig());
+              controller.setProviderConfig(buildProviderConfig());
               assert(controller.getProviderAndBlockTracker().provider);
               jest.runAllTimers();
 
@@ -622,7 +611,7 @@ describe('NetworkController', () => {
                     'NetworkController:providerConfigChange',
                     {
                       produceEvents: () => {
-                        controller.providerConfig = buildProviderConfig();
+                        controller.setProviderConfig(buildProviderConfig());
                         assert(
                           controller.getProviderAndBlockTracker().provider,
                         );
@@ -685,7 +674,7 @@ describe('NetworkController', () => {
                     'NetworkController:providerConfigChange',
                     {
                       produceEvents: () => {
-                        controller.providerConfig = buildProviderConfig();
+                        controller.setProviderConfig(buildProviderConfig());
                         assert(
                           controller.getProviderAndBlockTracker().provider,
                         );
@@ -740,10 +729,11 @@ describe('NetworkController', () => {
                   fakeMetamaskProvider,
                 );
 
-                controller.providerConfig = buildProviderConfig({
-                  // NOTE: The type does not need to match the type in state
-                  type: NetworkType.mainnet,
-                });
+                controller.setProviderConfig(
+                  buildProviderConfig({
+                    type: NetworkType.mainnet,
+                  }),
+                );
 
                 expect(createMetamaskProviderMock).toHaveBeenCalledWith({
                   type: NetworkType.mainnet,
@@ -785,8 +775,8 @@ describe('NetworkController', () => {
                   .mockImplementationOnce(() => fakeMetamaskProviders[0])
                   .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
-                controller.providerConfig = buildProviderConfig();
-                controller.providerConfig = buildProviderConfig();
+                controller.setProviderConfig(buildProviderConfig());
+                controller.setProviderConfig(buildProviderConfig());
                 assert(controller.getProviderAndBlockTracker().provider);
                 jest.runAllTimers();
 
@@ -845,7 +835,7 @@ describe('NetworkController', () => {
                       'NetworkController:providerConfigChange',
                       {
                         produceEvents: () => {
-                          controller.providerConfig = buildProviderConfig();
+                          controller.setProviderConfig(buildProviderConfig());
                           assert(
                             controller.getProviderAndBlockTracker().provider,
                           );
@@ -909,7 +899,7 @@ describe('NetworkController', () => {
                       'NetworkController:providerConfigChange',
                       {
                         produceEvents: () => {
-                          controller.providerConfig = buildProviderConfig();
+                          controller.setProviderConfig(buildProviderConfig());
                           assert(
                             controller.getProviderAndBlockTracker().provider,
                           );
@@ -950,7 +940,7 @@ describe('NetworkController', () => {
                   fakeMetamaskProvider,
                 );
 
-                controller.providerConfig = buildProviderConfig();
+                controller.setProviderConfig(buildProviderConfig());
 
                 expect(createMetamaskProviderMock).not.toHaveBeenCalled();
                 const { provider, blockTracker } =
@@ -991,7 +981,7 @@ describe('NetworkController', () => {
             await waitForStateChanges(messenger, {
               propertyPath: ['networkDetails', 'isEIP1559Compatible'],
               produceStateChanges: () => {
-                controller.providerConfig = buildProviderConfig();
+                controller.setProviderConfig(buildProviderConfig());
               },
             });
 
@@ -5460,7 +5450,7 @@ async function setFakeProvider(
     lookupGetEIP1559CompatibilityMock.mockResolvedValue(false);
   }
 
-  controller.providerConfig = buildProviderConfig();
+  controller.setProviderConfig(buildProviderConfig());
   await waitForResult(
     true,
     () => controller.getProviderAndBlockTracker().provider !== undefined,
