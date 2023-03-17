@@ -30,6 +30,7 @@ import {
   TypedMessageParams,
 } from '@metamask/message-manager';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
+import { SerializedLedgerKeyring } from './types/SerializedKeyringTypes';
 
 /**
  * Available keyring types
@@ -795,7 +796,9 @@ export class KeyringController extends BaseController<
    *
    * @param keyringSerialized - The serialized keyring;
    */
-  async restoreLedgerKeyring(keyringSerialized: any): Promise<void> {
+  async restoreLedgerKeyring(
+    keyringSerialized: SerializedLedgerKeyring,
+  ): Promise<void> {
     (await this.getLedgerKeyring()).deserialize(keyringSerialized);
     this.updateIdentities(await this.#keyring.getAccounts());
     await this.fullUpdate();
