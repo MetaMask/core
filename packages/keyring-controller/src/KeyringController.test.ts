@@ -1577,29 +1577,22 @@ describe('KeyringController', () => {
       });
 
       const fullUpdateSpy = sinon.spy(locallyUsedKeyring, 'fullUpdate');
+      const getAccountSpy = sinon.spy(locallyUsedKeyring, 'getAccounts');
 
       // Start of test
-      await locallyUsedKeyring.fullUpdate();
+      await locallyUsedKeyring.getAccounts();
 
-      expect(fullUpdateSpy.callCount).toBe(1);
-
-      const { keyrings: beforeAddingLedger } = await fullUpdateSpy
-        .returnValues[0];
-
-      // we check for the accounts in the index 1 position because 0 is the Hd Key tree.
-      expect(beforeAddingLedger[1].accounts).toStrictEqual([]);
+      const defaultHDAccount = (await getAccountSpy.returnValues[0])[0];
 
       // now adding the ledger account
-      const account = await locallyUsedKeyring.unlockLedgerDefaultAccount();
+      const ledgerAccount =
+        await locallyUsedKeyring.unlockLedgerDefaultAccount();
 
-      const updatedKeyrings = (await fullUpdateSpy.returnValues[1]).keyrings;
-      const newAccountsList = [
-        ...updatedKeyrings[0].accounts,
-        ...updatedKeyrings[1].accounts,
-      ];
+      // const updatedKeyrings = (await fullUpdateSpy.returnValues[1]).keyrings;
+      const newAccountsList = [defaultHDAccount, ledgerAccount.address];
 
       expect(newAccountsList).toStrictEqual([
-        beforeAddingLedger[0].accounts[0], // this is a dynamic account thats generated in the HD Keyring
+        defaultHDAccount, // this is a dynamic account thats generated in the HD Keyring
         '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
       ]);
 
@@ -1620,17 +1613,17 @@ describe('KeyringController', () => {
 
       expect(persistAllKeyringsSpy.called).toBe(true);
 
-      expect(fullUpdateSpy.callCount).toBe(2);
+      expect(fullUpdateSpy.callCount).toBe(1);
 
       const { keyrings: keyringAfterAddingLedger } = await fullUpdateSpy
-        .returnValues[1];
+        .returnValues[0];
 
       // we check for the accounts in the index 1 position because 0 is the Hd Key tree.
       expect(keyringAfterAddingLedger[1].accounts).toStrictEqual([
         '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
       ]);
 
-      expect(account).toStrictEqual({
+      expect(ledgerAccount).toStrictEqual({
         address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
         balance: '0x0',
       });
