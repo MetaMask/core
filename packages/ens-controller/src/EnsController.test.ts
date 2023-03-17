@@ -15,32 +15,19 @@ const address3Checksum = toChecksumHexAddress(address3);
 const name = 'EnsController';
 
 /**
- * Constructs a unrestricted controller messenger.
- *
- * @returns A unrestricted controller messenger.
- */
-function getUnrestrictedMessenger() {
-  return new ControllerMessenger<never, never>();
-}
-
-/**
  * Constructs a restricted controller messenger.
  *
- * @param controllerMessenger - An optional unrestricted messenger
  * @returns A restricted controller messenger.
  */
-function getRestrictedMessenger(
-  controllerMessenger = getUnrestrictedMessenger(),
-) {
-  return controllerMessenger.getRestricted<typeof name, never, never>({
+function getMessenger() {
+  return new ControllerMessenger().getRestricted<typeof name, never, never>({
     name,
   });
 }
 
 describe('EnsController', () => {
   it('should set default state', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -48,8 +35,7 @@ describe('EnsController', () => {
   });
 
   it('should add a new ENS entry and return true', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -68,8 +54,7 @@ describe('EnsController', () => {
   });
 
   it('should add a new ENS entry with null address and return true', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -88,8 +73,7 @@ describe('EnsController', () => {
   });
 
   it('should update an ENS entry and return true', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -109,8 +93,7 @@ describe('EnsController', () => {
   });
 
   it('should update an ENS entry with null address and return true', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -130,8 +113,7 @@ describe('EnsController', () => {
   });
 
   it('should not update an ENS entry if the address is the same (valid address) and return false', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -151,8 +133,7 @@ describe('EnsController', () => {
   });
 
   it('should not update an ENS entry if the address is the same (null) and return false', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -172,8 +153,7 @@ describe('EnsController', () => {
   });
 
   it('should add multiple ENS entries and update without side effects', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -207,8 +187,7 @@ describe('EnsController', () => {
   });
 
   it('should get ENS entry by chainId and ensName', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -221,8 +200,7 @@ describe('EnsController', () => {
   });
 
   it('should return null when getting nonexistent name', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -231,8 +209,7 @@ describe('EnsController', () => {
   });
 
   it('should return null when getting nonexistent chainId', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -241,8 +218,7 @@ describe('EnsController', () => {
   });
 
   it('should throw on attempt to set invalid ENS entry: chainId', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -255,8 +231,7 @@ describe('EnsController', () => {
   });
 
   it('should throw on attempt to set invalid ENS entry: ENS name', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -267,8 +242,7 @@ describe('EnsController', () => {
   });
 
   it('should throw on attempt to set invalid ENS entry: address', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -281,8 +255,7 @@ describe('EnsController', () => {
   });
 
   it('should remove an ENS entry and return true', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -292,8 +265,7 @@ describe('EnsController', () => {
   });
 
   it('should return false if an ENS entry was NOT deleted', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -314,8 +286,7 @@ describe('EnsController', () => {
   });
 
   it('should add multiple ENS entries and remove without side effects', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
@@ -344,8 +315,7 @@ describe('EnsController', () => {
   });
 
   it('should clear all ENS entries', () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });

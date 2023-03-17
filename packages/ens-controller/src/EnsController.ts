@@ -18,19 +18,19 @@ const name = 'EnsController';
  * @property ensName - The ENS name
  * @property address - Hex address with the ENS name, or null
  */
-export interface EnsEntry {
+export type EnsEntry = {
   chainId: string;
   ensName: string;
   address: string | null;
-}
+};
 
 /**
- * @type EnsState
+ * @type EnsControllerState
  *
  * ENS controller state
  * @property ensEntries - Object of ENS entry objects
  */
-export type EnsState = {
+export type EnsControllerState = {
   ensEntries: {
     [chainId: string]: {
       [ensName: string]: EnsEntry;
@@ -60,11 +60,11 @@ const defaultState = {
  */
 export class EnsController extends BaseControllerV2<
   typeof name,
-  EnsState,
+  EnsControllerState,
   EnsControllerMessenger
 > {
   /**
-   * Creates a EnsController instance.
+   * Creates an EnsController instance.
    *
    * @param options - Constructor options.
    * @param options.messenger - A reference to the messaging system.
@@ -75,7 +75,7 @@ export class EnsController extends BaseControllerV2<
     state,
   }: {
     messenger: EnsControllerMessenger;
-    state?: Partial<EnsState>;
+    state?: Partial<EnsControllerState>;
   }) {
     super({
       name,
@@ -114,15 +114,12 @@ export class EnsController extends BaseControllerV2<
       return false;
     }
 
-    const ensEntries = Object.assign({}, this.state.ensEntries);
-    delete ensEntries[chainId][normalizedEnsName];
-
-    if (Object.keys(ensEntries[chainId]).length === 0) {
-      delete ensEntries[chainId];
-    }
-
     this.update((state) => {
-      state.ensEntries = ensEntries;
+      delete state.ensEntries[chainId][normalizedEnsName];
+
+      if (Object.keys(state.ensEntries[chainId]).length === 0) {
+        delete state.ensEntries[chainId];
+      }
     });
     return true;
   }
