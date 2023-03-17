@@ -1261,12 +1261,34 @@ describe('KeyringController', () => {
         },
       );
 
-      const mockedSignatureValue: TypedTransaction = {
-        ...tx,
-        r: new BN('1'),
-        s: new BN('2'),
-        v: new BN('3'),
-      } as TypedTransaction;
+      const mockedSignatureValue = TransactionFactory.fromTxData(
+        {
+          accessList: [],
+          chainId: '0x4',
+          data: '0x',
+          gasLimit: '0x5208',
+          maxFeePerGas: '0x2540be400',
+          maxPriorityFeePerGas: '0x3b9aca00',
+          nonce: '0x68',
+          r: new BN('1'),
+          s: new BN('2'),
+          to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+          v: new BN('0'), // has to be either 0 or 1
+          value: '0x0',
+          type: 2,
+        },
+        {
+          common: Common.forCustomChain(
+            MAINNET,
+            {
+              name: 'rinkeby',
+              chainId: parseInt('4'),
+              networkId: parseInt('4'),
+            },
+            'london',
+          ),
+        },
+      );
 
       const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signTransaction');
 
@@ -1277,7 +1299,7 @@ describe('KeyringController', () => {
       const { r, s, v } = await keyringController.signTransaction(tx, account);
       expect(r.toString()).toBe('1');
       expect(s.toString()).toBe('2');
-      expect(v.toString()).toBe('3');
+      expect(v.toString()).toBe('0');
 
       confirmSignatureStub.reset();
     });
