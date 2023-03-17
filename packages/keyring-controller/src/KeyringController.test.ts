@@ -1443,8 +1443,6 @@ describe('KeyringController', () => {
       });
 
       // Start of test
-      await locallyUsedKeyring.fullUpdate();
-
       const accounts = await locallyUsedKeyring.getAccounts();
       expect(accounts).toHaveLength(1);
 
@@ -1577,12 +1575,11 @@ describe('KeyringController', () => {
       });
 
       const fullUpdateSpy = sinon.spy(locallyUsedKeyring, 'fullUpdate');
-      const getAccountSpy = sinon.spy(locallyUsedKeyring, 'getAccounts');
 
       // Start of test
-      await locallyUsedKeyring.getAccounts();
+      const initialAccounts = await locallyUsedKeyring.getAccounts();
 
-      const defaultHDAccount = (await getAccountSpy.returnValues[0])[0];
+      const defaultHDAccount = initialAccounts[0];
 
       // now adding the ledger account
       const ledgerAccount =
@@ -1662,8 +1659,6 @@ describe('KeyringController', () => {
       });
 
       // Start of test
-      await locallyUsedKeyring.fullUpdate();
-
       await locallyUsedKeyring.unlockLedgerDefaultAccount();
       expect(setAccountLabelSpy.callCount).toBe(0);
     });
