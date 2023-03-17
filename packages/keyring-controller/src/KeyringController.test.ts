@@ -1389,11 +1389,50 @@ describe('KeyringController', () => {
     });
 
     it('should forget Ledger Keyring', async () => {
-      const accounts = await ledgerKeyring.getAccounts();
+      // Setup
+
+      const setSelectedAddressSpy = sinon.spy(
+        preferences,
+        'setSelectedAddress',
+      );
+
+      // creating a new keyring controller without adding a ledger account
+      const locallyUsedKeyring = new KeyringController(
+        {
+          setAccountLabel: preferences.setAccountLabel.bind(preferences),
+          removeIdentity: preferences.removeIdentity.bind(preferences),
+          syncIdentities: preferences.syncIdentities.bind(preferences),
+          updateIdentities: preferences.updateIdentities.bind(preferences),
+          setSelectedAddress: preferences.setSelectedAddress.bind(preferences),
+        },
+        baseConfig,
+      );
+
+      await locallyUsedKeyring.createNewVaultAndKeychain(password);
+      const localLedgerKeyring = await locallyUsedKeyring.getLedgerKeyring();
+
+      localLedgerKeyring.setApp({
+        signTransaction: sinon.stub(),
+        getAddress: sinon.stub().resolves({
+          address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        }),
+        signEIP712HashedMessage: sinon.stub(),
+        signPersonalMessage: sinon.stub(),
+      });
+
+      // Start of test
+      await locallyUsedKeyring.fullUpdate();
+
+      const accounts = await locallyUsedKeyring.getAccounts();
       expect(accounts).toHaveLength(1);
 
-      await keyringController.forgetLedger();
-      expect(keyringController.state.keyrings[1].accounts).toHaveLength(0);
+      const forgetDeviceSpy = sinon.spy(localLedgerKeyring, 'forgetDevice');
+
+      await locallyUsedKeyring.forgetLedger();
+      expect(locallyUsedKeyring.state.keyrings[1].accounts).toHaveLength(0);
+      expect(forgetDeviceSpy.callCount).toBe(1);
+      expect(setSelectedAddressSpy.callCount).toBe(1);
+      expect(setSelectedAddressSpy.calledWith(accounts[0])).toBe(true);
     });
 
     it('should return Ledger Keyring for corresponding account', async () => {
@@ -1479,7 +1518,7 @@ describe('KeyringController', () => {
     it('should update the state when unlocking the default account on ledger', async () => {
       // Setup
 
-      const updateIdentitesSpy = sinon.spy(preferences, 'updateIdentities');
+      const updateIdentitiesSpy = sinon.spy(preferences, 'updateIdentities');
       const setAccountLabelSpy = sinon.spy(preferences, 'setAccountLabel');
       const setSelectedAddressSpy = sinon.spy(
         preferences,
@@ -1542,7 +1581,7 @@ describe('KeyringController', () => {
         '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
       ]);
 
-      expect(updateIdentitesSpy.calledWith(newAccountsList)).toBe(true);
+      expect(updateIdentitiesSpy.calledWith(newAccountsList)).toBe(true);
 
       expect(
         setAccountLabelSpy.calledWith(
