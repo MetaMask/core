@@ -643,7 +643,7 @@ describe('NetworkController', () => {
         });
       });
 
-      describe(`when the provider config in state contains a network type of "linea testnet"`, () => {
+      describe(`when the provider config in state contains a network type of "lineatestnet"`, () => {
         it('sets the provider to a custom RPC provider pointed to linea testnet, initialized with the configured chain ID, nickname, and ticker', async () => {
           await withController(
             {
@@ -2473,6 +2473,281 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setProviderType('localhost' as const);
+                    assert(controller.getProviderAndBlockTracker().provider);
+                  },
+                },
+              );
+
+              await waitForStateChanges(messenger, {
+                propertyPath: ['network'],
+                count: 0,
+                produceStateChanges: () => {
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
+                },
+              });
+              expect(controller.state.network).toBe('1');
+            });
+          });
+        });
+      });
+    });
+
+    describe('given a network type of "lineatestnet"', () => {
+      it('updates the provider config in state with the network type, using "LineaETH" for the ticker and an empty string for the chain id and clearing any existing RPC target and nickname', async () => {
+        const messenger = buildMessenger();
+        await withController(
+          {
+            messenger,
+            state: {
+              providerConfig: {
+                type: 'lineatestnet',
+                rpcTarget: 'http://somethingexisting.com',
+                chainId: '99999',
+                ticker: 'something existing',
+                nickname: 'something existing',
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeMetamaskProvider = buildFakeMetamaskProvider();
+            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+            await waitForStateChanges(messenger, {
+              propertyPath: ['network'],
+              produceStateChanges: () => {
+                controller.setProviderType('lineatestnet' as const);
+              },
+            });
+
+            expect(controller.state.providerConfig).toStrictEqual({
+              type: 'lineatestnet',
+              ticker: 'LineaETH',
+              chainId: '59140',
+              rpcTarget: undefined,
+              nickname: undefined,
+            });
+          },
+        );
+      });
+
+      it('sets isCustomNetwork in state to false', async () => {
+        const messenger = buildMessenger();
+        await withController(
+          {
+            messenger,
+            state: {
+              isCustomNetwork: true,
+            },
+          },
+          async ({ controller }) => {
+            const fakeMetamaskProvider = buildFakeMetamaskProvider();
+            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+            await waitForStateChanges(messenger, {
+              propertyPath: ['isCustomNetwork'],
+              produceStateChanges: () => {
+                controller.setProviderType('lineatestnet' as const);
+              },
+            });
+
+            expect(controller.state.isCustomNetwork).toBe(false);
+          },
+        );
+      });
+
+      it('sets the provider to a custom RPC provider pointed to lineatestnet, leaving chain ID undefined', async () => {
+        await withController(async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'eth_chainId',
+              },
+              response: {
+                result: '0xe704',
+              },
+            },
+          ]);
+          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+          controller.setProviderType('lineatestnet' as const);
+
+          expect(createMetamaskProviderMock).toHaveBeenCalledWith({
+            chainId: undefined,
+            engineParams: { pollingInterval: 12000 },
+            nickname: undefined,
+            rpcUrl: 'https://rpc.goerli.linea.build',
+            ticker: undefined,
+          });
+          const { provider } = controller.getProviderAndBlockTracker();
+          const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+            provider,
+          );
+          const chainIdResult = await promisifiedSendAsync({
+            method: 'eth_chainId',
+          });
+          expect(chainIdResult.result).toBe('0xe704');
+        });
+      });
+
+      it('updates networkDetails.isEIP1559Compatible in state based on the latest block (assuming that the request eth_getBlockByNumber is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController({ messenger }, async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['latest', false],
+              },
+              response: {
+                result: {
+                  baseFeePerGas: '0x1',
+                },
+              },
+            },
+          ]);
+          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+          await waitForStateChanges(messenger, {
+            propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+            produceStateChanges: () => {
+              controller.setProviderType('lineatestnet' as const);
+            },
+          });
+
+          expect(controller.state.networkDetails.isEIP1559Compatible).toBe(
+            true,
+          );
+        });
+      });
+
+      it('ensures that the existing provider is stopped while replacing it', async () => {
+        await withController(({ controller }) => {
+          const fakeMetamaskProviders = [
+            buildFakeMetamaskProvider(),
+            buildFakeMetamaskProvider(),
+          ];
+          jest.spyOn(fakeMetamaskProviders[0], 'stop');
+          createMetamaskProviderMock
+            .mockImplementationOnce(() => fakeMetamaskProviders[0])
+            .mockImplementationOnce(() => fakeMetamaskProviders[1]);
+
+          controller.setProviderType('lineatestnet' as const);
+          controller.setProviderType('lineatestnet' as const);
+          assert(controller.getProviderAndBlockTracker().provider);
+          jest.runAllTimers();
+
+          expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
+        });
+      });
+
+      it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
+        const messenger = buildMessenger();
+        await withController({ messenger }, async ({ controller }) => {
+          const fakeMetamaskProvider = buildFakeMetamaskProvider([
+            {
+              request: {
+                method: 'net_version',
+                params: [],
+              },
+              response: {
+                result: '42',
+              },
+            },
+          ]);
+          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+          await waitForStateChanges(messenger, {
+            propertyPath: ['network'],
+            produceStateChanges: () => {
+              controller.setProviderType('lineatestnet' as const);
+            },
+          });
+
+          expect(controller.state.network).toBe('42');
+        });
+      });
+
+      describe('when an "error" event occurs on the new provider', () => {
+        describe('if the network version could not be retrieved during setProviderType', () => {
+          it('retrieves the network version again and, assuming success, persists it to state', async () => {
+            const messenger = buildMessenger();
+            await withController({ messenger }, async ({ controller }) => {
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    error: 'oops',
+                  },
+                },
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '42',
+                  },
+                },
+              ]);
+              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+              await waitForPublishedEvents(
+                messenger,
+                'NetworkController:providerConfigChange',
+                {
+                  produceEvents: () => {
+                    controller.setProviderType('lineatestnet' as const);
+                    assert(controller.getProviderAndBlockTracker().provider);
+                  },
+                },
+              );
+
+              await waitForStateChanges(messenger, {
+                propertyPath: ['network'],
+                produceStateChanges: () => {
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
+                },
+              });
+              expect(controller.state.network).toBe('42');
+            });
+          });
+        });
+
+        describe('if the network version could be retrieved during setProviderType', () => {
+          it('does not retrieve the network version again', async () => {
+            const messenger = buildMessenger();
+            await withController({ messenger }, async ({ controller }) => {
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '1',
+                  },
+                },
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '2',
+                  },
+                },
+              ]);
+              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+              await waitForPublishedEvents(
+                messenger,
+                'NetworkController:providerConfigChange',
+                {
+                  produceEvents: () => {
+                    controller.setProviderType('lineatestnet' as const);
                     assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
