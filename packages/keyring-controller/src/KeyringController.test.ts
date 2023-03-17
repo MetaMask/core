@@ -6,7 +6,7 @@ import {
 } from '@metamask/eth-sig-util';
 import * as sinon from 'sinon';
 import Common from '@ethereumjs/common';
-import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
+import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import LedgerKeyring from '@ledgerhq/metamask-keyring';
