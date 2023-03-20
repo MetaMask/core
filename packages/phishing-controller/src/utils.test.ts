@@ -112,7 +112,10 @@ describe('applyDiffs', () => {
       [exampleAddDiff],
       ListKeys.PhishfortHotlist,
     );
-    expect(result).toStrictEqual(testExistingState);
+    expect(result).toStrictEqual({
+      ...testExistingState,
+      name: ListNames.Phishfort,
+    });
   });
 
   it('does not remove a url from the state if it does not contain the same targetlist listkey.', () => {
@@ -131,8 +134,8 @@ describe('applyDiffs', () => {
       ListKeys.PhishfortHotlist,
     );
     expect(result).toStrictEqual({
-      ...exampleListState,
-      lastUpdated: 1674773009,
+      ...testExistingState,
+      name: ListNames.Phishfort,
     });
   });
 });
