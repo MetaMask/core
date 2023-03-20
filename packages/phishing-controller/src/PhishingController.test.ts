@@ -3,6 +3,7 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import {
+  ListNames,
   METAMASK_HOTLIST_DIFF_FILE,
   METAMASK_STALELIST_FILE,
   PhishingController,
@@ -34,7 +35,7 @@ describe('PhishingController', () => {
         blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
         fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
         tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-        name: `MetaMask`,
+        name: ListNames.MetaMask,
         version: DEFAULT_PHISHING_RESPONSE.version,
         lastUpdated: 0,
       },
@@ -442,7 +443,7 @@ describe('PhishingController', () => {
     expect(controller.test('metamask.io')).toMatchObject({
       result: false,
       type: 'allowlist',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -467,7 +468,7 @@ describe('PhishingController', () => {
     expect(controller.test('etnerscan.io')).toMatchObject({
       result: true,
       type: 'blocklist',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -476,7 +477,7 @@ describe('PhishingController', () => {
     expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
       result: true,
       type: 'blocklist',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -485,7 +486,7 @@ describe('PhishingController', () => {
     expect(controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
       result: true,
       type: 'blocklist',
-      name: `MetaMask`,
+      name: ListNames.MetaMask,
     });
   });
 
@@ -514,7 +515,7 @@ describe('PhishingController', () => {
     expect(controller.test('metamask.io')).toMatchObject({
       result: false,
       type: 'allowlist',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -602,7 +603,7 @@ describe('PhishingController', () => {
     expect(controller.test('etnerscan.io')).toMatchObject({
       result: true,
       type: 'blocklist',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -631,7 +632,7 @@ describe('PhishingController', () => {
     expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
       result: true,
       type: 'blocklist',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -676,7 +677,7 @@ describe('PhishingController', () => {
     expect(controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
       result: true,
       type: 'blocklist',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -716,7 +717,7 @@ describe('PhishingController', () => {
     ).toMatchObject({
       result: true,
       type: 'blocklist',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -727,7 +728,7 @@ describe('PhishingController', () => {
         data: {
           eth_phishing_detect_config: {
             allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
+            blocklist: [],
             fuzzylist: [],
           },
           phishfort_hotlist: {
@@ -776,7 +777,7 @@ describe('PhishingController', () => {
     expect(controller.test('opensea.io')).toMatchObject({
       result: false,
       type: 'allowlist',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -805,7 +806,7 @@ describe('PhishingController', () => {
     expect(controller.test('ohpensea.io')).toMatchObject({
       result: true,
       type: 'fuzzy',
-      name: 'MetaMask',
+      name: ListNames.MetaMask,
     });
   });
 
@@ -1035,7 +1036,7 @@ describe('PhishingController', () => {
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 2,
-          name: 'MetaMask',
+          name: ListNames.MetaMask,
           version: 0,
         },
         {
@@ -1044,7 +1045,7 @@ describe('PhishingController', () => {
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 1,
-          name: 'Phishfort',
+          name: ListNames.Phishfort,
           version: 0,
         },
       ]);
@@ -1099,7 +1100,7 @@ describe('PhishingController', () => {
           tolerance: 0,
           version: 0,
           lastUpdated: 2,
-          name: 'MetaMask',
+          name: ListNames.MetaMask,
         },
         {
           blocklist: [],
@@ -1108,7 +1109,7 @@ describe('PhishingController', () => {
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
-          name: 'Phishfort',
+          name: ListNames.Phishfort,
         },
       ]);
     });
@@ -1123,7 +1124,7 @@ describe('PhishingController', () => {
           blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
           fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
           tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-          name: `MetaMask`,
+          name: ListNames.MetaMask,
           version: DEFAULT_PHISHING_RESPONSE.version,
           lastUpdated: 0,
         },
@@ -1140,7 +1141,7 @@ describe('PhishingController', () => {
           blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
           fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
           tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-          name: `MetaMask`,
+          name: ListNames.MetaMask,
           version: DEFAULT_PHISHING_RESPONSE.version,
           lastUpdated: 0,
         },
@@ -1163,7 +1164,7 @@ describe('PhishingController', () => {
           blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
           fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
           tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-          name: `MetaMask`,
+          name: ListNames.MetaMask,
           version: DEFAULT_PHISHING_RESPONSE.version,
           lastUpdated: 0,
         },
@@ -1186,7 +1187,7 @@ describe('PhishingController', () => {
           blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
           fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
           tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-          name: `MetaMask`,
+          name: ListNames.MetaMask,
           version: DEFAULT_PHISHING_RESPONSE.version,
           lastUpdated: 0,
         },
@@ -1308,7 +1309,7 @@ describe('PhishingController', () => {
           ],
           fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
           tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-          name: `MetaMask`,
+          name: ListNames.MetaMask,
           version: DEFAULT_PHISHING_RESPONSE.version,
           lastUpdated: 1,
         },

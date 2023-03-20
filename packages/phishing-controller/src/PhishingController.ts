@@ -72,7 +72,7 @@ export interface PhishingListState {
   tolerance: number;
   version: number;
   lastUpdated: number;
-  name: string;
+  name: ListNames;
 }
 
 /**
@@ -240,7 +240,7 @@ export class PhishingController extends BaseController<
           fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
           tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
           version: DEFAULT_PHISHING_RESPONSE.version,
-          name: 'MetaMask',
+          name: ListNames.MetaMask,
           lastUpdated: 0,
         },
       ],
@@ -483,38 +483,35 @@ export class PhishingController extends BaseController<
     const lastDiffTimestamp = Math.max(
       ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
     );
+    let hotlistResponse: DataResultWrapper<Hotlist> | null;
 
-    const hotlistResponse = await this.queryConfig<DataResultWrapper<Hotlist>>(
-      `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
-    )
-      .then((d) => d)
-      .finally(() => {
-        // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
-        // traffic after a network disruption.
-        this.update({
-          hotlistLastFetched: fetchTimeNow(),
-        });
+    try {
+      hotlistResponse = await this.queryConfig<DataResultWrapper<Hotlist>>(
+        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
+      );
+    } finally {
+      // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
+      // traffic after a network disruption.
+      this.update({
+        hotlistLastFetched: fetchTimeNow(),
       });
-    if (
-      !hotlistResponse ||
-      !hotlistResponse.data ||
-      hotlistResponse.data.length === 0
-    ) {
-      return;
     }
-    // Correctly shaping new phishing detection config objects.
-    const newPhishingLists = this.state.phishingLists.map((phishingList) =>
-      applyDiffs(
-        phishingList,
-        hotlistResponse.data,
-        phishingListNameKeyMap[phishingList.name as ListNames],
-      ),
-    );
 
-    this.update({
-      phishingLists: newPhishingLists,
-    });
-    this.updatePhishingDetector();
+    if (hotlistResponse?.data && hotlistResponse?.data?.length > 0) {
+      const hotlist = hotlistResponse?.data;
+      const newPhishingLists = this.state.phishingLists.map((phishingList) =>
+        applyDiffs(
+          phishingList,
+          hotlist,
+          phishingListNameKeyMap[phishingList.name],
+        ),
+      );
+
+      this.update({
+        phishingLists: newPhishingLists,
+      });
+      this.updatePhishingDetector();
+    }
   }
 
   private async queryConfig<ResponseType>(

@@ -1,5 +1,5 @@
 import sinon from 'sinon';
-import { ListKeys } from './PhishingController';
+import { ListKeys, ListNames } from './PhishingController';
 import { applyDiffs, fetchTimeNow } from './utils';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
@@ -17,7 +17,7 @@ const exampleListState = {
   tolerance: 2,
   allowlist: exampleAllowlist,
   version: 0,
-  name: 'MetaMask',
+  name: ListNames.MetaMask,
   lastUpdated: 0,
 };
 
@@ -99,6 +99,39 @@ describe('applyDiffs', () => {
     expect(result).toStrictEqual({
       ...exampleListState,
       blocklist: [...exampleListState.blocklist, exampleBlockedUrlTwo],
+      lastUpdated: 1674773009,
+    });
+  });
+
+  it('does not add an addition diff to the state if it does not contain the same targetlist listkey.', () => {
+    const testTime = 1674773005000;
+    sinon.useFakeTimers(testTime);
+    const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
+    const result = applyDiffs(
+      testExistingState,
+      [exampleAddDiff],
+      ListKeys.PhishfortHotlist,
+    );
+    expect(result).toStrictEqual(testExistingState);
+  });
+
+  it('does not remove a url from the state if it does not contain the same targetlist listkey.', () => {
+    const testTime = 1674773005000;
+    sinon.useFakeTimers(testTime);
+    const testExistingState = {
+      ...exampleListState,
+      lastUpdated: 1674773005,
+    };
+    const result = applyDiffs(
+      testExistingState,
+      [
+        { ...exampleAddDiff, timestamp: 1674773009 },
+        { ...exampleRemoveDiff, timestamp: 1674773004 },
+      ],
+      ListKeys.PhishfortHotlist,
+    );
+    expect(result).toStrictEqual({
+      ...exampleListState,
       lastUpdated: 1674773009,
     });
   });

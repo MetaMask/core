@@ -1,7 +1,6 @@
 import {
   Hotlist,
   ListKeys,
-  ListTypes,
   phishingListKeyNameMap,
   PhishingListState,
 } from './PhishingController';
@@ -11,6 +10,22 @@ import {
  * @returns the Date.now() time in seconds instead of miliseconds. backend files rely on timestamps in seconds since epoch.
  */
 export const fetchTimeNow = (): number => Math.round(Date.now() / 1000);
+
+/**
+ * Split a string into two pieces, using the first period as the delimiter.
+ *
+ * @param stringToSplit - The string to split.
+ * @returns An array of length two containing the beginning and end of the string.
+ */
+const splitStringByPeriod = <Start extends string, End extends string>(
+  stringToSplit: `${Start}.${End}`,
+): [Start, End] => {
+  const periodIndex = stringToSplit.indexOf('.');
+  return [
+    stringToSplit.slice(0, periodIndex) as Start,
+    stringToSplit.slice(periodIndex + 1) as End,
+  ];
+};
 
 /**
  * Determines which diffs are applicable to the listState, then applies those diffs.
@@ -30,7 +45,7 @@ export const applyDiffs = (
   const diffsToApply = hotlistDiffs.filter(
     ({ timestamp, targetList }) =>
       timestamp > listState.lastUpdated &&
-      (targetList.split('.')[0] as ListKeys) === listKey,
+      splitStringByPeriod(targetList)[0] === listKey,
   );
 
   // the reason behind using latestDiffTimestamp as the lastUpdated time
@@ -45,7 +60,7 @@ export const applyDiffs = (
     fuzzylist: new Set(listState.fuzzylist),
   };
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
-    const targetListType = targetList.split('.')[1] as ListTypes;
+    const targetListType = splitStringByPeriod(targetList)[1];
     if (timestamp > latestDiffTimestamp) {
       latestDiffTimestamp = timestamp;
     }
