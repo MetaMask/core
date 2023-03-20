@@ -1315,5 +1315,20 @@ describe('PhishingController', () => {
         },
       ]);
     });
+    it('should not update phishing lists if hotlist fetch returns 400', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .reply(404);
+
+      const controller = new PhishingController();
+      await controller.updateHotlist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          ...controller.state.phishingLists[0],
+          lastUpdated: 0,
+        },
+      ]);
+    });
   });
 });

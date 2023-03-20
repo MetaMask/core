@@ -497,21 +497,22 @@ export class PhishingController extends BaseController<
       });
     }
 
-    if (hotlistResponse?.data && hotlistResponse?.data?.length > 0) {
-      const hotlist = hotlistResponse?.data;
-      const newPhishingLists = this.state.phishingLists.map((phishingList) =>
-        applyDiffs(
-          phishingList,
-          hotlist,
-          phishingListNameKeyMap[phishingList.name],
-        ),
-      );
-
-      this.update({
-        phishingLists: newPhishingLists,
-      });
-      this.updatePhishingDetector();
+    if (!hotlistResponse?.data) {
+      return;
     }
+    const hotlist = hotlistResponse.data;
+    const newPhishingLists = this.state.phishingLists.map((phishingList) =>
+      applyDiffs(
+        phishingList,
+        hotlist,
+        phishingListNameKeyMap[phishingList.name],
+      ),
+    );
+
+    this.update({
+      phishingLists: newPhishingLists,
+    });
+    this.updatePhishingDetector();
   }
 
   private async queryConfig<ResponseType>(
