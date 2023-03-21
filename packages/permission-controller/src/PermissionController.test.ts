@@ -54,9 +54,8 @@ type FilterObjectCaveat = Caveat<
 
 type NoopCaveat = Caveat<typeof CaveatTypes.noopCaveat, null>;
 
-const onPermittedMock = jest.fn(() => Promise.resolve());
+const onPermittedMock = jest.fn(() => Promise.resolve('foo'));
 const onFailureMock = jest.fn(() => Promise.resolve());
-const onSuccessMock = jest.fn(() => Promise.resolve());
 
 /**
  * Gets caveat specifications for:
@@ -315,7 +314,6 @@ function getDefaultPermissionSpecifications() {
       sideEffect: {
         onPermitted: onPermittedMock,
         onFailure: onFailureMock,
-        onSuccess: onSuccessMock,
       },
     },
     // This one exists to check some permission validator logic
@@ -2970,8 +2968,11 @@ describe('PermissionController', () => {
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
+            value: {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            },
+            sideEffectsData: ['foo'],
           };
         });
 
@@ -2991,7 +2992,11 @@ describe('PermissionController', () => {
             invoker: origin,
           }),
         },
-        { id: expect.any(String), origin },
+        {
+          data: { [PermissionNames.wallet_noopWithSideEffects]: 'foo' },
+          id: expect.any(String),
+          origin,
+        },
       ]);
 
       expect(callActionSpy).toHaveBeenCalledTimes(1);
@@ -3007,7 +3012,6 @@ describe('PermissionController', () => {
           sideEffects: {
             permittedHandlers: [onPermittedMock],
             failureHandlers: [onFailureMock],
-            successHandlers: [onSuccessMock],
           },
           type: MethodNames.requestPermissions,
         },

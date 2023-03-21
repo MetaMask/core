@@ -357,15 +357,11 @@ export type PermissionSideEffect = {
   /**
    * A method triggered when the permission is accepted by the user
    */
-  onPermitted: (params: SideEffectParams) => Promise<void>;
+  onPermitted: (params: SideEffectParams) => Promise<unknown>;
   /**
    * A method triggered if a `onPemitted` method rejected.
    */
-  onFailure: (params: SideEffectParams) => Promise<void>;
-  /**
-   * A method triggered after `onPermitted` method resolved
-   */
-  onSuccess?: (params: SideEffectParams) => Promise<void>;
+  onFailure: (params: SideEffectParams) => Promise<unknown>;
 };
 
 /**

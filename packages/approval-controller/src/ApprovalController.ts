@@ -36,9 +36,8 @@ export type SideEffectParams = {
 };
 
 export type SideEffects = {
-  permittedHandlers: ((params: SideEffectParams) => Promise<void>)[];
-  failureHandlers: ((params: SideEffectParams) => Promise<void>)[];
-  successHandlers: ((params: SideEffectParams) => Promise<void>)[];
+  permittedHandlers: ((params: SideEffectParams) => Promise<unknown>)[];
+  failureHandlers: ((params: SideEffectParams) => Promise<unknown>)[];
 };
 
 export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
@@ -456,16 +455,18 @@ export class ApprovalController extends BaseControllerV2<
 
     try {
       if (sideEffects) {
-        await this._handleSideEffects(sideEffects, {
+        const sideEffectsData = await this._handleSideEffects(sideEffects, {
           requestData,
           callAction: this.messagingSystem.call.bind(this.messagingSystem),
         });
+
+        resolve({ sideEffectsData, value });
       }
+
+      resolve(value);
     } catch (err) {
       reject(err);
     }
-
-    resolve(value);
   }
 
   /**
@@ -690,7 +691,7 @@ export class ApprovalController extends BaseControllerV2<
   private async _handleSideEffects(
     sideEffects: SideEffects,
     params: SideEffectParams,
-  ) {
+  ): Promise<unknown[]> {
     const promiseResults = await Promise.allSettled(
       sideEffects.permittedHandlers.map(async (permittedHandler) =>
         permittedHandler(params),
@@ -709,31 +710,26 @@ export class ApprovalController extends BaseControllerV2<
           ),
         );
       } catch (error) {
-        throw new Error(
-          `Something went wrong with side-effects failure handling and wasn't able to recover: ${error}`,
-        );
+        console.error(error);
+        throw ethErrors.rpc.internal('Unexpected error in side-effects');
       }
 
-      // @ts-expect-error wrong typing ?
+      // @ts-expect-error wrong type for `Promise.allSettled` return.
       const reasons = rejectedHandlers.map((handler) => handler.reason);
-      throw new Error(
-        `Permitted handlers failed, side effects have been reverted:\n${reasons.join(
-          '\n',
-        )}`,
-      );
-    } else if (sideEffects.successHandlers.length !== 0) {
-      try {
-        await Promise.all(
-          sideEffects.successHandlers.map((successHandler) =>
-            successHandler(params),
-          ),
-        );
-      } catch (error) {
-        throw new Error(
-          `Something went wrong with side-effects success handling and wasn't able to recover: ${error}`,
-        );
-      }
+
+      reasons.forEach((reason) => {
+        console.error(reason);
+      });
+
+      throw reasons.length > 1
+        ? ethErrors.rpc.internal(
+            'Multiple errors appened during side-effects execution',
+          )
+        : reasons[0];
     }
+
+    // @ts-expect-error wrong type for `Promise.allSettled` return.
+    return promiseResults.map(({ value }) => value);
   }
 
   /**

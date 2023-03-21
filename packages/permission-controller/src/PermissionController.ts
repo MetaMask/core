@@ -1873,7 +1873,7 @@ export class PermissionController<
           ControllerCaveatSpecification
         >
       >,
-      { id: string; origin: OriginString },
+      { data?: Record<string, unknown>; id: string; origin: OriginString },
     ]
   > {
     const { origin } = subject;
@@ -1890,8 +1890,27 @@ export class PermissionController<
       permissions: requestedPermissions,
     };
 
-    const { permissions: approvedPermissions, ...requestData } =
-      await this.requestUserApproval(permissionsRequest);
+    const {
+      approvedRequest: { permissions: approvedPermissions, ...requestData },
+      sideEffectsData,
+    } = await this.requestUserApproval(permissionsRequest);
+
+    if (sideEffectsData) {
+      const data = Object.keys(approvedPermissions).reduce(
+        (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
+        {},
+      );
+
+      return [
+        this.grantPermissions({
+          subject,
+          approvedPermissions,
+          preserveExistingPermissions,
+          requestData,
+        }),
+        { data, ...metadata },
+      ];
+    }
 
     return [
       this.grantPermissions({
@@ -1977,7 +1996,12 @@ export class PermissionController<
    * @param permissionsRequest - The permissions request object.
    * @returns The approved permissions request object.
    */
-  private async requestUserApproval(permissionsRequest: PermissionsRequest) {
+  private async requestUserApproval(
+    permissionsRequest: PermissionsRequest,
+  ): Promise<{
+    approvedRequest: PermissionsRequest;
+    sideEffectsData?: unknown[];
+  }> {
     const { origin, id } = permissionsRequest.metadata;
 
     const sideEffects = Object.keys(
@@ -1996,18 +2020,14 @@ export class PermissionController<
             sideEffectList.failureHandlers.push(
               specification.sideEffect.onFailure,
             );
-
-            if (specification.sideEffect.onSuccess) {
-              sideEffectList.successHandlers.push(
-                specification.sideEffect.onSuccess,
-              );
-            }
           }
         }
         return sideEffectList;
       },
-      { permittedHandlers: [], failureHandlers: [], successHandlers: [] },
+      { permittedHandlers: [], failureHandlers: [] },
     );
+
+    const hasSideEffects = sideEffects.permittedHandlers.length !== 0;
 
     const approvedRequest = await this.messagingSystem.call(
       'ApprovalController:addRequest',
@@ -2016,14 +2036,23 @@ export class PermissionController<
         origin,
         requestData: permissionsRequest,
         type: MethodNames.requestPermissions,
-        sideEffects:
-          sideEffects.permittedHandlers.length !== 0 ? sideEffects : undefined,
+        sideEffects: hasSideEffects ? sideEffects : undefined,
       },
       true,
     );
 
+    if (hasSideEffects) {
+      const { value, sideEffectsData } = approvedRequest as {
+        value: PermissionsRequest;
+        sideEffectsData: unknown[];
+      };
+
+      this.validateApprovedPermissions(value, { id, origin });
+      return { approvedRequest: value, sideEffectsData };
+    }
+
     this.validateApprovedPermissions(approvedRequest, { id, origin });
-    return approvedRequest as PermissionsRequest;
+    return { approvedRequest } as { approvedRequest: PermissionsRequest };
   }
 
   /**
