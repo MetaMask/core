@@ -11,7 +11,7 @@ import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-key
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import * as uuid from 'uuid';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { MAINNET } from '@metamask/controller-utils';
+import { NetworkType } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
@@ -991,7 +991,7 @@ describe('KeyringController', () => {
         },
         {
           common: Common.forCustomChain(
-            MAINNET,
+            NetworkType.mainnet,
             {
               name: 'goerli',
               chainId: parseInt('5'),

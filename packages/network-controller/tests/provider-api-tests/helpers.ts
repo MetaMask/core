@@ -284,7 +284,7 @@ export type MockCommunications = {
 export const withMockedCommunications = async (
   {
     providerType,
-    infuraNetwork = 'mainnet',
+    infuraNetwork = NetworkType.mainnet,
     customRpcUrl = MOCK_RPC_URL,
   }: MockOptions,
   fn: (comms: MockCommunications) => Promise<void>,
@@ -367,7 +367,7 @@ export const waitForPromiseToBeFulfilledAfterRunningAllTimers = async (
 export const withNetworkClient = async (
   {
     providerType,
-    infuraNetwork = 'mainnet',
+    infuraNetwork = NetworkType.mainnet,
     customRpcUrl = MOCK_RPC_URL,
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<any>,

@@ -20,7 +20,7 @@ import {
   safelyExecute,
   isSmartContractCode,
   query,
-  MAINNET,
+  NetworkType,
   RPC,
 } from '@metamask/controller-utils';
 import {
@@ -603,7 +603,11 @@ export class TransactionController extends BaseController<
       networkId: parseInt(networkId, undefined),
     };
 
-    return Common.forCustomChain(MAINNET, customChainParams, HARDFORK);
+    return Common.forCustomChain(
+      NetworkType.mainnet,
+      customChainParams,
+      HARDFORK,
+    );
   }
 
   /**
