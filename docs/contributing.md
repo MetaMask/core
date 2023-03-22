@@ -26,10 +26,13 @@ When developing changes to packages within this repository that a different proj
 If you're a MetaMask contributor, you can create these preview versions via draft pull requests:
 
 1. Navigate to your settings within GitHub and [create a classic access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `packages:read` scope.
-2. Switch to your project locally and add a `.npmrc` file with the following content, filling in the appropriate areas:
+2. Switch to your project locally and add/edit your `.yarnrc.yml` file with the following content, filling in the appropriate areas:
    ```
-   @metamask:registry=https://npm.pkg.github.com
-   //npm.pkg.github.com/:_authToken=<your personal access token>
+   npmScopes:
+      'metamask':
+         npmAlwaysAuth: true
+         npmAuthToken: <your personal access token>
+         npmRegistryServer: 'https://npm.pkg.github.com'
    ```
    Make sure not to commit this file.
 3. Go to GitHub and open up a pull request for this repository, then post a comment on the PR with the text `@metamaskbot publish-preview`. (This triggers the `publish-preview` GitHub action.)
@@ -42,10 +45,13 @@ If you're a MetaMask contributor, you can create these preview versions via draf
 If you're a contributor and you've forked this repository, you can create preview versions for a branch via provided scripts:
 
 1. Navigate to your settings within GitHub and [create a **classic** access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `packages:read` scope.
-2. Switch to your project locally and add a `.npmrc` file with the following content, filling in the appropriate areas:
+2. Switch to your project locally and add/edit your `.yarnrc.yml` file with the following content, filling in the appropriate areas:
    ```
-   @<your GitHub username>:registry=https://npm.pkg.github.com
-   //npm.pkg.github.com/:_authToken=<your personal access token>
+   npmScopes:
+      '<your GitHub username>':
+         npmAlwaysAuth: true
+         npmAuthToken: <your personal access token>
+         npmRegistryServer: 'https://npm.pkg.github.com'
    ```
    Make sure not to commit this file.
 3. Open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<your GitHub username>`.
