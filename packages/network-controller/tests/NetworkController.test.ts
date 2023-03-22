@@ -446,7 +446,7 @@ describe('NetworkController', () => {
                   type: 'localhost',
                   chainId: '66666',
                   nickname: "doesn't matter",
-                  rpcUrl: 'http://doesntmatter.com',
+                  rpcTarget: 'http://doesntmatter.com',
                   ticker: 'ABC',
                 }),
               },
@@ -665,7 +665,7 @@ describe('NetworkController', () => {
                     type: 'rpc',
                     chainId: '123',
                     nickname: 'some cool network',
-                    rpcUrl: 'http://example.com',
+                    rpcTarget: 'http://example.com',
                     ticker: 'ABC',
                   },
                 },
@@ -716,7 +716,7 @@ describe('NetworkController', () => {
                 state: {
                   providerConfig: buildProviderConfig({
                     type: 'rpc',
-                    rpcUrl: 'http://example.com',
+                    rpcTarget: 'http://example.com',
                   }),
                 },
               },
@@ -750,7 +750,7 @@ describe('NetworkController', () => {
                     state: {
                       providerConfig: buildProviderConfig({
                         type: 'rpc',
-                        rpcUrl: 'http://example.com',
+                        rpcTarget: 'http://example.com',
                       }),
                     },
                   },
@@ -822,7 +822,7 @@ describe('NetworkController', () => {
                     state: {
                       providerConfig: buildProviderConfig({
                         type: 'rpc',
-                        rpcUrl: 'http://example.com',
+                        rpcTarget: 'http://example.com',
                       }),
                     },
                   },
@@ -1244,7 +1244,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: 'localhost',
-                rpcUrl: 'http://somethingexisting.com',
+                rpcTarget: 'http://somethingexisting.com',
                 chainId: '99999',
                 ticker: 'something existing',
                 nickname: 'something existing',
@@ -1270,7 +1270,7 @@ describe('NetworkController', () => {
               type: 'mainnet',
               ticker: 'ETH',
               chainId: '1',
-              rpcUrl: undefined,
+              rpcTarget: undefined,
               nickname: undefined,
             });
           },
@@ -1582,7 +1582,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: 'localhost',
-                  rpcUrl: 'http://somethingexisting.com',
+                  rpcTarget: 'http://somethingexisting.com',
                   chainId: '99999',
                   ticker: 'something existing',
                   nickname: 'something existing',
@@ -1608,7 +1608,7 @@ describe('NetworkController', () => {
                 type: networkType,
                 ticker,
                 chainId,
-                rpcUrl: undefined,
+                rpcTarget: undefined,
                 nickname: undefined,
               });
             },
@@ -1908,7 +1908,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: 'localhost',
-                rpcUrl: 'http://somethingexisting.com',
+                rpcTarget: 'http://somethingexisting.com',
                 chainId: '99999',
                 ticker: 'something existing',
                 nickname: 'something existing',
@@ -1930,7 +1930,7 @@ describe('NetworkController', () => {
               type: 'rpc',
               ticker: 'ETH',
               chainId: '',
-              rpcUrl: undefined,
+              rpcTarget: undefined,
               nickname: undefined,
             });
           },
@@ -2022,7 +2022,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: 'localhost',
-                rpcUrl: 'http://somethingexisting.com',
+                rpcTarget: 'http://somethingexisting.com',
                 chainId: '99999',
                 ticker: 'something existing',
                 nickname: 'something existing',
@@ -2044,7 +2044,7 @@ describe('NetworkController', () => {
               type: 'localhost',
               ticker: 'ETH',
               chainId: '',
-              rpcUrl: undefined,
+              rpcTarget: undefined,
               nickname: undefined,
             });
           },
@@ -2291,7 +2291,7 @@ describe('NetworkController', () => {
 
   describe('setActiveNetwork', () => {
     describe('given only a networkConfigurationId', () => {
-      it('updates the provider config in state with the rpcUrl and chainId, clearing the previous provider details', async () => {
+      it('updates the provider config in state with the rpcTarget and chainId, clearing the previous provider details', async () => {
         const messenger = buildMessenger();
         await withController(
           {
@@ -2299,7 +2299,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: 'localhost',
-                rpcUrl: 'http://somethingexisting.com',
+                rpcTarget: 'http://somethingexisting.com',
                 chainId: '99999',
                 ticker: 'something existing',
                 nickname: 'something existing',
@@ -2334,7 +2334,7 @@ describe('NetworkController', () => {
 
             expect(controller.state.providerConfig).toStrictEqual({
               type: 'rpc',
-              rpcUrl: 'https://mock-rpc-url',
+              rpcTarget: 'https://mock-rpc-url',
               chainId: '0xtest',
               ticker: 'TEST',
               id: 'testNetworkConfigurationId',

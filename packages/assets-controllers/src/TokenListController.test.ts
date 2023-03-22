@@ -1036,7 +1036,7 @@ describe('TokenListController', () => {
     controllerMessenger.publish('NetworkController:providerConfigChange', {
       type: 'rpc',
       chainId: '56',
-      rpcUrl: 'http://localhost:8545',
+      rpcTarget: 'http://localhost:8545',
     });
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
@@ -1138,7 +1138,7 @@ describe('TokenListController', () => {
       controllerMessenger.publish('NetworkController:providerConfigChange', {
         type: 'rpc',
         chainId: '56',
-        rpcUrl: 'http://localhost:8545',
+        rpcTarget: 'http://localhost:8545',
       });
     });
   });
