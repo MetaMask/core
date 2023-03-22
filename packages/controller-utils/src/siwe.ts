@@ -1,11 +1,10 @@
 import { ParsedMessage } from '@spruceid/siwe-parser';
-import { stripHexPrefix } from 'ethereumjs-util';
+import { bytesToString, hexToBytes } from '@metamask/utils';
 
 const msgHexToText = (hex: string): string => {
   try {
-    const stripped = stripHexPrefix(hex);
-    const buff = Buffer.from(stripped, 'hex');
-    return buff.length === 32 ? hex : buff.toString('utf8');
+    const bytes = hexToBytes(hex);
+    return bytes.length === 32 ? hex : bytesToString(bytes);
   } catch (e) {
     return hex;
   }

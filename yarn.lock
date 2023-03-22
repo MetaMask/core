@@ -1556,6 +1556,7 @@ __metadata:
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
+    "@metamask/utils": ^3.3.1
     "@spruceid/siwe-parser": ^2.0.2
     "@types/jest": ^26.0.22
     abort-controller: ^3.0.0
