@@ -25,14 +25,13 @@ type ApprovalCallbacks = {
 
 export type SideEffectParams = {
   requestData: Record<string, Json> | null;
-  callAction: (
-    action: string,
-  ) =>
-    | boolean
-    | void
-    | ApprovalControllerState
-    | Promise<unknown>
-    | Promise<void>;
+  messagingSystem: RestrictedControllerMessenger<
+    'ApprovalController',
+    ApprovalControllerActions,
+    ApprovalStateChange,
+    string,
+    never
+  >;
 };
 
 export type SideEffects = {
@@ -457,7 +456,7 @@ export class ApprovalController extends BaseControllerV2<
       if (sideEffects) {
         const sideEffectsData = await this._handleSideEffects(sideEffects, {
           requestData,
-          callAction: this.messagingSystem.call.bind(this.messagingSystem),
+          messagingSystem: this.messagingSystem,
         });
 
         resolve({ sideEffectsData, value });
