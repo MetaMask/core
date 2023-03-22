@@ -642,6 +642,33 @@ describe('approval controller', () => {
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
 
+    it('throws the appropriate error on multiple rejected permitted handlers', async () => {
+      numDeletions = 1;
+      const errorMessage = 'failed';
+      const permitterHandlerMock = jest.fn(() =>
+        Promise.reject(new Error(errorMessage)),
+      );
+      const failureHandlerMock = jest.fn(() => Promise.resolve());
+
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+        sideEffects: {
+          permittedHandlers: [permitterHandlerMock, permitterHandlerMock],
+          failureHandlers: [failureHandlerMock, failureHandlerMock],
+        },
+      });
+      await approvalController.accept('foo', 'success');
+
+      await expect(async () => approvalPromise).rejects.toThrow(
+        'Multiple errors appened during side-effects execution',
+      );
+      expect(permitterHandlerMock).toHaveBeenCalled();
+      expect(failureHandlerMock).toHaveBeenCalledTimes(2);
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+    });
+
     it('rejects the approval if failure handlers throws', async () => {
       numDeletions = 1;
       const permitterHandlerMock = jest.fn(() =>
