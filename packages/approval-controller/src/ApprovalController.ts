@@ -321,8 +321,8 @@ export class ApprovalController extends BaseControllerV2<
    * generated if none is provided.
    * @param opts.origin - The origin of the approval request.
    * @param opts.type - The type associated with the approval request.
-   * @param opts.requestData - Additional data associated with the request,
-   * if any.
+   * @param opts.requestData - Additional data associated with the request, if any.
+   * @param opts.sideEffects - side effects associated with the request.
    * @returns The approval promise.
    */
   add(opts: AddApprovalOptions): Promise<unknown> {
