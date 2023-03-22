@@ -1,5 +1,4 @@
-import { NetworkType } from '@metamask/controller-utils';
-import { isNetworkType } from './types';
+import { isNetworkType, NetworkType } from './types';
 
 describe('types', () => {
   it('isNetworkType', () => {
