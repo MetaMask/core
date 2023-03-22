@@ -35,6 +35,7 @@ const setupControllers = () => {
     });
   const network = new NetworkController({
     messenger,
+    trackMetaMetricsEvent: jest.fn(),
   });
   const preferences = new PreferencesController();
   const assetsContract = new AssetsContractController({
