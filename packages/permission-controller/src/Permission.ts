@@ -1,7 +1,8 @@
 import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '@metamask/controller-utils';
-import { SideEffectParams } from '@metamask/approval-controller';
+import { SideEffectHandler } from '@metamask/approval-controller';
+import { ActionConstraint, EventConstraint } from '@metamask/base-controller';
 import { CaveatConstraint } from './Caveat';
 
 import type {
@@ -353,15 +354,18 @@ export type PermissionValidatorConstraint = (
   target?: string,
 ) => void;
 
-export type PermissionSideEffect = {
+export type PermissionSideEffect<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = {
   /**
    * A method triggered when the permission is accepted by the user
    */
-  onPermitted: (params: SideEffectParams) => Promise<unknown>;
+  onPermitted: SideEffectHandler<Actions, Events>;
   /**
    * A method triggered if a `onPemitted` method rejected.
    */
-  onFailure: (params: SideEffectParams) => Promise<unknown>;
+  onFailure?: SideEffectHandler<Actions, Events>;
 };
 
 /**
@@ -454,7 +458,7 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    *
    * If the side-effect action fails, the permission that triggered it is revoked.
    */
-  sideEffect?: PermissionSideEffect;
+  sideEffect?: PermissionSideEffect<any, any>;
 };
 
 /**

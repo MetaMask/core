@@ -2017,14 +2017,24 @@ export class PermissionController<
             sideEffectList.permittedHandlers.push(
               specification.sideEffect.onPermitted,
             );
-            sideEffectList.failureHandlers.push(
-              specification.sideEffect.onFailure,
-            );
+
+            if (specification.sideEffect.onFailure) {
+              if (sideEffectList.failureHandlers) {
+                sideEffectList.failureHandlers.push(
+                  specification.sideEffect.onFailure,
+                );
+              } else {
+                return {
+                  permittedHandlers: sideEffectList.permittedHandlers,
+                  failureHandlers: [specification.sideEffect.onFailure],
+                };
+              }
+            }
           }
         }
         return sideEffectList;
       },
-      { permittedHandlers: [], failureHandlers: [] },
+      { permittedHandlers: [] },
     );
 
     const hasSideEffects = sideEffects.permittedHandlers.length !== 0;

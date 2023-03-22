@@ -2,7 +2,9 @@ import type { Patch } from 'immer';
 import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
 import { nanoid } from 'nanoid';
 import {
+  ActionConstraint,
   BaseControllerV2,
+  EventConstraint,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Json } from '@metamask/controller-utils';
@@ -23,14 +25,22 @@ type ApprovalCallbacks = {
   sideEffects?: SideEffects;
 };
 
-export type SideEffectParams = {
+export type SideEffectParams<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = {
   requestData: Record<string, Json> | null;
-  messagingSystem: SideEffectMessenger;
+  messagingSystem: SideEffectMessenger<Actions, Events>;
 };
 
+export type SideEffectHandler<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = (params: SideEffectParams<Actions, Events>) => Promise<unknown>;
+
 export type SideEffects = {
-  permittedHandlers: ((params: SideEffectParams) => Promise<unknown>)[];
-  failureHandlers: ((params: SideEffectParams) => Promise<unknown>)[];
+  permittedHandlers: SideEffectHandler<any, any>[];
+  failureHandlers?: SideEffectHandler<any, any>[];
 };
 
 export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
@@ -156,10 +166,13 @@ export type ApprovalStateChange = {
 
 export type ApprovalControllerEvents = ApprovalStateChange;
 
-export type SideEffectMessenger = RestrictedControllerMessenger<
+export type SideEffectMessenger<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = RestrictedControllerMessenger<
   typeof controllerName,
-  { type: string; handler: (...args: unknown[]) => unknown },
-  { type: string; payload: unknown[] },
+  Actions,
+  Events,
   string,
   never
 >;
@@ -443,9 +456,9 @@ export class ApprovalController extends BaseControllerV2<
    * @param value - The value to resolve the approval promise with.
    */
   async accept(id: string, value?: unknown): Promise<void> {
-    const permission = this._approvals.get(id);
+    const approval = this._approvals.get(id);
 
-    if (!permission) {
+    if (!approval) {
       throw new ApprovalRequestNotFoundError(id);
     }
 
@@ -462,9 +475,9 @@ export class ApprovalController extends BaseControllerV2<
         });
 
         resolve({ sideEffectsData, value });
+      } else {
+        resolve(value);
       }
-
-      resolve(value);
     } catch (err) {
       reject(err);
     }
@@ -691,10 +704,11 @@ export class ApprovalController extends BaseControllerV2<
 
   private async _handleSideEffects(
     sideEffects: SideEffects,
-    params: SideEffectParams,
+    params: SideEffectParams<any, any>,
   ): Promise<unknown[]> {
+    const { permittedHandlers, failureHandlers } = sideEffects;
     const promiseResults = await Promise.allSettled(
-      sideEffects.permittedHandlers.map(async (permittedHandler) =>
+      permittedHandlers.map(async (permittedHandler) =>
         permittedHandler(params),
       ),
     );
@@ -704,15 +718,15 @@ export class ApprovalController extends BaseControllerV2<
     );
 
     if (rejectedHandlers.length !== 0) {
-      try {
-        await Promise.all(
-          sideEffects.failureHandlers.map((failureHandler) =>
-            failureHandler(params),
-          ),
-        );
-      } catch (error) {
-        console.error(error);
-        throw ethErrors.rpc.internal('Unexpected error in side-effects');
+      if (failureHandlers) {
+        try {
+          await Promise.all(
+            failureHandlers.map((failureHandler) => failureHandler(params)),
+          );
+        } catch (error) {
+          console.error(error);
+          throw ethErrors.rpc.internal('Unexpected error in side-effects');
+        }
       }
 
       // @ts-expect-error wrong type for `Promise.allSettled` return.
