@@ -43,7 +43,7 @@ If you're a MetaMask contributor, you can create these preview versions via draf
 
      ```
      npmScopes:
-        'metamask':
+        metamask:
            npmAlwaysAuth: true
            npmAuthToken: <your personal access token>
            npmRegistryServer: 'https://npm.pkg.github.com'
@@ -78,7 +78,7 @@ If you're a contributor and you've forked this repository, you can create previe
 
      ```
      npmScopes:
-        '<your GitHub username>':
+        <your GitHub username>:
            npmAlwaysAuth: true
            npmAuthToken: <your personal access token>
            npmRegistryServer: 'https://npm.pkg.github.com'
