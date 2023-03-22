@@ -84,7 +84,7 @@ If you're a contributor and you've forked this repository, you can create previe
            npmRegistryServer: 'https://npm.pkg.github.com'
      ```
 
-   Make sure not to commit this file.
+   Make sure not to commit these changes.
 
 3. Open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<your GitHub username>`.
 4. Switch to your fork of this repository locally and run `yarn prepare-preview-builds "$(git rev-parse --short HEAD)" && yarn build && yarn publish-previews` to generate preview versions for all packages based on the current branch and publish them to GitHub Package Registry. Take note of the version that is published; it should look like `1.2.3-e2df9b4` instead of `1.2.3`.
