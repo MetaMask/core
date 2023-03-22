@@ -44,6 +44,7 @@ export const TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL: {
   goerli: 'GoerliETH',
   sepolia: 'SepoliaETH',
   mainnet: '',
+  lineatestnet: 'LineaETH',
   rpc: '',
   localhost: '',
 };
