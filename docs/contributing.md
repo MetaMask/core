@@ -28,7 +28,7 @@ If you're a MetaMask contributor, you can create these preview versions via draf
 1. Navigate to your settings within GitHub and [create a classic access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `packages:read` scope.
 2. Switch to your project locally and add/edit the appropriate file with the following content, filling in the appropriate areas:
 
-   - Yarn 1 (classic) or NPM
+   - **Yarn 1 (classic) or NPM**
 
      Add the following in `.npmrc`
 
@@ -37,7 +37,7 @@ If you're a MetaMask contributor, you can create these preview versions via draf
      //npm.pkg.github.com/:_authToken=<your personal access token>
      ```
 
-   - Yarn 2
+   - **Yarn 2**
 
      Add the following in `.yarnrc.yml`
 
@@ -63,7 +63,7 @@ If you're a contributor and you've forked this repository, you can create previe
 1. Navigate to your settings within GitHub and [create a **classic** access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `packages:read` scope.
 2. Switch to your project locally and add/edit the appropriate file with the following content, filling in the appropriate areas.
 
-   - Yarn 1 (classic) or NPM:
+   - **Yarn 1 (classic) or NPM:**
 
      Add the following in `.npmrc`
 
@@ -72,7 +72,7 @@ If you're a contributor and you've forked this repository, you can create previe
      //npm.pkg.github.com/:_authToken=<your personal access token>
      ```
 
-   - Yarn 2:
+   - **Yarn 2:**
 
      Add the following in `.yarnrc.yml`
 
