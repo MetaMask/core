@@ -49,7 +49,7 @@ If you're a MetaMask contributor, you can create these preview versions via draf
            npmRegistryServer: 'https://npm.pkg.github.com'
      ```
 
-   Make sure not to commit this file.
+   Make sure not to commit these changes.
 
 3. Go to GitHub and open up a pull request for this repository, then post a comment on the PR with the text `@metamaskbot publish-preview`. (This triggers the `publish-preview` GitHub action.)
 4. After a few minutes, you will see a new comment indicating that all packages have been published with the format `<package name>-<commit id>`.
