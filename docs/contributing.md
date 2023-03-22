@@ -37,7 +37,7 @@ If you're a MetaMask contributor, you can create these preview versions via draf
      //npm.pkg.github.com/:_authToken=<your personal access token>
      ```
 
-   - **Yarn 2**
+   - **Yarn >= 2 (berry):**
 
      Add the following in `.yarnrc.yml`
 
@@ -72,7 +72,7 @@ If you're a contributor and you've forked this repository, you can create previe
      //npm.pkg.github.com/:_authToken=<your personal access token>
      ```
 
-   - **Yarn 2:**
+   - **Yarn >= 2 (berry):**
 
      Add the following in `.yarnrc.yml`
 
