@@ -89,7 +89,8 @@ If you're a contributor and you've forked this repository, you can create previe
 3. Open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<your GitHub username>`.
 4. Switch to your fork of this repository locally and run `yarn prepare-preview-builds "$(git rev-parse --short HEAD)" && yarn build && yarn publish-previews` to generate preview versions for all packages based on the current branch and publish them to GitHub Package Registry. Take note of the version that is published; it should look like `1.2.3-e2df9b4` instead of `1.2.3`.
 5. Switch back to your project and update `package.json` by replacing the versions for all packages you've changed using the version that was output in the previous step, then run `yarn install`.
-6. If you make any new changes to your project, repeat steps 3-5 to generate and use new preview versions. 7. As changes will have been made to this repository (due to step 4), make sure to clear out those changes after you've completed testing.
+6. If you make any new changes to your project, repeat steps 3-5 to generate and use new preview versions.
+7. As changes will have been made to this repository (due to step 4), make sure to clear out those changes after you've completed testing.
 
 ## Linting
 
