@@ -399,21 +399,18 @@ export const withNetworkClient = async (
       return Promise.resolve();
     });
 
-  const networkConfigurationId = controller.upsertNetworkConfiguration(
-    {
-      rpcUrl: customRpcUrl,
-      chainId: '0x9999',
-      ticker: 'TEST',
-    },
-    { referrer: 'https://test-dapp.com', source: 'dapp' },
-  );
-
   if (providerType === 'infura') {
     controller.setProviderType(infuraNetwork);
-  } else if (networkConfigurationId) {
-    controller.setActiveNetwork(networkConfigurationId);
+  } else {
+    controller.upsertNetworkConfiguration(
+      {
+        rpcUrl: customRpcUrl,
+        chainId: '0x9999',
+        ticker: 'TEST',
+      },
+      { referrer: 'https://test-dapp.com', source: 'dapp', setActive: true },
+    );
   }
-
   const ethQuery = messenger.call('NetworkController:getEthQuery');
   const { provider, blockTracker } = controller.getProviderAndBlockTracker();
 

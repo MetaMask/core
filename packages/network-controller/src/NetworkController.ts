@@ -553,7 +553,7 @@ export class NetworkController extends BaseControllerV2<
    * @param options - additional configuration options.
    * @param options.setActive - An option to set the newly added networkConfiguration as the active provider.
    * @param options.referrer - The site from which the call originated, or 'metamask' for internal calls - used for event metrics.
-   * @param options.source - Where the upsertNetwork event originated (i.e. from a dapp or from the network form)- used for event metrics.
+   * @param options.source - Where the upsertNetwork event originated (i.e. from a dapp or from the network form) - used for event metrics.
    * @returns id for the added or updated network configuration
    */
   upsertNetworkConfiguration(
@@ -563,7 +563,7 @@ export class NetworkController extends BaseControllerV2<
       referrer,
       source,
     }: { setActive?: boolean; referrer: string; source: string },
-  ) {
+  ): string {
     assertIsStrictHexString(chainId);
 
     if (!isSafeChainId(parseInt(chainId, 16))) {
