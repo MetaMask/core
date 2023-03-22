@@ -29,6 +29,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@spruceid/siwe-parser": "^2.0.2",
     "eth-ens-namehash": "^2.0.8",
     "eth-rpc-errors": "^4.0.0",
     "ethereumjs-util": "^7.0.10",

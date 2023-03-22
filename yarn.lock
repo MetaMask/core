@@ -1556,6 +1556,7 @@ __metadata:
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
+    "@spruceid/siwe-parser": ^2.0.2
     "@types/jest": ^26.0.22
     abort-controller: ^3.0.0
     deepmerge: ^4.2.2
@@ -2092,6 +2093,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/hashes@npm:^1.1.2":
+  version: 1.3.0
+  resolution: "@noble/hashes@npm:1.3.0"
+  checksum: d7ddb6d7c60f1ce1f87facbbef5b724cdea536fc9e7f59ae96e0fc9de96c8f1a2ae2bdedbce10f7dcc621338dfef8533daa73c873f2b5c87fa1a4e05a95c2e2e
+  languageName: node
+  linkType: hard
+
 "@noble/secp256k1@npm:1.6.3, @noble/secp256k1@npm:~1.6.0":
   version: 1.6.3
   resolution: "@noble/secp256k1@npm:1.6.3"
@@ -2245,6 +2253,18 @@ __metadata:
   version: 0.7.1
   resolution: "@sinonjs/text-encoding@npm:0.7.1"
   checksum: 130de0bb568c5f8a611ec21d1a4e3f80ab0c5ec333010f49cfc1adc5cba6d8808699c8a587a46b0f0b016a1f4c1389bc96141e773e8460fcbb441875b2e91ba7
+  languageName: node
+  linkType: hard
+
+"@spruceid/siwe-parser@npm:^2.0.2":
+  version: 2.0.2
+  resolution: "@spruceid/siwe-parser@npm:2.0.2"
+  dependencies:
+    "@noble/hashes": ^1.1.2
+    apg-js: ^4.1.1
+    uri-js: ^4.4.1
+    valid-url: ^1.0.9
+  checksum: 689b09a73026c79223805c77762b923af25209274f26d5f26d95f808a882ceb138dfbdfb6d7c8e31a67fb677bc16d90079c83821ee8e7c8bcece29cd94b2a67b
   languageName: node
   linkType: hard
 
@@ -3046,6 +3066,13 @@ __metadata:
     normalize-path: ^3.0.0
     picomatch: ^2.0.4
   checksum: c951385862bf114807d594bdffccb769bd7219ddc14f24fc135cde075ad2477a97991567b8bb5032d4f279f96897f0c2af6468a350a6c674ac0a5ee3b62a26d6
+  languageName: node
+  linkType: hard
+
+"apg-js@npm:^4.1.1":
+  version: 4.1.3
+  resolution: "apg-js@npm:4.1.3"
+  checksum: fa815838fc3c4b2fa5801419d050c5cf0ac8b5dbbc7476a9c9b8e1ae5fc78feccf01ff3ff52ef1e80c72f8b7bf39f589f1b8aaad5f5aeba399523a9ba18da127
   languageName: node
   linkType: hard
 
@@ -11770,7 +11797,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"uri-js@npm:^4.2.2":
+"uri-js@npm:^4.2.2, uri-js@npm:^4.4.1":
   version: 4.4.1
   resolution: "uri-js@npm:4.4.1"
   dependencies:
@@ -11871,6 +11898,13 @@ __metadata:
     convert-source-map: ^1.6.0
     source-map: ^0.7.3
   checksum: f3e8e9005a7ae94504f584e2a528a8cd9e2d4e83c71872e21f29124c175bbee93513902ffccbddf153ebcf813b98dba276fb8cedfca71310e2d3f2b6d8ecd396
+  languageName: node
+  linkType: hard
+
+"valid-url@npm:^1.0.9":
+  version: 1.0.9
+  resolution: "valid-url@npm:1.0.9"
+  checksum: 3ecb030559404441c2cf104cbabab8770efb0f36d117db03d1081052ef133015a68806148ce954bb4dd0b5c42c14b709a88783c93d66b0916cb67ba771c98702
   languageName: node
   linkType: hard
 
