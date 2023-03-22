@@ -25,7 +25,7 @@ type ApprovalCallbacks = {
 
 export type SideEffectParams = {
   requestData: Record<string, Json> | null;
-  messagingSystem: ApprovalControllerMessenger;
+  messagingSystem: SideEffectMessenger;
 };
 
 export type SideEffects = {
@@ -155,6 +155,14 @@ export type ApprovalStateChange = {
 };
 
 export type ApprovalControllerEvents = ApprovalStateChange;
+
+export type SideEffectMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  { type: string; handler: (...args: unknown[]) => unknown },
+  { type: string; payload: unknown[] },
+  string,
+  never
+>;
 
 export type ApprovalControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
