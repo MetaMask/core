@@ -25,13 +25,7 @@ type ApprovalCallbacks = {
 
 export type SideEffectParams = {
   requestData: Record<string, Json> | null;
-  messagingSystem: RestrictedControllerMessenger<
-    'ApprovalController',
-    ApprovalControllerActions,
-    ApprovalStateChange,
-    string,
-    never
-  >;
+  messagingSystem: ApprovalControllerMessenger;
 };
 
 export type SideEffects = {
