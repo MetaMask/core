@@ -2019,9 +2019,7 @@ export class PermissionController<
    * @param permissionsRequest - The permissions request object.
    * @returns The approved permissions request object.
    */
-  private async requestUserApproval(
-    permissionsRequest: PermissionsRequest,
-  ): Promise<PermissionsRequest> {
+  private async requestUserApproval(permissionsRequest: PermissionsRequest) {
     const { origin, id } = permissionsRequest.metadata;
     const approvedRequest = await this.messagingSystem.call(
       'ApprovalController:addRequest',
