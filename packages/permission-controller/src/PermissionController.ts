@@ -9,12 +9,13 @@ import {
   AddApprovalRequest,
   HasApprovalRequest,
   RejectRequest as RejectApprovalRequest,
-  SideEffects,
 } from '@metamask/approval-controller';
 import {
   BaseControllerV2,
   StateMetadata,
   RestrictedControllerMessenger,
+  ActionConstraint,
+  EventConstraint,
 } from '@metamask/base-controller';
 import {
   hasProperty,
@@ -75,6 +76,7 @@ import {
   RestrictedMethod,
   RestrictedMethodParameters,
   RestrictedMethodSpecificationConstraint,
+  SideEffectHandler,
   ValidPermission,
   ValidPermissionSpecification,
 } from './Permission';
@@ -107,6 +109,11 @@ export type PermissionsRequest = {
   metadata: PermissionsRequestMetadata;
   permissions: RequestedPermissions;
   [key: string]: Json;
+};
+
+export type SideEffects = {
+  permittedHandlers: SideEffectHandler<any, any>[];
+  failureHandlers: SideEffectHandler<any, any>[];
 };
 
 /**
@@ -336,6 +343,17 @@ export type PermissionControllerMessenger = RestrictedControllerMessenger<
   PermissionControllerActions | AllowedActions,
   PermissionControllerEvents,
   AllowedActions['type'],
+  never
+>;
+
+export type SideEffectMessenger<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = RestrictedControllerMessenger<
+  typeof controllerName,
+  Actions,
+  Events,
+  string,
   never
 >;
 
@@ -1890,13 +1908,17 @@ export class PermissionController<
       permissions: requestedPermissions,
     };
 
-    const {
-      approvedRequest: { permissions: approvedPermissions, ...requestData },
-      sideEffectsData,
-    } = await this.requestUserApproval(permissionsRequest);
+    const { permissions: approvedPermissions, ...requestData } =
+      await this.requestUserApproval(permissionsRequest);
 
-    if (sideEffectsData) {
-      const data = Object.keys(approvedPermissions).reduce(
+    const sideEffects = this.getSideEffects(approvedPermissions);
+
+    if (sideEffects.permittedHandlers.length > 0) {
+      const sideEffectsData = await this.executeSideEffects(
+        sideEffects,
+        requestData,
+      );
+      const mappedData = Object.keys(approvedPermissions).reduce(
         (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
         {},
       );
@@ -1908,7 +1930,7 @@ export class PermissionController<
           preserveExistingPermissions,
           requestData,
         }),
-        { data, ...metadata },
+        { data: mappedData, ...metadata },
       ];
     }
 
@@ -1998,15 +2020,25 @@ export class PermissionController<
    */
   private async requestUserApproval(
     permissionsRequest: PermissionsRequest,
-  ): Promise<{
-    approvedRequest: PermissionsRequest;
-    sideEffectsData?: unknown[];
-  }> {
+  ): Promise<PermissionsRequest> {
     const { origin, id } = permissionsRequest.metadata;
+    const approvedRequest = await this.messagingSystem.call(
+      'ApprovalController:addRequest',
+      {
+        id,
+        origin,
+        requestData: permissionsRequest,
+        type: MethodNames.requestPermissions,
+      },
+      true,
+    );
 
-    const sideEffects = Object.keys(
-      permissionsRequest.permissions,
-    ).reduce<SideEffects>(
+    this.validateApprovedPermissions(approvedRequest, { id, origin });
+    return approvedRequest as PermissionsRequest;
+  }
+
+  private getSideEffects(permissions: RequestedPermissions) {
+    return Object.keys(permissions).reduce<SideEffects>(
       (sideEffectList, targetName) => {
         const targetKey = this.getTargetKey(targetName);
 
@@ -2019,50 +2051,62 @@ export class PermissionController<
             );
 
             if (specification.sideEffect.onFailure) {
-              if (sideEffectList.failureHandlers) {
-                sideEffectList.failureHandlers.push(
-                  specification.sideEffect.onFailure,
-                );
-              } else {
-                return {
-                  permittedHandlers: sideEffectList.permittedHandlers,
-                  failureHandlers: [specification.sideEffect.onFailure],
-                };
-              }
+              sideEffectList.failureHandlers.push(
+                specification.sideEffect.onFailure,
+              );
             }
           }
         }
         return sideEffectList;
       },
-      { permittedHandlers: [] },
+      { permittedHandlers: [], failureHandlers: [] },
+    );
+  }
+
+  private async executeSideEffects(sideEffects: SideEffects, requestData: any) {
+    const { permittedHandlers, failureHandlers } = sideEffects;
+    const params = {
+      requestData,
+      messagingSystem: this.messagingSystem,
+    };
+
+    const promiseResults = await Promise.allSettled(
+      permittedHandlers.map(async (permittedHandler) =>
+        permittedHandler(params),
+      ),
     );
 
-    const hasSideEffects = sideEffects.permittedHandlers.length !== 0;
+    // lib.es2020.promise.d.ts does not export its types so we're using a simple type.
+    const rejectedHandlers = promiseResults.filter(
+      (promise) => promise.status === 'rejected',
+    ) as { status: 'rejected'; reason: Error }[];
 
-    const approvedRequest = await this.messagingSystem.call(
-      'ApprovalController:addRequest',
-      {
-        id,
-        origin,
-        requestData: permissionsRequest,
-        type: MethodNames.requestPermissions,
-        sideEffects: hasSideEffects ? sideEffects : undefined,
-      },
-      true,
-    );
+    if (rejectedHandlers.length > 0) {
+      if (failureHandlers) {
+        try {
+          await Promise.all(
+            failureHandlers.map((failureHandler) => failureHandler(params)),
+          );
+        } catch (error) {
+          throw Error('Unexpected error in side-effects');
+        }
+      }
 
-    if (hasSideEffects) {
-      const { value, sideEffectsData } = approvedRequest as {
-        value: PermissionsRequest;
-        sideEffectsData: unknown[];
-      };
+      const reasons = rejectedHandlers.map((handler) => handler.reason);
 
-      this.validateApprovedPermissions(value, { id, origin });
-      return { approvedRequest: value, sideEffectsData };
+      reasons.forEach((reason) => {
+        console.error(reason);
+      });
+
+      throw reasons.length > 1
+        ? Error('Multiple errors occurred during side-effects execution')
+        : reasons[0];
     }
 
-    this.validateApprovedPermissions(approvedRequest, { id, origin });
-    return { approvedRequest } as { approvedRequest: PermissionsRequest };
+    // lib.es2020.promise.d.ts does not export its types so we're using a simple type.
+    return (promiseResults as { status: 'fulfilled'; value: unknown }[]).map(
+      ({ value }) => value,
+    );
   }
 
   /**

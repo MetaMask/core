@@ -1,13 +1,13 @@
 import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '@metamask/controller-utils';
-import { SideEffectHandler } from '@metamask/approval-controller';
 import { ActionConstraint, EventConstraint } from '@metamask/base-controller';
 import { CaveatConstraint } from './Caveat';
 
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   PermissionController,
+  SideEffectMessenger,
 } from './PermissionController';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Caveat } from './Caveat';
@@ -353,6 +353,19 @@ export type PermissionValidatorConstraint = (
   origin?: OriginString,
   target?: string,
 ) => void;
+
+export type SideEffectParams<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = {
+  requestData: Record<string, Json> | null;
+  messagingSystem: SideEffectMessenger<Actions, Events>;
+};
+
+export type SideEffectHandler<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = (params: SideEffectParams<Actions, Events>) => Promise<unknown>;
 
 export type PermissionSideEffect<
   Actions extends ActionConstraint,
