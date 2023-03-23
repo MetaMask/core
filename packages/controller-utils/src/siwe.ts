@@ -17,10 +17,9 @@ const msgHexToText = (hex: string): string => {
  * @param {boolean} isSIWEMessage - Does the intercepted message conform to the SIWE specification?
  * @param {ParsedMessage} parsedMessage - The data parsed out of the message
  */
-export interface SIWEMessage {
-  isSIWEMessage: boolean;
-  parsedMessage: ParsedMessage | null;
-}
+export type SIWEMessage =
+  | { isSIWEMessage: true; parsedMessage: ParsedMessage }
+  | { isSIWEMessage: false; parsedMessage: null };
 
 /**
  * This function intercepts a sign message, detects if it's a

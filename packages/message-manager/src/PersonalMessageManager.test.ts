@@ -1,4 +1,4 @@
-import { detectSIWE } from '@metamask/controller-utils';
+import { detectSIWE, SIWEMessage } from '@metamask/controller-utils';
 import { PersonalMessageManager } from './PersonalMessageManager';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -9,7 +9,7 @@ jest.mock('@metamask/controller-utils', () => ({
 const siweMockNotFound = {
   isSIWEMessage: false,
   parsedMessage: null,
-};
+} as SIWEMessage;
 
 const siweMockFound = {
   isSIWEMessage: true,
@@ -17,7 +17,7 @@ const siweMockFound = {
     address: '0x0000000',
     domain: 'example.eth',
   },
-};
+} as SIWEMessage;
 
 describe('PersonalMessageManager', () => {
   const detectSIWEMock = detectSIWE as jest.MockedFunction<typeof detectSIWE>;
