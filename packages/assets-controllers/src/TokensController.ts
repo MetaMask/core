@@ -264,16 +264,16 @@ export class TokensController extends BaseController<
    * @param address - Hex address of the token contract.
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals the token uses.
-   * @param name - Name of the token.
-   * @param image - Image of the token.
+   * @param options - Object containing name and image of the token
+   * @param options.name - Name of the token
+   * @param options.image - Image of the token
    * @returns Current token list.
    */
   async addToken(
     address: string,
     symbol: string,
     decimals: number,
-    name?: string,
-    image?: string,
+    { name, image }: { name?: string; image?: string } = {},
   ): Promise<Token[]> {
     const currentChainId = this.config.chainId;
     const releaseLock = await this.mutex.acquire();
@@ -347,7 +347,8 @@ export class TokensController extends BaseController<
    *
    * @param tokensToImport - Array of tokens to import.
    */
-  addTokens(tokensToImport: Token[]) {
+  async addTokens(tokensToImport: Token[]) {
+    const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
     // Used later to dedupe imported tokens
@@ -355,47 +356,50 @@ export class TokensController extends BaseController<
       output[current.address] = current;
       return output;
     }, {} as { [address: string]: Token });
-
-    tokensToImport.forEach((tokenToAdd) => {
-      const { address, symbol, decimals, image, aggregators, name } =
-        tokenToAdd;
-      const checksumAddress = toChecksumHexAddress(address);
-      const formattedToken: Token = {
-        address: checksumAddress,
-        symbol,
-        decimals,
-        image,
-        aggregators,
-        name,
-      };
-      newTokensMap[address] = formattedToken;
-      importedTokensMap[address.toLowerCase()] = true;
-      return formattedToken;
-    });
-    const newTokens = Object.values(newTokensMap);
-
-    const newDetectedTokens = detectedTokens.filter(
-      (token) => !importedTokensMap[token.address.toLowerCase()],
-    );
-    const newIgnoredTokens = ignoredTokens.filter(
-      (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
-    );
-
-    const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
-      this._getNewAllTokensState({
-        newTokens,
-        newDetectedTokens,
-        newIgnoredTokens,
+    try {
+      tokensToImport.forEach((tokenToAdd) => {
+        const { address, symbol, decimals, image, aggregators, name } =
+          tokenToAdd;
+        const checksumAddress = toChecksumHexAddress(address);
+        const formattedToken: Token = {
+          address: checksumAddress,
+          symbol,
+          decimals,
+          image,
+          aggregators,
+          name,
+        };
+        newTokensMap[address] = formattedToken;
+        importedTokensMap[address.toLowerCase()] = true;
+        return formattedToken;
       });
+      const newTokens = Object.values(newTokensMap);
 
-    this.update({
-      tokens: newTokens,
-      allTokens: newAllTokens,
-      detectedTokens: newDetectedTokens,
-      allDetectedTokens: newAllDetectedTokens,
-      ignoredTokens: newIgnoredTokens,
-      allIgnoredTokens: newAllIgnoredTokens,
-    });
+      const newDetectedTokens = detectedTokens.filter(
+        (token) => !importedTokensMap[token.address.toLowerCase()],
+      );
+      const newIgnoredTokens = ignoredTokens.filter(
+        (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
+      );
+
+      const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
+        this._getNewAllTokensState({
+          newTokens,
+          newDetectedTokens,
+          newIgnoredTokens,
+        });
+
+      this.update({
+        tokens: newTokens,
+        allTokens: newAllTokens,
+        detectedTokens: newDetectedTokens,
+        allDetectedTokens: newAllDetectedTokens,
+        ignoredTokens: newIgnoredTokens,
+        allIgnoredTokens: newAllIgnoredTokens,
+      });
+    } finally {
+      releaseLock();
+    }
   }
 
   /**
@@ -695,7 +699,7 @@ export class TokensController extends BaseController<
            * The reason for this undefined is that the wallet_watchAsset doesn't return the name
            * more info: https://docs.metamask.io/guide/rpc-api.html#wallet-watchasset
            */
-          await this.addToken(address, symbol, decimals, undefined, image);
+          await this.addToken(address, symbol, decimals, { image });
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,

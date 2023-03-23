@@ -105,8 +105,20 @@ describe('TokensController', () => {
     const stub = stubCreateEthers(tokensController, false);
 
     await tokensController.addTokens([
-      { address: '0x01', symbol: 'barA', decimals: 2, aggregators: [] },
-      { address: '0x02', symbol: 'barB', decimals: 2, aggregators: [] },
+      {
+        address: '0x01',
+        symbol: 'barA',
+        decimals: 2,
+        aggregators: [],
+        name: 'Token1',
+      },
+      {
+        address: '0x02',
+        symbol: 'barB',
+        decimals: 2,
+        aggregators: [],
+        name: 'Token2',
+      },
     ]);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
@@ -115,7 +127,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'barA',
       aggregators: [],
-      name: undefined,
+      name: 'Token1',
     });
 
     expect(tokensController.state.tokens[1]).toStrictEqual({
@@ -124,7 +136,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'barB',
       aggregators: [],
-      name: undefined,
+      name: 'Token2',
     });
 
     await tokensController.addTokens([
@@ -743,8 +755,7 @@ describe('TokensController', () => {
         directlyAddedToken.address,
         directlyAddedToken.symbol,
         directlyAddedToken.decimals,
-        undefined,
-        directlyAddedToken.image,
+        { image: directlyAddedToken.image },
       );
 
       expect(tokensController.state.allDetectedTokens).toStrictEqual({
@@ -1338,6 +1349,70 @@ describe('TokensController', () => {
         {
           address: '0x789',
           name: 'Token3',
+          symbol: 'GHI',
+          aggregators: [],
+          decimals: 0,
+          image: undefined,
+        },
+      ];
+
+      await tokensController.addTokens(tokenList);
+
+      tokensController.updateTokensName(initialTokens);
+
+      expect(tokensController.state.tokens).toStrictEqual(expectedTokenList);
+    });
+    it('does not update token name when no matching token is found in the tokenList', async () => {
+      const initialTokens = {
+        '0x1': {
+          address: '0x1',
+          name: 'SameName',
+          symbol: 'ABC',
+          aggregators: [],
+          decimals: 0,
+          iconUrl: '',
+          occurrences: 1,
+        },
+        '0x2': {
+          address: '0x2',
+          name: 'SameName',
+          symbol: 'DEF',
+          aggregators: [],
+          decimals: 0,
+          iconUrl: '',
+          occurrences: 1,
+        },
+        '0x3': {
+          address: '0x3',
+          name: 'SameName',
+          symbol: 'GHI',
+          aggregators: [],
+          decimals: 0,
+          iconUrl: '',
+          occurrences: 1,
+        },
+      };
+
+      const expectedTokenList = [
+        {
+          address: '0x123',
+          name: '',
+          symbol: 'ABC',
+          aggregators: [],
+          decimals: 0,
+          image: undefined,
+        },
+        {
+          address: '0x456',
+          name: '',
+          symbol: 'DEF',
+          aggregators: [],
+          decimals: 0,
+          image: undefined,
+        },
+        {
+          address: '0x789',
+          name: '',
           symbol: 'GHI',
           aggregators: [],
           decimals: 0,
