@@ -7,6 +7,7 @@ import { CaveatConstraint } from './Caveat';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   PermissionController,
+  PermissionsRequest,
   SideEffectMessenger,
 } from './PermissionController';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -354,11 +355,13 @@ export type PermissionValidatorConstraint = (
   target?: string,
 ) => void;
 
+export type ApprovalRequestData = Omit<PermissionsRequest, 'permissions'>;
+
 export type SideEffectParams<
   Actions extends ActionConstraint,
   Events extends EventConstraint,
 > = {
-  requestData: Record<string, Json> | null;
+  requestData: ApprovalRequestData;
   messagingSystem: SideEffectMessenger<Actions, Events>;
 };
 

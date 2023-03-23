@@ -61,6 +61,7 @@ import {
   userRejectedRequest,
 } from './errors';
 import {
+  ApprovalRequestData,
   constructPermission,
   EndowmentSpecificationConstraint,
   ExtractAllowedCaveatTypes,
@@ -2037,6 +2038,12 @@ export class PermissionController<
     return approvedRequest as PermissionsRequest;
   }
 
+  /**
+   * Creates an arrray mapping of permitted and failure.
+   *
+   * @param permissions - The approved permissions.
+   * @returns The {@link SideEffects} object.
+   */
   private getSideEffects(permissions: RequestedPermissions) {
     return Object.keys(permissions).reduce<SideEffects>(
       (sideEffectList, targetName) => {
@@ -2063,7 +2070,10 @@ export class PermissionController<
     );
   }
 
-  private async executeSideEffects(sideEffects: SideEffects, requestData: any) {
+  private async executeSideEffects(
+    sideEffects: SideEffects,
+    requestData: ApprovalRequestData,
+  ) {
     const { permittedHandlers, failureHandlers } = sideEffects;
     const params = {
       requestData,
@@ -2082,14 +2092,10 @@ export class PermissionController<
     ) as { status: 'rejected'; reason: Error }[];
 
     if (rejectedHandlers.length > 0) {
-      if (failureHandlers) {
-        try {
-          await Promise.all(
-            failureHandlers.map((failureHandler) => failureHandler(params)),
-          );
-        } catch (error) {
-          throw Error('Unexpected error in side-effects');
-        }
+      if (failureHandlers.length > 0) {
+        await Promise.all(
+          failureHandlers.map((failureHandler) => failureHandler(params)),
+        );
       }
 
       const reasons = rejectedHandlers.map((handler) => handler.reason);

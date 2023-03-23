@@ -3000,11 +3000,8 @@ describe('PermissionController', () => {
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
-            value: {
-              metadata: { ...requestData.metadata },
-              permissions: { ...requestData.permissions },
-            },
-            sideEffectsData: ['foo'],
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
           };
         });
 
@@ -3034,7 +3031,7 @@ describe('PermissionController', () => {
           origin,
         },
       ]);
-
+      expect(onPermittedMock).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -3046,9 +3043,6 @@ describe('PermissionController', () => {
             permissions: {
               [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
             },
-          },
-          sideEffects: {
-            permittedHandlers: [onPermittedMock],
           },
           type: MethodNames.requestPermissions,
         },
@@ -3066,11 +3060,8 @@ describe('PermissionController', () => {
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
-            value: {
-              metadata: { ...requestData.metadata },
-              permissions: { ...requestData.permissions },
-            },
-            sideEffectsData: ['foo'],
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
           };
         });
 
@@ -3103,6 +3094,8 @@ describe('PermissionController', () => {
       ]);
 
       expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(onPermittedMock).toHaveBeenCalledTimes(1);
+      expect(onFailureMock).not.toHaveBeenCalled();
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
@@ -3114,10 +3107,6 @@ describe('PermissionController', () => {
               [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
                 {},
             },
-          },
-          sideEffects: {
-            permittedHandlers: [onPermittedMock],
-            failureHandlers: [onFailureMock],
           },
           type: MethodNames.requestPermissions,
         },
@@ -3135,11 +3124,8 @@ describe('PermissionController', () => {
         .mockImplementationOnce(async (...args: any) => {
           const [, { requestData }] = args;
           return {
-            value: {
-              metadata: { ...requestData.metadata },
-              permissions: { ...requestData.permissions },
-            },
-            sideEffectsData: ['foo', 'foo'],
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
           };
         });
 
@@ -3174,6 +3160,8 @@ describe('PermissionController', () => {
         },
       ]);
 
+      expect(onPermittedMock).toHaveBeenCalledTimes(2);
+      expect(onFailureMock).not.toHaveBeenCalled();
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -3189,9 +3177,60 @@ describe('PermissionController', () => {
                 {},
             },
           },
-          sideEffects: {
-            permittedHandlers: [onPermittedMock, onPermittedMock],
-            failureHandlers: [onFailureMock, onFailureMock],
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
+    it('can handle permitted multiple side-effect failure', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      onPermittedMock.mockImplementation(async () =>
+        Promise.reject(Error('error')),
+      );
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      await expect(async () =>
+        controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]: {},
+            [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {},
+          },
+        ),
+      ).rejects.toThrow(
+        'Multiple errors occurred during side-effects execution',
+      );
+
+      expect(onPermittedMock).toHaveBeenCalledTimes(2);
+      expect(onFailureMock).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                {},
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
+                {},
+            },
           },
           type: MethodNames.requestPermissions,
         },
