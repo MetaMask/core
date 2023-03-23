@@ -2037,7 +2037,7 @@ export class PermissionController<
   }
 
   /**
-   * Reunite all the side-effects (onPermitted and onFailure) of the requested permissions inside a record of arrays.
+   * Reunites all the side-effects (onPermitted and onFailure) of the requested permissions inside a record of arrays.
    *
    * @param permissions - The approved permissions.
    * @returns The {@link SideEffects} object containing the handlers arrays.
@@ -2069,7 +2069,8 @@ export class PermissionController<
   }
 
   /**
-   * Execute the side-effects of the approved permissions while handling the errors if any.
+   * Executes the side-effects of the approved permissions while handling the errors if any.
+   * It will pass an instance of the {@link messagingSystem} and the request data associated with the permission request to the handlers through its params.
    *
    * @param sideEffects - the side-effect record created by {@link getSideEffects}
    * @param requestData - the permissions requestData.
