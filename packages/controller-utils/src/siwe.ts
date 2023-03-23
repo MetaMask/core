@@ -1,14 +1,34 @@
 import { ParsedMessage } from '@spruceid/siwe-parser';
-import { bytesToString, hexToBytes } from '@metamask/utils';
+import { isHexPrefixed } from 'ethereumjs-util';
 
-const msgHexToText = (hex: string): string => {
+/**
+ * This function strips the hex prefix from a string if it has one.
+ *
+ * @param str - The string to check
+ * @returns The string without the hex prefix
+ */
+function stripHexPrefix(str: string) {
+  if (typeof str !== 'string') {
+    return str;
+  }
+  return isHexPrefixed(str) ? str.slice(2) : str;
+}
+
+/**
+ * This function converts a hex string to text if it's not a 32 byte hex string.
+ *
+ * @param hex - The hex string to convert to text
+ * @returns The text representation of the hex string
+ */
+function msgHexToText(hex: string): string {
   try {
-    const bytes = hexToBytes(hex);
-    return bytes.length === 32 ? hex : bytesToString(bytes);
+    const stripped = stripHexPrefix(hex);
+    const buff = Buffer.from(stripped, 'hex');
+    return buff.length === 32 ? hex : buff.toString('utf8');
   } catch (e) {
     return hex;
   }
-};
+}
 
 /**
  * A locally defined object used to provide data to identify a Sign-In With Ethereum (SIWE)(EIP-4361) message and provide the parsed message
