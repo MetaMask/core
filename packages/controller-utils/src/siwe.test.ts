@@ -10,14 +10,14 @@ jest.mock('@spruceid/siwe-parser');
 
 describe('detectSIWE', () => {
   const parsedMessageMock = ParsedMessage as any;
-  it('should return an object with isSIWEMessage set to true and parsedMessage', () => {
+  it('returns an object with isSIWEMessage set to true and parsedMessage', () => {
     parsedMessageMock.mockReturnValue(mockedParsedMessage);
     const result = detectSIWE({ data: '0xVALIDDATA' });
     expect(result.isSIWEMessage).toBe(true);
     expect(result.parsedMessage).toBe(mockedParsedMessage);
   });
 
-  it('should return an object with isSIWEMessage set to false and parsedMessage set to null', () => {
+  it('returns an object with isSIWEMessage set to false and parsedMessage set to null', () => {
     parsedMessageMock.mockImplementation(() => {
       throw new Error('Invalid SIWE message');
     });

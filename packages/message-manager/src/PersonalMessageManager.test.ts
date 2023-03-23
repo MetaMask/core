@@ -17,7 +17,7 @@ const siweMockFound = {
     address: '0x0000000',
     domain: 'example.eth',
   },
-} as any;
+};
 
 describe('PersonalMessageManager', () => {
   const detectSIWEMock = detectSIWE as jest.MockedFunction<typeof detectSIWE>;
