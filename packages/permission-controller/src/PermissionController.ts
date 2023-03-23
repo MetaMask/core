@@ -2092,10 +2092,14 @@ export class PermissionController<
     ) as { status: 'rejected'; reason: Error }[];
 
     if (rejectedHandlers.length > 0) {
-      if (failureHandlers.length > 0) {
-        await Promise.all(
-          failureHandlers.map((failureHandler) => failureHandler(params)),
-        );
+      try {
+        if (failureHandlers.length > 0) {
+          await Promise.all(
+            failureHandlers.map((failureHandler) => failureHandler(params)),
+          );
+        }
+      } catch (error) {
+        throw internalError('Unexpected error in side-effects', { error });
       }
 
       const reasons = rejectedHandlers.map((handler) => handler.reason);
@@ -2105,7 +2109,10 @@ export class PermissionController<
       });
 
       throw reasons.length > 1
-        ? Error('Multiple errors occurred during side-effects execution')
+        ? internalError(
+            'Multiple errors occurred during side-effects execution',
+            { errors: reasons },
+          )
         : reasons[0];
     }
 
