@@ -1,5 +1,8 @@
 import { ParsedMessage } from '@spruceid/siwe-parser';
 import { isHexPrefixed } from 'ethereumjs-util';
+import { projectLogger, createModuleLogger } from './logger';
+
+const log = createModuleLogger(projectLogger, 'detect-siwe');
 
 /**
  * This function strips the hex prefix from a string if it has one.
@@ -26,6 +29,7 @@ function msgHexToText(hex: string): string {
     const buff = Buffer.from(stripped, 'hex');
     return buff.length === 32 ? hex : buff.toString('utf8');
   } catch (e) {
+    log(e);
     return hex;
   }
 }
