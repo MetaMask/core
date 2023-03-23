@@ -357,6 +357,9 @@ export type PermissionValidatorConstraint = (
 
 export type ApprovalRequestData = Omit<PermissionsRequest, 'permissions'>;
 
+/**
+ * The parameters passed to the side-effect function.
+ */
 export type SideEffectParams<
   Actions extends ActionConstraint,
   Events extends EventConstraint,
@@ -365,11 +368,17 @@ export type SideEffectParams<
   messagingSystem: SideEffectMessenger<Actions, Events>;
 };
 
+/**
+ * A function that will execute actions as a permission side-effect.
+ */
 export type SideEffectHandler<
   Actions extends ActionConstraint,
   Events extends EventConstraint,
 > = (params: SideEffectParams<Actions, Events>) => Promise<unknown>;
 
+/**
+ * The permissions side effects.
+ */
 export type PermissionSideEffect<
   Actions extends ActionConstraint,
   Events extends EventConstraint,
@@ -379,7 +388,7 @@ export type PermissionSideEffect<
    */
   onPermitted: SideEffectHandler<Actions, Events>;
   /**
-   * A method triggered if a `onPemitted` method rejected.
+   * A method triggered if a `onPermitted` method rejected.
    */
   onFailure?: SideEffectHandler<Actions, Events>;
 };
@@ -469,7 +478,7 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
   validator?: PermissionValidatorConstraint;
 
   /**
-   * The side-effect triggered by the permission once it is granted.
+   * The side-effect triggered by the {@link PermissionController} once the user approved it.
    * The side-effect can only be an action allowed to be called inside the {@link PermissionController}.
    *
    * If the side-effect action fails, the permission that triggered it is revoked.

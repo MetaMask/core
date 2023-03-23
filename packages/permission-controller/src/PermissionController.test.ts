@@ -3194,7 +3194,7 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
 
       onPermittedMock.mockImplementation(async () =>
-        Promise.reject(Error('error')),
+        Promise.reject(new Error('error')),
       );
 
       const callActionSpy = jest
@@ -3249,7 +3249,7 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
 
       onPermittedMock.mockImplementation(async () =>
-        Promise.reject(Error('error')),
+        Promise.reject(new Error('error')),
       );
 
       const callActionSpy = jest
@@ -3297,11 +3297,11 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
 
       onPermittedMock.mockImplementation(async () =>
-        Promise.reject(Error('error')),
+        Promise.reject(new Error('error')),
       );
 
       onFailureMock.mockImplementation(async () =>
-        Promise.reject(Error('error')),
+        Promise.reject(new Error('error')),
       );
 
       const callActionSpy = jest

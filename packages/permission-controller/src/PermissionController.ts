@@ -2037,10 +2037,10 @@ export class PermissionController<
   }
 
   /**
-   * Creates an arrray mapping of permitted and failure.
+   * Reunite all the side-effects (onPermitted and onFailure) of the requested permissions inside a record of arrays.
    *
    * @param permissions - The approved permissions.
-   * @returns The {@link SideEffects} object.
+   * @returns The {@link SideEffects} object containing the handlers arrays.
    */
   private getSideEffects(permissions: RequestedPermissions) {
     return Object.keys(permissions).reduce<SideEffects>(
@@ -2068,6 +2068,13 @@ export class PermissionController<
     );
   }
 
+  /**
+   * Execute the side-effects of the approved permissions while handling the errors if any.
+   *
+   * @param sideEffects - the side-effect record created by {@link getSideEffects}
+   * @param requestData - the permissions requestData.
+   * @returns the value returned by all the `onPermitted` handlers in an array.
+   */
   private async executeSideEffects(
     sideEffects: SideEffects,
     requestData: ApprovalRequestData,
@@ -2079,9 +2086,7 @@ export class PermissionController<
     };
 
     const promiseResults = await Promise.allSettled(
-      permittedHandlers.map(async (permittedHandler) =>
-        permittedHandler(params),
-      ),
+      permittedHandlers.map((permittedHandler) => permittedHandler(params)),
     );
 
     // lib.es2020.promise.d.ts does not export its types so we're using a simple type.
@@ -2090,16 +2095,15 @@ export class PermissionController<
     ) as { status: 'rejected'; reason: Error }[];
 
     if (rejectedHandlers.length > 0) {
-      try {
-        if (failureHandlers.length > 0) {
+      if (failureHandlers.length > 0) {
+        try {
           await Promise.all(
             failureHandlers.map((failureHandler) => failureHandler(params)),
           );
+        } catch (error) {
+          throw internalError('Unexpected error in side-effects', { error });
         }
-      } catch (error) {
-        throw internalError('Unexpected error in side-effects', { error });
       }
-
       const reasons = rejectedHandlers.map((handler) => handler.reason);
 
       reasons.forEach((reason) => {
