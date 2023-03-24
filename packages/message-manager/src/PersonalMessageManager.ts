@@ -1,4 +1,5 @@
 import { v1 as random } from 'uuid';
+import { detectSIWE, SIWEMessage } from '@metamask/controller-utils';
 import { normalizeMessageData, validateSignMessageData } from './utils';
 import {
   AbstractMessageManager,
@@ -33,6 +34,7 @@ export interface PersonalMessage extends AbstractMessage {
  */
 export interface PersonalMessageParams extends AbstractMessageParams {
   data: string;
+  siwe?: SIWEMessage;
 }
 
 /**
@@ -119,17 +121,21 @@ export class PersonalMessageManager extends AbstractMessageManager<
       messageParams.origin = req.origin;
     }
     messageParams.data = normalizeMessageData(messageParams.data);
+
+    const ethereumSignInData = detectSIWE(messageParams);
+    const finalMsgParams = { ...messageParams, siwe: ethereumSignInData };
+
     const messageId = random();
     const messageData: PersonalMessage = {
       id: messageId,
-      messageParams,
+      messageParams: finalMsgParams,
       status: 'unapproved',
       time: Date.now(),
       type: 'personal_sign',
     };
     this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
-      ...messageParams,
+      ...finalMsgParams,
       ...{ metamaskId: messageId },
     });
     return messageId;
