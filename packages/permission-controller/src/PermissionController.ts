@@ -112,8 +112,8 @@ export type PermissionsRequest = {
 };
 
 export type SideEffects = {
-  permittedHandlers: SideEffectHandler<any, any>[];
-  failureHandlers: SideEffectHandler<any, any>[];
+  permittedHandlers: Record<string, SideEffectHandler<any, any>>;
+  failureHandlers: Record<string, SideEffectHandler<any, any>>;
 };
 
 /**
@@ -1914,12 +1914,12 @@ export class PermissionController<
 
     const sideEffects = this.getSideEffects(approvedPermissions);
 
-    if (sideEffects.permittedHandlers.length > 0) {
+    if (Object.values(sideEffects.permittedHandlers).length > 0) {
       const sideEffectsData = await this.executeSideEffects(
         sideEffects,
         approvedRequest,
       );
-      const mappedData = Object.keys(approvedPermissions).reduce(
+      const mappedData = Object.keys(sideEffects.permittedHandlers).reduce(
         (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
         {},
       );
@@ -2051,20 +2051,18 @@ export class PermissionController<
           const specification = this.getPermissionSpecification(targetKey);
 
           if (specification.sideEffect) {
-            sideEffectList.permittedHandlers.push(
-              specification.sideEffect.onPermitted,
-            );
+            sideEffectList.permittedHandlers[targetName] =
+              specification.sideEffect.onPermitted;
 
             if (specification.sideEffect.onFailure) {
-              sideEffectList.failureHandlers.push(
-                specification.sideEffect.onFailure,
-              );
+              sideEffectList.failureHandlers[targetName] =
+                specification.sideEffect.onFailure;
             }
           }
         }
         return sideEffectList;
       },
-      { permittedHandlers: [], failureHandlers: [] },
+      { permittedHandlers: {}, failureHandlers: {} },
     );
   }
 
@@ -2087,7 +2085,9 @@ export class PermissionController<
     };
 
     const promiseResults = await Promise.allSettled(
-      permittedHandlers.map((permittedHandler) => permittedHandler(params)),
+      Object.values(permittedHandlers).map((permittedHandler) =>
+        permittedHandler(params),
+      ),
     );
 
     // lib.es2020.promise.d.ts does not export its types so we're using a simple type.
@@ -2096,10 +2096,11 @@ export class PermissionController<
     ) as { status: 'rejected'; reason: Error }[];
 
     if (rejectedHandlers.length > 0) {
-      if (failureHandlers.length > 0) {
+      const failureHandlersList = Object.values(failureHandlers);
+      if (failureHandlersList.length > 0) {
         try {
           await Promise.all(
-            failureHandlers.map((failureHandler) => failureHandler(params)),
+            failureHandlersList.map((failureHandler) => failureHandler(params)),
           );
         } catch (error) {
           throw internalError('Unexpected error in side-effects', { error });
