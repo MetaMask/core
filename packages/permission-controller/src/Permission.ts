@@ -355,8 +355,6 @@ export type PermissionValidatorConstraint = (
   target?: string,
 ) => void;
 
-export type ApprovalRequestData = Omit<PermissionsRequest, 'permissions'>;
-
 /**
  * The parameters passed to the side-effect function.
  */
@@ -364,7 +362,7 @@ export type SideEffectParams<
   Actions extends ActionConstraint,
   Events extends EventConstraint,
 > = {
-  requestData: ApprovalRequestData;
+  requestData: PermissionsRequest;
   messagingSystem: SideEffectMessenger<Actions, Events>;
 };
 

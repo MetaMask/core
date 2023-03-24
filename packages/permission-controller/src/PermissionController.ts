@@ -61,7 +61,6 @@ import {
   userRejectedRequest,
 } from './errors';
 import {
-  ApprovalRequestData,
   constructPermission,
   EndowmentSpecificationConstraint,
   ExtractAllowedCaveatTypes,
@@ -1909,15 +1908,16 @@ export class PermissionController<
       permissions: requestedPermissions,
     };
 
+    const approvedRequest = await this.requestUserApproval(permissionsRequest);
     const { permissions: approvedPermissions, ...requestData } =
-      await this.requestUserApproval(permissionsRequest);
+      approvedRequest;
 
     const sideEffects = this.getSideEffects(approvedPermissions);
 
     if (sideEffects.permittedHandlers.length > 0) {
       const sideEffectsData = await this.executeSideEffects(
         sideEffects,
-        requestData,
+        approvedRequest,
       );
       const mappedData = Object.keys(approvedPermissions).reduce(
         (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
@@ -2078,7 +2078,7 @@ export class PermissionController<
    */
   private async executeSideEffects(
     sideEffects: SideEffects,
-    requestData: ApprovalRequestData,
+    requestData: PermissionsRequest,
   ) {
     const { permittedHandlers, failureHandlers } = sideEffects;
     const params = {
