@@ -105,7 +105,12 @@ export abstract class AbstractMessageManager<
     message.status = status;
     this.updateMessage(message);
     this.hub.emit(`${messageId}:${status}`, message);
-    if (status === 'rejected' || status === 'signed' || status === 'errored') {
+    if (
+      status === 'rejected' ||
+      status === 'signed' ||
+      status === 'errored' ||
+      status === 'received'
+    ) {
       this.hub.emit(`${messageId}:finished`, message);
     }
   }
@@ -240,6 +245,25 @@ export abstract class AbstractMessageManager<
     message.rawSig = rawSig;
     this.updateMessage(message);
     this.setMessageStatus(messageId, 'signed');
+  }
+
+  /**
+   * Sets a EncryptionPublicKey status to 'received' via a call to this.setMsgStatus and
+   * updates that EncryptionPublicKey in this.messages by adding the raw data of request
+   * to the EncryptionPublicKey.
+   *
+   * @param messageId - The id of the Message to sign.
+   * @param rawSig - The encryption public key of the request.
+   */
+  setMessageStatusReceived(messageId: string, rawSig: string) {
+    const message = this.getMessage(messageId);
+    /* istanbul ignore if */
+    if (!message) {
+      return;
+    }
+    message.rawSig = rawSig;
+    this.updateMessage(message);
+    this.setMessageStatus(messageId, 'received');
   }
 
   /**
