@@ -3,7 +3,10 @@ import {
   TypedMessageParams,
   TypedMessageParamsMetamask,
 } from './TypedMessageManager';
-import { AbstractMessageManager } from './AbstractMessageManager';
+import {
+  AbstractMessageManager,
+  SecurityProviderRequest,
+} from './AbstractMessageManager';
 
 class AbstractTestManager extends AbstractMessageManager<
   TypedMessage,
@@ -77,6 +80,43 @@ describe('AbstractTestManager', () => {
     expect(message.time).toBe(messageTime);
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
+  });
+
+  it('adds a valid message with provider security response', async () => {
+    const securityProviderResponseMock = { flagAsDangerous: 2 };
+    const securityProviderRequest: SecurityProviderRequest = jest
+      .fn()
+      .mockResolvedValue(securityProviderResponseMock);
+    const controller = new AbstractTestManager(
+      undefined,
+      undefined,
+      securityProviderRequest,
+    );
+    controller.addMessage({
+      id: messageId,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    });
+
+    // Wait for the securityProviderRequest Promise to resolve
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const message = controller.getMessage(messageId);
+    if (!message) {
+      throw new Error('"message" is falsy');
+    }
+    expect(message.id).toBe(messageId);
+    expect(message.messageParams.from).toBe(from);
+    expect(message.messageParams.data).toBe(messageData);
+    expect(message.time).toBe(messageTime);
+    expect(message.status).toBe(messageStatus);
+    expect(message.type).toBe(messageType);
+    expect(message.securityProviderResponse).toBe(securityProviderResponseMock);
   });
 
   it('should reject a message', () => {

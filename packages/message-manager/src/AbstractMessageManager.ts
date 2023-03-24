@@ -4,6 +4,7 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
+import { Json } from '@metamask/controller-utils';
 
 /**
  * @type OriginalRequest
@@ -23,6 +24,7 @@ export interface OriginalRequest {
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'Message' which always has a signing type
  * @property rawSig - Raw data of the signature request
+ * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
  */
 export interface AbstractMessage {
   id: string;
@@ -30,6 +32,7 @@ export interface AbstractMessage {
   status: string;
   type: string;
   rawSig?: string;
+  securityProviderResponse?: Json;
 }
 
 /**
@@ -71,6 +74,14 @@ export interface MessageManagerState<M extends AbstractMessage>
 }
 
 /**
+ * A function for verifying a message, whether it is malicious or not
+ */
+export type SecurityProviderRequest = (
+  requestData: AbstractMessage,
+  messageType: string,
+) => Promise<Json>;
+
+/**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export abstract class AbstractMessageManager<
@@ -79,6 +90,8 @@ export abstract class AbstractMessageManager<
   PM extends AbstractMessageParamsMetamask,
 > extends BaseController<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
+
+  protected securityProviderRequest: SecurityProviderRequest | undefined;
 
   /**
    * Saves the unapproved messages, and their count to state.
@@ -140,10 +153,12 @@ export abstract class AbstractMessageManager<
    *
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
+   * @param securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    */
   constructor(
     config?: Partial<BaseConfig>,
     state?: Partial<MessageManagerState<M>>,
+    securityProviderRequest?: SecurityProviderRequest,
   ) {
     super(config, state);
     this.defaultState = {
@@ -151,6 +166,7 @@ export abstract class AbstractMessageManager<
       unapprovedMessagesCount: 0,
     };
     this.messages = [];
+    this.securityProviderRequest = securityProviderRequest;
     this.initialize();
   }
 
@@ -179,13 +195,26 @@ export abstract class AbstractMessageManager<
 
   /**
    * Adds a passed Message to this.messages, and calls this.saveMessageList() to save
-   * the unapproved Messages from that list to this.messages.
+   * the unapproved Messages from that list to this.messages. If a security provider
+   * is provided, the method will check if the Message is malicious or not.
    *
    * @param message - The Message to add to this.messages.
    */
   addMessage(message: M) {
-    this.messages.push(message);
-    this.saveMessageList();
+    if (this.securityProviderRequest) {
+      this.securityProviderRequest(message, message.type).then(
+        (securityProviderResponse) => {
+          this.messages.push({
+            ...message,
+            securityProviderResponse,
+          });
+          this.saveMessageList();
+        },
+      );
+    } else {
+      this.messages.push(message);
+      this.saveMessageList();
+    }
   }
 
   /**
