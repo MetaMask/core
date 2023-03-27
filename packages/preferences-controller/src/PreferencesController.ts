@@ -36,6 +36,7 @@ export interface PreferencesState extends BaseState {
   useTokenDetection: boolean;
   useNftDetection: boolean;
   openSeaEnabled: boolean;
+  isMultiAccountBalancesEnabled: boolean;
   disabledRpcMethodPreferences: {
     [methodName: string]: boolean;
   };
@@ -70,6 +71,7 @@ export class PreferencesController extends BaseController<
       useTokenDetection: true,
       useNftDetection: false,
       openSeaEnabled: false,
+      isMultiAccountBalancesEnabled: true,
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },

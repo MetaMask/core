@@ -32,8 +32,8 @@ describe('AccountTrackerController', () => {
     const controller = new AccountTrackerController({
       onPreferencesStateChange: sinon.stub(),
       getIdentities: () => ({}),
-getSelectedAddress: () => '0x0',
-          getMultiAccountBalancesEnabled: () => true,
+      getSelectedAddress: () => '0x0',
+      getMultiAccountBalancesEnabled: () => true,
     });
     expect(controller.state).toStrictEqual({
       accounts: {},
@@ -44,8 +44,8 @@ getSelectedAddress: () => '0x0',
     const controller = new AccountTrackerController({
       onPreferencesStateChange: sinon.stub(),
       getIdentities: () => ({}),
-getSelectedAddress: () => '0x0',
-          getMultiAccountBalancesEnabled: () => true,
+      getSelectedAddress: () => '0x0',
+      getMultiAccountBalancesEnabled: () => true,
     });
     expect(() => console.log(controller.provider)).toThrow(
       'Property only used for setting',
@@ -60,8 +60,8 @@ getSelectedAddress: () => '0x0',
         getIdentities: () => {
           return {};
         },
-getSelectedAddress: () => '0x0',
-          getMultiAccountBalancesEnabled: () => true,
+        getSelectedAddress: () => '0x0',
+        getMultiAccountBalancesEnabled: () => true,
       },
       { provider },
     );
@@ -77,8 +77,8 @@ getSelectedAddress: () => '0x0',
         getIdentities: () => {
           return { baz: {} as ContactEntry };
         },
-getSelectedAddress: () => '0x0',
-          getMultiAccountBalancesEnabled: () => true,
+        getSelectedAddress: () => '0x0',
+        getMultiAccountBalancesEnabled: () => true,
       },
       { provider },
       {
@@ -100,8 +100,8 @@ getSelectedAddress: () => '0x0',
       {
         onPreferencesStateChange: (listener) => preferences.subscribe(listener),
         getIdentities: () => ({}),
-getSelectedAddress: () => '0x0',
-          getMultiAccountBalancesEnabled: () => true,
+        getSelectedAddress: () => '0x0',
+        getMultiAccountBalancesEnabled: () => true,
       },
       { provider },
     );

@@ -15,6 +15,7 @@ describe('PreferencesController', () => {
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
+      isMultiAccountBalancesEnabled: true,
     });
   });
 
