@@ -82,7 +82,8 @@ export class AccountTrackerController extends BaseController<
   override name = 'AccountTrackerController';
 
   private getIdentities: () => PreferencesState['identities'];
-
+  private getSelectedAddress: () => PreferencesState['selectedAddress'];
+  private getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
   /**
    * Creates an AccountTracker instance.
    *
@@ -96,11 +97,15 @@ export class AccountTrackerController extends BaseController<
     {
       onPreferencesStateChange,
       getIdentities,
+      getSelectedAddress,
+      getMultiAccountBalancesEnabled,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
       getIdentities: () => PreferencesState['identities'];
+      getSelectedAddress: () => PreferencesState['selectedAddress'];
+      getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
     },
     config?: Partial<AccountTrackerConfig>,
     state?: Partial<AccountTrackerState>,
@@ -112,6 +117,8 @@ export class AccountTrackerController extends BaseController<
     this.defaultState = { accounts: {} };
     this.initialize();
     this.getIdentities = getIdentities;
+    this.getSelectedAddress = getSelectedAddress;
+    this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
     onPreferencesStateChange(() => {
       this.refresh();
     });
@@ -150,19 +157,49 @@ export class AccountTrackerController extends BaseController<
   }
 
   /**
-   * Refreshes all accounts in the current keychain.
+   * Refreshes the balances of the accounts depending on the multi-account setting.
+   * If multi-account is disabled, only updates the selected account balance.
+   * If multi-account is enabled, updates balances for all accounts.
+   *
+   * @async
    */
   refresh = async () => {
     this.syncAccounts();
     const accounts = { ...this.state.accounts };
-    for (const address in accounts) {
-      await safelyExecuteWithTimeout(async () => {
-        const balance = await query(this.ethQuery, 'getBalance', [address]);
-        accounts[address] = { balance: BNToHex(balance) };
-      });
+    const selectedAddress = this.getSelectedAddress();
+    const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
+
+    if (!isMultiAccountBalancesEnabled) {
+      const balance = await this.getBalanceFromChain(selectedAddress);
+      accounts[selectedAddress] = { balance: BNToHex(balance) };
+      this.update({ accounts });
+      return;
     }
+
+    for (const address in accounts) {
+      const balance = await this.getBalanceFromChain(address);
+      accounts[address] = { balance: BNToHex(balance) };
+    }
+
     this.update({ accounts });
   };
+
+  /**
+   * Fetches the balance of a given address from the blockchain.
+   *
+   * @async
+   * @param {string} address - The account address to fetch the balance for.
+   * @returns {Promise<string>} - A promise that resolves to the balance in a hex string format.
+   */
+  async getBalanceFromChain(address: string): Promise<string> {
+    let balance = '0x0';
+
+    await safelyExecuteWithTimeout(async () => {
+      balance = await query(this.ethQuery, 'getBalance', [address]);
+    });
+
+    return balance;
+  }
 
   /**
    * Sync accounts balances with some additional addresses.
@@ -198,4 +235,4 @@ export class AccountTrackerController extends BaseController<
   }
 }
 
-export default AccountTrackerController;
+export default AccountTrackerController
