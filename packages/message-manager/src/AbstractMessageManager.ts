@@ -36,7 +36,7 @@ export interface AbstractMessage {
  * @type MessageParams
  *
  * Represents the parameters to pass to the signing method once the signature request is approved.
- * @property from - Address to sign this message from
+ * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
  */
 export interface AbstractMessageParams {
@@ -50,7 +50,7 @@ export interface AbstractMessageParams {
  * Represents the parameters to pass to the signing method once the signature request is approved
  * plus data added by MetaMask.
  * @property metamaskId - Added for tracking and identification within MetaMask
- * @property from - Address to sign this message from
+ * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
  */
 export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
@@ -242,25 +242,18 @@ export abstract class AbstractMessageManager<
    * @param rawSig - The raw data of the signature request.
    */
   setMessageStatusSigned(messageId: string, rawSig: string) {
-    const message = this.getMessage(messageId);
-    /* istanbul ignore if */
-    if (!message) {
-      return;
-    }
-    message.rawSig = rawSig;
-    this.updateMessage(message);
-    this.setMessageStatus(messageId, 'signed');
+    this.setMessageStatusAndResult(messageId, rawSig, 'signed');
   }
 
   /**
-   * Sets a EncryptionPublicKey status to 'received' via a call to this.setMsgStatus and
-   * updates that EncryptionPublicKey in this.messages by adding the raw data of request
-   * to the EncryptionPublicKey.
+   * Sets the message to a new status via a call to this.setMsgStatus and
+   * updates the rawSig field in this.messages.
    *
    * @param messageId - The id of the Message to sign.
-   * @param rawSig - The encryption public key of the request.
+   * @param rawSig - The data to update rawSig in the message.
+   * @param status - The new message status.
    */
-  setMessageStatusReceived(messageId: string, rawSig: string) {
+  setMessageStatusAndResult(messageId: string, rawSig: string, status: string) {
     const message = this.getMessage(messageId);
     /* istanbul ignore if */
     if (!message) {
@@ -268,7 +261,7 @@ export abstract class AbstractMessageManager<
     }
     message.rawSig = rawSig;
     this.updateMessage(message);
-    this.setMessageStatus(messageId, 'received');
+    this.setMessageStatus(messageId, status);
   }
 
   /**
