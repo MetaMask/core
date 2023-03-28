@@ -12,12 +12,13 @@ import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import LedgerKeyring from '@ledgerhq/metamask-keyring';
 import * as uuid from 'uuid';
 import { PreferencesController } from '@metamask/preferences-controller';
+import { NetworkType } from '@metamask/controller-utils';
 import {
   keyringBuilderFactory,
   KeyringController as EthKeyringController,
 } from '@metamask/eth-keyring-controller';
-import { NetworkType } from '@metamask/controller-utils';
 import { MockTransport } from '../tests/mocks/mockLedgerTransport';
+
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
@@ -1250,7 +1251,7 @@ describe('KeyringController', () => {
         },
         {
           common: Common.forCustomChain(
-            MAINNET,
+            NetworkType.mainnet,
             {
               name: 'rinkeby',
               chainId: parseInt('4'),
@@ -1279,7 +1280,7 @@ describe('KeyringController', () => {
         },
         {
           common: Common.forCustomChain(
-            MAINNET,
+            NetworkType.mainnet,
             {
               name: 'rinkeby',
               chainId: parseInt('4'),
