@@ -37,7 +37,7 @@ describe('AccountTrackerController', () => {
     const controller = new AccountTrackerController({
       onPreferencesStateChange: sinon.stub(),
       getIdentities: () => ({}),
-      getSelectedAddress: () => '0x0',
+      getSelectedAddress: () => '',
       getMultiAccountBalancesEnabled: () => true,
     });
     expect(controller.state).toStrictEqual({
@@ -49,7 +49,7 @@ describe('AccountTrackerController', () => {
     const controller = new AccountTrackerController({
       onPreferencesStateChange: sinon.stub(),
       getIdentities: () => ({}),
-      getSelectedAddress: () => '0x0',
+      getSelectedAddress: () => '',
       getMultiAccountBalancesEnabled: () => true,
     });
     expect(() => console.log(controller.provider)).toThrow(
@@ -68,7 +68,7 @@ describe('AccountTrackerController', () => {
         getIdentities: () => {
           return { [address]: {} as ContactEntry };
         },
-        getSelectedAddress: () => '0x0',
+        getSelectedAddress: () => address,
         getMultiAccountBalancesEnabled: () => true,
       },
       { provider },
@@ -89,7 +89,7 @@ describe('AccountTrackerController', () => {
         getIdentities: () => {
           return {};
         },
-        getSelectedAddress: () => '0x0',
+        getSelectedAddress: () => address,
         getMultiAccountBalancesEnabled: () => true,
       },
       { provider },

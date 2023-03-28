@@ -166,10 +166,10 @@ export class AccountTrackerController extends BaseController<
   refresh = async () => {
     this.syncAccounts();
     const accounts = { ...this.state.accounts };
-    const selectedAddress = this.getSelectedAddress();
     const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
 
     if (!isMultiAccountBalancesEnabled) {
+      const selectedAddress = this.getSelectedAddress();
       const balance = await this.getBalanceFromChain(selectedAddress);
       accounts[selectedAddress] = { balance: BNToHex(balance) };
       this.update({ accounts });
