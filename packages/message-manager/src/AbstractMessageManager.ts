@@ -80,6 +80,8 @@ export abstract class AbstractMessageManager<
 > extends BaseController<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
 
+  private additionalFinishStatuses: string[];
+
   /**
    * Saves the unapproved messages, and their count to state.
    *
@@ -109,7 +111,7 @@ export abstract class AbstractMessageManager<
       status === 'rejected' ||
       status === 'signed' ||
       status === 'errored' ||
-      status === 'received'
+      this.additionalFinishStatuses.includes(status)
     ) {
       this.hub.emit(`${messageId}:finished`, message);
     }
@@ -145,10 +147,12 @@ export abstract class AbstractMessageManager<
    *
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
+   * @param additionalFinishStatuses -
    */
   constructor(
     config?: Partial<BaseConfig>,
     state?: Partial<MessageManagerState<M>>,
+    additionalFinishStatuses?: string[],
   ) {
     super(config, state);
     this.defaultState = {
@@ -156,6 +160,7 @@ export abstract class AbstractMessageManager<
       unapprovedMessagesCount: 0,
     };
     this.messages = [];
+    this.additionalFinishStatuses = additionalFinishStatuses ?? [];
     this.initialize();
   }
 
