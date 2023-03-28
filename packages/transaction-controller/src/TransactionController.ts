@@ -12,7 +12,11 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import type { NetworkState, ProviderProxy } from '@metamask/network-controller';
+import type {
+  NetworkState,
+  ProviderProxy,
+  BlockTrackerProxy,
+} from '@metamask/network-controller';
 import {
   BNToHex,
   fractionBN,
@@ -23,7 +27,9 @@ import {
   MAINNET,
   RPC,
 } from '@metamask/controller-utils';
+import NonceTracker from 'nonce-tracker';
 import {
+  formatTxForNonceTracker,
   normalizeTransaction,
   validateTransaction,
   handleTransactionFetch,
@@ -267,7 +273,11 @@ export class TransactionController extends BaseController<
 > {
   private ethQuery: any;
 
+  private nonceTracker: NonceTracker;
+
   private registry: any;
+
+  private provider: ProviderProxy;
 
   private handle?: ReturnType<typeof setTimeout>;
 
@@ -410,7 +420,8 @@ export class TransactionController extends BaseController<
    * @param options - The controller options.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
-   * @param options.getProvider - Returns a provider for the current network.
+   * @param options.provider - The provider used to create the underlying EthQuery instance.
+   * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -418,11 +429,13 @@ export class TransactionController extends BaseController<
     {
       getNetworkState,
       onNetworkStateChange,
-      getProvider,
+      provider,
+      blockTracker,
     }: {
       getNetworkState: () => NetworkState;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
-      getProvider: () => ProviderProxy;
+      provider: ProviderProxy;
+      blockTracker: BlockTrackerProxy;
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
@@ -438,14 +451,34 @@ export class TransactionController extends BaseController<
       transactions: [],
     };
     this.initialize();
-    const provider = getProvider();
+    this.provider = provider;
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
+    this.nonceTracker = new NonceTracker({
+      provider,
+      blockTracker,
+      getPendingTransactions: (address) => {
+        return formatTxForNonceTracker(
+          this.state.transactions.filter(
+            ({ status, transaction: { from } }) =>
+              status === TransactionStatus.submitted &&
+              (address ? from.toLowerCase() === address.toLowerCase() : true),
+          ),
+        );
+      },
+      getConfirmedTransactions: () => {
+        return formatTxForNonceTracker(
+          this.state.transactions.filter(
+            ({ status }) => status === TransactionStatus.confirmed,
+          ),
+        );
+      },
+    });
+
     onNetworkStateChange(() => {
-      const newProvider = getProvider();
-      this.ethQuery = new EthQuery(newProvider);
-      this.registry = new MethodRegistry({ provider: newProvider });
+      this.ethQuery = new EthQuery(this.provider);
+      this.registry = new MethodRegistry({ provider: this.provider });
     });
     this.poll();
   }
@@ -621,10 +654,11 @@ export class TransactionController extends BaseController<
     const { chainId: currentChainId } = providerConfig;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
-    const { nonce } = transactionMeta.transaction;
-
+    const {
+      transaction: { nonce, from },
+    } = transactionMeta;
+    let nonceLock;
     try {
-      const { from } = transactionMeta.transaction;
       if (!this.sign) {
         releaseLock();
         this.failTransaction(
@@ -640,21 +674,21 @@ export class TransactionController extends BaseController<
 
       const chainId = parseInt(currentChainId, undefined);
       const { approved: status } = TransactionStatus;
-
-      const txNonce =
-        nonce ||
-        (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
+      let nonceToUse = nonce;
+      // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
+      // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
+      if (!nonceToUse) {
+        nonceLock = await this.nonceTracker.getNonceLock(from);
+        nonceToUse = nonceLock.nextNonce.toString(16);
+      }
 
       transactionMeta.status = status;
-      transactionMeta.transaction.nonce = txNonce;
+      transactionMeta.transaction.nonce = addHexPrefix(nonceToUse);
       transactionMeta.transaction.chainId = chainId;
 
       const baseTxParams = {
         ...transactionMeta.transaction,
         gasLimit: transactionMeta.transaction.gas,
-        chainId,
-        nonce: txNonce,
-        status,
       };
 
       const isEIP1559 = isEIP1559Transaction(transactionMeta.transaction);
@@ -694,6 +728,10 @@ export class TransactionController extends BaseController<
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
+      // must set transaction to submitted/failed before releasing lock
+      if (nonceLock) {
+        nonceLock.releaseLock();
+      }
       releaseLock();
     }
   }

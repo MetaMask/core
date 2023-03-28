@@ -71,7 +71,7 @@ export type ProviderProxy = SwappableProxy<Provider>;
 
 type BlockTracker = any;
 
-type BlockTrackerProxy = SwappableProxy<BlockTracker>;
+export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
 
 export type NetworkControllerStateChangeEvent = {
   type: `NetworkController:stateChange`;
