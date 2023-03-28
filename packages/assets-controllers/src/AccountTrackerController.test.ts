@@ -24,8 +24,13 @@ const provider = new HttpProvider(
 );
 
 describe('AccountTrackerController', () => {
+  beforeEach(() => {
+    mockedQuery.mockReturnValue(Promise.resolve('0x0'));
+  });
+
   afterEach(() => {
     sinon.restore();
+    mockedQuery.mockRestore();
   });
 
   it('should set default state', () => {
@@ -52,8 +57,32 @@ describe('AccountTrackerController', () => {
     );
   });
 
+  it('should get real balance', async () => {
+    const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+
+    mockedQuery.mockReturnValueOnce(Promise.resolve('0x10'));
+
+    const controller = new AccountTrackerController(
+      {
+        onPreferencesStateChange: sinon.stub(),
+        getIdentities: () => {
+          return { [address]: {} as ContactEntry };
+        },
+        getSelectedAddress: () => '0x0',
+        getMultiAccountBalancesEnabled: () => true,
+      },
+      { provider },
+    );
+
+    await controller.refresh();
+
+    expect(controller.state.accounts[address].balance).toBeDefined();
+    expect(controller.state.accounts[address].balance).toBe('0x10');
+  });
+
   it('should sync balance with addresses', async () => {
     const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+
     const controller = new AccountTrackerController(
       {
         onPreferencesStateChange: sinon.stub(),
@@ -65,7 +94,7 @@ describe('AccountTrackerController', () => {
       },
       { provider },
     );
-    mockedQuery.mockReturnValue(Promise.resolve('0x10'));
+    mockedQuery.mockReturnValueOnce(Promise.resolve('0x10'));
     const result = await controller.syncBalanceWithAddresses([address]);
     expect(result[address].balance).toBe('0x10');
   });
@@ -141,6 +170,9 @@ describe('AccountTrackerController', () => {
     const address1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const address2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
 
+    jest.spyOn(AccountTrackerController.prototype, 'poll')
+      .mockImplementationOnce(async () => {});
+
     mockedQuery.mockReturnValueOnce(Promise.resolve('0x10'));
 
     const controller = new AccountTrackerController(
@@ -152,11 +184,10 @@ describe('AccountTrackerController', () => {
         getSelectedAddress: () => address1,
         getMultiAccountBalancesEnabled: () => false,
       },
-      { provider, interval: 0 },
+      { provider },
     );
     
-    // Wait for polling to finish
-    await new Promise((res, _) => setTimeout(() => res(true), 0));
+    await controller.refresh();
 
     expect(controller.state.accounts[address1].balance).toBe('0x10');
     expect(controller.state.accounts[address2].balance).toBe('0x0');
@@ -165,6 +196,9 @@ describe('AccountTrackerController', () => {
   it('should update all address balances when multi-account is enabled', async () => {
     const address1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const address2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+
+    jest.spyOn(AccountTrackerController.prototype, 'poll')
+      .mockImplementationOnce(async () => {});
 
     mockedQuery.mockReturnValueOnce(Promise.resolve('0x11'));
     mockedQuery.mockReturnValueOnce(Promise.resolve('0x12'));
@@ -178,12 +212,11 @@ describe('AccountTrackerController', () => {
         getSelectedAddress: () => address1,
         getMultiAccountBalancesEnabled: () => true,
       },
-      { provider, interval: 0 },
+      { provider },
     );
     
-    // Wait for polling to finish
-    await new Promise((res, _) => setTimeout(() => res(true), 0));
-
+    await controller.refresh();
+    
     expect(controller.state.accounts[address1].balance).toBe('0x11');
     expect(controller.state.accounts[address2].balance).toBe('0x12');
   });

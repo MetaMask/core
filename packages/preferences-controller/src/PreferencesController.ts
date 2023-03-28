@@ -282,6 +282,15 @@ export class PreferencesController extends BaseController<
     };
     this.update({ disabledRpcMethodPreferences: newDisabledRpcMethods });
   }
+
+  /**
+   * A setter for the user preferences to enable/disable fetch of multiple accounts balance.
+   *
+   * @param isMultiAccountBalancesEnabled - true to enable multiple accounts balance fetch, false to fetch only selectedAddress.
+   */
+  setIsMultiAccountBalancesEnabled(isMultiAccountBalancesEnabled: boolean) {
+    this.update({ isMultiAccountBalancesEnabled });
+  }
 }
 
 export default PreferencesController;
