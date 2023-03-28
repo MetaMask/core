@@ -79,6 +79,7 @@ export type SuggestedAssetMetaBase = {
  * @property time - Timestamp associated with this this suggested asset
  * @property type - Type type this suggested asset
  * @property asset - Asset suggested object
+ * @property interactingAddress - Account address that requested watch asset
  */
 export type SuggestedAssetMeta =
   | (SuggestedAssetMetaBase & {
@@ -628,16 +629,17 @@ export class TokensController extends BaseController<
     type: string,
     interactingAddress?: string,
   ): Promise<AssetSuggestionResult> {
+    const { selectedAddress } = this.config;
+
     const suggestedAssetMeta: SuggestedAssetMeta = {
       asset,
       id: this._generateRandomId(),
       status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
       time: Date.now(),
       type,
+      interactingAddress: interactingAddress || selectedAddress,
     };
-    if (interactingAddress) {
-      suggestedAssetMeta.interactingAddress = interactingAddress;
-    }
+
     try {
       switch (type) {
         case 'ERC20':
