@@ -60,7 +60,7 @@ describe('AbstractTestManager', () => {
 
   it('should add a valid message', async () => {
     const controller = new AbstractTestManager();
-    controller.addMessage({
+    await controller.addMessage({
       id: messageId,
       messageParams: {
         data: typedMessage,
@@ -84,15 +84,15 @@ describe('AbstractTestManager', () => {
 
   it('adds a valid message with provider security response', async () => {
     const securityProviderResponseMock = { flagAsDangerous: 2 };
-    const securityProviderRequest: SecurityProviderRequest = jest
+    const securityProviderRequestMock: SecurityProviderRequest = jest
       .fn()
       .mockResolvedValue(securityProviderResponseMock);
     const controller = new AbstractTestManager(
       undefined,
       undefined,
-      securityProviderRequest,
+      securityProviderRequestMock,
     );
-    controller.addMessage({
+    await controller.addMessage({
       id: messageId,
       messageParams: {
         data: typedMessage,
@@ -102,9 +102,6 @@ describe('AbstractTestManager', () => {
       time: messageTime,
       type: messageType,
     });
-
-    // Wait for the securityProviderRequest Promise to resolve
-    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const message = controller.getMessage(messageId);
     if (!message) {
@@ -116,12 +113,14 @@ describe('AbstractTestManager', () => {
     expect(message.time).toBe(messageTime);
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
+    expect(securityProviderRequestMock).toHaveBeenCalled();
+    expect(message).toHaveProperty('securityProviderResponse');
     expect(message.securityProviderResponse).toBe(securityProviderResponseMock);
   });
 
-  it('should reject a message', () => {
+  it('should reject a message', async () => {
     const controller = new AbstractTestManager();
-    controller.addMessage({
+    await controller.addMessage({
       id: messageId,
       messageParams: {
         data: typedMessage,
@@ -139,9 +138,9 @@ describe('AbstractTestManager', () => {
     expect(message.status).toBe('rejected');
   });
 
-  it('should sign a message', () => {
+  it('should sign a message', async () => {
     const controller = new AbstractTestManager();
-    controller.addMessage({
+    await controller.addMessage({
       id: messageId,
       messageParams: {
         data: typedMessage,
@@ -160,7 +159,7 @@ describe('AbstractTestManager', () => {
     expect(message.rawSig).toBe('rawSig');
   });
 
-  it('should get correct unapproved messages', () => {
+  it('should get correct unapproved messages', async () => {
     const firstMessageData = [
       {
         name: 'Message',
@@ -200,8 +199,8 @@ describe('AbstractTestManager', () => {
       type: 'eth_signTypedData',
     };
     const controller = new AbstractTestManager();
-    controller.addMessage(firstMessage);
-    controller.addMessage(secondMessage);
+    await controller.addMessage(firstMessage);
+    await controller.addMessage(secondMessage);
     expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
     expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
@@ -213,7 +212,7 @@ describe('AbstractTestManager', () => {
     const controller = new AbstractTestManager();
     const firstMessage = { from: '0xfoO', data: typedMessage };
     const version = 'V1';
-    controller.addMessage({
+    await controller.addMessage({
       id: messageId,
       messageParams: firstMessage,
       status: messageStatus,
@@ -234,9 +233,9 @@ describe('AbstractTestManager', () => {
   });
 
   describe('setMessageStatus', () => {
-    it('should set the given message status', () => {
+    it('should set the given message status', async () => {
       const controller = new AbstractTestManager();
-      controller.addMessage({
+      await controller.addMessage({
         id: messageId,
         messageParams: { from: '0x1234', data: 'test' },
         status: 'status',

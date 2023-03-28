@@ -32,7 +32,7 @@ export interface AbstractMessage {
   status: string;
   type: string;
   rawSig?: string;
-  securityProviderResponse?: Json;
+  securityProviderResponse?: Map<string, Json>;
 }
 
 /**
@@ -139,6 +139,26 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Verifies a message is malicious or not by checking it against a security provider.
+   *
+   * @param message - The message to verify.
+   * @returns A promise that resolves to a secured message with additional security provider response data.
+   */
+  private async securityCheck(message: M): Promise<M> {
+    if (this.securityProviderRequest) {
+      const securityProviderResponse = await this.securityProviderRequest(
+        message,
+        message.type,
+      );
+      return {
+        ...message,
+        securityProviderResponse,
+      };
+    }
+    return message;
+  }
+
+  /**
    * EventEmitter instance used to listen to specific message events
    */
   hub = new EventEmitter();
@@ -195,26 +215,14 @@ export abstract class AbstractMessageManager<
 
   /**
    * Adds a passed Message to this.messages, and calls this.saveMessageList() to save
-   * the unapproved Messages from that list to this.messages. If a security provider
-   * is provided, the method will check if the Message is malicious or not.
+   * the unapproved Messages from that list to this.messages.
    *
    * @param message - The Message to add to this.messages.
    */
-  addMessage(message: M) {
-    if (this.securityProviderRequest) {
-      this.securityProviderRequest(message, message.type).then(
-        (securityProviderResponse) => {
-          this.messages.push({
-            ...message,
-            securityProviderResponse,
-          });
-          this.saveMessageList();
-        },
-      );
-    } else {
-      this.messages.push(message);
-      this.saveMessageList();
-    }
+  async addMessage(message: M) {
+    const securedMessage = await this.securityCheck(message);
+    this.messages.push(securedMessage);
+    this.saveMessageList();
   }
 
   /**
