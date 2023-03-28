@@ -120,6 +120,28 @@ describe('AbstractTestManager', () => {
     expect(message.rawSig).toBe('rawSig');
   });
 
+  it('should set message to one of the allowed statuses', () => {
+    const controller = new AbstractTestManager(undefined, undefined, [
+      'received',
+    ]);
+    controller.addMessage({
+      id: messageId,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    });
+    controller.setMessageStatusAndResult(messageId, 'rawSig', 'received');
+    const message = controller.getMessage(messageId);
+    if (!message) {
+      throw new Error('"message" is falsy');
+    }
+    expect(message.status).toBe('received');
+  });
+
   it('should get correct unapproved messages', () => {
     const firstMessageData = [
       {
