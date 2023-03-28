@@ -268,10 +268,9 @@ const makeRpcCall = (
 export type ProviderType = 'infura' | 'custom';
 
 export type MockOptions = {
-  infuraNetwork?: NetworkType;
   providerType: ProviderType;
+  infuraNetwork?: NetworkType;
   customRpcUrl?: string;
-  customChainId?: string;
 };
 
 export type MockCommunications = {
@@ -285,7 +284,7 @@ export type MockCommunications = {
 export const withMockedCommunications = async (
   {
     providerType,
-    infuraNetwork = 'mainnet',
+    infuraNetwork = NetworkType.mainnet,
     customRpcUrl = MOCK_RPC_URL,
   }: MockOptions,
   fn: (comms: MockCommunications) => Promise<void>,
@@ -368,9 +367,8 @@ export const waitForPromiseToBeFulfilledAfterRunningAllTimers = async (
 export const withNetworkClient = async (
   {
     providerType,
-    infuraNetwork = 'mainnet',
+    infuraNetwork = NetworkType.mainnet,
     customRpcUrl = MOCK_RPC_URL,
-    customChainId = '0x1',
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<any>,
 ): Promise<any> => {
@@ -386,6 +384,7 @@ export const withNetworkClient = async (
   const controller = new NetworkController({
     messenger,
     infuraProjectId: MOCK_INFURA_PROJECT_ID,
+    trackMetaMetricsEvent: jest.fn(),
   });
 
   const getEIP1559CompatibilityMock = jest
@@ -403,9 +402,15 @@ export const withNetworkClient = async (
   if (providerType === 'infura') {
     controller.setProviderType(infuraNetwork);
   } else {
-    controller.setRpcTarget(customRpcUrl, customChainId);
+    controller.upsertNetworkConfiguration(
+      {
+        rpcUrl: customRpcUrl,
+        chainId: '0x9999',
+        ticker: 'TEST',
+      },
+      { referrer: 'https://test-dapp.com', source: 'dapp', setActive: true },
+    );
   }
-
   const ethQuery = messenger.call('NetworkController:getEthQuery');
   const { provider, blockTracker } = controller.getProviderAndBlockTracker();
 
