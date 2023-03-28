@@ -1,9 +1,13 @@
+import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 import {
   Transaction,
   GasPriceValue,
   FeeMarketEIP1559Values,
+  TransactionStatus,
 } from './TransactionController';
 import * as util from './utils';
+import type { TransactionMeta } from './TransactionController';
+import { formatTxForNonceTracker } from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -279,6 +283,60 @@ describe('utils', () => {
       expect(() =>
         util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
       ).not.toThrow(Error);
+    });
+  });
+
+  describe('formatTxForNonceTracker', () => {
+    it('should return an array of formatted NonceTrackerTransaction objects', () => {
+      const inputTransactions: TransactionMeta[] = [
+        {
+          id: '1',
+          time: 123456,
+          transaction: {
+            from: '0x123',
+            gas: '0x100',
+            value: '0x200',
+            nonce: '0x1',
+          },
+          status: TransactionStatus.confirmed,
+        },
+        {
+          id: '2',
+          time: 123457,
+          transaction: {
+            from: '',
+            gas: '',
+            value: '',
+            nonce: '',
+          },
+          status: TransactionStatus.submitted,
+        },
+      ];
+      const expectedResult: NonceTrackerTransaction[] = [
+        {
+          status: TransactionStatus.confirmed,
+          history: [{}],
+          txParams: {
+            from: '0x123',
+            gas: '0x100',
+            value: '0x200',
+            nonce: '0x1',
+          },
+        },
+        {
+          status: TransactionStatus.submitted,
+          history: [{}],
+          txParams: {
+            from: '',
+            gas: '',
+            value: '',
+            nonce: '',
+          },
+        },
+      ];
+
+      const result = formatTxForNonceTracker(inputTransactions);
+      expect(result).toStrictEqual(expectedResult);
     });
   });
 });

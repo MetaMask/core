@@ -5,12 +5,14 @@ import {
   handleFetch,
   isValidHexAddress,
 } from '@metamask/controller-utils';
+import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 import {
   Transaction,
   FetchAllOptions,
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './TransactionController';
+import type { TransactionMeta } from './TransactionController';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -260,4 +262,32 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   }
   const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
   throw new Error(errorMsg);
+}
+
+/**
+ * Helper Method to format transactions for the nonce tracker.
+ *
+ * @param transactions - Array of transactionMeta objects that have been prefiltered.
+ * @returns Array of transactions formatted for the nonce tracker.
+ */
+export function formatTxForNonceTracker(
+  transactions: TransactionMeta[],
+): NonceTrackerTransaction[] {
+  return transactions.map(
+    ({ status, transaction: { from, gas, value, nonce } }) => {
+      // the only value we care about is the nonce
+      // but we need to return the other values to satisfy the type
+      // TODO: refactor nonceTracker to not require this
+      return {
+        status,
+        history: [{}],
+        txParams: {
+          from: from ?? '',
+          gas: gas ?? '',
+          value: value ?? '',
+          nonce: nonce ?? '',
+        },
+      };
+    },
+  );
 }
