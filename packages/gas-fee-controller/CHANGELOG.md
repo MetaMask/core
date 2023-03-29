@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.1]
 ### Changed
-- Expose `getProviderAndBlockTracker` instead of `provider`([#1091](https://github.com/MetaMask/core/pull/1091))
+- Adjust types to align with new version of `NetworkController` ([#1091](https://github.com/MetaMask/core/pull/1091))
 
 ## [4.0.0]
 ### Changed
