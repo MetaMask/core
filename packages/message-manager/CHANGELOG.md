@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [2.1.0]
-### Uncategorized
-- feat: Add SIWE detection support for PersonalMessageManager ([#1139](https://github.com/MetaMask/controllers.git/pull/1139))
+### Added
+- Add SIWE detection support for PersonalMessageManager ([#1139](https://github.com/MetaMask/core/pull/1139))
 
 ## [2.0.0]
 ### Removed
@@ -33,9 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/message-manager@2.1.0...HEAD
-[2.1.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/message-manager@2.0.0...@metamask/message-manager@2.1.0
-[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/message-manager@1.0.2...@metamask/message-manager@2.0.0
-[1.0.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/message-manager@1.0.1...@metamask/message-manager@1.0.2
-[1.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/message-manager@1.0.0...@metamask/message-manager@1.0.1
-[1.0.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/message-manager@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@2.0.0...@metamask/message-manager@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@1.0.2...@metamask/message-manager@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@1.0.1...@metamask/message-manager@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@1.0.0...@metamask/message-manager@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/message-manager@1.0.0
