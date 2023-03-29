@@ -82,14 +82,19 @@ export class AccountTrackerController extends BaseController<
   override name = 'AccountTrackerController';
 
   private getIdentities: () => PreferencesState['identities'];
+
   private getSelectedAddress: () => PreferencesState['selectedAddress'];
+
   private getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
+
   /**
    * Creates an AccountTracker instance.
    *
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.getIdentities - Gets the identities from the Preferences store.
+   * @param options.getSelectedAddress - Gets the selected address from the Preferences store.
+   * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -188,11 +193,11 @@ export class AccountTrackerController extends BaseController<
    * Fetches the balance of a given address from the blockchain.
    *
    * @async
-   * @param {string} address - The account address to fetch the balance for.
-   * @returns {Promise<string>} - A promise that resolves to the balance in a hex string format.
+   * @param address - The account address to fetch the balance for.
+   * @returns A promise that resolves to the balance in a hex string format.
    */
-  async getBalanceFromChain(address: string): Promise<string> {
-    let balance = '0x0';
+  async getBalanceFromChain(address: string): Promise<string | undefined> {
+    let balance;
 
     await safelyExecuteWithTimeout(async () => {
       balance = await query(this.ethQuery, 'getBalance', [address]);
@@ -235,4 +240,4 @@ export class AccountTrackerController extends BaseController<
   }
 }
 
-export default AccountTrackerController
+export default AccountTrackerController;
