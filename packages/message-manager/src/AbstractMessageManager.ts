@@ -91,7 +91,7 @@ export abstract class AbstractMessageManager<
 > extends BaseController<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
 
-  protected securityProviderRequest: SecurityProviderRequest | undefined;
+  private securityProviderRequest: SecurityProviderRequest | undefined;
 
   /**
    * Saves the unapproved messages, and their count to state.
