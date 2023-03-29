@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+### Uncategorized
+- add rollbackToPreviousProvider method ([#1132](https://github.com/MetaMask/controllers.git/pull/1132))
+- Migrate network configurations from `PreferencesController` to `NetworkController` ([#1064](https://github.com/MetaMask/controllers.git/pull/1064))
+- bump contract metadata package version ([#1141](https://github.com/MetaMask/controllers.git/pull/1141))
+
 ## [5.0.0]
 ### Removed
 - **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
@@ -79,12 +85,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@5.0.0...HEAD
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@4.0.1...@metamask/assets-controllers@5.0.0
-[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@4.0.0...@metamask/assets-controllers@4.0.1
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@3.0.1...@metamask/assets-controllers@4.0.0
-[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@3.0.0...@metamask/assets-controllers@3.0.1
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/assets-controllers@1.0.0
+[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/assets-controllers@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/assets-controllers@5.0.0...@metamask/assets-controllers@5.0.1
+[5.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/assets-controllers@4.0.1...@metamask/assets-controllers@5.0.0
+[4.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/assets-controllers@4.0.0...@metamask/assets-controllers@4.0.1
+[4.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/assets-controllers@3.0.1...@metamask/assets-controllers@4.0.0
+[3.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/assets-controllers@3.0.0...@metamask/assets-controllers@3.0.1
+[3.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
+[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
+[1.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
+[1.0.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/assets-controllers@1.0.0

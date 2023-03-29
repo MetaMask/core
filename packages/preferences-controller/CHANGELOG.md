@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+### Uncategorized
+- Migrate network configurations from `PreferencesController` to `NetworkController` ([#1064](https://github.com/MetaMask/controllers.git/pull/1064))
+
 ## [2.1.0]
 ### Added
 - `disabledRpcMethodPreferences` state to PreferencesController ([#1109](https://github.com/MetaMask/core/pull/1109)). See [this PR on extension](https://github.com/MetaMask/metamask-extension/pull/17308) and [this ticket](https://github.com/MetaMask/metamask-mobile/issues/5676)
@@ -33,9 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@2.1.0...HEAD
-[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@2.0.0...@metamask/preferences-controller@2.1.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@1.0.2...@metamask/preferences-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@1.0.1...@metamask/preferences-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@1.0.0...@metamask/preferences-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/preferences-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/preferences-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/preferences-controller@2.1.0...@metamask/preferences-controller@3.0.0
+[2.1.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/preferences-controller@2.0.0...@metamask/preferences-controller@2.1.0
+[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/preferences-controller@1.0.2...@metamask/preferences-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/preferences-controller@1.0.1...@metamask/preferences-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/preferences-controller@1.0.0...@metamask/preferences-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/preferences-controller@1.0.0

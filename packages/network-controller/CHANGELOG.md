@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+### Uncategorized
+- add rollbackToPreviousProvider method ([#1132](https://github.com/MetaMask/controllers.git/pull/1132))
+- Migrate network configurations from `PreferencesController` to `NetworkController` ([#1064](https://github.com/MetaMask/controllers.git/pull/1064))
+- Fix/web3 middleware testing ([#1087](https://github.com/MetaMask/controllers.git/pull/1087))
+- NetworkController: provider -> getProviderAndBlockTracker ([#1091](https://github.com/MetaMask/controllers.git/pull/1091))
+
 ## [5.0.0]
 ### Changed
 - **BREAKING:** Rename `properties` property in state object to `networkDetails` ([#1074](https://github.com/MetaMask/controllers/pull/1074))
@@ -50,9 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@5.0.0...HEAD
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@4.0.0...@metamask/network-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@3.0.0...@metamask/network-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/network-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/network-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/network-controller@5.0.0...@metamask/network-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/network-controller@4.0.0...@metamask/network-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/network-controller@3.0.0...@metamask/network-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/network-controller@1.0.0
