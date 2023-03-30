@@ -368,7 +368,9 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Method to inilialize the provider.
+   * Method to inilialize the provider,
+   * Creates the provider and block tracker for the configured network,
+   * using the provider to gather details about the network.
    *
    */
   initializeProvider() {
