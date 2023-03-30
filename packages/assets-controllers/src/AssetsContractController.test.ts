@@ -1,5 +1,8 @@
 import HttpProvider from 'ethjs-provider-http';
-import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
+import {
+  IPFS_DEFAULT_GATEWAY_URL,
+  NetworkType,
+} from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
   NetworkController,
@@ -35,6 +38,7 @@ const setupControllers = () => {
     });
   const network = new NetworkController({
     messenger,
+    trackMetaMetricsEvent: jest.fn(),
   });
   const preferences = new PreferencesController();
   const assetsContract = new AssetsContractController({
@@ -294,7 +298,7 @@ describe('AssetsContractController', () => {
     );
     expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
 
-    network.setProviderType('localhost');
+    network.setProviderType(NetworkType.localhost);
 
     const noBalances = await assetsContract.getBalancesInSingleCall(
       ERC20_DAI_ADDRESS,

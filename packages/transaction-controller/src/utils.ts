@@ -1,6 +1,6 @@
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import {
-  MAINNET,
+  NetworkType,
   convertHexToDecimal,
   handleFetch,
   isValidHexAddress,
@@ -41,7 +41,7 @@ export function getEtherscanApiUrl(
   urlParams: any,
 ): string {
   let etherscanSubdomain = 'api';
-  if (networkType !== MAINNET) {
+  if (networkType !== NetworkType.mainnet) {
     etherscanSubdomain = `api-${networkType}`;
   }
   const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;

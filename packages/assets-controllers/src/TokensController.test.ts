@@ -2,12 +2,12 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
-import { ControllerMessenger } from '@metamask/base-controller';
+import {
+  NetworkState,
+  ProviderConfig,
+  defaultState as defaultNetworkState,
+} from '@metamask/network-controller';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
@@ -27,53 +27,39 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   });
 };
 
+const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
+const GOERLI = { chainId: '5', type: NetworkType.goerli };
+
 describe('TokensController', () => {
   let tokensController: TokensController;
   let preferences: PreferencesController;
-  let network: NetworkController;
-  let messenger: NetworkControllerMessenger;
 
-  let instEthProvStub: sinon.SinonStub;
+  let onNetworkStateChangeListener: (state: NetworkState) => void;
+  const changeNetwork = (providerConfig: ProviderConfig) => {
+    onNetworkStateChangeListener({
+      ...defaultNetworkState,
+      providerConfig,
+    });
+  };
 
   beforeEach(() => {
-    messenger = new ControllerMessenger().getRestricted({
-      name: 'NetworkController',
-      allowedEvents: [
-        'NetworkController:stateChange',
-        'NetworkController:providerConfigChange',
-      ],
-      allowedActions: [],
-    });
     preferences = new PreferencesController();
-    network = new NetworkController({
-      messenger,
-      infuraProjectId: 'potato',
-    });
-
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', (state, patch) => {
-          const touchesProviderConfig = patch.find(
-            (p) => p.path[0] === 'providerConfig',
-          );
-          if (touchesProviderConfig) {
-            listener(state);
-          }
-        }),
+        (onNetworkStateChangeListener = listener),
       config: {
         chainId: NetworksChainId.mainnet,
       },
     });
 
-    instEthProvStub = sinon
+    sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
       .callsFake(() => null);
   });
 
   afterEach(() => {
-    instEthProvStub.restore();
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    sinon.restore();
   });
 
   it('should set default state', () => {
@@ -261,15 +247,12 @@ describe('TokensController', () => {
 
   it('should add token by network', async () => {
     const stub = stubCreateEthers(tokensController, false);
-
-    const firstNetworkType = 'sepolia';
-    const secondNetworkType = 'goerli';
-    network.setProviderType(firstNetworkType);
+    changeNetwork(SEPOLIA);
     await tokensController.addToken('0x01', 'bar', 2);
-    network.setProviderType(secondNetworkType);
+    changeNetwork(GOERLI);
     expect(tokensController.state.tokens).toHaveLength(0);
 
-    network.setProviderType(firstNetworkType);
+    changeNetwork(SEPOLIA);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
@@ -317,16 +300,13 @@ describe('TokensController', () => {
 
   it('should remove token by provider type', async () => {
     const stub = stubCreateEthers(tokensController, false);
-    const firstNetworkType = 'sepolia';
-    const secondNetworkType = 'goerli';
-
-    network.setProviderType(firstNetworkType);
+    changeNetwork(SEPOLIA);
     await tokensController.addToken('0x02', 'baz', 2);
-    network.setProviderType(secondNetworkType);
+    changeNetwork(GOERLI);
     await tokensController.addToken('0x01', 'bar', 2);
     tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
-    network.setProviderType(firstNetworkType);
+    changeNetwork(SEPOLIA);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x02',
@@ -341,22 +321,19 @@ describe('TokensController', () => {
   });
 
   it('should subscribe to new sibling preference controllers', async () => {
-    const networkType = 'sepolia';
     const address = '0x123';
     preferences.update({ selectedAddress: address });
+    changeNetwork(SEPOLIA);
     expect(preferences.state.selectedAddress).toStrictEqual(address);
-    network.setProviderType(networkType);
-    expect(network.state.providerConfig.type).toStrictEqual(networkType);
   });
 
   describe('ignoredTokens', () => {
-    const defaultSelectedNetwork: NetworkType = 'sepolia';
     const defaultSelectedAddress = '0x0001';
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(() => {
       preferences.setSelectedAddress(defaultSelectedAddress);
-      network.setProviderType(defaultSelectedNetwork);
+      changeNetwork(SEPOLIA);
 
       createEthersStub = stubCreateEthers(tokensController, false);
     });
@@ -380,9 +357,8 @@ describe('TokensController', () => {
 
     it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
       const selectedAddress = '0x0001';
-      const chain = 'sepolia';
       preferences.setSelectedAddress(selectedAddress);
-      network.setProviderType(chain);
+      changeNetwork(SEPOLIA);
       await tokensController.addToken('0x01', 'bar', 2);
       await tokensController.addToken('0xFAa', 'bar', 3);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
@@ -399,7 +375,7 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(3);
       expect(tokensController.state.ignoredTokens).toHaveLength(1);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [NetworksChainId[chain]]: {
+        [SEPOLIA.chainId]: {
           [selectedAddress]: ['0xFAa'],
         },
       });
@@ -411,7 +387,7 @@ describe('TokensController', () => {
       tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [NetworksChainId[defaultSelectedNetwork]]: {
+        [SEPOLIA.chainId]: {
           [defaultSelectedAddress]: ['0x01'],
         },
       });
@@ -425,11 +401,9 @@ describe('TokensController', () => {
     it('should ignore tokens by [chainID][accountAddress]', async () => {
       const selectedAddress1 = '0x0001';
       const selectedAddress2 = '0x0002';
-      const chain1 = 'sepolia';
-      const chain2 = 'goerli';
 
       preferences.setSelectedAddress(selectedAddress1);
-      network.setProviderType(chain1);
+      changeNetwork(SEPOLIA);
 
       await tokensController.addToken('0x01', 'bar', 2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
@@ -437,7 +411,7 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(0);
 
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x01']);
-      network.setProviderType(chain2);
+      changeNetwork(GOERLI);
 
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       await tokensController.addToken('0x02', 'bazz', 3);
@@ -451,10 +425,10 @@ describe('TokensController', () => {
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x03']);
 
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [NetworksChainId[chain1]]: {
+        [SEPOLIA.chainId]: {
           [selectedAddress1]: ['0x01'],
         },
-        [NetworksChainId[chain2]]: {
+        [GOERLI.chainId]: {
           [selectedAddress1]: ['0x02'],
           [selectedAddress2]: ['0x03'],
         },
@@ -650,9 +624,7 @@ describe('TokensController', () => {
           'LINK',
           18,
         );
-
-        network.setProviderType('goerli');
-
+        changeNetwork(GOERLI);
         await expect(addTokenPromise).rejects.toThrow(
           'TokensController Error: Switched networks while adding token',
         );
@@ -714,9 +686,8 @@ describe('TokensController', () => {
       const DETECTED_CHAINID = '0xDetectedChainId';
 
       const CONFIGURED_ADDRESS = '0xabc';
-      const CONFIGURED_NETWORK = 'sepolia';
       preferences.update({ selectedAddress: CONFIGURED_ADDRESS });
-      network.setProviderType(CONFIGURED_NETWORK);
+      changeNetwork(SEPOLIA);
 
       const detectedToken: Token = {
         address: '0x01',
@@ -759,7 +730,7 @@ describe('TokensController', () => {
       });
 
       expect(tokensController.state.allTokens).toStrictEqual({
-        [NetworksChainId[CONFIGURED_NETWORK]]: {
+        [SEPOLIA.chainId]: {
           [CONFIGURED_ADDRESS]: [directlyAddedToken],
         },
       });
@@ -1127,15 +1098,13 @@ describe('TokensController', () => {
     it('should remove a token from its state on corresponding network', async function () {
       const stub = stubCreateEthers(tokensController, false);
 
-      const firstNetworkType = 'sepolia';
-      const secondNetworkType = 'goerli';
-      network.setProviderType(firstNetworkType);
+      changeNetwork(SEPOLIA);
 
       await tokensController.addToken('0x01', 'A', 4);
       await tokensController.addToken('0x02', 'B', 5);
       const initialTokensFirst = tokensController.state.tokens;
 
-      network.setProviderType(secondNetworkType);
+      changeNetwork(GOERLI);
 
       await tokensController.addToken('0x03', 'C', 4);
       await tokensController.addToken('0x04', 'D', 5);
@@ -1186,9 +1155,9 @@ describe('TokensController', () => {
         },
       ]);
 
-      network.setProviderType(firstNetworkType);
+      changeNetwork(SEPOLIA);
       expect(initialTokensFirst).toStrictEqual(tokensController.state.tokens);
-      network.setProviderType(secondNetworkType);
+      changeNetwork(GOERLI);
       expect(initialTokensSecond).toStrictEqual(tokensController.state.tokens);
 
       stub.restore();
@@ -1214,7 +1183,7 @@ describe('TokensController', () => {
         chainId: NetworksChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
-      await tokensController.ignoreTokens(['0x01']);
+      tokensController.ignoreTokens(['0x01']);
       expect(
         tokensController.state.allTokens[NetworksChainId.mainnet][
           selectedAddress
@@ -1228,7 +1197,7 @@ describe('TokensController', () => {
         chainId: NetworksChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
-      await tokensController.ignoreTokens([tokenAddress]);
+      tokensController.ignoreTokens([tokenAddress]);
       await tokensController.addTokens(dummyTokens);
 
       expect(

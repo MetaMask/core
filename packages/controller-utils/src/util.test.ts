@@ -1,6 +1,7 @@
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as util from './util';
+import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -9,6 +10,14 @@ const SOME_FAILING_API = 'https://somefailingapi.com';
 describe('util', () => {
   beforeEach(() => {
     nock.cleanAll();
+  });
+
+  it('isSafeChainId', () => {
+    expect(util.isSafeChainId(MAX_SAFE_CHAIN_ID + 1)).toBe(false);
+    expect(util.isSafeChainId(MAX_SAFE_CHAIN_ID)).toBe(true);
+    expect(util.isSafeChainId(0)).toBe(false);
+    // @ts-expect-error - ensure that string args return false.
+    expect(util.isSafeChainId('test')).toBe(false);
   });
 
   it('bNToHex', () => {

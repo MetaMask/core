@@ -14,7 +14,6 @@ import {
   toChecksumHexAddress,
   BNToHex,
   fetchWithErrorHandling,
-  MAINNET,
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
@@ -619,7 +618,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           nftMetadata,
           existingEntry,
         );
-        if (differentMetadata) {
+        if (differentMetadata || !existingEntry.isCurrentlyOwned) {
           // TODO: Switch to indexToUpdate
           const indexToRemove = nfts.findIndex(
             (nft) =>
@@ -911,7 +910,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
   ) {
     super(config, state);
     this.defaultConfig = {
-      networkType: MAINNET,
+      networkType: NetworkType.mainnet,
       selectedAddress: '',
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,

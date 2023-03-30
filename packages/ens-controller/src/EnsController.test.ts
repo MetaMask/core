@@ -1,3 +1,4 @@
+import { ControllerMessenger } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { EnsController } from './EnsController';
 
@@ -11,14 +12,33 @@ const address1Checksum = toChecksumHexAddress(address1);
 const address2Checksum = toChecksumHexAddress(address2);
 const address3Checksum = toChecksumHexAddress(address3);
 
+const name = 'EnsController';
+
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
+function getMessenger() {
+  return new ControllerMessenger().getRestricted<typeof name, never, never>({
+    name,
+  });
+}
+
 describe('EnsController', () => {
   it('should set default state', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.state).toStrictEqual({ ensEntries: {} });
   });
 
   it('should add a new ENS entry and return true', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
@@ -34,7 +54,10 @@ describe('EnsController', () => {
   });
 
   it('should add a new ENS entry with null address and return true', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, null)).toStrictEqual(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
@@ -50,7 +73,10 @@ describe('EnsController', () => {
   });
 
   it('should update an ENS entry and return true', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.set('1', name1, address2)).toStrictEqual(true);
     expect(controller.state).toStrictEqual({
@@ -67,7 +93,10 @@ describe('EnsController', () => {
   });
 
   it('should update an ENS entry with null address and return true', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.set('1', name1, null)).toStrictEqual(true);
     expect(controller.state).toStrictEqual({
@@ -84,7 +113,10 @@ describe('EnsController', () => {
   });
 
   it('should not update an ENS entry if the address is the same (valid address) and return false', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.set('1', name1, address1)).toStrictEqual(false);
     expect(controller.state).toStrictEqual({
@@ -101,7 +133,10 @@ describe('EnsController', () => {
   });
 
   it('should not update an ENS entry if the address is the same (null) and return false', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, null)).toStrictEqual(true);
     expect(controller.set('1', name1, null)).toStrictEqual(false);
     expect(controller.state).toStrictEqual({
@@ -118,7 +153,10 @@ describe('EnsController', () => {
   });
 
   it('should add multiple ENS entries and update without side effects', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.set('1', name2, address2)).toStrictEqual(true);
     expect(controller.set('2', name1, address1)).toStrictEqual(true);
@@ -149,7 +187,10 @@ describe('EnsController', () => {
   });
 
   it('should get ENS entry by chainId and ensName', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.get('1', name1)).toStrictEqual({
       address: address1Checksum,
@@ -159,19 +200,28 @@ describe('EnsController', () => {
   });
 
   it('should return null when getting nonexistent name', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.get('1', name2)).toBeNull();
   });
 
   it('should return null when getting nonexistent chainId', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.get('2', name1)).toBeNull();
   });
 
   it('should throw on attempt to set invalid ENS entry: chainId', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(() => {
       controller.set('a', name1, address1);
     }).toThrow(
@@ -181,7 +231,10 @@ describe('EnsController', () => {
   });
 
   it('should throw on attempt to set invalid ENS entry: ENS name', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(() => {
       controller.set('1', 'foo.eth', address1);
     }).toThrow('Invalid ENS name: foo.eth');
@@ -189,7 +242,10 @@ describe('EnsController', () => {
   });
 
   it('should throw on attempt to set invalid ENS entry: address', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(() => {
       controller.set('1', name1, 'foo');
     }).toThrow(
@@ -199,14 +255,20 @@ describe('EnsController', () => {
   });
 
   it('should remove an ENS entry and return true', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.delete('1', name1)).toStrictEqual(true);
     expect(controller.state).toStrictEqual({ ensEntries: {} });
   });
 
   it('should return false if an ENS entry was NOT deleted', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     controller.set('1', name1, address1);
     expect(controller.delete('1', 'bar')).toStrictEqual(false);
     expect(controller.delete('2', 'bar')).toStrictEqual(false);
@@ -224,7 +286,10 @@ describe('EnsController', () => {
   });
 
   it('should add multiple ENS entries and remove without side effects', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.set('1', name2, address2)).toStrictEqual(true);
     expect(controller.set('2', name1, address1)).toStrictEqual(true);
@@ -250,7 +315,10 @@ describe('EnsController', () => {
   });
 
   it('should clear all ENS entries', () => {
-    const controller = new EnsController();
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.set('1', name2, address2)).toStrictEqual(true);
     expect(controller.set('2', name1, address1)).toStrictEqual(true);

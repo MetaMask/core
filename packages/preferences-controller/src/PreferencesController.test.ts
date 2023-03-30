@@ -5,7 +5,6 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     expect(controller.state).toStrictEqual({
       featureFlags: {},
-      frequentRpcList: [],
       identities: {},
       ipfsGateway: 'https://ipfs.io/ipfs/',
       lostIdentities: {},
@@ -13,6 +12,9 @@ describe('PreferencesController', () => {
       useTokenDetection: true,
       useNftDetection: false,
       openSeaEnabled: false,
+      disabledRpcMethodPreferences: {
+        eth_sign: false,
+      },
     });
   });
 
@@ -147,56 +149,6 @@ describe('PreferencesController', () => {
     expect(controller.state.selectedAddress).toStrictEqual('0x00');
   });
 
-  it('should add custom rpc url', () => {
-    const controller = new PreferencesController();
-    const rpcUrlNetwork = {
-      chainId: undefined,
-      nickname: 'RPC',
-      rpcPrefs: undefined,
-      rpcUrl: 'rpc_url',
-      ticker: 'RPC',
-    };
-    const localhostNetwork = {
-      chainId: undefined,
-      nickname: undefined,
-      rpcPrefs: undefined,
-      rpcUrl: 'http://localhost:8545',
-      ticker: 'LOCAL',
-    };
-    controller.addToFrequentRpcList('rpc_url', undefined, 'RPC', 'RPC');
-    controller.addToFrequentRpcList(
-      'http://localhost:8545',
-      undefined,
-      'LOCAL',
-    );
-
-    expect(controller.state.frequentRpcList).toStrictEqual([
-      rpcUrlNetwork,
-      localhostNetwork,
-    ]);
-    controller.addToFrequentRpcList('rpc_url');
-    expect(controller.state.frequentRpcList).toStrictEqual([
-      localhostNetwork,
-      { ...rpcUrlNetwork, nickname: undefined, ticker: undefined },
-    ]);
-  });
-
-  it('should remove custom rpc url', () => {
-    const controller = new PreferencesController();
-    const rpcUrlNetwork = {
-      chainId: undefined,
-      nickname: undefined,
-      rpcPrefs: undefined,
-      rpcUrl: 'rpc_url',
-      ticker: undefined,
-    };
-    controller.addToFrequentRpcList('rpc_url');
-    expect(controller.state.frequentRpcList).toStrictEqual([rpcUrlNetwork]);
-    controller.removeFromFrequentRpcList('other_rpc_url');
-    controller.removeFromFrequentRpcList('rpc_url');
-    expect(controller.state.frequentRpcList).toStrictEqual([]);
-  });
-
   it('should set IPFS gateway', () => {
     const controller = new PreferencesController();
     controller.setIpfsGateway('https://ipfs.infura.io/ipfs/');
@@ -224,5 +176,13 @@ describe('PreferencesController', () => {
     controller.setOpenSeaEnabled(true);
     controller.setUseNftDetection(true);
     expect(controller.state.useNftDetection).toStrictEqual(true);
+  });
+
+  it('should set disabledRpcMethodPreferences', () => {
+    const controller = new PreferencesController();
+    controller.setDisabledRpcMethodPreference('eth_sign', true);
+    expect(
+      controller.state.disabledRpcMethodPreferences.eth_sign,
+    ).toStrictEqual(true);
   });
 });

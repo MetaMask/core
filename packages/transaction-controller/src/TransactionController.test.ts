@@ -133,11 +133,12 @@ const MOCK_NETWORK = {
   state: {
     network: '5',
     isCustomNetwork: false,
-    properties: { isEIP1559Compatible: false },
+    networkDetails: { isEIP1559Compatible: false },
     providerConfig: {
-      type: 'goerli' as NetworkType,
+      type: NetworkType.goerli,
       chainId: NetworksChainId.goerli,
     },
+    networkConfigurations: {},
   },
   subscribe: () => undefined,
 };
@@ -146,18 +147,23 @@ const MOCK_NETWORK_CUSTOM = {
   state: {
     network: '10',
     isCustomNetwork: true,
-    properties: { isEIP1559Compatible: false },
+    networkDetails: { isEIP1559Compatible: false },
     providerConfig: {
-      type: 'rpc' as NetworkType,
+      type: NetworkType.rpc,
       chainId: '10',
     },
+    networkConfigurations: {},
   },
   subscribe: () => undefined,
 };
 const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
   getProvider: () => PROVIDER,
   isCustomNetwork: false,
-  state: { network: '5', providerConfig: { type: 'goerli' as NetworkType } },
+  state: {
+    network: '5',
+    providerConfig: { type: NetworkType.goerli },
+    networkConfigurations: {},
+  },
   subscribe: () => undefined,
 };
 const MOCK_MAINNET_NETWORK = {
@@ -165,11 +171,12 @@ const MOCK_MAINNET_NETWORK = {
   state: {
     network: '1',
     isCustomNetwork: false,
-    properties: { isEIP1559Compatible: false },
+    networkDetails: { isEIP1559Compatible: false },
     providerConfig: {
-      type: 'mainnet' as NetworkType,
+      type: NetworkType.mainnet,
       chainId: NetworksChainId.mainnet,
     },
+    networkConfigurations: {},
   },
   subscribe: () => undefined,
 };
@@ -178,11 +185,12 @@ const MOCK_CUSTOM_NETWORK = {
   state: {
     network: '80001',
     isCustomNetwork: true,
-    properties: { isEIP1559Compatible: false },
+    networkDetails: { isEIP1559Compatible: false },
     providerConfig: {
-      type: 'rpc' as NetworkType,
+      type: NetworkType.rpc,
       chainId: '80001',
     },
+    networkConfigurations: {},
   },
   subscribe: () => undefined,
 };

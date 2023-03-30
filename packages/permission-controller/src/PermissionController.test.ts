@@ -54,6 +54,11 @@ type FilterObjectCaveat = Caveat<
 
 type NoopCaveat = Caveat<typeof CaveatTypes.noopCaveat, null>;
 
+const onPermittedMock = jest.fn(() => Promise.resolve('foo'));
+const onFailureMock = jest.fn(() => Promise.resolve());
+const onPermitted = () => onPermittedMock();
+const onFailure = () => onFailureMock();
+
 /**
  * Gets caveat specifications for:
  * - {@link FilterArrayCaveat}
@@ -178,6 +183,11 @@ const PermissionKeys = {
   wallet_getSecretArray: 'wallet_getSecretArray',
   wallet_getSecretObject: 'wallet_getSecretObject',
   wallet_noop: 'wallet_noop',
+  wallet_noopWithPermittedAndFailureSideEffects:
+    'wallet_noopWithPermittedAndFailureSideEffects',
+  wallet_noopWithPermittedAndFailureSideEffects2:
+    'wallet_noopWithPermittedAndFailureSideEffects2',
+  wallet_noopWithPermittedSideEffects: 'wallet_noopWithPermittedSideEffects',
   wallet_noopWithValidator: 'wallet_noopWithValidator',
   wallet_noopWithFactory: 'wallet_noopWithFactory',
   'wallet_getSecret_*': 'wallet_getSecret_*',
@@ -210,6 +220,12 @@ const PermissionNames = {
   wallet_getSecretObject: PermissionKeys.wallet_getSecretObject,
   wallet_noop: PermissionKeys.wallet_noop,
   wallet_noopWithValidator: PermissionKeys.wallet_noopWithValidator,
+  wallet_noopWithPermittedAndFailureSideEffects:
+    PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
+  wallet_noopWithPermittedAndFailureSideEffects2:
+    PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
+  wallet_noopWithPermittedSideEffects:
+    PermissionKeys.wallet_noopWithPermittedSideEffects,
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
   endowmentPermission1: PermissionKeys.endowmentPermission1,
   endowmentPermission2: PermissionKeys.endowmentPermission2,
@@ -297,6 +313,41 @@ function getDefaultPermissionSpecifications() {
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
+      },
+    },
+    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetKey: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      sideEffect: {
+        onPermitted,
+        onFailure,
+      },
+    },
+    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetKey: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      sideEffect: {
+        onPermitted,
+        onFailure,
+      },
+    },
+    [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetKey: PermissionKeys.wallet_noopWithPermittedSideEffects,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      sideEffect: {
+        onPermitted,
       },
     },
     // This one exists to check some permission validator logic
@@ -531,6 +582,9 @@ function getPermissionMatcher({
 }
 
 describe('PermissionController', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
   describe('constructor', () => {
     it('initializes a new PermissionController', () => {
       const controller = getDefaultPermissionController();
@@ -2941,6 +2995,355 @@ describe('PermissionController', () => {
       );
     });
 
+    it('requests a permission that requires permitted side-effects', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      expect(
+        await controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
+          },
+        ),
+      ).toMatchObject([
+        {
+          [PermissionNames.wallet_noopWithPermittedSideEffects]:
+            getPermissionMatcher({
+              parentCapability:
+                PermissionNames.wallet_noopWithPermittedSideEffects,
+              caveats: null,
+              invoker: origin,
+            }),
+        },
+        {
+          data: {
+            [PermissionNames.wallet_noopWithPermittedSideEffects]: 'foo',
+          },
+          id: expect.any(String),
+          origin,
+        },
+      ]);
+      expect(onPermittedMock).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: {
+              [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
+            },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
+    it('requests a permission that requires permitted and failure side-effects', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      expect(
+        await controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]: {},
+          },
+        ),
+      ).toMatchObject([
+        {
+          [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+            getPermissionMatcher({
+              parentCapability:
+                PermissionNames.wallet_noopWithPermittedAndFailureSideEffects,
+              caveats: null,
+              invoker: origin,
+            }),
+        },
+        {
+          data: {
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+              'foo',
+          },
+          id: expect.any(String),
+          origin,
+        },
+      ]);
+
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(onPermittedMock).toHaveBeenCalledTimes(1);
+      expect(onFailureMock).not.toHaveBeenCalled();
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                {},
+            },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
+    it('can handle multiple side effects', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      expect(
+        await controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]: {},
+            [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {},
+          },
+        ),
+      ).toMatchObject([
+        {
+          [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+            getPermissionMatcher({
+              parentCapability:
+                PermissionNames.wallet_noopWithPermittedAndFailureSideEffects,
+              caveats: null,
+              invoker: origin,
+            }),
+        },
+        {
+          data: {
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+              'foo',
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
+              'foo',
+          },
+          id: expect.any(String),
+          origin,
+        },
+      ]);
+
+      expect(onPermittedMock).toHaveBeenCalledTimes(2);
+      expect(onFailureMock).not.toHaveBeenCalled();
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                {},
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
+                {},
+            },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
+    it('can handle permitted multiple side-effect failure', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      onPermittedMock.mockImplementation(async () =>
+        Promise.reject(new Error('error')),
+      );
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      await expect(async () =>
+        controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]: {},
+            [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {},
+          },
+        ),
+      ).rejects.toThrow(
+        'Multiple errors occurred during side-effects execution',
+      );
+
+      expect(onPermittedMock).toHaveBeenCalledTimes(2);
+      expect(onFailureMock).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                {},
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
+                {},
+            },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
+    it('can handle permitted side-effect rejection', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      onPermittedMock.mockImplementation(async () =>
+        Promise.reject(new Error('error')),
+      );
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      await expect(async () =>
+        controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
+          },
+        ),
+      ).rejects.toThrow('error');
+
+      expect(onPermittedMock).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: {
+              [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
+            },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
+    it('can handle failure side-effect rejection', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      onPermittedMock.mockImplementation(async () =>
+        Promise.reject(new Error('error')),
+      );
+
+      onFailureMock.mockImplementation(async () =>
+        Promise.reject(new Error('error')),
+      );
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      await expect(async () =>
+        controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]: {},
+          },
+        ),
+      ).rejects.toThrow('Unexpected error in side-effects');
+
+      expect(onPermittedMock).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                {},
+            },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+    });
+
     it('requests a permission that requires requestData in its factory', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
@@ -4653,6 +5056,67 @@ describe('PermissionController', () => {
       );
 
       expect(requestPermissionsSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('action: PermissionController:updateCaveat', async () => {
+      const messenger = getUnrestrictedMessenger();
+      const state = {
+        subjects: {
+          'metamask.io': {
+            origin: 'metamask.io',
+            permissions: {
+              wallet_getSecretArray: {
+                id: 'escwEx9JrOxGZKZk3RkL4',
+                parentCapability: 'wallet_getSecretArray',
+                invoker: 'metamask.io',
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['bar'] },
+                ],
+                date: 1632618373085,
+              },
+            },
+          },
+        },
+      };
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+        state,
+      });
+
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
+
+      await messenger.call(
+        'PermissionController:updateCaveat',
+        'metamask.io',
+        'wallet_getSecretArray',
+        CaveatTypes.filterArrayResponse,
+        ['baz'],
+      );
+
+      expect(updateCaveatSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          'metamask.io': {
+            origin: 'metamask.io',
+            permissions: {
+              wallet_getSecretArray: {
+                id: 'escwEx9JrOxGZKZk3RkL4',
+                parentCapability: 'wallet_getSecretArray',
+                invoker: 'metamask.io',
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['baz'] },
+                ],
+                date: 1632618373085,
+              },
+            },
+          },
+        },
+      });
     });
   });
 

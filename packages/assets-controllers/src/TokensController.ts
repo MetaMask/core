@@ -16,7 +16,6 @@ import type { NetworkState } from '@metamask/network-controller';
 import {
   NetworkType,
   toChecksumHexAddress,
-  MAINNET,
   ERC721_INTERFACE_ID,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
@@ -206,7 +205,7 @@ export class TokensController extends BaseController<
     super(config, state);
 
     this.defaultConfig = {
-      networkType: MAINNET,
+      networkType: NetworkType.mainnet,
       selectedAddress: '',
       chainId: '',
       provider: undefined,

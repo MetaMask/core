@@ -54,6 +54,7 @@ const setupNetworkController = (
   const network = new NetworkController({
     messenger: networkMessenger,
     infuraProjectId: '123',
+    trackMetaMetricsEvent: jest.fn(),
   });
 
   return { network, networkMessenger };
@@ -216,7 +217,7 @@ describe('GasFeeController', () => {
       getChainId,
       messenger,
       getCurrentNetworkLegacyGasAPICompatibility,
-      getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkController.state.properties.isEIP1559Compatible ???
+      getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkDetails.state.networkDetails.isEIP1559Compatible ???
       legacyAPIEndpoint,
       EIP1559APIEndpoint,
       clientId,
