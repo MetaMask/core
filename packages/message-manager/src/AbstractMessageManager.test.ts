@@ -150,6 +150,27 @@ describe('AbstractTestManager', () => {
       time: messageTime,
       type: messageType,
     });
+    controller.setMessageStatusDecrypted(messageId, 'rawSig');
+    const message = controller.getMessage(messageId);
+    if (!message) {
+      throw new Error('"message" is falsy');
+    }
+    expect(message.status).toBe('decrypted');
+    expect(message.rawSig).toBe('rawSig');
+  });
+
+  it('decrypts a message', () => {
+    const controller = new AbstractTestManager();
+    controller.addMessage({
+      id: messageId,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    });
     controller.setMessageStatusSigned(messageId, 'rawSig');
     const message = controller.getMessage(messageId);
     if (!message) {
