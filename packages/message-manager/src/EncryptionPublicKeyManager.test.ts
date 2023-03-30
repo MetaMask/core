@@ -1,7 +1,7 @@
 import { EncryptionPublicKeyManager } from './EncryptionPublicKeyManager';
 
 describe('EncryptionPublicKeyManager', () => {
-  it('should set default state', () => {
+  it('sets default state', () => {
     const controller = new EncryptionPublicKeyManager();
     expect(controller.state).toStrictEqual({
       unapprovedMessages: {},
@@ -9,12 +9,12 @@ describe('EncryptionPublicKeyManager', () => {
     });
   });
 
-  it('should set default config', () => {
+  it('sets default config', () => {
     const controller = new EncryptionPublicKeyManager();
     expect(controller.config).toStrictEqual({});
   });
 
-  it('should add a valid message', async () => {
+  it('adds a valid message', async () => {
     const controller = new EncryptionPublicKeyManager();
     const messageId = '1';
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
@@ -41,7 +41,7 @@ describe('EncryptionPublicKeyManager', () => {
     expect(message.type).toBe(messageType);
   });
 
-  it('should reject a message', async () => {
+  it('rejects a message', async () => {
     const controller = new EncryptionPublicKeyManager();
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const result = controller.addUnapprovedMessageAsync({
@@ -59,7 +59,7 @@ describe('EncryptionPublicKeyManager', () => {
     );
   });
 
-  it('should set message to received', async () => {
+  it('sets message to received', async () => {
     const controller = new EncryptionPublicKeyManager(undefined, undefined, [
       'received',
     ]);
@@ -79,7 +79,7 @@ describe('EncryptionPublicKeyManager', () => {
     expect(publicKey).toBe(rawSig);
   });
 
-  it('should throw when unapproved finishes', async () => {
+  it('throws when unapproved finishes', async () => {
     const controller = new EncryptionPublicKeyManager();
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const result = controller.addUnapprovedMessageAsync({
@@ -91,7 +91,7 @@ describe('EncryptionPublicKeyManager', () => {
     await expect(result).rejects.toThrow('Unknown problem');
   });
 
-  it('should add a valid unapproved message', async () => {
+  it('adds a valid unapproved message', async () => {
     const controller = new EncryptionPublicKeyManager();
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const messageStatus = 'unapproved';
@@ -115,7 +115,7 @@ describe('EncryptionPublicKeyManager', () => {
     expect(message.type).toBe(messageType);
   });
 
-  it('should throw when adding invalid message', async () => {
+  it('throws when adding invalid message', async () => {
     const from = 'foo';
     const controller = new EncryptionPublicKeyManager();
     await expect(
@@ -125,7 +125,7 @@ describe('EncryptionPublicKeyManager', () => {
     ).rejects.toThrow('Invalid "from" address:');
   });
 
-  it('should get correct unapproved messages', () => {
+  it('gets correct unapproved messages', () => {
     const firstMessage = {
       id: '1',
       messageParams: { from: '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d' },
@@ -150,7 +150,7 @@ describe('EncryptionPublicKeyManager', () => {
     });
   });
 
-  it('should approve message', async () => {
+  it('approves message', async () => {
     const controller = new EncryptionPublicKeyManager();
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const firstMessage = { from };
@@ -168,7 +168,7 @@ describe('EncryptionPublicKeyManager', () => {
     expect(message.status).toStrictEqual('approved');
   });
 
-  it('should set message status received', () => {
+  it('sets message status received', () => {
     const controller = new EncryptionPublicKeyManager();
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const firstMessage = { from };
@@ -184,7 +184,7 @@ describe('EncryptionPublicKeyManager', () => {
     expect(message.status).toStrictEqual('received');
   });
 
-  it('should reject message', () => {
+  it('rejects message', () => {
     const controller = new EncryptionPublicKeyManager();
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const firstMessage = { from };

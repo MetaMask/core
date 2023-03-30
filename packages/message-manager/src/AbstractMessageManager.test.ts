@@ -120,7 +120,7 @@ describe('AbstractTestManager', () => {
     expect(message.rawSig).toBe('rawSig');
   });
 
-  it('should set message to one of the allowed statuses', () => {
+  it('sets message to one of the allowed statuses', () => {
     const controller = new AbstractTestManager(undefined, undefined, [
       'received',
     ]);
