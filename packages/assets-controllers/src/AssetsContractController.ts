@@ -171,7 +171,7 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query for the decimals for a given ERC20 asset.
+   * Query for the name for a given ERC20 asset.
    *
    * @param address - ERC20 asset contract address.
    * @returns Promise resolving to the 'decimals'.

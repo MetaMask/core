@@ -1267,7 +1267,7 @@ describe('TokensController', () => {
       ).toStrictEqual([]);
     });
   });
-  describe('updateTokensName', () => {
+  describe('updateTokensAttribute', () => {
     const tokenList = [
       {
         address: '0x123',
@@ -1358,7 +1358,7 @@ describe('TokensController', () => {
 
       await tokensController.addTokens(tokenList);
 
-      tokensController.updateTokensName(initialTokens);
+      tokensController.updateTokensAttribute(initialTokens, 'name');
 
       expect(tokensController.state.tokens).toStrictEqual(expectedTokenList);
     });
@@ -1422,7 +1422,7 @@ describe('TokensController', () => {
 
       await tokensController.addTokens(tokenList);
 
-      tokensController.updateTokensName(initialTokens);
+      tokensController.updateTokensAttribute(initialTokens, 'name');
 
       expect(tokensController.state.tokens).toStrictEqual(expectedTokenList);
     });

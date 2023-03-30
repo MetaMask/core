@@ -53,7 +53,7 @@ export class TokenDetectionController extends BaseController<
 
   private addDetectedTokens: TokensController['addDetectedTokens'];
 
-  private updateTokensName: TokensController['updateTokensName'];
+  private updateTokensAttribute: TokensController['updateTokensAttribute'];
 
   private getTokensState: () => TokensState;
 
@@ -68,7 +68,7 @@ export class TokenDetectionController extends BaseController<
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.addDetectedTokens - Add a list of detected tokens.
-   * @param options.updateTokensName - Updates the current state of tokens name of the Tokens controller.
+   * @param options.updateTokensAttribute - Updates the current state of tokens name of the Tokens controller.
    * @param options.getTokenListState - Gets the current state of the TokenList controller.
    * @param options.getTokensState - Gets the current state of the Tokens controller.
    * @param options.getNetworkState - Gets the state of the network controller.
@@ -83,7 +83,7 @@ export class TokenDetectionController extends BaseController<
       onTokenListStateChange,
       getBalancesInSingleCall,
       addDetectedTokens,
-      updateTokensName,
+      updateTokensAttribute,
       getTokenListState,
       getTokensState,
       getNetworkState,
@@ -102,7 +102,7 @@ export class TokenDetectionController extends BaseController<
       addDetectedTokens: TokensController['addDetectedTokens'];
       getTokenListState: () => TokenListState;
       getTokensState: () => TokensState;
-      updateTokensName: TokensController['updateTokensName'];
+      updateTokensAttribute: TokensController['updateTokensAttribute'];
       getNetworkState: () => NetworkState;
       getPreferencesState: () => PreferencesState;
     },
@@ -131,7 +131,7 @@ export class TokenDetectionController extends BaseController<
     this.getTokensState = getTokensState;
     this.getTokenListState = getTokenListState;
     this.addDetectedTokens = addDetectedTokens;
-    this.updateTokensName = updateTokensName;
+    this.updateTokensAttribute = updateTokensAttribute;
     this.getBalancesInSingleCall = getBalancesInSingleCall;
 
     onTokenListStateChange(({ tokenList }) => {
@@ -243,7 +243,7 @@ export class TokenDetectionController extends BaseController<
     const { tokenList } = this.getTokenListState();
 
     if (tokens.length && !tokens[0].name) {
-      this.updateTokensName(tokenList);
+      this.updateTokensAttribute(tokenList, 'name');
     }
 
     const tokensToDetect: string[] = [];

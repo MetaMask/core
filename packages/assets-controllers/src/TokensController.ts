@@ -562,14 +562,19 @@ export class TokensController extends BaseController<
    * This is a function that updates the tokens name for the tokens name if it is not defined.
    *
    * @param tokenList - Represents the fetched token list from service API
+   * @param tokenAttribute - Represents the token attribute that we want to update on the token list
    */
-  updateTokensName(tokenList: TokenListMap) {
+  updateTokensAttribute(
+    tokenList: TokenListMap,
+    tokenAttribute: keyof Token & keyof TokenListToken,
+  ) {
     const { tokens } = this.state;
 
     const newTokens = tokens.map((token) => {
       const newToken = tokenList[token.address.toLowerCase()];
-      return !token.name && newToken?.name
-        ? { ...token, name: newToken.name }
+
+      return !token[tokenAttribute] && newToken?.[tokenAttribute]
+        ? { ...token, [tokenAttribute]: newToken[tokenAttribute] }
         : { ...token };
     });
 
@@ -696,7 +701,7 @@ export class TokensController extends BaseController<
           const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
           /**
            *
-           * The reason for this undefined is that the wallet_watchAsset doesn't return the name
+           * The reason for `name` being omitted is that `wallet_watchAsset` doesn't return the name
            * more info: https://docs.metamask.io/guide/rpc-api.html#wallet-watchasset
            */
           await this.addToken(address, symbol, decimals, { image });
