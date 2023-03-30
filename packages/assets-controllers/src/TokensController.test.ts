@@ -43,6 +43,7 @@ describe('TokensController', () => {
   };
 
   beforeEach(() => {
+    const defaultSelectedAddress = '0x1';
     preferences = new PreferencesController();
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
@@ -50,6 +51,7 @@ describe('TokensController', () => {
         (onNetworkStateChangeListener = listener),
       config: {
         chainId: NetworksChainId.mainnet,
+        selectedAddress: defaultSelectedAddress,
       },
     });
 
@@ -841,7 +843,6 @@ describe('TokensController', () => {
 
   describe('on watchAsset', function () {
     let asset: any, type: any;
-    const defaultSelectedAddress = '0x1';
     const interactingAddress = '0x2';
 
     let createEthersStub: sinon.SinonStub;
@@ -950,6 +951,7 @@ describe('TokensController', () => {
           time: 1, // uses the fakeTimers clock
           type: 'ERC20',
           asset,
+          interactingAddress: '0x1',
         },
       ]);
 
@@ -1006,10 +1008,6 @@ describe('TokensController', () => {
         .stub(tokensController, '_generateRandomId')
         .callsFake(() => '12345');
       type = 'ERC20';
-      tokensController.configure({
-        selectedAddress: defaultSelectedAddress,
-        chainId: NetworksChainId.mainnet,
-      });
       await tokensController.watchAsset(asset, type, interactingAddress);
       await tokensController.acceptWatchAsset('12345');
 
