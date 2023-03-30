@@ -367,6 +367,10 @@ export class NetworkController extends BaseControllerV2<
     this.state.network === 'loading' && this.lookupNetwork();
   }
 
+  /**
+   * Method to inilialize the provider.
+   *
+   */
   initializeProvider() {
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
