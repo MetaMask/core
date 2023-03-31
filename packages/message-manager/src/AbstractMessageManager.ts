@@ -33,6 +33,8 @@ export interface AbstractMessage {
   type: string;
   rawSig?: string;
   securityProviderResponse?: Map<string, Json>;
+  rawData?: string;
+  error?: string;
 }
 
 /**
@@ -299,6 +301,38 @@ export abstract class AbstractMessageManager<
     message.rawSig = rawSig;
     this.updateMessage(message);
     this.setMessageStatus(messageId, status);
+  }
+
+  /**
+   * Updates the message rawData without changing the status.
+   *
+   * @param messageId - The id of the Message to sign.
+   * @param rawData - The data to update rawData in the message.
+   */
+  updateMessageDataInline(messageId: string, rawData: string) {
+    const message = this.getMessage(messageId);
+    /* istanbul ignore if */
+    if (!message) {
+      return;
+    }
+    message.rawData = rawData;
+    this.updateMessage(message);
+  }
+
+  /**
+   * Updates the message error without changing the status.
+   *
+   * @param messageId - The id of the Message to sign.
+   * @param error - The data to update error in the message.
+   */
+  updateMessageErrorInline(messageId: string, error: string) {
+    const message = this.getMessage(messageId);
+    /* istanbul ignore if */
+    if (!message) {
+      return;
+    }
+    message.error = error;
+    this.updateMessage(message);
   }
 
   /**
