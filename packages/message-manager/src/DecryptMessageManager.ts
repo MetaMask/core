@@ -21,6 +21,8 @@ import {
  */
 export interface DecryptMessage extends AbstractMessage {
   messageParams: DecryptMessageParams;
+  rawData?: string;
+  error?: string;
 }
 
 /**

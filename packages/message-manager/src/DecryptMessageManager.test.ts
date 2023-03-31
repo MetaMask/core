@@ -74,7 +74,9 @@ describe('DecryptMessageManager', () => {
   });
 
   it('sets message to decrypted', async () => {
-    const controller = new DecryptMessageManager();
+    const controller = new DecryptMessageManager(undefined, undefined, [
+      'decrypted',
+    ]);
     const from = '0x0123';
     const rawSig = '0x123';
     const data = '0x12345';
