@@ -1,6 +1,31 @@
+import { detectSIWE, SIWEMessage } from '@metamask/controller-utils';
 import { PersonalMessageManager } from './PersonalMessageManager';
 
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  detectSIWE: jest.fn(),
+}));
+
+const siweMockNotFound = {
+  isSIWEMessage: false,
+  parsedMessage: null,
+} as SIWEMessage;
+
+const siweMockFound = {
+  isSIWEMessage: true,
+  parsedMessage: {
+    address: '0x0000000',
+    domain: 'example.eth',
+  },
+} as SIWEMessage;
+
 describe('PersonalMessageManager', () => {
+  const detectSIWEMock = detectSIWE as jest.MockedFunction<typeof detectSIWE>;
+
+  beforeEach(() => {
+    detectSIWEMock.mockReturnValue(siweMockNotFound);
+  });
+
   it('should set default state', () => {
     const controller = new PersonalMessageManager();
     expect(controller.state).toStrictEqual({
@@ -199,5 +224,17 @@ describe('PersonalMessageManager', () => {
       throw new Error('"message" is falsy');
     }
     expect(message.status).toStrictEqual('rejected');
+  });
+
+  it('should add message including Ethereum sign in data', async () => {
+    detectSIWEMock.mockReturnValue(siweMockFound);
+    const controller = new PersonalMessageManager();
+    const firstMessage = { from: 'foo', data: '0x123' };
+    const messageId = controller.addUnapprovedMessage(firstMessage);
+    const message = controller.getMessage(messageId);
+    if (!message) {
+      throw new Error('"message" is falsy');
+    }
+    expect(message.messageParams.siwe).toBe(siweMockFound);
   });
 });

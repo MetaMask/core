@@ -5,18 +5,22 @@ import createMetamaskProvider from 'web3-provider-engine/zero';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import { Mutex } from 'async-mutex';
+import { v4 as random } from 'uuid';
 import type { Patch } from 'immer';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import {
-  MAINNET,
-  RPC,
-  TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL,
   NetworksChainId,
   NetworkType,
+  isSafeChainId,
+  NetworksTicker,
+  isNetworkType,
+  BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
+
+import { assertIsStrictHexString } from '@metamask/utils';
 
 /**
  * @type ProviderConfig
@@ -27,6 +31,7 @@ import {
  * @property chainId - Network ID as per EIP-155.
  * @property ticker - Currency ticker.
  * @property nickname - Personalized network name.
+ * @property id - Network Configuration Id.
  */
 export type ProviderConfig = {
   rpcTarget?: string;
@@ -34,6 +39,8 @@ export type ProviderConfig = {
   chainId: string;
   ticker?: string;
   nickname?: string;
+  rpcPrefs?: { blockExplorerUrl?: string };
+  id?: NetworkConfigurationId;
 };
 
 export type Block = {
@@ -45,18 +52,40 @@ export type NetworkDetails = {
 };
 
 /**
+ * Custom RPC network information
+ *
+ * @property rpcTarget - RPC target URL.
+ * @property chainId - Network ID as per EIP-155
+ * @property nickname - Personalized network name.
+ * @property ticker - Currency ticker.
+ * @property rpcPrefs - Personalized preferences.
+ */
+export type NetworkConfiguration = {
+  rpcUrl: string;
+  chainId: string;
+  ticker: string;
+  nickname?: string;
+  rpcPrefs?: {
+    blockExplorerUrl: string;
+  };
+};
+
+/**
  * @type NetworkState
  *
  * Network controller state
- * @property network - Network ID as per net_version
- * @property isCustomNetwork - Identifies if the network is a custom network
- * @property provider - RPC URL and network name provider settings
+ * @property network - Network ID as per net_version of the currently connected network
+ * @property isCustomNetwork - Identifies if the currently connected network is a custom network
+ * @property providerConfig - RPC URL and network name provider settings of the currently connected network
+ * @property properties - an additional set of network properties for the currently connected network
+ * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
  */
 export type NetworkState = {
   network: string;
   isCustomNetwork: boolean;
   providerConfig: ProviderConfig;
   networkDetails: NetworkDetails;
+  networkConfigurations: Record<string, NetworkConfiguration & { id: string }>;
 };
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
@@ -112,6 +141,7 @@ export type NetworkControllerMessenger = RestrictedControllerMessenger<
 
 export type NetworkControllerOptions = {
   messenger: NetworkControllerMessenger;
+  trackMetaMetricsEvent: () => void;
   infuraProjectId?: string;
   state?: Partial<NetworkState>;
 };
@@ -119,9 +149,28 @@ export type NetworkControllerOptions = {
 export const defaultState: NetworkState = {
   network: 'loading',
   isCustomNetwork: false,
-  providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
+  providerConfig: {
+    type: NetworkType.mainnet,
+    chainId: NetworksChainId.mainnet,
+  },
   networkDetails: { isEIP1559Compatible: false },
+  networkConfigurations: {},
 };
+
+type MetaMetricsEventPayload = {
+  event: string;
+  category: string;
+  referrer?: { url: string };
+  actionId?: number;
+  environmentType?: string;
+  properties?: unknown;
+  sensitiveProperties?: unknown;
+  revenue?: number;
+  currency?: string;
+  value?: number;
+};
+
+type NetworkConfigurationId = string;
 
 /**
  * Controller that creates and manages an Ethereum network provider.
@@ -137,7 +186,11 @@ export class NetworkController extends BaseControllerV2<
 
   private infuraProjectId: string | undefined;
 
+  private trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
+
   private mutex = new Mutex();
+
+  #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
 
   #provider: Provider | undefined;
 
@@ -145,7 +198,12 @@ export class NetworkController extends BaseControllerV2<
 
   #blockTrackerProxy: BlockTrackerProxy | undefined;
 
-  constructor({ messenger, state, infuraProjectId }: NetworkControllerOptions) {
+  constructor({
+    messenger,
+    state,
+    infuraProjectId,
+    trackMetaMetricsEvent,
+  }: NetworkControllerOptions) {
     super({
       name,
       metadata: {
@@ -165,11 +223,16 @@ export class NetworkController extends BaseControllerV2<
           persist: true,
           anonymous: false,
         },
+        networkConfigurations: {
+          persist: true,
+          anonymous: false,
+        },
       },
       messenger,
       state: { ...defaultState, ...state },
     });
     this.infuraProjectId = infuraProjectId;
+    this.trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.messagingSystem.registerActionHandler(
       `${this.name}:getProviderConfig`,
       () => {
@@ -183,6 +246,8 @@ export class NetworkController extends BaseControllerV2<
         return this.ethQuery;
       },
     );
+
+    this.#previousNetworkSpecifier = this.state.providerConfig.type;
   }
 
   private initializeProvider(
@@ -197,15 +262,15 @@ export class NetworkController extends BaseControllerV2<
     });
 
     switch (type) {
-      case MAINNET:
-      case 'goerli':
-      case 'sepolia':
+      case NetworkType.mainnet:
+      case NetworkType.goerli:
+      case NetworkType.sepolia:
         this.setupInfuraProvider(type);
         break;
-      case 'localhost':
+      case NetworkType.localhost:
         this.setupStandardProvider(LOCALHOST_RPC_URL);
         break;
-      case RPC:
+      case NetworkType.rpc:
         rpcTarget &&
           this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
@@ -380,24 +445,38 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
+   * Convenience method to set the current provider config to the private providerConfig class variable.
+   */
+  #setCurrentAsPreviousProvider() {
+    const { type, id } = this.state.providerConfig;
+    if (type === NetworkType.rpc && id) {
+      this.#previousNetworkSpecifier = id;
+    } else {
+      this.#previousNetworkSpecifier = type;
+    }
+  }
+
+  /**
    * Convenience method to update provider network type settings.
    *
    * @param type - Human readable network name.
    */
   setProviderType(type: NetworkType) {
+    this.#setCurrentAsPreviousProvider();
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
-      type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
-      TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
-        ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
+      type in NetworksTicker && NetworksTicker[type].length > 0
+        ? NetworksTicker[type]
         : 'ETH';
 
     this.update((state) => {
       state.providerConfig.type = type;
       state.providerConfig.ticker = ticker;
       state.providerConfig.chainId = NetworksChainId[type];
+      state.providerConfig.rpcPrefs = BUILT_IN_NETWORKS[type].rpcPrefs;
       state.providerConfig.rpcTarget = undefined;
       state.providerConfig.nickname = undefined;
+      state.providerConfig.id = undefined;
     });
     this.refreshNetwork();
   }
@@ -405,24 +484,30 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Convenience method to update provider RPC settings.
    *
-   * @param rpcTarget - The RPC endpoint URL.
-   * @param chainId - The chain ID as per EIP-155.
-   * @param ticker - The currency ticker.
-   * @param nickname - Personalized network name.
+   * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
-  setRpcTarget(
-    rpcTarget: string,
-    chainId: string,
-    ticker?: string,
-    nickname?: string,
-  ) {
+  setActiveNetwork(networkConfigurationId: string) {
+    this.#setCurrentAsPreviousProvider();
+
+    const targetNetwork =
+      this.state.networkConfigurations[networkConfigurationId];
+
+    if (!targetNetwork) {
+      throw new Error(
+        `networkConfigurationId ${networkConfigurationId} does not match a configured networkConfiguration`,
+      );
+    }
+
     this.update((state) => {
-      state.providerConfig.type = RPC;
-      state.providerConfig.rpcTarget = rpcTarget;
-      state.providerConfig.chainId = chainId;
-      state.providerConfig.ticker = ticker;
-      state.providerConfig.nickname = nickname;
+      state.providerConfig.type = NetworkType.rpc;
+      state.providerConfig.rpcTarget = targetNetwork.rpcUrl;
+      state.providerConfig.chainId = targetNetwork.chainId;
+      state.providerConfig.ticker = targetNetwork.ticker;
+      state.providerConfig.nickname = targetNetwork.nickname;
+      state.providerConfig.rpcPrefs = targetNetwork.rpcPrefs;
+      state.providerConfig.id = targetNetwork.id;
     });
+
     this.refreshNetwork();
   }
 
@@ -479,6 +564,143 @@ export class NetworkController extends BaseControllerV2<
       this.#blockTrackerProxy = createEventEmitterProxy(blockTracker, {
         eventFilter: 'skipInternal',
       });
+    }
+  }
+
+  /**
+   * Adds a network configuration if the rpcUrl is not already present on an
+   * existing network configuration. Otherwise updates the entry with the matching rpcUrl.
+   *
+   * @param networkConfiguration - The network configuration to add or, if rpcUrl matches an existing entry, to modify.
+   * @param networkConfiguration.rpcUrl -  RPC provider url.
+   * @param networkConfiguration.chainId - Network ID as per EIP-155.
+   * @param networkConfiguration.ticker - Currency ticker.
+   * @param networkConfiguration.nickname - Personalized network name.
+   * @param networkConfiguration.rpcPrefs - Personalized preferences (i.e. preferred blockExplorer)
+   * @param options - additional configuration options.
+   * @param options.setActive - An option to set the newly added networkConfiguration as the active provider.
+   * @param options.referrer - The site from which the call originated, or 'metamask' for internal calls - used for event metrics.
+   * @param options.source - Where the upsertNetwork event originated (i.e. from a dapp or from the network form) - used for event metrics.
+   * @returns id for the added or updated network configuration
+   */
+  upsertNetworkConfiguration(
+    { rpcUrl, chainId, ticker, nickname, rpcPrefs }: NetworkConfiguration,
+    {
+      setActive = false,
+      referrer,
+      source,
+    }: { setActive?: boolean; referrer: string; source: string },
+  ): string {
+    assertIsStrictHexString(chainId);
+
+    if (!isSafeChainId(parseInt(chainId, 16))) {
+      throw new Error(
+        `Invalid chain ID "${chainId}": numerical value greater than max safe value.`,
+      );
+    }
+
+    if (!rpcUrl) {
+      throw new Error(
+        'An rpcUrl is required to add or update network configuration',
+      );
+    }
+
+    if (!referrer || !source) {
+      throw new Error(
+        'referrer and source are required arguments for adding or updating a network configuration',
+      );
+    }
+
+    try {
+      // eslint-disable-next-line no-new
+      new URL(rpcUrl);
+    } catch (e: any) {
+      if (e.message.includes('Invalid URL')) {
+        throw new Error('rpcUrl must be a valid URL');
+      }
+    }
+
+    if (!ticker) {
+      throw new Error(
+        'A ticker is required to add or update networkConfiguration',
+      );
+    }
+
+    const newNetworkConfiguration = {
+      rpcUrl,
+      chainId,
+      ticker,
+      nickname,
+      rpcPrefs,
+    };
+
+    const oldNetworkConfigurations = this.state.networkConfigurations;
+
+    const oldNetworkConfigurationId = Object.values(
+      oldNetworkConfigurations,
+    ).find(
+      (networkConfiguration) =>
+        networkConfiguration.rpcUrl?.toLowerCase() === rpcUrl?.toLowerCase(),
+    )?.id;
+
+    const newNetworkConfigurationId = oldNetworkConfigurationId || random();
+    this.update((state) => {
+      state.networkConfigurations = {
+        ...oldNetworkConfigurations,
+        [newNetworkConfigurationId]: {
+          ...newNetworkConfiguration,
+          id: newNetworkConfigurationId,
+        },
+      };
+    });
+
+    if (!oldNetworkConfigurationId) {
+      this.trackMetaMetricsEvent({
+        event: 'Custom Network Added',
+        category: 'Network',
+        referrer: {
+          url: referrer,
+        },
+        properties: {
+          chain_id: chainId,
+          symbol: ticker,
+          source,
+        },
+      });
+    }
+
+    if (setActive) {
+      this.setActiveNetwork(newNetworkConfigurationId);
+    }
+
+    return newNetworkConfigurationId;
+  }
+
+  /**
+   * Removes network configuration from state.
+   *
+   * @param networkConfigurationId - The networkConfigurationId of an existing network configuration
+   */
+  removeNetworkConfiguration(networkConfigurationId: string) {
+    if (!this.state.networkConfigurations[networkConfigurationId]) {
+      throw new Error(
+        `networkConfigurationId ${networkConfigurationId} does not match a configured networkConfiguration`,
+      );
+    }
+    this.update((state) => {
+      delete state.networkConfigurations[networkConfigurationId];
+    });
+  }
+
+  /**
+   * Rolls back provider config to the previous provider in case of errors or inability to connect during network switch.
+   */
+  rollbackToPreviousProvider() {
+    const specifier = this.#previousNetworkSpecifier;
+    if (isNetworkType(specifier)) {
+      this.setProviderType(specifier);
+    } else if (typeof specifier === 'string') {
+      this.setActiveNetwork(specifier);
     }
   }
 }

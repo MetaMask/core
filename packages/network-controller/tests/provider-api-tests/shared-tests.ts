@@ -1,5 +1,6 @@
 /* eslint-disable jest/require-top-level-describe, jest/no-export, jest/no-identical-title, jest/no-if */
 
+import { NetworkType } from '@metamask/controller-utils';
 import { testsForRpcMethodsThatCheckForBlockHashInResponse } from './block-hash-in-response';
 import { testsForRpcMethodSupportingBlockParam } from './block-param';
 import {
@@ -367,14 +368,14 @@ export const testsForProviderType = (providerType: ProviderType) => {
       describe('net_version', () => {
         it('does hit RPC endpoint to get net_version', async () => {
           await withMockedCommunications(
-            { providerType, infuraNetwork: 'goerli', customChainId: '5' },
+            { providerType, infuraNetwork: NetworkType.goerli },
             async (comms) => {
               comms.mockRpcCall({
                 request: { method: 'net_version' },
                 response: { result: '5' },
               });
               const networkId = await withNetworkClient(
-                { providerType, infuraNetwork: 'goerli' },
+                { providerType, infuraNetwork: NetworkType.goerli },
                 ({ makeRpcCall }) => {
                   return makeRpcCall({
                     method: 'net_version',
