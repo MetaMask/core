@@ -39,7 +39,7 @@ export interface AbstractMessage {
  * @type MessageParams
  *
  * Represents the parameters to pass to the signing method once the signature request is approved.
- * @property from - Address to sign this message from
+ * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
  */
 export interface AbstractMessageParams {
@@ -53,7 +53,7 @@ export interface AbstractMessageParams {
  * Represents the parameters to pass to the signing method once the signature request is approved
  * plus data added by MetaMask.
  * @property metamaskId - Added for tracking and identification within MetaMask
- * @property from - Address to sign this message from
+ * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
  */
 export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
@@ -93,6 +93,8 @@ export abstract class AbstractMessageManager<
 
   private securityProviderRequest: SecurityProviderRequest | undefined;
 
+  private additionalFinishStatuses: string[];
+
   /**
    * Saves the unapproved messages, and their count to state.
    *
@@ -118,7 +120,12 @@ export abstract class AbstractMessageManager<
     message.status = status;
     this.updateMessage(message);
     this.hub.emit(`${messageId}:${status}`, message);
-    if (status === 'rejected' || status === 'signed' || status === 'errored') {
+    if (
+      status === 'rejected' ||
+      status === 'signed' ||
+      status === 'errored' ||
+      this.additionalFinishStatuses.includes(status)
+    ) {
       this.hub.emit(`${messageId}:finished`, message);
     }
   }
@@ -174,11 +181,13 @@ export abstract class AbstractMessageManager<
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    * @param securityProviderRequest - A function for verifying a message, whether it is malicious or not.
+   * @param additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
    */
   constructor(
     config?: Partial<BaseConfig>,
     state?: Partial<MessageManagerState<M>>,
     securityProviderRequest?: SecurityProviderRequest,
+    additionalFinishStatuses?: string[],
   ) {
     super(config, state);
     this.defaultState = {
@@ -187,6 +196,7 @@ export abstract class AbstractMessageManager<
     };
     this.messages = [];
     this.securityProviderRequest = securityProviderRequest;
+    this.additionalFinishStatuses = additionalFinishStatuses ?? [];
     this.initialize();
   }
 
@@ -269,6 +279,18 @@ export abstract class AbstractMessageManager<
    * @param rawSig - The raw data of the signature request.
    */
   setMessageStatusSigned(messageId: string, rawSig: string) {
+    this.setMessageStatusAndResult(messageId, rawSig, 'signed');
+  }
+
+  /**
+   * Sets the message to a new status via a call to this.setMsgStatus and
+   * updates the rawSig field in this.messages.
+   *
+   * @param messageId - The id of the Message to sign.
+   * @param rawSig - The data to update rawSig in the message.
+   * @param status - The new message status.
+   */
+  setMessageStatusAndResult(messageId: string, rawSig: string, status: string) {
     const message = this.getMessage(messageId);
     /* istanbul ignore if */
     if (!message) {
@@ -276,7 +298,7 @@ export abstract class AbstractMessageManager<
     }
     message.rawSig = rawSig;
     this.updateMessage(message);
-    this.setMessageStatus(messageId, 'signed');
+    this.setMessageStatus(messageId, status);
   }
 
   /**
