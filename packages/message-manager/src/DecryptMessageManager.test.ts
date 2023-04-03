@@ -134,7 +134,6 @@ describe('DecryptMessageManager', () => {
         })}`,
       );
     });
-
   });
 
   it('adds a valid unapproved message', async () => {
