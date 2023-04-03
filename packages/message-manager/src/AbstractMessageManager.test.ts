@@ -159,28 +159,6 @@ describe('AbstractTestManager', () => {
     expect(message.rawSig).toBe('rawSig');
   });
 
-  it('sets message to one of the allowed statuses', () => {
-    const controller = new AbstractTestManager(undefined, undefined, [
-      'received',
-    ]);
-    controller.addMessage({
-      id: messageId,
-      messageParams: {
-        data: typedMessage,
-        from,
-      },
-      status: messageStatus,
-      time: messageTime,
-      type: messageType,
-    });
-    controller.setMessageStatusAndResult(messageId, 'rawSig', 'received');
-    const message = controller.getMessage(messageId);
-    if (!message) {
-      throw new Error('"message" is falsy');
-    }
-    expect(message.status).toBe('received');
-  });
-
   it('sets message to one of the allowed statuses', async () => {
     const controller = new AbstractTestManager(
       undefined,
@@ -279,11 +257,11 @@ describe('AbstractTestManager', () => {
     expect(message.status).toStrictEqual('approved');
   });
 
-  it('sets rawData of message', () => {
+  it('sets rawData of message', async () => {
     const mockedRawData = 'rawData';
     const controller = new AbstractTestManager();
     const firstMessage = { from: '0xfoO', data: typedMessage };
-    controller.addMessage({
+    await controller.addMessage({
       id: messageId,
       messageParams: firstMessage,
       status: messageStatus,
@@ -296,11 +274,11 @@ describe('AbstractTestManager', () => {
     );
   });
 
-  it('sets error of message', () => {
+  it('sets error of message', async () => {
     const mockedErrorMessage = 'errorMessage';
     const controller = new AbstractTestManager();
     const firstMessage = { from: '0xfoO', data: typedMessage };
-    controller.addMessage({
+    await controller.addMessage({
       id: messageId,
       messageParams: firstMessage,
       status: messageStatus,

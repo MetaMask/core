@@ -6,6 +6,7 @@ import { MessageParams } from './MessageManager';
 import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
 import { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
+import { DecryptMessageParams } from './DecryptMessageManager';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -126,6 +127,21 @@ export function validateTypedSignMessageDataV3(
  */
 export function validateEncryptionPublicKeyMessageData(
   messageData: EncryptionPublicKeyParams,
+) {
+  const { from } = messageData;
+  if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
+    throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
+  }
+}
+
+/**
+ * Validates messageData for the eth_decrypt message and throws in
+ * the event of any validation error.
+ *
+ * @param messageData - address string to validate.
+ */
+export function validateDecryptedMessageData(
+  messageData: DecryptMessageParams,
 ) {
   const { from } = messageData;
   if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {

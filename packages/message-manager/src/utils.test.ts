@@ -217,4 +217,36 @@ describe('utils', () => {
       ).not.toThrow();
     });
   });
+
+  describe('validateDecryptedMessageData', () => {
+    it('should throw if no from address', () => {
+      expect(() => util.validateDecryptedMessageData({} as any)).toThrow(
+        'Invalid "from" address: undefined must be a valid string.',
+      );
+    });
+
+    it('should throw if invalid from address', () => {
+      expect(() =>
+        util.validateDecryptedMessageData({
+          from: '01',
+        } as any),
+      ).toThrow('Invalid "from" address: 01 must be a valid string.');
+    });
+
+    it('should throw if invalid type from address', () => {
+      expect(() =>
+        util.validateDecryptedMessageData({
+          from: 123,
+        } as any),
+      ).toThrow('Invalid "from" address: 123 must be a valid string.');
+    });
+
+    it('should not throw if from address is correct', () => {
+      expect(() =>
+        util.validateDecryptedMessageData({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+        } as any),
+      ).not.toThrow();
+    });
+  });
 });
