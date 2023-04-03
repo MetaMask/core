@@ -135,23 +135,6 @@ describe('DecryptMessageManager', () => {
       );
     });
 
-    // it('rejects a message', async () => {
-    //   const result = controller.addUnapprovedMessageAsync({
-    //     from: fromMock,
-    //     data: '0x123',
-    //   });
-    //   const unapprovedMessages = controller.getUnapprovedMessages();
-    //   const keys = Object.keys(unapprovedMessages);
-    //   controller.hub.once(`${keys[0]}:finished`, () => {
-    //     expect(unapprovedMessages[keys[0]].messageParams.from).toBe(fromMock);
-    //     expect(unapprovedMessages[keys[0]].status).toBe('rejected');
-    //   });
-
-    //   controller.rejectMessage(keys[0]);
-    //   await expect(result).rejects.toThrow(
-    //     'MetaMask Decryption: User denied message decryption.',
-    //   );
-    // });
   });
 
   it('adds a valid unapproved message', async () => {
