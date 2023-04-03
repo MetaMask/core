@@ -10,6 +10,13 @@ import { safelyExecute } from '@metamask/controller-utils';
 import { applyDiffs, fetchTimeNow } from './utils';
 
 /**
+ * @type ListTypes
+ *
+ * Type outlining the types of lists provided by aggregating different source lists
+ */
+export type ListTypes = 'fuzzylist' | 'blocklist' | 'allowlist';
+
+/**
  * @type EthPhishingResponse
  *
  * Configuration response from the eth-phishing-detect package
@@ -32,17 +39,15 @@ export interface EthPhishingResponse {
  * @type PhishingStalelist
  *
  * Interface defining expected type of the stalelist.json file.
- * @property allowlist - List of approved origins (legacy naming "whitelist")
- * @property blocklist - List of unapproved origins (legacy naming "blacklist")
- * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
+ * @property phishfort_hotlist - Stale list sourced from phishfort's hotlist.json. Only includes blocklist. Deduplicated entries from eth_phishing_detect_config.
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
  * @property version - Stalelist data structure iteration.
  */
 export interface PhishingStalelist {
-  allowlist: string[];
-  blocklist: string[];
-  fuzzylist: string[];
+  eth_phishing_detect_config: Record<ListTypes, string[]>;
+  phishfort_hotlist: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
   lastUpdated: number;
@@ -58,6 +63,7 @@ export interface PhishingStalelist {
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
  * @property version - Version of the phishing list state.
+ * @property name - Name of the list. Used for attribution.
  */
 export interface PhishingListState {
   allowlist: string[];
@@ -66,7 +72,7 @@ export interface PhishingListState {
   tolerance: number;
   version: number;
   lastUpdated: number;
-  name: string;
+  name: ListNames;
 }
 
 /**
@@ -99,8 +105,12 @@ export interface EthPhishingDetectResult {
 export interface HotlistDiff {
   url: string;
   timestamp: number;
-  targetList: 'fuzzylist' | 'blocklist' | 'allowlist';
+  targetList: `${ListKeys}.${ListTypes}`;
   isRemoval?: boolean;
+}
+
+export interface DataResultWrapper<T> {
+  data: T;
 }
 
 /**
@@ -134,24 +144,59 @@ export interface PhishingConfig extends BaseConfig {
  * @property whitelist - array of temporarily-approved origins
  */
 export interface PhishingState extends BaseState {
-  listState: PhishingListState;
+  phishingLists: PhishingListState[];
   whitelist: string[];
   hotlistLastFetched: number;
   stalelistLastFetched: number;
 }
 
 export const PHISHING_CONFIG_BASE_URL =
-  'https://static.metafi.codefi.network/api/v1/lists';
+  'https://phishing-detection.metafi.codefi.network';
 
-export const METAMASK_STALELIST_FILE = '/stalelist.json';
+export const METAMASK_STALELIST_FILE = '/v1/stalelist';
 
-export const METAMASK_HOTLIST_DIFF_FILE = '/hotlist.json';
+export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
 
 export const HOTLIST_REFRESH_INTERVAL = 30 * 60; // 30 mins in seconds
 export const STALELIST_REFRESH_INTERVAL = 4 * 24 * 60 * 60; // 4 days in seconds
 
 export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`;
 export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
+
+/**
+ * Enum containing upstream data provider source list keys.
+ * These are the keys denoting lists consumed by the upstream data provider.
+ */
+export enum ListKeys {
+  PhishfortHotlist = 'phishfort_hotlist',
+  EthPhishingDetectConfig = 'eth_phishing_detect_config',
+}
+
+/**
+ * Enum containing downstream client attribution names.
+ */
+export enum ListNames {
+  MetaMask = 'MetaMask',
+  Phishfort = 'Phishfort',
+}
+
+/**
+ * Maps from downstream client attribution name
+ * to list key sourced from upstream data provider.
+ */
+const phishingListNameKeyMap = {
+  [ListNames.Phishfort]: ListKeys.PhishfortHotlist,
+  [ListNames.MetaMask]: ListKeys.EthPhishingDetectConfig,
+};
+
+/**
+ * Maps from list key sourced from upstream data
+ * provider to downstream client attribution name.
+ */
+export const phishingListKeyNameMap = {
+  [ListKeys.EthPhishingDetectConfig]: ListNames.MetaMask,
+  [ListKeys.PhishfortHotlist]: ListNames.Phishfort,
+};
 
 /**
  * Controller that manages community-maintained lists of approved and unapproved website origins.
@@ -188,15 +233,17 @@ export class PhishingController extends BaseController<
     };
 
     this.defaultState = {
-      listState: {
-        allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-        blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-        fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-        tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-        version: DEFAULT_PHISHING_RESPONSE.version,
-        name: 'MetaMask',
-        lastUpdated: 0,
-      },
+      phishingLists: [
+        {
+          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
+          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
+          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
+          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
+          version: DEFAULT_PHISHING_RESPONSE.version,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ],
       whitelist: [],
       hotlistLastFetched: 0,
       stalelistLastFetched: 0,
@@ -210,16 +257,7 @@ export class PhishingController extends BaseController<
    * Updates this.detector with an instance of PhishingDetector using the current state.
    */
   updatePhishingDetector() {
-    this.detector = new PhishingDetector([
-      {
-        allowlist: this.state.listState.allowlist,
-        blocklist: this.state.listState.blocklist,
-        fuzzylist: this.state.listState.fuzzylist,
-        tolerance: this.state.listState.tolerance,
-        name: `MetaMask`,
-        version: this.state.listState.version,
-      },
-    ]);
+    this.detector = new PhishingDetector(this.state.phishingLists);
   }
 
   /**
@@ -371,13 +409,20 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    let stalelist;
-    let hotlistDiffs;
+    let stalelistResponse;
+    let hotlistDiffsResponse;
     try {
-      [stalelist, hotlistDiffs] = await Promise.all([
-        this.queryConfig<PhishingStalelist>(METAMASK_STALELIST_URL),
-        this.queryConfig<Hotlist>(METAMASK_HOTLIST_DIFF_URL),
-      ]);
+      stalelistResponse = await this.queryConfig<
+        DataResultWrapper<PhishingStalelist>
+      >(METAMASK_STALELIST_URL).then((d) => d);
+
+      // Fetching hotlist diffs relies on having a lastUpdated timestamp to do `GET /v1/diffsSince/:timestamp`,
+      // so it doesn't make sense to call if there is not a timestamp to begin with.
+      if (stalelistResponse?.data && stalelistResponse.data.lastUpdated > 0) {
+        hotlistDiffsResponse = await this.queryConfig<
+          DataResultWrapper<Hotlist>
+        >(`${METAMASK_HOTLIST_DIFF_URL}/${stalelistResponse.data.lastUpdated}`);
+      }
     } finally {
       // Set `stalelistLastFetched` and `hotlistLastFetched` even for failed requests to prevent server
       // from being overwhelmed with traffic after a network disruption.
@@ -388,14 +433,39 @@ export class PhishingController extends BaseController<
       });
     }
 
-    if (!stalelist || !hotlistDiffs) {
+    if (!stalelistResponse || !hotlistDiffsResponse) {
       return;
     }
+
+    const { phishfort_hotlist, eth_phishing_detect_config, ...partialState } =
+      stalelistResponse.data;
+
+    const phishfortListState: PhishingListState = {
+      ...phishfort_hotlist,
+      ...partialState,
+      fuzzylist: [], // Phishfort hotlist doesn't contain a fuzzylist
+      allowlist: [], // Phishfort hotlist doesn't contain an allowlist
+      name: phishingListKeyNameMap.phishfort_hotlist,
+    };
+    const metamaskListState: PhishingListState = {
+      ...eth_phishing_detect_config,
+      ...partialState,
+      name: phishingListKeyNameMap.eth_phishing_detect_config,
+    };
     // Correctly shaping eth-phishing-detect state by applying hotlist diffs to the stalelist.
-    const newListState: PhishingListState = applyDiffs(stalelist, hotlistDiffs);
+    const newPhishfortListState: PhishingListState = applyDiffs(
+      phishfortListState,
+      hotlistDiffsResponse.data,
+      ListKeys.PhishfortHotlist,
+    );
+    const newMetaMaskListState: PhishingListState = applyDiffs(
+      metamaskListState,
+      hotlistDiffsResponse.data,
+      ListKeys.EthPhishingDetectConfig,
+    );
 
     this.update({
-      listState: newListState,
+      phishingLists: [newMetaMaskListState, newPhishfortListState],
     });
     this.updatePhishingDetector();
   }
@@ -410,29 +480,37 @@ export class PhishingController extends BaseController<
     if (this.disabled) {
       return;
     }
+    const lastDiffTimestamp = Math.max(
+      ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
+    );
+    let hotlistResponse: DataResultWrapper<Hotlist> | null;
 
-    let hotlistDiffs;
     try {
-      hotlistDiffs = await this.queryConfig<Hotlist>(METAMASK_HOTLIST_DIFF_URL);
+      hotlistResponse = await this.queryConfig<DataResultWrapper<Hotlist>>(
+        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
+      );
     } finally {
-      // Set `stalelistLastFetched` even for failed requests to prevent server from being overwhelmed with
+      // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
       // traffic after a network disruption.
       this.update({
         hotlistLastFetched: fetchTimeNow(),
       });
     }
 
-    if (!hotlistDiffs) {
+    if (!hotlistResponse?.data) {
       return;
     }
-    // Correctly shaping MetaMask config.
-    const newListState: PhishingListState = applyDiffs(
-      this.state.listState,
-      hotlistDiffs,
+    const hotlist = hotlistResponse.data;
+    const newPhishingLists = this.state.phishingLists.map((phishingList) =>
+      applyDiffs(
+        phishingList,
+        hotlist,
+        phishingListNameKeyMap[phishingList.name],
+      ),
     );
 
     this.update({
-      listState: newListState,
+      phishingLists: newPhishingLists,
     });
     this.updatePhishingDetector();
   }
