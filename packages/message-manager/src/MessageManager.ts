@@ -70,13 +70,13 @@ export class MessageManager extends AbstractMessageManager<
    * @param req - The original request object possibly containing the origin.
    * @returns Promise resolving to the raw data of the signature request.
    */
-  addUnapprovedMessageAsync(
+  async addUnapprovedMessageAsync(
     messageParams: MessageParams,
     req?: OriginalRequest,
   ): Promise<string> {
+    validateSignMessageData(messageParams);
+    const messageId = await this.addUnapprovedMessage(messageParams, req);
     return new Promise((resolve, reject) => {
-      validateSignMessageData(messageParams);
-      const messageId = this.addUnapprovedMessage(messageParams, req);
       this.hub.once(`${messageId}:finished`, (data: Message) => {
         switch (data.status) {
           case 'signed':
@@ -110,7 +110,10 @@ export class MessageManager extends AbstractMessageManager<
    * @param req - The original request object possibly containing the origin.
    * @returns The id of the newly created message.
    */
-  addUnapprovedMessage(messageParams: MessageParams, req?: OriginalRequest) {
+  async addUnapprovedMessage(
+    messageParams: MessageParams,
+    req?: OriginalRequest,
+  ): Promise<string> {
     if (req) {
       messageParams.origin = req.origin;
     }
@@ -123,7 +126,7 @@ export class MessageManager extends AbstractMessageManager<
       time: Date.now(),
       type: 'eth_sign',
     };
-    this.addMessage(messageData);
+    await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
       ...messageParams,
       ...{ metamaskId: messageId },
