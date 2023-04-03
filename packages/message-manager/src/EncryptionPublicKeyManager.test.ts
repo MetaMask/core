@@ -1,8 +1,17 @@
 import { EncryptionPublicKeyManager } from './EncryptionPublicKeyManager';
 
 describe('EncryptionPublicKeyManager', () => {
+  let controller: EncryptionPublicKeyManager;
+
+  const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+  const messageIdMock = 'message-id-mocked';
+  const rawSigMock = '231124fe67213512=';
+
+  beforeEach(() => {
+    controller = new EncryptionPublicKeyManager();
+  });
+
   it('sets default state', () => {
-    const controller = new EncryptionPublicKeyManager();
     expect(controller.state).toStrictEqual({
       unapprovedMessages: {},
       unapprovedMessagesCount: 0,
@@ -10,97 +19,109 @@ describe('EncryptionPublicKeyManager', () => {
   });
 
   it('sets default config', () => {
-    const controller = new EncryptionPublicKeyManager();
     expect(controller.config).toStrictEqual({});
   });
 
   it('adds a valid message', async () => {
-    const controller = new EncryptionPublicKeyManager();
-    const messageId = '1';
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const messageTime = Date.now();
     const messageStatus = 'unapproved';
     const messageType = 'eth_getEncryptionPublicKey';
-    controller.addMessage({
-      id: messageId,
+    await controller.addMessage({
+      id: messageIdMock,
       messageParams: {
-        from,
+        from: fromMock,
       },
       status: messageStatus,
       time: messageTime,
       type: messageType,
     });
-    const message = controller.getMessage(messageId);
+    const message = controller.getMessage(messageIdMock);
     if (!message) {
       throw new Error('"message" is falsy');
     }
-    expect(message.id).toBe(messageId);
-    expect(message.messageParams.from).toBe(from);
+    expect(message.id).toBe(messageIdMock);
+    expect(message.messageParams.from).toBe(fromMock);
     expect(message.time).toBe(messageTime);
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
   });
 
-  it('rejects a message', async () => {
-    const controller = new EncryptionPublicKeyManager();
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const result = controller.addUnapprovedMessageAsync({
-      from,
-    });
-    const unapprovedMessages = controller.getUnapprovedMessages();
-    const keys = Object.keys(unapprovedMessages);
-    controller.hub.once(`${keys[0]}:finished`, () => {
-      expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
-      expect(unapprovedMessages[keys[0]].status).toBe('rejected');
-    });
-    controller.rejectMessage(keys[0]);
-    await expect(result).rejects.toThrow(
-      'MetaMask EncryptionPublicKey: User denied message EncryptionPublicKey',
-    );
-  });
+  describe('addUnapprovedMessageAsync', () => {
+    beforeEach(() => {
+      controller = new EncryptionPublicKeyManager(
+        undefined,
+        undefined,
+        undefined,
+        ['received'],
+      );
 
-  it('sets message to received', async () => {
-    const controller = new EncryptionPublicKeyManager(undefined, undefined, [
-      'received',
-    ]);
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const rawSig = '231124fe67213512=';
-    const result = controller.addUnapprovedMessageAsync({
-      from,
+      jest
+        .spyOn(controller, 'addUnapprovedMessage')
+        .mockImplementation()
+        .mockResolvedValue(messageIdMock);
     });
-    const unapprovedMessages = controller.getUnapprovedMessages();
-    const keys = Object.keys(unapprovedMessages);
-    controller.hub.once(`${keys[0]}:finished`, () => {
-      expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
-      expect(unapprovedMessages[keys[0]].status).toBe('received');
-    });
-    controller.setMessageStatusAndResult(keys[0], rawSig, 'received');
-    const publicKey = await result;
-    expect(publicKey).toBe(rawSig);
-  });
 
-  it('throws when unapproved finishes', async () => {
-    const controller = new EncryptionPublicKeyManager();
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const result = controller.addUnapprovedMessageAsync({
-      from,
+    afterAll(() => {
+      jest.spyOn(controller, 'addUnapprovedMessage').mockClear();
     });
-    const unapprovedMessages = controller.getUnapprovedMessages();
-    const keys = Object.keys(unapprovedMessages);
-    controller.hub.emit(`${keys[0]}:finished`, unapprovedMessages[keys[0]]);
-    await expect(result).rejects.toThrow('Unknown problem');
+    it('sets message to "received"', async () => {
+      const promise = controller.addUnapprovedMessageAsync({
+        from: fromMock,
+      });
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'received',
+          rawSig: rawSigMock,
+        });
+      }, 100);
+
+      expect(await promise).toStrictEqual(rawSigMock);
+    });
+
+    it('rejects with an error when status is "rejected"', async () => {
+      const promise = controller.addUnapprovedMessageAsync({
+        from: fromMock,
+      });
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'rejected',
+        });
+      }, 100);
+
+      await expect(() => promise).rejects.toThrow(
+        'MetaMask EncryptionPublicKey: User denied message EncryptionPublicKey.',
+      );
+    });
+
+    it('rejects with an error when unapproved finishes', async () => {
+      const promise = controller.addUnapprovedMessageAsync({
+        from: fromMock,
+      });
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'unknown',
+        });
+      }, 100);
+
+      await expect(() => promise).rejects.toThrow(
+        `MetaMask EncryptionPublicKey: Unknown problem: ${JSON.stringify({
+          from: fromMock,
+        })}`,
+      );
+    });
   });
 
   it('adds a valid unapproved message', async () => {
-    const controller = new EncryptionPublicKeyManager();
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const messageStatus = 'unapproved';
     const messageType = 'eth_getEncryptionPublicKey';
     const messageParams = {
-      from,
+      from: fromMock,
     };
     const originalRequest = { origin: 'origin' };
-    const messageId = controller.addUnapprovedMessage(
+    const messageId = await controller.addUnapprovedMessage(
       messageParams,
       originalRequest,
     );
@@ -117,7 +138,6 @@ describe('EncryptionPublicKeyManager', () => {
 
   it('throws when adding invalid message', async () => {
     const from = 'foo';
-    const controller = new EncryptionPublicKeyManager();
     await expect(
       controller.addUnapprovedMessageAsync({
         from,
@@ -125,10 +145,10 @@ describe('EncryptionPublicKeyManager', () => {
     ).rejects.toThrow('Invalid "from" address:');
   });
 
-  it('gets correct unapproved messages', () => {
+  it('gets correct unapproved messages', async () => {
     const firstMessage = {
       id: '1',
-      messageParams: { from: '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d' },
+      messageParams: { from: fromMock },
       status: 'unapproved',
       time: 123,
       type: 'eth_getEncryptionPublicKey',
@@ -140,9 +160,8 @@ describe('EncryptionPublicKeyManager', () => {
       time: 123,
       type: 'eth_getEncryptionPublicKey',
     };
-    const controller = new EncryptionPublicKeyManager();
-    controller.addMessage(firstMessage);
-    controller.addMessage(secondMessage);
+    await controller.addMessage(firstMessage);
+    await controller.addMessage(secondMessage);
     expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
     expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
@@ -151,13 +170,11 @@ describe('EncryptionPublicKeyManager', () => {
   });
 
   it('approves message', async () => {
-    const controller = new EncryptionPublicKeyManager();
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const firstMessage = { from };
-    const messageId = controller.addUnapprovedMessage(firstMessage);
+    const firstMessage = { from: fromMock };
+    const messageId = await controller.addUnapprovedMessage(firstMessage);
     const messageParams = await controller.approveMessage({
-      from,
-      data: from,
+      from: fromMock,
+      data: fromMock,
       metamaskId: messageId,
     });
     const message = controller.getMessage(messageId);
@@ -168,27 +185,22 @@ describe('EncryptionPublicKeyManager', () => {
     expect(message.status).toStrictEqual('approved');
   });
 
-  it('sets message status received', () => {
-    const controller = new EncryptionPublicKeyManager();
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const firstMessage = { from };
-    const rawSig = '231124fe67213512=';
-    const messageId = controller.addUnapprovedMessage(firstMessage);
+  it('sets message status received', async () => {
+    const firstMessage = { from: fromMock };
+    const messageId = await controller.addUnapprovedMessage(firstMessage);
 
-    controller.setMessageStatusAndResult(messageId, rawSig, 'received');
+    controller.setMessageStatusAndResult(messageId, rawSigMock, 'received');
     const message = controller.getMessage(messageId);
     if (!message) {
       throw new Error('"message" is falsy');
     }
-    expect(message.rawSig).toStrictEqual(rawSig);
+    expect(message.rawSig).toStrictEqual(rawSigMock);
     expect(message.status).toStrictEqual('received');
   });
 
-  it('rejects message', () => {
-    const controller = new EncryptionPublicKeyManager();
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const firstMessage = { from };
-    const messageId = controller.addUnapprovedMessage(firstMessage);
+  it('rejects message', async () => {
+    const firstMessage = { from: fromMock };
+    const messageId = await controller.addUnapprovedMessage(firstMessage);
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
     if (!message) {

@@ -68,13 +68,14 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
    * @param req - The original request object possibly containing the origin.
    * @returns Promise resolving to the raw data of the request.
    */
-  addUnapprovedMessageAsync(
+  async addUnapprovedMessageAsync(
     messageParams: EncryptionPublicKeyParams,
     req?: OriginalRequest,
   ): Promise<string> {
+    validateEncryptionPublicKeyMessageData(messageParams);
+    const messageId = await this.addUnapprovedMessage(messageParams, req);
+
     return new Promise((resolve, reject) => {
-      validateEncryptionPublicKeyMessageData(messageParams);
-      const messageId = this.addUnapprovedMessage(messageParams, req);
       this.hub.once(`${messageId}:finished`, (data: EncryptionPublicKey) => {
         switch (data.status) {
           case 'received':
@@ -108,10 +109,10 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
    * @param req - The original request object possibly containing the origin.
    * @returns The id of the newly created message.
    */
-  addUnapprovedMessage(
+  async addUnapprovedMessage(
     messageParams: EncryptionPublicKeyParams,
     req?: OriginalRequest,
-  ) {
+  ): Promise<string> {
     if (req) {
       messageParams.origin = req.origin;
     }
@@ -123,7 +124,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
       time: Date.now(),
       type: 'eth_getEncryptionPublicKey',
     };
-    this.addMessage(messageData);
+    await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
       ...messageParams,
       ...{ metamaskId: messageId },

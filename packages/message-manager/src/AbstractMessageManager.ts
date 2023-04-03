@@ -4,6 +4,7 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
+import { Json } from '@metamask/controller-utils';
 
 /**
  * @type OriginalRequest
@@ -23,6 +24,7 @@ export interface OriginalRequest {
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'Message' which always has a signing type
  * @property rawSig - Raw data of the signature request
+ * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
  */
 export interface AbstractMessage {
   id: string;
@@ -30,6 +32,7 @@ export interface AbstractMessage {
   status: string;
   type: string;
   rawSig?: string;
+  securityProviderResponse?: Map<string, Json>;
 }
 
 /**
@@ -71,6 +74,14 @@ export interface MessageManagerState<M extends AbstractMessage>
 }
 
 /**
+ * A function for verifying a message, whether it is malicious or not
+ */
+export type SecurityProviderRequest = (
+  requestData: AbstractMessage,
+  messageType: string,
+) => Promise<Json>;
+
+/**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export abstract class AbstractMessageManager<
@@ -79,6 +90,8 @@ export abstract class AbstractMessageManager<
   PM extends AbstractMessageParamsMetamask,
 > extends BaseController<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
+
+  private securityProviderRequest: SecurityProviderRequest | undefined;
 
   private additionalFinishStatuses: string[];
 
@@ -133,6 +146,26 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Verifies a message is malicious or not by checking it against a security provider.
+   *
+   * @param message - The message to verify.
+   * @returns A promise that resolves to a secured message with additional security provider response data.
+   */
+  private async securityCheck(message: M): Promise<M> {
+    if (this.securityProviderRequest) {
+      const securityProviderResponse = await this.securityProviderRequest(
+        message,
+        message.type,
+      );
+      return {
+        ...message,
+        securityProviderResponse,
+      };
+    }
+    return message;
+  }
+
+  /**
    * EventEmitter instance used to listen to specific message events
    */
   hub = new EventEmitter();
@@ -147,11 +180,13 @@ export abstract class AbstractMessageManager<
    *
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
-   * @param additionalFinishStatuses -
+   * @param securityProviderRequest - A function for verifying a message, whether it is malicious or not.
+   * @param additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
    */
   constructor(
     config?: Partial<BaseConfig>,
     state?: Partial<MessageManagerState<M>>,
+    securityProviderRequest?: SecurityProviderRequest,
     additionalFinishStatuses?: string[],
   ) {
     super(config, state);
@@ -160,6 +195,7 @@ export abstract class AbstractMessageManager<
       unapprovedMessagesCount: 0,
     };
     this.messages = [];
+    this.securityProviderRequest = securityProviderRequest;
     this.additionalFinishStatuses = additionalFinishStatuses ?? [];
     this.initialize();
   }
@@ -193,8 +229,9 @@ export abstract class AbstractMessageManager<
    *
    * @param message - The Message to add to this.messages.
    */
-  addMessage(message: M) {
-    this.messages.push(message);
+  async addMessage(message: M) {
+    const securedMessage = await this.securityCheck(message);
+    this.messages.push(securedMessage);
     this.saveMessageList();
   }
 
