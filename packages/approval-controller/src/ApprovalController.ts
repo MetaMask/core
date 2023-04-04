@@ -1,12 +1,13 @@
 import type { Patch } from 'immer';
 import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
-import { nanoid } from 'nanoid';
+import { nanoid, random } from 'nanoid';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Json } from '@metamask/controller-utils';
 import { ApprovalRequestNotFoundError } from './errors';
+import { WritableDraft } from 'immer/dist/internal';
 
 const controllerName = 'ApprovalController';
 
@@ -57,14 +58,20 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
 
 type ShowApprovalRequest = () => void | Promise<void>;
 
+export type ApprovalFlowState = {
+  id: string;
+};
+
 export type ApprovalControllerState = {
   pendingApprovals: Record<string, ApprovalRequest<Record<string, Json>>>;
   pendingApprovalCount: number;
+  approvalFlows: ApprovalFlowState[];
 };
 
 const stateMetadata = {
   pendingApprovals: { persist: false, anonymous: true },
   pendingApprovalCount: { persist: false, anonymous: false },
+  approvalFlows: { persist: false, anonymous: false },
 };
 
 const getAlreadyPendingMessage = (origin: string, type: string) =>
@@ -74,6 +81,7 @@ const getDefaultState = (): ApprovalControllerState => {
   return {
     pendingApprovals: {},
     pendingApprovalCount: 0,
+    approvalFlows: [],
   };
 };
 
@@ -118,6 +126,11 @@ export type RejectRequest = {
   handler: ApprovalController['reject'];
 };
 
+export type StartFlow = {
+  type: `${typeof controllerName}:startFlow`;
+  handler: ApprovalController['startFlow'];
+};
+
 type UpdateRequestStateOptions = {
   id: string;
   requestState: Record<string, Json>;
@@ -135,7 +148,8 @@ export type ApprovalControllerActions =
   | HasApprovalRequest
   | AcceptRequest
   | RejectRequest
-  | UpdateRequestState;
+  | UpdateRequestState
+  | StartFlow;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -157,6 +171,33 @@ type ApprovalControllerOptions = {
   showApprovalRequest: ShowApprovalRequest;
   state?: Partial<ApprovalControllerState>;
 };
+
+export type ApprovalFlowOptions = {
+  id?: string;
+};
+
+type UpdateCallback = (
+  draftState: WritableDraft<ApprovalControllerState>,
+) => void;
+
+export class ApprovalFlow {
+  private opts: ApprovalFlowOptions;
+  private update: (callback: UpdateCallback) => void;
+
+  constructor(
+    opts: ApprovalFlowOptions,
+    update: (callback: UpdateCallback) => void,
+  ) {
+    this.opts = opts;
+    this.update = update;
+  }
+
+  end() {
+    this.update((draftState) => {
+      draftState.approvalFlows.pop();
+    });
+  }
+}
 
 /**
  * Controller for managing requests that require user approval.
@@ -243,6 +284,11 @@ export class ApprovalController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:updateRequestState` as const,
       this.updateRequestState.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:startFlow` as const,
+      this.startFlow.bind(this),
     );
   }
 
@@ -466,6 +512,18 @@ export class ApprovalController extends BaseControllerV2<
       draftState.pendingApprovals[opts.id].requestState =
         opts.requestState as any;
     });
+  }
+
+  startFlow(opts: ApprovalFlowOptions = {}): ApprovalFlow {
+    const finalOptions = { ...opts, id: opts.id ?? nanoid() };
+
+    this.update((draftState) => {
+      draftState.approvalFlows.push(finalOptions);
+    });
+
+    return new ApprovalFlow(finalOptions, (draftState) =>
+      this.update(draftState),
+    );
   }
 
   /**
