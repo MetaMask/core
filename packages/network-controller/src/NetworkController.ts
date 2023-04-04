@@ -182,8 +182,6 @@ export class NetworkController extends BaseControllerV2<
 > {
   private ethQuery: EthQuery;
 
-  private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
-
   private infuraProjectId: string | undefined;
 
   private trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
@@ -250,7 +248,7 @@ export class NetworkController extends BaseControllerV2<
     this.#previousNetworkSpecifier = this.state.providerConfig.type;
   }
 
-  private initializeProvider(
+  private configureProvider(
     type: NetworkType,
     rpcTarget?: string,
     chainId?: string,
@@ -296,7 +294,7 @@ export class NetworkController extends BaseControllerV2<
       state.networkDetails = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
-    this.initializeProvider(type, rpcTarget, chainId, ticker);
+    this.configureProvider(type, rpcTarget, chainId, ticker);
     this.lookupNetwork();
   }
 
@@ -316,13 +314,10 @@ export class NetworkController extends BaseControllerV2<
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
-      ...this.internalProviderConfig,
-      ...{
-        dataSubprovider: infuraSubprovider,
-        engineParams: {
-          blockTrackerProvider: infuraProvider,
-          pollingInterval: 12000,
-        },
+      dataSubprovider: infuraSubprovider,
+      engineParams: {
+        blockTrackerProvider: infuraProvider,
+        pollingInterval: 12000,
       },
     };
     this.updateProvider(createMetamaskProvider(config));
@@ -344,14 +339,11 @@ export class NetworkController extends BaseControllerV2<
     nickname?: string,
   ) {
     const config = {
-      ...this.internalProviderConfig,
-      ...{
-        chainId,
-        engineParams: { pollingInterval: 12000 },
-        nickname,
-        rpcUrl: rpcTarget,
-        ticker,
-      },
+      chainId,
+      engineParams: { pollingInterval: 12000 },
+      nickname,
+      rpcUrl: rpcTarget,
+      ticker,
     };
     this.updateProvider(createMetamaskProvider(config));
   }
@@ -376,23 +368,17 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Sets a new configuration for web3-provider-engine.
+   * Method to inilialize the provider,
+   * Creates the provider and block tracker for the configured network,
+   * using the provider to gather details about the network.
    *
-   * TODO: Replace this wth a method.
-   *
-   * @param providerConfig - The web3-provider-engine configuration.
    */
-  set providerConfig(providerConfig: ProviderConfig) {
-    this.internalProviderConfig = providerConfig;
+  initializeProvider() {
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
-    this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.configureProvider(type, rpcTarget, chainId, ticker, nickname);
     this.registerProvider();
     this.lookupNetwork();
-  }
-
-  get providerConfig() {
-    throw new Error('Property only used for setting');
   }
 
   async #getNetworkId(): Promise<string> {
