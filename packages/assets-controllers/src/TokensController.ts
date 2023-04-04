@@ -1,4 +1,9 @@
 import { EventEmitter } from 'events';
+import {
+  AcceptRequest as AcceptApprovalRequest,
+  AddApprovalRequest,
+  RejectRequest as RejectApprovalRequest,
+} from '@metamask/approval-controller';
 import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
@@ -10,6 +15,7 @@ import {
   BaseController,
   BaseConfig,
   BaseState,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { NetworkState } from '@metamask/network-controller';
@@ -116,6 +122,33 @@ export interface TokensState extends BaseState {
 }
 
 /**
+ * The name of the {@link TokensController}.
+ */
+const controllerName = 'TokensController';
+
+/**
+ * The external actions available to the {@link TokensController}.
+ */
+type AllowedActions =
+  | AddApprovalRequest
+  | AcceptApprovalRequest
+  | RejectApprovalRequest;
+
+/**
+ * The messenger of the {@link TokensController}.
+ */
+export type TokensControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AllowedActions,
+  never,
+  AllowedActions['type'],
+  never
+>;
+
+const ORIGIN_METAMASK = 'metamask';
+const WATCH_ASSET_METHOD_NAME = 'wallet_watchAssets';
+
+/**
  * Controller that stores assets and exposes convenience methods
  */
 export class TokensController extends BaseController<
@@ -127,6 +160,8 @@ export class TokensController extends BaseController<
   private ethersProvider: any;
 
   private abortController: WhatwgAbortController;
+
+  private messagingSystem: TokensControllerMessenger;
 
   private failSuggestedAsset(
     suggestedAssetMeta: SuggestedAssetMeta,
@@ -188,12 +223,14 @@ export class TokensController extends BaseController<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
+   * @param options.messenger - The controller messenger.
    */
   constructor({
     onPreferencesStateChange,
     onNetworkStateChange,
     config,
     state,
+    messenger,
   }: {
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
@@ -203,6 +240,7 @@ export class TokensController extends BaseController<
     ) => void;
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
+    messenger: TokensControllerMessenger;
   }) {
     super(config, state);
 
@@ -227,6 +265,8 @@ export class TokensController extends BaseController<
 
     this.initialize();
     this.abortController = new WhatwgAbortController();
+
+    this.messagingSystem = messenger;
 
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
@@ -675,7 +715,20 @@ export class TokensController extends BaseController<
     const { suggestedAssets } = this.state;
     suggestedAssets.push(suggestedAssetMeta);
     this.update({ suggestedAssets: [...suggestedAssets] });
-    this.hub.emit('pendingSuggestedAsset', suggestedAssetMeta);
+
+    // this.hub.emit('pendingSuggestedAsset', suggestedAssetMeta);
+    console.log(suggestedAssetMeta, suggestedAssets);
+
+    await this.messagingSystem.call(
+      'ApprovalController:addRequest',
+      {
+        id: suggestedAssetMeta.id,
+        origin: ORIGIN_METAMASK,
+        type: WATCH_ASSET_METHOD_NAME,
+      },
+      true,
+    );
+
     return { result, suggestedAssetMeta };
   }
 
@@ -705,6 +758,12 @@ export class TokensController extends BaseController<
             suggestedAssetMeta?.interactingAddress || selectedAddress,
           );
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
+
+          this.messagingSystem.call(
+            'ApprovalController:acceptRequest',
+            suggestedAssetMeta.id,
+          );
+
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
             suggestedAssetMeta,
@@ -740,6 +799,12 @@ export class TokensController extends BaseController<
       return;
     }
     suggestedAssetMeta.status = SuggestedAssetStatus.rejected;
+
+    this.messagingSystem.call(
+      'ApprovalController:rejectRequest',
+      suggestedAssetMeta.id,
+      new Error('Rejected'),
+    );
     this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
     const newSuggestedAssets = suggestedAssets.filter(
       ({ id }) => id !== suggestedAssetID,
