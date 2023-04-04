@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.0]
-### Uncategorized
-- API-217 - Refactored to new long-running phishing-detection API for phishing list updates ([#1123](https://github.com/MetaMask/core/pull/1123))
+### Changed
+- **BREAKING:** Switch to new phishing configuration API that returns a diff since the last update ([#1123](https://github.com/MetaMask/core/pull/1123))
+  - The "hotlist" has been replaced by a service that returns any configuration changes since the last update. This should reduce network traffic even further.
+  - The endpoints used are now `https://phishing-detection.metafi.codefi.network/v1/stalelist` and `https://phishing-detection.metafi.codefi.network/v1/diffsSince/:lastUpdated`
+- **BREAKING:**: The phishing controller state now keeps the MetaMask and PhishFort configuration separate, allowing for proper attribution of each block ([#1123](https://github.com/MetaMask/core/pull/1123))
+  - The `listState` state property has been replaced with an array of phishing list state objects (one entry for MetaMask, one for PhishFort).
+  - The PhishFort config is deduplicated server-side, so it should have zero overlap with the MetaMask configuration (which helps reduce memory/disk usage)
 
 ## [3.0.0]
 ### Removed

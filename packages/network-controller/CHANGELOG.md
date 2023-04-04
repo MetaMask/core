@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.0.0]
-### Uncategorized
-- Replace providerConfig setter with a public initializeProvider method ([#1133](https://github.com/MetaMask/core/pull/1133))
+### Changed
+- **BREAKING:** Replace `providerConfig` setter with a public `initializeProvider` method ([#1133](https://github.com/MetaMask/core/pull/1133))
+  - The property `providerConfig` should no longer be set to initialize the provider. That property no longer exists.
+  - The method `initializeProvider` must be called instead to initialize the provider after constructing the network controller.
 
 ## [6.0.0]
 ### Added
