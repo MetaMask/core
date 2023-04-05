@@ -716,18 +716,19 @@ export class TokensController extends BaseController<
     suggestedAssets.push(suggestedAssetMeta);
     this.update({ suggestedAssets: [...suggestedAssets] });
 
-    // this.hub.emit('pendingSuggestedAsset', suggestedAssetMeta);
-    console.log(suggestedAssetMeta, suggestedAssets);
-
-    await this.messagingSystem.call(
-      'ApprovalController:addRequest',
-      {
-        id: suggestedAssetMeta.id,
-        origin: ORIGIN_METAMASK,
-        type: WATCH_ASSET_METHOD_NAME,
-      },
-      true,
-    );
+    this.messagingSystem
+      .call(
+        'ApprovalController:addRequest',
+        {
+          id: suggestedAssetMeta.id,
+          origin: ORIGIN_METAMASK,
+          type: WATCH_ASSET_METHOD_NAME,
+        },
+        true,
+      )
+      .catch(() => {
+        // Intentionally ignored as promise not currently used
+      });
 
     return { result, suggestedAssetMeta };
   }
@@ -759,10 +760,17 @@ export class TokensController extends BaseController<
           );
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
 
-          this.messagingSystem.call(
-            'ApprovalController:acceptRequest',
-            suggestedAssetMeta.id,
-          );
+          try {
+            this.messagingSystem.call(
+              'ApprovalController:acceptRequest',
+              suggestedAssetMeta.id,
+            );
+          } catch (error) {
+            console.error(
+              'Failed to accept token watch approval request',
+              error,
+            );
+          }
 
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
@@ -776,6 +784,19 @@ export class TokensController extends BaseController<
       }
     } catch (error) {
       this.failSuggestedAsset(suggestedAssetMeta, error);
+
+      try {
+        this.messagingSystem.call(
+          'ApprovalController:rejectRequest',
+          suggestedAssetMeta.id,
+          new Error('Rejected'),
+        );
+      } catch (messageCallError) {
+        console.error(
+          'Failed to reject transaction approval request',
+          messageCallError,
+        );
+      }
     }
     const newSuggestedAssets = suggestedAssets.filter(
       ({ id }) => id !== suggestedAssetID,
@@ -799,17 +820,21 @@ export class TokensController extends BaseController<
       return;
     }
     suggestedAssetMeta.status = SuggestedAssetStatus.rejected;
-
-    this.messagingSystem.call(
-      'ApprovalController:rejectRequest',
-      suggestedAssetMeta.id,
-      new Error('Rejected'),
-    );
     this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
     const newSuggestedAssets = suggestedAssets.filter(
       ({ id }) => id !== suggestedAssetID,
     );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
+
+    try {
+      this.messagingSystem.call(
+        'ApprovalController:rejectRequest',
+        suggestedAssetMeta.id,
+        new Error('Rejected'),
+      );
+    } catch (error) {
+      console.error('Failed to reject transaction approval request', error);
+    }
   }
 
   /**

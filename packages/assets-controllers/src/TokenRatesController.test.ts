@@ -219,6 +219,7 @@ describe('TokenRatesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      messenger: undefined as any,
     });
     const controller = new TokenRatesController(
       {
