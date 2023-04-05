@@ -1,5 +1,6 @@
 /* eslint-disable jest/require-top-level-describe, jest/no-export, jest/no-identical-title, jest/no-if */
 
+import { NetworkType } from '@metamask/controller-utils';
 import { testsForRpcMethodsThatCheckForBlockHashInResponse } from './block-hash-in-response';
 import { testsForRpcMethodSupportingBlockParam } from './block-param';
 import {
@@ -326,7 +327,7 @@ export const testsForProviderType = (providerType: ProviderType) => {
         if (providerType === 'infura') {
           it('does not hit Infura, instead returning the network ID that maps to the Infura network, as a decimal string', async () => {
             const networkId = await withNetworkClient(
-              { providerType: 'infura', infuraNetwork: 'goerli' },
+              { providerType: 'infura', infuraNetwork: NetworkType.goerli },
               ({ makeRpcCall }) => {
                 return makeRpcCall({
                   method: 'net_version',
