@@ -15,6 +15,7 @@ import {
   NetworksTicker,
   isNetworkType,
   BUILT_IN_NETWORKS,
+  toHex,
 } from '@metamask/controller-utils';
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { PollingBlockTracker } from 'eth-block-tracker';
@@ -274,10 +275,7 @@ export class NetworkController extends BaseControllerV2<
         if (rpcTarget === undefined) {
           throw new Error('rpcTarget must be passed in for custom rpcs');
         }
-        const cid: Hex = chainId.startsWith('0x')
-          ? (chainId as Hex)
-          : `0x${parseInt(chainId, 10).toString(16)}`;
-        this.#setupStandardProvider(rpcTarget, cid);
+        this.#setupStandardProvider(rpcTarget, toHex(chainId));
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
