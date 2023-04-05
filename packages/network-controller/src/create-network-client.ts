@@ -22,7 +22,7 @@ import {
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import type { Hex } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { NetworksChainId } from '@metamask/controller-utils';
+import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 
 const SECOND = 1000;
 
@@ -37,8 +37,7 @@ type CustomNetworkConfiguration = {
   type: NetworkClientType.Custom;
 };
 
-// could improve this type... this is not a very complete list
-export type InfuraNetworkType = 'mainnet' | 'goerli' | 'sepolia';
+export type InfuraNetworkType = Exclude<NetworkType, 'localhost' | 'rpc'>;
 
 type InfuraNetworkConfiguration = {
   network: InfuraNetworkType;
