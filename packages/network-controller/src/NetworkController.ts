@@ -20,7 +20,7 @@ import {
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import { assertIsStrictHexString } from '@metamask/utils';
-import type { Hex } from '@metamask/utils/dist';
+import type { Hex } from '@metamask/utils';
 import {
   createNetworkClient,
   InfuraNetworkType,

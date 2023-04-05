@@ -3966,7 +3966,7 @@ describe('NetworkController', () => {
       );
     });
 
-    it('adds new networkConfiguration to networkController store, but only adds valid properties (rpcUrl, chainId, ticker, nickname, rpcPrefs) and fills any missing properties from this list as undefined', async function() {
+    it('adds new networkConfiguration to networkController store, but only adds valid properties (rpcUrl, chainId, ticker, nickname, rpcPrefs) and fills any missing properties from this list as undefined', async function () {
       (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
       await withController(
         {
@@ -5612,7 +5612,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
             // Using a string instead of an Error leads to better backtraces.
             /* eslint-disable-next-line prefer-promise-reject-errors */
             reject(
-              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${interestingEventPayloads.length
+              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
+                interestingEventPayloads.length
               } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
                 allEventPayloads,
                 { depth: null },
@@ -5695,7 +5696,7 @@ async function waitForStateChanges(
     propertyPath === undefined
       ? () => true
       : ([_newState, patches]: [NetworkState, Patch[]]) =>
-        didPropertyChange(patches, propertyPath);
+          didPropertyChange(patches, propertyPath);
 
   return await waitForPublishedEvents<NetworkControllerStateChangeEvent>(
     messenger,

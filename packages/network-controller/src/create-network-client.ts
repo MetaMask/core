@@ -20,8 +20,8 @@ import {
   SafeEventEmitterProvider,
 } from '@metamask/eth-json-rpc-provider';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
-import type { Hex } from '@metamask/utils/dist';
-import { PollingBlockTracker } from 'eth-block-tracker/dist';
+import type { Hex } from '@metamask/utils';
+import { PollingBlockTracker } from 'eth-block-tracker';
 import { NetworksChainId } from '@metamask/controller-utils';
 
 const SECOND = 1000;
