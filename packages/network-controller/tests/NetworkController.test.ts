@@ -12,7 +12,10 @@ import {
   NetworksTicker,
 } from '@metamask/controller-utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { providerFromEngine, SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import {
+  providerFromEngine,
+  SafeEventEmitterProvider,
+} from '@metamask/eth-json-rpc-provider';
 import { waitForResult } from '../../../tests/helpers';
 import {
   NetworkController,
@@ -25,8 +28,11 @@ import {
   ProviderConfig,
 } from '../src/NetworkController';
 import { BUILT_IN_NETWORKS } from '../../controller-utils/src/constants';
+import {
+  createNetworkClient,
+  NetworkClientType,
+} from '../src/create-network-client';
 import { FakeProvider, FakeProviderStub } from './fake-provider-engine';
-import { createNetworkClient, NetworkClientType } from '../src/create-network-client';
 
 jest.mock('eth-query', () => {
   return {
@@ -277,12 +283,16 @@ describe('NetworkController', () => {
               async ({ controller }) => {
                 const fakeInfuraClients = [
                   buildFakeClient(),
-                  buildFakeClient()
+                  buildFakeClient(),
                 ];
                 const firstProvider = fakeInfuraClients[0].provider;
                 jest.spyOn(firstProvider, 'removeAllListeners');
-                createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
-                createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
+                createNetworkClientMock.mockReturnValueOnce(
+                  fakeInfuraClients[0],
+                );
+                createNetworkClientMock.mockReturnValueOnce(
+                  fakeInfuraClients[1],
+                );
 
                 await controller.initializeProvider();
                 await controller.initializeProvider();
@@ -491,10 +501,7 @@ describe('NetworkController', () => {
             infuraProjectId: 'infura-project-id',
           },
           async ({ controller }) => {
-            const fakeInfuraClients = [
-              buildFakeClient(),
-              buildFakeClient()
-            ];
+            const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
             const firstProvider = fakeInfuraClients[0].provider;
             jest.spyOn(firstProvider, 'removeAllListeners');
             createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
@@ -701,10 +708,7 @@ describe('NetworkController', () => {
               infuraProjectId: 'infura-project-id',
             },
             async ({ controller }) => {
-              const fakeInfuraClients = [
-                buildFakeClient(),
-                buildFakeClient()
-              ];
+              const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
               const firstProvider = fakeInfuraClients[0].provider;
               jest.spyOn(firstProvider, 'removeAllListeners');
               createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
@@ -870,7 +874,9 @@ describe('NetworkController', () => {
             const fakeClient = buildFakeClient();
             createNetworkClientMock.mockReturnValue(fakeClient);
 
-            await expect(() => controller.initializeProvider()).rejects.toThrow();
+            await expect(() => controller.initializeProvider()).rejects.toThrow(
+              'rpcTarget must be passed in for custom rpcs',
+            );
             expect(providerFromEngineMock).not.toHaveBeenCalled();
             const { provider, blockTracker } =
               controller.getProviderAndBlockTracker();
@@ -1334,10 +1340,7 @@ describe('NetworkController', () => {
 
       it('ensures that the existing provider is stopped while replacing it', async () => {
         await withController(async ({ controller }) => {
-          const fakeInfuraClients = [
-            buildFakeClient(),
-            buildFakeClient()
-          ];
+          const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
           const firstProvider = fakeInfuraClients[0].provider;
           jest.spyOn(firstProvider, 'removeAllListeners');
           createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
@@ -1598,10 +1601,7 @@ describe('NetworkController', () => {
 
         it('ensures that the existing provider is stopped while replacing it', async () => {
           await withController(async ({ controller }) => {
-            const fakeInfuraClients = [
-              buildFakeClient(),
-              buildFakeClient()
-            ];
+            const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
             const firstProvider = fakeInfuraClients[0].provider;
             jest.spyOn(firstProvider, 'removeAllListeners');
             createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
@@ -1741,7 +1741,9 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            await expect(() => controller.setProviderType(NetworkType.rpc)).rejects.toThrow();
+            await expect(() => controller.setProviderType(NetworkType.rpc)).rejects.toThrow(
+              "Cannot use setProviderType to switch to a custom network (network type 'rpc'). Use setActiveNetwork instead.",
+            );
           },
         );
       });
@@ -1864,10 +1866,7 @@ describe('NetworkController', () => {
 
       it('ensures that the existing provider is stopped while replacing it', async () => {
         await withController(async ({ controller }) => {
-          const fakeInfuraClients = [
-            buildFakeClient(),
-            buildFakeClient()
-          ];
+          const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
           const firstProvider = fakeInfuraClients[0].provider;
           jest.spyOn(firstProvider, 'removeAllListeners');
           createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
@@ -2188,10 +2187,7 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeInfuraClients = [
-            buildFakeClient(),
-            buildFakeClient()
-          ];
+          const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
           const firstProvider = fakeInfuraClients[0].provider;
           jest.spyOn(firstProvider, 'removeAllListeners');
           createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
@@ -3970,7 +3966,7 @@ describe('NetworkController', () => {
       );
     });
 
-    it('adds new networkConfiguration to networkController store, but only adds valid properties (rpcUrl, chainId, ticker, nickname, rpcPrefs) and fills any missing properties from this list as undefined', async function() {
+    it('adds new networkConfiguration to networkController store, but only adds valid properties (rpcUrl, chainId, ticker, nickname, rpcPrefs) and fills any missing properties from this list as undefined', async function () {
       (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
       await withController(
         {
@@ -5445,6 +5441,7 @@ class FakeBlockTracker extends PollingBlockTracker {
 /**
  * Builds an object that `createInfuraProvider` or `createJsonRpcClient` returns.
  *
+ * @param provider - provider to use if you dont want the defaults
  * @returns The object.
  */
 function buildFakeClient(provider?: SafeEventEmitterProvider) {
@@ -5615,7 +5612,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
             // Using a string instead of an Error leads to better backtraces.
             /* eslint-disable-next-line prefer-promise-reject-errors */
             reject(
-              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${interestingEventPayloads.length
+              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
+                interestingEventPayloads.length
               } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
                 allEventPayloads,
                 { depth: null },
@@ -5698,7 +5696,7 @@ async function waitForStateChanges(
     propertyPath === undefined
       ? () => true
       : ([_newState, patches]: [NetworkState, Patch[]]) =>
-        didPropertyChange(patches, propertyPath);
+          didPropertyChange(patches, propertyPath);
 
   return await waitForPublishedEvents<NetworkControllerStateChangeEvent>(
     messenger,

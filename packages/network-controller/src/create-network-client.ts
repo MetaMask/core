@@ -50,7 +50,7 @@ type InfuraNetworkConfiguration = {
  * Create a JSON RPC network client for a specific network.
  *
  * @param networkConfig - The network configuration.
- * @returns
+ * @returns the network client
  */
 export function createNetworkClient(
   networkConfig: CustomNetworkConfiguration | InfuraNetworkConfiguration,
@@ -58,20 +58,21 @@ export function createNetworkClient(
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-        network: networkConfig.network,
-        projectId: networkConfig.infuraProjectId,
-        maxAttempts: 5,
-        source: 'metamask',
-      })
+          network: networkConfig.network,
+          projectId: networkConfig.infuraProjectId,
+          maxAttempts: 5,
+          source: 'metamask',
+        })
       : createFetchMiddleware({
-        btoa: global.btoa,
-        fetch: global.fetch,
-        rpcUrl: networkConfig.rpcUrl,
-      });
+          btoa: global.btoa,
+          fetch: global.fetch,
+          rpcUrl: networkConfig.rpcUrl,
+        });
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
   const blockTrackerOpts =
+    // eslint-disable-next-line node/no-process-env
     process.env.IN_TEST && networkConfig.type === 'custom'
       ? { pollingInterval: SECOND }
       : {};
@@ -83,16 +84,16 @@ export function createNetworkClient(
   const networkMiddleware =
     networkConfig.type === NetworkClientType.Infura
       ? createInfuraNetworkMiddleware({
-        blockTracker,
-        network: networkConfig.network,
-        rpcProvider,
-        rpcApiMiddleware,
-      })
+          blockTracker,
+          network: networkConfig.network,
+          rpcProvider,
+          rpcApiMiddleware,
+        })
       : createCustomNetworkMiddleware({
-        blockTracker,
-        chainId: networkConfig.chainId,
-        rpcApiMiddleware,
-      });
+          blockTracker,
+          chainId: networkConfig.chainId,
+          rpcApiMiddleware,
+        });
 
   const engine = new JsonRpcEngine();
 
@@ -103,6 +104,16 @@ export function createNetworkClient(
   return { provider, blockTracker };
 }
 
+/**
+ * Create middleware for infura.
+ *
+ * @param options0 - options for infura middleware
+ * @param options0.blockTracker - block tracker to use
+ * @param options0.network - network to use
+ * @param options0.rpcProvider - rpcProvider to use
+ * @param options0.rpcApiMiddleware - additional rpcApiMiddleware
+ * @returns the middleware
+ */
 function createInfuraNetworkMiddleware({
   blockTracker,
   network,
@@ -125,6 +136,13 @@ function createInfuraNetworkMiddleware({
   ]);
 }
 
+/**
+ * Creates static method middleware.
+ *
+ * @param options0 - options
+ * @param options0.network - the network to use
+ * @returns the middleware
+ */
 function createNetworkAndChainIdMiddleware({
   network,
 }: {
@@ -150,6 +168,15 @@ const createChainIdMiddleware = (
   };
 };
 
+/**
+ * Creates custom middleware.
+ *
+ * @param options0 - options for middleware
+ * @param options0.blockTracker - the block tracker to use
+ * @param options0.chainId - the chain id to use
+ * @param options0.rpcApiMiddleware - additional middleware
+ * @returns the middleware
+ */
 function createCustomNetworkMiddleware({
   blockTracker,
   chainId,
@@ -159,6 +186,7 @@ function createCustomNetworkMiddleware({
   chainId?: string;
   rpcApiMiddleware: any;
 }) {
+  // eslint-disable-next-line node/no-process-env
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];
@@ -177,6 +205,8 @@ function createCustomNetworkMiddleware({
 /**
  * For use in tests only.
  * Adds a delay to `eth_estimateGas` calls.
+ *
+ * @returns the middleware
  */
 function createEstimateGasDelayTestMiddleware() {
   return createAsyncMiddleware(async (req, _, next) => {
