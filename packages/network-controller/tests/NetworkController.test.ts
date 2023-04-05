@@ -475,7 +475,7 @@ describe('NetworkController', () => {
 
             expect(createNetworkClientMock).toHaveBeenCalledWith({
               rpcUrl: 'http://localhost:8545',
-              chainId: undefined,
+              chainId: '0x1046a',
               type: NetworkClientType.Custom,
             });
             const { provider } = controller.getProviderAndBlockTracker();
@@ -1741,9 +1741,9 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            await expect(() => controller.setProviderType(NetworkType.rpc)).rejects.toThrow(
-              "Cannot use setProviderType to switch to a custom network (network type 'rpc'). Use setActiveNetwork instead.",
-            );
+            await expect(() =>
+              controller.setProviderType(NetworkType.rpc),
+            ).rejects.toThrow('rpcTarget must be passed in for custom rpcs');
           },
         );
       });
@@ -1823,7 +1823,7 @@ describe('NetworkController', () => {
 
           expect(createNetworkClientMock).toHaveBeenCalledWith({
             rpcUrl: 'http://localhost:8545',
-            chainId: undefined,
+            chainId: '0x0',
             type: NetworkClientType.Custom,
           });
           const { provider } = controller.getProviderAndBlockTracker();

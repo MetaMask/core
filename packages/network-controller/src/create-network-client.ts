@@ -32,7 +32,7 @@ export enum NetworkClientType {
 }
 
 type CustomNetworkConfiguration = {
-  chainId?: Hex;
+  chainId: Hex;
   rpcUrl: string;
   type: NetworkClientType.Custom;
 };
@@ -156,7 +156,7 @@ function createNetworkAndChainIdMiddleware({
 }
 
 const createChainIdMiddleware = (
-  chainId?: string,
+  chainId: string,
 ): JsonRpcMiddleware<unknown, unknown> => {
   return (req, res, next, end) => {
     if (req.method === 'eth_chainId') {
@@ -182,7 +182,7 @@ function createCustomNetworkMiddleware({
   rpcApiMiddleware,
 }: {
   blockTracker: PollingBlockTracker;
-  chainId?: string;
+  chainId: string;
   rpcApiMiddleware: any;
 }) {
   // eslint-disable-next-line node/no-process-env
