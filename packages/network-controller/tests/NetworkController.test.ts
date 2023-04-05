@@ -12,7 +12,7 @@ import {
   NetworksTicker,
 } from '@metamask/controller-utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
+import { providerFromEngine, SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { waitForResult } from '../../../tests/helpers';
 import {
   NetworkController,
@@ -25,9 +25,8 @@ import {
   ProviderConfig,
 } from '../src/NetworkController';
 import { BUILT_IN_NETWORKS } from '../../controller-utils/src/constants';
-import { createInfuraClient } from '../src/clients/createInfuraClient';
-import { createJsonRpcClient } from '../src/clients/createJsonRpcClient';
 import { FakeProvider, FakeProviderStub } from './fake-provider-engine';
+import { createNetworkClient, NetworkClientType } from '../src/create-network-client';
 
 jest.mock('eth-query', () => {
   return {
@@ -36,8 +35,7 @@ jest.mock('eth-query', () => {
   };
 });
 
-jest.mock('../src/clients/createJsonRpcClient');
-jest.mock('../src/clients/createInfuraClient');
+jest.mock('../src/create-network-client');
 jest.mock('@metamask/eth-json-rpc-middleware');
 jest.mock('@metamask/eth-json-rpc-provider');
 jest.mock('eth-block-tracker');
@@ -54,8 +52,7 @@ jest.mock('uuid', () => {
 // Store this up front so it doesn't get lost when it is stubbed
 const originalSetTimeout = global.setTimeout;
 
-const createJsonRpcClientMock = mocked(createJsonRpcClient);
-const createInfuraClientMock = mocked(createInfuraClient);
+const createNetworkClientMock = mocked(createNetworkClient);
 const providerFromEngineMock = mocked(providerFromEngine);
 
 /**
@@ -182,11 +179,7 @@ describe('NetworkController', () => {
             },
             async ({ controller }) => {
               const fakeJsonRpcClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-              const fakeJsonRpcProviderFromEngine = buildFakeProvider();
-              providerFromEngineMock.mockReturnValue(
-                fakeJsonRpcProviderFromEngine,
-              );
+              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
               await controller.initializeProvider();
 
@@ -210,9 +203,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeClient);
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            createNetworkClientMock.mockReturnValue(fakeClient);
 
             await controller.initializeProvider();
 
@@ -238,9 +229,7 @@ describe('NetworkController', () => {
                 infuraProjectId: 'infura-project-id',
               },
               async ({ controller }) => {
-                const fakeInfuraClient = buildFakeClient();
-                createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-                const fakeProviderFromEngine = buildFakeProvider([
+                const fakeProvider = buildFakeProvider([
                   {
                     request: {
                       method: 'eth_chainId',
@@ -250,14 +239,16 @@ describe('NetworkController', () => {
                     },
                   },
                 ]);
-                providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+                const fakeInfuraClient = buildFakeClient(fakeProvider);
+                createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
                 await controller.initializeProvider();
 
-                expect(createInfuraClientMock).toHaveBeenCalledWith(
-                  networkType,
-                  'infura-project-id',
-                );
+                expect(createNetworkClientMock).toHaveBeenCalledWith({
+                  type: NetworkClientType.Infura,
+                  network: networkType,
+                  infuraProjectId: 'infura-project-id',
+                });
                 const { provider } = controller.getProviderAndBlockTracker();
                 assert(provider, 'Provider is not set');
                 const promisifiedSendAsync = promisify(provider.sendAsync).bind(
@@ -284,25 +275,21 @@ describe('NetworkController', () => {
                 infuraProjectId: 'infura-project-id',
               },
               async ({ controller }) => {
-                const fakeInfuraClient = buildFakeClient();
-                createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-                const fakeProviderFromEngines = [
-                  buildFakeProvider(),
-                  buildFakeProvider(),
+                const fakeInfuraClients = [
+                  buildFakeClient(),
+                  buildFakeClient()
                 ];
-                jest.spyOn(fakeProviderFromEngines[0], 'removeAllListeners');
-                providerFromEngineMock
-                  .mockImplementationOnce(() => fakeProviderFromEngines[0])
-                  .mockImplementationOnce(() => fakeProviderFromEngines[1]);
+                const firstProvider = fakeInfuraClients[0].provider;
+                jest.spyOn(firstProvider, 'removeAllListeners');
+                createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
+                createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
 
                 await controller.initializeProvider();
                 await controller.initializeProvider();
                 assert(controller.getProviderAndBlockTracker().provider);
                 jest.runAllTimers();
 
-                expect(
-                  fakeProviderFromEngines[0].removeAllListeners,
-                ).toHaveBeenCalled();
+                expect(firstProvider.removeAllListeners).toHaveBeenCalled();
               },
             );
           });
@@ -322,9 +309,7 @@ describe('NetworkController', () => {
                     infuraProjectId: 'infura-project-id',
                   },
                   async ({ controller }) => {
-                    const fakeInfuraClient = buildFakeClient();
-                    createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-                    const fakeProviderFromEngine = buildFakeProvider([
+                    const fakeProvider = buildFakeProvider([
                       {
                         request: {
                           method: 'net_version',
@@ -350,9 +335,8 @@ describe('NetworkController', () => {
                         },
                       },
                     ]);
-                    providerFromEngineMock.mockReturnValue(
-                      fakeProviderFromEngine,
-                    );
+                    const fakeInfuraClient = buildFakeClient(fakeProvider);
+                    createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
                     await waitForPublishedEvents(
                       messenger,
@@ -396,9 +380,7 @@ describe('NetworkController', () => {
                     infuraProjectId: 'infura-project-id',
                   },
                   async ({ controller }) => {
-                    const fakeInfuraClient = buildFakeClient();
-                    createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-                    const fakeProviderFromEngine = buildFakeProvider([
+                    const fakeProvider = buildFakeProvider([
                       {
                         request: {
                           method: 'net_version',
@@ -416,9 +398,8 @@ describe('NetworkController', () => {
                         },
                       },
                     ]);
-                    providerFromEngineMock.mockReturnValue(
-                      fakeProviderFromEngine,
-                    );
+                    const fakeInfuraClient = buildFakeClient(fakeProvider);
+                    createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
                     await waitForPublishedEvents(
                       messenger,
@@ -467,9 +448,7 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeClient);
-            const fakeProviderFromEngine = buildFakeProvider([
+            const fakeProvider = buildFakeProvider([
               {
                 request: {
                   method: 'eth_chainId',
@@ -479,14 +458,16 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            const fakeClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeClient);
 
             await controller.initializeProvider();
 
-            expect(createJsonRpcClientMock).toHaveBeenCalledWith(
-              'http://localhost:8545',
-              undefined,
-            );
+            expect(createNetworkClientMock).toHaveBeenCalledWith({
+              rpcUrl: 'http://localhost:8545',
+              chainId: undefined,
+              type: NetworkClientType.Custom,
+            });
             const { provider } = controller.getProviderAndBlockTracker();
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
@@ -507,27 +488,24 @@ describe('NetworkController', () => {
                 type: NetworkType.localhost,
               }),
             },
+            infuraProjectId: 'infura-project-id',
           },
           async ({ controller }) => {
-            const fakeClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeClient);
-            const fakeProviderFromEngines = [
-              buildFakeProvider(),
-              buildFakeProvider(),
+            const fakeInfuraClients = [
+              buildFakeClient(),
+              buildFakeClient()
             ];
-            jest.spyOn(fakeProviderFromEngines[0], 'removeAllListeners');
-            providerFromEngineMock
-              .mockImplementationOnce(() => fakeProviderFromEngines[0])
-              .mockImplementationOnce(() => fakeProviderFromEngines[1]);
+            const firstProvider = fakeInfuraClients[0].provider;
+            jest.spyOn(firstProvider, 'removeAllListeners');
+            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
+            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
 
             await controller.initializeProvider();
             await controller.initializeProvider();
             assert(controller.getProviderAndBlockTracker().provider);
             jest.runAllTimers();
 
-            expect(
-              fakeProviderFromEngines[0].removeAllListeners,
-            ).toHaveBeenCalled();
+            expect(firstProvider.removeAllListeners).toHaveBeenCalled();
           },
         );
       });
@@ -546,9 +524,7 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                const fakeClient = buildFakeClient();
-                createJsonRpcClientMock.mockReturnValue(fakeClient);
-                const fakeProviderFromEngine = buildFakeProvider([
+                const fakeProvider = buildFakeProvider([
                   {
                     request: {
                       method: 'net_version',
@@ -574,7 +550,8 @@ describe('NetworkController', () => {
                     },
                   },
                 ]);
-                providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+                const fakeClient = buildFakeClient(fakeProvider);
+                createNetworkClientMock.mockReturnValue(fakeClient);
 
                 await waitForPublishedEvents(
                   messenger,
@@ -615,9 +592,7 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                const fakeClient = buildFakeClient();
-                createJsonRpcClientMock.mockReturnValue(fakeClient);
-                const fakeProviderFromEngine = buildFakeProvider([
+                const fakeProvider = buildFakeProvider([
                   {
                     request: {
                       method: 'net_version',
@@ -635,7 +610,8 @@ describe('NetworkController', () => {
                     },
                   },
                 ]);
-                providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+                const fakeClient = buildFakeClient(fakeProvider);
+                createNetworkClientMock.mockReturnValue(fakeClient);
 
                 await waitForPublishedEvents(
                   messenger,
@@ -681,9 +657,7 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'eth_chainId',
@@ -693,14 +667,16 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              const fakeClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeClient);
 
               await controller.initializeProvider();
 
-              expect(createJsonRpcClientMock).toHaveBeenCalledWith(
-                'http://example.com',
-                '123',
-              );
+              expect(createNetworkClientMock).toHaveBeenCalledWith({
+                rpcUrl: 'http://example.com',
+                chainId: '0x7b',
+                type: NetworkClientType.Custom,
+              });
               const { provider } = controller.getProviderAndBlockTracker();
               const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                 provider,
@@ -719,30 +695,27 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  rpcTarget: 'http://example.com',
+                  rpcTarget: 'https://example.com',
                 }),
               },
+              infuraProjectId: 'infura-project-id',
             },
             async ({ controller }) => {
-              const fakeClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeClient);
-              const fakeProviderFromEngines = [
-                buildFakeProvider(),
-                buildFakeProvider(),
+              const fakeInfuraClients = [
+                buildFakeClient(),
+                buildFakeClient()
               ];
-              jest.spyOn(fakeProviderFromEngines[0], 'removeAllListeners');
-              providerFromEngineMock
-                .mockImplementationOnce(() => fakeProviderFromEngines[0])
-                .mockImplementationOnce(() => fakeProviderFromEngines[1]);
+              const firstProvider = fakeInfuraClients[0].provider;
+              jest.spyOn(firstProvider, 'removeAllListeners');
+              createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
+              createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
 
               await controller.initializeProvider();
               await controller.initializeProvider();
               assert(controller.getProviderAndBlockTracker().provider);
               jest.runAllTimers();
 
-              expect(
-                fakeProviderFromEngines[0].removeAllListeners,
-              ).toHaveBeenCalled();
+              expect(firstProvider.removeAllListeners).toHaveBeenCalled();
             },
           );
         });
@@ -762,9 +735,7 @@ describe('NetworkController', () => {
                   },
                 },
                 async ({ controller }) => {
-                  const fakeClient = buildFakeClient();
-                  createJsonRpcClientMock.mockReturnValue(fakeClient);
-                  const fakeProviderFromEngine = buildFakeProvider([
+                  const fakeProvider = buildFakeProvider([
                     {
                       request: {
                         method: 'net_version',
@@ -790,9 +761,8 @@ describe('NetworkController', () => {
                       },
                     },
                   ]);
-                  providerFromEngineMock.mockReturnValue(
-                    fakeProviderFromEngine,
-                  );
+                  const fakeClient = buildFakeClient(fakeProvider);
+                  createNetworkClientMock.mockReturnValue(fakeClient);
 
                   await waitForPublishedEvents(
                     messenger,
@@ -836,9 +806,7 @@ describe('NetworkController', () => {
                   },
                 },
                 async ({ controller }) => {
-                  const fakeClient = buildFakeClient();
-                  createJsonRpcClientMock.mockReturnValue(fakeClient);
-                  const fakeProviderFromEngine = buildFakeProvider([
+                  const fakeProvider = buildFakeProvider([
                     {
                       request: {
                         method: 'net_version',
@@ -856,9 +824,8 @@ describe('NetworkController', () => {
                       },
                     },
                   ]);
-                  providerFromEngineMock.mockReturnValue(
-                    fakeProviderFromEngine,
-                  );
+                  const fakeClient = buildFakeClient(fakeProvider);
+                  createNetworkClientMock.mockReturnValue(fakeClient);
 
                   await waitForPublishedEvents(
                     messenger,
@@ -890,32 +857,27 @@ describe('NetworkController', () => {
         });
       });
 
-      describe('if the RPC target is not set', () => {
-        it('does not set a provider or block tracker', async () => {
-          await withController(
-            {
-              state: {
-                providerConfig: buildProviderConfig({
-                  type: NetworkType.rpc,
-                }),
-              },
+      it('throws when the rpcTarget is not set', async () => {
+        await withController(
+          {
+            state: {
+              providerConfig: buildProviderConfig({
+                type: NetworkType.rpc,
+              }),
             },
-            async ({ controller }) => {
-              const fakeClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeClient);
-              const fakeProviderFromEngine = buildFakeProvider();
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          },
+          async ({ controller }) => {
+            const fakeClient = buildFakeClient();
+            createNetworkClientMock.mockReturnValue(fakeClient);
 
-              await controller.initializeProvider();
-
-              expect(providerFromEngineMock).not.toHaveBeenCalled();
-              const { provider, blockTracker } =
-                controller.getProviderAndBlockTracker();
-              expect(provider).toBeUndefined();
-              expect(blockTracker).toBeUndefined();
-            },
-          );
-        });
+            await expect(() => controller.initializeProvider()).rejects.toThrow();
+            expect(providerFromEngineMock).not.toHaveBeenCalled();
+            const { provider, blockTracker } =
+              controller.getProviderAndBlockTracker();
+            expect(provider).toBeUndefined();
+            expect(blockTracker).toBeUndefined();
+          },
+        );
       });
     });
 
@@ -929,9 +891,7 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeClient);
-          const fakeProviderFromEngine = buildFakeProvider([
+          const fakeProvider = buildFakeProvider([
             {
               request: {
                 method: 'eth_getBlockByNumber',
@@ -944,7 +904,8 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          const fakeClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeClient);
 
           await waitForStateChanges(messenger, {
             propertyPath: ['networkDetails', 'isEIP1559Compatible'],
@@ -1265,9 +1226,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeInfuraClient = buildFakeClient();
-            createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
             await controller.setProviderType(NetworkType.mainnet);
 
@@ -1294,9 +1253,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeInfuraClient = buildFakeClient();
-            createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
             await controller.setProviderType(NetworkType.mainnet);
 
@@ -1311,9 +1268,7 @@ describe('NetworkController', () => {
             infuraProjectId: 'infura-project-id',
           },
           async ({ controller }) => {
-            const fakeInfuraClient = buildFakeClient();
-            createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-            const fakeProviderFromEngine = buildFakeProvider([
+            const fakeProvider = buildFakeProvider([
               {
                 request: {
                   method: 'eth_chainId',
@@ -1323,14 +1278,16 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            const fakeInfuraClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
             await controller.setProviderType(NetworkType.mainnet);
 
-            expect(createInfuraClientMock).toHaveBeenCalledWith(
-              NetworkType.mainnet,
-              'infura-project-id',
-            );
+            expect(createNetworkClientMock).toHaveBeenCalledWith({
+              network: NetworkType.mainnet,
+              infuraProjectId: 'infura-project-id',
+              type: NetworkClientType.Infura,
+            });
             const { provider } = controller.getProviderAndBlockTracker();
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
@@ -1350,9 +1307,7 @@ describe('NetworkController', () => {
             messenger,
           },
           async ({ controller }) => {
-            const fakeInfuraClient = buildFakeClient();
-            createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-            const fakeProviderFromEngine = buildFakeProvider([
+            const fakeProvider = buildFakeProvider([
               {
                 request: {
                   method: 'eth_getBlockByNumber',
@@ -1365,7 +1320,8 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            const fakeInfuraClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
             await controller.setProviderType(NetworkType.mainnet);
 
@@ -1378,34 +1334,28 @@ describe('NetworkController', () => {
 
       it('ensures that the existing provider is stopped while replacing it', async () => {
         await withController(async ({ controller }) => {
-          const fakeInfuraClient = buildFakeClient();
-          createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-          const fakeProviderFromEngines = [
-            buildFakeProvider(),
-            buildFakeProvider(),
+          const fakeInfuraClients = [
+            buildFakeClient(),
+            buildFakeClient()
           ];
-          jest.spyOn(fakeProviderFromEngines[0], 'removeAllListeners');
-          providerFromEngineMock
-            .mockImplementationOnce(() => fakeProviderFromEngines[0])
-            .mockImplementationOnce(() => fakeProviderFromEngines[1]);
+          const firstProvider = fakeInfuraClients[0].provider;
+          jest.spyOn(firstProvider, 'removeAllListeners');
+          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
+          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
 
           await controller.setProviderType(NetworkType.mainnet);
           await controller.setProviderType(NetworkType.mainnet);
           assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
-          expect(
-            fakeProviderFromEngines[0].removeAllListeners,
-          ).toHaveBeenCalled();
+          expect(firstProvider.removeAllListeners).toHaveBeenCalled();
         });
       });
 
       it('records the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
-          const fakeInfuraClient = buildFakeClient();
-          createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-          const fakeProviderFromEngine = buildFakeProvider([
+          const fakeProvider = buildFakeProvider([
             {
               request: {
                 method: 'net_version',
@@ -1416,7 +1366,8 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          const fakeInfuraClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
           await controller.setProviderType(NetworkType.mainnet);
 
@@ -1429,9 +1380,7 @@ describe('NetworkController', () => {
           it('retrieves the network version again and, assuming success, persists it to state', async () => {
             const messenger = buildMessenger();
             await withController({ messenger }, async ({ controller }) => {
-              const fakeInfuraClient = buildFakeClient();
-              createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'net_version',
@@ -1449,7 +1398,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              const fakeInfuraClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
               await controller.setProviderType(NetworkType.mainnet);
 
@@ -1470,9 +1420,7 @@ describe('NetworkController', () => {
           it('does not retrieve the network version again', async () => {
             const messenger = buildMessenger();
             await withController({ messenger }, async ({ controller }) => {
-              const fakeInfuraClient = buildFakeClient();
-              createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'net_version',
@@ -1490,7 +1438,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              const fakeInfuraClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
               await controller.setProviderType(NetworkType.mainnet);
 
@@ -1542,9 +1491,7 @@ describe('NetworkController', () => {
             },
             async ({ controller }) => {
               const fakeInfuraClient = buildFakeClient();
-              createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-              const fakeProviderFromEngine = buildFakeProvider();
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
               await controller.setProviderType(networkType);
 
@@ -1570,9 +1517,7 @@ describe('NetworkController', () => {
             },
             async ({ controller }) => {
               const fakeInfuraClient = buildFakeClient();
-              createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-              const fakeProviderFromEngine = buildFakeProvider();
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
               await controller.setProviderType(networkType);
 
@@ -1587,9 +1532,7 @@ describe('NetworkController', () => {
               infuraProjectId: 'infura-project-id',
             },
             async ({ controller }) => {
-              const fakeInfuraClient = buildFakeClient();
-              createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'eth_chainId',
@@ -1599,14 +1542,16 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              const fakeInfuraClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
               await controller.setProviderType(networkType);
 
-              expect(createInfuraClientMock).toHaveBeenCalledWith(
-                networkType,
-                'infura-project-id',
-              );
+              expect(createNetworkClientMock).toHaveBeenCalledWith({
+                network: networkType,
+                infuraProjectId: 'infura-project-id',
+                type: NetworkClientType.Infura,
+              });
               const { provider } = controller.getProviderAndBlockTracker();
               const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                 provider,
@@ -1626,9 +1571,7 @@ describe('NetworkController', () => {
               messenger,
             },
             async ({ controller }) => {
-              const fakeInfuraClient = buildFakeClient();
-              createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'eth_getBlockByNumber',
@@ -1641,7 +1584,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              const fakeInfuraClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
               await controller.setProviderType(networkType);
 
@@ -1654,34 +1598,28 @@ describe('NetworkController', () => {
 
         it('ensures that the existing provider is stopped while replacing it', async () => {
           await withController(async ({ controller }) => {
-            const fakeInfuraClient = buildFakeClient();
-            createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-            const fakeProviderFromEngines = [
-              buildFakeProvider(),
-              buildFakeProvider(),
+            const fakeInfuraClients = [
+              buildFakeClient(),
+              buildFakeClient()
             ];
-            jest.spyOn(fakeProviderFromEngines[0], 'removeAllListeners');
-            providerFromEngineMock
-              .mockImplementationOnce(() => fakeProviderFromEngines[0])
-              .mockImplementationOnce(() => fakeProviderFromEngines[1]);
+            const firstProvider = fakeInfuraClients[0].provider;
+            jest.spyOn(firstProvider, 'removeAllListeners');
+            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
+            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
 
             await controller.setProviderType(networkType);
             await controller.setProviderType(networkType);
             assert(controller.getProviderAndBlockTracker().provider);
             jest.runAllTimers();
 
-            expect(
-              fakeProviderFromEngines[0].removeAllListeners,
-            ).toHaveBeenCalled();
+            expect(firstProvider.removeAllListeners).toHaveBeenCalled();
           });
         });
 
         it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
           const messenger = buildMessenger();
           await withController({ messenger }, async ({ controller }) => {
-            const fakeInfuraClient = buildFakeClient();
-            createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-            const fakeProviderFromEngine = buildFakeProvider([
+            const fakeProvider = buildFakeProvider([
               {
                 request: {
                   method: 'net_version',
@@ -1692,7 +1630,8 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            const fakeInfuraClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
             await controller.setProviderType(networkType);
 
@@ -1705,9 +1644,7 @@ describe('NetworkController', () => {
             it('retrieves the network version again and, assuming success, persists it to state', async () => {
               const messenger = buildMessenger();
               await withController({ messenger }, async ({ controller }) => {
-                const fakeInfuraClient = buildFakeClient();
-                createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-                const fakeProviderFromEngine = buildFakeProvider([
+                const fakeProvider = buildFakeProvider([
                   {
                     request: {
                       method: 'net_version',
@@ -1725,7 +1662,8 @@ describe('NetworkController', () => {
                     },
                   },
                 ]);
-                providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+                const fakeInfuraClient = buildFakeClient(fakeProvider);
+                createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
                 await controller.setProviderType(networkType);
 
@@ -1746,9 +1684,7 @@ describe('NetworkController', () => {
             it('does not retrieve the network version again', async () => {
               const messenger = buildMessenger();
               await withController({ messenger }, async ({ controller }) => {
-                const fakeInfuraClient = buildFakeClient();
-                createInfuraClientMock.mockReturnValue(fakeInfuraClient);
-                const fakeProviderFromEngine = buildFakeProvider([
+                const fakeProvider = buildFakeProvider([
                   {
                     request: {
                       method: 'net_version',
@@ -1766,7 +1702,8 @@ describe('NetworkController', () => {
                     },
                   },
                 ]);
-                providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+                const fakeInfuraClient = buildFakeClient(fakeProvider);
+                createNetworkClientMock.mockReturnValue(fakeInfuraClient);
 
                 await controller.setProviderType(networkType);
 
@@ -1788,7 +1725,7 @@ describe('NetworkController', () => {
     });
 
     describe('given a network type of "rpc"', () => {
-      it('updates the provider config in state with the network type, using "ETH" for the ticker and an empty string for the chain id and clearing any existing RPC target and nickname', async () => {
+      it('throws because there is no way to set the rpcTarget using this method', async () => {
         const messenger = buildMessenger();
         await withController(
           {
@@ -1804,90 +1741,7 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
-
-            await controller.setProviderType(NetworkType.rpc);
-
-            expect(controller.state.providerConfig).toStrictEqual({
-              type: NetworkType.rpc,
-              ticker: 'ETH',
-              chainId: '',
-              rpcTarget: undefined,
-              nickname: undefined,
-              id: undefined,
-              rpcPrefs: undefined,
-            });
-          },
-        );
-      });
-
-      it('does not set isCustomNetwork in state to false (because the chain ID is cleared)', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              isCustomNetwork: false,
-            },
-            infuraProjectId: 'infura-project-id',
-          },
-          async ({ controller }) => {
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
-            const promiseForIsCustomNetworkChange = waitForStateChanges(
-              messenger,
-              { propertyPath: ['isCustomNetwork'] },
-            );
-
-            await controller.setProviderType(NetworkType.rpc);
-
-            await expect(promiseForIsCustomNetworkChange).toNeverResolve();
-          },
-        );
-      });
-
-      it("doesn't set a provider (because the RPC target is cleared)", async () => {
-        await withController(async ({ controller }) => {
-          const fakeProviderFromEngine = buildFakeProvider();
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
-
-          await controller.setProviderType(NetworkType.rpc);
-
-          expect(providerFromEngineMock).not.toHaveBeenCalled();
-          expect(
-            controller.getProviderAndBlockTracker().provider,
-          ).toBeUndefined();
-        });
-      });
-
-      it('does not update networkDetails.isEIP1559Compatible in state based on the latest block (because the RPC target is cleared)', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-          },
-          async ({ controller }) => {
-            const fakeProviderFromEngine = buildFakeProvider([
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  result: {
-                    baseFeePerGas: '0x1',
-                  },
-                },
-              },
-            ]);
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
-
-            await controller.setProviderType(NetworkType.rpc);
-
-            expect(
-              controller.state.networkDetails.isEIP1559Compatible,
-            ).toBeUndefined();
+            await expect(() => controller.setProviderType(NetworkType.rpc)).rejects.toThrow();
           },
         );
       });
@@ -1911,9 +1765,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeJsonRpcClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
             await controller.setProviderType(NetworkType.localhost);
 
@@ -1941,9 +1793,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeJsonRpcClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
             await controller.setProviderType(NetworkType.localhost);
 
@@ -1954,9 +1804,7 @@ describe('NetworkController', () => {
 
       it('sets the provider to a custom RPC provider pointed to localhost, leaving chain ID undefined', async () => {
         await withController(async ({ controller }) => {
-          const fakeJsonRpcClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-          const fakeProviderFromEngine = buildFakeProvider([
+          const fakeProvider = buildFakeProvider([
             {
               request: {
                 method: 'eth_chainId',
@@ -1966,14 +1814,16 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
           await controller.setProviderType(NetworkType.localhost);
 
-          expect(createJsonRpcClientMock).toHaveBeenCalledWith(
-            'http://localhost:8545',
-            undefined,
-          );
+          expect(createNetworkClientMock).toHaveBeenCalledWith({
+            rpcUrl: 'http://localhost:8545',
+            chainId: undefined,
+            type: NetworkClientType.Custom,
+          });
           const { provider } = controller.getProviderAndBlockTracker();
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
             provider,
@@ -1988,9 +1838,7 @@ describe('NetworkController', () => {
       it('updates networkDetails.isEIP1559Compatible in state based on the latest block (assuming that the request eth_getBlockByNumber is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
-          const fakeJsonRpcClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-          const fakeProviderFromEngine = buildFakeProvider([
+          const fakeProvider = buildFakeProvider([
             {
               request: {
                 method: 'eth_getBlockByNumber',
@@ -2003,7 +1851,8 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
           await controller.setProviderType(NetworkType.localhost);
 
@@ -2015,34 +1864,28 @@ describe('NetworkController', () => {
 
       it('ensures that the existing provider is stopped while replacing it', async () => {
         await withController(async ({ controller }) => {
-          const fakeJsonRpcClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-          const fakeProviderFromEngines = [
-            buildFakeProvider(),
-            buildFakeProvider(),
+          const fakeInfuraClients = [
+            buildFakeClient(),
+            buildFakeClient()
           ];
-          jest.spyOn(fakeProviderFromEngines[0], 'removeAllListeners');
-          providerFromEngineMock
-            .mockImplementationOnce(() => fakeProviderFromEngines[0])
-            .mockImplementationOnce(() => fakeProviderFromEngines[1]);
+          const firstProvider = fakeInfuraClients[0].provider;
+          jest.spyOn(firstProvider, 'removeAllListeners');
+          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
+          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
 
           await controller.setProviderType(NetworkType.localhost);
           await controller.setProviderType(NetworkType.localhost);
           assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
-          expect(
-            fakeProviderFromEngines[0].removeAllListeners,
-          ).toHaveBeenCalled();
+          expect(firstProvider.removeAllListeners).toHaveBeenCalled();
         });
       });
 
       it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
-          const fakeJsonRpcClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-          const fakeProviderFromEngine = buildFakeProvider([
+          const fakeProvider = buildFakeProvider([
             {
               request: {
                 method: 'net_version',
@@ -2053,7 +1896,8 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
           await controller.setProviderType(NetworkType.localhost);
 
@@ -2066,9 +1910,7 @@ describe('NetworkController', () => {
           it('retrieves the network version again and, assuming success, persists it to state', async () => {
             const messenger = buildMessenger();
             await withController({ messenger }, async ({ controller }) => {
-              const fakeJsonRpcClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'net_version',
@@ -2086,7 +1928,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
               await controller.setProviderType(NetworkType.localhost);
 
@@ -2107,9 +1950,7 @@ describe('NetworkController', () => {
           it('does not retrieve the network version again', async () => {
             const messenger = buildMessenger();
             await withController({ messenger }, async ({ controller }) => {
-              const fakeJsonRpcClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'net_version',
@@ -2127,7 +1968,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
               await controller.setProviderType(NetworkType.localhost);
 
@@ -2184,9 +2026,7 @@ describe('NetworkController', () => {
         },
         async ({ controller }) => {
           const fakeClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeClient);
-          const fakeProviderFromEngine = buildFakeProvider();
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          createNetworkClientMock.mockReturnValue(fakeClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
 
@@ -2224,9 +2064,7 @@ describe('NetworkController', () => {
         },
         async ({ controller }) => {
           const fakeClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeClient);
-          const fakeProviderFromEngine = buildFakeProvider();
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          createNetworkClientMock.mockReturnValue(fakeClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
 
@@ -2254,9 +2092,7 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeClient);
-          const fakeProviderFromEngine = buildFakeProvider([
+          const fakeProvider = buildFakeProvider([
             {
               request: {
                 method: 'eth_chainId',
@@ -2266,14 +2102,16 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          const fakeClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
 
-          expect(createJsonRpcClientMock).toHaveBeenCalledWith(
-            'https://mock-rpc-url',
-            '0xtest',
-          );
+          expect(createNetworkClientMock).toHaveBeenCalledWith({
+            rpcUrl: 'https://mock-rpc-url',
+            chainId: '0xtest',
+            type: NetworkClientType.Custom,
+          });
           const { provider } = controller.getProviderAndBlockTracker();
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
             provider,
@@ -2306,9 +2144,7 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeClient);
-          const fakeProviderFromEngine = buildFakeProvider([
+          const fakeProvider = buildFakeProvider([
             {
               request: {
                 method: 'eth_getBlockByNumber',
@@ -2321,7 +2157,8 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          const fakeClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
 
@@ -2351,25 +2188,21 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeClient);
-          const fakeProviderFromEngines = [
-            buildFakeProvider(),
-            buildFakeProvider(),
+          const fakeInfuraClients = [
+            buildFakeClient(),
+            buildFakeClient()
           ];
-          jest.spyOn(fakeProviderFromEngines[0], 'removeAllListeners');
-          providerFromEngineMock
-            .mockImplementationOnce(() => fakeProviderFromEngines[0])
-            .mockImplementationOnce(() => fakeProviderFromEngines[1]);
+          const firstProvider = fakeInfuraClients[0].provider;
+          jest.spyOn(firstProvider, 'removeAllListeners');
+          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
+          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
           await controller.setActiveNetwork('testNetworkConfigurationId');
           assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
-          expect(
-            fakeProviderFromEngines[0].removeAllListeners,
-          ).toHaveBeenCalled();
+          expect(firstProvider.removeAllListeners).toHaveBeenCalled();
         },
       );
     });
@@ -2393,9 +2226,7 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeClient);
-          const fakeProviderFromEngine = buildFakeProvider([
+          const fakeProvider = buildFakeProvider([
             {
               request: {
                 method: 'net_version',
@@ -2406,7 +2237,8 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          const fakeClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
 
@@ -2436,9 +2268,7 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'net_version',
@@ -2456,7 +2286,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              const fakeClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeClient);
 
               await controller.setActiveNetwork('testNetworkConfigurationId');
 
@@ -2494,9 +2325,7 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'net_version',
@@ -2514,7 +2343,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              const fakeClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeClient);
 
               await controller.setActiveNetwork('testNetworkConfigurationId');
 
@@ -4140,7 +3970,7 @@ describe('NetworkController', () => {
       );
     });
 
-    it('adds new networkConfiguration to networkController store, but only adds valid properties (rpcUrl, chainId, ticker, nickname, rpcPrefs) and fills any missing properties from this list as undefined', async function () {
+    it('adds new networkConfiguration to networkController store, but only adds valid properties (rpcUrl, chainId, ticker, nickname, rpcPrefs) and fills any missing properties from this list as undefined', async function() {
       (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
       await withController(
         {
@@ -4410,7 +4240,7 @@ describe('NetworkController', () => {
         },
         async ({ controller }) => {
           const fakeClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeClient);
+          createNetworkClientMock.mockReturnValue(fakeClient);
           const fakeProviderFromEngine = buildFakeProvider();
           providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
           const rpcUrlNetwork = {
@@ -4653,10 +4483,7 @@ describe('NetworkController', () => {
             },
             async ({ controller }) => {
               const fakeJsonRpcClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-              createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-              const fakeProviderFromEngine = buildFakeProvider();
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.providerConfig).toStrictEqual({
                 ...customNetworkConfiguration,
@@ -4700,10 +4527,7 @@ describe('NetworkController', () => {
             },
             async ({ controller }) => {
               const fakeJsonRpcClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-              createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-              const fakeProviderFromEngine = buildFakeProvider();
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               const promiseForProviderConfigChange =
                 await waitForPublishedEvents(
@@ -4761,10 +4585,7 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeJsonRpcClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-              createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'eth_getBlockByNumber',
@@ -4790,8 +4611,9 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
+              const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.networkDetails).toStrictEqual({
                 isEIP1559Compatible: true,
@@ -4841,10 +4663,7 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeJsonRpcClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-              createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'eth_chainId',
@@ -4854,8 +4673,9 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
+              const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
@@ -4906,11 +4726,7 @@ describe('NetworkController', () => {
             },
             async ({ controller }) => {
               const fakeJsonRpcClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-              createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-              const fakeProviderFromEngine = buildFakeProvider();
-
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               const { provider: providerBefore } =
                 controller.getProviderAndBlockTracker();
@@ -4959,10 +4775,7 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeJsonRpcClient = buildFakeClient();
-              createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-              createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-              const fakeProviderFromEngine = buildFakeProvider([
+              const fakeProvider = buildFakeProvider([
                 {
                   request: {
                     method: 'net_version',
@@ -4980,8 +4793,9 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
+              const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
-              providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.network).toStrictEqual('999');
 
@@ -5032,10 +4846,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeJsonRpcClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-            createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
             await controller.setProviderType(NetworkType.mainnet);
             expect(controller.state.providerConfig).toStrictEqual({
               type: NetworkType.mainnet,
@@ -5099,10 +4910,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeJsonRpcClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-            createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
             await controller.setActiveNetwork('testNetworkConfigurationId2');
             expect(controller.state.providerConfig).toStrictEqual({
               ...networkConfiguration2,
@@ -5155,10 +4963,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeJsonRpcClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-            createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-            const fakeProviderFromEngine = buildFakeProvider();
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             const promiseForProviderConfigChange = await waitForPublishedEvents(
               messenger,
@@ -5210,10 +5015,7 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeJsonRpcClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-            createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-            const fakeProviderFromEngine = buildFakeProvider([
+            const fakeProvider = buildFakeProvider([
               {
                 request: {
                   method: 'eth_getBlockByNumber',
@@ -5239,7 +5041,8 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             expect(controller.state.networkDetails).toStrictEqual({
               isEIP1559Compatible: true,
@@ -5297,10 +5100,7 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeJsonRpcClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-            createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-            const fakeProviderFromEngine = buildFakeProvider([
+            const fakeProvider = buildFakeProvider([
               {
                 request: {
                   method: 'eth_chainId',
@@ -5310,8 +5110,9 @@ describe('NetworkController', () => {
                 },
               },
             ]);
+            const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             await waitForStateChanges(messenger, {
               propertyPath: ['network'],
@@ -5373,11 +5174,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeJsonRpcClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-            createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-            const fakeProviderFromEngine = buildFakeProvider();
-
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             const { provider: providerBefore } =
               controller.getProviderAndBlockTracker();
@@ -5435,10 +5232,7 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeJsonRpcClient = buildFakeClient();
-            createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-            createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-            const fakeProviderFromEngine = buildFakeProvider([
+            const fakeProvider = buildFakeProvider([
               {
                 request: {
                   method: 'net_version',
@@ -5456,8 +5250,9 @@ describe('NetworkController', () => {
                 },
               },
             ]);
+            const fakeJsonRpcClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
 
-            providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             expect(controller.state.network).toStrictEqual('999');
 
@@ -5506,10 +5301,7 @@ describe('NetworkController', () => {
         },
         async ({ controller }) => {
           const fakeJsonRpcClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-          createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-          const fakeProviderFromEngine = buildFakeProvider();
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
           await controller.setActiveNetwork('testNetworkConfigurationId');
           expect(controller.state.providerConfig).toStrictEqual({
             ...networkConfiguration,
@@ -5542,10 +5334,7 @@ describe('NetworkController', () => {
         },
         async ({ controller }) => {
           const fakeJsonRpcClient = buildFakeClient();
-          createJsonRpcClientMock.mockReturnValue(fakeJsonRpcClient);
-          createInfuraClientMock.mockReturnValue(fakeJsonRpcClient);
-          const fakeProviderFromEngine = buildFakeProvider();
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
           await controller.setProviderType(NetworkType.sepolia);
           expect(controller.state.providerConfig).toStrictEqual({
             ...buildProviderConfig({
@@ -5658,10 +5447,10 @@ class FakeBlockTracker extends PollingBlockTracker {
  *
  * @returns The object.
  */
-function buildFakeClient() {
+function buildFakeClient(provider?: SafeEventEmitterProvider) {
   return {
-    networkMiddleware: jest.fn(),
-    blockTracker: new FakeBlockTracker(),
+    provider: provider || buildFakeProvider(),
+    blockTracker: new FakeBlockTracker() as PollingBlockTracker,
   };
 }
 
@@ -5737,11 +5526,9 @@ async function setFakeProvider(
     stubGetEIP1559CompatibilityWhileSetting?: boolean;
   } = {},
 ): Promise<FakeProvider> {
-  const fakeClient = buildFakeClient();
-  createJsonRpcClientMock.mockReturnValue(fakeClient);
-  createInfuraClientMock.mockReturnValue(fakeClient);
   const fakeProviderFromEngine = buildFakeProvider(stubs);
-  providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
+  const fakeClient = buildFakeClient(fakeProviderFromEngine);
+  createNetworkClientMock.mockReturnValue(fakeClient);
   const lookupNetworkMock = jest.spyOn(controller, 'lookupNetwork');
   const lookupGetEIP1559CompatibilityMock = jest.spyOn(
     controller,
@@ -5828,8 +5615,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
             // Using a string instead of an Error leads to better backtraces.
             /* eslint-disable-next-line prefer-promise-reject-errors */
             reject(
-              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
-                interestingEventPayloads.length
+              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${interestingEventPayloads.length
               } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
                 allEventPayloads,
                 { depth: null },
@@ -5912,7 +5698,7 @@ async function waitForStateChanges(
     propertyPath === undefined
       ? () => true
       : ([_newState, patches]: [NetworkState, Patch[]]) =>
-          didPropertyChange(patches, propertyPath);
+        didPropertyChange(patches, propertyPath);
 
   return await waitForPublishedEvents<NetworkControllerStateChangeEvent>(
     messenger,

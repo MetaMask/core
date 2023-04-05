@@ -10,11 +10,8 @@ import { NetworkType } from '@metamask/controller-utils';
 import { JsonRpcEngine } from 'json-rpc-engine';
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import { EthQuery as TEthQuery } from '../../src/NetworkController';
-import {
-  createInfuraClient,
-  InfuraNetworkType,
-} from '../../src/clients/createInfuraClient';
-import { createJsonRpcClient } from '../../src/clients/createJsonRpcClient';
+import { createNetworkClient, InfuraNetworkType, NetworkClientType } from '../../src/create-network-client';
+import { Hex } from '@metamask/utils';
 
 /**
  * A dummy value for the `infuraProjectId` option that `createInfuraClient`
@@ -256,7 +253,7 @@ export type MockOptions = {
   infuraNetwork?: InfuraNetworkType;
   providerType: ProviderType;
   customRpcUrl?: string;
-  customChainId?: string;
+  customChainId?: Hex;
 };
 
 export type MockCommunications = {
@@ -372,16 +369,20 @@ export const withNetworkClient = async (
   const inTest = process.env.IN_TEST;
   delete process.env.IN_TEST;
   const clientUnderTest =
-    providerType === 'infura'
-      ? createInfuraClient(infuraNetwork, MOCK_INFURA_PROJECT_ID)
-      : createJsonRpcClient(customRpcUrl, customChainId);
+    providerType === NetworkClientType.Infura
+      ? createNetworkClient({
+        network: infuraNetwork,
+        infuraProjectId: MOCK_INFURA_PROJECT_ID,
+        type: NetworkClientType.Infura
+      }) : createNetworkClient({
+        rpcUrl: customRpcUrl,
+        chainId: customChainId,
+        type: NetworkClientType.Custom
+      });
   process.env.IN_TEST = inTest;
 
-  const { networkMiddleware, blockTracker } = clientUnderTest;
+  const { provider, blockTracker } = clientUnderTest;
 
-  const engine = new JsonRpcEngine();
-  engine.push(networkMiddleware);
-  const provider = providerFromEngine(engine);
   const ethQuery = new EthQuery(provider);
 
   const curriedMakeRpcCall = (request: Request) =>

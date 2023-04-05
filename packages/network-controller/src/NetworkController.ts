@@ -16,15 +16,15 @@ import {
   isNetworkType,
   BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
-import { JsonRpcEngine, JsonRpcMiddleware } from 'json-rpc-engine';
-import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
+import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import { assertIsStrictHexString } from '@metamask/utils';
 import {
-  createInfuraClient,
+  createNetworkClient,
   InfuraNetworkType,
-} from './clients/createInfuraClient';
-import { createJsonRpcClient } from './clients/createJsonRpcClient';
+  NetworkClientType,
+} from './create-network-client';
+import type { Hex } from '@metamask/utils/dist';
 
 /**
  * @type ProviderConfig
@@ -270,7 +270,14 @@ export class NetworkController extends BaseControllerV2<
         if (chainId === undefined) {
           throw new Error('chainId must be passed in for custom rpcs');
         }
-        rpcTarget && this.#setupStandardProvider(rpcTarget, chainId);
+
+        if (rpcTarget === undefined) {
+          throw new Error('rpcTarget must be passed in for custom rpcs');
+        }
+        const cid: Hex = chainId.startsWith('0x')
+          ? (chainId as Hex)
+          : `0x${parseInt(chainId, 10).toString(16)}`;
+        this.#setupStandardProvider(rpcTarget, cid);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -308,11 +315,12 @@ export class NetworkController extends BaseControllerV2<
   }
 
   #setupInfuraProvider(type: InfuraNetworkType) {
-    const { networkMiddleware, blockTracker } = createInfuraClient(
-      type,
-      this.#infuraProjectId || '',
-    );
-    this.#updateProvider(networkMiddleware, blockTracker);
+    const { provider, blockTracker } = createNetworkClient({
+      network: type,
+      infuraProjectId: this.#infuraProjectId || '',
+      type: NetworkClientType.Infura,
+    });
+    this.#updateProvider(provider, blockTracker);
   }
 
   #getIsCustomNetwork(chainId?: string) {
@@ -324,27 +332,21 @@ export class NetworkController extends BaseControllerV2<
     );
   }
 
-  #setupStandardProvider(rpcTarget: string, chainId?: string) {
-    const { networkMiddleware, blockTracker } = createJsonRpcClient(
-      rpcTarget,
+  #setupStandardProvider(rpcTarget: string, chainId?: Hex) {
+    const { provider, blockTracker } = createNetworkClient({
+      rpcUrl: rpcTarget,
       chainId,
-    );
+      type: NetworkClientType.Custom,
+    });
 
-    this.#updateProvider(networkMiddleware, blockTracker);
+    this.#updateProvider(provider, blockTracker);
   }
 
-  // extensions network controller saves a copy of the blockTracker.
-  // need to figure out if we migrate this functionality or not.
   #updateProvider(
-    networkMiddleware: JsonRpcMiddleware<unknown, unknown>,
+    provider: SafeEventEmitterProvider,
     blockTracker: PollingBlockTracker,
   ) {
     this.#safelyStopProvider(this.#provider);
-
-    const engine = new JsonRpcEngine();
-    engine.push(networkMiddleware);
-    const provider = providerFromEngine(engine);
-
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker,
@@ -444,6 +446,11 @@ export class NetworkController extends BaseControllerV2<
    * @param type - Human readable network name.
    */
   async setProviderType(type: NetworkType) {
+    if (type === NetworkType.rpc) {
+      throw new Error(
+        "Cannot use setProviderType to switch to a custom network (network type 'rpc'). Use setActiveNetwork instead.",
+      );
+    }
     this.#setCurrentAsPreviousProvider();
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
