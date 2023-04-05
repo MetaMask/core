@@ -19,21 +19,11 @@ jobs:
         run: exit 1
       - name: Checkout the repository
         uses: actions/checkout@v3
-      - name: Setup Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
-      - name: Get Yarn cache directory
-        run: echo "YARN_CACHE_DIR=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
-        id: yarn-cache-dir
-      - name: Get Yarn version
-        run: echo "YARN_VERSION=$(yarn --version)" >> "$GITHUB_OUTPUT"
-        id: yarn-version
-      - name: Cache yarn dependencies
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.yarn-cache-dir.outputs.YARN_CACHE_DIR }}
-          key: yarn-cache-${{ runner.os }}-${{ steps.yarn-version.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
+          cache: 'yarn'
       - name: Install npm dependencies
         run: yarn --immutable
       - name: Run build script
