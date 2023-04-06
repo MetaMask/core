@@ -1,6 +1,5 @@
 import * as sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
-// import uuid from 'uuid';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import { ESTIMATE_GAS_ERROR } from './utils';
@@ -150,7 +149,6 @@ const GOERLI_PROVIDER = new HttpProvider(
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
-// const PALM_PROVIDER = new HttpProvider('https://mainnet.optimism.io');
 const PALM_PROVIDER = new HttpProvider(
   'https://palm-mainnet.infura.io/v3/3a961d6501e54add9a41aa53f15de99b',
 );
@@ -302,14 +300,9 @@ describe('TransactionController', () => {
     for (const key in mockFlags) {
       mockFlags[key] = null;
     }
-    // jest
-    //   .spyOn(uuid, 'v1')
-    //   .mockImplementationOnce(() => 'aaaab1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d')
-    //   .mockImplementationOnce(() => 'bbbb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
   });
 
   afterEach(() => {
-    // jest.resetModules();
     jest.clearAllMocks();
     sinon.restore();
   });
