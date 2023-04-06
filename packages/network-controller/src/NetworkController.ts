@@ -530,6 +530,12 @@ export class NetworkController extends BaseControllerV2<
     return isEIP1559Compatible;
   }
 
+  resetConnection() {
+    const { type, rpcTarget, chainId, ticker, nickname } =
+      this.state.providerConfig;
+    this.configureProvider(type, rpcTarget, chainId, ticker, nickname);
+  }
+
   #setProviderAndBlockTracker({
     provider,
     blockTracker,
