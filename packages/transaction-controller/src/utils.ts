@@ -266,7 +266,7 @@ export function validateMinimumIncrease(proposed: string, min: string) {
 }
 
 /**
- * Helper Method to format transactions for the nonce tracker.
+ * Helper function to filter and format transactions for the nonce tracker.
  *
  * @param fromAddress - Address of the account from which the transactions to filter from are sent.
  * @param transactionStatus - Status of the transactions for which to filter.
