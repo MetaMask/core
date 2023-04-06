@@ -20,6 +20,7 @@ import {
   ERC721_INTERFACE_ID,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
+import type { AssetsContractController } from './AssetsContractController';
 import { TokenListMap, TokenListToken } from './TokenListController';
 import {
   formatAggregatorNames,
@@ -179,18 +180,22 @@ export class TokensController extends BaseController<
    */
   override name = 'TokensController';
 
+  private getERC20TokenName: AssetsContractController['getERC20TokenName'];
+
   /**
    * Creates a TokensController instance.
    *
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.getERC20TokenName - Gets the ERC-20 token name.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    */
   constructor({
     onPreferencesStateChange,
     onNetworkStateChange,
+    getERC20TokenName,
     config,
     state,
   }: {
@@ -200,6 +205,7 @@ export class TokensController extends BaseController<
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
     ) => void;
+    getERC20TokenName: AssetsContractController['getERC20TokenName'];
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
   }) {
@@ -226,7 +232,7 @@ export class TokensController extends BaseController<
 
     this.initialize();
     this.abortController = new WhatwgAbortController();
-
+    this.getERC20TokenName = getERC20TokenName;
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { chainId } = this.config;
@@ -699,12 +705,13 @@ export class TokensController extends BaseController<
       switch (suggestedAssetMeta.type) {
         case 'ERC20':
           const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
-          /**
-           *
-           * The reason for `name` being omitted is that `wallet_watchAsset` doesn't return the name
-           * more info: https://docs.metamask.io/guide/rpc-api.html#wallet-watchasset
-           */
-          await this.addToken(address, symbol, decimals, { image });
+          let name;
+          try {
+            name = await this.getERC20TokenName(address);
+          } catch (error) {
+            name = undefined;
+          }
+          await this.addToken(address, symbol, decimals, { name, image });
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
