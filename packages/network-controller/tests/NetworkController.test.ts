@@ -3689,6 +3689,56 @@ describe('NetworkController', () => {
               },
             );
           });
+
+          describe('when an "error" event occurs on the new provider', () => {
+            it('retrieves the network version and, assuming success, persists it to state', async () => {
+              const messenger = buildMessenger();
+              await withController(
+                {
+                  messenger,
+                  state: {
+                    providerConfig: {
+                      type: networkType,
+                      // NOTE: This doesn't need to match the logical chain ID of
+                      // the network selected, it just needs to exist
+                      chainId: '0x9999999',
+                    },
+                  },
+                },
+                async ({ controller }) => {
+                  const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: {
+                        result: '42',
+                      },
+                    },
+                  ]);
+                  createMetamaskProviderMock.mockReturnValue(
+                    fakeMetamaskProvider,
+                  );
+
+                  controller.resetConnection();
+                  assert(controller.getProviderAndBlockTracker().provider);
+
+                  expect(controller.state.network).toBe('loading');
+
+                  await waitForStateChanges(messenger, {
+                    propertyPath: ['network'],
+                    produceStateChanges: () => {
+                      controller
+                        .getProviderAndBlockTracker()
+                        .provider.emit('error', { some: 'error' });
+                    },
+                  });
+
+                  expect(controller.state.network).toBe('42');
+                },
+              );
+            });
+          });
         });
       },
     );
@@ -3933,6 +3983,55 @@ describe('NetworkController', () => {
             expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
           },
         );
+      });
+
+      describe('when an "error" event occurs on the new provider', () => {
+        it('retrieves the network version and, assuming success, persists it to state', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: {
+                providerConfig: {
+                  type: NetworkType.rpc,
+                  rpcTarget: 'https://mock-rpc-url',
+                  chainId: '0xtest',
+                  ticker: 'TEST',
+                  id: 'testNetworkConfigurationId',
+                },
+              },
+            },
+            async ({ controller }) => {
+              const fakeMetamaskProvider = buildFakeMetamaskProvider([
+                {
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '42',
+                  },
+                },
+              ]);
+              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
+
+              controller.resetConnection();
+              assert(controller.getProviderAndBlockTracker().provider);
+
+              expect(controller.state.network).toBe('loading');
+
+              await waitForStateChanges(messenger, {
+                propertyPath: ['network'],
+                produceStateChanges: () => {
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
+                },
+              });
+
+              expect(controller.state.network).toBe('42');
+            },
+          );
+        });
       });
     });
   });
