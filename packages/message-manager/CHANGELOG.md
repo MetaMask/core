@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+### Added
+- Add EncryptionPublicKeyManager ([#1144](https://github.com/MetaMask/core/pull/1144))
+- Add security provider request to AbstractMessageManager ([#1145](https://github.com/MetaMask/core/pull/1145))
+
+### Changed
+- **BREAKING:** The methods `addMessage` and `addUnapprovedMessage` on each "message manager" controller are now asynchronous ([#1145](https://github.com/MetaMask/core/pull/1145))
+
 ## [2.1.0]
 ### Added
 - Add SIWE detection support for PersonalMessageManager ([#1139](https://github.com/MetaMask/core/pull/1139))
@@ -33,7 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@2.1.0...@metamask/message-manager@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@2.0.0...@metamask/message-manager@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@1.0.2...@metamask/message-manager@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@1.0.1...@metamask/message-manager@1.0.2
