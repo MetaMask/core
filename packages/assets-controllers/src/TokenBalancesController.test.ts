@@ -14,6 +14,13 @@ import {
   TokenBalancesController,
 } from './TokenBalancesController';
 
+const TokensControllerMessenger = new ControllerMessenger<
+  never,
+  never
+>().getRestricted<'TokensController', never, never>({
+  name: 'TokensController',
+});
+
 const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
     return {
@@ -142,7 +149,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
-      messenger: undefined as any,
+      messenger: TokensControllerMessenger,
     });
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const tokenBalances = new TokenBalancesController(
@@ -178,7 +185,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
-      messenger: undefined as any,
+      messenger: TokensControllerMessenger,
     });
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
@@ -231,7 +238,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
-      messenger: undefined as any,
+      messenger: TokensControllerMessenger,
     });
 
     const stub = stubCreateEthers(tokensController, false);

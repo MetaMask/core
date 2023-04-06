@@ -165,7 +165,13 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         onNetworkStateChangeListeners.push(listener),
-      messenger: undefined as any,
+      messenger: new ControllerMessenger<never, never>().getRestricted<
+        'TokensController',
+        never,
+        never
+      >({
+        name: 'TokensController',
+      }),
     });
 
     const tokenListSetup = setupTokenListController(controllerMessenger);
