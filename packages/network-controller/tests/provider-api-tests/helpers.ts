@@ -373,15 +373,15 @@ export const withNetworkClient = async (
   const clientUnderTest =
     providerType === NetworkClientType.Infura
       ? createNetworkClient({
-        network: infuraNetwork,
-        infuraProjectId: MOCK_INFURA_PROJECT_ID,
-        type: NetworkClientType.Infura,
-      })
+          network: infuraNetwork,
+          infuraProjectId: MOCK_INFURA_PROJECT_ID,
+          type: NetworkClientType.Infura,
+        })
       : createNetworkClient({
-        rpcUrl: customRpcUrl,
-        chainId: customChainId,
-        type: NetworkClientType.Custom,
-      });
+          rpcUrl: customRpcUrl,
+          chainId: customChainId,
+          type: NetworkClientType.Custom,
+        });
   process.env.IN_TEST = inTest;
 
   const { provider, blockTracker } = clientUnderTest;
