@@ -39,6 +39,7 @@ export enum AddressType {
  * @property memo - User's note about address
  * @property isEns - is the entry an ENS name
  * @property addressType - is the type of this address
+ * @property dateUpdated - The timestamp for when the entry was last updated.
  */
 export interface AddressBookEntry {
   address: string;
@@ -47,6 +48,7 @@ export interface AddressBookEntry {
   memo: string;
   isEns: boolean;
   addressType?: AddressType;
+  dateUpdated?: number;
 }
 
 /**
@@ -149,6 +151,7 @@ export class AddressBookController extends BaseController<
       memo,
       name,
       addressType,
+      dateUpdated: Date.now(),
     };
 
     const ensName = normalizeEnsName(name);
