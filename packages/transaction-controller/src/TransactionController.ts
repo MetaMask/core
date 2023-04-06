@@ -29,7 +29,7 @@ import {
 } from '@metamask/controller-utils';
 import NonceTracker from 'nonce-tracker';
 import {
-  formatTxForNonceTracker,
+  getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
   validateTransaction,
   handleTransactionFetch,
@@ -458,22 +458,18 @@ export class TransactionController extends BaseController<
     this.nonceTracker = new NonceTracker({
       provider,
       blockTracker,
-      getPendingTransactions: (address) => {
-        return formatTxForNonceTracker(
-          this.state.transactions.filter(
-            ({ status, transaction: { from } }) =>
-              status === TransactionStatus.submitted &&
-              (address ? from.toLowerCase() === address.toLowerCase() : true),
-          ),
-        );
-      },
-      getConfirmedTransactions: () => {
-        return formatTxForNonceTracker(
-          this.state.transactions.filter(
-            ({ status }) => status === TransactionStatus.confirmed,
-          ),
-        );
-      },
+      getPendingTransactions: (address) =>
+        getAndFormatTransactionsForNonceTracker(
+          address,
+          TransactionStatus.submitted,
+          this.state.transactions,
+        ),
+      getConfirmedTransactions: (address) =>
+        getAndFormatTransactionsForNonceTracker(
+          address,
+          TransactionStatus.confirmed,
+          this.state.transactions,
+        ),
     });
 
     onNetworkStateChange(() => {

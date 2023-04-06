@@ -11,6 +11,7 @@ import {
   FetchAllOptions,
   GasPriceValue,
   FeeMarketEIP1559Values,
+  TransactionStatus,
 } from './TransactionController';
 import type { TransactionMeta } from './TransactionController';
 
@@ -267,14 +268,23 @@ export function validateMinimumIncrease(proposed: string, min: string) {
 /**
  * Helper Method to format transactions for the nonce tracker.
  *
+ * @param fromAddress - Address of the account from which the transactions to filter from are sent.
+ * @param transactionStatus - Status of the transactions for which to filter.
  * @param transactions - Array of transactionMeta objects that have been prefiltered.
  * @returns Array of transactions formatted for the nonce tracker.
  */
-export function formatTxForNonceTracker(
+export function getAndFormatTransactionsForNonceTracker(
+  fromAddress: string,
+  transactionStatus: TransactionStatus,
   transactions: TransactionMeta[],
 ): NonceTrackerTransaction[] {
-  return transactions.map(
-    ({ status, transaction: { from, gas, value, nonce } }) => {
+  return transactions
+    .filter(
+      ({ status, transaction: { from } }) =>
+        status === transactionStatus &&
+        from.toLowerCase() === fromAddress.toLowerCase(),
+    )
+    .map(({ status, transaction: { from, gas, value, nonce } }) => {
       // the only value we care about is the nonce
       // but we need to return the other values to satisfy the type
       // TODO: refactor nonceTracker to not require this
@@ -288,6 +298,5 @@ export function formatTxForNonceTracker(
           nonce: nonce ?? '',
         },
       };
-    },
-  );
+    });
 }
