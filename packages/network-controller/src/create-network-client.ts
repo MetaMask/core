@@ -49,7 +49,7 @@ type InfuraNetworkConfiguration = {
  * Create a JSON RPC network client for a specific network.
  *
  * @param networkConfig - The network configuration.
- * @returns the network client
+ * @returns The network client.
  */
 export function createNetworkClient(
   networkConfig: CustomNetworkConfiguration | InfuraNetworkConfiguration,
@@ -106,12 +106,12 @@ export function createNetworkClient(
 /**
  * Create middleware for infura.
  *
- * @param options0 - options for infura middleware
- * @param options0.blockTracker - block tracker to use
- * @param options0.network - network to use
- * @param options0.rpcProvider - rpcProvider to use
- * @param options0.rpcApiMiddleware - additional rpcApiMiddleware
- * @returns the middleware
+ * @param args - The arguments.
+ * @param args.blockTracker - The block tracker to use.
+ * @param args.network - The Infura network to use.
+ * @param args.rpcProvider - The RPC provider to use.
+ * @param args.rpcApiMiddleware - Additional middleware.
+ * @returns The collection of middleware that makes up the Infura client.
  */
 function createInfuraNetworkMiddleware({
   blockTracker,
@@ -138,9 +138,9 @@ function createInfuraNetworkMiddleware({
 /**
  * Creates static method middleware.
  *
- * @param options0 - options
- * @param options0.network - the network to use
- * @returns the middleware
+ * @param args - The Arguments.
+ * @param args.network - The Infura network to use.
+ * @returns The middleware that implements eth_chainId & net_version methods.
  */
 function createNetworkAndChainIdMiddleware({
   network,
@@ -170,11 +170,11 @@ const createChainIdMiddleware = (
 /**
  * Creates custom middleware.
  *
- * @param options0 - options for middleware
- * @param options0.blockTracker - the block tracker to use
- * @param options0.chainId - the chain id to use
- * @param options0.rpcApiMiddleware - additional middleware
- * @returns the middleware
+ * @param args - The arguments.
+ * @param args.blockTracker - The block tracker to use.
+ * @param args.chainId - The chain id to use.
+ * @param args.rpcApiMiddleware - Additional middleware.
+ * @returns The collection of middleware that makes up the Infura client.
  */
 function createCustomNetworkMiddleware({
   blockTracker,
@@ -205,7 +205,7 @@ function createCustomNetworkMiddleware({
  * For use in tests only.
  * Adds a delay to `eth_estimateGas` calls.
  *
- * @returns the middleware
+ * @returns The middleware for delaying gas estimation calls by 2 seconds when in test.
  */
 function createEstimateGasDelayTestMiddleware() {
   return createAsyncMiddleware(async (req, _, next) => {

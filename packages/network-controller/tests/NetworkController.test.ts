@@ -5414,9 +5414,11 @@ class FakeBlockTracker extends PollingBlockTracker {
  * @param provider - provider to use if you dont want the defaults
  * @returns The object.
  */
-function buildFakeClient(provider?: SafeEventEmitterProvider) {
+function buildFakeClient(
+  provider: SafeEventEmitterProvider = buildFakeProvider(),
+) {
   return {
-    provider: provider || buildFakeProvider(),
+    provider,
     blockTracker: new FakeBlockTracker() as PollingBlockTracker,
   };
 }

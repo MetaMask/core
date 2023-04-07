@@ -9,7 +9,7 @@ import {
 import { fromWei, toWei } from 'ethjs-unit';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
-import { Hex } from '@metamask/utils';
+import { Hex, isStrictHexString } from '@metamask/utils';
 import type { Json } from './types';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 
@@ -176,8 +176,8 @@ export function fromHex(value: string | BN): BN {
  * @returns The integer encoded as a hex string.
  */
 export function toHex(value: number | string | BN): Hex {
-  if (typeof value === 'string' && isHexString(value)) {
-    return value as Hex;
+  if (typeof value === 'string' && isStrictHexString(value)) {
+    return value;
   }
   const hexString = BN.isBN(value)
     ? value.toString(16)
