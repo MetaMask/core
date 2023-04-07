@@ -1,13 +1,16 @@
 import type { Patch } from 'immer';
 import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
-import { nanoid, random } from 'nanoid';
+import { nanoid } from 'nanoid';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Json } from '@metamask/controller-utils';
-import { ApprovalRequestNotFoundError } from './errors';
-import { WritableDraft } from 'immer/dist/internal';
+import {
+  ApprovalRequestNotFoundError,
+  EndInvalidFlowError,
+  NoApprovalFlowsError,
+} from './errors';
 
 const controllerName = 'ApprovalController';
 
@@ -66,12 +69,14 @@ export type ApprovalControllerState = {
   pendingApprovals: Record<string, ApprovalRequest<Record<string, Json>>>;
   pendingApprovalCount: number;
   approvalFlows: ApprovalFlowState[];
+  approvalFlowLoadingText: string | null;
 };
 
 const stateMetadata = {
   pendingApprovals: { persist: false, anonymous: true },
   pendingApprovalCount: { persist: false, anonymous: false },
   approvalFlows: { persist: false, anonymous: false },
+  approvalFlowLoadingText: { persist: false, anonymous: false },
 };
 
 const getAlreadyPendingMessage = (origin: string, type: string) =>
@@ -82,6 +87,7 @@ const getDefaultState = (): ApprovalControllerState => {
     pendingApprovals: {},
     pendingApprovalCount: 0,
     approvalFlows: [],
+    approvalFlowLoadingText: null,
   };
 };
 
@@ -131,6 +137,16 @@ export type StartFlow = {
   handler: ApprovalController['startFlow'];
 };
 
+export type EndFlow = {
+  type: `${typeof controllerName}:endFlow`;
+  handler: ApprovalController['endFlow'];
+};
+
+export type SetFlowLoadingText = {
+  type: `${typeof controllerName}:setFlowLoadingText`;
+  handler: ApprovalController['setFlowLoadingText'];
+};
+
 type UpdateRequestStateOptions = {
   id: string;
   requestState: Record<string, Json>;
@@ -149,7 +165,9 @@ export type ApprovalControllerActions =
   | AcceptRequest
   | RejectRequest
   | UpdateRequestState
-  | StartFlow;
+  | StartFlow
+  | EndFlow
+  | SetFlowLoadingText;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -176,28 +194,9 @@ export type ApprovalFlowOptions = {
   id?: string;
 };
 
-type UpdateCallback = (
-  draftState: WritableDraft<ApprovalControllerState>,
-) => void;
-
-export class ApprovalFlow {
-  private opts: ApprovalFlowOptions;
-  private update: (callback: UpdateCallback) => void;
-
-  constructor(
-    opts: ApprovalFlowOptions,
-    update: (callback: UpdateCallback) => void,
-  ) {
-    this.opts = opts;
-    this.update = update;
-  }
-
-  end() {
-    this.update((draftState) => {
-      draftState.approvalFlows.pop();
-    });
-  }
-}
+export type ApprovalFlowStartResult = {
+  id: string;
+};
 
 /**
  * Controller for managing requests that require user approval.
@@ -289,6 +288,16 @@ export class ApprovalController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:startFlow` as const,
       this.startFlow.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:endFlow` as const,
+      this.endFlow.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setFlowLoadingText` as const,
+      this.setFlowLoadingText.bind(this),
     );
   }
 
@@ -514,16 +523,42 @@ export class ApprovalController extends BaseControllerV2<
     });
   }
 
-  startFlow(opts: ApprovalFlowOptions = {}): ApprovalFlow {
-    const finalOptions = { ...opts, id: opts.id ?? nanoid() };
+  startFlow(opts: ApprovalFlowOptions = {}): ApprovalFlowStartResult {
+    const id = opts.id ?? nanoid();
+    const finalOptions = { id };
 
     this.update((draftState) => {
       draftState.approvalFlows.push(finalOptions);
     });
 
-    return new ApprovalFlow(finalOptions, (draftState) =>
-      this.update(draftState),
-    );
+    this._showApprovalRequest();
+
+    return { id };
+  }
+
+  endFlow(flowId: string) {
+    if (!this.state.approvalFlows.length) {
+      throw new NoApprovalFlowsError();
+    }
+
+    const currentFlow = this.state.approvalFlows.slice(-1)[0];
+
+    if (flowId !== currentFlow.id) {
+      throw new EndInvalidFlowError(
+        flowId,
+        this.state.approvalFlows.map((flow) => flow.id),
+      );
+    }
+
+    this.update((draftState) => {
+      draftState.approvalFlows.pop();
+    });
+  }
+
+  setFlowLoadingText(loadingText: string | null) {
+    this.update((draftState) => {
+      draftState.approvalFlowLoadingText = loadingText;
+    });
   }
 
   /**
