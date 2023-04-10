@@ -1,5 +1,6 @@
 import * as sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
+import NonceTracker from 'nonce-tracker';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import { ESTIMATE_GAS_ERROR } from './utils';
@@ -95,23 +96,6 @@ jest.mock('eth-query', () =>
     };
   }),
 );
-
-const getNonceLockStub = jest.fn().mockImplementation(() => {
-  return {
-    releaseLock: () => Promise.resolve(),
-    nextNonce: '0',
-  };
-});
-
-jest.mock('nonce-tracker', () => {
-  return jest.fn().mockImplementation(() => {
-    return {
-      getGlobalLock: () => Promise.resolve(),
-      getNonceLock: getNonceLockStub,
-      releaseLock: () => Promise.resolve(),
-    };
-  });
-});
 
 /**
  * Create a mock implementation of `fetch` that always returns the same data.
@@ -702,60 +686,6 @@ describe('TransactionController', () => {
     expect(controller.state.transactions).toHaveLength(0);
   });
 
-  it('should approve custom network transaction', async () => {
-    await new Promise(async (resolve) => {
-      getNonceLockStub
-        .mockImplementationOnce(() => {
-          return {
-            releaseLock: () => Promise.resolve(),
-            nextNonce: '0',
-          };
-        })
-        .mockImplementationOnce(() => {
-          return {
-            releaseLock: () => Promise.resolve(),
-            nextNonce: '1',
-          };
-        })
-        .mockImplementationOnce(() => {
-          return {
-            releaseLock: () => Promise.resolve(),
-            nextNonce: '2',
-          };
-        });
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
-          onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
-          provider: MOCK_CUSTOM_NETWORK.provider,
-          blockTracker: MOCK_CUSTOM_NETWORK.blockTracker,
-        },
-        {
-          sign: async (transaction: any) => transaction,
-        },
-      );
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      await controller.addTransaction({
-        from,
-        gas: '0x0',
-        gasPrice: '0x0',
-        to: from,
-        value: '0x0',
-      });
-
-      controller.hub.once(
-        `${controller.state.transactions[0].id}:finished`,
-        () => {
-          const { transaction, status } = controller.state.transactions[0];
-          expect(transaction.from).toBe(from);
-          expect(status).toBe(TransactionStatus.submitted);
-          resolve('');
-        },
-      );
-      controller.approveTransaction(controller.state.transactions[0].id);
-    });
-  });
-
   it('should fail to approve an invalid transaction', async () => {
     const controller = new TransactionController(
       {
@@ -1325,40 +1255,6 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should use the same nonce when speeding up a transaction', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_NETWORK.state,
-          onNetworkStateChange: MOCK_NETWORK.subscribe,
-          provider: MOCK_NETWORK.provider,
-          blockTracker: MOCK_NETWORK.blockTracker,
-        },
-        {
-          sign: async (transaction: any) => transaction,
-        },
-      );
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      await controller.addTransaction({
-        from,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: from,
-        value: '0x0',
-      });
-
-      const originalTransaction = controller.state.transactions[0];
-      await controller.approveTransaction(originalTransaction.id);
-      await controller.speedUpTransaction(originalTransaction.id);
-      expect(getNonceLockStub).toHaveBeenCalledTimes(1);
-      expect(controller.state.transactions).toHaveLength(2);
-      expect(originalTransaction.transaction.nonce).toStrictEqual(
-        controller.state.transactions[1].transaction.nonce,
-      );
-      resolve('');
-    });
-  });
-
   it('should limit tx state to a length of 2', async () => {
     await new Promise(async (resolve) => {
       mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
@@ -1427,27 +1323,8 @@ describe('TransactionController', () => {
     v1Stub
       .mockImplementationOnce(() => 'aaaab1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d')
       .mockImplementationOnce(() => 'bbbb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
-    await new Promise(async (resolve) => {
-      getNonceLockStub
-        .mockImplementationOnce(() => {
-          return {
-            releaseLock: () => Promise.resolve(),
-            nextNonce: '0',
-          };
-        })
-        .mockImplementationOnce(() => {
-          return {
-            releaseLock: () => Promise.resolve(),
-            nextNonce: '1',
-          };
-        })
-        .mockImplementationOnce(() => {
-          return {
-            releaseLock: () => Promise.resolve(),
-            nextNonce: '2',
-          };
-        });
 
+    await new Promise(async (resolve) => {
       const controller = new TransactionController(
         {
           getNetworkState: () => MOCK_NETWORK.state,
@@ -1470,7 +1347,6 @@ describe('TransactionController', () => {
 
       const firstTransaction = controller.state.transactions[0];
       await controller.approveTransaction(firstTransaction.id);
-      expect(getNonceLockStub).toHaveBeenCalledTimes(1);
       await controller.addTransaction({
         from,
         gas: '0x2',
@@ -1485,6 +1361,98 @@ describe('TransactionController', () => {
       expect(firstTransaction.transaction.nonce).toStrictEqual('0x0');
       expect(secondTransaction.transaction.nonce).toStrictEqual('0x1');
       resolve('');
+    });
+  });
+
+  describe('mocked nonce-tracker tests', () => {
+    let getNonceLockSpy: jest.Mock<any, any>;
+    let originalGetNonceLock: any;
+
+    beforeEach(async () => {
+      originalGetNonceLock = NonceTracker.prototype.getNonceLock;
+
+      getNonceLockSpy = jest.fn().mockResolvedValue({
+        nextNonce: '0',
+        releaseLock: () => Promise.resolve(),
+      });
+
+      NonceTracker.prototype.getNonceLock = getNonceLockSpy;
+    });
+
+    afterEach(() => {
+      NonceTracker.prototype.getNonceLock = originalGetNonceLock;
+    });
+
+    it('should approve custom network transaction', async () => {
+      await new Promise(async (resolve) => {
+        const controller = new TransactionController(
+          {
+            getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
+            onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
+            provider: MOCK_CUSTOM_NETWORK.provider,
+            blockTracker: MOCK_CUSTOM_NETWORK.blockTracker,
+          },
+          {
+            sign: async (transaction: any) => transaction,
+          },
+        );
+        const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+        await controller.addTransaction({
+          from,
+          gas: '0x0',
+          gasPrice: '0x0',
+          to: from,
+          value: '0x0',
+        });
+
+        controller.hub.once(
+          `${controller.state.transactions[0].id}:finished`,
+          () => {
+            const { transaction, status } = controller.state.transactions[0];
+            expect(transaction.from).toBe(from);
+            expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
+            expect(status).toBe(TransactionStatus.submitted);
+            resolve('');
+          },
+        );
+        await controller.approveTransaction(
+          controller.state.transactions[0].id,
+        );
+      });
+    });
+
+    it('should use the same nonce when speeding up a transaction', async () => {
+      await new Promise(async (resolve) => {
+        const controller = new TransactionController(
+          {
+            getNetworkState: () => MOCK_NETWORK.state,
+            onNetworkStateChange: MOCK_NETWORK.subscribe,
+            provider: MOCK_NETWORK.provider,
+            blockTracker: MOCK_NETWORK.blockTracker,
+          },
+          {
+            sign: async (transaction: any) => transaction,
+          },
+        );
+        const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+        await controller.addTransaction({
+          from,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: from,
+          value: '0x0',
+        });
+
+        const originalTransaction = controller.state.transactions[0];
+        await controller.approveTransaction(originalTransaction.id);
+        await controller.speedUpTransaction(originalTransaction.id);
+        expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
+        expect(controller.state.transactions).toHaveLength(2);
+        expect(originalTransaction.transaction.nonce).toStrictEqual(
+          controller.state.transactions[1].transaction.nonce,
+        );
+        resolve('');
+      });
     });
   });
 });
