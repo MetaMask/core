@@ -1364,15 +1364,16 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('mocked nonce-tracker tests', () => {
+  describe('NonceTracker integration', () => {
     let getNonceLockSpy: jest.Mock<any, any>;
     let originalGetNonceLock: any;
+    const testNonce = 12;
 
     beforeEach(async () => {
       originalGetNonceLock = NonceTracker.prototype.getNonceLock;
 
       getNonceLockSpy = jest.fn().mockResolvedValue({
-        nextNonce: '0',
+        nextNonce: testNonce,
         releaseLock: () => Promise.resolve(),
       });
 
@@ -1383,7 +1384,7 @@ describe('TransactionController', () => {
       NonceTracker.prototype.getNonceLock = originalGetNonceLock;
     });
 
-    it('should approve custom network transaction', async () => {
+    it('should submit transaction with nonce from NonceTracker', async () => {
       await new Promise(async (resolve) => {
         const controller = new TransactionController(
           {
@@ -1410,14 +1411,13 @@ describe('TransactionController', () => {
           () => {
             const { transaction, status } = controller.state.transactions[0];
             expect(transaction.from).toBe(from);
+            expect(transaction.nonce).toBe(`0x${testNonce.toString(16)}`);
             expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
             expect(status).toBe(TransactionStatus.submitted);
             resolve('');
           },
         );
-        await controller.approveTransaction(
-          controller.state.transactions[0].id,
-        );
+        controller.approveTransaction(controller.state.transactions[0].id);
       });
     });
 
