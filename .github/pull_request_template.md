@@ -1,52 +1,46 @@
-<!--
-Thanks for your contribution!
+## Description
 
-Please ensure that any applicable requirements below are satisfied before submitting this pull request. This will help ensure a quick and efficient review cycle.
+<!--
+Thanks for your contribution! Take a moment to answer these questions so that reviewers have the information they need to properly understand your changes:
+
+* What is the current state of things and why does it need to change?
+* What is the solution your changes offer and how does it work?
+* What packages are you updating?
+* Are you introducing a breaking change to a package (renaming or removing a part of a public interface)?
 -->
 
-**PR Title**
+## Changes
 
-- A brief description of changes. If the PR has breaking changes add `BREAKING:`
-  to the start of the PR title.
+<!--
+Pretend that you're updating a changelog. How would you categorize your changes?
 
-**Description**
+CATEGORY is one of:
 
-_Itemize the changes you have made into the categories below_
+- BREAKING
+- ADDED
+- CHANGED
+- DEPRECATED
+- REMOVED
+- FIXED
 
-- BREAKING:
+(Security-related changes should go through the Security Advisory process.)
+-->
 
-  - _Describe the how to patch your code for the breaking changes_
-  - _Create PRs for other projects with patches to breaking changes_
+- **<CATEGORY>**: Your change here
+- **<CATEGORY>**: Your change here
+- **<CATEGORY>**: Your change here
 
-- FIXED:
+## References
 
-  - _Describe the fix/bug addressed_
+<!--
+Are there any issues or other links that reviewers should consult to understand this pull request better? For instance:
 
-- CHANGED:
+* Fixes #12345
+* See: #67890
+-->
 
-  - _Describe the change you have made to existing functionality_
+## Checklist
 
-- REMOVED:
-
-  - _Describe functionality removed and why_
-
-- ADDED:
-
-  - _Describe functionality added and why_
-
-- DEPRECATED:
-
-  - _Describe what was deprecated and why_
-
-- SECURITY:
-
-  - _These should not be in a standard PR and addressed using the Security Advisory process_
-
-**Checklist**
-
-- [ ] Tests are included if applicable
-- [ ] Any added code is fully documented
-
-**Issue**
-
-Resolves #???
+- [ ] I've updated the test suite for new or updated code as appropriate
+- [ ] I've updated documentation for new or updated code as appropriate (note: this will usually be JSDoc)
+- [ ] I've highlighted breaking changes using the "BREAKING" category above as appropriate
