@@ -679,11 +679,11 @@ export class TransactionController extends BaseController<
       // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
       if (!nonceToUse) {
         nonceLock = await this.nonceTracker.getNonceLock(from);
-        nonceToUse = nonceLock.nextNonce.toString(16);
+        nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
       }
 
       transactionMeta.status = status;
-      transactionMeta.transaction.nonce = addHexPrefix(nonceToUse);
+      transactionMeta.transaction.nonce = nonceToUse;
       transactionMeta.transaction.chainId = chainId;
 
       const baseTxParams = {
