@@ -7,7 +7,10 @@ import {
 } from '@metamask/network-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { TokenRatesController } from './TokenRatesController';
-import { TokensController } from './TokensController';
+import {
+  TokensController,
+  TokensControllerMessenger,
+} from './TokensController';
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const COINGECKO_ETH_PATH = '/simple/token_price/ethereum';
@@ -219,13 +222,7 @@ describe('TokenRatesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
-      messenger: new ControllerMessenger<never, never>().getRestricted<
-        'TokensController',
-        never,
-        never
-      >({
-        name: 'TokensController',
-      }),
+      messenger: undefined as unknown as TokensControllerMessenger,
     });
     const controller = new TokenRatesController(
       {
