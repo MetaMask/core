@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+### Fixed
+- Keep original type when using `hasProperty` if defined ([#94](https://github.com/MetaMask/utils/pull/94))
+
 ## [5.0.0]
 ### Changed
 - **BREAKING:** Update `Keyring` type ([#89](https://github.com/MetaMask/utils/pull/89))
@@ -130,7 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/utils/compare/v5.0.0...v5.0.1
 [5.0.0]: https://github.com/MetaMask/utils/compare/v4.0.0...v5.0.0
 [4.0.0]: https://github.com/MetaMask/utils/compare/v3.6.0...v4.0.0
 [3.6.0]: https://github.com/MetaMask/utils/compare/v3.5.0...v3.6.0
