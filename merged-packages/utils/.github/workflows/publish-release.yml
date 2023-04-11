@@ -5,6 +5,8 @@ on:
     secrets:
       NPM_TOKEN:
         required: true
+      PUBLISH_DOCS_TOKEN:
+        required: true
 
 jobs:
   publish-release:
@@ -99,6 +101,8 @@ jobs:
     uses: ./.github/workflows/publish-docs.yml
     with:
       destination_dir: ${{ needs.get-release-version.outputs.RELEASE_VERSION }}
+    secrets:
+      PUBLISH_DOCS_TOKEN: ${{ secrets.PUBLISH_DOCS_TOKEN }}
 
   publish-release-to-latest-gh-pages:
     needs: publish-npm
@@ -108,3 +112,5 @@ jobs:
     uses: ./.github/workflows/publish-docs.yml
     with:
       destination_dir: latest
+    secrets:
+      PUBLISH_DOCS_TOKEN: ${{ secrets.PUBLISH_DOCS_TOKEN }}
