@@ -17,7 +17,6 @@ import {
  * @property messageParams - The parameters to pass to the eth_decrypt method once the request is approved
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'DecryptMessage' which always has a 'eth_decrypt' type
- * @property rawData - Raw data of the signature request
  */
 export interface DecryptMessage extends AbstractMessage {
   messageParams: DecryptMessageParams;

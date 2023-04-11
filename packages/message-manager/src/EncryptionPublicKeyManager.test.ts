@@ -142,7 +142,7 @@ describe('EncryptionPublicKeyManager', () => {
       controller.addUnapprovedMessageAsync({
         from,
       }),
-    ).rejects.toThrow('Invalid "from" address:');
+    ).rejects.toThrow(`Invalid address: ${from} must be a valid string.`);
   });
 
   it('gets correct unapproved messages', async () => {

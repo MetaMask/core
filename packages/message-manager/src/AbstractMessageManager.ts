@@ -23,7 +23,6 @@ export interface OriginalRequest {
  * @property id - An id to track and identify the message object
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'Message' which always has a signing type
- * @property rawSig - Raw data of the signature request
  * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
  */
 export interface AbstractMessage {
@@ -33,7 +32,6 @@ export interface AbstractMessage {
   type: string;
   rawSig?: string;
   securityProviderResponse?: Map<string, Json>;
-  rawData?: string;
   error?: string;
 }
 
@@ -285,53 +283,30 @@ export abstract class AbstractMessageManager<
   }
 
   /**
-   * Sets the message to a new status via a call to this.setMsgStatus and
-   * updates the rawSig field in this.messages.
+   * Sets the message via a call to this.setResult and updates status of the message.
    *
    * @param messageId - The id of the Message to sign.
    * @param rawSig - The data to update rawSig in the message.
    * @param status - The new message status.
    */
   setMessageStatusAndResult(messageId: string, rawSig: string, status: string) {
+    this.setResult(messageId, rawSig);
+    this.setMessageStatus(messageId, status);
+  }
+
+  /**
+   * Sets the message result.
+   *
+   * @param messageId - The id of the Message to sign.
+   * @param rawSig - The data to update rawSig in the message.
+   */
+  setResult(messageId: string, rawSig: string) {
     const message = this.getMessage(messageId);
     /* istanbul ignore if */
     if (!message) {
       return;
     }
     message.rawSig = rawSig;
-    this.updateMessage(message);
-    this.setMessageStatus(messageId, status);
-  }
-
-  /**
-   * Updates the message rawData without changing the status.
-   *
-   * @param messageId - The id of the Message to sign.
-   * @param rawData - The data to update rawData in the message.
-   */
-  updateMessageDataInline(messageId: string, rawData: string) {
-    const message = this.getMessage(messageId);
-    /* istanbul ignore if */
-    if (!message) {
-      return;
-    }
-    message.rawData = rawData;
-    this.updateMessage(message);
-  }
-
-  /**
-   * Updates the message error without changing the status.
-   *
-   * @param messageId - The id of the Message to sign.
-   * @param error - The data to update error in the message.
-   */
-  updateMessageErrorInline(messageId: string, error: string) {
-    const message = this.getMessage(messageId);
-    /* istanbul ignore if */
-    if (!message) {
-      return;
-    }
-    message.error = error;
     this.updateMessage(message);
   }
 

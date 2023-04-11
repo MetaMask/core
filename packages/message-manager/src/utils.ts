@@ -9,6 +9,16 @@ import { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
 import { DecryptMessageParams } from './DecryptMessageManager';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
+/**
+ * Validates an address string and throws in the event of any validation error.
+ *
+ * @param address - The address to validate.
+ */
+function validateAddress(address: string) {
+  if (!address || typeof address !== 'string' || !isValidHexAddress(address)) {
+    throw new Error(`Invalid address: ${address} must be a valid string.`);
+  }
+}
 
 /**
  * A helper function that converts rawmessageData buffer data to a hex, or just returns the data if
@@ -39,9 +49,7 @@ export function validateSignMessageData(
   messageData: PersonalMessageParams | MessageParams,
 ) {
   const { from, data } = messageData;
-  if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
-    throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
-  }
+  validateAddress(from);
 
   if (!data || typeof data !== 'string') {
     throw new Error(`Invalid message "data": ${data} must be a valid string.`);
@@ -57,15 +65,7 @@ export function validateSignMessageData(
 export function validateTypedSignMessageDataV1(
   messageData: TypedMessageParams,
 ) {
-  if (
-    !messageData.from ||
-    typeof messageData.from !== 'string' ||
-    !isValidHexAddress(messageData.from)
-  ) {
-    throw new Error(
-      `Invalid "from" address: ${messageData.from} must be a valid string.`,
-    );
-  }
+  validateAddress(messageData.from);
 
   if (!messageData.data || !Array.isArray(messageData.data)) {
     throw new Error(
@@ -90,15 +90,7 @@ export function validateTypedSignMessageDataV1(
 export function validateTypedSignMessageDataV3(
   messageData: TypedMessageParams,
 ) {
-  if (
-    !messageData.from ||
-    typeof messageData.from !== 'string' ||
-    !isValidHexAddress(messageData.from)
-  ) {
-    throw new Error(
-      `Invalid "from" address: ${messageData.from} must be a valid string.`,
-    );
-  }
+  validateAddress(messageData.from);
 
   if (!messageData.data || typeof messageData.data !== 'string') {
     throw new Error(
@@ -129,9 +121,7 @@ export function validateEncryptionPublicKeyMessageData(
   messageData: EncryptionPublicKeyParams,
 ) {
   const { from } = messageData;
-  if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
-    throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
-  }
+  validateAddress(from);
 }
 
 /**
@@ -144,7 +134,5 @@ export function validateDecryptedMessageData(
   messageData: DecryptMessageParams,
 ) {
   const { from } = messageData;
-  if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
-    throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
-  }
+  validateAddress(from);
 }

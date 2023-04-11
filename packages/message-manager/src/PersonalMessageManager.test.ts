@@ -170,7 +170,7 @@ describe('PersonalMessageManager', () => {
         data: messageData,
         from,
       }),
-    ).rejects.toThrow('Invalid "from" address:');
+    ).rejects.toThrow(`Invalid address: ${from} must be a valid string.`);
   });
 
   it('should get correct unapproved messages', async () => {

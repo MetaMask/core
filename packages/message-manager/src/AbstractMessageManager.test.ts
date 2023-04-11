@@ -257,40 +257,6 @@ describe('AbstractTestManager', () => {
     expect(message.status).toStrictEqual('approved');
   });
 
-  it('sets rawData of message', async () => {
-    const mockedRawData = 'rawData';
-    const controller = new AbstractTestManager();
-    const firstMessage = { from: '0xfoO', data: typedMessage };
-    await controller.addMessage({
-      id: messageId,
-      messageParams: firstMessage,
-      status: messageStatus,
-      time: messageTime,
-      type: messageType,
-    });
-    controller.updateMessageDataInline(messageId, mockedRawData);
-    expect(controller.getMessage(messageId)?.rawData).toStrictEqual(
-      mockedRawData,
-    );
-  });
-
-  it('sets error of message', async () => {
-    const mockedErrorMessage = 'errorMessage';
-    const controller = new AbstractTestManager();
-    const firstMessage = { from: '0xfoO', data: typedMessage };
-    await controller.addMessage({
-      id: messageId,
-      messageParams: firstMessage,
-      status: messageStatus,
-      time: messageTime,
-      type: messageType,
-    });
-    controller.updateMessageErrorInline(messageId, mockedErrorMessage);
-    expect(controller.getMessage(messageId)?.error).toStrictEqual(
-      mockedErrorMessage,
-    );
-  });
-
   describe('setMessageStatus', () => {
     it('should set the given message status', async () => {
       const controller = new AbstractTestManager();
