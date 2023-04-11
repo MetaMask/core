@@ -121,6 +121,7 @@ describe('TokenRatesController', () => {
     });
     expect(controller.state).toStrictEqual({
       contractExchangeRates: {},
+      previousNativeCurrency: '',
     });
   });
 
@@ -235,7 +236,7 @@ describe('TokenRatesController', () => {
       { address, decimals: 18, symbol: 'DAI', aggregators: [] },
       { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
     ];
-    await controller.updateExchangeRates();
+    await controller.updateExchangeRates(true);
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
       address,
     );
@@ -381,36 +382,23 @@ describe('TokenRatesController', () => {
       detectedTokens: [],
     });
 
-    await controller.updateExchangeRates();
+    await controller.updateExchangeRates(true);
 
     expect(controller.state.contractExchangeRates).toStrictEqual(
       expectedExchangeRates,
     );
   });
 
-  it('should clear contractExchangeRates state when network is changed', async () => {
+  it('should clear contractExchangeRates state when fetch rates fail', async () => {
     nock(COINGECKO_API)
       .get(`${COINGECKO_ETH_PATH}`)
       .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
-      .reply(200, {
-        '0x02': {
-          eth: 0.001, // token value in terms of ETH
-        },
-        '0x03': {
-          eth: 0.002,
-        },
-      })
+      .reply(429)
       .persist();
 
-    let networkChangeListener: (state: any) => void;
-    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
-      networkChangeListener = listener;
-    });
+    const onNetworkStateChange = sinon.stub();
 
-    let tokenStateChangeListener: (state: any) => void;
-    const onTokensStateChange = sinon.stub().callsFake((listener) => {
-      tokenStateChangeListener = listener;
-    });
+    const onTokensStateChange = sinon.stub();
 
     const controller = new TokenRatesController(
       {
@@ -423,49 +411,10 @@ describe('TokenRatesController', () => {
 
     await controller.configure({ chainId: '1', nativeCurrency: 'ETH' });
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      tokens: [
-        {
-          address: '0x02',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bar',
-          isERC721: false,
-        },
-        {
-          address: '0x03',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bazz',
-          isERC721: false,
-        },
-      ],
-      detectedTokens: [],
-    });
-
-    await controller.updateExchangeRates();
-
-    expect(controller.state.contractExchangeRates).toStrictEqual({
-      '0x02': 0.001,
-      '0x03': 0.002,
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkChangeListener!({
-      providerConfig: { chainId: '4' },
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      tokens: [],
-      detectedTokens: [],
-    });
-
     expect(controller.state.contractExchangeRates).toStrictEqual({});
   });
 
-  it('should update exchange rates when detected tokens are added', async () => {
+  it('should update exchange rates when poll is called', async () => {
     nock(COINGECKO_API)
       .get(`${COINGECKO_ETH_PATH}`)
       .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
@@ -516,7 +465,7 @@ describe('TokenRatesController', () => {
       tokens: [],
     });
 
-    await controller.updateExchangeRates();
+    await controller.poll();
 
     expect(controller.state.contractExchangeRates).toStrictEqual({
       '0x02': 0.001,

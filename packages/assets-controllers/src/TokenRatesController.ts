@@ -96,6 +96,7 @@ interface SupportedVsCurrenciesCache {
  */
 export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
+  previousNativeCurrency: string;
 }
 
 const CoinGeckoApi = {
@@ -201,6 +202,7 @@ export class TokenRatesController extends BaseController<
 
     this.defaultState = {
       contractExchangeRates: {},
+      previousNativeCurrency: '',
     };
     this.initialize();
     if (config?.disabled) {
@@ -217,7 +219,6 @@ export class TokenRatesController extends BaseController<
 
     onNetworkStateChange(({ providerConfig }) => {
       const { chainId } = providerConfig;
-      this.update({ contractExchangeRates: {} });
       this.configure({ chainId });
     });
     this.poll();
@@ -231,7 +232,7 @@ export class TokenRatesController extends BaseController<
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.updateExchangeRates());
+    await safelyExecute(() => this.updateExchangeRates(true));
     this.handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
@@ -337,8 +338,10 @@ export class TokenRatesController extends BaseController<
 
   /**
    * Updates exchange rates for all tokens.
+   *
+   * @param forceFetch - Forces the fetch for new token rates.
    */
-  async updateExchangeRates() {
+  async updateExchangeRates(forceFetch = false) {
     if (this.tokenList.length === 0 || this.disabled) {
       return;
     }
@@ -352,10 +355,14 @@ export class TokenRatesController extends BaseController<
       });
     } else {
       const { nativeCurrency } = this.config;
-      newContractExchangeRates = await this.fetchAndMapExchangeRates(
-        nativeCurrency,
-        slug,
-      );
+      if (this.state.previousNativeCurrency !== nativeCurrency || forceFetch) {
+        newContractExchangeRates = await this.fetchAndMapExchangeRates(
+          nativeCurrency,
+          slug,
+        );
+      } else {
+        newContractExchangeRates = this.state.contractExchangeRates;
+      }
     }
     this.update({ contractExchangeRates: newContractExchangeRates });
   }
@@ -376,28 +383,33 @@ export class TokenRatesController extends BaseController<
     nativeCurrency: string,
     slug: string,
   ): Promise<ContractExchangeRates> {
+    this.update({
+      contractExchangeRates: {},
+      previousNativeCurrency: nativeCurrency,
+    });
+
     const contractExchangeRates: ContractExchangeRates = {};
+    try {
+      // check if native currency is supported as a vs_currency by the API
+      const nativeCurrencySupported = await this.checkIsSupportedVsCurrency(
+        nativeCurrency,
+      );
 
-    // check if native currency is supported as a vs_currency by the API
-    const nativeCurrencySupported = await this.checkIsSupportedVsCurrency(
-      nativeCurrency,
-    );
+      if (nativeCurrencySupported) {
+        // If it is we can do a simple fetch against the CoinGecko API
+        const prices = await this.fetchExchangeRate(slug, nativeCurrency);
+        this.tokenList.forEach((token) => {
+          const price = prices[token.address.toLowerCase()];
+          contractExchangeRates[toChecksumHexAddress(token.address)] = price
+            ? price[nativeCurrency.toLowerCase()]
+            : 0;
+        });
+      } else {
+        // if native currency is not supported we need to use a fallback vsCurrency, get the exchange rates
+        // in token/fallback-currency format and convert them to expected token/nativeCurrency format.
+        let tokenExchangeRates = null;
+        let vsCurrencyToNativeCurrencyConversionRate = 0;
 
-    if (nativeCurrencySupported) {
-      // If it is we can do a simple fetch against the CoinGecko API
-      const prices = await this.fetchExchangeRate(slug, nativeCurrency);
-      this.tokenList.forEach((token) => {
-        const price = prices[token.address.toLowerCase()];
-        contractExchangeRates[toChecksumHexAddress(token.address)] = price
-          ? price[nativeCurrency.toLowerCase()]
-          : 0;
-      });
-    } else {
-      // if native currency is not supported we need to use a fallback vsCurrency, get the exchange rates
-      // in token/fallback-currency format and convert them to expected token/nativeCurrency format.
-      let tokenExchangeRates;
-      let vsCurrencyToNativeCurrencyConversionRate = 0;
-      try {
         [
           tokenExchangeRates,
           { conversionRate: vsCurrencyToNativeCurrencyConversionRate },
@@ -405,25 +417,27 @@ export class TokenRatesController extends BaseController<
           this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY),
           fetchNativeExchangeRate(nativeCurrency, FALL_BACK_VS_CURRENCY, false),
         ]);
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.message.includes('market does not exist for this coin pair')
-        ) {
-          return {};
-        }
-        throw error;
-      }
 
-      for (const [tokenAddress, conversion] of Object.entries(
-        tokenExchangeRates,
-      )) {
-        const tokenToVsCurrencyConversionRate =
-          conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
-        contractExchangeRates[toChecksumHexAddress(tokenAddress)] =
-          tokenToVsCurrencyConversionRate *
-          vsCurrencyToNativeCurrencyConversionRate;
+        for (const [tokenAddress, conversion] of Object.entries(
+          tokenExchangeRates,
+        )) {
+          const tokenToVsCurrencyConversionRate =
+            conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
+          contractExchangeRates[toChecksumHexAddress(tokenAddress)] =
+            tokenToVsCurrencyConversionRate *
+            vsCurrencyToNativeCurrencyConversionRate;
+        }
       }
+    } catch (error) {
+      // If there is an error catched we clean the state
+      this.update({ contractExchangeRates: {} });
+      if (
+        error instanceof Error &&
+        error.message.includes('market does not exist for this coin pair')
+      ) {
+        return {};
+      }
+      throw error;
     }
 
     return contractExchangeRates;
