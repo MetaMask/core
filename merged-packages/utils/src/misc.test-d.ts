@@ -89,6 +89,16 @@ class HasPropertyClassExample {
 const hasPropertyClassExample = new HasPropertyClassExample();
 hasProperty(hasPropertyClassExample, 'a');
 
+type HasPropertyTypeExample = {
+  a?: number;
+};
+
+// It keeps the original type when defined.
+const hasPropertyTypeExample: HasPropertyTypeExample = {};
+if (hasProperty(hasPropertyTypeExample, 'a')) {
+  expectType<number | undefined>(hasPropertyTypeExample.a);
+}
+
 //=============================================================================
 // RuntimeObject
 //=============================================================================

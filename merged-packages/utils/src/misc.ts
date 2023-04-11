@@ -93,8 +93,11 @@ export const hasProperty = <
 >(
   objectToCheck: ObjectToCheck,
   name: Property,
-): objectToCheck is ObjectToCheck & Record<Property, unknown> =>
-  Object.hasOwnProperty.call(objectToCheck, name);
+): objectToCheck is ObjectToCheck &
+  Record<
+    Property,
+    Property extends keyof ObjectToCheck ? ObjectToCheck[Property] : unknown
+  > => Object.hasOwnProperty.call(objectToCheck, name);
 
 export type PlainObject = Record<number | string | symbol, unknown>;
 
