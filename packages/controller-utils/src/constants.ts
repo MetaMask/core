@@ -84,3 +84,6 @@ export const OPENSEA_PROXY_URL =
   'https://proxy.metafi.codefi.network/opensea/v1/api/v1';
 export const OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
 export const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
+
+// Default origin for controllers
+export const ORIGIN_METAMASK = 'metamask';

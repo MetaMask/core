@@ -23,6 +23,7 @@ import {
   NetworkType,
   toChecksumHexAddress,
   ERC721_INTERFACE_ID,
+  ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
 import { TokenListToken } from './TokenListController';
@@ -145,8 +146,7 @@ export type TokensControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-const ORIGIN_METAMASK = 'metamask';
-const WATCH_ASSET_METHOD_NAME = 'wallet_watchAssets';
+const APPROVAL_TYPE = 'wallet_watchAssets';
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -716,19 +716,7 @@ export class TokensController extends BaseController<
     suggestedAssets.push(suggestedAssetMeta);
     this.update({ suggestedAssets: [...suggestedAssets] });
 
-    this.messagingSystem
-      .call(
-        'ApprovalController:addRequest',
-        {
-          id: suggestedAssetMeta.id,
-          origin: ORIGIN_METAMASK,
-          type: WATCH_ASSET_METHOD_NAME,
-        },
-        true,
-      )
-      .catch(() => {
-        // Intentionally ignored as promise not currently used
-      });
+    this._requestApproval(suggestedAssetMeta.id);
 
     return { result, suggestedAssetMeta };
   }
@@ -760,17 +748,7 @@ export class TokensController extends BaseController<
           );
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
 
-          try {
-            this.messagingSystem.call(
-              'ApprovalController:acceptRequest',
-              suggestedAssetMeta.id,
-            );
-          } catch (error) {
-            console.error(
-              'Failed to accept token watch approval request',
-              error,
-            );
-          }
+          this._acceptApproval(suggestedAssetID);
 
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
@@ -785,19 +763,9 @@ export class TokensController extends BaseController<
     } catch (error) {
       this.failSuggestedAsset(suggestedAssetMeta, error);
 
-      try {
-        this.messagingSystem.call(
-          'ApprovalController:rejectRequest',
-          suggestedAssetMeta.id,
-          new Error('Rejected'),
-        );
-      } catch (messageCallError) {
-        console.error(
-          'Failed to reject transaction approval request',
-          messageCallError,
-        );
-      }
+      this._rejectApproval(suggestedAssetID);
     }
+
     const newSuggestedAssets = suggestedAssets.filter(
       ({ id }) => id !== suggestedAssetID,
     );
@@ -826,15 +794,7 @@ export class TokensController extends BaseController<
     );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
 
-    try {
-      this.messagingSystem.call(
-        'ApprovalController:rejectRequest',
-        suggestedAssetMeta.id,
-        new Error('Rejected'),
-      );
-    } catch (error) {
-      console.error('Failed to reject transaction approval request', error);
-    }
+    this._rejectApproval(suggestedAssetID);
   }
 
   /**
@@ -933,6 +893,48 @@ export class TokensController extends BaseController<
    */
   clearIgnoredTokens() {
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });
+  }
+
+  _requestApproval(approvalRequestId: string) {
+    this.messagingSystem
+      .call(
+        'ApprovalController:addRequest',
+        {
+          id: approvalRequestId,
+          origin: ORIGIN_METAMASK,
+          type: APPROVAL_TYPE,
+        },
+        true,
+      )
+      .catch(() => {
+        // Intentionally ignored as promise not currently used
+      });
+  }
+
+  _acceptApproval(approvalRequestId: string) {
+    try {
+      this.messagingSystem.call(
+        'ApprovalController:acceptRequest',
+        approvalRequestId,
+      );
+    } catch (error) {
+      console.error('Failed to accept token watch approval request', error);
+    }
+  }
+
+  _rejectApproval(approvalRequestId: string) {
+    try {
+      this.messagingSystem.call(
+        'ApprovalController:rejectRequest',
+        approvalRequestId,
+        new Error('Rejected'),
+      );
+    } catch (messageCallError) {
+      console.error(
+        'Failed to reject token watch approval request',
+        messageCallError,
+      );
+    }
   }
 }
 
