@@ -1,4 +1,5 @@
 import { Json, JsonRpcParams } from '@metamask/utils';
+
 import { JsonRpcEngine, JsonRpcMiddleware } from './JsonRpcEngine';
 
 /**

@@ -3,9 +3,7 @@
  * https://jestjs.io/docs/configuration
  */
 
-import type { Config } from '@jest/types';
-
-const config: Config.InitialOptions = {
+module.exports = {
   // All imported modules in your tests should be mocked automatically
   // automock: false,
 
@@ -38,7 +36,7 @@ const config: Config.InitialOptions = {
   coverageProvider: 'babel',
 
   // A list of reporter names that Jest uses when writing coverage reports
-  coverageReporters: ['text', 'html'],
+  coverageReporters: ['html', 'json-summary', 'text'],
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
@@ -204,5 +202,3 @@ const config: Config.InitialOptions = {
   // Whether to use watchman for file crawling
   // watchman: true,
 };
-
-export default config;

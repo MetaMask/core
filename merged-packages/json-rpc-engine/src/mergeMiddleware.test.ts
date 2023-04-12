@@ -3,6 +3,7 @@ import {
   hasProperty,
   JsonRpcRequest,
 } from '@metamask/utils';
+
 import { JsonRpcEngine, mergeMiddleware } from '.';
 
 const jsonrpc = '2.0' as const;
@@ -10,12 +11,12 @@ const jsonrpc = '2.0' as const;
 describe('mergeMiddleware', () => {
   it('basic', async () => {
     const engine = new JsonRpcEngine();
-    let originalReq: JsonRpcRequest;
+    let originalRequest: JsonRpcRequest;
 
     engine.push(
       mergeMiddleware([
         function (req, res, _next, end) {
-          originalReq = req;
+          originalRequest = req;
           res.result = 'saw merged middleware';
           end();
         },
@@ -25,12 +26,12 @@ describe('mergeMiddleware', () => {
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, res) {
-        expect(err).toBeNull();
-        expect(res).toBeDefined();
-        expect(originalReq.id).toStrictEqual(res.id);
-        expect(originalReq.jsonrpc).toStrictEqual(res.jsonrpc);
-        expect(hasProperty(res, 'result')).toBe(true);
+      engine.handle(payload, function (error, response) {
+        expect(error).toBeNull();
+        expect(response).toBeDefined();
+        expect(originalRequest.id).toStrictEqual(response.id);
+        expect(originalRequest.jsonrpc).toStrictEqual(response.jsonrpc);
+        expect(hasProperty(response, 'result')).toBe(true);
         resolve();
       });
     });
@@ -41,10 +42,10 @@ describe('mergeMiddleware', () => {
 
     engine.push(
       mergeMiddleware([
-        (_req, res, next, _end) => {
-          next((cb) => {
-            (res as any).copy = res.result;
-            cb();
+        (_request, response, next, _end) => {
+          next((callback) => {
+            (response as any).copy = response.result;
+            callback();
           });
         },
         (_req, res, _next, end) => {
@@ -57,8 +58,8 @@ describe('mergeMiddleware', () => {
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, res) {
-        expect(err).toBeNull();
+      engine.handle(payload, function (error, res) {
+        expect(error).toBeNull();
 
         // @ts-expect-error - `copy` is not a valid property of `JsonRpcSuccess`.
         const { copy, ...rest } = res;
@@ -72,14 +73,14 @@ describe('mergeMiddleware', () => {
 
   it('decorate res', async () => {
     const engine = new JsonRpcEngine();
-    let originalReq: JsonRpcRequest;
+    let originalRequest: JsonRpcRequest;
 
     engine.push(
       mergeMiddleware([
-        function (req, res, _next, end) {
-          originalReq = req;
-          (res as any).xyz = true;
-          res.result = true;
+        function (request, response, _next, end) {
+          originalRequest = request;
+          (response as any).xyz = true;
+          response.result = true;
           end();
         },
       ]),
@@ -88,11 +89,11 @@ describe('mergeMiddleware', () => {
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, res) {
-        expect(err).toBeNull();
+      engine.handle(payload, function (error, res) {
+        expect(error).toBeNull();
         expect(res).toBeDefined();
-        expect(originalReq.id).toStrictEqual(res.id);
-        expect(originalReq.jsonrpc).toStrictEqual(res.jsonrpc);
+        expect(originalRequest.id).toStrictEqual(res.id);
+        expect(originalRequest.jsonrpc).toStrictEqual(res.jsonrpc);
         expect((res as any).xyz).toBe(true);
         resolve();
       });
@@ -101,14 +102,14 @@ describe('mergeMiddleware', () => {
 
   it('decorate req', async () => {
     const engine = new JsonRpcEngine();
-    let originalReq: JsonRpcRequest;
+    let originalRequest: JsonRpcRequest;
 
     engine.push(
       mergeMiddleware([
-        function (req, res, _next, end) {
-          originalReq = req;
-          (req as any).xyz = true;
-          res.result = true;
+        function (request, response, _next, end) {
+          originalRequest = request;
+          (request as any).xyz = true;
+          response.result = true;
           end();
         },
       ]),
@@ -117,12 +118,12 @@ describe('mergeMiddleware', () => {
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, res) {
-        expect(err).toBeNull();
-        expect(res).toBeDefined();
-        expect(originalReq.id).toStrictEqual(res.id);
-        expect(originalReq.jsonrpc).toStrictEqual(res.jsonrpc);
-        expect((originalReq as any).xyz).toBe(true);
+      engine.handle(payload, function (error, response) {
+        expect(error).toBeNull();
+        expect(response).toBeDefined();
+        expect(originalRequest.id).toStrictEqual(response.id);
+        expect(originalRequest.jsonrpc).toStrictEqual(response.jsonrpc);
+        expect((originalRequest as any).xyz).toBe(true);
         resolve();
       });
     });
@@ -131,18 +132,18 @@ describe('mergeMiddleware', () => {
   it('should not error even if end not called', async () => {
     const engine = new JsonRpcEngine();
 
-    engine.push(mergeMiddleware([(_req, _res, next, _end) => next()]));
-    engine.push((_req, res, _next, end) => {
-      res.result = true;
+    engine.push(mergeMiddleware([(_request, _response, next, _end) => next()]));
+    engine.push((_request, response, _next, end) => {
+      response.result = true;
       end();
     });
 
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, res) {
-        expect(err).toBeNull();
-        expect(res).toBeDefined();
+      engine.handle(payload, function (error, response) {
+        expect(error).toBeNull();
+        expect(response).toBeDefined();
         resolve();
       });
     });
@@ -153,27 +154,27 @@ describe('mergeMiddleware', () => {
 
     engine.push(
       mergeMiddleware([
-        (_req, res, next, _end) => {
-          next((cb) => {
-            (res as any).copy = res.result;
-            cb();
+        (_request, response, next, _end) => {
+          next((callback) => {
+            (response as any).copy = response.result;
+            callback();
           });
         },
       ]),
     );
 
-    engine.push((_req, res, _next, end) => {
-      res.result = true;
+    engine.push((_request, response, _next, end) => {
+      response.result = true;
       end();
     });
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, res) {
-        expect(err).toBeNull();
+      engine.handle(payload, function (error, response) {
+        expect(error).toBeNull();
 
         // @ts-expect-error - `copy` is not a valid property of `JsonRpcSuccess`.
-        const { copy, ...rest } = res;
+        const { copy, ...rest } = response;
         assertIsJsonRpcSuccess(rest);
 
         expect(rest.result).toStrictEqual(copy);

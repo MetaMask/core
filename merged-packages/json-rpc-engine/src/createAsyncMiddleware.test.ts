@@ -1,4 +1,5 @@
 import { assertIsJsonRpcSuccess } from '@metamask/utils';
+
 import { JsonRpcEngine, createAsyncMiddleware } from '.';
 
 const jsonrpc = '2.0' as const;
@@ -8,19 +9,19 @@ describe('createAsyncMiddleware', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(
-      createAsyncMiddleware(async (_req, res, _next) => {
-        res.result = 42;
+      createAsyncMiddleware(async (_request, response, _next) => {
+        response.result = 42;
       }),
     );
 
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, res) {
-        expect(err).toBeNull();
-        expect(res).toBeDefined();
-        assertIsJsonRpcSuccess(res);
-        expect(res.result).toStrictEqual(42);
+      engine.handle(payload, function (error, response) {
+        expect(error).toBeNull();
+        expect(response).toBeDefined();
+        assertIsJsonRpcSuccess(response);
+        expect(response.result).toBe(42);
         resolve();
       });
     });
@@ -30,28 +31,28 @@ describe('createAsyncMiddleware', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(
-      createAsyncMiddleware(async (_req, res, next) => {
-        expect(res.result).not.toBeDefined();
+      createAsyncMiddleware(async (_request, response, next) => {
+        expect(response.result).toBeUndefined();
         await next(); // eslint-disable-line node/callback-return
-        expect(res.result).toStrictEqual(1234);
+        expect(response.result).toBe(1234);
         // override value
-        res.result = 42; // eslint-disable-line require-atomic-updates
+        response.result = 42; // eslint-disable-line require-atomic-updates
       }),
     );
 
-    engine.push(function (_req, res, _next, end) {
-      res.result = 1234;
+    engine.push(function (_request, response, _next, end) {
+      response.result = 1234;
       end();
     });
 
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, res) {
-        expect(err).toBeNull();
-        expect(res).toBeDefined();
-        assertIsJsonRpcSuccess(res);
-        expect(res.result).toStrictEqual(42);
+      engine.handle(payload, function (error, response) {
+        expect(error).toBeNull();
+        expect(response).toBeDefined();
+        assertIsJsonRpcSuccess(response);
+        expect(response.result).toBe(42);
         resolve();
       });
     });
@@ -60,20 +61,20 @@ describe('createAsyncMiddleware', () => {
   it('basic throw test', async () => {
     const engine = new JsonRpcEngine();
 
-    const error = new Error('bad boy');
+    const thrownError = new Error('bad boy');
 
     engine.push(
       createAsyncMiddleware(async (_req, _res, _next) => {
-        throw error;
+        throw thrownError;
       }),
     );
 
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, _res) {
-        expect(err).toBeDefined();
-        expect(err).toStrictEqual(error);
+      engine.handle(payload, function (error, _response) {
+        expect(error).toBeDefined();
+        expect(error).toStrictEqual(thrownError);
         resolve();
       });
     });
@@ -82,26 +83,26 @@ describe('createAsyncMiddleware', () => {
   it('throw after next test', async () => {
     const engine = new JsonRpcEngine();
 
-    const error = new Error('bad boy');
+    const thrownError = new Error('bad boy');
 
     engine.push(
-      createAsyncMiddleware(async (_req, _res, next) => {
+      createAsyncMiddleware(async (_request, _response, next) => {
         await next(); // eslint-disable-line node/callback-return
-        throw error;
+        throw thrownError;
       }),
     );
 
-    engine.push(function (_req, res, _next, end) {
-      res.result = 1234;
+    engine.push(function (_request, response, _next, end) {
+      response.result = 1234;
       end();
     });
 
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, _res) {
-        expect(err).toBeDefined();
-        expect(err).toStrictEqual(error);
+      engine.handle(payload, function (error, _response) {
+        expect(error).toBeDefined();
+        expect(error).toStrictEqual(thrownError);
         resolve();
       });
     });
@@ -111,21 +112,22 @@ describe('createAsyncMiddleware', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(
-      createAsyncMiddleware(async (_req, _res, next) => {
+      createAsyncMiddleware(async (_request, _response, next) => {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         next();
       }),
     );
 
-    engine.push(function (_req, res, _next, end) {
-      res.result = 1234;
+    engine.push(function (_request, response, _next, end) {
+      response.result = 1234;
       end();
     });
 
     const payload = { id: 1, jsonrpc, method: 'hello' };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, _res) {
-        expect(err).toBeDefined();
+      engine.handle(payload, function (error, _response) {
+        expect(error).toBeDefined();
         resolve();
       });
     });

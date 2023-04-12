@@ -1,4 +1,5 @@
 import { Json, JsonRpcParams } from '@metamask/utils';
+
 import { getUniqueId } from './getUniqueId';
 import { JsonRpcMiddleware } from './JsonRpcEngine';
 
@@ -15,14 +16,14 @@ export function createIdRemapMiddleware(): JsonRpcMiddleware<
   JsonRpcParams,
   Json
 > {
-  return (req, res, next, _end) => {
-    const originalId = req.id;
+  return (request, response, next, _end) => {
+    const originalId = request.id;
     const newId = getUniqueId();
-    req.id = newId;
-    res.id = newId;
+    request.id = newId;
+    response.id = newId;
     next((done) => {
-      req.id = originalId;
-      res.id = originalId;
+      request.id = originalId;
+      response.id = originalId;
       done();
     });
   };

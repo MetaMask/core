@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+
 import { JsonRpcEngine, createIdRemapMiddleware } from '.';
 
 describe('idRemapMiddleware', () => {
@@ -9,17 +11,17 @@ describe('idRemapMiddleware', () => {
       after: {},
     };
 
-    engine.push(function (req, res, next, _end) {
-      observedIds.before.req = req.id;
-      observedIds.before.res = res.id;
+    engine.push(function (request, response, next, _end) {
+      observedIds.before!.request = request.id;
+      observedIds.before!.response = response.id;
       next();
     });
     engine.push(createIdRemapMiddleware());
-    engine.push(function (req, res, _next, end) {
-      observedIds.after.req = req.id;
-      observedIds.after.res = res.id;
+    engine.push(function (request, response, _next, end) {
+      observedIds.after!.request = request.id;
+      observedIds.after!.response = response.id;
       // set result so it doesnt error
-      res.result = true;
+      response.result = true;
       end();
     });
 
@@ -27,23 +29,29 @@ describe('idRemapMiddleware', () => {
     const payloadCopy = { ...payload };
 
     await new Promise<void>((resolve) => {
-      engine.handle(payload, function (err, res) {
-        expect(err).toBeNull();
-        expect(res).toBeDefined();
+      engine.handle(payload, function (error, response) {
+        expect(error).toBeNull();
+        expect(response).toBeDefined();
         // collected data
-        expect(observedIds.before.req).toBeDefined();
-        expect(observedIds.before.res).toBeDefined();
-        expect(observedIds.after.req).toBeDefined();
-        expect(observedIds.after.res).toBeDefined();
+        expect(observedIds.before!.request).toBeDefined();
+        expect(observedIds.before!.response).toBeDefined();
+        expect(observedIds.after!.request).toBeDefined();
+        expect(observedIds.after!.response).toBeDefined();
         // data matches expectations
-        expect(observedIds.before.req).toStrictEqual(observedIds.before.res);
-        expect(observedIds.after.req).toStrictEqual(observedIds.after.res);
+        expect(observedIds.before!.request).toStrictEqual(
+          observedIds.before!.response,
+        );
+        expect(observedIds.after!.request).toStrictEqual(
+          observedIds.after!.response,
+        );
         // correct behavior
-        expect(observedIds.before.req).not.toStrictEqual(observedIds.after.req);
+        expect(observedIds.before!.request).not.toStrictEqual(
+          observedIds.after!.request,
+        );
 
-        expect(observedIds.before.req).toStrictEqual(res.id);
-        expect(payload.id).toStrictEqual(res.id);
-        expect(payloadCopy.id).toStrictEqual(res.id);
+        expect(observedIds.before!.request).toStrictEqual(response.id);
+        expect(payload.id).toStrictEqual(response.id);
+        expect(payloadCopy.id).toStrictEqual(response.id);
         resolve();
       });
     });
