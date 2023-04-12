@@ -3,6 +3,8 @@ import {
   assertIsJsonRpcFailure,
   isJsonRpcFailure,
   isJsonRpcSuccess,
+  JsonRpcParams,
+  Json,
 } from '@metamask/utils';
 import { ethErrors } from 'eth-rpc-errors';
 import { JsonRpcEngine, JsonRpcMiddleware } from '.';
@@ -648,7 +650,7 @@ describe('JsonRpcEngine', () => {
       });
 
       const destroyMock = jest.fn();
-      const destroyableMiddleware: JsonRpcMiddleware<unknown, unknown> = (
+      const destroyableMiddleware: JsonRpcMiddleware<JsonRpcParams, Json> = (
         _req,
         _res,
         _next,

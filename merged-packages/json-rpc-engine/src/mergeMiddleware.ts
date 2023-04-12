@@ -1,3 +1,4 @@
+import { Json, JsonRpcParams } from '@metamask/utils';
 import { JsonRpcEngine, JsonRpcMiddleware } from './JsonRpcEngine';
 
 /**
@@ -7,7 +8,7 @@ import { JsonRpcEngine, JsonRpcMiddleware } from './JsonRpcEngine';
  * @returns The merged middleware function.
  */
 export function mergeMiddleware(
-  middlewareStack: JsonRpcMiddleware<unknown, unknown>[],
+  middlewareStack: JsonRpcMiddleware<JsonRpcParams, Json>[],
 ) {
   const engine = new JsonRpcEngine();
   middlewareStack.forEach((middleware) => engine.push(middleware));

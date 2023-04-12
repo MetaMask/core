@@ -10,7 +10,7 @@ const jsonrpc = '2.0' as const;
 describe('mergeMiddleware', () => {
   it('basic', async () => {
     const engine = new JsonRpcEngine();
-    let originalReq: JsonRpcRequest<unknown>;
+    let originalReq: JsonRpcRequest;
 
     engine.push(
       mergeMiddleware([
@@ -59,8 +59,12 @@ describe('mergeMiddleware', () => {
     await new Promise<void>((resolve) => {
       engine.handle(payload, function (err, res) {
         expect(err).toBeNull();
-        assertIsJsonRpcSuccess(res);
-        expect(res.result).toStrictEqual((res as any).copy);
+
+        // @ts-expect-error - `copy` is not a valid property of `JsonRpcSuccess`.
+        const { copy, ...rest } = res;
+        assertIsJsonRpcSuccess(rest);
+
+        expect(rest.result).toStrictEqual(copy);
         resolve();
       });
     });
@@ -68,7 +72,7 @@ describe('mergeMiddleware', () => {
 
   it('decorate res', async () => {
     const engine = new JsonRpcEngine();
-    let originalReq: JsonRpcRequest<unknown>;
+    let originalReq: JsonRpcRequest;
 
     engine.push(
       mergeMiddleware([
@@ -97,7 +101,7 @@ describe('mergeMiddleware', () => {
 
   it('decorate req', async () => {
     const engine = new JsonRpcEngine();
-    let originalReq: JsonRpcRequest<unknown>;
+    let originalReq: JsonRpcRequest;
 
     engine.push(
       mergeMiddleware([
@@ -167,8 +171,12 @@ describe('mergeMiddleware', () => {
     await new Promise<void>((resolve) => {
       engine.handle(payload, function (err, res) {
         expect(err).toBeNull();
-        assertIsJsonRpcSuccess(res);
-        expect(res.result).toStrictEqual((res as any).copy);
+
+        // @ts-expect-error - `copy` is not a valid property of `JsonRpcSuccess`.
+        const { copy, ...rest } = res;
+        assertIsJsonRpcSuccess(rest);
+
+        expect(rest.result).toStrictEqual(copy);
         resolve();
       });
     });

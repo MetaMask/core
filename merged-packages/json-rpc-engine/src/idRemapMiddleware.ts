@@ -1,3 +1,4 @@
+import { Json, JsonRpcParams } from '@metamask/utils';
 import { getUniqueId } from './getUniqueId';
 import { JsonRpcMiddleware } from './JsonRpcEngine';
 
@@ -10,7 +11,10 @@ import { JsonRpcMiddleware } from './JsonRpcEngine';
  *
  * @returns The ID remap middleware function.
  */
-export function createIdRemapMiddleware(): JsonRpcMiddleware<unknown, unknown> {
+export function createIdRemapMiddleware(): JsonRpcMiddleware<
+  JsonRpcParams,
+  Json
+> {
   return (req, res, next, _end) => {
     const originalId = req.id;
     const newId = getUniqueId();

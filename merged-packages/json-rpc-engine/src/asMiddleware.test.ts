@@ -11,7 +11,7 @@ describe('asMiddleware', () => {
   it('basic', async () => {
     const engine = new JsonRpcEngine();
     const subengine = new JsonRpcEngine();
-    let originalReq: JsonRpcRequest<unknown>;
+    let originalReq: JsonRpcRequest;
 
     subengine.push(function (req, res, _next, end) {
       originalReq = req;
@@ -39,7 +39,7 @@ describe('asMiddleware', () => {
   it('decorate res', async () => {
     const engine = new JsonRpcEngine();
     const subengine = new JsonRpcEngine();
-    let originalReq: JsonRpcRequest<unknown>;
+    let originalReq: JsonRpcRequest;
 
     subengine.push(function (req, res, _next, end) {
       originalReq = req;
@@ -67,7 +67,7 @@ describe('asMiddleware', () => {
   it('decorate req', async () => {
     const engine = new JsonRpcEngine();
     const subengine = new JsonRpcEngine();
-    let originalReq: JsonRpcRequest<unknown>;
+    let originalReq: JsonRpcRequest;
 
     subengine.push(function (req, res, _next, end) {
       originalReq = req;
@@ -138,8 +138,12 @@ describe('asMiddleware', () => {
       engine.handle(payload, function (err, res) {
         expect(err).toBeNull();
         expect(res).toBeDefined();
-        assertIsJsonRpcSuccess(res);
-        expect(res.result).toStrictEqual((res as any).copy);
+
+        // @ts-expect-error - `copy` is not a valid property of `JsonRpcSuccess`.
+        const { copy, ...rest } = res;
+        assertIsJsonRpcSuccess(rest);
+
+        expect(rest.result).toStrictEqual(copy);
         resolve();
       });
     });
@@ -168,8 +172,12 @@ describe('asMiddleware', () => {
       engine.handle(payload, function (err, res) {
         expect(err).toBeNull();
         expect(res).toBeDefined();
-        assertIsJsonRpcSuccess(res);
-        expect(res.result).toStrictEqual((res as any).copy);
+
+        // @ts-expect-error - `copy` is not a valid property of `JsonRpcSuccess`.
+        const { copy, ...rest } = res;
+        assertIsJsonRpcSuccess(rest);
+
+        expect(rest.result).toStrictEqual(copy);
         resolve();
       });
     });

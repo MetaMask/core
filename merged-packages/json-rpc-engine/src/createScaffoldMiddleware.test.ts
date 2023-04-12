@@ -1,6 +1,8 @@
 import {
   assertIsJsonRpcSuccess,
   assertIsJsonRpcFailure,
+  JsonRpcParams,
+  Json,
 } from '@metamask/utils';
 import { ethErrors } from 'eth-rpc-errors';
 import { JsonRpcEngine, createScaffoldMiddleware, JsonRpcMiddleware } from '.';
@@ -11,7 +13,7 @@ describe('createScaffoldMiddleware', () => {
 
     const scaffold: Record<
       string,
-      string | JsonRpcMiddleware<unknown, unknown>
+      string | JsonRpcMiddleware<JsonRpcParams, Json>
     > = {
       method1: 'foo',
       method2: (_req, res, _next, end) => {
