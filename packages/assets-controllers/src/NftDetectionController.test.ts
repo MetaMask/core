@@ -2,11 +2,25 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
-import { NftController } from './NftController';
+import {
+  AcceptRequest as AcceptApprovalRequest,
+  AddApprovalRequest,
+  RejectRequest as RejectApprovalRequest,
+} from '@metamask/approval-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
+import { NftController, NftControllerMessenger } from './NftController';
+
 import { AssetsContractController } from './AssetsContractController';
 import { NftDetectionController } from './NftDetectionController';
 
 const DEFAULT_INTERVAL = 180000;
+
+type ApprovalActions =
+  | AddApprovalRequest
+  | AcceptApprovalRequest
+  | RejectApprovalRequest;
+
+const controllerName = 'NftController' as const;
 
 describe('NftDetectionController', () => {
   let nftDetection: NftDetectionController;
@@ -22,6 +36,18 @@ describe('NftDetectionController', () => {
   afterAll(() => {
     nock.enableNetConnect();
   });
+
+  const messenger = new ControllerMessenger<
+    ApprovalActions,
+    never
+  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
+    name: controllerName,
+    allowedActions: [
+      'ApprovalController:addRequest',
+      'ApprovalController:acceptRequest',
+      'ApprovalController:rejectRequest',
+    ],
+  }) as NftControllerMessenger;
 
   beforeEach(async () => {
     preferences = new PreferencesController();
@@ -45,7 +71,10 @@ describe('NftDetectionController', () => {
         assetsContract.getERC1155BalanceOf.bind(assetsContract),
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
+      getTokenStandardAndDetails:
+        assetsContract.getTokenStandardAndDetails.bind(assetsContract),
       onNftAdded: jest.fn(),
+      messenger,
     });
 
     nftDetection = new NftDetectionController({

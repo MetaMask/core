@@ -1,14 +1,23 @@
 import { EventEmitter } from 'events';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
+import { isAddress } from '@ethersproject/address';
 import { Mutex } from 'async-mutex';
 import type { Hex } from '@metamask/utils';
+import { v4 as random } from 'uuid';
+import { ethErrors } from 'eth-rpc-errors';
 import {
   BaseController,
   BaseConfig,
   BaseState,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { NetworkState } from '@metamask/network-controller';
+import {
+  AcceptRequest as AcceptApprovalRequest,
+  AddApprovalRequest,
+  RejectRequest as RejectApprovalRequest,
+} from '@metamask/approval-controller';
 import {
   safelyExecute,
   handleFetch,
@@ -20,6 +29,8 @@ import {
   ERC1155,
   OPENSEA_API_URL,
   OPENSEA_PROXY_URL,
+  ORIGIN_METAMASK,
+  ApprovalType,
 } from '@metamask/controller-utils';
 import type {
   ApiNft,
@@ -28,7 +39,28 @@ import type {
   ApiNftLastSale,
 } from './NftDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
-import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
+import {
+  SuggestedAssetStatus,
+  compareNftMetadata,
+  getFormattedIpfsUrl,
+} from './assetsUtil';
+
+type SuggestedNftMeta = {
+  asset: {
+    address: string;
+    tokenId: string;
+    name?: string;
+    description?: string;
+    image?: string;
+    standard?: string;
+    tokenUri?: string;
+  };
+  id: string;
+  status: SuggestedAssetStatus;
+  time: number;
+  type: 'ERC721' | 'ERC1155';
+  interactingAddress: string;
+};
 
 /**
  * @type Nft
@@ -54,7 +86,6 @@ import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
 export interface Nft extends NftMetadata {
   tokenId: string;
   address: string;
-  isCurrentlyOwned?: boolean;
 }
 
 /**
@@ -108,6 +139,7 @@ export interface NftMetadata {
   description: string | null;
   image: string | null;
   standard: string | null;
+  tokenUri?: string;
   favorite?: boolean;
   numberOfSales?: number;
   backgroundColor?: string;
@@ -120,6 +152,8 @@ export interface NftMetadata {
   creator?: ApiNftCreator;
   lastSale?: ApiNftLastSale;
   transactionId?: string;
+  isCurrentlyOwned?: boolean;
+  isWatched?: boolean;
 }
 
 interface AccountParams {
@@ -155,16 +189,48 @@ export interface NftState extends BaseState {
   };
   allNfts: { [key: string]: { [chainId: Hex]: Nft[] } };
   ignoredNfts: Nft[];
+  suggestedNfts: SuggestedNftMeta[];
 }
 
 const ALL_NFTS_STATE_KEY = 'allNfts';
 const ALL_NFTS_CONTRACTS_STATE_KEY = 'allNftContracts';
+
+interface NftAsset {
+  address: string;
+  tokenId: string;
+}
+
+/**
+ * The name of the {@link NftController}.
+ */
+const controllerName = 'NftController';
+
+/**
+ * The external actions available to the {@link NftController}.
+ */
+type AllowedActions =
+  | AddApprovalRequest
+  | AcceptApprovalRequest
+  | RejectApprovalRequest;
+
+/**
+ * The messenger of the {@link NftController}.
+ */
+export type NftControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AllowedActions,
+  never,
+  AllowedActions['type'],
+  never
+>;
 
 /**
  * Controller that stores assets and exposes convenience methods
  */
 export class NftController extends BaseController<NftConfig, NftState> {
   private mutex = new Mutex();
+
+  private messagingSystem: NftControllerMessenger;
 
   private getNftApi({
     contractAddress,
@@ -594,7 +660,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
       address = toChecksumHexAddress(address);
       const { allNfts } = this.state;
       let chainId, selectedAddress;
-
       if (detection) {
         chainId = detection.chainId;
         selectedAddress = detection.userAddress;
@@ -677,7 +742,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
     try {
       address = toChecksumHexAddress(address);
       const { allNftContracts } = this.state;
-
       let chainId, selectedAddress;
       if (detection) {
         chainId = detection.chainId;
@@ -697,7 +761,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
         return nftContracts;
       }
       const contractInformation = await this.getNftContractInformation(address);
-
       const {
         asset_contract_type,
         created_date,
@@ -708,6 +771,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         external_link,
         collection: { name, image_url },
       } = contractInformation;
+
       // If being auto-detected opensea information is expected
       // Otherwise at least name from the contract is needed
       if (
@@ -846,6 +910,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
   private getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
+  private getTokenStandardAndDetails: AssetsContractController['getTokenStandardAndDetails'];
+
   private onNftAdded?: (data: {
     address: string;
     symbol: string | undefined;
@@ -867,8 +933,10 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param options.getERC721OwnerOf - Get the owner of a ERC-721 NFT.
    * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 NFT.
    * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
+   * @param options.getTokenStandardAndDetails - Gets the standard and details of the token at the given address.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
    * for tracking the NFT added event.
+   * @param options.messenger - The controller messenger.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -883,7 +951,9 @@ export class NftController extends BaseController<NftConfig, NftState> {
       getERC721OwnerOf,
       getERC1155BalanceOf,
       getERC1155TokenURI,
+      getTokenStandardAndDetails,
       onNftAdded,
+      messenger,
     }: {
       chainId: Hex;
       onPreferencesStateChange: (
@@ -898,6 +968,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
       getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
       getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
+      getTokenStandardAndDetails: AssetsContractController['getTokenStandardAndDetails'];
       onNftAdded?: (data: {
         address: string;
         symbol: string | undefined;
@@ -905,6 +976,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         standard: string | null;
         source: string;
       }) => void;
+      messenger: NftControllerMessenger;
     },
     config?: Partial<BaseConfig>,
     state?: Partial<NftState>,
@@ -922,6 +994,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       allNftContracts: {},
       allNfts: {},
       ignoredNfts: [],
+      suggestedNfts: [],
     };
     this.initialize();
     this.getERC721AssetName = getERC721AssetName;
@@ -930,7 +1003,9 @@ export class NftController extends BaseController<NftConfig, NftState> {
     this.getERC721OwnerOf = getERC721OwnerOf;
     this.getERC1155BalanceOf = getERC1155BalanceOf;
     this.getERC1155TokenURI = getERC1155TokenURI;
+    this.getTokenStandardAndDetails = getTokenStandardAndDetails;
     this.onNftAdded = onNftAdded;
+    this.messagingSystem = messenger;
 
     onPreferencesStateChange(
       ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
@@ -942,6 +1017,247 @@ export class NftController extends BaseController<NftConfig, NftState> {
       const { chainId } = providerConfig;
       this.configure({ chainId });
     });
+  }
+
+  /**
+   * Accepts a suggested asset and adds it to state. A `<suggestedNftMeta.id>:finished` hub event will be emitted once added.
+   *
+   * @param suggestedNftId - The ID of the suggested asset.
+   * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
+   */
+  async acceptWatchNft(suggestedNftId: string) {
+    const { suggestedNfts } = this.state;
+    const { selectedAddress, chainId } = this.config;
+    const suggestedNftMeta = suggestedNfts.find(
+      ({ id }) => id === suggestedNftId,
+    );
+    if (!suggestedNftMeta) {
+      throw new Error(`Suggested asset with ID "${suggestedNftId}" not found.`);
+    }
+    const { asset, interactingAddress } = suggestedNftMeta;
+    const { address, tokenId, standard, name, description, image, tokenUri } =
+      asset;
+
+    try {
+      const existingNft = this.findNftByAddressAndTokenId(
+        address,
+        tokenId,
+        chainId,
+        interactingAddress ?? selectedAddress,
+      );
+
+      if (existingNft) {
+        throw new Error(
+          `NFT with address "${address}" and token ID "${tokenId}" already exists.`,
+        );
+      }
+      const isOwned = await this.isNftOwner(
+        interactingAddress ?? selectedAddress,
+        address,
+        tokenId,
+      );
+
+      await this.addNft(
+        address,
+        tokenId,
+        {
+          name: name ?? null,
+          description: description ?? null,
+          image: image ?? null,
+          standard: standard ?? null,
+          isCurrentlyOwned: isOwned,
+          isWatched: !isOwned, // if the user is not the owner, we are watching it
+          tokenUri,
+        },
+        // this argument was previously used for ensuring that detected NFTs were
+        // added to the correct account/chainId combination. Now that we are
+        // since suggestedNfts include an interactingAddress, we use this 'detection'
+        // bucket with this value.
+        { userAddress: interactingAddress ?? selectedAddress, chainId },
+      );
+
+      this._acceptApproval(suggestedNftId);
+    } catch (error) {
+      this.failSuggestedNft(suggestedNftMeta, error);
+      this._rejectApproval(suggestedNftId);
+    }
+
+    const acceptedSuggestedNftMeta = {
+      ...suggestedNftMeta,
+      status: SuggestedAssetStatus.accepted,
+    };
+    this.hub.emit(`${suggestedNftId}:finished`, acceptedSuggestedNftMeta);
+
+    const newSuggestedNfts = suggestedNfts.filter(
+      ({ id }) => id !== suggestedNftId,
+    );
+    this.update({ suggestedNfts: [...newSuggestedNfts] });
+  }
+
+  /**
+   * Adds a new suggestedAsset to state. Parameters will be validated according to
+   * asset type being watched. A `<suggestedNftMeta.id>:pending` hub event will be emitted once added.
+   *
+   * @param asset - The asset to be watched. For now ERC721 and ERC1155 tokens are accepted.
+   * @param asset.address - The address of the asset contract.
+   * @param asset.tokenId - The ID of the asset.
+   * @param type - The asset type.
+   * @param interactingAddress - The address of the account that is requesting to watch the asset.
+   * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
+   */
+  async watchNft(
+    asset: NftAsset,
+    type: 'ERC721' | 'ERC1155',
+    interactingAddress?: string,
+  ) {
+    const { selectedAddress, chainId } = this.config;
+    const suggestedNftMeta: SuggestedNftMeta = {
+      asset,
+      type,
+      id: random(),
+      status: SuggestedAssetStatus.pending,
+      time: Date.now(),
+      interactingAddress: interactingAddress || selectedAddress,
+    };
+
+    const { address, tokenId } = asset;
+
+    // Validate parameters
+    if (!type) {
+      throw ethErrors.rpc.invalidParams('Asset type is required');
+    }
+
+    if (type !== 'ERC721' && type !== 'ERC1155') {
+      throw ethErrors.rpc.invalidParams(
+        `Non NFT asset type ${type} not supported by watchNft`,
+      );
+    }
+
+    if (!address || !tokenId) {
+      throw ethErrors.rpc.invalidParams(
+        'Both address and tokenId are required',
+      );
+    }
+
+    if (!isAddress(address)) {
+      throw ethErrors.rpc.invalidParams('Invalid address');
+    }
+
+    if (!/^\d+$/u.test(tokenId)) {
+      throw ethErrors.rpc.invalidParams('Invalid tokenId');
+    }
+
+    // Check if the suggested NFT is already pending
+    if (
+      this.state.suggestedNfts.find(
+        ({
+          asset: { address: suggestedAddress, tokenId: suggestedTokenId },
+        }) => {
+          return (
+            suggestedAddress === asset.address &&
+            suggestedTokenId === asset.tokenId
+          );
+        },
+      )
+    ) {
+      throw ethErrors.rpc.internal('Suggested NFT already pending');
+    }
+
+    // Check if the suggested NFT is already being watched by the selected account
+    if (
+      this.state.allNfts?.[selectedAddress]?.[chainId].find(
+        ({ address: watchedAssetAddress, tokenId: watchedAssetTokenId }) => {
+          return (
+            watchedAssetAddress === asset.address &&
+            watchedAssetTokenId === asset.tokenId
+          );
+        },
+      )
+    ) {
+      throw ethErrors.rpc.internal(
+        'Suggested NFT is already watched by the selected account',
+      );
+    }
+
+    let nftMetaData;
+    try {
+      nftMetaData = await this.getTokenStandardAndDetails(
+        asset.address,
+        undefined,
+        asset.tokenId,
+      );
+    } catch (error) {
+      this.failSuggestedNft(suggestedNftMeta, error);
+      throw ethErrors.rpc.internal(
+        `Failed to fetch NFT metadata: ${error}. Make sure the NFT is on the currently selected network.`,
+      );
+    }
+
+    if (nftMetaData?.standard === 'ERC20') {
+      throw new Error(
+        'Suggested asset does not match a supported token standard for this controller',
+      );
+    }
+
+    const result = new Promise((resolve, reject) => {
+      this.hub.once(`${suggestedNftMeta.id}:finished`, (meta) => {
+        switch (meta.status) {
+          case SuggestedAssetStatus.accepted:
+            return resolve(meta.asset.address);
+          case SuggestedAssetStatus.rejected:
+            return reject(new Error('User rejected to watch the asset.'));
+          case SuggestedAssetStatus.failed:
+            return reject(new Error(meta.error.message));
+          default:
+            return reject(new Error(`Unknown status: ${meta.status}`));
+        }
+      });
+    });
+
+    const { suggestedNfts } = this.state;
+    suggestedNftMeta.asset = { ...asset, ...nftMetaData };
+    suggestedNfts.push(suggestedNftMeta);
+    this.update({ suggestedNfts: [...suggestedNfts] });
+    this._requestApproval(suggestedNftMeta);
+    return { result, suggestedNftMeta };
+  }
+
+  /**
+   * Handles the failing of a suggested asset by setting its status to "failed"
+   * and emitting a `<suggestedAssetMeta.id>:finished` hub event.
+   *
+   * @param suggestedNftMeta - The SuggestedNftMeta object to fail.
+   * @param error - The error that caused the failure.
+   */
+  failSuggestedNft(suggestedNftMeta: SuggestedNftMeta, error: unknown): void {
+    const failedSuggestedNftMeta = {
+      ...suggestedNftMeta,
+      status: SuggestedAssetStatus.failed,
+      error,
+    };
+    this.hub.emit(`${suggestedNftMeta.id}:finished`, failedSuggestedNftMeta);
+  }
+
+  rejectWatchNft(suggestedNftId: string): void {
+    const { suggestedNfts } = this.state;
+
+    const suggestedNftMeta = suggestedNfts.find(
+      ({ id }) => id === suggestedNftId,
+    );
+    if (!suggestedNftMeta) {
+      throw ethErrors.rpc.invalidParams('Suggested NFT not found');
+    }
+    const rejectedSuggestedNftMeta = {
+      ...suggestedNftMeta,
+      status: SuggestedAssetStatus.rejected,
+    };
+    this.hub.emit(`${suggestedNftMeta.id}:finished`, rejectedSuggestedNftMeta);
+    const newSuggestedNfts = suggestedNfts.filter(
+      ({ id }) => id !== suggestedNftId,
+    );
+    this.update({ suggestedNfts: [...newSuggestedNfts] });
+
+    this._rejectApproval(suggestedNftMeta.id);
   }
 
   /**
@@ -1306,6 +1622,60 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     this.updateNestedNftState(newNfts, ALL_NFTS_STATE_KEY);
     return true;
+  }
+
+  _requestApproval(
+    suggestedNftMeta: SuggestedNftMeta & {
+      interactingAddress: string;
+    },
+  ) {
+    this.messagingSystem
+      .call(
+        'ApprovalController:addRequest',
+        {
+          id: suggestedNftMeta.id,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: suggestedNftMeta.id,
+            interactingAddress: suggestedNftMeta.interactingAddress,
+            asset: {
+              address: suggestedNftMeta.asset.address,
+              tokenId: suggestedNftMeta.asset.tokenId,
+            },
+          },
+        },
+        true,
+      )
+      .catch(() => {
+        // Intentionally ignored as promise not currently used
+      });
+  }
+
+  _acceptApproval(approvalRequestId: string) {
+    try {
+      this.messagingSystem.call(
+        'ApprovalController:acceptRequest',
+        approvalRequestId,
+      );
+    } catch (error) {
+      console.error('Failed to accept token watch approval request', error);
+    }
+  }
+
+  _rejectApproval(approvalRequestId: string) {
+    try {
+      this.messagingSystem.call(
+        'ApprovalController:rejectRequest',
+        approvalRequestId,
+        new Error('Rejected'),
+      );
+    } catch (messageCallError) {
+      console.error(
+        'Failed to reject token watch approval request',
+        messageCallError,
+      );
+    }
   }
 }
 
