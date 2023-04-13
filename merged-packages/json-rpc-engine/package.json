@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-engine",
-  "version": "6.1.0",
+  "version": "7.0.0",
   "description": "A tool for processing JSON-RPC messages.",
   "homepage": "https://github.com/MetaMask/json-rpc-engine#readme",
   "bugs": {
