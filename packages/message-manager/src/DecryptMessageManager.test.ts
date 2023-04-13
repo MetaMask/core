@@ -163,7 +163,7 @@ describe('DecryptMessageManager', () => {
         from,
         data: dataMock,
       }),
-    ).rejects.toThrow(`Invalid address: ${from} must be a valid string.`);
+    ).rejects.toThrow(`Invalid "from" address: ${from} must be a valid string.`);
   });
 
   it('gets correct unapproved messages', async () => {

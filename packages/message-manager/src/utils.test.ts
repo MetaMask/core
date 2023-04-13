@@ -18,7 +18,7 @@ describe('utils', () => {
         util.validateSignMessageData({
           data: '0x879a05',
         } as any),
-      ).toThrow(`Invalid address: undefined must be a valid string.`);
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
 
     it('should throw if invalid from address', () => {
@@ -28,7 +28,7 @@ describe('utils', () => {
           data: '0x879a05',
           from,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if invalid type from address', () => {
@@ -38,7 +38,7 @@ describe('utils', () => {
           data: '0x879a05',
           from,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if no data', () => {
@@ -46,7 +46,7 @@ describe('utils', () => {
         util.validateSignMessageData({
           data: '0x879a05',
         } as any),
-      ).toThrow(`Invalid address: undefined must be a valid string.`);
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
 
     it('should throw if invalid tyoe data', () => {
@@ -65,7 +65,7 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV1({
           data: [],
         } as any),
-      ).toThrow(`Invalid address: undefined must be a valid string.`);
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
 
     it('should throw if invalid from address', () => {
@@ -75,7 +75,7 @@ describe('utils', () => {
           data: [],
           from,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if invalid type from address', () => {
@@ -85,7 +85,7 @@ describe('utils', () => {
           data: [],
           from,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if incorrect data', () => {
@@ -124,7 +124,7 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV3({
           data: '0x879a05',
         } as any),
-      ).toThrow(`Invalid address: undefined must be a valid string.`);
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
 
     it('should throw if invalid from address', () => {
@@ -134,7 +134,7 @@ describe('utils', () => {
           data: '0x879a05',
           from,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if invalid type from address', () => {
@@ -144,7 +144,7 @@ describe('utils', () => {
           data: '0x879a05',
           from: 123,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if array data', () => {
@@ -196,7 +196,7 @@ describe('utils', () => {
     it('should throw if no from address', () => {
       expect(() =>
         util.validateEncryptionPublicKeyMessageData({} as any),
-      ).toThrow(`Invalid address: undefined must be a valid string.`);
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
 
     it('should throw if invalid from address', () => {
@@ -205,7 +205,7 @@ describe('utils', () => {
         util.validateEncryptionPublicKeyMessageData({
           from,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if invalid type from address', () => {
@@ -214,7 +214,7 @@ describe('utils', () => {
         util.validateEncryptionPublicKeyMessageData({
           from: 123,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should not throw if from address is correct', () => {
@@ -229,7 +229,7 @@ describe('utils', () => {
   describe('validateDecryptedMessageData', () => {
     it('should throw if no from address', () => {
       expect(() => util.validateDecryptedMessageData({} as any)).toThrow(
-        'Invalid address: undefined must be a valid string.',
+        'Invalid "from" address: undefined must be a valid string.',
       );
     });
 
@@ -239,7 +239,7 @@ describe('utils', () => {
         util.validateDecryptedMessageData({
           from,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if invalid type from address', () => {
@@ -248,7 +248,7 @@ describe('utils', () => {
         util.validateDecryptedMessageData({
           from,
         } as any),
-      ).toThrow(`Invalid address: ${from} must be a valid string.`);
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should not throw if from address is correct', () => {

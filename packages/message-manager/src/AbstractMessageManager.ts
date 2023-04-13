@@ -23,6 +23,7 @@ export interface OriginalRequest {
  * @property id - An id to track and identify the message object
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'Message' which always has a signing type
+ * @property rawSig - Raw data of the signature request
  * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
  */
 export interface AbstractMessage {
@@ -32,7 +33,6 @@ export interface AbstractMessage {
   type: string;
   rawSig?: string;
   securityProviderResponse?: Map<string, Json>;
-  error?: string;
 }
 
 /**
@@ -298,15 +298,15 @@ export abstract class AbstractMessageManager<
    * Sets the message result.
    *
    * @param messageId - The id of the Message to sign.
-   * @param rawSig - The data to update rawSig in the message.
+   * @param result - The data to update result in the message.
    */
-  setResult(messageId: string, rawSig: string) {
+  setResult(messageId: string, result: string) {
     const message = this.getMessage(messageId);
     /* istanbul ignore if */
     if (!message) {
       return;
     }
-    message.rawSig = rawSig;
+    message.rawSig = result;
     this.updateMessage(message);
   }
 
