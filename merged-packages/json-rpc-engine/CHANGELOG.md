@@ -5,20 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
-## [7.0.0]
 ### Added
-- Added JSON-RPC notification handling ([#104](https://github.com/MetaMask/json-rpc-engine/pull/104))
-- Added `destroy` method ([#106](https://github.com/MetaMask/json-rpc-engine/pull/106))
+- `isJsonRpcSuccess` and `isJsonRpcFailure` type guard utilities ([#91](https://github.com/MetaMask/json-rpc-engine/pull/91))
+- JSON-RPC ID validation utility and type guard, via `getJsonRpcIdValidator` ([#91](https://github.com/MetaMask/json-rpc-engine/pull/91))
 
 ### Changed
-- **BREAKING:** Require a minimum Node version of 16 ([#139](https://github.com/MetaMask/json-rpc-engine/pull/139))
-- **BREAKING:** Use `@metamask/utils` types ([#105](https://github.com/MetaMask/json-rpc-engine/pull/105))
-  - The JSON-RPC engine and all middleware now use `@metamask/utils` JSON-RPC types
 - **(BREAKING)** Return a `null` instead of `undefined` response `id` for malformed request objects ([#91](https://github.com/MetaMask/json-rpc-engine/pull/91))
   - This is very unlikely to be breaking in practice, but the behavior could have been relied on.
-- Change package name to `@metamask/json-rpc-engine` ([#139](https://github.com/MetaMask/json-rpc-engine/pull/139))
-- Use `@metamask/rpc-errors` ([#138](https://github.com/MetaMask/json-rpc-engine/pull/138))
 
 ## [6.1.0] - 2020-11-20
 ### Added
@@ -66,8 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/json-rpc-engine/compare/v7.0.0...HEAD
-[7.0.0]: https://github.com/MetaMask/json-rpc-engine/compare/v6.1.0...v7.0.0
+[Unreleased]: https://github.com/MetaMask/json-rpc-engine/compare/v6.1.0...HEAD
 [6.1.0]: https://github.com/MetaMask/json-rpc-engine/compare/v6.0.0...v6.1.0
 [6.0.0]: https://github.com/MetaMask/json-rpc-engine/compare/v5.4.0...v6.0.0
 [5.4.0]: https://github.com/MetaMask/json-rpc-engine/compare/v5.3.0...v5.4.0
