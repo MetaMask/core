@@ -13,10 +13,13 @@ const hexRe = /^[0-9A-Fa-f]+$/gu;
  * Validates an address string and throws in the event of any validation error.
  *
  * @param address - The address to validate.
+ * @param propertyName - The name of the property source to use in the error message.
  */
 function validateAddress(address: string, propertyName: string) {
   if (!address || typeof address !== 'string' || !isValidHexAddress(address)) {
-    throw new Error(`Invalid "${propertyName}" address: ${address} must be a valid string.`);
+    throw new Error(
+      `Invalid "${propertyName}" address: ${address} must be a valid string.`,
+    );
   }
 }
 
@@ -49,7 +52,7 @@ export function validateSignMessageData(
   messageData: PersonalMessageParams | MessageParams,
 ) {
   const { from, data } = messageData;
-  validateAddress(from, "from");
+  validateAddress(from, 'from');
 
   if (!data || typeof data !== 'string') {
     throw new Error(`Invalid message "data": ${data} must be a valid string.`);
@@ -65,7 +68,7 @@ export function validateSignMessageData(
 export function validateTypedSignMessageDataV1(
   messageData: TypedMessageParams,
 ) {
-  validateAddress(messageData.from, "from");
+  validateAddress(messageData.from, 'from');
 
   if (!messageData.data || !Array.isArray(messageData.data)) {
     throw new Error(
@@ -90,7 +93,7 @@ export function validateTypedSignMessageDataV1(
 export function validateTypedSignMessageDataV3(
   messageData: TypedMessageParams,
 ) {
-  validateAddress(messageData.from, "from");
+  validateAddress(messageData.from, 'from');
 
   if (!messageData.data || typeof messageData.data !== 'string') {
     throw new Error(
@@ -121,7 +124,7 @@ export function validateEncryptionPublicKeyMessageData(
   messageData: EncryptionPublicKeyParams,
 ) {
   const { from } = messageData;
-  validateAddress(from, "from");
+  validateAddress(from, 'from');
 }
 
 /**
@@ -134,5 +137,5 @@ export function validateDecryptedMessageData(
   messageData: DecryptMessageParams,
 ) {
   const { from } = messageData;
-  validateAddress(from, "from");
+  validateAddress(from, 'from');
 }
