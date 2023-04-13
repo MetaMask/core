@@ -1,7 +1,8 @@
+import { errorCodes, JsonRpcError, serializeError } from '@metamask/rpc-errors';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import {
   hasProperty,
-  JsonRpcError,
+  JsonRpcError as SerializedJsonRpcError,
   JsonRpcRequest,
   JsonRpcResponse,
   JsonRpcNotification,
@@ -10,9 +11,8 @@ import {
   JsonRpcParams,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import { errorCodes, EthereumRpcError, serializeError } from 'eth-rpc-errors';
 
-export type JsonRpcEngineCallbackError = Error | JsonRpcError | null;
+export type JsonRpcEngineCallbackError = Error | SerializedJsonRpcError | null;
 
 export type JsonRpcEngineReturnHandler = (
   done: (error?: JsonRpcEngineCallbackError) => void,
@@ -357,7 +357,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       Array.isArray(callerReq) ||
       typeof callerReq !== 'object'
     ) {
-      const error = new EthereumRpcError(
+      const error = new JsonRpcError(
         errorCodes.rpc.invalidRequest,
         `Requests must be plain objects. Received: ${typeof callerReq}`,
         { request: callerReq },
@@ -366,7 +366,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     }
 
     if (typeof callerReq.method !== 'string') {
-      const error = new EthereumRpcError(
+      const error = new JsonRpcError(
         errorCodes.rpc.invalidRequest,
         `Must specify a string method. Received: ${typeof callerReq.method}`,
         { request: callerReq as Json },
@@ -420,7 +420,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       // Ensure no result is present on an errored response
       delete res.result;
       if (!res.error) {
-        res.error = serializeError(error) as JsonRpcError;
+        res.error = serializeError(error);
       }
     }
 
@@ -521,7 +521,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       const end: JsonRpcEngineEndCallback = (error?: unknown) => {
         const parsedError = error || response.error;
         if (parsedError) {
-          response.error = serializeError(parsedError) as JsonRpcError;
+          response.error = serializeError(parsedError);
         }
         // True indicates that the request should end
         resolve([parsedError, true]);
@@ -536,13 +536,13 @@ export class JsonRpcEngine extends SafeEventEmitter {
           if (returnHandler) {
             if (typeof returnHandler !== 'function') {
               end(
-                new EthereumRpcError(
+                new JsonRpcError(
                   errorCodes.rpc.internal,
                   `JsonRpcEngine: "next" return handlers must be functions. ` +
                     `Received "${typeof returnHandler}" for request:\n${jsonify(
                       request,
                     )}`,
-                  { request },
+                  { request: request as Json },
                 ),
               );
             }
@@ -582,31 +582,31 @@ export class JsonRpcEngine extends SafeEventEmitter {
    * Throws an error if the response has neither a result nor an error, or if
    * the "isComplete" flag is falsy.
    *
-   * @param req - The request object.
-   * @param res - The response object.
+   * @param request - The request object.
+   * @param response - The response object.
    * @param isComplete - Boolean from {@link JsonRpcEngine.#runAllMiddleware}
    * indicating whether a middleware ended the request.
    */
   static #checkForCompletion(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse<Json>,
+    request: JsonRpcRequest,
+    response: PendingJsonRpcResponse<Json>,
     isComplete: boolean,
   ): void {
-    if (!hasProperty(res, 'result') && !hasProperty(res, 'error')) {
-      throw new EthereumRpcError(
+    if (!hasProperty(response, 'result') && !hasProperty(response, 'error')) {
+      throw new JsonRpcError(
         errorCodes.rpc.internal,
         `JsonRpcEngine: Response has no error or result for request:\n${jsonify(
-          req,
+          request,
         )}`,
-        { request: req },
+        { request: request as Json },
       );
     }
 
     if (!isComplete) {
-      throw new EthereumRpcError(
+      throw new JsonRpcError(
         errorCodes.rpc.internal,
-        `JsonRpcEngine: Nothing ended request:\n${jsonify(req)}`,
-        { request: req },
+        `JsonRpcEngine: Nothing ended request:\n${jsonify(request)}`,
+        { request: request as Json },
       );
     }
   }

@@ -1,3 +1,4 @@
+import { rpcErrors } from '@metamask/rpc-errors';
 import {
   assertIsJsonRpcSuccess,
   assertIsJsonRpcFailure,
@@ -6,7 +7,6 @@ import {
   JsonRpcParams,
   Json,
 } from '@metamask/utils';
-import { ethErrors } from 'eth-rpc-errors';
 
 import { JsonRpcEngine, JsonRpcMiddleware } from '.';
 
@@ -284,7 +284,7 @@ describe('JsonRpcEngine', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(function (_request, response, next, _end) {
-      response.error = ethErrors.rpc.internal({ message: 'foobar' });
+      response.error = rpcErrors.internal({ message: 'foobar' });
       next();
     });
 
@@ -305,7 +305,7 @@ describe('JsonRpcEngine', () => {
     const engine = new JsonRpcEngine();
 
     engine.push(function (_request, response, _next, end) {
-      response.error = ethErrors.rpc.internal({ message: 'foobar' });
+      response.error = rpcErrors.internal({ message: 'foobar' });
       end();
     });
 
@@ -367,7 +367,7 @@ describe('JsonRpcEngine', () => {
     engine.push(function (request, response, _next, end) {
       if (request.id === 4) {
         delete response.result;
-        response.error = ethErrors.rpc.internal({ message: 'foobar' });
+        response.error = rpcErrors.internal({ message: 'foobar' });
         return end(response.error);
       }
       response.result = request.id;
@@ -402,7 +402,7 @@ describe('JsonRpcEngine', () => {
     engine.push(function (request, response, _next, end) {
       if (request.id === 4) {
         delete response.result;
-        response.error = ethErrors.rpc.internal({ message: 'foobar' });
+        response.error = rpcErrors.internal({ message: 'foobar' });
         return end(response.error);
       }
       response.result = request.id;
