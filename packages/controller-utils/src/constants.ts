@@ -84,3 +84,40 @@ export const OPENSEA_PROXY_URL =
   'https://proxy.metafi.codefi.network/opensea/v1/api/v1';
 export const OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
 export const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
+
+/**
+ * Approval request types for various operations.
+ * These types are used by different controllers to create and manage
+ * approval requests consistently.
+ */
+export const APPROVAL_TYPES = {
+  ADD_ETHEREUM_CHAIN: 'wallet_addEthereumChain',
+  ETH_ACCOUNTS: 'eth_accounts',
+  ETH_DECRYPT: 'eth_decrypt',
+  ETH_GET_ENCRYPTION_PUBLIC_KEY: 'eth_getEncryptionPublicKey',
+  ETH_REQUEST_ACCOUNTS: 'eth_requestAccounts',
+  ETH_SIGN: 'eth_sign',
+  ETH_SIGN_TYPED_DATA: 'eth_signTypedData',
+  ETH_SIGN_TYPED_DATA_V3: 'eth_signTypedData_v3',
+  ETH_SIGN_TYPED_DATA_V4: 'eth_signTypedData_v4',
+  GET_PROVIDER_STATE: 'metamask_getProviderState',
+  LOG_WEB3_SHIM_USAGE: 'metamask_logWeb3ShimUsage',
+  PERSONAL_SIGN: 'personal_sign',
+  SEND_METADATA: 'metamask_sendDomainMetadata',
+  SWITCH_ETHEREUM_CHAIN: 'wallet_switchEthereumChain',
+  WALLET_REQUEST_PERMISSIONS: 'wallet_requestPermissions',
+  WATCH_ASSET: 'wallet_watchAsset',
+  WATCH_ASSET_LEGACY: 'metamask_watchAsset',
+  SNAP_DIALOG_ALERT: 'snap_dialog:alert',
+  SNAP_DIALOG_CONFIRMATION: 'snap_dialog:confirmation',
+  SNAP_DIALOG_PROMPT: 'snap_dialog:prompt',
+  MMI_AUTHENTICATE: 'metamaskinstitutional_authenticate',
+  MMI_REAUTHENTICATE: 'metamaskinstitutional_reauthenticate',
+  MMI_REFRESH_TOKEN: 'metamaskinstitutional_refresh_token',
+  MMI_SUPPORTED: 'metamaskinstitutional_supported',
+  MMI_PORTFOLIO: 'metamaskinstitutional_portfolio',
+  MMI_OPEN_SWAPS: 'metamaskinstitutional_open_swaps',
+  MMI_CHECK_IF_TOKEN_IS_PRESENT: 'metamaskinstitutional_checkIfTokenIsPresent',
+  MMI_SET_ACCOUNT_AND_NETWORK: 'metamaskinstitutional_setAccountAndNetwork',
+  MMI_OPEN_ADD_HARDWARE_WALLET: 'metamaskinstitutional_openAddHardwareWallet',
+} as const;
