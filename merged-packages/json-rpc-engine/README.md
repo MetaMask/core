@@ -1,11 +1,11 @@
-# json-rpc-engine
+# `@metamask/json-rpc-engine`
 
 A tool for processing JSON-RPC requests and responses.
 
 ## Usage
 
 ```js
-const { JsonRpcEngine } = require('json-rpc-engine');
+const { JsonRpcEngine } = require('@metamask/json-rpc-engine');
 
 const engine = new JsonRpcEngine();
 ```
@@ -78,7 +78,7 @@ engine.push(subengine.asMiddleware());
 If you require your middleware function to be `async`, use `createAsyncMiddleware`:
 
 ```js
-const { createAsyncMiddleware } = require('json-rpc-engine');
+const { createAsyncMiddleware } = require('@metamask/json-rpc-engine');
 
 let engine = new RpcEngine();
 engine.push(
