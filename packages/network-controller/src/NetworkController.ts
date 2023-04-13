@@ -363,8 +363,10 @@ export class NetworkController extends BaseControllerV2<
     }, 500);
   }
 
-  private verifyNetwork() {
-    this.state.network === 'loading' && this.lookupNetwork();
+  private async verifyNetwork() {
+    if (this.state.network === 'loading') {
+      await this.lookupNetwork();
+    }
   }
 
   /**
