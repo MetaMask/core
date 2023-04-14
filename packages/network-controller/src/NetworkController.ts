@@ -449,7 +449,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param type - Human readable network name.
    */
-  setProviderType(type: NetworkType) {
+  async setProviderType(type: NetworkType) {
     this.#setCurrentAsPreviousProvider();
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
@@ -466,7 +466,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.nickname = undefined;
       state.providerConfig.id = undefined;
     });
-    this.refreshNetwork();
+    await this.refreshNetwork();
   }
 
   /**
