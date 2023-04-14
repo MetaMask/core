@@ -3906,41 +3906,15 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeMetamaskProvider = buildFakeMetamaskProvider([
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  // first network is not EIP1559 compatible
-                  result: {},
-                },
-              },
-              {
-                request: {
-                  method: 'eth_getBlockByNumber',
-                  params: ['latest', false],
-                },
-                response: {
-                  // second network is EIP1559 compatible
-                  result: {
-                    baseFeePerGas: '0x1',
-                  },
-                },
-              },
-            ]);
+            const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             await controller.initializeProvider();
             const { provider: providerBefore } =
               controller.getProviderAndBlockTracker();
-            await waitForStateChanges(messenger, {
-              propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-              produceStateChanges: () => {
-                controller.resetConnection();
-              },
-            });
+
+            controller.resetConnection();
+
             const { provider: providerAfter } =
               controller.getProviderAndBlockTracker();
             expect(providerBefore).toBe(providerAfter);
