@@ -175,7 +175,7 @@ export class ApprovalController extends BaseControllerV2<
 > {
   private _approvals: Map<string, ApprovalCallbacks>;
 
-  private _origins: Map<string, Set<string>>;
+  private _origins: Map<string, Map<string, number>>;
 
   private _showApprovalRequest: () => void;
 
@@ -339,11 +339,13 @@ export class ApprovalController extends BaseControllerV2<
     const { origin, type: _type } = opts;
 
     if (origin && _type) {
-      return Number(Boolean(this._origins.get(origin)?.has(_type)));
+      return this._origins.get(origin)?.get(_type) || 0;
     }
 
     if (origin) {
-      return this._origins.get(origin)?.size || 0;
+      return Array.from(
+        (this._origins.get(origin) || new Map()).values(),
+      ).reduce((total, value) => total + value, 0);
     }
 
     // Only "type" was specified
@@ -401,7 +403,7 @@ export class ApprovalController extends BaseControllerV2<
 
       // Check origin and type pair if type also specified
       if (_type) {
-        return Boolean(this._origins.get(origin)?.has(_type));
+        return Boolean(this._origins.get(origin)?.get(_type));
       }
       return this._origins.has(origin);
     }
@@ -495,7 +497,7 @@ export class ApprovalController extends BaseControllerV2<
 
     if (
       !this._typesExcludedFromRateLimiting.includes(type) &&
-      this._origins.get(origin)?.has(type)
+      this.has({ origin, type })
     ) {
       throw ethErrors.rpc.resourceUnavailable(
         getAlreadyPendingMessage(origin, type),
@@ -560,11 +562,13 @@ export class ApprovalController extends BaseControllerV2<
    * @param type - The type associated with the approval request.
    */
   private _addPendingApprovalOrigin(origin: string, type: string): void {
-    const originSet = this._origins.get(origin) || new Set();
-    originSet.add(type);
+    const originMap = this._origins.get(origin) || new Map();
+    const currentValue = originMap.get(type) || 0;
+
+    originMap.set(type, currentValue + 1);
 
     if (!this._origins.has(origin)) {
-      this._origins.set(origin, originSet);
+      this._origins.set(origin, originMap);
     }
   }
 
@@ -619,9 +623,14 @@ export class ApprovalController extends BaseControllerV2<
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const { origin, type } = this.state.pendingApprovals[id]!;
 
-    (this._origins.get(origin) as Set<string>).delete(type);
-    if (this._isEmptyOrigin(origin)) {
+    const originMap = this._origins.get(origin) as Map<string, number>;
+    const originTotalCount = this.getApprovalCount({ origin });
+    const originTypeCount = originMap.get(type) as number;
+
+    if (originTotalCount === 1) {
       this._origins.delete(origin);
+    } else {
+      originMap.set(type, originTypeCount - 1);
     }
 
     this.update((draftState) => {
@@ -648,17 +657,6 @@ export class ApprovalController extends BaseControllerV2<
 
     this._delete(id);
     return callbacks;
-  }
-
-  /**
-   * Checks whether there are any approvals associated with the given
-   * origin.
-   *
-   * @param origin - The origin to check.
-   * @returns True if the origin has no approvals, false otherwise.
-   */
-  private _isEmptyOrigin(origin: string): boolean {
-    return !this._origins.get(origin)?.size;
   }
 }
 export default ApprovalController;
