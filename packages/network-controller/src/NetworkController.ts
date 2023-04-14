@@ -375,12 +375,12 @@ export class NetworkController extends BaseControllerV2<
    * using the provider to gather details about the network.
    *
    */
-  initializeProvider() {
+  async initializeProvider() {
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
     this.configureProvider(type, rpcTarget, chainId, ticker, nickname);
     this.registerProvider();
-    this.lookupNetwork();
+    await this.lookupNetwork();
   }
 
   async #getNetworkId(): Promise<string> {
