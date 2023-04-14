@@ -671,7 +671,9 @@ export class TokensController extends BaseController<
   ): Promise<AssetSuggestionResult> {
     const { selectedAddress } = this.config;
 
-    const suggestedAssetMeta: SuggestedAssetMeta = {
+    const suggestedAssetMeta: SuggestedAssetMeta & {
+      interactingAddress: string;
+    } = {
       asset,
       id: this._generateRandomId(),
       status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
@@ -716,7 +718,7 @@ export class TokensController extends BaseController<
     suggestedAssets.push(suggestedAssetMeta);
     this.update({ suggestedAssets: [...suggestedAssets] });
 
-    this._requestApproval(suggestedAssetMeta.id);
+    this._requestApproval(suggestedAssetMeta);
 
     return { result, suggestedAssetMeta };
   }
@@ -904,14 +906,28 @@ export class TokensController extends BaseController<
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });
   }
 
-  _requestApproval(approvalRequestId: string) {
+  _requestApproval(
+    suggestedAssetMeta: SuggestedAssetMeta & {
+      interactingAddress: string;
+    },
+  ) {
     this.messagingSystem
       .call(
         'ApprovalController:addRequest',
         {
-          id: approvalRequestId,
+          id: suggestedAssetMeta.id,
           origin: ORIGIN_METAMASK,
           type: APPROVAL_TYPE,
+          requestData: {
+            id: suggestedAssetMeta.id,
+            interactingAddress: suggestedAssetMeta.interactingAddress,
+            asset: {
+              address: suggestedAssetMeta.asset.address,
+              decimals: suggestedAssetMeta.asset.decimals,
+              symbol: suggestedAssetMeta.asset.symbol,
+              image: suggestedAssetMeta.asset.image || null,
+            },
+          },
         },
         true,
       )
