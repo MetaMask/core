@@ -1,6 +1,5 @@
-import { Json } from '@metamask/types';
+import { Json, NonEmptyArray } from '@metamask/utils';
 import { nanoid } from 'nanoid';
-import { NonEmptyArray } from '@metamask/controller-utils';
 import { ActionConstraint, EventConstraint } from '@metamask/base-controller';
 import type { SubjectType } from './SubjectMetadataController';
 import { CaveatConstraint } from './Caveat';
@@ -259,7 +258,10 @@ type RestrictedMethodContext = Readonly<{
   [key: string]: any;
 }>;
 
-export type RestrictedMethodParameters = Json[] | Record<string, Json> | void;
+export type RestrictedMethodParameters =
+  | Json[]
+  | Record<string, Json>
+  | undefined;
 
 /**
  * The arguments passed to a restricted method implementation.

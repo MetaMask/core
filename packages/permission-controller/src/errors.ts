@@ -1,8 +1,14 @@
-import { errorCodes, ethErrors, EthereumRpcError } from 'eth-rpc-errors';
+import {
+  errorCodes,
+  rpcErrors,
+  providerErrors,
+  JsonRpcError,
+} from '@metamask/rpc-errors';
+import { Json } from '@metamask/utils';
 import { PermissionType } from './Permission';
 
 type UnauthorizedArg = {
-  data?: Record<string, unknown>;
+  data?: Record<string, Json>;
 };
 
 /**
@@ -12,7 +18,7 @@ type UnauthorizedArg = {
  * @returns The built error
  */
 export function unauthorized(opts: UnauthorizedArg) {
-  return ethErrors.provider.unauthorized({
+  return providerErrors.unauthorized({
     message:
       'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
     data: opts.data,
@@ -26,19 +32,19 @@ export function unauthorized(opts: UnauthorizedArg) {
  * @param data - Optional data for context.
  * @returns The built error
  */
-export function methodNotFound(method: string, data?: unknown) {
+export function methodNotFound(method: string, data?: Json) {
   const message = `The method "${method}" does not exist / is not available.`;
 
-  const opts: Parameters<typeof ethErrors.rpc.methodNotFound>[0] = { message };
+  const opts: Parameters<typeof rpcErrors.methodNotFound>[0] = { message };
   if (data !== undefined) {
     opts.data = data;
   }
-  return ethErrors.rpc.methodNotFound(opts);
+  return rpcErrors.methodNotFound(opts);
 }
 
 type InvalidParamsArg = {
   message?: string;
-  data?: unknown;
+  data?: Json;
 };
 
 /**
@@ -48,7 +54,7 @@ type InvalidParamsArg = {
  * @returns The built error
  */
 export function invalidParams(opts: InvalidParamsArg) {
-  return ethErrors.rpc.invalidParams({
+  return rpcErrors.invalidParams({
     data: opts.data,
     message: opts.message,
   });
@@ -60,10 +66,10 @@ export function invalidParams(opts: InvalidParamsArg) {
  * @param data - Optional data to add extra context
  * @returns The built error
  */
-export function userRejectedRequest<Data extends Record<string, unknown>>(
+export function userRejectedRequest<Data extends Record<string, Json>>(
   data?: Data,
-): EthereumRpcError<Data> {
-  return ethErrors.provider.userRejectedRequest({ data });
+): JsonRpcError<Data> {
+  return providerErrors.userRejectedRequest({ data });
 }
 
 /**
@@ -73,11 +79,11 @@ export function userRejectedRequest<Data extends Record<string, unknown>>(
  * @param data - Optional data to add extra context
  * @returns The built error
  */
-export function internalError<Data extends Record<string, unknown>>(
+export function internalError<Data extends Record<string, Json>>(
   message: string,
   data?: Data,
-): EthereumRpcError<Data> {
-  return ethErrors.rpc.internal({ message, data });
+): JsonRpcError<Data> {
+  return rpcErrors.internal({ message, data });
 }
 
 export class InvalidSubjectIdentifierError extends Error {
@@ -182,10 +188,10 @@ export class CaveatAlreadyExistsError extends Error {
   }
 }
 
-export class InvalidCaveatError extends EthereumRpcError<unknown> {
+export class InvalidCaveatError extends JsonRpcError<Json> {
   public override data: { origin: string; target: string };
 
-  constructor(receivedCaveat: unknown, origin: string, target: string) {
+  constructor(receivedCaveat: Json, origin: string, target: string) {
     super(
       errorCodes.rpc.invalidParams,
       `Invalid caveat. Caveats must be plain objects.`,
@@ -223,12 +229,12 @@ export class CaveatMissingValueError extends Error {
 
 export class CaveatInvalidJsonError extends Error {
   public data: {
-    caveat: Record<string, unknown>;
+    caveat: unknown;
     origin: string;
     target: string;
   };
 
-  constructor(caveat: Record<string, unknown>, origin: string, target: string) {
+  constructor(caveat: unknown, origin: string, target: string) {
     super(`Caveat "value" is invalid JSON.`);
     this.data = { caveat, origin, target };
   }

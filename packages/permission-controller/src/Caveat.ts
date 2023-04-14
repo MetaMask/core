@@ -1,5 +1,4 @@
-import { Json } from '@metamask/types';
-import { hasProperty } from '@metamask/utils';
+import { Json, hasProperty } from '@metamask/utils';
 import {
   CaveatSpecificationMismatchError,
   UnrecognizedCaveatTypeError,
