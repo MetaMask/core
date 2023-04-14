@@ -746,13 +746,16 @@ export class TokensController extends BaseController<
             image,
             suggestedAssetMeta?.interactingAddress || selectedAddress,
           );
-          suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
 
           this._acceptApproval(suggestedAssetID);
 
+          const acceptedSuggestedAssetMeta = {
+            ...suggestedAssetMeta,
+            status: SuggestedAssetStatus.accepted,
+          };
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
-            suggestedAssetMeta,
+            acceptedSuggestedAssetMeta,
           );
           break;
         default:
@@ -787,8 +790,14 @@ export class TokensController extends BaseController<
     if (!suggestedAssetMeta) {
       return;
     }
-    suggestedAssetMeta.status = SuggestedAssetStatus.rejected;
-    this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
+    const rejectedSuggestedAssetMeta = {
+      ...suggestedAssetMeta,
+      status: SuggestedAssetStatus.rejected,
+    };
+    this.hub.emit(
+      `${suggestedAssetMeta.id}:finished`,
+      rejectedSuggestedAssetMeta,
+    );
     const newSuggestedAssets = suggestedAssets.filter(
       ({ id }) => id !== suggestedAssetID,
     );
