@@ -156,6 +156,7 @@ type ApprovalControllerOptions = {
   messenger: ApprovalControllerMessenger;
   showApprovalRequest: ShowApprovalRequest;
   state?: Partial<ApprovalControllerState>;
+  typesExcludedFromRateLimiting?: string[];
 };
 
 /**
@@ -178,6 +179,8 @@ export class ApprovalController extends BaseControllerV2<
 
   private _showApprovalRequest: () => void;
 
+  private _typesExcludedFromRateLimiting: string[];
+
   /**
    * Construct an Approval controller.
    *
@@ -186,11 +189,13 @@ export class ApprovalController extends BaseControllerV2<
    * the request can be displayed to the user.
    * @param options.messenger - The restricted controller messenger for the Approval controller.
    * @param options.state - The initial controller state.
+   * @param options.typesExcludedFromRateLimiting - Array of aproval types which allow multiple pending approval requests from the same origin.
    */
   constructor({
     messenger,
     showApprovalRequest,
     state = {},
+    typesExcludedFromRateLimiting = [],
   }: ApprovalControllerOptions) {
     super({
       name: controllerName,
@@ -202,6 +207,7 @@ export class ApprovalController extends BaseControllerV2<
     this._approvals = new Map();
     this._origins = new Map();
     this._showApprovalRequest = showApprovalRequest;
+    this._typesExcludedFromRateLimiting = typesExcludedFromRateLimiting;
     this.registerMessageHandlers();
   }
 
@@ -487,7 +493,10 @@ export class ApprovalController extends BaseControllerV2<
   ): Promise<unknown> {
     this._validateAddParams(id, origin, type, requestData, requestState);
 
-    if (this._origins.get(origin)?.has(type)) {
+    if (
+      !this._typesExcludedFromRateLimiting.includes(type) &&
+      this._origins.get(origin)?.has(type)
+    ) {
       throw ethErrors.rpc.resourceUnavailable(
         getAlreadyPendingMessage(origin, type),
       );

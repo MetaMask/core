@@ -224,6 +224,30 @@ describe('approval controller', () => {
         }),
       ).toThrow(getOriginTypeCollisionError('bar.baz', 'myType'));
     });
+
+    it('does not throw on origin and type collision if type excluded', () => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest,
+        typesExcludedFromRateLimiting: ['myType'],
+      });
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      ).not.toThrow();
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo1',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      ).not.toThrow();
+    });
   });
 
   // otherwise tested by 'add' above
