@@ -298,7 +298,7 @@ describe('AssetsContractController', () => {
     );
     expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
 
-    network.setProviderType(NetworkType.localhost);
+    await network.setProviderType(NetworkType.localhost);
 
     const noBalances = await assetsContract.getBalancesInSingleCall(
       ERC20_DAI_ADDRESS,
