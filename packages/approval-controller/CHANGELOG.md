@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [2.1.0]
-### Uncategorized
-- Exclude types from rate limiting in approval controller ([#1185](https://github.com/MetaMask/core/pull/1185))
+### Added
+- Option to exclude types from rate limiting ([#1185](https://github.com/MetaMask/core/pull/1185))
 
 ## [2.0.0]
 ### Removed
