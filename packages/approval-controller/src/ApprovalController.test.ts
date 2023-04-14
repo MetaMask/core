@@ -224,6 +224,30 @@ describe('approval controller', () => {
         }),
       ).toThrow(getOriginTypeCollisionError('bar.baz', 'myType'));
     });
+
+    it('does not throw on origin and type collision if type excluded', () => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest,
+        typesExcludedFromRateLimiting: ['myType'],
+      });
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      ).not.toThrow();
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo1',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      ).not.toThrow();
+    });
   });
 
   // otherwise tested by 'add' above
@@ -406,6 +430,21 @@ describe('approval controller', () => {
         approvalController.getApprovalCount({ type: 'type3' }),
       ).toStrictEqual(0);
     });
+
+    it('gets the count when specifying origin and type with type excluded from rate limiting', () => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+        typesExcludedFromRateLimiting: [TYPE],
+      });
+
+      addWithCatch({ id: '1', origin: 'origin1', type: TYPE });
+      addWithCatch({ id: '2', origin: 'origin1', type: TYPE });
+
+      expect(
+        approvalController.getApprovalCount({ origin: 'origin1', type: TYPE }),
+      ).toStrictEqual(2);
+    });
   });
 
   describe('getTotalApprovalCount', () => {
@@ -430,6 +469,30 @@ describe('approval controller', () => {
 
       approvalController.reject('2', new Error('foo'));
       expect(approvalController.getTotalApprovalCount()).toStrictEqual(2);
+
+      approvalController.clear(new EthereumRpcError(1, 'clear'));
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
+    });
+
+    it('gets the total approval count with type excluded from rate limiting', () => {
+      const approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+        typesExcludedFromRateLimiting: ['type0'],
+      });
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
+
+      const addWithCatch = (args: any) =>
+        approvalController.add(args).catch(() => undefined);
+
+      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(1);
+
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type0' });
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(2);
+
+      approvalController.reject('2', new Error('foo'));
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(1);
 
       approvalController.clear(new EthereumRpcError(1, 'clear'));
       expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
@@ -838,19 +901,6 @@ describe('approval controller', () => {
         approvalController.has({ id: 'foo' }) &&
           approvalController.has({ origin: 'bar.baz' }),
       ).toStrictEqual(true);
-    });
-  });
-
-  // TODO: Stop using private methods in tests
-  describe('_isEmptyOrigin', () => {
-    it('handles non-existing origin', () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-      expect(() =>
-        (approvalController as any)._isEmptyOrigin('kaplar'),
-      ).not.toThrow();
     });
   });
 
