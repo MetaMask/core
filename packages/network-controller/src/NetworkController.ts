@@ -474,7 +474,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
-  setActiveNetwork(networkConfigurationId: string) {
+  async setActiveNetwork(networkConfigurationId: string) {
     this.#setCurrentAsPreviousProvider();
 
     const targetNetwork =
@@ -496,7 +496,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.id = targetNetwork.id;
     });
 
-    this.refreshNetwork();
+    await this.refreshNetwork();
   }
 
   #getLatestBlock(): Promise<Block> {

@@ -2221,12 +2221,7 @@ describe('NetworkController', () => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-          await waitForStateChanges(messenger, {
-            propertyPath: ['network'],
-            produceStateChanges: () => {
-              controller.setActiveNetwork('testNetworkConfigurationId');
-            },
-          });
+          await controller.setActiveNetwork('testNetworkConfigurationId');
 
           expect(controller.state.providerConfig).toStrictEqual({
             type: 'rpc',
@@ -2264,12 +2259,7 @@ describe('NetworkController', () => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-          await waitForStateChanges(messenger, {
-            propertyPath: ['isCustomNetwork'],
-            produceStateChanges: () => {
-              controller.setActiveNetwork('testNetworkConfigurationId');
-            },
-          });
+          await controller.setActiveNetwork('testNetworkConfigurationId');
 
           expect(controller.state.isCustomNetwork).toBe(true);
         },
@@ -2307,7 +2297,7 @@ describe('NetworkController', () => {
           ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-          controller.setActiveNetwork('testNetworkConfigurationId');
+          await controller.setActiveNetwork('testNetworkConfigurationId');
 
           expect(createMetamaskProviderMock).toHaveBeenCalledWith({
             rpcUrl: 'https://mock-rpc-url',
@@ -2363,12 +2353,7 @@ describe('NetworkController', () => {
           ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-          await waitForStateChanges(messenger, {
-            propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-            produceStateChanges: () => {
-              controller.setActiveNetwork('testNetworkConfigurationId');
-            },
-          });
+          await controller.setActiveNetwork('testNetworkConfigurationId');
 
           expect(controller.state.networkDetails.isEIP1559Compatible).toBe(
             true,
@@ -2395,7 +2380,7 @@ describe('NetworkController', () => {
             },
           },
         },
-        ({ controller }) => {
+        async ({ controller }) => {
           const fakeMetamaskProviders = [
             buildFakeMetamaskProvider(),
             buildFakeMetamaskProvider(),
@@ -2405,8 +2390,8 @@ describe('NetworkController', () => {
             .mockImplementationOnce(() => fakeMetamaskProviders[0])
             .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
-          controller.setActiveNetwork('testNetworkConfigurationId');
-          controller.setActiveNetwork('testNetworkConfigurationId');
+          await controller.setActiveNetwork('testNetworkConfigurationId');
+          await controller.setActiveNetwork('testNetworkConfigurationId');
           assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
@@ -2447,12 +2432,7 @@ describe('NetworkController', () => {
           ]);
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-          await waitForStateChanges(messenger, {
-            propertyPath: ['network'],
-            produceStateChanges: () => {
-              controller.setActiveNetwork('testNetworkConfigurationId');
-            },
-          });
+          await controller.setActiveNetwork('testNetworkConfigurationId');
 
           expect(controller.state.network).toBe('42');
         },
@@ -2500,16 +2480,7 @@ describe('NetworkController', () => {
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  produceEvents: () => {
-                    controller.setActiveNetwork('testNetworkConfigurationId');
-                    assert(controller.getProviderAndBlockTracker().provider);
-                  },
-                },
-              );
+              await controller.setActiveNetwork('testNetworkConfigurationId');
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
@@ -2565,16 +2536,7 @@ describe('NetworkController', () => {
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  produceEvents: () => {
-                    controller.setActiveNetwork('testNetworkConfigurationId');
-                    assert(controller.getProviderAndBlockTracker().provider);
-                  },
-                },
-              );
+              await controller.setActiveNetwork('testNetworkConfigurationId');
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
@@ -4710,7 +4672,7 @@ describe('NetworkController', () => {
             async ({ controller }) => {
               const fakeMetamaskProvider = buildFakeMetamaskProvider();
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              controller.setActiveNetwork('testNetworkConfigurationId');
+              await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.providerConfig).toStrictEqual({
                 ...customNetworkConfiguration,
                 rpcTarget: rpcUrlOrTarget,
@@ -4754,7 +4716,7 @@ describe('NetworkController', () => {
             async ({ controller }) => {
               const fakeMetamaskProvider = buildFakeMetamaskProvider();
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              controller.setActiveNetwork('testNetworkConfigurationId');
+              await controller.setActiveNetwork('testNetworkConfigurationId');
               const promiseForProviderConfigChange =
                 await waitForPublishedEvents(
                   messenger,
@@ -4839,13 +4801,7 @@ describe('NetworkController', () => {
               ]);
 
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                count: 1,
-                produceStateChanges: () => {
-                  controller.setActiveNetwork('testNetworkConfigurationId');
-                },
-              });
+              await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.networkDetails).toStrictEqual({
                 isEIP1559Compatible: true,
               });
@@ -4906,13 +4862,7 @@ describe('NetworkController', () => {
               ]);
 
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                count: 1,
-                produceStateChanges: () => {
-                  controller.setActiveNetwork('testNetworkConfigurationId');
-                },
-              });
+              await controller.setActiveNetwork('testNetworkConfigurationId');
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 count: 1,
@@ -4964,13 +4914,7 @@ describe('NetworkController', () => {
               const fakeMetamaskProvider = buildFakeMetamaskProvider();
 
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                count: 1,
-                produceStateChanges: () => {
-                  controller.setActiveNetwork('testNetworkConfigurationId');
-                },
-              });
+              await controller.setActiveNetwork('testNetworkConfigurationId');
               const { provider: providerBefore } =
                 controller.getProviderAndBlockTracker();
 
@@ -5038,13 +4982,7 @@ describe('NetworkController', () => {
               ]);
 
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                count: 1,
-                produceStateChanges: () => {
-                  controller.setActiveNetwork('testNetworkConfigurationId');
-                },
-              });
+              await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.network).toStrictEqual('999');
 
               await waitForStateChanges(messenger, {
@@ -5159,7 +5097,7 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            controller.setActiveNetwork('testNetworkConfigurationId2');
+            await controller.setActiveNetwork('testNetworkConfigurationId2');
             expect(controller.state.providerConfig).toStrictEqual({
               ...networkConfiguration2,
               rpcTarget: rpcUrlOrTarget2,
@@ -5212,7 +5150,7 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            controller.setActiveNetwork('testNetworkConfigurationId1');
+            await controller.setActiveNetwork('testNetworkConfigurationId1');
             const promiseForProviderConfigChange = await waitForPublishedEvents(
               messenger,
               'NetworkController:providerConfigChange',
@@ -5290,13 +5228,7 @@ describe('NetworkController', () => {
               },
             ]);
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
-              count: 1,
-              produceStateChanges: () => {
-                controller.setActiveNetwork('testNetworkConfigurationId1');
-              },
-            });
+            await controller.setActiveNetwork('testNetworkConfigurationId1');
             expect(controller.state.networkDetails).toStrictEqual({
               isEIP1559Compatible: true,
             });
@@ -5365,13 +5297,7 @@ describe('NetworkController', () => {
             ]);
 
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
-              count: 1,
-              produceStateChanges: () => {
-                controller.setActiveNetwork('testNetworkConfigurationId1');
-              },
-            });
+            await controller.setActiveNetwork('testNetworkConfigurationId1');
             await waitForStateChanges(messenger, {
               propertyPath: ['network'],
               count: 1,
@@ -5434,13 +5360,7 @@ describe('NetworkController', () => {
             const fakeMetamaskProvider = buildFakeMetamaskProvider();
 
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
-              count: 1,
-              produceStateChanges: () => {
-                controller.setActiveNetwork('testNetworkConfigurationId1');
-              },
-            });
+            await controller.setActiveNetwork('testNetworkConfigurationId1');
             const { provider: providerBefore } =
               controller.getProviderAndBlockTracker();
 
@@ -5517,13 +5437,7 @@ describe('NetworkController', () => {
             ]);
 
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
-              count: 1,
-              produceStateChanges: () => {
-                controller.setActiveNetwork('testNetworkConfigurationId1');
-              },
-            });
+            await controller.setActiveNetwork('testNetworkConfigurationId1');
             expect(controller.state.network).toStrictEqual('999');
 
             await waitForStateChanges(messenger, {
@@ -5572,7 +5486,7 @@ describe('NetworkController', () => {
         async ({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
           createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-          controller.setActiveNetwork('testNetworkConfigurationId');
+          await controller.setActiveNetwork('testNetworkConfigurationId');
           expect(controller.state.providerConfig).toStrictEqual({
             ...networkConfiguration,
             rpcTarget: rpcUrlOrTarget,
