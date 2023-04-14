@@ -562,14 +562,15 @@ export class ApprovalController extends BaseControllerV2<
    * @param type - The type associated with the approval request.
    */
   private _addPendingApprovalOrigin(origin: string, type: string): void {
-    const originMap = this._origins.get(origin) || new Map();
-    const currentValue = originMap.get(type) || 0;
+    let originMap = this._origins.get(origin);
 
-    originMap.set(type, currentValue + 1);
-
-    if (!this._origins.has(origin)) {
+    if (!originMap) {
+      originMap = new Map();
       this._origins.set(origin, originMap);
     }
+
+    const currentValue = originMap.get(type) || 0;
+    originMap.set(type, currentValue + 1);
   }
 
   /**
