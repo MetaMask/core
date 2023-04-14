@@ -3907,7 +3907,7 @@ describe('NetworkController', () => {
 
         expect(controller.state.networkConfigurations).toStrictEqual({});
 
-        controller.upsertNetworkConfiguration(rpcUrlNetwork, {
+        await controller.upsertNetworkConfiguration(rpcUrlNetwork, {
           referrer: 'https://test-dapp.com',
           source: 'dapp',
         });
@@ -3944,7 +3944,7 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          controller.upsertNetworkConfiguration(
+          await controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://rpc-url.com',
               ticker: 'new_rpc_ticker',
@@ -3975,7 +3975,7 @@ describe('NetworkController', () => {
     it('throws if the given chain ID is not a 0x-prefixed hex number', async () => {
       const invalidChainId = '1';
       await withController(async ({ controller }) => {
-        expect(() =>
+        await expect(async () =>
           controller.upsertNetworkConfiguration(
             {
               chainId: invalidChainId,
@@ -3989,7 +3989,7 @@ describe('NetworkController', () => {
               source: 'dapp',
             },
           ),
-        ).toThrow(
+        ).rejects.toThrow(
           new Error('Value must be a hexadecimal string, starting with "0x".'),
         );
       });
@@ -3997,7 +3997,7 @@ describe('NetworkController', () => {
 
     it('throws if the given chain ID is greater than the maximum allowed ID', async () => {
       await withController(async ({ controller }) => {
-        expect(() =>
+        await expect(async () =>
           controller.upsertNetworkConfiguration(
             {
               chainId: '0xFFFFFFFFFFFFFFFF',
@@ -4011,7 +4011,7 @@ describe('NetworkController', () => {
               source: 'dapp',
             },
           ),
-        ).toThrow(
+        ).rejects.toThrow(
           new Error(
             'Invalid chain ID "0xFFFFFFFFFFFFFFFF": numerical value greater than max safe value.',
           ),
@@ -4021,7 +4021,7 @@ describe('NetworkController', () => {
 
     it('throws if rpcUrl passed is not a valid Url', async () => {
       await withController(async ({ controller }) => {
-        expect(() =>
+        await expect(async () =>
           controller.upsertNetworkConfiguration(
             {
               chainId: '0x9999',
@@ -4035,13 +4035,13 @@ describe('NetworkController', () => {
               source: 'dapp',
             },
           ),
-        ).toThrow(new Error('rpcUrl must be a valid URL'));
+        ).rejects.toThrow(new Error('rpcUrl must be a valid URL'));
       });
     });
 
     it('throws if the no (or a falsy) ticker is passed', async () => {
       await withController(async ({ controller }) => {
-        expect(() =>
+        await expect(async () =>
           controller.upsertNetworkConfiguration(
             // @ts-expect-error - we want to test the case where no ticker is present.
             {
@@ -4055,7 +4055,7 @@ describe('NetworkController', () => {
               source: 'dapp',
             },
           ),
-        ).toThrow(
+        ).rejects.toThrow(
           new Error(
             'A ticker is required to add or update networkConfiguration',
           ),
@@ -4065,8 +4065,8 @@ describe('NetworkController', () => {
 
     it('throws if an options object is not passed as a second argument', async () => {
       await withController(async ({ controller }) => {
-        expect(
-          () =>
+        await expect(
+          async () =>
             // @ts-expect-error - we want to test the case where no second arg is passed.
             controller.upsertNetworkConfiguration({
               chainId: '0x5',
@@ -4075,7 +4075,7 @@ describe('NetworkController', () => {
               rpcUrl: 'https://mock-rpc-url',
             }),
           // eslint-disable-next-line
-        ).toThrow();
+        ).rejects.toThrow();
       });
     });
 
@@ -4114,10 +4114,10 @@ describe('NetworkController', () => {
             rpcPrefs: { blockExplorerUrl: 'https://block-explorer' },
           };
 
-          expect(() =>
+          await expect(async () =>
             // @ts-expect-error - we want to test the case where the options object is empty.
             controller.upsertNetworkConfiguration(newNetworkConfiguration, {}),
-          ).toThrow(
+          ).rejects.toThrow(
             'referrer and source are required arguments for adding or updating a network configuration',
           );
         },
@@ -4139,7 +4139,7 @@ describe('NetworkController', () => {
             ticker: 'test_ticker',
           };
 
-          controller.upsertNetworkConfiguration(rpcUrlNetwork, {
+          await controller.upsertNetworkConfiguration(rpcUrlNetwork, {
             referrer: 'https://test-dapp.com',
             source: 'dapp',
           });
@@ -4177,7 +4177,7 @@ describe('NetworkController', () => {
             invalidKey2: {},
           };
 
-          controller.upsertNetworkConfiguration(rpcUrlNetwork, {
+          await controller.upsertNetworkConfiguration(rpcUrlNetwork, {
             referrer: 'https://test-dapp.com',
             source: 'dapp',
           });
@@ -4226,7 +4226,7 @@ describe('NetworkController', () => {
             ticker: 'RPC',
           };
 
-          controller.upsertNetworkConfiguration(rpcUrlNetwork, {
+          await controller.upsertNetworkConfiguration(rpcUrlNetwork, {
             referrer: 'https://test-dapp.com',
             source: 'dapp',
           });
@@ -4275,7 +4275,7 @@ describe('NetworkController', () => {
             rpcPrefs: { blockExplorerUrl: 'alternativetestchainscan.io' },
             chainId: '0x1',
           };
-          controller.upsertNetworkConfiguration(updatedConfiguration, {
+          await controller.upsertNetworkConfiguration(updatedConfiguration, {
             referrer: 'https://test-dapp.com',
             source: 'dapp',
           });
@@ -4320,7 +4320,7 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          controller.upsertNetworkConfiguration(
+          await controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test-rpc-url',
               ticker: 'new-ticker',
@@ -4390,7 +4390,7 @@ describe('NetworkController', () => {
             ticker: 'test_ticker',
           };
 
-          controller.upsertNetworkConfiguration(rpcUrlNetwork, {
+          await controller.upsertNetworkConfiguration(rpcUrlNetwork, {
             referrer: 'https://test-dapp.com',
             source: 'dapp',
           });
@@ -4437,7 +4437,7 @@ describe('NetworkController', () => {
             ticker: 'test_ticker',
           };
 
-          controller.upsertNetworkConfiguration(rpcUrlNetwork, {
+          await controller.upsertNetworkConfiguration(rpcUrlNetwork, {
             setActive: true,
             referrer: 'https://test-dapp.com',
             source: 'dapp',
@@ -4493,7 +4493,7 @@ describe('NetworkController', () => {
             rpcPrefs: { blockExplorerUrl: 'https://block-explorer' },
           };
 
-          controller.upsertNetworkConfiguration(newNetworkConfiguration, {
+          await controller.upsertNetworkConfiguration(newNetworkConfiguration, {
             referrer: 'https://test-dapp.com',
             source: 'dapp',
           });

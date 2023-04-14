@@ -577,14 +577,14 @@ export class NetworkController extends BaseControllerV2<
    * @param options.source - Where the upsertNetwork event originated (i.e. from a dapp or from the network form) - used for event metrics.
    * @returns id for the added or updated network configuration
    */
-  upsertNetworkConfiguration(
+  async upsertNetworkConfiguration(
     { rpcUrl, chainId, ticker, nickname, rpcPrefs }: NetworkConfiguration,
     {
       setActive = false,
       referrer,
       source,
     }: { setActive?: boolean; referrer: string; source: string },
-  ): string {
+  ): Promise<string> {
     assertIsStrictHexString(chainId);
 
     if (!isSafeChainId(parseInt(chainId, 16))) {
@@ -664,7 +664,7 @@ export class NetworkController extends BaseControllerV2<
     }
 
     if (setActive) {
-      this.setActiveNetwork(newNetworkConfigurationId);
+      await this.setActiveNetwork(newNetworkConfigurationId);
     }
 
     return newNetworkConfigurationId;
