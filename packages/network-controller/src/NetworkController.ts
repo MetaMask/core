@@ -288,14 +288,14 @@ export class NetworkController extends BaseControllerV2<
     };
   }
 
-  private refreshNetwork() {
+  private async refreshNetwork() {
     this.update((state) => {
       state.network = 'loading';
       state.networkDetails = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
     this.configureProvider(type, rpcTarget, chainId, ticker);
-    this.lookupNetwork();
+    await this.lookupNetwork();
   }
 
   private registerProvider() {
