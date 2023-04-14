@@ -77,7 +77,7 @@ export const testsForRpcMethodAssumingNoBlockParam = (
   });
 
   for (const paramIndex of [...Array(numberOfParameters).keys()]) {
-    it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {// eslint-disable-line
+    it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {
       const firstMockParams = [
         ...new Array(numberOfParameters).fill('some value'),
       ];
@@ -214,6 +214,8 @@ export const testsForRpcMethodAssumingNoBlockParam = (
       // The first time a block-cacheable request is made, the latest block
       // number is retrieved through the block tracker first. It doesn't
       // matter what this is — it's just used as a cache key.
+      comms.mockNextBlockTrackerRequest();
+      // A second block tracker request is made for some reason
       comms.mockNextBlockTrackerRequest();
       comms.mockRpcCall({
         request: requests[0],
