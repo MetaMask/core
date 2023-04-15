@@ -70,6 +70,12 @@ interface FakeProviderEngineOptions {
 }
 
 /**
+ * Implements just enough of the block tracker interface to pass the tests but
+ * nothing more.
+ */
+class FakeBlockTracker extends EventEmitter {}
+
+/**
  * FakeProviderEngine is an implementation of the provider that
  * NetworkController exposes, which is actually an instance of
  * Web3ProviderEngine (from the `web3-provider-engine` package). Hence it
@@ -78,13 +84,18 @@ interface FakeProviderEngineOptions {
  * succinct than using Jest's mocking API.
  */
 export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
-  #isStopped: boolean;
-
-  #stubs: FakeProviderStub[];
-
   calledStubs: FakeProviderStub[];
 
   #originalStubs: FakeProviderStub[];
+
+  #stubs: FakeProviderStub[];
+
+  #isStopped: boolean;
+
+  // NOTE: This is a "private" property defined on ProviderEngine that holds the
+  // block tracker, so we have to provide that in this fake implementation as
+  // well
+  _blockTracker: FakeBlockTracker;
 
   /**
    * Makes a new instance of the fake provider.
@@ -99,6 +110,7 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
     this.#stubs = this.#originalStubs.slice();
     this.calledStubs = [];
     this.#isStopped = false;
+    this._blockTracker = new FakeBlockTracker();
   }
 
   stop() {
@@ -156,7 +168,6 @@ operation that was not fulfilled before the test ended.`);
       let message = `Could not find any stubs matching: ${inspect(payload, {
         depth: null,
       })}`;
-
       if (matchingCalledStubs.length > 0) {
         message += `\n\nIt appears the following stubs were defined, but have been called already:\n\n${inspect(
           matchingCalledStubs,

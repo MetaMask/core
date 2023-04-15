@@ -14,6 +14,8 @@ import {
   BaseControllerV2,
   StateMetadata,
   RestrictedControllerMessenger,
+  ActionConstraint,
+  EventConstraint,
 } from '@metamask/base-controller';
 import {
   hasProperty,
@@ -74,6 +76,7 @@ import {
   RestrictedMethod,
   RestrictedMethodParameters,
   RestrictedMethodSpecificationConstraint,
+  SideEffectHandler,
   ValidPermission,
   ValidPermissionSpecification,
 } from './Permission';
@@ -106,6 +109,11 @@ export type PermissionsRequest = {
   metadata: PermissionsRequestMetadata;
   permissions: RequestedPermissions;
   [key: string]: Json;
+};
+
+export type SideEffects = {
+  permittedHandlers: Record<string, SideEffectHandler<any, any>>;
+  failureHandlers: Record<string, SideEffectHandler<any, any>>;
 };
 
 /**
@@ -335,6 +343,17 @@ export type PermissionControllerMessenger = RestrictedControllerMessenger<
   PermissionControllerActions | AllowedActions,
   PermissionControllerEvents,
   AllowedActions['type'],
+  never
+>;
+
+export type SideEffectMessenger<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = RestrictedControllerMessenger<
+  typeof controllerName,
+  Actions,
+  Events,
+  string,
   never
 >;
 
@@ -1872,7 +1891,7 @@ export class PermissionController<
           ControllerCaveatSpecification
         >
       >,
-      { id: string; origin: OriginString },
+      { data?: Record<string, unknown>; id: string; origin: OriginString },
     ]
   > {
     const { origin } = subject;
@@ -1889,8 +1908,32 @@ export class PermissionController<
       permissions: requestedPermissions,
     };
 
+    const approvedRequest = await this.requestUserApproval(permissionsRequest);
     const { permissions: approvedPermissions, ...requestData } =
-      await this.requestUserApproval(permissionsRequest);
+      approvedRequest;
+
+    const sideEffects = this.getSideEffects(approvedPermissions);
+
+    if (Object.values(sideEffects.permittedHandlers).length > 0) {
+      const sideEffectsData = await this.executeSideEffects(
+        sideEffects,
+        approvedRequest,
+      );
+      const mappedData = Object.keys(sideEffects.permittedHandlers).reduce(
+        (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
+        {},
+      );
+
+      return [
+        this.grantPermissions({
+          subject,
+          approvedPermissions,
+          preserveExistingPermissions,
+          requestData,
+        }),
+        { data: mappedData, ...metadata },
+      ];
+    }
 
     return [
       this.grantPermissions({
@@ -1991,6 +2034,96 @@ export class PermissionController<
 
     this.validateApprovedPermissions(approvedRequest, { id, origin });
     return approvedRequest as PermissionsRequest;
+  }
+
+  /**
+   * Reunites all the side-effects (onPermitted and onFailure) of the requested permissions inside a record of arrays.
+   *
+   * @param permissions - The approved permissions.
+   * @returns The {@link SideEffects} object containing the handlers arrays.
+   */
+  private getSideEffects(permissions: RequestedPermissions) {
+    return Object.keys(permissions).reduce<SideEffects>(
+      (sideEffectList, targetName) => {
+        const targetKey = this.getTargetKey(targetName);
+
+        if (targetKey) {
+          const specification = this.getPermissionSpecification(targetKey);
+
+          if (specification.sideEffect) {
+            sideEffectList.permittedHandlers[targetName] =
+              specification.sideEffect.onPermitted;
+
+            if (specification.sideEffect.onFailure) {
+              sideEffectList.failureHandlers[targetName] =
+                specification.sideEffect.onFailure;
+            }
+          }
+        }
+        return sideEffectList;
+      },
+      { permittedHandlers: {}, failureHandlers: {} },
+    );
+  }
+
+  /**
+   * Executes the side-effects of the approved permissions while handling the errors if any.
+   * It will pass an instance of the {@link messagingSystem} and the request data associated with the permission request to the handlers through its params.
+   *
+   * @param sideEffects - the side-effect record created by {@link getSideEffects}
+   * @param requestData - the permissions requestData.
+   * @returns the value returned by all the `onPermitted` handlers in an array.
+   */
+  private async executeSideEffects(
+    sideEffects: SideEffects,
+    requestData: PermissionsRequest,
+  ) {
+    const { permittedHandlers, failureHandlers } = sideEffects;
+    const params = {
+      requestData,
+      messagingSystem: this.messagingSystem,
+    };
+
+    const promiseResults = await Promise.allSettled(
+      Object.values(permittedHandlers).map((permittedHandler) =>
+        permittedHandler(params),
+      ),
+    );
+
+    // lib.es2020.promise.d.ts does not export its types so we're using a simple type.
+    const rejectedHandlers = promiseResults.filter(
+      (promise) => promise.status === 'rejected',
+    ) as { status: 'rejected'; reason: Error }[];
+
+    if (rejectedHandlers.length > 0) {
+      const failureHandlersList = Object.values(failureHandlers);
+      if (failureHandlersList.length > 0) {
+        try {
+          await Promise.all(
+            failureHandlersList.map((failureHandler) => failureHandler(params)),
+          );
+        } catch (error) {
+          throw internalError('Unexpected error in side-effects', { error });
+        }
+      }
+      const reasons = rejectedHandlers.map((handler) => handler.reason);
+
+      reasons.forEach((reason) => {
+        console.error(reason);
+      });
+
+      throw reasons.length > 1
+        ? internalError(
+            'Multiple errors occurred during side-effects execution',
+            { errors: reasons },
+          )
+        : reasons[0];
+    }
+
+    // lib.es2020.promise.d.ts does not export its types so we're using a simple type.
+    return (promiseResults as { status: 'fulfilled'; value: unknown }[]).map(
+      ({ value }) => value,
+    );
   }
 
   /**

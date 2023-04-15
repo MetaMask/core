@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1]
+### Changed
+- Adjust types to align with new version of `NetworkController` ([#1091](https://github.com/MetaMask/core/pull/1091))
+
+## [4.0.0]
+### Changed
+- **BREAKING:** Make the EIP-1559 endpoint a required argument ([#1083](https://github.com/MetaMask/core/pull/1083))
+
+### Removed
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+  - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
+
 ## [3.0.0]
 ### Changed
 - **BREAKING:** Update `@metamask/network-controller` peer dependency to v3 ([#1041](https://github.com/MetaMask/controllers/pull/1041))
@@ -30,7 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.0...@metamask/gas-fee-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@3.0.0...@metamask/gas-fee-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@2.0.1...@metamask/gas-fee-controller@3.0.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@2.0.0...@metamask/gas-fee-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@1.0.0...@metamask/gas-fee-controller@2.0.0

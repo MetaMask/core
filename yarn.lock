@@ -1274,6 +1274,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@json-rpc-specification/meta-schema@npm:^1.0.6":
+  version: 1.0.6
+  resolution: "@json-rpc-specification/meta-schema@npm:1.0.6"
+  checksum: 2eb9c6c6c73bb38350c7180d1ad3c5b8462406926cae753741895b457d7b1b9f0b74148daf3462bb167cef39efdd1d9090308edf4d4938956863acb643c146eb
+  languageName: node
+  linkType: hard
+
 "@keystonehq/base-eth-keyring@npm:^0.7.1":
   version: 0.7.1
   resolution: "@keystonehq/base-eth-keyring@npm:0.7.1"
@@ -1445,7 +1452,7 @@ __metadata:
     "@metamask/abi-utils": ^1.1.0
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
-    "@metamask/contract-metadata": ^2.1.0
+    "@metamask/contract-metadata": ^2.3.1
     "@metamask/controller-utils": "workspace:^"
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": "workspace:^"
@@ -1537,10 +1544,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/contract-metadata@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "@metamask/contract-metadata@npm:2.1.0"
-  checksum: eebe2fb7c16c0f585f08e0de446efe5c7866316e3f663b409691aaf69333deead53fcc9f3f0a67db7d0d84309dc52a620512c441b5d020ad08baf2fed7ed773f
+"@metamask/contract-metadata@npm:^2.3.1":
+  version: 2.3.1
+  resolution: "@metamask/contract-metadata@npm:2.3.1"
+  checksum: 95dcc27f661a3e380c0cca8c6d90fb1777e31ab3fe16909fd5c67844125510e3f8e9eca05c9069fde34c77df3b66e56111c7a908a07623e88052ef147eff4315
   languageName: node
   linkType: hard
 
@@ -1549,6 +1556,8 @@ __metadata:
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
+    "@metamask/utils": ^3.3.1
+    "@spruceid/siwe-parser": 1.1.3
     "@types/jest": ^26.0.22
     abort-controller: ^3.0.0
     deepmerge: ^4.2.2
@@ -1557,7 +1566,6 @@ __metadata:
     ethereumjs-util: ^7.0.10
     ethjs-unit: ^0.1.6
     fast-deep-equal: ^3.1.3
-    isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
     nock: ^13.0.7
     ts-jest: ^26.5.2
@@ -1832,10 +1840,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
+    "@json-rpc-specification/meta-schema": ^1.0.6
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
+    "@metamask/swappable-obj-proxy": ^2.1.0
+    "@metamask/utils": ^3.3.1
     "@types/jest": ^26.0.22
+    "@types/lodash": ^4.14.191
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
@@ -1843,11 +1855,14 @@ __metadata:
     eth-query: ^2.1.2
     immer: ^9.0.6
     jest: ^26.4.2
+    lodash: ^4.17.21
+    nock: ^13.0.7
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
+    uuid: ^8.3.2
     web3-provider-engine: ^16.0.3
   languageName: unknown
   linkType: soft
@@ -1919,7 +1934,6 @@ __metadata:
     "@types/punycode": ^2.1.0
     deepmerge: ^4.2.2
     eth-phishing-detect: ^1.2.0
-    isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
     nock: ^13.0.7
     punycode: ^2.1.1
@@ -2003,6 +2017,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/swappable-obj-proxy@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "@metamask/swappable-obj-proxy@npm:2.1.0"
+  checksum: b15cebee7fb189d1143d3a755a38a7d88f56f91e1277425a51f63c50c432dfb4e6e22650ef67474ae4ef2a97344231af00be6780f126c47d401a23c8a8fb3c9c
+  languageName: node
+  linkType: hard
+
 "@metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
@@ -2023,8 +2044,8 @@ __metadata:
     eth-rpc-errors: ^4.0.0
     ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
-    isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
+    nonce-tracker: ^1.1.0
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -2227,6 +2248,15 @@ __metadata:
   version: 0.7.1
   resolution: "@sinonjs/text-encoding@npm:0.7.1"
   checksum: 130de0bb568c5f8a611ec21d1a4e3f80ab0c5ec333010f49cfc1adc5cba6d8808699c8a587a46b0f0b016a1f4c1389bc96141e773e8460fcbb441875b2e91ba7
+  languageName: node
+  linkType: hard
+
+"@spruceid/siwe-parser@npm:1.1.3":
+  version: 1.1.3
+  resolution: "@spruceid/siwe-parser@npm:1.1.3"
+  dependencies:
+    apg-js: ^4.1.1
+  checksum: 708786ba2f10987c45c1fd8a6243ba6572ee7f320531616d71ff66044828bc24af66f5537ce09c9272bdae93fcc35b566a7804fe7997284f2ee5445a36e6add2
   languageName: node
   linkType: hard
 
@@ -2465,6 +2495,13 @@ __metadata:
   version: 0.0.29
   resolution: "@types/json5@npm:0.0.29"
   checksum: e60b153664572116dfea673c5bda7778dbff150498f44f998e34b5886d8afc47f16799280e4b6e241c0472aef1bc36add771c569c68fc5125fc2ae519a3eb9ac
+  languageName: node
+  linkType: hard
+
+"@types/lodash@npm:^4.14.191":
+  version: 4.14.191
+  resolution: "@types/lodash@npm:4.14.191"
+  checksum: ba0d5434e10690869f32d5ea49095250157cae502f10d57de0a723fd72229ce6c6a4979576f0f13e0aa9fbe3ce2457bfb9fa7d4ec3d6daba56730a51906d1491
   languageName: node
   linkType: hard
 
@@ -3024,6 +3061,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"apg-js@npm:^4.1.1":
+  version: 4.1.3
+  resolution: "apg-js@npm:4.1.3"
+  checksum: fa815838fc3c4b2fa5801419d050c5cf0ac8b5dbbc7476a9c9b8e1ae5fc78feccf01ff3ff52ef1e80c72f8b7bf39f589f1b8aaad5f5aeba399523a9ba18da127
+  languageName: node
+  linkType: hard
+
 "aproba@npm:^1.0.3":
   version: 1.2.0
   resolution: "aproba@npm:1.2.0"
@@ -3146,6 +3190,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"assert@npm:^1.4.1":
+  version: 1.5.0
+  resolution: "assert@npm:1.5.0"
+  dependencies:
+    object-assign: ^4.1.1
+    util: 0.10.3
+  checksum: 9be48435f726029ae7020c5888a3566bf4d617687aab280827f2e4029644b6515a9519ea10d018b342147c02faf73d9e9419e780e8937b3786ee4945a0ca71e5
+  languageName: node
+  linkType: hard
+
 "assert@npm:^2.0.0":
   version: 2.0.0
   resolution: "assert@npm:2.0.0"
@@ -3240,6 +3294,13 @@ __metadata:
   version: 1.0.5
   resolution: "available-typed-arrays@npm:1.0.5"
   checksum: 20eb47b3cefd7db027b9bbb993c658abd36d4edd3fe1060e83699a03ee275b0c9b216cc076ff3f2db29073225fb70e7613987af14269ac1fe2a19803ccc97f1a
+  languageName: node
+  linkType: hard
+
+"await-semaphore@npm:^0.1.3":
+  version: 0.1.3
+  resolution: "await-semaphore@npm:0.1.3"
+  checksum: 334c86541e446378dd832168de431327a77146f70cd80b57c99cd483ce5996e3bfdadea9d795e36f0b4faacb5121f5f7a99d94297ac2bdafbc690e5b0aa5cc32
   languageName: node
   linkType: hard
 
@@ -5498,6 +5559,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ethjs-query@npm:^0.3.8":
+  version: 0.3.8
+  resolution: "ethjs-query@npm:0.3.8"
+  dependencies:
+    babel-runtime: ^6.26.0
+    ethjs-format: 0.2.7
+    ethjs-rpc: 0.2.0
+    promise-to-callback: ^1.0.0
+  checksum: 6673167101e793dfdbb212f3ee2e7449a7c1eb7f4d72aba04a1c504eb36d9148f18c42a702839ebce7534709d821f32adcca84c56b7900788b2875cba8a371f1
+  languageName: node
+  linkType: hard
+
 "ethjs-rpc@npm:0.2.0":
   version: 0.2.0
   resolution: "ethjs-rpc@npm:0.2.0"
@@ -6696,6 +6769,13 @@ __metadata:
   version: 2.0.4
   resolution: "inherits@npm:2.0.4"
   checksum: 4a48a733847879d6cf6691860a6b1e3f0f4754176e4d71494c41f3475553768b10f84b5ce1d40fbd0e34e6bfbb864ee35858ad4dd2cf31e02fc4a154b724d7f1
+  languageName: node
+  linkType: hard
+
+"inherits@npm:2.0.1":
+  version: 2.0.1
+  resolution: "inherits@npm:2.0.1"
+  checksum: 6536b9377296d4ce8ee89c5c543cb75030934e61af42dba98a428e7d026938c5985ea4d1e3b87743a5b834f40ed1187f89c2d7479e9d59e41d2d1051aefba07b
   languageName: node
   linkType: hard
 
@@ -8986,6 +9066,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"nonce-tracker@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "nonce-tracker@npm:1.1.0"
+  dependencies:
+    assert: ^1.4.1
+    await-semaphore: ^0.1.3
+    ethjs-query: ^0.3.8
+  checksum: fbed4eac51a5df3922a9ee93f2d40f700d3c86e03ac02acc5c7983e9fd5c9d97278f1f5d8422f2dad0f0108c09a2d880145906cae19604717cc898d385bbdff9
+  languageName: node
+  linkType: hard
+
 "nopt@npm:^5.0.0":
   version: 5.0.0
   resolution: "nopt@npm:5.0.0"
@@ -9105,7 +9196,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"object-assign@npm:^4.1.0":
+"object-assign@npm:^4.1.0, object-assign@npm:^4.1.1":
   version: 4.1.1
   resolution: "object-assign@npm:4.1.1"
   checksum: fcc6e4ea8c7fe48abfbb552578b1c53e0d194086e2e6bbbf59e0a536381a292f39943c6e9628af05b5528aa5e3318bb30d6b2e53cadaf5b8fe9e12c4b69af23f
@@ -11792,6 +11883,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"util@npm:0.10.3":
+  version: 0.10.3
+  resolution: "util@npm:0.10.3"
+  dependencies:
+    inherits: 2.0.1
+  checksum: bd800f5d237a82caddb61723a6cbe45297d25dd258651a31335a4d5d981fd033cb4771f82db3d5d59b582b187cb69cfe727dc6f4d8d7826f686ee6c07ce611e0
+  languageName: node
+  linkType: hard
+
 "util@npm:^0.12.0":
   version: 0.12.4
   resolution: "util@npm:0.12.4"
@@ -11979,9 +12079,9 @@ __metadata:
   linkType: hard
 
 "whatwg-fetch@npm:^3.4.1":
-  version: 3.4.1
-  resolution: "whatwg-fetch@npm:3.4.1"
-  checksum: c27cd1a06bdb661a39ae632806dc539e0b45e0e09b0c43aa0796366727fd3c419a29d39978c769dda3cb860c4970d51079e99ee748aa5eb53cc2496374da4de6
+  version: 3.6.2
+  resolution: "whatwg-fetch@npm:3.6.2"
+  checksum: ee976b7249e7791edb0d0a62cd806b29006ad7ec3a3d89145921ad8c00a3a67e4be8f3fb3ec6bc7b58498724fd568d11aeeeea1f7827e7e1e5eae6c8a275afed
   languageName: node
   linkType: hard
 

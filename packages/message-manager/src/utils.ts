@@ -5,6 +5,7 @@ import { isValidHexAddress } from '@metamask/controller-utils';
 import { MessageParams } from './MessageManager';
 import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
+import { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -114,5 +115,20 @@ export function validateTypedSignMessageDataV3(
     throw new Error(
       'Data must conform to EIP-712 schema. See https://git.io/fNtcx.',
     );
+  }
+}
+
+/**
+ * Validates messageData for the eth_getEncryptionPublicKey message and throws in
+ * the event of any validation error.
+ *
+ * @param messageData - address string to validate.
+ */
+export function validateEncryptionPublicKeyMessageData(
+  messageData: EncryptionPublicKeyParams,
+) {
+  const { from } = messageData;
+  if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
+    throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
   }
 }

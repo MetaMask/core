@@ -1,9 +1,15 @@
 import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '@metamask/controller-utils';
+import { ActionConstraint, EventConstraint } from '@metamask/base-controller';
 import { CaveatConstraint } from './Caveat';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { PermissionController } from './PermissionController';
+
+import type {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  PermissionController,
+  PermissionsRequest,
+  SideEffectMessenger,
+} from './PermissionController';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Caveat } from './Caveat';
 
@@ -350,6 +356,42 @@ export type PermissionValidatorConstraint = (
 ) => void;
 
 /**
+ * The parameters passed to the side-effect function.
+ */
+export type SideEffectParams<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = {
+  requestData: PermissionsRequest;
+  messagingSystem: SideEffectMessenger<Actions, Events>;
+};
+
+/**
+ * A function that will execute actions as a permission side-effect.
+ */
+export type SideEffectHandler<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = (params: SideEffectParams<Actions, Events>) => Promise<unknown>;
+
+/**
+ * The permissions side effects.
+ */
+export type PermissionSideEffect<
+  Actions extends ActionConstraint,
+  Events extends EventConstraint,
+> = {
+  /**
+   * A method triggered when the permission is accepted by the user
+   */
+  onPermitted: SideEffectHandler<Actions, Events>;
+  /**
+   * A method triggered if a `onPermitted` method rejected.
+   */
+  onFailure?: SideEffectHandler<Actions, Events>;
+};
+
+/**
  * A utility type for ensuring that the given permission target key conforms to
  * our naming conventions.
  *
@@ -432,6 +474,14 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    * The validator should throw an appropriate JSON-RPC error if validation fails.
    */
   validator?: PermissionValidatorConstraint;
+
+  /**
+   * The side-effect triggered by the {@link PermissionController} once the user approved it.
+   * The side-effect can only be an action allowed to be called inside the {@link PermissionController}.
+   *
+   * If the side-effect action fails, the permission that triggered it is revoked.
+   */
+  sideEffect?: PermissionSideEffect<any, any>;
 };
 
 /**

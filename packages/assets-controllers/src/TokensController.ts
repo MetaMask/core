@@ -16,7 +16,6 @@ import type { NetworkState } from '@metamask/network-controller';
 import {
   NetworkType,
   toChecksumHexAddress,
-  MAINNET,
   ERC721_INTERFACE_ID,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
@@ -67,6 +66,7 @@ export type SuggestedAssetMetaBase = {
   time: number;
   type: string;
   asset: Token;
+  interactingAddress?: string;
 };
 
 /**
@@ -79,6 +79,7 @@ export type SuggestedAssetMetaBase = {
  * @property time - Timestamp associated with this this suggested asset
  * @property type - Type type this suggested asset
  * @property asset - Asset suggested object
+ * @property interactingAddress - Account address that requested watch asset
  */
 export type SuggestedAssetMeta =
   | (SuggestedAssetMetaBase & {
@@ -206,7 +207,7 @@ export class TokensController extends BaseController<
     super(config, state);
 
     this.defaultConfig = {
-      networkType: MAINNET,
+      networkType: NetworkType.mainnet,
       selectedAddress: '',
       chainId: '',
       provider: undefined,
@@ -265,6 +266,7 @@ export class TokensController extends BaseController<
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals the token uses.
    * @param image - Image of the token.
+   * @param interactingAddress - The address of the account to add a token to.
    * @returns Current token list.
    */
   async addToken(
@@ -272,12 +274,21 @@ export class TokensController extends BaseController<
     symbol: string,
     decimals: number,
     image?: string,
+    interactingAddress?: string,
   ): Promise<Token[]> {
-    const currentChainId = this.config.chainId;
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+    const { chainId: currentChainId, selectedAddress } = this.config;
+    const accountAddress = interactingAddress || selectedAddress;
+    const isInteractingWithWalletAccount = accountAddress === selectedAddress;
     const releaseLock = await this.mutex.acquire();
+
     try {
       address = toChecksumHexAddress(address);
-      const { tokens, ignoredTokens, detectedTokens } = this.state;
+      const tokens = allTokens[currentChainId]?.[accountAddress] || [];
+      const ignoredTokens =
+        allIgnoredTokens[currentChainId]?.[accountAddress] || [];
+      const detectedTokens =
+        allDetectedTokens[currentChainId]?.[accountAddress] || [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this._detectIsERC721(address),
@@ -323,16 +334,26 @@ export class TokensController extends BaseController<
           newTokens,
           newIgnoredTokens,
           newDetectedTokens,
+          interactingAddress: accountAddress,
         });
 
-      this.update({
-        tokens: newTokens,
-        ignoredTokens: newIgnoredTokens,
-        detectedTokens: newDetectedTokens,
+      let newState: Partial<TokensState> = {
         allTokens: newAllTokens,
         allIgnoredTokens: newAllIgnoredTokens,
         allDetectedTokens: newAllDetectedTokens,
-      });
+      };
+
+      // Only update active tokens if user is interacting with their active wallet account.
+      if (isInteractingWithWalletAccount) {
+        newState = {
+          ...newState,
+          tokens: newTokens,
+          ignoredTokens: newIgnoredTokens,
+          detectedTokens: newDetectedTokens,
+        };
+      }
+
+      this.update(newState);
       return newTokens;
     } finally {
       releaseLock();
@@ -498,15 +519,17 @@ export class TokensController extends BaseController<
         }
       });
 
-      const { selectedAddress: detectionAddress, chainId: detectionChainId } =
-        detectionDetails || {};
+      const {
+        selectedAddress: interactingAddress,
+        chainId: interactingChainId,
+      } = detectionDetails || {};
 
       const { newAllTokens, newAllDetectedTokens } = this._getNewAllTokensState(
         {
           newTokens,
           newDetectedTokens,
-          detectionAddress,
-          detectionChainId,
+          interactingAddress,
+          interactingChainId,
         },
       );
 
@@ -598,16 +621,25 @@ export class TokensController extends BaseController<
    *
    * @param asset - The asset to be watched. For now only ERC20 tokens are accepted.
    * @param type - The asset type.
+   * @param interactingAddress - The address of the account that is requesting to watch the asset.
    * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
    */
-  async watchAsset(asset: Token, type: string): Promise<AssetSuggestionResult> {
-    const suggestedAssetMeta = {
+  async watchAsset(
+    asset: Token,
+    type: string,
+    interactingAddress?: string,
+  ): Promise<AssetSuggestionResult> {
+    const { selectedAddress } = this.config;
+
+    const suggestedAssetMeta: SuggestedAssetMeta = {
       asset,
       id: this._generateRandomId(),
       status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
       time: Date.now(),
       type,
+      interactingAddress: interactingAddress || selectedAddress,
     };
+
     try {
       switch (type) {
         case 'ERC20':
@@ -655,6 +687,7 @@ export class TokensController extends BaseController<
    * @param suggestedAssetID - The ID of the suggestedAsset to accept.
    */
   async acceptWatchAsset(suggestedAssetID: string): Promise<void> {
+    const { selectedAddress } = this.config;
     const { suggestedAssets } = this.state;
     const index = suggestedAssets.findIndex(
       ({ id }) => suggestedAssetID === id,
@@ -664,7 +697,13 @@ export class TokensController extends BaseController<
       switch (suggestedAssetMeta.type) {
         case 'ERC20':
           const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
-          await this.addToken(address, symbol, decimals, image);
+          await this.addToken(
+            address,
+            symbol,
+            decimals,
+            image,
+            suggestedAssetMeta?.interactingAddress || selectedAddress,
+          );
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
@@ -716,29 +755,29 @@ export class TokensController extends BaseController<
    * @param params.newTokens - The new tokens to set for the current network and selected account.
    * @param params.newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
    * @param params.newDetectedTokens - The new detected tokens to set for the current network and selected account.
-   * @param params.detectionAddress - The address on which the detected tokens to add were detected.
-   * @param params.detectionChainId - The chainId on which the detected tokens to add were detected.
+   * @param params.interactingAddress - The account address to use to store the tokens.
+   * @param params.interactingChainId - The chainId to use to store the tokens.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
   _getNewAllTokensState(params: {
     newTokens?: Token[];
     newIgnoredTokens?: string[];
     newDetectedTokens?: Token[];
-    detectionAddress?: string;
-    detectionChainId?: string;
+    interactingAddress?: string;
+    interactingChainId?: string;
   }) {
     const {
       newTokens,
       newIgnoredTokens,
       newDetectedTokens,
-      detectionAddress,
-      detectionChainId,
+      interactingAddress,
+      interactingChainId,
     } = params;
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId, selectedAddress } = this.config;
 
-    const userAddressToAddTokens = detectionAddress ?? selectedAddress;
-    const chainIdToAddTokens = detectionChainId ?? chainId;
+    const userAddressToAddTokens = interactingAddress ?? selectedAddress;
+    const chainIdToAddTokens = interactingChainId ?? chainId;
 
     let newAllTokens = allTokens;
     if (

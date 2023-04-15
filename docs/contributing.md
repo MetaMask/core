@@ -21,17 +21,44 @@
 
 When developing changes to packages within this repository that a different project depends upon, you may wish to load those changes into the project and test them locally or in CI before publishing proper releases of those packages. To solve that problem, this repository provides a mechanism to publish "preview" versions of packages to GitHub Package Registry. These versions can then be used in the project like any other version, provided the project is configured to use that registry.
 
+> **Warning**
+>
+> There is a known problem with the preview build workflow. It relies upon you having a local cache of any non-preview `@metamask/`-scoped packages.
+>
+> If you encounter problems installing non-preview `@metamask/`-scoped packages when using this workflow, you can work around the problem by temporarily removing the `.npmrc` / `.yarnrc.yml` changes to install the missing packages. Once they are installed, restore the preview build credentials to use preview builds. The non-preview `@metamask/`-scoped packages should then be found in your local cache.
+>
+> See [issue #1075](https://github.com/MetaMask/core/issues/1075) for more details.
+
 ### As a MetaMask contributor
 
 If you're a MetaMask contributor, you can create these preview versions via draft pull requests:
 
-1. Navigate to your settings within GitHub and [create a classic access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `packages:read` scope.
-2. Switch to your project locally and add a `.npmrc` file with the following content, filling in the appropriate areas:
-   ```
-   @metamask:registry=https://npm.pkg.github.com
-   //npm.pkg.github.com/:_authToken=<your personal access token>
-   ```
-   Make sure not to commit this file.
+1. Navigate to your settings within GitHub and [create a classic access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `read:packages` scope.
+2. Switch to your project locally and add/edit the appropriate file with the following content, filling in the appropriate areas:
+
+   - **Yarn 1 (classic) or NPM**
+
+     Add the following in `.npmrc`
+
+     ```
+     @metamask:registry=https://npm.pkg.github.com
+     //npm.pkg.github.com/:_authToken=<your personal access token>
+     ```
+
+   - **Yarn >= 2 (berry):**
+
+     Add the following in `.yarnrc.yml`
+
+     ```
+     npmScopes:
+        metamask:
+           npmAlwaysAuth: true
+           npmAuthToken: <your personal access token>
+           npmRegistryServer: 'https://npm.pkg.github.com'
+     ```
+
+   Make sure not to commit these changes.
+
 3. Go to GitHub and open up a pull request for this repository, then post a comment on the PR with the text `@metamaskbot publish-preview`. (This triggers the `publish-preview` GitHub action.)
 4. After a few minutes, you will see a new comment indicating that all packages have been published with the format `<package name>-<commit id>`.
 5. Switch back to your project locally and update `package.json` by replacing the versions for the packages you've changed in your PR using the new version format (e.g. `1.2.3-e2df9b4` instead of `~1.2.3`), then run `yarn install`.
@@ -41,13 +68,32 @@ If you're a MetaMask contributor, you can create these preview versions via draf
 
 If you're a contributor and you've forked this repository, you can create preview versions for a branch via provided scripts:
 
-1. Navigate to your settings within GitHub and [create a **classic** access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `packages:read` scope.
-2. Switch to your project locally and add a `.npmrc` file with the following content, filling in the appropriate areas:
-   ```
-   @<your GitHub username>:registry=https://npm.pkg.github.com
-   //npm.pkg.github.com/:_authToken=<your personal access token>
-   ```
-   Make sure not to commit this file.
+1. Navigate to your settings within GitHub and [create a **classic** access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `read:packages` scope.
+2. Switch to your project locally and add/edit the appropriate file with the following content, filling in the appropriate areas.
+
+   - **Yarn 1 (classic) or NPM:**
+
+     Add the following in `.npmrc`
+
+     ```
+     @<your GitHub username>:registry=https://npm.pkg.github.com
+     //npm.pkg.github.com/:_authToken=<your personal access token>
+     ```
+
+   - **Yarn >= 2 (berry):**
+
+     Add the following in `.yarnrc.yml`
+
+     ```
+     npmScopes:
+        <your GitHub username>:
+           npmAlwaysAuth: true
+           npmAuthToken: <your personal access token>
+           npmRegistryServer: 'https://npm.pkg.github.com'
+     ```
+
+   Make sure not to commit these changes.
+
 3. Open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<your GitHub username>`.
 4. Switch to your fork of this repository locally and run `yarn prepare-preview-builds "$(git rev-parse --short HEAD)" && yarn build && yarn publish-previews` to generate preview versions for all packages based on the current branch and publish them to GitHub Package Registry. Take note of the version that is published; it should look like `1.2.3-e2df9b4` instead of `1.2.3`.
 5. Switch back to your project and update `package.json` by replacing the versions for all packages you've changed using the version that was output in the previous step, then run `yarn install`.

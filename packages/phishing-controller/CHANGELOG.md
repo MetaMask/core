@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+### Changed
+- **BREAKING:** Switch to new phishing configuration API that returns a diff since the last update ([#1123](https://github.com/MetaMask/core/pull/1123))
+  - The "hotlist" has been replaced by a service that returns any configuration changes since the last update. This should reduce network traffic even further.
+  - The endpoints used are now `https://phishing-detection.metafi.codefi.network/v1/stalelist` and `https://phishing-detection.metafi.codefi.network/v1/diffsSince/:lastUpdated`
+- **BREAKING:**: The phishing controller state now keeps the MetaMask and PhishFort configuration separate, allowing for proper attribution of each block ([#1123](https://github.com/MetaMask/core/pull/1123))
+  - The `listState` state property has been replaced with an array of phishing list state objects (one entry for MetaMask, one for PhishFort).
+  - The PhishFort config is deduplicated server-side, so it should have zero overlap with the MetaMask configuration (which helps reduce memory/disk usage)
+
+## [3.0.0]
+### Removed
+- **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
+  - Consumers must now import `isomorphic-fetch` or another polyfill themselves if they are running in an environment without `fetch`
+
 ## [2.0.0]
 ### Changed
 - **BREAKING:** Refactor to Cost-Optimized Phishing List Data Architecture. ([#1080](https://github.com/MetaMask/core/pull/1080))
@@ -52,7 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@3.0.0...@metamask/phishing-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@2.0.0...@metamask/phishing-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.2...@metamask/phishing-controller@2.0.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.1...@metamask/phishing-controller@1.1.2
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.0...@metamask/phishing-controller@1.1.1

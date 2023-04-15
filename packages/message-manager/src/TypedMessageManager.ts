@@ -89,20 +89,24 @@ export class TypedMessageManager extends AbstractMessageManager<
    * @param req - The original request object possibly containing the origin.
    * @returns Promise resolving to the raw data of the signature request.
    */
-  addUnapprovedMessageAsync(
+  async addUnapprovedMessageAsync(
     messageParams: TypedMessageParams,
     version: string,
     req?: OriginalRequest,
   ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      if (version === 'V1') {
-        validateTypedSignMessageDataV1(messageParams);
-      }
+    if (version === 'V1') {
+      validateTypedSignMessageDataV1(messageParams);
+    }
 
-      if (version === 'V3') {
-        validateTypedSignMessageDataV3(messageParams);
-      }
-      const messageId = this.addUnapprovedMessage(messageParams, version, req);
+    if (version === 'V3') {
+      validateTypedSignMessageDataV3(messageParams);
+    }
+    const messageId = await this.addUnapprovedMessage(
+      messageParams,
+      version,
+      req,
+    );
+    return new Promise((resolve, reject) => {
       this.hub.once(`${messageId}:finished`, (data: TypedMessage) => {
         switch (data.status) {
           case 'signed':
@@ -141,11 +145,11 @@ export class TypedMessageManager extends AbstractMessageManager<
    * @param req - The original request object possibly containing the origin.
    * @returns The id of the newly created TypedMessage.
    */
-  addUnapprovedMessage(
+  async addUnapprovedMessage(
     messageParams: TypedMessageParams,
     version: string,
     req?: OriginalRequest,
-  ) {
+  ): Promise<string> {
     const messageId = random();
     const messageParamsMetamask = {
       ...messageParams,
