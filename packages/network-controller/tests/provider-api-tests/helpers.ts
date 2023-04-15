@@ -400,7 +400,7 @@ export const withNetworkClient = async (
     });
 
   if (providerType === 'infura') {
-    controller.setProviderType(infuraNetwork);
+    await controller.setProviderType(infuraNetwork);
   } else {
     controller.upsertNetworkConfiguration(
       {

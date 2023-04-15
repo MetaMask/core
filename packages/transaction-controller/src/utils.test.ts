@@ -1,9 +1,13 @@
+import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 import {
   Transaction,
   GasPriceValue,
   FeeMarketEIP1559Values,
+  TransactionStatus,
 } from './TransactionController';
 import * as util from './utils';
+import type { TransactionMeta } from './TransactionController';
+import { getAndFormatTransactionsForNonceTracker } from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -279,6 +283,67 @@ describe('utils', () => {
       expect(() =>
         util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
       ).not.toThrow(Error);
+    });
+  });
+
+  describe('getAndFormatTransactionsForNonceTracker', () => {
+    it('should return an array of formatted NonceTrackerTransaction objects filtered by fromAddress and transactionStatus', () => {
+      const fromAddress = '0x123';
+      const inputTransactions: TransactionMeta[] = [
+        {
+          id: '1',
+          time: 123456,
+          transaction: {
+            from: fromAddress,
+            gas: '0x100',
+            value: '0x200',
+            nonce: '0x1',
+          },
+          status: TransactionStatus.confirmed,
+        },
+        {
+          id: '2',
+          time: 123457,
+          transaction: {
+            from: '0x124',
+            gas: '0x101',
+            value: '0x201',
+            nonce: '0x2',
+          },
+          status: TransactionStatus.submitted,
+        },
+        {
+          id: '3',
+          time: 123458,
+          transaction: {
+            from: fromAddress,
+            gas: '0x102',
+            value: '0x202',
+            nonce: '0x3',
+          },
+          status: TransactionStatus.approved,
+        },
+      ];
+
+      const expectedResult: NonceTrackerTransaction[] = [
+        {
+          status: TransactionStatus.confirmed,
+          history: [{}],
+          txParams: {
+            from: fromAddress,
+            gas: '0x100',
+            value: '0x200',
+            nonce: '0x1',
+          },
+        },
+      ];
+
+      const result = getAndFormatTransactionsForNonceTracker(
+        fromAddress,
+        TransactionStatus.confirmed,
+        inputTransactions,
+      );
+      expect(result).toStrictEqual(expectedResult);
     });
   });
 });
