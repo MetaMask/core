@@ -250,6 +250,8 @@ export const testsForRpcMethodSupportingBlockParam = (
         // block-cache middleware will request the latest block number
         // through the block tracker to determine the cache key.
         comms.mockNextBlockTrackerRequest();
+        // A second block tracker request is made for some reason
+        comms.mockNextBlockTrackerRequest();
         comms.mockRpcCall({
           delay: 100,
           request: buildRequestWithReplacedBlockParam(

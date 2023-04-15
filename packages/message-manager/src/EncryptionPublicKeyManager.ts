@@ -1,6 +1,4 @@
 import { v1 as random } from 'uuid';
-import { detectSIWE, SIWEMessage } from '@metamask/controller-utils';
-import { normalizeMessageData, validateSignMessageData } from './utils';
 import {
   AbstractMessageManager,
   AbstractMessage,
@@ -8,46 +6,43 @@ import {
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { validateEncryptionPublicKeyMessageData } from './utils';
 
 /**
- * @type Message
+ * @type EncryptionPublicKey
  *
- * Represents and contains data about a 'personal_sign' type signature request.
- * These are created when a signature for a personal_sign call is requested.
+ * Represents and contains data about a 'eth_getEncryptionPublicKey' type request.
+ * These are created when an encryption public key is requested.
  * @property id - An id to track and identify the message object
- * @property messageParams - The parameters to pass to the personal_sign method once the signature request is approved
- * @property type - The json-prc signing method for which a signature request has been made.
- * A 'Message' which always has a 'personal_sign' type
- * @property rawSig - Raw data of the signature request
+ * @property messageParams - The parameters to pass to the eth_getEncryptionPublicKey method once the request is approved
+ * @property type - The json-prc method for which an encryption public key request has been made.
+ * A 'Message' which always has a 'eth_getEncryptionPublicKey' type
+ * @property rawSig - Encryption public key
  */
-export interface PersonalMessage extends AbstractMessage {
-  messageParams: PersonalMessageParams;
+export interface EncryptionPublicKey extends AbstractMessage {
+  messageParams: EncryptionPublicKeyParams;
 }
 
 /**
- * @type PersonalMessageParams
+ * @type EncryptionPublicKeyParams
  *
- * Represents the parameters to pass to the personal_sign method once the signature request is approved.
- * @property data - A hex string conversion of the raw buffer data of the signature request
- * @property from - Address to sign this message from
+ * Represents the parameters to pass to the method once the request is approved.
+ * @property from - Address from which to extract the encryption public key
  * @property origin? - Added for request origin identification
  */
-export interface PersonalMessageParams extends AbstractMessageParams {
-  data: string;
-  siwe?: SIWEMessage;
-}
+export type EncryptionPublicKeyParams = AbstractMessageParams;
 
 /**
  * @type MessageParamsMetamask
  *
- * Represents the parameters to pass to the personal_sign method once the signature request is approved
+ * Represents the parameters to pass to the eth_getEncryptionPublicKey method once the request is approved
  * plus data added by MetaMask.
  * @property metamaskId - Added for tracking and identification within MetaMask
- * @property data - A hex string conversion of the raw buffer data of the signature request
- * @property from - Address to sign this message from
+ * @property data - Encryption public key
+ * @property from - Address from which to extract the encryption public key
  * @property origin? - Added for request origin identification
  */
-export interface PersonalMessageParamsMetamask
+export interface EncryptionPublicKeyParamsMetamask
   extends AbstractMessageParamsMetamask {
   data: string;
 }
@@ -55,45 +50,46 @@ export interface PersonalMessageParamsMetamask
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
-export class PersonalMessageManager extends AbstractMessageManager<
-  PersonalMessage,
-  PersonalMessageParams,
-  PersonalMessageParamsMetamask
+export class EncryptionPublicKeyManager extends AbstractMessageManager<
+  EncryptionPublicKey,
+  EncryptionPublicKeyParams,
+  EncryptionPublicKeyParamsMetamask
 > {
   /**
    * Name of this controller used during composition
    */
-  override name = 'PersonalMessageManager';
+  override name = 'EncryptionPublicKeyManager';
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
    * this.addMessage is called to add the new Message to this.messages, and to save the unapproved Messages.
    *
-   * @param messageParams - The params for the personal_sign call to be made after the message is approved.
+   * @param messageParams - The params for the eth_getEncryptionPublicKey call to be made after the message is approved.
    * @param req - The original request object possibly containing the origin.
-   * @returns Promise resolving to the raw data of the signature request.
+   * @returns Promise resolving to the raw data of the request.
    */
   async addUnapprovedMessageAsync(
-    messageParams: PersonalMessageParams,
+    messageParams: EncryptionPublicKeyParams,
     req?: OriginalRequest,
   ): Promise<string> {
-    validateSignMessageData(messageParams);
+    validateEncryptionPublicKeyMessageData(messageParams);
     const messageId = await this.addUnapprovedMessage(messageParams, req);
+
     return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: PersonalMessage) => {
+      this.hub.once(`${messageId}:finished`, (data: EncryptionPublicKey) => {
         switch (data.status) {
-          case 'signed':
+          case 'received':
             return resolve(data.rawSig as string);
           case 'rejected':
             return reject(
               new Error(
-                'MetaMask Personal Message Signature: User denied message signature.',
+                'MetaMask EncryptionPublicKey: User denied message EncryptionPublicKey.',
               ),
             );
           default:
             return reject(
               new Error(
-                `MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(
+                `MetaMask EncryptionPublicKey: Unknown problem: ${JSON.stringify(
                   messageParams,
                 )}`,
               ),
@@ -108,34 +104,29 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * this.addMessage is called to add the new Message to this.messages, and to save the
    * unapproved Messages.
    *
-   * @param messageParams - The params for the personal_sign call to be made after the message
+   * @param messageParams - The params for the eth_getEncryptionPublicKey call to be made after the message
    * is approved.
    * @param req - The original request object possibly containing the origin.
    * @returns The id of the newly created message.
    */
   async addUnapprovedMessage(
-    messageParams: PersonalMessageParams,
+    messageParams: EncryptionPublicKeyParams,
     req?: OriginalRequest,
   ): Promise<string> {
     if (req) {
       messageParams.origin = req.origin;
     }
-    messageParams.data = normalizeMessageData(messageParams.data);
-
-    const ethereumSignInData = detectSIWE(messageParams);
-    const finalMsgParams = { ...messageParams, siwe: ethereumSignInData };
-
     const messageId = random();
-    const messageData: PersonalMessage = {
+    const messageData: EncryptionPublicKey = {
       id: messageId,
-      messageParams: finalMsgParams,
+      messageParams,
       status: 'unapproved',
       time: Date.now(),
-      type: 'personal_sign',
+      type: 'eth_getEncryptionPublicKey',
     };
     await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
-      ...finalMsgParams,
+      ...messageParams,
       ...{ metamaskId: messageId },
     });
     return messageId;
@@ -149,11 +140,11 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
   prepMessageForSigning(
-    messageParams: PersonalMessageParamsMetamask,
-  ): Promise<PersonalMessageParams> {
+    messageParams: EncryptionPublicKeyParamsMetamask,
+  ): Promise<EncryptionPublicKeyParams> {
     delete messageParams.metamaskId;
-    return Promise.resolve(messageParams);
+    return Promise.resolve({ from: messageParams.data });
   }
 }
 
-export default PersonalMessageManager;
+export default EncryptionPublicKeyManager;
