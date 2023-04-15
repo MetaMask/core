@@ -288,14 +288,14 @@ export class NetworkController extends BaseControllerV2<
     };
   }
 
-  private refreshNetwork() {
+  private async refreshNetwork() {
     this.update((state) => {
       state.network = 'loading';
       state.networkDetails = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
     this.configureProvider(type, rpcTarget, chainId, ticker);
-    this.lookupNetwork();
+    await this.lookupNetwork();
   }
 
   private registerProvider() {
@@ -363,8 +363,10 @@ export class NetworkController extends BaseControllerV2<
     }, 500);
   }
 
-  private verifyNetwork() {
-    this.state.network === 'loading' && this.lookupNetwork();
+  private async verifyNetwork() {
+    if (this.state.network === 'loading') {
+      await this.lookupNetwork();
+    }
   }
 
   /**
@@ -373,12 +375,12 @@ export class NetworkController extends BaseControllerV2<
    * using the provider to gather details about the network.
    *
    */
-  initializeProvider() {
+  async initializeProvider() {
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
     this.configureProvider(type, rpcTarget, chainId, ticker, nickname);
     this.registerProvider();
-    this.lookupNetwork();
+    await this.lookupNetwork();
   }
 
   async #getNetworkId(): Promise<string> {
@@ -447,7 +449,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param type - Human readable network name.
    */
-  setProviderType(type: NetworkType) {
+  async setProviderType(type: NetworkType) {
     this.#setCurrentAsPreviousProvider();
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
@@ -464,7 +466,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.nickname = undefined;
       state.providerConfig.id = undefined;
     });
-    this.refreshNetwork();
+    await this.refreshNetwork();
   }
 
   /**
@@ -472,7 +474,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
-  setActiveNetwork(networkConfigurationId: string) {
+  async setActiveNetwork(networkConfigurationId: string) {
     this.#setCurrentAsPreviousProvider();
 
     const targetNetwork =
@@ -494,7 +496,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.id = targetNetwork.id;
     });
 
-    this.refreshNetwork();
+    await this.refreshNetwork();
   }
 
   #getLatestBlock(): Promise<Block> {
