@@ -876,6 +876,7 @@ describe('TokensController', () => {
   describe('on watchAsset', function () {
     let asset: any, type: any;
     const interactingAddress = '0x2';
+    const requestId = '12345';
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
@@ -973,7 +974,7 @@ describe('TokensController', () => {
       const clock = sinon.useFakeTimers(1);
       const generateRandomIdStub = sinon
         .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
+        .callsFake(() => requestId);
       type = 'ERC20';
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
@@ -981,7 +982,7 @@ describe('TokensController', () => {
       await tokensController.watchAsset(asset, type);
       expect(tokensController.state.suggestedAssets).toStrictEqual([
         {
-          id: '12345',
+          id: requestId,
           status: 'pending',
           time: 1, // uses the fakeTimers clock
           type: 'ERC20',
@@ -993,9 +994,19 @@ describe('TokensController', () => {
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
-          id: '12345',
+          id: requestId,
           origin: ORIGIN_METAMASK,
           type: WATCH_ASSET_METHOD_NAME,
+          requestData: {
+            id: requestId,
+            interactingAddress: '0x1',
+            asset: {
+              address: asset.address,
+              decimals: asset.decimals,
+              symbol: asset.symbol,
+              image: asset.image,
+            },
+          },
         },
         true,
       );
@@ -1008,7 +1019,7 @@ describe('TokensController', () => {
       const clock = sinon.useFakeTimers(1);
       const generateRandomIdStub = sinon
         .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
+        .callsFake(() => requestId);
       type = 'ERC20';
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
@@ -1016,7 +1027,7 @@ describe('TokensController', () => {
       await tokensController.watchAsset(asset, type, interactingAddress);
       expect(tokensController.state.suggestedAssets).toStrictEqual([
         {
-          id: '12345',
+          id: requestId,
           status: 'pending',
           interactingAddress,
           time: 1, // uses the fakeTimers clock
@@ -1028,9 +1039,19 @@ describe('TokensController', () => {
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
-          id: '12345',
+          id: requestId,
           origin: ORIGIN_METAMASK,
           type: WATCH_ASSET_METHOD_NAME,
+          requestData: {
+            id: requestId,
+            interactingAddress,
+            asset: {
+              address: asset.address,
+              decimals: asset.decimals,
+              symbol: asset.symbol,
+              image: asset.image,
+            },
+          },
         },
         true,
       );
@@ -1047,7 +1068,7 @@ describe('TokensController', () => {
       async function (_, approvalControllerCallResolves: boolean) {
         const generateRandomIdStub = sinon
           .stub(tokensController, '_generateRandomId')
-          .callsFake(() => '12345');
+          .callsFake(() => requestId);
         type = 'ERC20';
 
         let calledOnce = false;
@@ -1063,7 +1084,7 @@ describe('TokensController', () => {
             });
 
         await tokensController.watchAsset(asset, type);
-        await tokensController.acceptWatchAsset('12345');
+        await tokensController.acceptWatchAsset(requestId);
 
         expect(tokensController.state.suggestedAssets).toStrictEqual([]);
         expect(tokensController.state.tokens).toHaveLength(1);
@@ -1079,9 +1100,19 @@ describe('TokensController', () => {
         expect(callActionSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
-            id: '12345',
+            id: requestId,
             origin: ORIGIN_METAMASK,
             type: WATCH_ASSET_METHOD_NAME,
+            requestData: {
+              id: requestId,
+              interactingAddress: '0x1',
+              asset: {
+                address: asset.address,
+                decimals: asset.decimals,
+                symbol: asset.symbol,
+                image: asset.image,
+              },
+            },
           },
           true,
         );
@@ -1097,13 +1128,13 @@ describe('TokensController', () => {
     it('should store token correctly under interacting address if user confirms', async function () {
       const generateRandomIdStub = sinon
         .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
+        .callsFake(() => requestId);
       type = 'ERC20';
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
 
       await tokensController.watchAsset(asset, type, interactingAddress);
-      await tokensController.acceptWatchAsset('12345');
+      await tokensController.acceptWatchAsset(requestId);
 
       expect(tokensController.state.suggestedAssets).toStrictEqual([]);
       expect(tokensController.state.tokens).toHaveLength(0);
@@ -1129,9 +1160,19 @@ describe('TokensController', () => {
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
-          id: '12345',
+          id: requestId,
           origin: ORIGIN_METAMASK,
           type: WATCH_ASSET_METHOD_NAME,
+          requestData: {
+            id: requestId,
+            interactingAddress,
+            asset: {
+              address: asset.address,
+              decimals: asset.decimals,
+              symbol: asset.symbol,
+              image: asset.image,
+            },
+          },
         },
         true,
       );
@@ -1195,9 +1236,19 @@ describe('TokensController', () => {
         expect(callActionSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
-            id: expect.any(String),
+            id: suggestedAssetMeta.id,
             origin: ORIGIN_METAMASK,
             type: WATCH_ASSET_METHOD_NAME,
+            requestData: {
+              id: suggestedAssetMeta.id,
+              interactingAddress: suggestedAssetMeta.interactingAddress,
+              asset: {
+                address: suggestedAssetMeta.asset.address,
+                decimals: suggestedAssetMeta.asset.decimals,
+                symbol: suggestedAssetMeta.asset.symbol,
+                image: null,
+              },
+            },
           },
           true,
         );
@@ -1227,9 +1278,19 @@ describe('TokensController', () => {
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
-          id: expect.any(String),
+          id: suggestedAssetMeta.id,
           origin: ORIGIN_METAMASK,
           type: WATCH_ASSET_METHOD_NAME,
+          requestData: {
+            id: suggestedAssetMeta.id,
+            interactingAddress: suggestedAssetMeta.interactingAddress,
+            asset: {
+              address: suggestedAssetMeta.asset.address,
+              decimals: suggestedAssetMeta.asset.decimals,
+              symbol: suggestedAssetMeta.asset.symbol,
+              image: null,
+            },
+          },
         },
         true,
       );
@@ -1283,9 +1344,19 @@ describe('TokensController', () => {
         expect(callActionSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
-            id: expect.any(String),
+            id: suggestedAssetMeta.id,
             origin: ORIGIN_METAMASK,
             type: WATCH_ASSET_METHOD_NAME,
+            requestData: {
+              id: suggestedAssetMeta.id,
+              interactingAddress: suggestedAssetMeta.interactingAddress,
+              asset: {
+                address: suggestedAssetMeta.asset.address,
+                decimals: suggestedAssetMeta.asset.decimals,
+                symbol: suggestedAssetMeta.asset.symbol,
+                image: null,
+              },
+            },
           },
           true,
         );
