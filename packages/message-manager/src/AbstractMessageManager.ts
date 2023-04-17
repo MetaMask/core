@@ -135,14 +135,17 @@ export abstract class AbstractMessageManager<
    * Then saves the unapprovedMessage list to storage.
    *
    * @param message - A Message that will replace an existing Message (with the id) in this.messages.
+   * @param emitUpdate - Whether to emit the updateBadge event.
    */
-  protected updateMessage(message: M) {
+  protected updateMessage(message: M, emitUpdate = true) {
     const index = this.messages.findIndex((msg) => message.id === msg.id);
     /* istanbul ignore next */
     if (index !== -1) {
       this.messages[index] = message;
     }
-    this.saveMessageList();
+    if (emitUpdate) {
+      this.saveMessageList();
+    }
   }
 
   /**
@@ -307,7 +310,7 @@ export abstract class AbstractMessageManager<
       return;
     }
     message.rawSig = result;
-    this.updateMessage(message);
+    this.updateMessage(message, false);
   }
 
   /**
