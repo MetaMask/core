@@ -2,7 +2,8 @@ import * as sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
+import type { NetworkState, NetworkId } from '@metamask/network-controller';
+import { NetworkStatus } from '@metamask/network-controller';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import {
   TransactionController,
@@ -141,7 +142,8 @@ const MOCK_NETWORK = {
   provider: MAINNET_PROVIDER,
   blockTracker: { getLatestBlock: () => '0x102833C' },
   state: {
-    network: '5',
+    networkId: '5' as NetworkId,
+    networkStatus: NetworkStatus.Available,
     isCustomNetwork: false,
     networkDetails: { isEIP1559Compatible: false },
     providerConfig: {
@@ -157,7 +159,8 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
   blockTracker: { getLatestBlock: () => '0x102833C' },
   isCustomNetwork: false,
   state: {
-    network: '5',
+    networkId: '5' as NetworkId,
+    networkStatus: NetworkStatus.Available,
     providerConfig: { type: NetworkType.goerli },
     networkConfigurations: {},
   },
@@ -167,7 +170,8 @@ const MOCK_MAINNET_NETWORK = {
   provider: MAINNET_PROVIDER,
   blockTracker: { getLatestBlock: () => '0x102833C' },
   state: {
-    network: '1',
+    networkId: '1' as NetworkId,
+    networkStatus: NetworkStatus.Available,
     isCustomNetwork: false,
     networkDetails: { isEIP1559Compatible: false },
     providerConfig: {
@@ -182,7 +186,8 @@ const MOCK_CUSTOM_NETWORK = {
   provider: PALM_PROVIDER,
   blockTracker: { getLatestBlock: () => '0xA6EDFC' },
   state: {
-    network: '11297108109',
+    networkId: '11297108109' as NetworkId,
+    networkStatus: NetworkStatus.Available,
     isCustomNetwork: true,
     networkDetails: { isEIP1559Compatible: false },
     providerConfig: {
@@ -527,7 +532,7 @@ describe('TransactionController', () => {
     });
     expect(controller.state.transactions[0].transaction.from).toBe(from);
     expect(controller.state.transactions[0].networkID).toBe(
-      MOCK_NETWORK.state.network,
+      MOCK_NETWORK.state.networkId,
     );
 
     expect(controller.state.transactions[0].chainId).toBe(
@@ -567,7 +572,7 @@ describe('TransactionController', () => {
     });
     expect(controller.state.transactions[0].transaction.from).toBe(from);
     expect(controller.state.transactions[0].networkID).toBe(
-      MOCK_MAINNET_NETWORK.state.network,
+      MOCK_MAINNET_NETWORK.state.networkId,
     );
 
     expect(controller.state.transactions[0].chainId).toBe(
@@ -607,7 +612,7 @@ describe('TransactionController', () => {
     });
     expect(controller.state.transactions[0].transaction.from).toBe(from);
     expect(controller.state.transactions[0].networkID).toBe(
-      MOCK_CUSTOM_NETWORK.state.network,
+      MOCK_CUSTOM_NETWORK.state.networkId,
     );
 
     expect(controller.state.transactions[0].chainId).toBe(

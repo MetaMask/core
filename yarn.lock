@@ -1853,6 +1853,7 @@ __metadata:
     deepmerge: ^4.2.2
     eth-json-rpc-infura: ^5.1.0
     eth-query: ^2.1.2
+    eth-rpc-errors: ^4.0.0
     immer: ^9.0.6
     jest: ^26.4.2
     lodash: ^4.17.21

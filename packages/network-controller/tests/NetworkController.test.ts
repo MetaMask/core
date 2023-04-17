@@ -10,6 +10,7 @@ import type { ProviderEngine } from 'web3-provider-engine';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Patch } from 'immer';
 import { v4 } from 'uuid';
+import { ethErrors } from 'eth-rpc-errors';
 import {
   NetworkType,
   NetworksChainId,
@@ -26,6 +27,7 @@ import {
   NetworkState,
   ProviderConfig,
 } from '../src/NetworkController';
+import { NetworkStatus } from '../src/constants';
 import { BUILT_IN_NETWORKS } from '../../controller-utils/src/constants';
 import { FakeProviderEngine, FakeProviderStub } from './fake-provider-engine';
 
@@ -134,7 +136,8 @@ describe('NetworkController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
           networkConfigurations: {},
-          network: 'loading',
+          networkId: null,
+          networkStatus: NetworkStatus.Unknown,
           isCustomNetwork: false,
           providerConfig: { type: NetworkType.mainnet, chainId: '1' },
           networkDetails: { isEIP1559Compatible: false },
@@ -153,7 +156,8 @@ describe('NetworkController', () => {
         ({ controller }) => {
           expect(controller.state).toStrictEqual({
             networkConfigurations: {},
-            network: 'loading',
+            networkId: null,
+            networkStatus: NetworkStatus.Unknown,
             isCustomNetwork: true,
             providerConfig: { type: NetworkType.mainnet, chainId: '1' },
             networkDetails: { isEIP1559Compatible: true },
@@ -382,7 +386,7 @@ describe('NetworkController', () => {
                     );
 
                     await waitForStateChanges(messenger, {
-                      propertyPath: ['network'],
+                      propertyPath: ['networkId'],
                       count: 2,
                       produceStateChanges: () => {
                         controller
@@ -390,7 +394,7 @@ describe('NetworkController', () => {
                           .provider.emit('error', { some: 'error' });
                       },
                     });
-                    expect(controller.state.network).toBe('2');
+                    expect(controller.state.networkId).toBe('2');
                   },
                 );
               });
@@ -452,7 +456,7 @@ describe('NetworkController', () => {
                     );
 
                     await waitForStateChanges(messenger, {
-                      propertyPath: ['network'],
+                      propertyPath: ['networkId'],
                       count: 0,
                       produceStateChanges: () => {
                         controller
@@ -460,7 +464,7 @@ describe('NetworkController', () => {
                           .provider.emit('error', { some: 'error' });
                       },
                     });
-                    expect(controller.state.network).toBe('1');
+                    expect(controller.state.networkId).toBe('1');
                   },
                 );
               });
@@ -603,7 +607,7 @@ describe('NetworkController', () => {
                 );
 
                 await waitForStateChanges(messenger, {
-                  propertyPath: ['network'],
+                  propertyPath: ['networkId'],
                   count: 2,
                   produceStateChanges: () => {
                     controller
@@ -611,7 +615,7 @@ describe('NetworkController', () => {
                       .provider.emit('error', { some: 'error' });
                   },
                 });
-                expect(controller.state.network).toBe('2');
+                expect(controller.state.networkId).toBe('2');
               },
             );
           });
@@ -664,7 +668,7 @@ describe('NetworkController', () => {
                 );
 
                 await waitForStateChanges(messenger, {
-                  propertyPath: ['network'],
+                  propertyPath: ['networkId'],
                   count: 0,
                   produceStateChanges: () => {
                     controller
@@ -672,7 +676,7 @@ describe('NetworkController', () => {
                       .provider.emit('error', { some: 'error' });
                   },
                 });
-                expect(controller.state.network).toBe('1');
+                expect(controller.state.networkId).toBe('1');
               },
             );
           });
@@ -818,7 +822,7 @@ describe('NetworkController', () => {
                   );
 
                   await waitForStateChanges(messenger, {
-                    propertyPath: ['network'],
+                    propertyPath: ['networkId'],
                     count: 2,
                     produceStateChanges: () => {
                       controller
@@ -826,7 +830,7 @@ describe('NetworkController', () => {
                         .provider.emit('error', { some: 'error' });
                     },
                   });
-                  expect(controller.state.network).toBe('2');
+                  expect(controller.state.networkId).toBe('2');
                 },
               );
             });
@@ -882,7 +886,7 @@ describe('NetworkController', () => {
                   );
 
                   await waitForStateChanges(messenger, {
-                    propertyPath: ['network'],
+                    propertyPath: ['networkId'],
                     count: 0,
                     produceStateChanges: () => {
                       controller
@@ -890,7 +894,7 @@ describe('NetworkController', () => {
                         .provider.emit('error', { some: 'error' });
                     },
                   });
-                  expect(controller.state.network).toBe('1');
+                  expect(controller.state.networkId).toBe('1');
                 },
               );
             });
@@ -971,7 +975,7 @@ describe('NetworkController', () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
           const promiseForNetworkChanges = waitForStateChanges(messenger, {
-            propertyPath: ['network'],
+            propertyPath: ['networkId'],
           });
 
           await controller.lookupNetwork();
@@ -1000,7 +1004,7 @@ describe('NetworkController', () => {
         it('updates the network in state to match', async () => {
           const messenger = buildMessenger();
           await withController(
-            { messenger, state: { network: '' } },
+            { messenger, state: { networkId: null } },
             async ({ controller }) => {
               await setFakeProvider(controller, {
                 stubs: [
@@ -1013,13 +1017,13 @@ describe('NetworkController', () => {
               });
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 produceStateChanges: async () => {
                   await controller.lookupNetwork();
                 },
               });
 
-              expect(controller.state.network).toBe('12345');
+              expect(controller.state.networkId).toBe('12345');
             },
           );
         });
@@ -1074,7 +1078,7 @@ describe('NetworkController', () => {
         it('does not change network in state', async () => {
           const messenger = buildMessenger();
           await withController(
-            { messenger, state: { network: '12345' } },
+            { messenger, state: { networkId: '12345' } },
             async ({ controller }) => {
               await setFakeProvider(controller, {
                 stubs: [
@@ -1086,7 +1090,7 @@ describe('NetworkController', () => {
                 stubLookupNetworkWhileSetting: true,
               });
               const promiseForNetworkChanges = waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
               });
 
               await controller.lookupNetwork();
@@ -1099,7 +1103,7 @@ describe('NetworkController', () => {
         it('does not publish NetworkController:providerConfigChange', async () => {
           const messenger = buildMessenger();
           await withController(
-            { messenger, state: { network: '12345' } },
+            { messenger, state: { networkId: '12345' } },
             async ({ controller }) => {
               await setFakeProvider(controller, {
                 stubs: [
@@ -1123,30 +1127,32 @@ describe('NetworkController', () => {
         });
       });
 
-      describe('if an error is encountered while retrieving the version of the current network', () => {
-        it('updates the network in state to "loading"', async () => {
+      describe('if an RPC error is encountered while retrieving the version of the current network', () => {
+        it('updates the network in state to "unavailable"', async () => {
           const messenger = buildMessenger();
           await withController(
-            { messenger, state: { network: '1' } },
+            { messenger, state: { networkId: '1' } },
             async ({ controller }) => {
               await setFakeProvider(controller, {
                 stubs: [
                   {
                     request: { method: 'net_version' },
-                    response: { error: 'some error' },
+                    error: ethErrors.rpc.limitExceeded('some error'),
                   },
                 ],
                 stubLookupNetworkWhileSetting: true,
               });
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 produceStateChanges: async () => {
                   await controller.lookupNetwork();
                 },
               });
 
-              expect(controller.state.network).toBe('loading');
+              expect(controller.state.networkStatus).toBe(
+                NetworkStatus.Unavailable,
+              );
             },
           );
         });
@@ -1168,7 +1174,159 @@ describe('NetworkController', () => {
                 stubs: [
                   {
                     request: { method: 'net_version' },
-                    response: { error: 'some error' },
+                    error: ethErrors.rpc.limitExceeded('some error'),
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              const providerConfigChanges = await waitForPublishedEvents(
+                messenger,
+                'NetworkController:providerConfigChange',
+                {
+                  produceEvents: async () => {
+                    await controller.lookupNetwork();
+                  },
+                },
+              );
+
+              expect(providerConfigChanges).toStrictEqual([
+                [
+                  {
+                    type: NetworkType.mainnet,
+                    chainId: '1',
+                  },
+                ],
+              ]);
+            },
+          );
+        });
+      });
+
+      describe('if an internal error is encountered while retrieving the version of the current network', () => {
+        it('updates the network in state to "unknown"', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            { messenger, state: { networkId: '1' } },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: { method: 'net_version' },
+                    error: ethErrors.rpc.internal('some error'),
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              await waitForStateChanges(messenger, {
+                propertyPath: ['networkId'],
+                produceStateChanges: async () => {
+                  await controller.lookupNetwork();
+                },
+              });
+
+              expect(controller.state.networkStatus).toBe(
+                NetworkStatus.Unknown,
+              );
+            },
+          );
+        });
+
+        it("publishes NetworkController:providerConfigChange with the current provider config (even though it didn't change)", async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: {
+                providerConfig: {
+                  type: NetworkType.mainnet,
+                  chainId: '1',
+                },
+              },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: { method: 'net_version' },
+                    error: ethErrors.rpc.internal('some error'),
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              const providerConfigChanges = await waitForPublishedEvents(
+                messenger,
+                'NetworkController:providerConfigChange',
+                {
+                  produceEvents: async () => {
+                    await controller.lookupNetwork();
+                  },
+                },
+              );
+
+              expect(providerConfigChanges).toStrictEqual([
+                [
+                  {
+                    type: NetworkType.mainnet,
+                    chainId: '1',
+                  },
+                ],
+              ]);
+            },
+          );
+        });
+      });
+
+      describe('if an invalid network ID is returned', () => {
+        it('updates the network in state to "unknown"', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            { messenger, state: { networkId: '1' } },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: { method: 'net_version' },
+                    response: { result: 'invalid' },
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              await waitForStateChanges(messenger, {
+                propertyPath: ['networkId'],
+                produceStateChanges: async () => {
+                  await controller.lookupNetwork();
+                },
+              });
+
+              expect(controller.state.networkStatus).toBe(
+                NetworkStatus.Unknown,
+              );
+            },
+          );
+        });
+
+        it("publishes NetworkController:providerConfigChange with the current provider config (even though it didn't change)", async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: {
+                providerConfig: {
+                  type: NetworkType.mainnet,
+                  chainId: '1',
+                },
+              },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: { method: 'net_version' },
+                    response: { result: 'invalid' },
                   },
                 ],
                 stubLookupNetworkWhileSetting: true,
@@ -1222,7 +1380,7 @@ describe('NetworkController', () => {
               stubLookupNetworkWhileSetting: true,
             });
             const promiseForStateChanges = waitForStateChanges(messenger, {
-              propertyPath: ['network'],
+              propertyPath: ['networkId'],
               count: 3,
               wait: 400,
             });
@@ -1235,13 +1393,13 @@ describe('NetworkController', () => {
 
             expect(await promiseForStateChanges).toMatchObject([
               expect.objectContaining([
-                expect.objectContaining({ network: '1' }),
+                expect.objectContaining({ networkId: '1' }),
               ]),
               expect.objectContaining([
-                expect.objectContaining({ network: '2' }),
+                expect.objectContaining({ networkId: '2' }),
               ]),
               expect.objectContaining([
-                expect.objectContaining({ network: '3' }),
+                expect.objectContaining({ networkId: '3' }),
               ]),
             ]);
           });
@@ -1441,7 +1599,7 @@ describe('NetworkController', () => {
 
           await controller.setProviderType(NetworkType.mainnet);
 
-          expect(controller.state.network).toBe('42');
+          expect(controller.state.networkId).toBe('42');
         });
       });
 
@@ -1477,14 +1635,14 @@ describe('NetworkController', () => {
               await controller.setProviderType(NetworkType.mainnet);
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 produceStateChanges: () => {
                   controller
                     .getProviderAndBlockTracker()
                     .provider.emit('error', { some: 'error' });
                 },
               });
-              expect(controller.state.network).toBe('42');
+              expect(controller.state.networkId).toBe('42');
             });
           });
         });
@@ -1520,7 +1678,7 @@ describe('NetworkController', () => {
               await controller.setProviderType(NetworkType.mainnet);
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 count: 0,
                 produceStateChanges: () => {
                   controller
@@ -1528,7 +1686,7 @@ describe('NetworkController', () => {
                     .provider.emit('error', { some: 'error' });
                 },
               });
-              expect(controller.state.network).toBe('1');
+              expect(controller.state.networkId).toBe('1');
             });
           });
         });
@@ -1738,7 +1896,7 @@ describe('NetworkController', () => {
 
             await controller.setProviderType(networkType);
 
-            expect(controller.state.network).toBe('42');
+            expect(controller.state.networkId).toBe('42');
           });
         });
 
@@ -1776,14 +1934,14 @@ describe('NetworkController', () => {
                 await controller.setProviderType(networkType);
 
                 await waitForStateChanges(messenger, {
-                  propertyPath: ['network'],
+                  propertyPath: ['networkId'],
                   produceStateChanges: () => {
                     controller
                       .getProviderAndBlockTracker()
                       .provider.emit('error', { some: 'error' });
                   },
                 });
-                expect(controller.state.network).toBe('42');
+                expect(controller.state.networkId).toBe('42');
               });
             });
           });
@@ -1821,7 +1979,7 @@ describe('NetworkController', () => {
                 await controller.setProviderType(networkType);
 
                 await waitForStateChanges(messenger, {
-                  propertyPath: ['network'],
+                  propertyPath: ['networkId'],
                   count: 0,
                   produceStateChanges: () => {
                     controller
@@ -1829,7 +1987,7 @@ describe('NetworkController', () => {
                       .provider.emit('error', { some: 'error' });
                   },
                 });
-                expect(controller.state.network).toBe('1');
+                expect(controller.state.networkId).toBe('1');
               });
             });
           });
@@ -2096,7 +2254,7 @@ describe('NetworkController', () => {
 
           await controller.setProviderType(NetworkType.localhost);
 
-          expect(controller.state.network).toBe('42');
+          expect(controller.state.networkId).toBe('42');
         });
       });
 
@@ -2128,14 +2286,14 @@ describe('NetworkController', () => {
               await controller.setProviderType(NetworkType.localhost);
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 produceStateChanges: () => {
                   controller
                     .getProviderAndBlockTracker()
                     .provider.emit('error', { some: 'error' });
                 },
               });
-              expect(controller.state.network).toBe('42');
+              expect(controller.state.networkId).toBe('42');
             });
           });
         });
@@ -2167,7 +2325,7 @@ describe('NetworkController', () => {
               await controller.setProviderType(NetworkType.localhost);
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 count: 0,
                 produceStateChanges: () => {
                   controller
@@ -2175,7 +2333,7 @@ describe('NetworkController', () => {
                     .provider.emit('error', { some: 'error' });
                 },
               });
-              expect(controller.state.network).toBe('1');
+              expect(controller.state.networkId).toBe('1');
             });
           });
         });
@@ -2434,7 +2592,7 @@ describe('NetworkController', () => {
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
 
-          expect(controller.state.network).toBe('42');
+          expect(controller.state.networkId).toBe('42');
         },
       );
     });
@@ -2483,14 +2641,14 @@ describe('NetworkController', () => {
               await controller.setActiveNetwork('testNetworkConfigurationId');
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 produceStateChanges: () => {
                   controller
                     .getProviderAndBlockTracker()
                     .provider.emit('error', { some: 'error' });
                 },
               });
-              expect(controller.state.network).toBe('42');
+              expect(controller.state.networkId).toBe('42');
             },
           );
         });
@@ -2539,7 +2697,7 @@ describe('NetworkController', () => {
               await controller.setActiveNetwork('testNetworkConfigurationId');
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 count: 0,
                 produceStateChanges: () => {
                   controller
@@ -2547,7 +2705,7 @@ describe('NetworkController', () => {
                     .provider.emit('error', { some: 'error' });
                 },
               });
-              expect(controller.state.network).toBe('1');
+              expect(controller.state.networkId).toBe('1');
             },
           );
         });
@@ -3561,10 +3719,12 @@ describe('NetworkController', () => {
                   controller.resetConnection();
                   assert(controller.getProviderAndBlockTracker().provider);
 
-                  expect(controller.state.network).toBe('loading');
+                  expect(controller.state.networkStatus).toBe(
+                    NetworkStatus.Unknown,
+                  );
 
                   await waitForStateChanges(messenger, {
-                    propertyPath: ['network'],
+                    propertyPath: ['networkId'],
                     produceStateChanges: () => {
                       controller
                         .getProviderAndBlockTracker()
@@ -3572,7 +3732,7 @@ describe('NetworkController', () => {
                     },
                   });
 
-                  expect(controller.state.network).toBe('42');
+                  expect(controller.state.networkId).toBe('42');
                 },
               );
             });
@@ -3829,10 +3989,12 @@ describe('NetworkController', () => {
               controller.resetConnection();
               assert(controller.getProviderAndBlockTracker().provider);
 
-              expect(controller.state.network).toBe('loading');
+              expect(controller.state.networkStatus).toBe(
+                NetworkStatus.Unknown,
+              );
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 produceStateChanges: () => {
                   controller
                     .getProviderAndBlockTracker()
@@ -3840,7 +4002,7 @@ describe('NetworkController', () => {
                 },
               });
 
-              expect(controller.state.network).toBe('42');
+              expect(controller.state.networkId).toBe('42');
             },
           );
         });
@@ -4744,10 +4906,10 @@ describe('NetworkController', () => {
           );
         });
 
-        it('resets isEIP1559Compatible and sets network to "loading" for the network before emitting NetworkController:providerConfigChange', async () => {
+        it('resets isEIP1559Compatible and sets network to "unknown" for the network before emitting NetworkController:providerConfigChange', async () => {
           const networkConfiguration = {
             rpcUrl: 'https://mock-rpc-url',
-            chainId: '0xtest',
+            chainId: '0x1338',
             ticker: 'TEST',
             nickname: undefined,
             id: 'testNetworkConfigurationId',
@@ -4783,6 +4945,15 @@ describe('NetworkController', () => {
                   },
                 },
                 {
+                  delay: 1,
+                  request: {
+                    method: 'net_version',
+                  },
+                  response: {
+                    result: '1338',
+                  },
+                },
+                {
                   request: {
                     method: 'eth_getBlockByNumber',
                   },
@@ -4791,11 +4962,12 @@ describe('NetworkController', () => {
                   },
                 },
                 {
+                  delay: 1,
                   request: {
                     method: 'net_version',
                   },
                   response: {
-                    result: '10000',
+                    result: '1337',
                   },
                 },
               ]);
@@ -4806,13 +4978,15 @@ describe('NetworkController', () => {
                 isEIP1559Compatible: true,
               });
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 count: 1,
                 produceStateChanges: () => {
                   controller.rollbackToPreviousProvider();
                 },
               });
-              expect(controller.state.network).toStrictEqual('loading');
+              expect(controller.state.networkStatus).toBe(
+                NetworkStatus.Unknown,
+              );
               expect(controller.state.networkDetails).toStrictEqual({
                 isEIP1559Compatible: false,
               });
@@ -4864,7 +5038,7 @@ describe('NetworkController', () => {
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 count: 1,
                 produceStateChanges: () => {
                   controller.rollbackToPreviousProvider();
@@ -4919,7 +5093,7 @@ describe('NetworkController', () => {
                 controller.getProviderAndBlockTracker();
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 count: 1,
                 produceStateChanges: () => {
                   controller.rollbackToPreviousProvider();
@@ -4983,16 +5157,16 @@ describe('NetworkController', () => {
 
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
               await controller.setActiveNetwork('testNetworkConfigurationId');
-              expect(controller.state.network).toStrictEqual('999');
+              expect(controller.state.networkId).toStrictEqual('999');
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['networkId'],
                 count: 1,
                 produceStateChanges: () => {
                   controller.rollbackToPreviousProvider();
                 },
               });
-              expect(controller.state.network).toStrictEqual('1');
+              expect(controller.state.networkId).toStrictEqual('1');
             },
           );
         });
@@ -5167,7 +5341,7 @@ describe('NetworkController', () => {
         );
       });
 
-      it('resets the network state to "loading" and the isEIP before emitting NetworkController:providerConfigChange', async () => {
+      it('resets the network state to "unknown" and the isEIP before emitting NetworkController:providerConfigChange', async () => {
         const messenger = buildMessenger();
         const initialProviderConfigNetworkConfiguration = {
           rpcUrl: 'https://mock-rpc-url-2',
@@ -5191,7 +5365,7 @@ describe('NetworkController', () => {
               networkConfigurations: {
                 testNetworkConfigurationId1: {
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0xtest',
+                  chainId: '0x1338',
                   ticker: 'TEST',
                   id: 'testNetworkConfigurationId1',
                 },
@@ -5211,6 +5385,15 @@ describe('NetworkController', () => {
                 },
               },
               {
+                delay: 1,
+                request: {
+                  method: 'net_version',
+                },
+                response: {
+                  result: '1338',
+                },
+              },
+              {
                 request: {
                   method: 'eth_getBlockByNumber',
                 },
@@ -5219,11 +5402,12 @@ describe('NetworkController', () => {
                 },
               },
               {
+                delay: 1,
                 request: {
                   method: 'net_version',
                 },
                 response: {
-                  result: '10000',
+                  result: '1337',
                 },
               },
             ]);
@@ -5232,14 +5416,19 @@ describe('NetworkController', () => {
             expect(controller.state.networkDetails).toStrictEqual({
               isEIP1559Compatible: true,
             });
+            expect(controller.state.networkStatus).toStrictEqual(
+              NetworkStatus.Available,
+            );
             await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
+              propertyPath: ['networkStatus'],
               count: 1,
               produceStateChanges: () => {
                 controller.rollbackToPreviousProvider();
               },
             });
-            expect(controller.state.network).toStrictEqual('loading');
+            expect(controller.state.networkStatus).toStrictEqual(
+              NetworkStatus.Unknown,
+            );
             expect(controller.state.networkDetails).toStrictEqual({
               isEIP1559Compatible: false,
             });
@@ -5299,7 +5488,7 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
+              propertyPath: ['networkId'],
               count: 1,
               produceStateChanges: () => {
                 controller.rollbackToPreviousProvider();
@@ -5365,7 +5554,7 @@ describe('NetworkController', () => {
               controller.getProviderAndBlockTracker();
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
+              propertyPath: ['networkId'],
               count: 1,
               produceStateChanges: () => {
                 controller.rollbackToPreviousProvider();
@@ -5438,16 +5627,16 @@ describe('NetworkController', () => {
 
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
-            expect(controller.state.network).toStrictEqual('999');
+            expect(controller.state.networkId).toStrictEqual('999');
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
+              propertyPath: ['networkId'],
               count: 1,
               produceStateChanges: () => {
                 controller.rollbackToPreviousProvider();
               },
             });
-            expect(controller.state.network).toStrictEqual('1');
+            expect(controller.state.networkId).toStrictEqual('1');
           },
         );
       });
