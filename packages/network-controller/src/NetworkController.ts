@@ -100,7 +100,7 @@ export type ProviderProxy = SwappableProxy<Provider>;
 
 type BlockTracker = any;
 
-type BlockTrackerProxy = SwappableProxy<BlockTracker>;
+export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
 
 export type NetworkControllerStateChangeEvent = {
   type: `NetworkController:stateChange`;
@@ -182,8 +182,6 @@ export class NetworkController extends BaseControllerV2<
 > {
   private ethQuery: EthQuery;
 
-  private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
-
   private infuraProjectId: string | undefined;
 
   private trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
@@ -250,7 +248,7 @@ export class NetworkController extends BaseControllerV2<
     this.#previousNetworkSpecifier = this.state.providerConfig.type;
   }
 
-  private initializeProvider(
+  private configureProvider(
     type: NetworkType,
     rpcTarget?: string,
     chainId?: string,
@@ -290,14 +288,14 @@ export class NetworkController extends BaseControllerV2<
     };
   }
 
-  private refreshNetwork() {
+  private async refreshNetwork() {
     this.update((state) => {
       state.network = 'loading';
       state.networkDetails = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
-    this.initializeProvider(type, rpcTarget, chainId, ticker);
-    this.lookupNetwork();
+    this.configureProvider(type, rpcTarget, chainId, ticker);
+    await this.lookupNetwork();
   }
 
   private registerProvider() {
@@ -316,13 +314,10 @@ export class NetworkController extends BaseControllerV2<
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
-      ...this.internalProviderConfig,
-      ...{
-        dataSubprovider: infuraSubprovider,
-        engineParams: {
-          blockTrackerProvider: infuraProvider,
-          pollingInterval: 12000,
-        },
+      dataSubprovider: infuraSubprovider,
+      engineParams: {
+        blockTrackerProvider: infuraProvider,
+        pollingInterval: 12000,
       },
     };
     this.updateProvider(createMetamaskProvider(config));
@@ -344,14 +339,11 @@ export class NetworkController extends BaseControllerV2<
     nickname?: string,
   ) {
     const config = {
-      ...this.internalProviderConfig,
-      ...{
-        chainId,
-        engineParams: { pollingInterval: 12000 },
-        nickname,
-        rpcUrl: rpcTarget,
-        ticker,
-      },
+      chainId,
+      engineParams: { pollingInterval: 12000 },
+      nickname,
+      rpcUrl: rpcTarget,
+      ticker,
     };
     this.updateProvider(createMetamaskProvider(config));
   }
@@ -371,28 +363,24 @@ export class NetworkController extends BaseControllerV2<
     }, 500);
   }
 
-  private verifyNetwork() {
-    this.state.network === 'loading' && this.lookupNetwork();
+  private async verifyNetwork() {
+    if (this.state.network === 'loading') {
+      await this.lookupNetwork();
+    }
   }
 
   /**
-   * Sets a new configuration for web3-provider-engine.
+   * Method to inilialize the provider,
+   * Creates the provider and block tracker for the configured network,
+   * using the provider to gather details about the network.
    *
-   * TODO: Replace this wth a method.
-   *
-   * @param providerConfig - The web3-provider-engine configuration.
    */
-  set providerConfig(providerConfig: ProviderConfig) {
-    this.internalProviderConfig = providerConfig;
+  async initializeProvider() {
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
-    this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.configureProvider(type, rpcTarget, chainId, ticker, nickname);
     this.registerProvider();
-    this.lookupNetwork();
-  }
-
-  get providerConfig() {
-    throw new Error('Property only used for setting');
+    await this.lookupNetwork();
   }
 
   async #getNetworkId(): Promise<string> {
@@ -461,7 +449,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param type - Human readable network name.
    */
-  setProviderType(type: NetworkType) {
+  async setProviderType(type: NetworkType) {
     this.#setCurrentAsPreviousProvider();
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
@@ -478,7 +466,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.nickname = undefined;
       state.providerConfig.id = undefined;
     });
-    this.refreshNetwork();
+    await this.refreshNetwork();
   }
 
   /**
@@ -486,7 +474,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
-  setActiveNetwork(networkConfigurationId: string) {
+  async setActiveNetwork(networkConfigurationId: string) {
     this.#setCurrentAsPreviousProvider();
 
     const targetNetwork =
@@ -508,7 +496,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.id = targetNetwork.id;
     });
 
-    this.refreshNetwork();
+    await this.refreshNetwork();
   }
 
   #getLatestBlock(): Promise<Block> {
@@ -542,6 +530,12 @@ export class NetworkController extends BaseControllerV2<
       });
     }
     return isEIP1559Compatible;
+  }
+
+  resetConnection() {
+    const { type, rpcTarget, chainId, ticker, nickname } =
+      this.state.providerConfig;
+    this.configureProvider(type, rpcTarget, chainId, ticker, nickname);
   }
 
   #setProviderAndBlockTracker({
