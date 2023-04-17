@@ -402,7 +402,7 @@ export const withNetworkClient = async (
   if (providerType === 'infura') {
     await controller.setProviderType(infuraNetwork);
   } else {
-    controller.upsertNetworkConfiguration(
+    await controller.upsertNetworkConfiguration(
       {
         rpcUrl: customRpcUrl,
         chainId: '0x9999',
