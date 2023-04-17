@@ -180,13 +180,13 @@ export class NetworkController extends BaseControllerV2<
   NetworkState,
   NetworkControllerMessenger
 > {
-  private ethQuery: EthQuery;
+  #ethQuery: EthQuery;
 
-  private infuraProjectId: string | undefined;
+  #infuraProjectId: string | undefined;
 
-  private trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
+  #trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
 
-  private mutex = new Mutex();
+  #mutex = new Mutex();
 
   #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
 
@@ -229,8 +229,8 @@ export class NetworkController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.infuraProjectId = infuraProjectId;
-    this.trackMetaMetricsEvent = trackMetaMetricsEvent;
+    this.#infuraProjectId = infuraProjectId;
+    this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.messagingSystem.registerActionHandler(
       `${this.name}:getProviderConfig`,
       () => {
@@ -241,14 +241,14 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
-        return this.ethQuery;
+        return this.#ethQuery;
       },
     );
 
     this.#previousNetworkSpecifier = this.state.providerConfig.type;
   }
 
-  private configureProvider(
+  #configureProvider(
     type: NetworkType,
     rpcTarget?: string,
     chainId?: string,
@@ -256,21 +256,21 @@ export class NetworkController extends BaseControllerV2<
     nickname?: string,
   ) {
     this.update((state) => {
-      state.isCustomNetwork = this.getIsCustomNetwork(chainId);
+      state.isCustomNetwork = this.#getIsCustomNetwork(chainId);
     });
 
     switch (type) {
       case NetworkType.mainnet:
       case NetworkType.goerli:
       case NetworkType.sepolia:
-        this.setupInfuraProvider(type);
+        this.#setupInfuraProvider(type);
         break;
       case NetworkType.localhost:
-        this.setupStandardProvider(LOCALHOST_RPC_URL);
+        this.#setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case NetworkType.rpc:
         rpcTarget &&
-          this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
+          this.#setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -288,29 +288,29 @@ export class NetworkController extends BaseControllerV2<
     };
   }
 
-  private async refreshNetwork() {
+  async #refreshNetwork() {
     this.update((state) => {
       state.network = 'loading';
       state.networkDetails = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
-    this.configureProvider(type, rpcTarget, chainId, ticker);
+    this.#configureProvider(type, rpcTarget, chainId, ticker);
     await this.lookupNetwork();
   }
 
-  private registerProvider() {
+  #registerProvider() {
     const { provider } = this.getProviderAndBlockTracker();
 
     if (provider) {
-      provider.on('error', this.verifyNetwork.bind(this));
-      this.ethQuery = new EthQuery(provider);
+      provider.on('error', this.#verifyNetwork.bind(this));
+      this.#ethQuery = new EthQuery(provider);
     }
   }
 
-  private setupInfuraProvider(type: NetworkType) {
+  #setupInfuraProvider(type: NetworkType) {
     const infuraProvider = createInfuraProvider({
       network: type,
-      projectId: this.infuraProjectId,
+      projectId: this.#infuraProjectId,
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
@@ -320,10 +320,10 @@ export class NetworkController extends BaseControllerV2<
         pollingInterval: 12000,
       },
     };
-    this.updateProvider(createMetamaskProvider(config));
+    this.#updateProvider(createMetamaskProvider(config));
   }
 
-  private getIsCustomNetwork(chainId?: string) {
+  #getIsCustomNetwork(chainId?: string) {
     return (
       chainId !== NetworksChainId.mainnet &&
       chainId !== NetworksChainId.goerli &&
@@ -332,7 +332,7 @@ export class NetworkController extends BaseControllerV2<
     );
   }
 
-  private setupStandardProvider(
+  #setupStandardProvider(
     rpcTarget: string,
     chainId?: string,
     ticker?: string,
@@ -345,25 +345,25 @@ export class NetworkController extends BaseControllerV2<
       rpcUrl: rpcTarget,
       ticker,
     };
-    this.updateProvider(createMetamaskProvider(config));
+    this.#updateProvider(createMetamaskProvider(config));
   }
 
-  private updateProvider(provider: Provider) {
-    this.safelyStopProvider(this.#provider);
+  #updateProvider(provider: Provider) {
+    this.#safelyStopProvider(this.#provider);
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker: provider._blockTracker,
     });
-    this.registerProvider();
+    this.#registerProvider();
   }
 
-  private safelyStopProvider(provider: Provider | undefined) {
+  #safelyStopProvider(provider: Provider | undefined) {
     setTimeout(() => {
       provider?.stop();
     }, 500);
   }
 
-  private async verifyNetwork() {
+  async #verifyNetwork() {
     if (this.state.network === 'loading') {
       await this.lookupNetwork();
     }
@@ -378,14 +378,14 @@ export class NetworkController extends BaseControllerV2<
   async initializeProvider() {
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
-    this.configureProvider(type, rpcTarget, chainId, ticker, nickname);
-    this.registerProvider();
+    this.#configureProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.#registerProvider();
     await this.lookupNetwork();
   }
 
   async #getNetworkId(): Promise<string> {
     return await new Promise((resolve, reject) => {
-      this.ethQuery.sendAsync(
+      this.#ethQuery.sendAsync(
         { method: 'net_version' },
         (error: Error, result: string) => {
           if (error) {
@@ -402,10 +402,10 @@ export class NetworkController extends BaseControllerV2<
    * Refreshes the current network code.
    */
   async lookupNetwork() {
-    if (!this.ethQuery) {
+    if (!this.#ethQuery) {
       return;
     }
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
 
     try {
       try {
@@ -466,7 +466,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.nickname = undefined;
       state.providerConfig.id = undefined;
     });
-    await this.refreshNetwork();
+    await this.#refreshNetwork();
   }
 
   /**
@@ -496,12 +496,12 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.id = targetNetwork.id;
     });
 
-    await this.refreshNetwork();
+    await this.#refreshNetwork();
   }
 
   #getLatestBlock(): Promise<Block> {
     return new Promise((resolve, reject) => {
-      this.ethQuery.sendAsync(
+      this.#ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: Error, block: Block) => {
           if (error) {
@@ -517,7 +517,7 @@ export class NetworkController extends BaseControllerV2<
   async getEIP1559Compatibility() {
     const { networkDetails = {} } = this.state;
 
-    if (networkDetails.isEIP1559Compatible || !this.ethQuery) {
+    if (networkDetails.isEIP1559Compatible || !this.#ethQuery) {
       return true;
     }
 
@@ -535,7 +535,7 @@ export class NetworkController extends BaseControllerV2<
   resetConnection() {
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
-    this.configureProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.#configureProvider(type, rpcTarget, chainId, ticker, nickname);
   }
 
   #setProviderAndBlockTracker({
@@ -649,7 +649,7 @@ export class NetworkController extends BaseControllerV2<
     });
 
     if (!oldNetworkConfigurationId) {
-      this.trackMetaMetricsEvent({
+      this.#trackMetaMetricsEvent({
         event: 'Custom Network Added',
         category: 'Network',
         referrer: {
