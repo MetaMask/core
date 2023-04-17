@@ -8,6 +8,8 @@ import {
   SecurityProviderRequest,
 } from './AbstractMessageManager';
 
+jest.mock('events');
+
 class AbstractTestManager extends AbstractMessageManager<
   TypedMessage,
   TypedMessageParams,
@@ -281,6 +283,27 @@ describe('AbstractTestManager', () => {
       expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
         'AbstractMessageManager: Message not found for id: 1.',
       );
+    });
+  });
+
+  describe('setMessageStatusAndResult', () => {
+    it('emits updateBadge once', async () => {
+      const controller = new AbstractTestManager();
+      await controller.addMessage({
+        id: messageId,
+        messageParams: { from: '0x1234', data: 'test' },
+        status: 'status',
+        time: 10,
+        type: 'type',
+      });
+      const messageBefore = controller.getMessage(messageId);
+      expect(messageBefore?.status).toStrictEqual('status');
+
+      controller.setMessageStatusAndResult(messageId, 'newRawSig', 'newstatus');
+      const messageAfter = controller.getMessage(messageId);
+
+      expect(controller.hub.emit).toHaveBeenNthCalledWith(1, 'updateBadge');
+      expect(messageAfter?.status).toStrictEqual('newstatus');
     });
   });
 });
