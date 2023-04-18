@@ -11,7 +11,7 @@ import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
-  CHAIN_ID_TO_NETWORK_TYPE_MAP,
+  NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/';
@@ -125,8 +125,8 @@ export class EnsController extends BaseControllerV2<
         if (currentNetwork && this.#getNetworkEnsSupport(currentNetwork)) {
           const networkish = {
             chainId: convertHexToDecimal(networkState.providerConfig.chainId),
-            name: CHAIN_ID_TO_NETWORK_TYPE_MAP[
-              currentNetwork as unknown as keyof typeof CHAIN_ID_TO_NETWORK_TYPE_MAP
+            name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[
+              currentNetwork as unknown as keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP
             ],
             ensAddress: ensNetworkMap[currentNetwork],
           };
