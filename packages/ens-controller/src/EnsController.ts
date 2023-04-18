@@ -127,7 +127,7 @@ export class EnsController extends BaseControllerV2<
           const networkish: Networkish = {
             chainId: convertHexToDecimal(networkState.providerConfig.chainId),
             name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[
-              currentNetwork as keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP
+              currentNetwork as unknown as keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP
             ],
             ensAddress: ensNetworkMap[currentNetwork],
           };
