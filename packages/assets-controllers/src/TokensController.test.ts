@@ -1,5 +1,11 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
+import {
+  AcceptRequest as AcceptApprovalRequest,
+  AddApprovalRequest,
+  RejectRequest as RejectApprovalRequest,
+} from '@metamask/approval-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
@@ -8,7 +14,10 @@ import {
   ProviderConfig,
   defaultState as defaultNetworkState,
 } from '@metamask/network-controller';
-import { TokensController } from './TokensController';
+import {
+  TokensController,
+  TokensControllerMessenger,
+} from './TokensController';
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
 
@@ -30,9 +39,31 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
 const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
 const GOERLI = { chainId: '5', type: NetworkType.goerli };
 
+const ORIGIN_METAMASK = 'metamask';
+const WATCH_ASSET_METHOD_NAME = 'wallet_watchAssets';
+
+const controllerName = 'TokensController' as const;
+
+type ApprovalActions =
+  | AddApprovalRequest
+  | AcceptApprovalRequest
+  | RejectApprovalRequest;
+
 describe('TokensController', () => {
   let tokensController: TokensController;
   let preferences: PreferencesController;
+
+  const messenger = new ControllerMessenger<
+    ApprovalActions,
+    never
+  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
+    name: controllerName,
+    allowedActions: [
+      'ApprovalController:addRequest',
+      'ApprovalController:acceptRequest',
+      'ApprovalController:rejectRequest',
+    ],
+  }) as TokensControllerMessenger;
 
   let onNetworkStateChangeListener: (state: NetworkState) => void;
   const changeNetwork = (providerConfig: ProviderConfig) => {
@@ -53,6 +84,7 @@ describe('TokensController', () => {
         chainId: NetworksChainId.mainnet,
         selectedAddress: defaultSelectedAddress,
       },
+      messenger,
     });
 
     sinon
@@ -844,6 +876,7 @@ describe('TokensController', () => {
   describe('on watchAsset', function () {
     let asset: any, type: any;
     const interactingAddress = '0x2';
+    const requestId = '12345';
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
@@ -941,12 +974,15 @@ describe('TokensController', () => {
       const clock = sinon.useFakeTimers(1);
       const generateRandomIdStub = sinon
         .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
+        .callsFake(() => requestId);
       type = 'ERC20';
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
       await tokensController.watchAsset(asset, type);
       expect(tokensController.state.suggestedAssets).toStrictEqual([
         {
-          id: '12345',
+          id: requestId,
           status: 'pending',
           time: 1, // uses the fakeTimers clock
           type: 'ERC20',
@@ -954,6 +990,26 @@ describe('TokensController', () => {
           interactingAddress: '0x1',
         },
       ]);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: WATCH_ASSET_METHOD_NAME,
+          requestData: {
+            id: requestId,
+            interactingAddress: '0x1',
+            asset: {
+              address: asset.address,
+              decimals: asset.decimals,
+              symbol: asset.symbol,
+              image: asset.image,
+            },
+          },
+        },
+        true,
+      );
 
       generateRandomIdStub.restore();
       clock.restore();
@@ -963,12 +1019,15 @@ describe('TokensController', () => {
       const clock = sinon.useFakeTimers(1);
       const generateRandomIdStub = sinon
         .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
+        .callsFake(() => requestId);
       type = 'ERC20';
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
       await tokensController.watchAsset(asset, type, interactingAddress);
       expect(tokensController.state.suggestedAssets).toStrictEqual([
         {
-          id: '12345',
+          id: requestId,
           status: 'pending',
           interactingAddress,
           time: 1, // uses the fakeTimers clock
@@ -976,40 +1035,106 @@ describe('TokensController', () => {
           asset,
         },
       ]);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: WATCH_ASSET_METHOD_NAME,
+          requestData: {
+            id: requestId,
+            interactingAddress,
+            asset: {
+              address: asset.address,
+              decimals: asset.decimals,
+              symbol: asset.symbol,
+              image: asset.image,
+            },
+          },
+        },
+        true,
+      );
 
       generateRandomIdStub.restore();
       clock.restore();
     });
 
-    it('should add token correctly if user confirms', async function () {
-      const generateRandomIdStub = sinon
-        .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
-      type = 'ERC20';
-      await tokensController.watchAsset(asset, type);
-      await tokensController.acceptWatchAsset('12345');
+    it.each([
+      ['resolves', true],
+      ['rejects', false],
+    ])(
+      'should add token correctly if user confirms and message to ApprovalController %s',
+      async function (_, approvalControllerCallResolves: boolean) {
+        const generateRandomIdStub = sinon
+          .stub(tokensController, '_generateRandomId')
+          .callsFake(() => requestId);
+        type = 'ERC20';
 
-      expect(tokensController.state.suggestedAssets).toStrictEqual([]);
-      expect(tokensController.state.tokens).toHaveLength(1);
-      expect(tokensController.state.tokens).toStrictEqual([
-        {
-          isERC721: false,
-          aggregators: [],
-          ...asset,
-          image: 'image',
-        },
-      ]);
+        let calledOnce = false;
+        const callActionSpy = approvalControllerCallResolves
+          ? jest.spyOn(messenger, 'call').mockResolvedValue({})
+          : jest.spyOn(messenger, 'call').mockImplementation(() => {
+              if (!calledOnce) {
+                calledOnce = true;
+                return Promise.resolve({});
+              }
 
-      generateRandomIdStub.restore();
-    });
+              throw new Error();
+            });
+
+        await tokensController.watchAsset(asset, type);
+        await tokensController.acceptWatchAsset(requestId);
+
+        expect(tokensController.state.suggestedAssets).toStrictEqual([]);
+        expect(tokensController.state.tokens).toHaveLength(1);
+        expect(tokensController.state.tokens).toStrictEqual([
+          {
+            isERC721: false,
+            aggregators: [],
+            ...asset,
+            image: 'image',
+          },
+        ]);
+        expect(callActionSpy).toHaveBeenCalledTimes(2);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: requestId,
+            origin: ORIGIN_METAMASK,
+            type: WATCH_ASSET_METHOD_NAME,
+            requestData: {
+              id: requestId,
+              interactingAddress: '0x1',
+              asset: {
+                address: asset.address,
+                decimals: asset.decimals,
+                symbol: asset.symbol,
+                image: asset.image,
+              },
+            },
+          },
+          true,
+        );
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:acceptRequest',
+          expect.any(String),
+        );
+
+        generateRandomIdStub.restore();
+      },
+    );
 
     it('should store token correctly under interacting address if user confirms', async function () {
       const generateRandomIdStub = sinon
         .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
+        .callsFake(() => requestId);
       type = 'ERC20';
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
       await tokensController.watchAsset(asset, type, interactingAddress);
-      await tokensController.acceptWatchAsset('12345');
+      await tokensController.acceptWatchAsset(requestId);
 
       expect(tokensController.state.suggestedAssets).toStrictEqual([]);
       expect(tokensController.state.tokens).toHaveLength(0);
@@ -1031,6 +1156,30 @@ describe('TokensController', () => {
           image: 'image',
         },
       ]);
+      expect(callActionSpy).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: WATCH_ASSET_METHOD_NAME,
+          requestData: {
+            id: requestId,
+            interactingAddress,
+            asset: {
+              address: asset.address,
+              decimals: asset.decimals,
+              symbol: asset.symbol,
+              image: asset.image,
+            },
+          },
+        },
+        true,
+      );
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:acceptRequest',
+        expect.any(String),
+      );
 
       generateRandomIdStub.restore();
     });
@@ -1048,24 +1197,71 @@ describe('TokensController', () => {
       ).rejects.toThrow('Asset of type ERC721 not supported');
     });
 
-    it('should reject a valid suggested asset via watchAsset', async () => {
-      const { result, suggestedAssetMeta } = await tokensController.watchAsset(
-        {
-          address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-          decimals: 18,
-          symbol: 'TKN',
-        },
-        'ERC20',
-      );
-      tokensController.rejectWatchAsset('0x01');
-      tokensController.rejectWatchAsset(suggestedAssetMeta.id);
-      tokensController.hub.once(`${suggestedAssetMeta.id}:finished`, () => {
-        expect(tokensController.state.suggestedAssets).toHaveLength(0);
-      });
-      await expect(result).rejects.toThrow('User rejected to watch the asset.');
-    });
+    it.each([
+      ['resolves', true],
+      ['rejects', false],
+    ])(
+      'should reject a valid suggested asset via watchAsset and message to ApprovalController %s',
+      async function (_, approvalControllerCallResolves: boolean) {
+        let calledOnce = false;
+        const callActionSpy = approvalControllerCallResolves
+          ? jest.spyOn(messenger, 'call').mockResolvedValue({})
+          : jest.spyOn(messenger, 'call').mockImplementation(() => {
+              if (!calledOnce) {
+                calledOnce = true;
+                return Promise.resolve({});
+              }
+
+              throw new Error();
+            });
+
+        const { result, suggestedAssetMeta } =
+          await tokensController.watchAsset(
+            {
+              address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+              decimals: 18,
+              symbol: 'TKN',
+            },
+            'ERC20',
+          );
+        tokensController.rejectWatchAsset('0x01');
+        tokensController.rejectWatchAsset(suggestedAssetMeta.id);
+        tokensController.hub.once(`${suggestedAssetMeta.id}:finished`, () => {
+          expect(tokensController.state.suggestedAssets).toHaveLength(0);
+        });
+        await expect(result).rejects.toThrow(
+          'User rejected to watch the asset.',
+        );
+        expect(callActionSpy).toHaveBeenCalledTimes(2);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: suggestedAssetMeta.id,
+            origin: ORIGIN_METAMASK,
+            type: WATCH_ASSET_METHOD_NAME,
+            requestData: {
+              id: suggestedAssetMeta.id,
+              interactingAddress: suggestedAssetMeta.interactingAddress,
+              asset: {
+                address: suggestedAssetMeta.asset.address,
+                decimals: suggestedAssetMeta.asset.decimals,
+                symbol: suggestedAssetMeta.asset.symbol,
+                image: null,
+              },
+            },
+          },
+          true,
+        );
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:rejectRequest',
+          expect.any(String),
+          expect.any(Error),
+        );
+      },
+    );
 
     it('should accept a valid suggested asset via watchAsset', async () => {
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
       const { result, suggestedAssetMeta } = await tokensController.watchAsset(
         {
           address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
@@ -1078,31 +1274,99 @@ describe('TokensController', () => {
       const res = await result;
       expect(tokensController.state.suggestedAssets).toHaveLength(0);
       expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
+      expect(callActionSpy).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: suggestedAssetMeta.id,
+          origin: ORIGIN_METAMASK,
+          type: WATCH_ASSET_METHOD_NAME,
+          requestData: {
+            id: suggestedAssetMeta.id,
+            interactingAddress: suggestedAssetMeta.interactingAddress,
+            asset: {
+              address: suggestedAssetMeta.asset.address,
+              decimals: suggestedAssetMeta.asset.decimals,
+              symbol: suggestedAssetMeta.asset.symbol,
+              image: null,
+            },
+          },
+        },
+        true,
+      );
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:acceptRequest',
+        expect.any(String),
+      );
     });
 
-    it('should fail a valid suggested asset via watchAsset with wrong type', async () => {
-      const { result, suggestedAssetMeta } = await tokensController.watchAsset(
-        {
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 18,
-          symbol: 'TKN',
-        },
-        'ERC20',
-      );
-      const { suggestedAssets } = tokensController.state;
-      const index = suggestedAssets.findIndex(
-        ({ id }) => suggestedAssetMeta.id === id,
-      );
-      const newSuggestedAssetMeta = suggestedAssets[index];
-      suggestedAssetMeta.type = 'ERC721';
-      tokensController.update({
-        suggestedAssets: [...suggestedAssets, newSuggestedAssetMeta],
-      });
-      await tokensController.acceptWatchAsset(suggestedAssetMeta.id);
-      await expect(result).rejects.toThrow(
-        'Asset of type ERC721 not supported',
-      );
-    });
+    it.each([
+      ['resolves', true],
+      ['rejects', false],
+    ])(
+      'should fail a valid suggested asset via watchAsset with wrong type and message to ApprovalController %s',
+      async function (_, approvalControllerCallResolves: boolean) {
+        let calledOnce = false;
+        const callActionSpy = approvalControllerCallResolves
+          ? jest.spyOn(messenger, 'call').mockResolvedValue({})
+          : jest.spyOn(messenger, 'call').mockImplementation(() => {
+              if (!calledOnce) {
+                calledOnce = true;
+                return Promise.resolve({});
+              }
+
+              throw new Error();
+            });
+
+        const { result, suggestedAssetMeta } =
+          await tokensController.watchAsset(
+            {
+              address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+              decimals: 18,
+              symbol: 'TKN',
+            },
+            'ERC20',
+          );
+        const { suggestedAssets } = tokensController.state;
+        const index = suggestedAssets.findIndex(
+          ({ id }) => suggestedAssetMeta.id === id,
+        );
+        const newSuggestedAssetMeta = suggestedAssets[index];
+        suggestedAssetMeta.type = 'ERC721';
+        tokensController.update({
+          suggestedAssets: [...suggestedAssets, newSuggestedAssetMeta],
+        });
+        await tokensController.acceptWatchAsset(suggestedAssetMeta.id);
+        await expect(result).rejects.toThrow(
+          'Asset of type ERC721 not supported',
+        );
+        expect(callActionSpy).toHaveBeenCalledTimes(2);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: suggestedAssetMeta.id,
+            origin: ORIGIN_METAMASK,
+            type: WATCH_ASSET_METHOD_NAME,
+            requestData: {
+              id: suggestedAssetMeta.id,
+              interactingAddress: suggestedAssetMeta.interactingAddress,
+              asset: {
+                address: suggestedAssetMeta.asset.address,
+                decimals: suggestedAssetMeta.asset.decimals,
+                symbol: suggestedAssetMeta.asset.symbol,
+                image: null,
+              },
+            },
+          },
+          true,
+        );
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:rejectRequest',
+          expect.any(String),
+          expect.any(Error),
+        );
+      },
+    );
   });
 
   describe('onPreferencesStateChange', function () {

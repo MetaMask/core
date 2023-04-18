@@ -1,4 +1,9 @@
 import { EventEmitter } from 'events';
+import {
+  AcceptRequest as AcceptApprovalRequest,
+  AddApprovalRequest,
+  RejectRequest as RejectApprovalRequest,
+} from '@metamask/approval-controller';
 import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
@@ -10,6 +15,7 @@ import {
   BaseController,
   BaseConfig,
   BaseState,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { NetworkState } from '@metamask/network-controller';
@@ -17,6 +23,7 @@ import {
   NetworkType,
   toChecksumHexAddress,
   ERC721_INTERFACE_ID,
+  ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
 import { TokenListToken } from './TokenListController';
@@ -116,6 +123,32 @@ export interface TokensState extends BaseState {
 }
 
 /**
+ * The name of the {@link TokensController}.
+ */
+const controllerName = 'TokensController';
+
+/**
+ * The external actions available to the {@link TokensController}.
+ */
+type AllowedActions =
+  | AddApprovalRequest
+  | AcceptApprovalRequest
+  | RejectApprovalRequest;
+
+/**
+ * The messenger of the {@link TokensController}.
+ */
+export type TokensControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AllowedActions,
+  never,
+  AllowedActions['type'],
+  never
+>;
+
+const APPROVAL_TYPE = 'wallet_watchAssets';
+
+/**
  * Controller that stores assets and exposes convenience methods
  */
 export class TokensController extends BaseController<
@@ -127,6 +160,8 @@ export class TokensController extends BaseController<
   private ethersProvider: any;
 
   private abortController: WhatwgAbortController;
+
+  private messagingSystem: TokensControllerMessenger;
 
   private failSuggestedAsset(
     suggestedAssetMeta: SuggestedAssetMeta,
@@ -188,12 +223,14 @@ export class TokensController extends BaseController<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
+   * @param options.messenger - The controller messenger.
    */
   constructor({
     onPreferencesStateChange,
     onNetworkStateChange,
     config,
     state,
+    messenger,
   }: {
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
@@ -203,6 +240,7 @@ export class TokensController extends BaseController<
     ) => void;
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
+    messenger: TokensControllerMessenger;
   }) {
     super(config, state);
 
@@ -227,6 +265,8 @@ export class TokensController extends BaseController<
 
     this.initialize();
     this.abortController = new WhatwgAbortController();
+
+    this.messagingSystem = messenger;
 
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
@@ -631,7 +671,9 @@ export class TokensController extends BaseController<
   ): Promise<AssetSuggestionResult> {
     const { selectedAddress } = this.config;
 
-    const suggestedAssetMeta: SuggestedAssetMeta = {
+    const suggestedAssetMeta: SuggestedAssetMeta & {
+      interactingAddress: string;
+    } = {
       asset,
       id: this._generateRandomId(),
       status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
@@ -675,7 +717,9 @@ export class TokensController extends BaseController<
     const { suggestedAssets } = this.state;
     suggestedAssets.push(suggestedAssetMeta);
     this.update({ suggestedAssets: [...suggestedAssets] });
-    this.hub.emit('pendingSuggestedAsset', suggestedAssetMeta);
+
+    this._requestApproval(suggestedAssetMeta);
+
     return { result, suggestedAssetMeta };
   }
 
@@ -704,10 +748,16 @@ export class TokensController extends BaseController<
             image,
             suggestedAssetMeta?.interactingAddress || selectedAddress,
           );
-          suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
+
+          this._acceptApproval(suggestedAssetID);
+
+          const acceptedSuggestedAssetMeta = {
+            ...suggestedAssetMeta,
+            status: SuggestedAssetStatus.accepted,
+          };
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
-            suggestedAssetMeta,
+            acceptedSuggestedAssetMeta,
           );
           break;
         default:
@@ -717,7 +767,10 @@ export class TokensController extends BaseController<
       }
     } catch (error) {
       this.failSuggestedAsset(suggestedAssetMeta, error);
+
+      this._rejectApproval(suggestedAssetID);
     }
+
     const newSuggestedAssets = suggestedAssets.filter(
       ({ id }) => id !== suggestedAssetID,
     );
@@ -739,12 +792,20 @@ export class TokensController extends BaseController<
     if (!suggestedAssetMeta) {
       return;
     }
-    suggestedAssetMeta.status = SuggestedAssetStatus.rejected;
-    this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
+    const rejectedSuggestedAssetMeta = {
+      ...suggestedAssetMeta,
+      status: SuggestedAssetStatus.rejected,
+    };
+    this.hub.emit(
+      `${suggestedAssetMeta.id}:finished`,
+      rejectedSuggestedAssetMeta,
+    );
     const newSuggestedAssets = suggestedAssets.filter(
       ({ id }) => id !== suggestedAssetID,
     );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
+
+    this._rejectApproval(suggestedAssetID);
   }
 
   /**
@@ -843,6 +904,62 @@ export class TokensController extends BaseController<
    */
   clearIgnoredTokens() {
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });
+  }
+
+  _requestApproval(
+    suggestedAssetMeta: SuggestedAssetMeta & {
+      interactingAddress: string;
+    },
+  ) {
+    this.messagingSystem
+      .call(
+        'ApprovalController:addRequest',
+        {
+          id: suggestedAssetMeta.id,
+          origin: ORIGIN_METAMASK,
+          type: APPROVAL_TYPE,
+          requestData: {
+            id: suggestedAssetMeta.id,
+            interactingAddress: suggestedAssetMeta.interactingAddress,
+            asset: {
+              address: suggestedAssetMeta.asset.address,
+              decimals: suggestedAssetMeta.asset.decimals,
+              symbol: suggestedAssetMeta.asset.symbol,
+              image: suggestedAssetMeta.asset.image || null,
+            },
+          },
+        },
+        true,
+      )
+      .catch(() => {
+        // Intentionally ignored as promise not currently used
+      });
+  }
+
+  _acceptApproval(approvalRequestId: string) {
+    try {
+      this.messagingSystem.call(
+        'ApprovalController:acceptRequest',
+        approvalRequestId,
+      );
+    } catch (error) {
+      console.error('Failed to accept token watch approval request', error);
+    }
+  }
+
+  _rejectApproval(approvalRequestId: string) {
+    try {
+      this.messagingSystem.call(
+        'ApprovalController:rejectRequest',
+        approvalRequestId,
+        new Error('Rejected'),
+      );
+    } catch (messageCallError) {
+      console.error(
+        'Failed to reject token watch approval request',
+        messageCallError,
+      );
+    }
   }
 }
 

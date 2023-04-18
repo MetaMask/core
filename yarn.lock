@@ -1450,6 +1450,7 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/abi-utils": ^1.1.0
+    "@metamask/approval-controller": "workspace:^"
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/contract-metadata": ^2.3.1
@@ -1482,6 +1483,7 @@ __metadata:
     typescript: ~4.6.3
     uuid: ^8.3.2
   peerDependencies:
+    "@metamask/approval-controller": "workspace:^"
     "@metamask/network-controller": "workspace:^"
   languageName: unknown
   linkType: soft

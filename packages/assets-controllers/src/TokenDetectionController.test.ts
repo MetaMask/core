@@ -11,7 +11,10 @@ import {
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { TokensController } from './TokensController';
+import {
+  TokensController,
+  TokensControllerMessenger,
+} from './TokensController';
 import { TokenDetectionController } from './TokenDetectionController';
 import {
   TokenListController,
@@ -165,6 +168,7 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         onNetworkStateChangeListeners.push(listener),
+      messenger: undefined as unknown as TokensControllerMessenger,
     });
 
     const tokenListSetup = setupTokenListController(controllerMessenger);
