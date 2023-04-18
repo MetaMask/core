@@ -227,6 +227,10 @@ describe('siwe', () => {
             origin: 'https://localhost',
           },
           {
+            domain: '127.0.0.1:8090',
+            origin: 'https://localhost:8091',
+          },
+          {
             domain: 'example.com:443',
             origin: 'http://example.com',
           },
