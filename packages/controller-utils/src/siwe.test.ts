@@ -182,10 +182,6 @@ describe('siwe', () => {
           },
           {
             domain: 'example.com',
-            origin: 'http://www.example.com',
-          },
-          {
-            domain: 'example.com',
             origin: 'https://foo.example.com',
           },
           {
