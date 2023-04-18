@@ -156,6 +156,29 @@ describe('EnsController', () => {
     });
   });
 
+  it('should clear ensResolutionsByAddress state propery', async () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+      state: {
+        ensResolutionsByAddress: {
+          [address1Checksum]: 'peaksignal.eth',
+        },
+      },
+    });
+
+    expect(controller.state).toStrictEqual({
+      ensResolutionsByAddress: {
+        [address1Checksum]: 'peaksignal.eth',
+      },
+      ensEntries: {},
+    });
+
+    controller.resetState();
+
+    expect(controller.state.ensResolutionsByAddress).toStrictEqual({});
+  });
+
   it('should add a new ENS entry with null address and return true', () => {
     const messenger = getMessenger();
     const controller = new EnsController({
