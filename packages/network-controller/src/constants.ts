@@ -13,7 +13,7 @@ export enum NetworkStatus {
    */
   Available = 'available',
   /**
-   * The network is unable to receive and respond to requests for unknown
+   * The network was unable to receive and respond to requests for unknown
    * reasons.
    */
   Unavailable = 'unavailable',
