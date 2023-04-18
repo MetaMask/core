@@ -4,6 +4,7 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
+import { Json } from '@metamask/controller-utils';
 
 /**
  * @type OriginalRequest
@@ -23,6 +24,7 @@ export interface OriginalRequest {
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'Message' which always has a signing type
  * @property rawSig - Raw data of the signature request
+ * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
  */
 export interface AbstractMessage {
   id: string;
@@ -30,13 +32,14 @@ export interface AbstractMessage {
   status: string;
   type: string;
   rawSig?: string;
+  securityProviderResponse?: Map<string, Json>;
 }
 
 /**
  * @type MessageParams
  *
  * Represents the parameters to pass to the signing method once the signature request is approved.
- * @property from - Address to sign this message from
+ * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
  */
 export interface AbstractMessageParams {
@@ -50,7 +53,7 @@ export interface AbstractMessageParams {
  * Represents the parameters to pass to the signing method once the signature request is approved
  * plus data added by MetaMask.
  * @property metamaskId - Added for tracking and identification within MetaMask
- * @property from - Address to sign this message from
+ * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
  */
 export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
@@ -71,6 +74,14 @@ export interface MessageManagerState<M extends AbstractMessage>
 }
 
 /**
+ * A function for verifying a message, whether it is malicious or not
+ */
+export type SecurityProviderRequest = (
+  requestData: AbstractMessage,
+  messageType: string,
+) => Promise<Json>;
+
+/**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export abstract class AbstractMessageManager<
@@ -79,6 +90,10 @@ export abstract class AbstractMessageManager<
   PM extends AbstractMessageParamsMetamask,
 > extends BaseController<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
+
+  private securityProviderRequest: SecurityProviderRequest | undefined;
+
+  private additionalFinishStatuses: string[];
 
   /**
    * Saves the unapproved messages, and their count to state.
@@ -105,7 +120,12 @@ export abstract class AbstractMessageManager<
     message.status = status;
     this.updateMessage(message);
     this.hub.emit(`${messageId}:${status}`, message);
-    if (status === 'rejected' || status === 'signed' || status === 'errored') {
+    if (
+      status === 'rejected' ||
+      status === 'signed' ||
+      status === 'errored' ||
+      this.additionalFinishStatuses.includes(status)
+    ) {
       this.hub.emit(`${messageId}:finished`, message);
     }
   }
@@ -115,14 +135,37 @@ export abstract class AbstractMessageManager<
    * Then saves the unapprovedMessage list to storage.
    *
    * @param message - A Message that will replace an existing Message (with the id) in this.messages.
+   * @param emitUpdate - Whether to emit the updateBadge event.
    */
-  protected updateMessage(message: M) {
+  protected updateMessage(message: M, emitUpdate = true) {
     const index = this.messages.findIndex((msg) => message.id === msg.id);
     /* istanbul ignore next */
     if (index !== -1) {
       this.messages[index] = message;
     }
-    this.saveMessageList();
+    if (emitUpdate) {
+      this.saveMessageList();
+    }
+  }
+
+  /**
+   * Verifies a message is malicious or not by checking it against a security provider.
+   *
+   * @param message - The message to verify.
+   * @returns A promise that resolves to a secured message with additional security provider response data.
+   */
+  private async securityCheck(message: M): Promise<M> {
+    if (this.securityProviderRequest) {
+      const securityProviderResponse = await this.securityProviderRequest(
+        message,
+        message.type,
+      );
+      return {
+        ...message,
+        securityProviderResponse,
+      };
+    }
+    return message;
   }
 
   /**
@@ -140,10 +183,14 @@ export abstract class AbstractMessageManager<
    *
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
+   * @param securityProviderRequest - A function for verifying a message, whether it is malicious or not.
+   * @param additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
    */
   constructor(
     config?: Partial<BaseConfig>,
     state?: Partial<MessageManagerState<M>>,
+    securityProviderRequest?: SecurityProviderRequest,
+    additionalFinishStatuses?: string[],
   ) {
     super(config, state);
     this.defaultState = {
@@ -151,6 +198,8 @@ export abstract class AbstractMessageManager<
       unapprovedMessagesCount: 0,
     };
     this.messages = [];
+    this.securityProviderRequest = securityProviderRequest;
+    this.additionalFinishStatuses = additionalFinishStatuses ?? [];
     this.initialize();
   }
 
@@ -183,8 +232,9 @@ export abstract class AbstractMessageManager<
    *
    * @param message - The Message to add to this.messages.
    */
-  addMessage(message: M) {
-    this.messages.push(message);
+  async addMessage(message: M) {
+    const securedMessage = await this.securityCheck(message);
+    this.messages.push(securedMessage);
     this.saveMessageList();
   }
 
@@ -232,14 +282,35 @@ export abstract class AbstractMessageManager<
    * @param rawSig - The raw data of the signature request.
    */
   setMessageStatusSigned(messageId: string, rawSig: string) {
+    this.setMessageStatusAndResult(messageId, rawSig, 'signed');
+  }
+
+  /**
+   * Sets the message via a call to this.setResult and updates status of the message.
+   *
+   * @param messageId - The id of the Message to sign.
+   * @param rawSig - The data to update rawSig in the message.
+   * @param status - The new message status.
+   */
+  setMessageStatusAndResult(messageId: string, rawSig: string, status: string) {
+    this.setResult(messageId, rawSig);
+    this.setMessageStatus(messageId, status);
+  }
+
+  /**
+   * Sets the message result.
+   *
+   * @param messageId - The id of the Message to sign.
+   * @param result - The data to update result in the message.
+   */
+  setResult(messageId: string, result: string) {
     const message = this.getMessage(messageId);
     /* istanbul ignore if */
     if (!message) {
       return;
     }
-    message.rawSig = rawSig;
-    this.updateMessage(message);
-    this.setMessageStatus(messageId, 'signed');
+    message.rawSig = result;
+    this.updateMessage(message, false);
   }
 
   /**

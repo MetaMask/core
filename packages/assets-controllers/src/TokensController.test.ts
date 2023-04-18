@@ -2,7 +2,7 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { NetworksChainId } from '@metamask/controller-utils';
+import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import {
   NetworkState,
   ProviderConfig,
@@ -27,8 +27,8 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   });
 };
 
-const SEPOLIA = { chainId: '11155111', type: 'sepolia' as const };
-const GOERLI = { chainId: '5', type: 'goerli' as const };
+const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
+const GOERLI = { chainId: '5', type: NetworkType.goerli };
 
 describe('TokensController', () => {
   let tokensController: TokensController;
@@ -43,6 +43,7 @@ describe('TokensController', () => {
   };
 
   beforeEach(() => {
+    const defaultSelectedAddress = '0x1';
     preferences = new PreferencesController();
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
@@ -50,7 +51,9 @@ describe('TokensController', () => {
         (onNetworkStateChangeListener = listener),
       config: {
         chainId: NetworksChainId.mainnet,
+        selectedAddress: defaultSelectedAddress,
       },
+      getERC20TokenName: sinon.stub(),
     });
 
     sinon
@@ -878,6 +881,7 @@ describe('TokensController', () => {
 
   describe('on watchAsset', function () {
     let asset: any, type: any;
+    const interactingAddress = '0x2';
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
@@ -887,6 +891,7 @@ describe('TokensController', () => {
         decimals: 12,
         symbol: 'SES',
         image: 'image',
+        name: undefined,
       };
       createEthersStub = stubCreateEthers(tokensController, false);
     });
@@ -985,6 +990,29 @@ describe('TokensController', () => {
           time: 1, // uses the fakeTimers clock
           type: 'ERC20',
           asset,
+          interactingAddress: '0x1',
+        },
+      ]);
+
+      generateRandomIdStub.restore();
+      clock.restore();
+    });
+
+    it('should handle ERC20 type and add to suggestedAssets with interacting address', async function () {
+      const clock = sinon.useFakeTimers(1);
+      const generateRandomIdStub = sinon
+        .stub(tokensController, '_generateRandomId')
+        .callsFake(() => '12345');
+      type = 'ERC20';
+      await tokensController.watchAsset(asset, type, interactingAddress);
+      expect(tokensController.state.suggestedAssets).toStrictEqual([
+        {
+          id: '12345',
+          status: 'pending',
+          interactingAddress,
+          time: 1, // uses the fakeTimers clock
+          type: 'ERC20',
+          asset,
         },
       ]);
 
@@ -1009,6 +1037,38 @@ describe('TokensController', () => {
           ...asset,
           image: 'image',
           name: undefined,
+        },
+      ]);
+
+      generateRandomIdStub.restore();
+    });
+
+    it('should store token correctly under interacting address if user confirms', async function () {
+      const generateRandomIdStub = sinon
+        .stub(tokensController, '_generateRandomId')
+        .callsFake(() => '12345');
+      type = 'ERC20';
+      await tokensController.watchAsset(asset, type, interactingAddress);
+      await tokensController.acceptWatchAsset('12345');
+
+      expect(tokensController.state.suggestedAssets).toStrictEqual([]);
+      expect(tokensController.state.tokens).toHaveLength(0);
+      expect(tokensController.state.tokens).toStrictEqual([]);
+      expect(
+        tokensController.state.allTokens[NetworksChainId.mainnet][
+          interactingAddress
+        ],
+      ).toHaveLength(1);
+      expect(
+        tokensController.state.allTokens[NetworksChainId.mainnet][
+          interactingAddress
+        ],
+      ).toStrictEqual([
+        {
+          isERC721: false,
+          aggregators: [],
+          ...asset,
+          image: 'image',
         },
       ]);
 

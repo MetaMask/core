@@ -1,6 +1,5 @@
 import { v1 as random } from 'uuid';
-import { detectSIWE, SIWEMessage } from '@metamask/controller-utils';
-import { normalizeMessageData, validateSignMessageData } from './utils';
+import { normalizeMessageData, validateDecryptedMessageData } from './utils';
 import {
   AbstractMessageManager,
   AbstractMessage,
@@ -10,60 +9,56 @@ import {
 } from './AbstractMessageManager';
 
 /**
- * @type Message
+ * @type DecryptMessage
  *
- * Represents and contains data about a 'personal_sign' type signature request.
- * These are created when a signature for a personal_sign call is requested.
+ * Represents and contains data about a 'eth_decrypt' type signature request.
+ * These are created when a signature for an eth_decrypt call is requested.
  * @property id - An id to track and identify the message object
- * @property messageParams - The parameters to pass to the personal_sign method once the signature request is approved
+ * @property messageParams - The parameters to pass to the eth_decrypt method once the request is approved
  * @property type - The json-prc signing method for which a signature request has been made.
- * A 'Message' which always has a 'personal_sign' type
- * @property rawSig - Raw data of the signature request
+ * A 'DecryptMessage' which always has a 'eth_decrypt' type
  */
-export interface PersonalMessage extends AbstractMessage {
-  messageParams: PersonalMessageParams;
+export interface DecryptMessage extends AbstractMessage {
+  messageParams: DecryptMessageParams;
 }
 
 /**
- * @type PersonalMessageParams
+ * @type DecryptMessageParams
  *
- * Represents the parameters to pass to the personal_sign method once the signature request is approved.
+ * Represents the parameters to pass to the eth_decrypt method once the request is approved.
  * @property data - A hex string conversion of the raw buffer data of the signature request
- * @property from - Address to sign this message from
- * @property origin? - Added for request origin identification
  */
-export interface PersonalMessageParams extends AbstractMessageParams {
+export interface DecryptMessageParams extends AbstractMessageParams {
   data: string;
-  siwe?: SIWEMessage;
 }
 
 /**
- * @type MessageParamsMetamask
+ * @type DecryptMessageParamsMetamask
  *
- * Represents the parameters to pass to the personal_sign method once the signature request is approved
+ * Represents the parameters to pass to the eth_decrypt method once the request is approved
  * plus data added by MetaMask.
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property data - A hex string conversion of the raw buffer data of the signature request
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
-export interface PersonalMessageParamsMetamask
+export interface DecryptMessageParamsMetamask
   extends AbstractMessageParamsMetamask {
   data: string;
 }
 
 /**
- * Controller in charge of managing - storing, adding, removing, updating - Messages.
+ * Controller in charge of managing - storing, adding, removing, updating - DecryptMessages.
  */
-export class PersonalMessageManager extends AbstractMessageManager<
-  PersonalMessage,
-  PersonalMessageParams,
-  PersonalMessageParamsMetamask
+export class DecryptMessageManager extends AbstractMessageManager<
+  DecryptMessage,
+  DecryptMessageParams,
+  DecryptMessageParamsMetamask
 > {
   /**
    * Name of this controller used during composition
    */
-  override name = 'PersonalMessageManager';
+  override name = 'DecryptMessageManager';
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
@@ -74,26 +69,33 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @returns Promise resolving to the raw data of the signature request.
    */
   async addUnapprovedMessageAsync(
-    messageParams: PersonalMessageParams,
+    messageParams: DecryptMessageParams,
     req?: OriginalRequest,
   ): Promise<string> {
-    validateSignMessageData(messageParams);
+    validateDecryptedMessageData(messageParams);
     const messageId = await this.addUnapprovedMessage(messageParams, req);
+
     return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: PersonalMessage) => {
+      this.hub.once(`${messageId}:finished`, (data: DecryptMessage) => {
         switch (data.status) {
-          case 'signed':
+          case 'decrypted':
             return resolve(data.rawSig as string);
           case 'rejected':
             return reject(
               new Error(
-                'MetaMask Personal Message Signature: User denied message signature.',
+                'MetaMask DecryptMessage: User denied message decryption.',
+              ),
+            );
+          case 'errored':
+            return reject(
+              new Error(
+                'MetaMask DecryptMessage: This message cannot be decrypted.',
               ),
             );
           default:
             return reject(
               new Error(
-                `MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(
+                `MetaMask DecryptMessage: Unknown problem: ${JSON.stringify(
                   messageParams,
                 )}`,
               ),
@@ -114,28 +116,24 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @returns The id of the newly created message.
    */
   async addUnapprovedMessage(
-    messageParams: PersonalMessageParams,
+    messageParams: DecryptMessageParams,
     req?: OriginalRequest,
-  ): Promise<string> {
+  ) {
     if (req) {
       messageParams.origin = req.origin;
     }
     messageParams.data = normalizeMessageData(messageParams.data);
-
-    const ethereumSignInData = detectSIWE(messageParams);
-    const finalMsgParams = { ...messageParams, siwe: ethereumSignInData };
-
     const messageId = random();
-    const messageData: PersonalMessage = {
+    const messageData: DecryptMessage = {
       id: messageId,
-      messageParams: finalMsgParams,
+      messageParams,
       status: 'unapproved',
       time: Date.now(),
-      type: 'personal_sign',
+      type: 'eth_decrypt',
     };
     await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
-      ...finalMsgParams,
+      ...messageParams,
       ...{ metamaskId: messageId },
     });
     return messageId;
@@ -149,11 +147,9 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
   prepMessageForSigning(
-    messageParams: PersonalMessageParamsMetamask,
-  ): Promise<PersonalMessageParams> {
+    messageParams: DecryptMessageParamsMetamask,
+  ): Promise<DecryptMessageParams> {
     delete messageParams.metamaskId;
     return Promise.resolve(messageParams);
   }
 }
-
-export default PersonalMessageManager;

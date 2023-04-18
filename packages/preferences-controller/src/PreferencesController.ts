@@ -19,44 +19,16 @@ export interface ContactEntry {
 }
 
 /**
- * Custom RPC network information
- *
- * @property rpcUrl - RPC target URL.
- * @property chainId - Network ID as per EIP-155
- * @property nickname - Personalized network name.
- * @property ticker - Currency ticker.
- * @property rpcPrefs - Personalized preferences.
- */
-export interface FrequentRpc {
-  rpcUrl: string;
-  chainId?: number;
-  nickname?: string;
-  ticker?: string;
-  rpcPrefs?: RpcPreferences;
-}
-
-/**
- * Custom RPC network preferences
- *
- * @param blockExplorerUrl - Block explorer URL.
- */
-export interface RpcPreferences {
-  blockExplorerUrl: string;
-}
-
-/**
  * @type PreferencesState
  *
  * Preferences controller state
  * @property featureFlags - Map of specific features to enable or disable
- * @property frequentRpcList - A list of custom RPCs to provide the user
  * @property identities - Map of addresses to ContactEntry objects
  * @property lostIdentities - Map of lost addresses to ContactEntry objects
  * @property selectedAddress - Current coinbase account
  */
 export interface PreferencesState extends BaseState {
   featureFlags: { [feature: string]: boolean };
-  frequentRpcList: FrequentRpc[];
   ipfsGateway: string;
   identities: { [address: string]: ContactEntry };
   lostIdentities: { [address: string]: ContactEntry };
@@ -91,7 +63,6 @@ export class PreferencesController extends BaseController<
     super(config, state);
     this.defaultState = {
       featureFlags: {},
-      frequentRpcList: [],
       identities: {},
       ipfsGateway: 'https://ipfs.io/ipfs/',
       lostIdentities: {},
@@ -240,56 +211,6 @@ export class PreferencesController extends BaseController<
       selectedAddress = Object.keys(identities)[0];
     }
     this.update({ identities: { ...identities }, selectedAddress });
-  }
-
-  /**
-   * Adds custom RPC URL to state.
-   *
-   * @param url - The custom RPC URL.
-   * @param chainId - The chain ID of the network, as per EIP-155.
-   * @param ticker - Currency ticker.
-   * @param nickname - Personalized network name.
-   * @param rpcPrefs - Personalized preferences.
-   */
-  addToFrequentRpcList(
-    url: string,
-    chainId?: number,
-    ticker?: string,
-    nickname?: string,
-    rpcPrefs?: RpcPreferences,
-  ) {
-    const { frequentRpcList } = this.state;
-    const index = frequentRpcList.findIndex(({ rpcUrl }) => {
-      return rpcUrl === url;
-    });
-    if (index !== -1) {
-      frequentRpcList.splice(index, 1);
-    }
-    const newFrequestRpc: FrequentRpc = {
-      rpcUrl: url,
-      chainId,
-      ticker,
-      nickname,
-      rpcPrefs,
-    };
-    frequentRpcList.push(newFrequestRpc);
-    this.update({ frequentRpcList: [...frequentRpcList] });
-  }
-
-  /**
-   * Removes custom RPC URL from state.
-   *
-   * @param url - Custom RPC URL.
-   */
-  removeFromFrequentRpcList(url: string) {
-    const { frequentRpcList } = this.state;
-    const index = frequentRpcList.findIndex(({ rpcUrl }) => {
-      return rpcUrl === url;
-    });
-    if (index !== -1) {
-      frequentRpcList.splice(index, 1);
-    }
-    this.update({ frequentRpcList: [...frequentRpcList] });
   }
 
   /**

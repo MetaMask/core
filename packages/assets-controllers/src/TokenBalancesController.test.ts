@@ -130,6 +130,7 @@ describe('TokenBalancesController', () => {
     new NetworkController({
       messenger,
       infuraProjectId: 'potato',
+      trackMetaMetricsEvent: jest.fn(),
     });
     const preferences = new PreferencesController();
     return { messenger, preferences };
@@ -141,6 +142,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      getERC20TokenName: sinon.stub(),
     });
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const tokenBalances = new TokenBalancesController(
@@ -176,6 +178,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      getERC20TokenName: sinon.stub(),
     });
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
@@ -228,6 +231,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      getERC20TokenName: sinon.stub(),
     });
 
     const stub = stubCreateEthers(tokensController, false);

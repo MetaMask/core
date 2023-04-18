@@ -54,6 +54,7 @@ const setupNetworkController = (
   const network = new NetworkController({
     messenger: networkMessenger,
     infuraProjectId: '123',
+    trackMetaMetricsEvent: jest.fn(),
   });
 
   return { network, networkMessenger };

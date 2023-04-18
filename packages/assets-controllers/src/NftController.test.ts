@@ -14,6 +14,7 @@ import {
   OPENSEA_API_URL,
   ERC721,
   NetworksChainId,
+  NetworkType,
 } from '@metamask/controller-utils';
 import { Network } from '@ethersproject/providers';
 import { AssetsContractController } from './AssetsContractController';
@@ -46,8 +47,8 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
   true,
 );
 
-const SEPOLIA = { chainId: '11155111', type: 'sepolia' as const };
-const GOERLI = { chainId: '5', type: 'goerli' as const };
+const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
+const GOERLI = { chainId: '5', type: NetworkType.goerli };
 
 // Mock out detectNetwork function for cleaner tests, Ethers calls this a bunch of times because the Web3Provider is paranoid.
 jest.mock('@ethersproject/providers', () => {

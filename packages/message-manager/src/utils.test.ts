@@ -18,25 +18,27 @@ describe('utils', () => {
         util.validateSignMessageData({
           data: '0x879a05',
         } as any),
-      ).toThrow('Invalid "from" address: undefined must be a valid string.');
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
 
     it('should throw if invalid from address', () => {
+      const from = '01';
       expect(() =>
         util.validateSignMessageData({
           data: '0x879a05',
-          from: '01',
+          from,
         } as any),
-      ).toThrow('Invalid "from" address: 01 must be a valid string.');
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if invalid type from address', () => {
+      const from = 123;
       expect(() =>
         util.validateSignMessageData({
           data: '0x879a05',
-          from: 123,
+          from,
         } as any),
-      ).toThrow('Invalid "from" address: 123 must be a valid string.');
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if no data', () => {
@@ -44,7 +46,7 @@ describe('utils', () => {
         util.validateSignMessageData({
           data: '0x879a05',
         } as any),
-      ).toThrow('Invalid "from" address: undefined must be a valid string.');
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
 
     it('should throw if invalid tyoe data', () => {
@@ -63,25 +65,27 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV1({
           data: [],
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
 
     it('should throw if invalid from address', () => {
+      const from = '3244e191f1b4903970224322180f1';
       expect(() =>
         util.validateTypedSignMessageDataV1({
           data: [],
-          from: '3244e191f1b4903970224322180f1fbbc415696b',
+          from,
         } as any),
-      ).toThrow('Expected EIP712 typed data.');
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if invalid type from address', () => {
+      const from = 123;
       expect(() =>
         util.validateTypedSignMessageDataV1({
           data: [],
-          from: 123,
+          from,
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if incorrect data', () => {
@@ -120,25 +124,27 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV3({
           data: '0x879a05',
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
     });
 
     it('should throw if invalid from address', () => {
+      const from = '3244e191f1b4903970224322180f1fb';
       expect(() =>
         util.validateTypedSignMessageDataV3({
           data: '0x879a05',
-          from: '3244e191f1b4903970224322180f1fbbc415696b',
+          from,
         } as any),
-      ).toThrow('Data must be passed as a valid JSON string.');
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if invalid type from address', () => {
+      const from = 123;
       expect(() =>
         util.validateTypedSignMessageDataV3({
           data: '0x879a05',
           from: 123,
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
     });
 
     it('should throw if array data', () => {
@@ -180,6 +186,74 @@ describe('utils', () => {
       expect(() =>
         util.validateTypedSignMessageDataV3({
           data: dataTyped,
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+        } as any),
+      ).not.toThrow();
+    });
+  });
+
+  describe('validateEncryptionPublicKeyMessageData', () => {
+    it('should throw if no from address', () => {
+      expect(() =>
+        util.validateEncryptionPublicKeyMessageData({} as any),
+      ).toThrow(`Invalid "from" address: undefined must be a valid string.`);
+    });
+
+    it('should throw if invalid from address', () => {
+      const from = '01';
+      expect(() =>
+        util.validateEncryptionPublicKeyMessageData({
+          from,
+        } as any),
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
+    });
+
+    it('should throw if invalid type from address', () => {
+      const from = 123;
+      expect(() =>
+        util.validateEncryptionPublicKeyMessageData({
+          from: 123,
+        } as any),
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
+    });
+
+    it('should not throw if from address is correct', () => {
+      expect(() =>
+        util.validateEncryptionPublicKeyMessageData({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+        } as any),
+      ).not.toThrow();
+    });
+  });
+
+  describe('validateDecryptedMessageData', () => {
+    it('should throw if no from address', () => {
+      expect(() => util.validateDecryptedMessageData({} as any)).toThrow(
+        'Invalid "from" address: undefined must be a valid string.',
+      );
+    });
+
+    it('should throw if invalid from address', () => {
+      const from = '01';
+      expect(() =>
+        util.validateDecryptedMessageData({
+          from,
+        } as any),
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
+    });
+
+    it('should throw if invalid type from address', () => {
+      const from = 123;
+      expect(() =>
+        util.validateDecryptedMessageData({
+          from,
+        } as any),
+      ).toThrow(`Invalid "from" address: ${from} must be a valid string.`);
+    });
+
+    it('should not throw if from address is correct', () => {
+      expect(() =>
+        util.validateDecryptedMessageData({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
       ).not.toThrow();

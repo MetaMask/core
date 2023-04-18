@@ -213,12 +213,13 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
-    new NetworkController({ messenger });
+    new NetworkController({ messenger, trackMetaMetricsEvent: jest.fn() });
     const preferences = new PreferencesController();
     const tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      getERC20TokenName: sinon.stub(),
     });
     const controller = new TokenRatesController(
       {

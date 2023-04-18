@@ -9,10 +9,26 @@ import {
 import { fromWei, toWei } from 'ethjs-unit';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
+import type { Hex } from '@metamask/utils';
+import { isStrictHexString } from '@metamask/utils';
 import type { Json } from './types';
+import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
 
+/**
+ * Checks whether the given number primitive chain ID is safe.
+ * Because some cryptographic libraries we use expect the chain ID to be a
+ * number primitive, it must not exceed a certain size.
+ *
+ * @param chainId - The chain ID to check for safety.
+ * @returns Whether the given chain ID is safe.
+ */
+export function isSafeChainId(chainId: number): boolean {
+  return (
+    Number.isSafeInteger(chainId) && chainId > 0 && chainId <= MAX_SAFE_CHAIN_ID
+  );
+}
 /**
  * Converts a BN object to a hex string with a '0x' prefix.
  *
@@ -160,8 +176,8 @@ export function fromHex(value: string | BN): BN {
  * @param value - An integer, an integer encoded as a base-10 string, or a BN.
  * @returns The integer encoded as a hex string.
  */
-export function toHex(value: number | string | BN): string {
-  if (typeof value === 'string' && isHexString(value)) {
+export function toHex(value: number | string | BN): Hex {
+  if (typeof value === 'string' && isStrictHexString(value)) {
     return value;
   }
   const hexString = BN.isBN(value)

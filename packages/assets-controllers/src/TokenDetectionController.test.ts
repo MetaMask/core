@@ -8,11 +8,7 @@ import {
   NetworkState,
   ProviderConfig,
 } from '@metamask/network-controller';
-import {
-  NetworksChainId,
-  MAINNET,
-  NetworkType,
-} from '@metamask/controller-utils';
+import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { TokensController } from './TokensController';
@@ -144,7 +140,7 @@ describe('TokenDetectionController', () => {
   };
   const mainnet = {
     chainId: NetworksChainId.mainnet,
-    type: MAINNET as NetworkType,
+    type: NetworkType.mainnet,
   };
 
   beforeEach(async () => {
@@ -171,6 +167,7 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         onNetworkStateChangeListeners.push(listener),
+      getERC20TokenName: sinon.stub(),
     });
 
     const tokenListSetup = setupTokenListController(controllerMessenger);

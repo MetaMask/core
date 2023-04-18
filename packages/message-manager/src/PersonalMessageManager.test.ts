@@ -1,8 +1,38 @@
+import { detectSIWE, SIWEMessage } from '@metamask/controller-utils';
 import { PersonalMessageManager } from './PersonalMessageManager';
 
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  detectSIWE: jest.fn(),
+}));
+
+const siweMockNotFound = {
+  isSIWEMessage: false,
+  parsedMessage: null,
+} as SIWEMessage;
+
+const siweMockFound = {
+  isSIWEMessage: true,
+  parsedMessage: {
+    address: '0x0000000',
+    domain: 'example.eth',
+  },
+} as SIWEMessage;
+
 describe('PersonalMessageManager', () => {
+  let controller: PersonalMessageManager;
+
+  const detectSIWEMock = detectSIWE as jest.MockedFunction<typeof detectSIWE>;
+  const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+  const dataMock = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
+  const messageIdMock = 'message-id-mocked';
+  const rawSigMock = '0xsignaturemocked';
+  beforeEach(() => {
+    controller = new PersonalMessageManager();
+    detectSIWEMock.mockReturnValue(siweMockNotFound);
+  });
+
   it('should set default state', () => {
-    const controller = new PersonalMessageManager();
     expect(controller.state).toStrictEqual({
       unapprovedMessages: {},
       unapprovedMessagesCount: 0,
@@ -10,19 +40,83 @@ describe('PersonalMessageManager', () => {
   });
 
   it('should set default config', () => {
-    const controller = new PersonalMessageManager();
     expect(controller.config).toStrictEqual({});
   });
 
+  describe('addUnapprovedMessageAsync', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(controller, 'addUnapprovedMessage')
+        .mockImplementation()
+        .mockResolvedValue(messageIdMock);
+    });
+
+    afterAll(() => {
+      jest.spyOn(controller, 'addUnapprovedMessage').mockClear();
+    });
+    it('signs the message when status is "signed"', async () => {
+      const promise = controller.addUnapprovedMessageAsync({
+        data: dataMock,
+        from: fromMock,
+      });
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'signed',
+          rawSig: rawSigMock,
+        });
+      }, 100);
+
+      expect(await promise).toStrictEqual(rawSigMock);
+    });
+
+    it('rejects with an error when status is "rejected"', async () => {
+      const promise = controller.addUnapprovedMessageAsync({
+        data: dataMock,
+        from: fromMock,
+      });
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'rejected',
+        });
+      }, 100);
+
+      await expect(() => promise).rejects.toThrow(
+        'MetaMask Personal Message Signature: User denied message signature.',
+      );
+    });
+
+    it('rejects with an error when unapproved finishes', async () => {
+      const promise = controller.addUnapprovedMessageAsync({
+        data: dataMock,
+        from: fromMock,
+      });
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'unknown',
+        });
+      }, 100);
+
+      await expect(() => promise).rejects.toThrow(
+        `MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(
+          {
+            data: dataMock,
+            from: fromMock,
+          },
+        )}`,
+      );
+    });
+  });
   it('should add a valid message', async () => {
-    const controller = new PersonalMessageManager();
     const messageId = '1';
     const from = '0x0123';
     const messageData = '0x123';
     const messageTime = Date.now();
     const messageStatus = 'unapproved';
     const messageType = 'personal_sign';
-    controller.addMessage({
+    await controller.addMessage({
       id: messageId,
       messageParams: {
         data: messageData,
@@ -44,60 +138,7 @@ describe('PersonalMessageManager', () => {
     expect(message.type).toBe(messageType);
   });
 
-  it('should reject a message', async () => {
-    const controller = new PersonalMessageManager();
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
-    const result = controller.addUnapprovedMessageAsync({
-      data,
-      from,
-    });
-    const unapprovedMessages = controller.getUnapprovedMessages();
-    const keys = Object.keys(unapprovedMessages);
-    controller.hub.once(`${keys[0]}:finished`, () => {
-      expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
-      expect(unapprovedMessages[keys[0]].status).toBe('rejected');
-    });
-    controller.rejectMessage(keys[0]);
-    await expect(result).rejects.toThrow('User denied message signature');
-  });
-
-  it('should sign a message', async () => {
-    const controller = new PersonalMessageManager();
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
-    const rawSig = '0x5f7a0';
-    const result = controller.addUnapprovedMessageAsync({
-      data,
-      from,
-    });
-    const unapprovedMessages = controller.getUnapprovedMessages();
-    const keys = Object.keys(unapprovedMessages);
-    controller.hub.once(`${keys[0]}:finished`, () => {
-      expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
-      expect(unapprovedMessages[keys[0]].status).toBe('signed');
-    });
-    controller.setMessageStatusSigned(keys[0], rawSig);
-    const sig = await result;
-    expect(sig).toBe(rawSig);
-  });
-
-  it('should throw when unapproved finishes', async () => {
-    const controller = new PersonalMessageManager();
-    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
-    const result = controller.addUnapprovedMessageAsync({
-      data,
-      from,
-    });
-    const unapprovedMessages = controller.getUnapprovedMessages();
-    const keys = Object.keys(unapprovedMessages);
-    controller.hub.emit(`${keys[0]}:finished`, unapprovedMessages[keys[0]]);
-    await expect(result).rejects.toThrow('Unknown problem');
-  });
-
   it('should add a valid unapproved message', async () => {
-    const controller = new PersonalMessageManager();
     const messageStatus = 'unapproved';
     const messageType = 'personal_sign';
     const messageParams = {
@@ -105,7 +146,7 @@ describe('PersonalMessageManager', () => {
       from: '0xfoO',
     };
     const originalRequest = { origin: 'origin' };
-    const messageId = controller.addUnapprovedMessage(
+    const messageId = await controller.addUnapprovedMessage(
       messageParams,
       originalRequest,
     );
@@ -124,16 +165,17 @@ describe('PersonalMessageManager', () => {
   it('should throw when adding invalid message', async () => {
     const from = 'foo';
     const messageData = '0x123';
-    const controller = new PersonalMessageManager();
     await expect(
       controller.addUnapprovedMessageAsync({
         data: messageData,
         from,
       }),
-    ).rejects.toThrow('Invalid "from" address:');
+    ).rejects.toThrow(
+      `Invalid "from" address: ${from} must be a valid string.`,
+    );
   });
 
-  it('should get correct unapproved messages', () => {
+  it('should get correct unapproved messages', async () => {
     const firstMessage = {
       id: '1',
       messageParams: { from: '0x1', data: '0x123' },
@@ -148,9 +190,8 @@ describe('PersonalMessageManager', () => {
       time: 123,
       type: 'personal_sign',
     };
-    const controller = new PersonalMessageManager();
-    controller.addMessage(firstMessage);
-    controller.addMessage(secondMessage);
+    await controller.addMessage(firstMessage);
+    await controller.addMessage(secondMessage);
     expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
     expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
@@ -159,9 +200,8 @@ describe('PersonalMessageManager', () => {
   });
 
   it('should approve message', async () => {
-    const controller = new PersonalMessageManager();
     const firstMessage = { from: 'foo', data: '0x123' };
-    const messageId = controller.addUnapprovedMessage(firstMessage);
+    const messageId = await controller.addUnapprovedMessage(firstMessage);
     const messageParams = await controller.approveMessage({
       ...firstMessage,
       metamaskId: messageId,
@@ -174,11 +214,10 @@ describe('PersonalMessageManager', () => {
     expect(message.status).toStrictEqual('approved');
   });
 
-  it('should set message status signed', () => {
-    const controller = new PersonalMessageManager();
+  it('should set message status signed', async () => {
     const firstMessage = { from: 'foo', data: '0x123' };
     const rawSig = '0x5f7a0';
-    const messageId = controller.addUnapprovedMessage(firstMessage);
+    const messageId = await controller.addUnapprovedMessage(firstMessage);
 
     controller.setMessageStatusSigned(messageId, rawSig);
     const message = controller.getMessage(messageId);
@@ -189,15 +228,25 @@ describe('PersonalMessageManager', () => {
     expect(message.status).toStrictEqual('signed');
   });
 
-  it('should reject message', () => {
-    const controller = new PersonalMessageManager();
+  it('should reject message', async () => {
     const firstMessage = { from: 'foo', data: '0x123' };
-    const messageId = controller.addUnapprovedMessage(firstMessage);
+    const messageId = await controller.addUnapprovedMessage(firstMessage);
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
     if (!message) {
       throw new Error('"message" is falsy');
     }
     expect(message.status).toStrictEqual('rejected');
+  });
+
+  it('should add message including Ethereum sign in data', async () => {
+    detectSIWEMock.mockReturnValue(siweMockFound);
+    const firstMessage = { from: 'foo', data: '0x123' };
+    const messageId = await controller.addUnapprovedMessage(firstMessage);
+    const message = controller.getMessage(messageId);
+    if (!message) {
+      throw new Error('"message" is falsy');
+    }
+    expect(message.messageParams.siwe).toBe(siweMockFound);
   });
 });
