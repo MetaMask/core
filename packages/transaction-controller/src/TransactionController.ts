@@ -1001,7 +1001,8 @@ export class TransactionController extends BaseController<
       typeof providedGasPrice === 'undefined'
         ? await query(this.ethQuery, 'gasPrice')
         : providedGasPrice;
-    const { isCustomNetwork } = this.getNetworkState();
+    const { providerConfig } = this.getNetworkState();
+    const isCustomNetwork = providerConfig.type === NetworkType.rpc;
     // 1. If gas is already defined on the transaction, use it
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
