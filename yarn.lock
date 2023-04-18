@@ -1402,7 +1402,6 @@ __metadata:
     ethereum-ens-network-map: ^1.0.2
     jest: ^26.4.2
     punycode: ^2.1.1
-    sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
