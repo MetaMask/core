@@ -13,8 +13,8 @@ import {
   toChecksumHexAddress,
   NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
+  hasProperty,
 } from '@metamask/controller-utils';
-import { hasProperty } from '@metamask/utils';
 import { toASCII } from 'punycode/';
 import ensNetworkMap from 'ethereum-ens-network-map';
 

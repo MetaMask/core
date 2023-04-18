@@ -32,7 +32,6 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
-    "@metamask/utils": "^3.3.1",
     "ethereum-ens-network-map": "^1.0.2",
     "punycode": "^2.1.1"
   },
