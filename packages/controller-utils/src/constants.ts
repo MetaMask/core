@@ -87,3 +87,26 @@ export const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
 
 // Default origin for controllers
 export const ORIGIN_METAMASK = 'metamask';
+
+/**
+ * Approval request types for various operations.
+ * These types are used by different controllers to create and manage
+ * approval requests consistently.
+ */
+export enum ApprovalType {
+  AddEthereumChain = 'wallet_addEthereumChain',
+  EthDecrypt = 'eth_decrypt',
+  EthGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
+  EthSign = 'eth_sign',
+  EthSignTypedData = 'eth_signTypedData',
+  PersonalSign = 'personal_sign',
+  SwitchEthereumChain = 'wallet_switchEthereumChain',
+  Transaction = 'transaction',
+  WalletRequestPermissions = 'wallet_requestPermissions',
+  WatchAsset = 'wallet_watchAsset',
+  SnapDialogAlert = 'snap_dialog:alert',
+  SnapDialogConfirmation = 'snap_dialog:confirmation',
+  SnapDialogPrompt = 'snap_dialog:prompt',
+  Unlock = 'unlock',
+  ConnectAccounts = 'connect_accounts',
+}
