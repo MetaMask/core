@@ -89,7 +89,9 @@ export const parseOriginParts = (origin: string): HostParts => {
     // strip password from userinfo
     userinfo: userinfo ? userinfo.replace(/:.*$/u, '') : null,
     host,
-    port: port ? parseInt(port) : DEFAULT_PORTS_BY_SCHEME[scheme] || null,
+    port: port
+      ? parseInt(port)
+      : DEFAULT_PORTS_BY_SCHEME[scheme.toLocaleLowerCase()] || null,
   };
 };
 
@@ -136,7 +138,11 @@ export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
   const originParts = parseOriginParts(origin);
   const domainParts = parseDomainParts(siwe.parsedMessage.domain);
 
-  if (domainParts.host !== originParts.host) {
+  if (
+    domainParts.host.localeCompare(originParts.host, undefined, {
+      sensitivity: 'accent',
+    }) !== 0
+  ) {
     return false;
   }
 

@@ -65,6 +65,10 @@ describe('siwe', () => {
             origin: 'http://example.com:80',
           },
           {
+            domain: 'eXAMPLe.cOM',
+            origin: 'hTtp://ExamPLE.CoM',
+          },
+          {
             domain: 'example.com',
             origin: 'https://user:password@example.com',
           },
