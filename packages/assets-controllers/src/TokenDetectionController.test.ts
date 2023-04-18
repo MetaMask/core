@@ -11,7 +11,10 @@ import {
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { TokensController } from './TokensController';
+import {
+  TokensController,
+  TokensControllerMessenger,
+} from './TokensController';
 import { TokenDetectionController } from './TokenDetectionController';
 import {
   TokenListController,
@@ -168,6 +171,7 @@ describe('TokenDetectionController', () => {
       onNetworkStateChange: (listener) =>
         onNetworkStateChangeListeners.push(listener),
       getERC20TokenName: sinon.stub(),
+      messenger: undefined as unknown as TokensControllerMessenger,
     });
 
     const tokenListSetup = setupTokenListController(controllerMessenger);
