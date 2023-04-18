@@ -6,13 +6,12 @@ import {
   Web3Provider,
   ExternalProvider,
   JsonRpcFetchFunc,
-  Networkish,
 } from '@ethersproject/providers';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
-  NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
+  CHAIN_ID_TO_NETWORK_TYPE_MAP,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/';
@@ -124,10 +123,10 @@ export class EnsController extends BaseControllerV2<
         const currentNetwork =
           networkState.network === 'loading' ? null : networkState.network;
         if (currentNetwork && this.#getNetworkEnsSupport(currentNetwork)) {
-          const networkish: Networkish = {
+          const networkish = {
             chainId: convertHexToDecimal(networkState.providerConfig.chainId),
-            name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[
-              currentNetwork as unknown as keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP
+            name: CHAIN_ID_TO_NETWORK_TYPE_MAP[
+              currentNetwork as unknown as keyof typeof CHAIN_ID_TO_NETWORK_TYPE_MAP
             ],
             ensAddress: ensNetworkMap[currentNetwork],
           };
@@ -137,6 +136,15 @@ export class EnsController extends BaseControllerV2<
         }
       });
     }
+  }
+
+  /**
+   * Clears ensResolutionsByAddress state property.
+   */
+  resetState() {
+    this.update((currentState) => {
+      currentState.ensResolutionsByAddress = {};
+    });
   }
 
   /**

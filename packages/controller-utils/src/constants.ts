@@ -111,7 +111,7 @@ export enum ApprovalType {
   ConnectAccounts = 'connect_accounts',
 }
 
-export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP = {
+export const CHAIN_ID_TO_NETWORK_TYPE_MAP = {
   [NetworksChainId.goerli]: NetworkType.goerli,
   [NetworksChainId.sepolia]: NetworkType.sepolia,
   [NetworksChainId.mainnet]: NetworkType.mainnet,
