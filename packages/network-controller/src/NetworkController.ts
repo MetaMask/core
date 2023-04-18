@@ -351,15 +351,6 @@ export class NetworkController extends BaseControllerV2<
     this.#updateProvider(createMetamaskProvider(config));
   }
 
-  #getIsCustomNetwork(chainId?: string) {
-    return (
-      chainId !== NetworksChainId.mainnet &&
-      chainId !== NetworksChainId.goerli &&
-      chainId !== NetworksChainId.sepolia &&
-      chainId !== NetworksChainId.localhost
-    );
-  }
-
   #setupStandardProvider(
     rpcTarget: string,
     chainId?: string,
