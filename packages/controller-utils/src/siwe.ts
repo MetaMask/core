@@ -126,38 +126,43 @@ export const parseDomainParts = (domain: string): DomainParts => {
  * @returns true if origin matches domain; false otherwise
  */
 export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
-  const { origin, siwe } = req;
+  try {
+    const { origin, siwe } = req;
 
-  // origin = scheme://[user[:password]@]domain[:port]
-  // origin is supplied by environment and must match domain claim in message
-  if (!origin || !siwe?.parsedMessage?.domain) {
+    // origin = scheme://[user[:password]@]domain[:port]
+    // origin is supplied by environment and must match domain claim in message
+    if (!origin || !siwe?.parsedMessage?.domain) {
+      return false;
+    }
+
+    // TOREVIEW: Handle error and log here instead of propagating?
+    const originParts = parseOriginParts(origin);
+    const domainParts = parseDomainParts(siwe.parsedMessage.domain);
+
+    if (
+      domainParts.host.localeCompare(originParts.host, undefined, {
+        sensitivity: 'accent',
+      }) !== 0
+    ) {
+      return false;
+    }
+
+    if (domainParts.port !== null && domainParts.port !== originParts.port) {
+      return false;
+    }
+
+    if (
+      domainParts.userinfo !== null &&
+      domainParts.userinfo !== originParts.userinfo
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    log(e);
     return false;
   }
-
-  // TOREVIEW: Handle error and log here instead of propagating?
-  const originParts = parseOriginParts(origin);
-  const domainParts = parseDomainParts(siwe.parsedMessage.domain);
-
-  if (
-    domainParts.host.localeCompare(originParts.host, undefined, {
-      sensitivity: 'accent',
-    }) !== 0
-  ) {
-    return false;
-  }
-
-  if (domainParts.port !== null && domainParts.port !== originParts.port) {
-    return false;
-  }
-
-  if (
-    domainParts.userinfo !== null &&
-    domainParts.userinfo !== originParts.userinfo
-  ) {
-    return false;
-  }
-
-  return true;
 };
 
 /**
