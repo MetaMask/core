@@ -1,5 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
+import sinon from 'sinon';
 import { EnsController } from './EnsController';
 
 const address1 = '0x32Be343B94f860124dC4fEe278FDCBD38C102D88';
@@ -26,12 +27,60 @@ function getMessenger() {
 }
 
 describe('EnsController', () => {
+  afterEach(function () {
+    sinon.restore();
+  });
+
   it('should set default state', () => {
     const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.state).toStrictEqual({ ensEntries: {} });
+    expect(controller.state).toStrictEqual({
+      ensEntries: {},
+      ensResolutionsByAddress: {},
+    });
+  });
+
+  it('should construct the controller given a provider, a network and a onNetworkStateChange', async function () {
+    const messenger = getMessenger();
+    const ens = new EnsController({
+      messenger,
+      provider: sinon.fake(),
+      onNetworkStateChange: (listener) => {
+        listener({
+          network: '1',
+          providerConfig: {
+            chainId: '1',
+          },
+        });
+      },
+    });
+
+    expect(ens.ethProvider).toBeDefined();
+  });
+
+  it('should return a null eth provider when not given a provider or onNetworkStateChange', async function () {
+    expect(
+      new EnsController({
+        messenger: getMessenger(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      }).ethProvider,
+    ).toBeNull();
+
+    expect(
+      new EnsController({
+        messenger: getMessenger(),
+        provider: sinon.fake(),
+      }).ethProvider,
+    ).toBeNull();
   });
 
   it('should add a new ENS entry and return true', () => {
@@ -50,6 +99,7 @@ describe('EnsController', () => {
           },
         },
       },
+      ensResolutionsByAddress: {},
     });
   });
 
@@ -69,6 +119,7 @@ describe('EnsController', () => {
           },
         },
       },
+      ensResolutionsByAddress: {},
     });
   });
 
@@ -89,6 +140,7 @@ describe('EnsController', () => {
           },
         },
       },
+      ensResolutionsByAddress: {},
     });
   });
 
@@ -109,6 +161,7 @@ describe('EnsController', () => {
           },
         },
       },
+      ensResolutionsByAddress: {},
     });
   });
 
@@ -129,6 +182,7 @@ describe('EnsController', () => {
           },
         },
       },
+      ensResolutionsByAddress: {},
     });
   });
 
@@ -149,6 +203,7 @@ describe('EnsController', () => {
           },
         },
       },
+      ensResolutionsByAddress: {},
     });
   });
 
@@ -183,6 +238,7 @@ describe('EnsController', () => {
           },
         },
       },
+      ensResolutionsByAddress: {},
     });
   });
 
@@ -227,7 +283,10 @@ describe('EnsController', () => {
     }).toThrow(
       'Invalid ENS entry: { chainId:a, ensName:foobarb.eth, address:0x32Be343B94f860124dC4fEe278FDCBD38C102D88}',
     );
-    expect(controller.state).toStrictEqual({ ensEntries: {} });
+    expect(controller.state).toStrictEqual({
+      ensEntries: {},
+      ensResolutionsByAddress: {},
+    });
   });
 
   it('should throw on attempt to set invalid ENS entry: ENS name', () => {
@@ -238,7 +297,10 @@ describe('EnsController', () => {
     expect(() => {
       controller.set('1', 'foo.eth', address1);
     }).toThrow('Invalid ENS name: foo.eth');
-    expect(controller.state).toStrictEqual({ ensEntries: {} });
+    expect(controller.state).toStrictEqual({
+      ensEntries: {},
+      ensResolutionsByAddress: {},
+    });
   });
 
   it('should throw on attempt to set invalid ENS entry: address', () => {
@@ -251,7 +313,10 @@ describe('EnsController', () => {
     }).toThrow(
       'Invalid ENS entry: { chainId:1, ensName:foobarb.eth, address:foo}',
     );
-    expect(controller.state).toStrictEqual({ ensEntries: {} });
+    expect(controller.state).toStrictEqual({
+      ensEntries: {},
+      ensResolutionsByAddress: {},
+    });
   });
 
   it('should remove an ENS entry and return true', () => {
@@ -261,7 +326,10 @@ describe('EnsController', () => {
     });
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
     expect(controller.delete('1', name1)).toStrictEqual(true);
-    expect(controller.state).toStrictEqual({ ensEntries: {} });
+    expect(controller.state).toStrictEqual({
+      ensEntries: {},
+      ensResolutionsByAddress: {},
+    });
   });
 
   it('should return false if an ENS entry was NOT deleted', () => {
@@ -282,6 +350,7 @@ describe('EnsController', () => {
           },
         },
       },
+      ensResolutionsByAddress: {},
     });
   });
 
@@ -311,6 +380,7 @@ describe('EnsController', () => {
           },
         },
       },
+      ensResolutionsByAddress: {},
     });
   });
 
@@ -323,6 +393,72 @@ describe('EnsController', () => {
     expect(controller.set('1', name2, address2)).toStrictEqual(true);
     expect(controller.set('2', name1, address1)).toStrictEqual(true);
     controller.clear();
-    expect(controller.state).toStrictEqual({ ensEntries: {} });
+    expect(controller.state).toStrictEqual({
+      ensEntries: {},
+      ensResolutionsByAddress: {},
+    });
+  });
+
+  describe('reverseResolveName', () => {
+    it('should through "Provider has not been initialized."', async () => {
+      const messenger = getMessenger();
+      const address = '0x8e5d75d60224ea0c33d0041e75de68b1c3cb6dd5';
+      const ens = new EnsController({
+        messenger,
+      });
+
+      await expect(() => ens.reverseResolveAddress(address)).rejects.toThrow(
+        'Provider has not been initialized.',
+      );
+    });
+
+    it('should only resolve an ENS name once', async () => {
+      const address = '0x8e5d75d60224ea0c33d0041e75de68b1c3cb6dd5';
+      const messenger = getMessenger();
+      const ens = new EnsController({
+        messenger,
+        provider: sinon.fake(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      });
+      const reverse = sinon.stub().withArgs(address).returns('peaksignal.eth');
+      const lookup = sinon.stub().withArgs('peaksignal.eth').returns(address);
+      ens.reverse = reverse;
+      ens.lookup = lookup;
+
+      expect(await ens.reverseResolveAddress(address)).toStrictEqual(
+        'peaksignal.eth',
+      );
+      expect(await ens.reverseResolveAddress(address)).toStrictEqual(
+        'peaksignal.eth',
+      );
+      expect(lookup.calledOnce).toBe(true);
+      expect(reverse.calledOnce).toBe(true);
+    });
+
+    it('should fail if the name is registered to a different address than the reverse-resolved', async () => {
+      const address = '0x8e5d75d60224ea0c33d0041e75de68b1c3cb6dd5';
+      const messenger = getMessenger();
+      const ens = new EnsController({
+        messenger,
+        provider: sinon.fake(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      });
+
+      expect(await ens.reverseResolveAddress(address)).toBeUndefined();
+    });
   });
 });
