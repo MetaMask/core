@@ -70,11 +70,11 @@ const DEFAULT_PORTS_BY_SCHEME = {
 /**
  * Parses parts from RFC 3986 authority from environment relevant for EIP-4361 origin validation.
  *
- * @param authority - input string
+ * @param origin - input string
  * @returns parsed parts
  */
-export const parseAuthorityParts = (authority: string): HostParts => {
-  const match = authority.match(ORIGIN_REGEX);
+export const parseOriginParts = (origin: string): HostParts => {
+  const match = origin.match(ORIGIN_REGEX);
   if (!match) {
     throw new Error(`Unrecognized origin format "${origin}".`);
   }
@@ -133,7 +133,7 @@ export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
   }
 
   // TOREVIEW: Handle error and log here instead of propagating?
-  const originParts = parseAuthorityParts(origin);
+  const originParts = parseOriginParts(origin);
   const domainParts = parseDomainParts(siwe.parsedMessage.domain);
 
   if (domainParts.host !== originParts.host) {
