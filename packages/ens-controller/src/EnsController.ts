@@ -126,8 +126,8 @@ export class EnsController extends BaseControllerV2<
         if (currentNetwork && this.#getNetworkEnsSupport(currentNetwork)) {
           const networkish: Networkish = {
             chainId: convertHexToDecimal(networkState.providerConfig.chainId),
-            name: (NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP as any)[
-              currentNetwork
+            name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[
+              currentNetwork as keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP
             ],
             ensAddress: ensNetworkMap[currentNetwork],
           };
@@ -255,34 +255,25 @@ export class EnsController extends BaseControllerV2<
     return Boolean(ensNetworkMap[networkId]);
   }
 
-  lookup(ensName: string): Promise<string | null> {
-    if (!this.ethProvider) {
-      throw new Error('Provider has not been initialized.');
-    }
-    return this.ethProvider.resolveName(ensName);
-  }
-
-  reverse(address: string): Promise<string | null> {
-    if (!this.ethProvider) {
-      throw new Error('Provider has not been initialized.');
-    }
-    return this.ethProvider.lookupAddress(address);
-  }
-
+  /**
+   * Resolve ens by address.
+   *
+   * @param nonChecksummedAddress - address
+   * @returns ens resolution
+   */
   async reverseResolveAddress(nonChecksummedAddress: string) {
     if (!this.ethProvider) {
-      throw new Error('Provider has not been initialized.');
+      return undefined;
     }
 
     const address = toChecksumHexAddress(nonChecksummedAddress);
-
     if (this.state.ensResolutionsByAddress[address]) {
       return this.state.ensResolutionsByAddress[address];
     }
 
     let domain: string | null;
     try {
-      domain = await this.reverse(address);
+      domain = await this.ethProvider.lookupAddress(address);
     } catch (error) {
       console.debug(error);
       return undefined;
@@ -294,7 +285,7 @@ export class EnsController extends BaseControllerV2<
 
     let registeredAddress: string | null;
     try {
-      registeredAddress = await this.lookup(domain);
+      registeredAddress = await this.ethProvider.resolveName(domain);
     } catch (error) {
       console.debug(error);
       return undefined;

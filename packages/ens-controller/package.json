@@ -40,7 +40,6 @@
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",
-    "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",

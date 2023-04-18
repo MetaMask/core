@@ -1,7 +1,18 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
-import sinon from 'sinon';
+import * as providersModule from '@ethersproject/providers';
 import { EnsController } from './EnsController';
+
+jest.mock('@ethersproject/providers', () => {
+  const originalModule = jest.requireActual('@ethersproject/providers');
+
+  return {
+    __esModule: true,
+    ...originalModule,
+  };
+});
+
+const ZERO_X_ERROR_ADDRESS = '0x';
 
 const address1 = '0x32Be343B94f860124dC4fEe278FDCBD38C102D88';
 const address2 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
@@ -26,11 +37,16 @@ function getMessenger() {
   });
 }
 
-describe('EnsController', () => {
-  afterEach(function () {
-    sinon.restore();
-  });
+/**
+ * Creates a mock provider.
+ *
+ * @returns mock provider
+ */
+function getProvider() {
+  return () => Promise.resolve(null);
+}
 
+describe('EnsController', () => {
   it('should set default state', () => {
     const messenger = getMessenger();
     const controller = new EnsController({
@@ -46,7 +62,7 @@ describe('EnsController', () => {
     const messenger = getMessenger();
     const ens = new EnsController({
       messenger,
-      provider: sinon.fake(),
+      provider: getProvider(),
       onNetworkStateChange: (listener) => {
         listener({
           network: '1',
@@ -60,27 +76,64 @@ describe('EnsController', () => {
     expect(ens.ethProvider).toBeDefined();
   });
 
-  it('should return a null eth provider when not given a provider or onNetworkStateChange', async function () {
-    expect(
-      new EnsController({
-        messenger: getMessenger(),
-        onNetworkStateChange: (listener) => {
-          listener({
-            network: '1',
-            providerConfig: {
-              chainId: '1',
-            },
-          });
-        },
-      }).ethProvider,
-    ).toBeNull();
+  it('should return a null eth provider when not given onNetworkStateChange', async function () {
+    const messenger = getMessenger();
+    const ens = new EnsController({
+      messenger,
+      provider: getProvider(),
+    });
+    expect(ens.ethProvider).toBeNull();
+  });
 
-    expect(
-      new EnsController({
-        messenger: getMessenger(),
-        provider: sinon.fake(),
-      }).ethProvider,
-    ).toBeNull();
+  it('should return a null eth provider when not given a provider', async function () {
+    const messenger = getMessenger();
+    const ens = new EnsController({
+      messenger,
+
+      onNetworkStateChange: (listener) => {
+        listener({
+          network: '1',
+          providerConfig: {
+            chainId: '1',
+          },
+        });
+      },
+    });
+    expect(ens.ethProvider).toBeNull();
+  });
+
+  it('should return a null eth provider when network is loading', async function () {
+    const messenger = getMessenger();
+    const ens = new EnsController({
+      messenger,
+      provider: getProvider(),
+      onNetworkStateChange: (listener) => {
+        listener({
+          network: 'loading',
+          providerConfig: {
+            chainId: '1',
+          },
+        });
+      },
+    });
+    expect(ens.ethProvider).toBeNull();
+  });
+
+  it('should return a null eth provider when network is not ens supported', async function () {
+    const messenger = getMessenger();
+    const ens = new EnsController({
+      messenger,
+      provider: getProvider(),
+      onNetworkStateChange: (listener) => {
+        listener({
+          network: '1544',
+          providerConfig: {
+            chainId: '1',
+          },
+        });
+      },
+    });
+    expect(ens.ethProvider).toBeNull();
   });
 
   it('should add a new ENS entry and return true', () => {
@@ -400,24 +453,26 @@ describe('EnsController', () => {
   });
 
   describe('reverseResolveName', () => {
-    it('should through "Provider has not been initialized."', async () => {
+    it('should return undefined when eth provider is not defined', async () => {
       const messenger = getMessenger();
-      const address = '0x8e5d75d60224ea0c33d0041e75de68b1c3cb6dd5';
       const ens = new EnsController({
         messenger,
       });
-
-      await expect(() => ens.reverseResolveAddress(address)).rejects.toThrow(
-        'Provider has not been initialized.',
-      );
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
     });
 
     it('should only resolve an ENS name once', async () => {
-      const address = '0x8e5d75d60224ea0c33d0041e75de68b1c3cb6dd5';
       const messenger = getMessenger();
+      const ethProvider = new providersModule.Web3Provider(getProvider());
+      jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(address1);
+      jest
+        .spyOn(ethProvider, 'lookupAddress')
+        .mockResolvedValue('peaksignal.eth');
+      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+
       const ens = new EnsController({
         messenger,
-        provider: sinon.fake(),
+        provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
             network: '1',
@@ -427,27 +482,23 @@ describe('EnsController', () => {
           });
         },
       });
-      const reverse = sinon.stub().withArgs(address).returns('peaksignal.eth');
-      const lookup = sinon.stub().withArgs('peaksignal.eth').returns(address);
-      ens.reverse = reverse;
-      ens.lookup = lookup;
 
-      expect(await ens.reverseResolveAddress(address)).toStrictEqual(
+      expect(await ens.reverseResolveAddress(address1)).toStrictEqual(
         'peaksignal.eth',
       );
-      expect(await ens.reverseResolveAddress(address)).toStrictEqual(
+      expect(await ens.reverseResolveAddress(address1)).toStrictEqual(
         'peaksignal.eth',
       );
-      expect(lookup.calledOnce).toBe(true);
-      expect(reverse.calledOnce).toBe(true);
     });
 
-    it('should fail if the name is registered to a different address than the reverse-resolved', async () => {
-      const address = '0x8e5d75d60224ea0c33d0041e75de68b1c3cb6dd5';
+    it('should fail if lookupAddress through an error', async () => {
       const messenger = getMessenger();
+      const ethProvider = new providersModule.Web3Provider(getProvider());
+      jest.spyOn(ethProvider, 'lookupAddress').mockRejectedValue('error');
+      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
       const ens = new EnsController({
         messenger,
-        provider: sinon.fake(),
+        provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
             network: '1',
@@ -458,7 +509,152 @@ describe('EnsController', () => {
         },
       });
 
-      expect(await ens.reverseResolveAddress(address)).toBeUndefined();
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+    });
+
+    it('should fail if lookupAddress returns a null value', async () => {
+      const messenger = getMessenger();
+      const ethProvider = new providersModule.Web3Provider(getProvider());
+      jest.spyOn(ethProvider, 'lookupAddress').mockResolvedValue(null);
+      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      const ens = new EnsController({
+        messenger,
+        provider: getProvider(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      });
+
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+    });
+
+    it('should fail if resolveName through an error', async () => {
+      const messenger = getMessenger();
+      const ethProvider = new providersModule.Web3Provider(getProvider());
+      jest
+        .spyOn(ethProvider, 'lookupAddress')
+        .mockResolvedValue('peaksignal.eth');
+      jest.spyOn(ethProvider, 'resolveName').mockRejectedValue('error');
+      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      const ens = new EnsController({
+        messenger,
+        provider: getProvider(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      });
+
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+    });
+
+    it('should fail if resolveName returns a null value', async () => {
+      const messenger = getMessenger();
+      const ethProvider = new providersModule.Web3Provider(getProvider());
+      jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(null);
+      jest
+        .spyOn(ethProvider, 'lookupAddress')
+        .mockResolvedValue('peaksignal.eth');
+      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      const ens = new EnsController({
+        messenger,
+        provider: getProvider(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      });
+
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+    });
+
+    it('should fail if registred address is zero x error address', async () => {
+      const messenger = getMessenger();
+      const ethProvider = new providersModule.Web3Provider(getProvider());
+      jest
+        .spyOn(ethProvider, 'resolveName')
+        .mockResolvedValue(ZERO_X_ERROR_ADDRESS);
+      jest
+        .spyOn(ethProvider, 'lookupAddress')
+        .mockResolvedValue('peaksignal.eth');
+      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      const ens = new EnsController({
+        messenger,
+        provider: getProvider(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      });
+
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+    });
+
+    it('should fail if the name is registered to a different address than the reverse resolved', async () => {
+      const messenger = getMessenger();
+
+      const ethProvider = new providersModule.Web3Provider(getProvider());
+      jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(address2);
+      jest
+        .spyOn(ethProvider, 'lookupAddress')
+        .mockResolvedValue('peaksignal.eth');
+      jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
+      const ens = new EnsController({
+        messenger,
+        provider: getProvider(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      });
+
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+    });
+
+    it('should reverse resolve address from state', async () => {
+      const messenger = getMessenger();
+      const ens = new EnsController({
+        messenger,
+        state: {
+          ensResolutionsByAddress: {
+            [address1Checksum]: 'peaksignal.eth',
+          },
+        },
+        provider: getProvider(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      });
+
+      expect(await ens.reverseResolveAddress(address1)).toStrictEqual(
+        'peaksignal.eth',
+      );
     });
   });
 });
