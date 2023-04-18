@@ -14,8 +14,24 @@ import {
   NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
+import { hasProperty } from '@metamask/utils';
 import { toASCII } from 'punycode/';
 import ensNetworkMap from 'ethereum-ens-network-map';
+
+/**
+ * Checks whether the given string is a known network ID.
+ *
+ * @param networkId - Network id.
+ * @returns Boolean indicating if the network ID is recognized.
+ */
+function isKnownNetworkId(
+  networkId: string | null,
+): networkId is keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP {
+  return (
+    networkId !== null &&
+    hasProperty(NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP, networkId)
+  );
+}
 
 const name = 'EnsController';
 
@@ -122,12 +138,13 @@ export class EnsController extends BaseControllerV2<
       onNetworkStateChange((networkState) => {
         const currentNetwork =
           networkState.network === 'loading' ? null : networkState.network;
-        if (currentNetwork && this.#getNetworkEnsSupport(currentNetwork)) {
+        if (
+          isKnownNetworkId(currentNetwork) &&
+          this.#getNetworkEnsSupport(currentNetwork)
+        ) {
           const networkish = {
             chainId: convertHexToDecimal(networkState.providerConfig.chainId),
-            name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[
-              currentNetwork as unknown as keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP
-            ],
+            name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[currentNetwork],
             ensAddress: ensNetworkMap[currentNetwork],
           };
           this.ethProvider = new Web3Provider(provider, networkish);
