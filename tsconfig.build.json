@@ -52,6 +52,9 @@
       "path": "./packages/rate-limit-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/signature-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/subject-metadata-controller/tsconfig.build.json"
     },
     {

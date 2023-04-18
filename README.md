@@ -23,6 +23,7 @@ This repository houses the following packages:
 - [`@metamask/phishing-controller`](packages/phishing-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
+- [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/subject-metadata-controller`](packages/subject-metadata-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 

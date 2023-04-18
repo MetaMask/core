@@ -1999,6 +1999,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/signature-controller@workspace:packages/signature-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/signature-controller@workspace:packages/signature-controller"
+  dependencies:
+    "@metamask/approval-controller": "workspace:^"
+    "@metamask/auto-changelog": ^3.1.0
+    "@metamask/base-controller": "workspace:^"
+    "@metamask/controller-utils": "workspace:^"
+    "@metamask/message-manager": "workspace:^"
+    "@types/jest": ^26.0.22
+    deepmerge: ^4.2.2
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    immer: ^9.0.6
+    jest: ^26.4.2
+    ts-jest: ^26.5.2
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
+    typescript: ~4.6.3
+  languageName: unknown
+  linkType: soft
+
 "@metamask/subject-metadata-controller@workspace:packages/subject-metadata-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/subject-metadata-controller@workspace:packages/subject-metadata-controller"

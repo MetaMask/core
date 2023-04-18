@@ -56,6 +56,9 @@
       "path": "./packages/rate-limit-controller"
     },
     {
+      "path": "./packages/signature-controller"
+    },
+    {
       "path": "./packages/subject-metadata-controller"
     },
     {
