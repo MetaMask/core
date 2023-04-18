@@ -2,7 +2,7 @@ import * as sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
-import type { NetworkState, NetworkId } from '@metamask/network-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import {
@@ -138,11 +138,18 @@ const PALM_PROVIDER = new HttpProvider(
   'https://palm-mainnet.infura.io/v3/3a961d6501e54add9a41aa53f15de99b',
 );
 
-const MOCK_NETWORK = {
+type MockNetwork = {
+  provider: typeof HttpProvider;
+  blockTracker: { getLatestBlock: () => string };
+  state: NetworkState;
+  subscribe: (listener: (state: NetworkState) => void) => void;
+};
+
+const MOCK_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
   blockTracker: { getLatestBlock: () => '0x102833C' },
   state: {
-    networkId: '5' as NetworkId,
+    networkId: '5',
     networkStatus: NetworkStatus.Available,
     isCustomNetwork: false,
     networkDetails: { isEIP1559Compatible: false },
@@ -154,23 +161,26 @@ const MOCK_NETWORK = {
   },
   subscribe: () => undefined,
 };
-const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
+const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
   provider: GOERLI_PROVIDER,
   blockTracker: { getLatestBlock: () => '0x102833C' },
-  isCustomNetwork: false,
   state: {
-    networkId: '5' as NetworkId,
+    networkId: '5',
     networkStatus: NetworkStatus.Available,
-    providerConfig: { type: NetworkType.goerli },
+    isCustomNetwork: false,
+    networkDetails: { isEIP1559Compatible: false },
+    providerConfig: {
+      type: NetworkType.goerli,
+    } as NetworkState['providerConfig'],
     networkConfigurations: {},
   },
   subscribe: () => undefined,
 };
-const MOCK_MAINNET_NETWORK = {
+const MOCK_MAINNET_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
   blockTracker: { getLatestBlock: () => '0x102833C' },
   state: {
-    networkId: '1' as NetworkId,
+    networkId: '1',
     networkStatus: NetworkStatus.Available,
     isCustomNetwork: false,
     networkDetails: { isEIP1559Compatible: false },
@@ -182,11 +192,11 @@ const MOCK_MAINNET_NETWORK = {
   },
   subscribe: () => undefined,
 };
-const MOCK_CUSTOM_NETWORK = {
+const MOCK_CUSTOM_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: { getLatestBlock: () => '0xA6EDFC' },
   state: {
-    networkId: '11297108109' as NetworkId,
+    networkId: '11297108109',
     networkStatus: NetworkStatus.Available,
     isCustomNetwork: true,
     networkDetails: { isEIP1559Compatible: false },
