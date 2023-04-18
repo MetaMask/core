@@ -138,7 +138,6 @@ describe('NetworkController', () => {
           networkConfigurations: {},
           networkId: null,
           networkStatus: NetworkStatus.Unknown,
-          isCustomNetwork: false,
           providerConfig: { type: NetworkType.mainnet, chainId: '1' },
           networkDetails: { isEIP1559Compatible: false },
         });
@@ -149,7 +148,6 @@ describe('NetworkController', () => {
       await withController(
         {
           state: {
-            isCustomNetwork: true,
             networkDetails: { isEIP1559Compatible: true },
           },
         },
@@ -158,7 +156,6 @@ describe('NetworkController', () => {
             networkConfigurations: {},
             networkId: null,
             networkStatus: NetworkStatus.Unknown,
-            isCustomNetwork: true,
             providerConfig: { type: NetworkType.mainnet, chainId: '1' },
             networkDetails: { isEIP1559Compatible: true },
           });
@@ -168,63 +165,6 @@ describe('NetworkController', () => {
   });
 
   describe('initializeProvider', () => {
-    ['1', '5', '11155111', ''].forEach((chainId) => {
-      describe(`when the provider config in state contains a chain ID of "${chainId}"`, () => {
-        it('sets isCustomNetwork in state to false', async () => {
-          await withController(
-            {
-              state: {
-                isCustomNetwork: true,
-                providerConfig: buildProviderConfig({
-                  chainId,
-                }),
-              },
-              infuraProjectId: 'infura-project-id',
-            },
-            async ({ controller }) => {
-              const fakeInfuraProvider = buildFakeInfuraProvider();
-              createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-              const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-              SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-              const fakeMetamaskProvider = buildFakeMetamaskProvider();
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await controller.initializeProvider();
-
-              expect(controller.state.isCustomNetwork).toBe(false);
-            },
-          );
-        });
-      });
-    });
-
-    describe('when the provider config in state contains a chain ID that is not 1, 5, 11155111, or an empty string', () => {
-      it('sets isCustomNetwork in state to true', async () => {
-        await withController(
-          {
-            state: {
-              providerConfig: buildProviderConfig({
-                chainId: '999',
-              }),
-            },
-            infuraProjectId: 'infura-project-id',
-          },
-          async ({ controller }) => {
-            const fakeInfuraProvider = buildFakeInfuraProvider();
-            createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-            const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-            SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-            await controller.initializeProvider();
-
-            expect(controller.state.isCustomNetwork).toBe(true);
-          },
-        );
-      });
-    });
-
     [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
       (networkType) => {
         describe(`when the provider config in state contains a network type of "${networkType}"`, () => {
@@ -1446,31 +1386,6 @@ describe('NetworkController', () => {
         );
       });
 
-      it('sets isCustomNetwork in state to false', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              isCustomNetwork: true,
-            },
-            infuraProjectId: 'infura-project-id',
-          },
-          async ({ controller }) => {
-            const fakeInfuraProvider = buildFakeInfuraProvider();
-            createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-            const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-            SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-            await controller.setProviderType(NetworkType.mainnet);
-
-            expect(controller.state.isCustomNetwork).toBe(false);
-          },
-        );
-      });
-
       it('sets the provider to an Infura provider pointed to Mainnet', async () => {
         await withController(
           {
@@ -1744,30 +1659,6 @@ describe('NetworkController', () => {
           );
         });
 
-        it('sets isCustomNetwork in state to false', async () => {
-          const messenger = buildMessenger();
-          await withController(
-            {
-              messenger,
-              state: {
-                isCustomNetwork: true,
-              },
-            },
-            async ({ controller }) => {
-              const fakeInfuraProvider = buildFakeInfuraProvider();
-              createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-              const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-              SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-              const fakeMetamaskProvider = buildFakeMetamaskProvider();
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await controller.setProviderType(networkType);
-
-              expect(controller.state.isCustomNetwork).toBe(false);
-            },
-          );
-        });
-
         it(`sets the provider to an Infura provider pointed to ${networkType}`, async () => {
           await withController(
             {
@@ -2030,31 +1921,6 @@ describe('NetworkController', () => {
         );
       });
 
-      it('does not set isCustomNetwork in state to false (because the chain ID is cleared)', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              isCustomNetwork: false,
-            },
-            infuraProjectId: 'infura-project-id',
-          },
-          async ({ controller }) => {
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            const promiseForIsCustomNetworkChange = waitForStateChanges(
-              messenger,
-              { propertyPath: ['isCustomNetwork'] },
-            );
-
-            await controller.setProviderType(NetworkType.rpc);
-
-            await expect(promiseForIsCustomNetworkChange).toNeverResolve();
-          },
-        );
-      });
-
       it("doesn't set a provider (because the RPC target is cleared)", async () => {
         await withController(async ({ controller }) => {
           const fakeMetamaskProvider = buildFakeMetamaskProvider();
@@ -2132,26 +1998,6 @@ describe('NetworkController', () => {
               id: undefined,
               rpcPrefs: undefined,
             });
-          },
-        );
-      });
-
-      it('sets isCustomNetwork in state to false', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              isCustomNetwork: true,
-            },
-          },
-          async ({ controller }) => {
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-            await controller.setProviderType(NetworkType.localhost);
-
-            expect(controller.state.isCustomNetwork).toBe(false);
           },
         );
       });
@@ -2394,36 +2240,6 @@ describe('NetworkController', () => {
       );
     });
 
-    it('sets isCustomNetwork in state to true', async () => {
-      const messenger = buildMessenger();
-      await withController(
-        {
-          messenger,
-          state: {
-            isCustomNetwork: false,
-            networkConfigurations: {
-              testNetworkConfigurationId: {
-                rpcUrl: 'https://mock-rpc-url',
-                chainId: '0xtest',
-                ticker: 'TEST',
-                id: 'testNetworkConfigurationId',
-                nickname: undefined,
-                rpcPrefs: undefined,
-              },
-            },
-          },
-        },
-        async ({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider();
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-          await controller.setActiveNetwork('testNetworkConfigurationId');
-
-          expect(controller.state.isCustomNetwork).toBe(true);
-        },
-      );
-    });
-
     it('sets the provider to a custom RPC provider initialized with the RPC target and chain ID, leaving nickname and ticker undefined', async () => {
       const messenger = buildMessenger();
       await withController(
@@ -2482,7 +2298,6 @@ describe('NetworkController', () => {
         {
           messenger,
           state: {
-            isCustomNetwork: false,
             networkConfigurations: {
               testNetworkConfigurationId: {
                 rpcUrl: 'https://mock-rpc-url',
@@ -3496,38 +3311,6 @@ describe('NetworkController', () => {
     [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
       (networkType) => {
         describe(`when the type in the provider configuration is "${networkType}"`, () => {
-          it('sets isCustomNetwork in state to false', async () => {
-            const messenger = buildMessenger();
-            await withController(
-              {
-                messenger,
-                state: {
-                  isCustomNetwork: true,
-                },
-                infuraProjectId: 'infura-project-id',
-              },
-              async ({ controller }) => {
-                const fakeInfuraProvider = buildFakeInfuraProvider();
-                createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-                const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-                SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                const fakeMetamaskProvider = buildFakeMetamaskProvider();
-                createMetamaskProviderMock.mockReturnValue(
-                  fakeMetamaskProvider,
-                );
-
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['isCustomNetwork'],
-                  produceStateChanges: () => {
-                    controller.resetConnection();
-                  },
-                });
-
-                expect(controller.state.isCustomNetwork).toBe(false);
-              },
-            );
-          });
-
           it(`initializes a new provider object pointed to the current Infura network (type: "${networkType}")`, async () => {
             await withController(
               {
@@ -3742,43 +3525,6 @@ describe('NetworkController', () => {
     );
 
     describe(`when the type in the provider configuration is "rpc"`, () => {
-      it('sets isCustomNetwork in state to true', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              isCustomNetwork: false,
-              providerConfig: {
-                type: NetworkType.rpc,
-                rpcTarget: 'https://mock-rpc-url',
-                chainId: '0x1337',
-                ticker: 'TEST',
-                id: 'testNetworkConfigurationId',
-              },
-            },
-            infuraProjectId: 'infura-project-id',
-          },
-          async ({ controller }) => {
-            const fakeInfuraProvider = buildFakeInfuraProvider();
-            createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-            const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-            SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-            await waitForStateChanges(messenger, {
-              propertyPath: ['isCustomNetwork'],
-              produceStateChanges: () => {
-                controller.resetConnection();
-              },
-            });
-
-            expect(controller.state.isCustomNetwork).toBe(true);
-          },
-        );
-      });
-
       it('initializes a new provider object pointed to the same RPC URL as the current network and using the same chain ID', async () => {
         await withController(
           {

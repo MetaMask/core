@@ -107,7 +107,6 @@ export type NetworkId = `${number}`;
  *
  * Network controller state
  * @property network - Network ID as per net_version of the currently connected network
- * @property isCustomNetwork - Identifies if the currently connected network is a custom network
  * @property providerConfig - RPC URL and network name provider settings of the currently connected network
  * @property properties - an additional set of network properties for the currently connected network
  * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
@@ -115,7 +114,6 @@ export type NetworkId = `${number}`;
 export type NetworkState = {
   networkId: NetworkId | null;
   networkStatus: NetworkStatus;
-  isCustomNetwork: boolean;
   providerConfig: ProviderConfig;
   networkDetails: NetworkDetails;
   networkConfigurations: Record<string, NetworkConfiguration & { id: string }>;
@@ -182,7 +180,6 @@ export type NetworkControllerOptions = {
 export const defaultState: NetworkState = {
   networkId: null,
   networkStatus: NetworkStatus.Unknown,
-  isCustomNetwork: false,
   providerConfig: {
     type: NetworkType.mainnet,
     chainId: NetworksChainId.mainnet,
@@ -247,10 +244,6 @@ export class NetworkController extends BaseControllerV2<
           persist: true,
           anonymous: false,
         },
-        isCustomNetwork: {
-          persist: true,
-          anonymous: false,
-        },
         networkDetails: {
           persist: true,
           anonymous: false,
@@ -293,10 +286,6 @@ export class NetworkController extends BaseControllerV2<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update((state) => {
-      state.isCustomNetwork = this.#getIsCustomNetwork(chainId);
-    });
-
     switch (type) {
       case NetworkType.mainnet:
       case NetworkType.goerli:
