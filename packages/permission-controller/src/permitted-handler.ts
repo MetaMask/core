@@ -29,7 +29,7 @@ type BaseHandlerExport = {
  * We use a mapped object type in order to create a type that requires the
  * presence of the names of all hooks for the given handler.
  * This can then be used to select only the necessary hooks whenever a method
- * is called for purposes of POLA.
+ * is called for purposes of PoLP.
  */
 export type HookNames<Type> = {
   [Property in keyof Type]: true;
