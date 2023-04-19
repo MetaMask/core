@@ -112,7 +112,7 @@ export type SignatureControllerOptions = {
   keyringController: KeyringController;
   isEthSignEnabled: () => boolean;
   getState: () => any;
-  securityProviderRequest: (
+  securityProviderRequest?: (
     requestData: any,
     methodName: string,
   ) => Promise<any>;
@@ -139,11 +139,6 @@ export class SignatureController extends BaseControllerV2<
   private _personalMessageManager: PersonalMessageManager;
 
   private _typedMessageManager: TypedMessageManager;
-
-  private _securityProviderRequest: (
-    requestData: any,
-    methodName: string,
-  ) => Promise<any>;
 
   /**
    * Construct a Sign controller.
@@ -172,12 +167,23 @@ export class SignatureController extends BaseControllerV2<
     this._keyringController = keyringController;
     this._isEthSignEnabled = isEthSignEnabled;
     this._getState = getState;
-    this._securityProviderRequest = securityProviderRequest;
 
     this.hub = new EventEmitter();
-    this._messageManager = new MessageManager();
-    this._personalMessageManager = new PersonalMessageManager();
-    this._typedMessageManager = new TypedMessageManager();
+    this._messageManager = new MessageManager(
+      undefined,
+      undefined,
+      securityProviderRequest,
+    );
+    this._personalMessageManager = new PersonalMessageManager(
+      undefined,
+      undefined,
+      securityProviderRequest,
+    );
+    this._typedMessageManager = new TypedMessageManager(
+      undefined,
+      undefined,
+      securityProviderRequest,
+    );
 
     this._handleMessageManagerEvents(
       this._messageManager,
