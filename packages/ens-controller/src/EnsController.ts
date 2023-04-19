@@ -136,18 +136,20 @@ export class EnsController extends BaseControllerV2<
 
     if (provider && onNetworkStateChange) {
       onNetworkStateChange((networkState) => {
+        this.update((currentState) => {
+          currentState.ensResolutionsByAddress = {};
+        });
         const currentNetwork =
           networkState.network === 'loading' ? null : networkState.network;
         if (
           isKnownNetworkId(currentNetwork) &&
           this.#getNetworkEnsSupport(currentNetwork)
         ) {
-          const networkish = {
+          this.ethProvider = new Web3Provider(provider, {
             chainId: convertHexToDecimal(networkState.providerConfig.chainId),
             name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[currentNetwork],
             ensAddress: ensNetworkMap[currentNetwork],
-          };
-          this.ethProvider = new Web3Provider(provider, networkish);
+          });
         } else {
           this.ethProvider = null;
         }

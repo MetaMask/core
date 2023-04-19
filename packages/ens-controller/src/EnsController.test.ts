@@ -156,7 +156,7 @@ describe('EnsController', () => {
     });
   });
 
-  it('should clear ensResolutionsByAddress state propery', async () => {
+  it('should clear ensResolutionsByAddress state propery when resetState is called', async () => {
     const messenger = getMessenger();
     const controller = new EnsController({
       messenger,
@@ -175,6 +175,29 @@ describe('EnsController', () => {
     });
 
     controller.resetState();
+
+    expect(controller.state.ensResolutionsByAddress).toStrictEqual({});
+  });
+
+  it('should clear ensResolutionsByAddress state propery on networkStateChange', async () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+      state: {
+        ensResolutionsByAddress: {
+          [address1Checksum]: 'peaksignal.eth',
+        },
+      },
+      provider: getProvider(),
+      onNetworkStateChange: (listener) => {
+        listener({
+          network: '1',
+          providerConfig: {
+            chainId: '1',
+          },
+        });
+      },
+    });
 
     expect(controller.state.ensResolutionsByAddress).toStrictEqual({});
   });
@@ -653,31 +676,6 @@ describe('EnsController', () => {
       });
 
       expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
-    });
-
-    it('should reverse resolve address from state', async () => {
-      const messenger = getMessenger();
-      const ens = new EnsController({
-        messenger,
-        state: {
-          ensResolutionsByAddress: {
-            [address1Checksum]: 'peaksignal.eth',
-          },
-        },
-        provider: getProvider(),
-        onNetworkStateChange: (listener) => {
-          listener({
-            network: '1',
-            providerConfig: {
-              chainId: '1',
-            },
-          });
-        },
-      });
-
-      expect(await ens.reverseResolveAddress(address1)).toStrictEqual(
-        'peaksignal.eth',
-      );
     });
   });
 });
