@@ -1769,7 +1769,7 @@ __metadata:
     "@metamask/message-manager": "workspace:^"
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
-    eth-rpc-errors: ^4.0.0
+    eth-rpc-errors: ^4.0.2
     ethereumjs-util: ^7.0.10
     immer: ^9.0.6
     jest: ^26.4.2
@@ -4654,7 +4654,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-rpc-errors@npm:^4.0.0, eth-rpc-errors@npm:^4.0.2":
+"eth-rpc-errors@npm:^4.0.2":
   version: 4.0.2
   resolution: "eth-rpc-errors@npm:4.0.2"
   dependencies:
