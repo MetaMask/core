@@ -82,6 +82,11 @@ export type Keyring<State extends Json> = {
   deserialize(state: State): Promise<void>;
 
   /**
+   * Method to include asynchronous configuration.
+   */
+  init?(): Promise<void>;
+
+  /**
    * Remove an account from the keyring.
    *
    * @param address - The address of the account to remove.
