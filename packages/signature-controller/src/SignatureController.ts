@@ -29,7 +29,7 @@ import {
   AddApprovalRequest,
   RejectRequest,
 } from '@metamask/approval-controller';
-import { ORIGIN_METAMASK } from '../../controller-utils/src';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 
 const controllerName = 'SignatureController';
 const methodNameSign = 'eth_sign';
