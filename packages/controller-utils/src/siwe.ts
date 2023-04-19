@@ -48,52 +48,18 @@ export interface WrappedSIWERequest {
   siwe: SIWEMessage;
 }
 
-interface HostParts extends DomainParts {
-  scheme: string;
-}
-
 interface DomainParts {
-  userinfo: string | null;
-  host: string;
-  port: number | null;
+  username?: string;
+  hostname: string;
+  port?: string;
 }
 
-export const ORIGIN_REGEX =
-  /^(?<scheme>[^:/]+):\/\/((?<userinfo>[^@]*)@)?(?<host>[^:@/?]+)(:(?<port>[0-9]+))?/u;
 export const DOMAIN_REGEX =
-  /^((?<userinfo>[^@]*)@)?(?<host>[^:@/?]+)(:(?<port>[0-9]+))?$/u;
-const DEFAULT_PORTS_BY_SCHEME = {
-  http: 80,
-  https: 443,
-} as { [key: string]: number | undefined };
-
-/**
- * Parses parts from RFC 3986 authority from environment relevant for EIP-4361 origin validation.
- *
- * @param origin - input string
- * @returns parsed parts
- */
-export const parseOriginParts = (origin: string): HostParts => {
-  const match = origin.match(ORIGIN_REGEX);
-  if (!match) {
-    throw new Error(`Unrecognized origin format "${origin}".`);
-  }
-  const { scheme, userinfo, host, port } = match.groups as {
-    scheme: string;
-    userinfo: string | undefined;
-    host: string;
-    port: string | undefined;
-  };
-  return {
-    scheme,
-    // strip password from userinfo
-    userinfo: userinfo ? userinfo.replace(/:.*$/u, '') : null,
-    host,
-    port: port
-      ? parseInt(port)
-      : DEFAULT_PORTS_BY_SCHEME[scheme.toLocaleLowerCase()] || null,
-  };
-};
+  /^((?<userinfo>[^@]*)@)?(?<hostname>[^:@/?]+)(:(?<port>[0-9]+))?$/u;
+const DEFAULT_PORTS_BY_PROTOCOL = {
+  'http:': '80',
+  'https:': '443',
+} as Record<string, string>;
 
 /**
  * Parses parts from RFC 3986 authority from EIP-4361 `domain` field.
@@ -106,16 +72,16 @@ export const parseDomainParts = (domain: string): DomainParts => {
   if (!match) {
     throw new Error(`Unrecognized domain format "${domain}".`);
   }
-  const { userinfo, host, port } = match.groups as {
-    userinfo: string | undefined;
-    host: string;
-    port: string | undefined;
+  const { userinfo, hostname, port } = match.groups as {
+    userinfo?: string;
+    hostname: string;
+    port?: string;
   };
   return {
     // strip password from userinfo
-    userinfo: userinfo ? userinfo.replace(/:.*$/u, '') : null,
-    host,
-    port: port ? parseInt(port) : null,
+    username: userinfo?.replace(/:.*$/u, ''),
+    hostname,
+    port,
   };
 };
 
@@ -135,25 +101,31 @@ export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
       return false;
     }
 
-    // TOREVIEW: Handle error and log here instead of propagating?
-    const originParts = parseOriginParts(origin);
+    const originParts = new URL(origin);
     const domainParts = parseDomainParts(siwe.parsedMessage.domain);
 
     if (
-      domainParts.host.localeCompare(originParts.host, undefined, {
+      domainParts.hostname.localeCompare(originParts.hostname, undefined, {
         sensitivity: 'accent',
       }) !== 0
     ) {
       return false;
     }
 
-    if (domainParts.port !== null && domainParts.port !== originParts.port) {
-      return false;
+    if (
+      domainParts.port !== undefined &&
+      domainParts.port !== originParts.port
+    ) {
+      // If origin port is not specified, protocol default is implied
+      return (
+        originParts.port === '' &&
+        domainParts.port === DEFAULT_PORTS_BY_PROTOCOL[originParts.protocol]
+      );
     }
 
     if (
-      domainParts.userinfo !== null &&
-      domainParts.userinfo !== originParts.userinfo
+      domainParts.username !== undefined &&
+      domainParts.username !== originParts.username
     ) {
       return false;
     }
