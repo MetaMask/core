@@ -5452,7 +5452,11 @@ describe('PermissionController', () => {
       };
 
       const expectedError = errors.unauthorized({
-        data: { origin, method: PermissionNames.wallet_getSecretArray },
+        data: {
+          origin,
+          method: PermissionNames.wallet_getSecretArray,
+          cause: null,
+        },
       });
 
       const { error }: any = await engine.handle(request);
@@ -5472,7 +5476,10 @@ describe('PermissionController', () => {
         method: 'wallet_foo',
       };
 
-      const expectedError = errors.methodNotFound('wallet_foo', { origin });
+      const expectedError = errors.methodNotFound('wallet_foo', {
+        origin,
+        cause: null,
+      });
 
       const { error }: any = await engine.handle(request);
       expect(error).toMatchObject(expect.objectContaining(expectedError));
@@ -5512,7 +5519,7 @@ describe('PermissionController', () => {
 
       const expectedError = errors.internalError(
         `Request for method "${PermissionNames.wallet_doubleNumber}" returned undefined result.`,
-        { request: { ...request } },
+        { request: { ...request }, cause: null },
       );
 
       const { error }: any = await engine.handle(request);
