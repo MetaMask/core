@@ -1456,7 +1456,7 @@ __metadata:
     "@metamask/controller-utils": "workspace:^"
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
-    eth-rpc-errors: ^4.0.0
+    eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^26.4.2
     nanoid: ^3.1.31
@@ -1493,7 +1493,7 @@ __metadata:
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
     eth-query: ^2.1.2
-    eth-rpc-errors: ^4.0.0
+    eth-rpc-errors: ^4.0.2
     ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
     immer: ^9.0.6
@@ -1590,7 +1590,7 @@ __metadata:
     abort-controller: ^3.0.0
     deepmerge: ^4.2.2
     eth-ens-namehash: ^2.0.8
-    eth-rpc-errors: ^4.0.0
+    eth-rpc-errors: ^4.0.2
     ethereumjs-util: ^7.0.10
     ethjs-unit: ^0.1.6
     fast-deep-equal: ^3.1.3
@@ -1881,7 +1881,7 @@ __metadata:
     deepmerge: ^4.2.2
     eth-json-rpc-infura: ^5.1.0
     eth-query: ^2.1.2
-    eth-rpc-errors: ^4.0.0
+    eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^26.4.2
     lodash: ^4.17.21
@@ -1938,7 +1938,7 @@ __metadata:
     "@types/jest": ^26.0.22
     deep-freeze-strict: ^1.1.1
     deepmerge: ^4.2.2
-    eth-rpc-errors: ^4.0.0
+    eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^26.4.2
     json-rpc-engine: ^6.1.0
@@ -1999,7 +1999,7 @@ __metadata:
     "@metamask/base-controller": "workspace:^"
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
-    eth-rpc-errors: ^4.0.0
+    eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^26.4.2
     ts-jest: ^26.5.2
@@ -2070,7 +2070,7 @@ __metadata:
     deepmerge: ^4.2.2
     eth-method-registry: 1.1.0
     eth-query: ^2.1.2
-    eth-rpc-errors: ^4.0.0
+    eth-rpc-errors: ^4.0.2
     ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
     jest: ^26.4.2
@@ -5159,15 +5159,6 @@ __metadata:
   dependencies:
     fast-safe-stringify: ^2.0.6
   checksum: c14db72bd28e8545ce8d6bbe22fa092b11695cfedc22632eda875324354edac813742c097cf56e214bd3adc14c8b1160a7b8ee371c93126e5abbb55ca75671eb
-  languageName: node
-  linkType: hard
-
-"eth-rpc-errors@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "eth-rpc-errors@npm:4.0.0"
-  dependencies:
-    fast-safe-stringify: ^2.0.6
-  checksum: 9caa871a5b927cb22486ee01bbe4e07ea1d653b2f851837d8b4914bee8895730bd308ca2fe93d696c6e7184679a5c96eb8101aad756e71e7051ab952f8be0d2f
   languageName: node
   linkType: hard
 
