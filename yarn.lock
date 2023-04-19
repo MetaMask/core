@@ -5310,14 +5310,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethereumjs-common@npm:^1.1.0":
-  version: 1.3.1
-  resolution: "ethereumjs-common@npm:1.3.1"
-  checksum: abeb701fef20e36bd2198d6e9dc64d457f559144563f9c52cfb35473e353d17af73bf2e68d8fd8189cef802a71fab884971d7a6ea6079636b3c40888bb2ec379
-  languageName: node
-  linkType: hard
-
-"ethereumjs-common@npm:^1.5.0":
+"ethereumjs-common@npm:^1.1.0, ethereumjs-common@npm:^1.5.0":
   version: 1.5.2
   resolution: "ethereumjs-common@npm:1.5.2"
   checksum: 3fc64faced268e0c61da50c5db76d18cfd44325d5706792f32ac8c85c0e800d52db284f042c3bd0623daf59b946176ef7dbea476d1b0252492137fa4549a3349
