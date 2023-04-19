@@ -2128,7 +2128,7 @@ export class PermissionController<
           );
         } catch (error) {
           throw internalError('Unexpected error in side-effects', {
-            error: serializeError(error),
+            cause: error,
           });
         }
       }
@@ -2220,7 +2220,7 @@ export class PermissionController<
 
       /* istanbul ignore next: should never happen */
       throw internalError('Unrecognized error type', {
-        error: serializeError(error),
+        cause: error,
       });
     }
   }

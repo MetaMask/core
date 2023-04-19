@@ -1794,8 +1794,7 @@ __metadata:
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
     "@metamask/json-rpc-engine": ^7.0.0
-    "@metamask/rpc-errors": ^5.0.0
-    "@metamask/utils": ^5.0.2
+    "@metamask/rpc-errors": ^5.1.1
     "@types/deep-freeze-strict": ^1.1.0
     "@types/jest": ^27.4.1
     deep-freeze-strict: ^1.1.1
@@ -1869,13 +1868,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/rpc-errors@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "@metamask/rpc-errors@npm:5.0.0"
+"@metamask/rpc-errors@npm:^5.0.0, @metamask/rpc-errors@npm:^5.1.1":
+  version: 5.1.1
+  resolution: "@metamask/rpc-errors@npm:5.1.1"
   dependencies:
     "@metamask/utils": ^5.0.0
     fast-safe-stringify: ^2.0.6
-  checksum: fbcb21ad1460883ee9d28f487d9cf5de7d3c6ac819024a1b6e5732d5da9a9f275f19fa0b4daa06dbd9b45d89c9e50ab9f281d597324e36d3324fbc9ebfdf0ba8
+  checksum: ccd1b24da66af3ae63960b79c04b86efb8b96acb89ca6f7e0bbfe636d23ba5cddeba533c0692eafb87c44ec6f840085372d0f21b39e05df9a80700ff61538a30
   languageName: node
   linkType: hard
 

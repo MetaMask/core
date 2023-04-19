@@ -3,6 +3,7 @@ import {
   rpcErrors,
   providerErrors,
   JsonRpcError,
+  DataWithOptionalCause,
 } from '@metamask/rpc-errors';
 import { Json } from '@metamask/utils';
 import { PermissionType } from './Permission';
@@ -79,7 +80,7 @@ export function userRejectedRequest<Data extends Record<string, Json>>(
  * @param data - Optional data to add extra context
  * @returns The built error
  */
-export function internalError<Data extends Record<string, Json>>(
+export function internalError<Data extends DataWithOptionalCause>(
   message: string,
   data?: Data,
 ): JsonRpcError<Data> {
