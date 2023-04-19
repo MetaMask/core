@@ -24,6 +24,7 @@ import {
   toChecksumHexAddress,
   ERC721_INTERFACE_ID,
   ORIGIN_METAMASK,
+  ApprovalType,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
 import { TokenListToken } from './TokenListController';
@@ -145,8 +146,6 @@ export type TokensControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   never
 >;
-
-const APPROVAL_TYPE = 'wallet_watchAssets';
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -917,7 +916,7 @@ export class TokensController extends BaseController<
         {
           id: suggestedAssetMeta.id,
           origin: ORIGIN_METAMASK,
-          type: APPROVAL_TYPE,
+          type: ApprovalType.WatchAsset,
           requestData: {
             id: suggestedAssetMeta.id,
             interactingAddress: suggestedAssetMeta.interactingAddress,
