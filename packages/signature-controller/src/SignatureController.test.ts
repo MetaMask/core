@@ -2,11 +2,9 @@ import {
   MessageManager,
   PersonalMessageManager,
   TypedMessageManager,
-} from '@metamask/message-manager';
-import {
   AbstractMessage,
   OriginalRequest,
-} from '@metamask/message-manager/dist/AbstractMessageManager';
+} from '@metamask/message-manager';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import {
   SignatureController,
