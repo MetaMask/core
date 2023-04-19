@@ -54,8 +54,6 @@ interface DomainParts {
   port?: string;
 }
 
-export const DOMAIN_REGEX =
-  /^((?<userinfo>[^@]*)@)?(?<hostname>[^:@/?]+)(:(?<port>[0-9]+))?$/u;
 const DEFAULT_PORTS_BY_PROTOCOL = {
   'http:': '80',
   'https:': '443',
@@ -65,24 +63,17 @@ const DEFAULT_PORTS_BY_PROTOCOL = {
  * Parses parts from RFC 3986 authority from EIP-4361 `domain` field.
  *
  * @param domain - input string
+ * @param originProtocol - implied protocol from origin
  * @returns parsed parts
  */
-export const parseDomainParts = (domain: string): DomainParts => {
-  const match = domain.match(DOMAIN_REGEX);
-  if (!match) {
-    throw new Error(`Unrecognized domain format "${domain}".`);
+export const parseDomainParts = (
+  domain: string,
+  originProtocol: string,
+): DomainParts => {
+  if (domain.match(/^[^/:]*:\/\//u)) {
+    return new URL(domain);
   }
-  const { userinfo, hostname, port } = match.groups as {
-    userinfo?: string;
-    hostname: string;
-    port?: string;
-  };
-  return {
-    // strip password from userinfo
-    username: userinfo?.replace(/:.*$/u, ''),
-    hostname,
-    port,
-  };
+  return new URL(`${originProtocol}//${domain}`);
 };
 
 /**
@@ -102,7 +93,10 @@ export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
     }
 
     const originParts = new URL(origin);
-    const domainParts = parseDomainParts(siwe.parsedMessage.domain);
+    const domainParts = parseDomainParts(
+      siwe.parsedMessage.domain,
+      originParts.protocol,
+    );
 
     if (
       domainParts.hostname.localeCompare(originParts.hostname, undefined, {
@@ -112,10 +106,7 @@ export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
       return false;
     }
 
-    if (
-      domainParts.port !== undefined &&
-      domainParts.port !== originParts.port
-    ) {
+    if (domainParts.port !== '' && domainParts.port !== originParts.port) {
       // If origin port is not specified, protocol default is implied
       return (
         originParts.port === '' &&
@@ -124,7 +115,7 @@ export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
     }
 
     if (
-      domainParts.username !== undefined &&
+      domainParts.username !== '' &&
       domainParts.username !== originParts.username
     ) {
       return false;
