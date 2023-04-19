@@ -5,6 +5,7 @@ import type {
   RpcPayload,
   RpcResponse,
 } from 'web3-provider-engine';
+import { serializeError } from 'eth-rpc-errors';
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
@@ -52,7 +53,7 @@ export type FakeProviderStub = {
       response: { result: any } | { error: string };
     }
   | {
-      error: string;
+      error: string | Error;
     }
   | {
       implementation: () => void;
@@ -204,14 +205,23 @@ operation that was not fulfilled before the test ended.`);
         });
       }
     } else if ('error' in stub) {
-      return callback(new Error(stub.error), {
+      let error;
+      let serializedError;
+      if (typeof stub.error === 'string') {
+        error = new Error(stub.error);
+        serializedError = {
+          code: -999,
+          message: stub.error,
+        };
+      } else {
+        error = stub.error;
+        serializedError = serializeError(error);
+      }
+      return callback(error, {
         jsonrpc: '2.0',
         id: 1,
         result: undefined,
-        error: {
-          code: -999,
-          message: stub.error,
-        },
+        error: serializedError,
       });
     }
     return undefined;

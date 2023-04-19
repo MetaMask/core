@@ -7,6 +7,7 @@ import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import { Mutex } from 'async-mutex';
 import { v4 as random } from 'uuid';
 import type { Patch } from 'immer';
+import { errorCodes } from 'eth-rpc-errors';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -19,8 +20,9 @@ import {
   isNetworkType,
   BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
-
 import { assertIsStrictHexString } from '@metamask/utils';
+
+import { NetworkStatus } from './constants';
 
 /**
  * @type ProviderConfig
@@ -71,18 +73,47 @@ export type NetworkConfiguration = {
 };
 
 /**
+ * Asserts that the given value is a network ID, i.e., that it is a decimal
+ * number represented as a string.
+ *
+ * @param value - The value to check.
+ */
+function assertNetworkId(value: string): asserts value is NetworkId {
+  if (!/^\d+$/u.test(value) || Number.isNaN(Number(value))) {
+    throw new Error('value is not a number');
+  }
+}
+
+/**
+ * Type guard for determining whether the given value is an error object with a
+ * `code` property, such as an instance of Error.
+ *
+ * TODO: Move this to @metamask/utils.
+ *
+ * @param error - The object to check.
+ * @returns True if `error` has a `code`, false otherwise.
+ */
+function isErrorWithCode(error: unknown): error is { code: string | number } {
+  return typeof error === 'object' && error !== null && 'code' in error;
+}
+
+/**
+ * The network ID of a network.
+ */
+export type NetworkId = `${number}`;
+
+/**
  * @type NetworkState
  *
  * Network controller state
  * @property network - Network ID as per net_version of the currently connected network
- * @property isCustomNetwork - Identifies if the currently connected network is a custom network
  * @property providerConfig - RPC URL and network name provider settings of the currently connected network
  * @property properties - an additional set of network properties for the currently connected network
  * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
  */
 export type NetworkState = {
-  network: string;
-  isCustomNetwork: boolean;
+  networkId: NetworkId | null;
+  networkStatus: NetworkStatus;
   providerConfig: ProviderConfig;
   networkDetails: NetworkDetails;
   networkConfigurations: Record<string, NetworkConfiguration & { id: string }>;
@@ -147,8 +178,8 @@ export type NetworkControllerOptions = {
 };
 
 export const defaultState: NetworkState = {
-  network: 'loading',
-  isCustomNetwork: false,
+  networkId: null,
+  networkStatus: NetworkStatus.Unknown,
   providerConfig: {
     type: NetworkType.mainnet,
     chainId: NetworksChainId.mainnet,
@@ -205,11 +236,11 @@ export class NetworkController extends BaseControllerV2<
     super({
       name,
       metadata: {
-        network: {
+        networkId: {
           persist: true,
           anonymous: false,
         },
-        isCustomNetwork: {
+        networkStatus: {
           persist: true,
           anonymous: false,
         },
@@ -255,10 +286,6 @@ export class NetworkController extends BaseControllerV2<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update((state) => {
-      state.isCustomNetwork = this.#getIsCustomNetwork(chainId);
-    });
-
     switch (type) {
       case NetworkType.mainnet:
       case NetworkType.goerli:
@@ -290,7 +317,8 @@ export class NetworkController extends BaseControllerV2<
 
   async #refreshNetwork() {
     this.update((state) => {
-      state.network = 'loading';
+      state.networkId = null;
+      state.networkStatus = NetworkStatus.Unknown;
       state.networkDetails = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
@@ -321,15 +349,6 @@ export class NetworkController extends BaseControllerV2<
       },
     };
     this.#updateProvider(createMetamaskProvider(config));
-  }
-
-  #getIsCustomNetwork(chainId?: string) {
-    return (
-      chainId !== NetworksChainId.mainnet &&
-      chainId !== NetworksChainId.goerli &&
-      chainId !== NetworksChainId.sepolia &&
-      chainId !== NetworksChainId.localhost
-    );
   }
 
   #setupStandardProvider(
@@ -364,7 +383,7 @@ export class NetworkController extends BaseControllerV2<
   }
 
   async #verifyNetwork() {
-    if (this.state.network === 'loading') {
+    if (this.state.networkStatus !== NetworkStatus.Available) {
       await this.lookupNetwork();
     }
   }
@@ -383,8 +402,8 @@ export class NetworkController extends BaseControllerV2<
     await this.lookupNetwork();
   }
 
-  async #getNetworkId(): Promise<string> {
-    return await new Promise((resolve, reject) => {
+  async #getNetworkId(): Promise<NetworkId> {
+    const possibleNetworkId = await new Promise<string>((resolve, reject) => {
       this.#ethQuery.sendAsync(
         { method: 'net_version' },
         (error: Error, result: string) => {
@@ -396,6 +415,9 @@ export class NetworkController extends BaseControllerV2<
         },
       );
     });
+
+    assertNetworkId(possibleNetworkId);
+    return possibleNetworkId;
   }
 
   /**
@@ -410,16 +432,22 @@ export class NetworkController extends BaseControllerV2<
     try {
       try {
         const networkId = await this.#getNetworkId();
-        if (this.state.network === networkId) {
+        if (this.state.networkId === networkId) {
           return;
         }
 
         this.update((state) => {
-          state.network = networkId;
+          state.networkId = networkId;
+          state.networkStatus = NetworkStatus.Available;
         });
-      } catch (_error) {
+      } catch (error) {
+        const networkStatus =
+          isErrorWithCode(error) && error.code !== errorCodes.rpc.internal
+            ? NetworkStatus.Unavailable
+            : NetworkStatus.Unknown;
         this.update((state) => {
-          state.network = 'loading';
+          state.networkId = null;
+          state.networkStatus = networkStatus;
         });
       }
 

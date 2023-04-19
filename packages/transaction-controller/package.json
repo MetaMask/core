@@ -38,7 +38,7 @@
     "babel-runtime": "^6.26.0",
     "eth-method-registry": "1.1.0",
     "eth-query": "^2.1.2",
-    "eth-rpc-errors": "^4.0.0",
+    "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
     "nonce-tracker": "^1.1.0",
     "uuid": "^8.3.2"
