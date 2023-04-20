@@ -76,15 +76,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@babel/helper-module-imports@npm:^7.0.0":
-  version: 7.0.0
-  resolution: "@babel/helper-module-imports@npm:7.0.0"
-  dependencies:
-    "@babel/types": ^7.0.0
-  checksum: 560fcc6388fa29122afe1c42606a1e3bf553845eef9c4cf13f9871df4104c30153688f34ba174d50dc061c641728253b3fcf8530216e09457e72f6c399e44317
-  languageName: node
-  linkType: hard
-
 "@babel/helper-plugin-utils@npm:^7.0.0, @babel/helper-plugin-utils@npm:^7.10.4, @babel/helper-plugin-utils@npm:^7.8.0":
   version: 7.10.4
   resolution: "@babel/helper-plugin-utils@npm:7.10.4"
@@ -257,29 +248,6 @@ __metadata:
   peerDependencies:
     "@babel/core": ^7.0.0-0
   checksum: eef94d53a1453361553c1f98b68d17782861a04a392840341bc91780838dd4e695209c783631cf0de14c635758beafb6a3a65399846ffa4386bff90639347f30
-  languageName: node
-  linkType: hard
-
-"@babel/plugin-transform-runtime@npm:^7.5.5":
-  version: 7.6.2
-  resolution: "@babel/plugin-transform-runtime@npm:7.6.2"
-  dependencies:
-    "@babel/helper-module-imports": ^7.0.0
-    "@babel/helper-plugin-utils": ^7.0.0
-    resolve: ^1.8.1
-    semver: ^5.5.1
-  peerDependencies:
-    "@babel/core": ^7.0.0-0
-  checksum: f8040ae8d7e476eb5830f68abc34dab4ce2c09fba360701ac72d681b8567f76fe059b3f456a06b912e56194ed420b59d1bcd8d0e37514156d79d6eb8be72f30b
-  languageName: node
-  linkType: hard
-
-"@babel/runtime@npm:^7.5.5":
-  version: 7.6.3
-  resolution: "@babel/runtime@npm:7.6.3"
-  dependencies:
-    regenerator-runtime: ^0.13.2
-  checksum: a5d802cc9d895d976a292a467bf4c8ec11c7194a166d90b9143fd8a37767f05d0ca173174d134ba0e722b15312cad2b387e7243e133b1b2d29c184dd0f15a3fd
   languageName: node
   linkType: hard
 
@@ -1364,7 +1332,7 @@ __metadata:
     simple-git-hooks: ^2.8.0
     ts-node: ^10.9.1
     typescript: ~4.6.3
-    web3-provider-engine: ^16.0.3
+    web3-provider-engine: ^16.0.5
     which: ^3.0.0
   languageName: unknown
   linkType: soft
@@ -1624,7 +1592,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
     uuid: ^8.3.2
-    web3-provider-engine: ^16.0.3
+    web3-provider-engine: ^16.0.5
   languageName: unknown
   linkType: soft
 
@@ -3703,16 +3671,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cross-fetch@npm:^2.1.0":
-  version: 2.2.6
-  resolution: "cross-fetch@npm:2.2.6"
-  dependencies:
-    node-fetch: ^2.6.7
-    whatwg-fetch: ^2.0.4
-  checksum: df9c6728b314ff96022dca468a3d2a05b4546cd318d82a7e1f1445e7160472d39029bccbe5f20d319b8ba3793930592b0b956244aef6a87a133fbcfed85fc8ca
-  languageName: node
-  linkType: hard
-
 "cross-spawn@npm:^6.0.0":
   version: 6.0.5
   resolution: "cross-spawn@npm:6.0.5"
@@ -4476,17 +4434,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-block-tracker@npm:^4.4.2":
-  version: 4.4.3
-  resolution: "eth-block-tracker@npm:4.4.3"
+"eth-block-tracker@npm:^5.0.1":
+  version: 5.0.1
+  resolution: "eth-block-tracker@npm:5.0.1"
   dependencies:
-    "@babel/plugin-transform-runtime": ^7.5.5
-    "@babel/runtime": ^7.5.5
-    eth-query: ^2.1.0
+    "@metamask/safe-event-emitter": ^2.0.0
     json-rpc-random-id: ^1.0.1
     pify: ^3.0.0
-    safe-event-emitter: ^1.0.1
-  checksum: 3ae7e459b19b65303ec7bd0df7ad2a69476adb01cf2f44699b3482fd14e9e058e9eb85a9612307ba33f565e29ca6d19466765122a1106d1def820f6bfe272d52
+  checksum: 83b2dd28fb7f12d644f1c1bc72011fb6bb683012489973e31171d445a34ddf6a1c167be4e4232bf7eb65144f08d92705795cf6b371c5aa6a8e78ebf48e4d5654
   languageName: node
   linkType: hard
 
@@ -4563,7 +4518,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-query@npm:^2.1.0, eth-query@npm:^2.1.2":
+"eth-query@npm:^2.1.2":
   version: 2.1.2
   resolution: "eth-query@npm:2.1.2"
   dependencies:
@@ -7195,24 +7150,22 @@ __metadata:
   linkType: hard
 
 "json5@npm:2.x, json5@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "json5@npm:2.1.0"
-  dependencies:
-    minimist: ^1.2.0
+  version: 2.2.3
+  resolution: "json5@npm:2.2.3"
   bin:
     json5: lib/cli.js
-  checksum: ecd42a1d79ac40ae5b236a3a4a14959b4372f9c5915810029c56865904c8cf6e8ae671ff0083a3c381057e35de79635ba719fc1683e0fb350f42baa88a3c64ba
+  checksum: 2a7436a93393830bce797d4626275152e37e877b265e94ca69c99e3d20c2b9dab021279146a39cdb700e71b2dd32a4cebd1514cd57cee102b1af906ce5040349
   languageName: node
   linkType: hard
 
 "json5@npm:^1.0.1":
-  version: 1.0.1
-  resolution: "json5@npm:1.0.1"
+  version: 1.0.2
+  resolution: "json5@npm:1.0.2"
   dependencies:
     minimist: ^1.2.0
   bin:
     json5: lib/cli.js
-  checksum: e76ea23dbb8fc1348c143da628134a98adf4c5a4e8ea2adaa74a80c455fc2cdf0e2e13e6398ef819bfe92306b610ebb2002668ed9fc1af386d593691ef346fc3
+  checksum: 866458a8c58a95a49bef3adba929c625e82532bcff1fe93f01d29cb02cac7c3fe1f4b79951b7792c2da9de0b32871a8401a6e3c5b36778ad852bf5b8a61165d7
   languageName: node
   linkType: hard
 
@@ -7700,9 +7653,9 @@ __metadata:
   linkType: hard
 
 "minimist@npm:^1.1.1, minimist@npm:^1.2.0":
-  version: 1.2.6
-  resolution: "minimist@npm:1.2.6"
-  checksum: d15428cd1e11eb14e1233bcfb88ae07ed7a147de251441d61158619dfb32c4d7e9061d09cab4825fdee18ecd6fce323228c8c47b5ba7cd20af378ca4048fb3fb
+  version: 1.2.8
+  resolution: "minimist@npm:1.2.8"
+  checksum: 75a6d645fb122dad29c06a7597bddea977258957ed88d7a6df59b5cd3fe4a527e253e9bbf2e783e4b73657f9098b96a5fe96ab8a113655d4109108577ecf85b0
   languageName: node
   linkType: hard
 
@@ -7906,7 +7859,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"node-fetch@npm:^2.6.0, node-fetch@npm:^2.6.1, node-fetch@npm:^2.6.7":
+"node-fetch@npm:^2.6.0, node-fetch@npm:^2.6.1":
   version: 2.6.7
   resolution: "node-fetch@npm:2.6.7"
   dependencies:
@@ -8888,13 +8841,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"regenerator-runtime@npm:^0.13.2":
-  version: 0.13.3
-  resolution: "regenerator-runtime@npm:0.13.3"
-  checksum: 3d3dd091db39e9d7d1eedec811d8272f1a9b0d52ca047a800ffe9b90e289b002ca3d84bcb09fa849f41c4e8e8178ec246b0fb5f9f999a64cd7247986ea02d3bd
-  languageName: node
-  linkType: hard
-
 "regex-not@npm:^1.0.0, regex-not@npm:^1.0.2":
   version: 1.0.2
   resolution: "regex-not@npm:1.0.2"
@@ -9026,7 +8972,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"resolve@npm:^1.10.0, resolve@npm:^1.10.1, resolve@npm:^1.13.1, resolve@npm:^1.17.0, resolve@npm:^1.20.0, resolve@npm:^1.3.2, resolve@npm:^1.8.1":
+"resolve@npm:^1.10.0, resolve@npm:^1.10.1, resolve@npm:^1.13.1, resolve@npm:^1.17.0, resolve@npm:^1.20.0, resolve@npm:^1.3.2":
   version: 1.20.0
   resolution: "resolve@npm:1.20.0"
   dependencies:
@@ -9036,7 +8982,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"resolve@patch:resolve@^1.10.0#~builtin<compat/resolve>, resolve@patch:resolve@^1.10.1#~builtin<compat/resolve>, resolve@patch:resolve@^1.13.1#~builtin<compat/resolve>, resolve@patch:resolve@^1.17.0#~builtin<compat/resolve>, resolve@patch:resolve@^1.20.0#~builtin<compat/resolve>, resolve@patch:resolve@^1.3.2#~builtin<compat/resolve>, resolve@patch:resolve@^1.8.1#~builtin<compat/resolve>":
+"resolve@patch:resolve@^1.10.0#~builtin<compat/resolve>, resolve@patch:resolve@^1.10.1#~builtin<compat/resolve>, resolve@patch:resolve@^1.13.1#~builtin<compat/resolve>, resolve@patch:resolve@^1.17.0#~builtin<compat/resolve>, resolve@patch:resolve@^1.20.0#~builtin<compat/resolve>, resolve@patch:resolve@^1.3.2#~builtin<compat/resolve>":
   version: 1.20.0
   resolution: "resolve@patch:resolve@npm%3A1.20.0#~builtin<compat/resolve>::version=1.20.0&hash=c3c19d"
   dependencies:
@@ -9222,7 +9168,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:2 || 3 || 4 || 5, semver@npm:^5.4.1, semver@npm:^5.5.0, semver@npm:^5.5.1":
+"semver@npm:2 || 3 || 4 || 5, semver@npm:^5.4.1, semver@npm:^5.5.0":
   version: 5.7.1
   resolution: "semver@npm:5.7.1"
   bin:
@@ -10498,16 +10444,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"web3-provider-engine@npm:^16.0.3":
-  version: 16.0.3
-  resolution: "web3-provider-engine@npm:16.0.3"
+"web3-provider-engine@npm:^16.0.5":
+  version: 16.0.5
+  resolution: "web3-provider-engine@npm:16.0.5"
   dependencies:
     "@ethereumjs/tx": ^3.3.0
     async: ^2.5.0
     backoff: ^2.5.0
     clone: ^2.0.0
-    cross-fetch: ^2.1.0
-    eth-block-tracker: ^4.4.2
+    eth-block-tracker: ^5.0.1
     eth-json-rpc-filters: ^4.2.1
     eth-json-rpc-infura: ^5.1.0
     eth-json-rpc-middleware: ^6.0.0
@@ -10524,7 +10469,7 @@ __metadata:
     ws: ^5.1.1
     xhr: ^2.2.0
     xtend: ^4.0.1
-  checksum: 31549e1afee0a2bc67425349535b733d4d7fe00caf08686a6f892ed68c4cf5aded3a995769d8a642dfa116a404a6d1261f0c6769836cd49509f8ec771e68fe65
+  checksum: 4dcdc8f49099f8112cb565c119c5e82b8e2c6f1e5fcbcacdd0f3c0baa29944778d133eabe033ff3c1c7f4d2538cd60cfe1caafba97aca5a0f22449f788a72dca
   languageName: node
   linkType: hard
 
@@ -10555,13 +10500,6 @@ __metadata:
   dependencies:
     iconv-lite: 0.4.24
   checksum: 5be4efe111dce29ddee3448d3915477fcc3b28f991d9cf1300b4e50d6d189010d47bca2f51140a844cf9b726e8f066f4aee72a04d687bfe4f2ee2767b2f5b1e6
-  languageName: node
-  linkType: hard
-
-"whatwg-fetch@npm:^2.0.4":
-  version: 2.0.4
-  resolution: "whatwg-fetch@npm:2.0.4"
-  checksum: de7c65a68d7d62e2f144a6b30293370b3ad82b65ebcd68f2ac8e8bbe7ede90febd98ba9486b78c1cbc950e0e8838fa5c2727f939899ab3fc7b71a04be52d33a5
   languageName: node
   linkType: hard
 
