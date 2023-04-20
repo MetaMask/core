@@ -351,7 +351,7 @@ describe('NetworkController', () => {
             createNetworkClientMock.mockReturnValue(fakeClient);
 
             await expect(() => controller.initializeProvider()).rejects.toThrow(
-              'rpcTarget must be passed in for custom rpcs',
+              'rpcTarget must be provided for custom RPC endpoints',
             );
             const { provider, blockTracker } =
               controller.getProviderAndBlockTracker();
@@ -991,7 +991,9 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             await expect(() =>
               controller.setProviderType(NetworkType.rpc),
-            ).rejects.toThrow('rpcTarget must be passed in for custom rpcs');
+            ).rejects.toThrow(
+              'rpcTarget must be provided for custom RPC endpoints'
+            );
           },
         );
       });

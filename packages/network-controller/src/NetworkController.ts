@@ -292,17 +292,19 @@ export class NetworkController extends BaseControllerV2<
         break;
       case NetworkType.localhost:
         if (chainId === undefined) {
-          throw new Error('chainId must be passed in for custom rpcs');
+          throw new Error('chainId must be provided for custom RPC endpoints');
         }
         this.#setupStandardProvider(LOCALHOST_RPC_URL, toHex(chainId));
         break;
       case NetworkType.rpc:
         if (chainId === undefined) {
-          throw new Error('chainId must be passed in for custom rpcs');
+          throw new Error('chainId must be provided for custom RPC endpoints');
         }
 
         if (rpcTarget === undefined) {
-          throw new Error('rpcTarget must be passed in for custom rpcs');
+          throw new Error(
+            'rpcTarget must be provided for custom RPC endpoints',
+          );
         }
         this.#setupStandardProvider(rpcTarget, toHex(chainId));
         break;
