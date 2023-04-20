@@ -31,7 +31,7 @@ import {
   createNetworkClient,
   NetworkClientType,
 } from '../src/create-network-client';
-import { FakeProvider, FakeProviderStub } from './fake-provider-engine';
+import { FakeProvider, FakeProviderStub } from './fake-provider';
 import { FakeBlockTracker } from './fake-block-tracker';
 
 jest.mock('eth-query', () => {
