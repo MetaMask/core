@@ -968,7 +968,7 @@ describe('NetworkController', () => {
 
             await controller.setProviderType(networkType);
 
-            expect(controller.state.network).toBe('42');
+            expect(controller.state.networkId).toBe('42');
           });
         });
       });
