@@ -8,6 +8,10 @@ import {
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { Json, hasProperty, isPlainObject } from '@metamask/controller-utils';
+import {
+  GetSubjectMetadata,
+  SubjectType,
+} from '@metamask/subject-metadata-controller';
 import * as errors from './errors';
 import { EndowmentGetterParams } from './Permission';
 import {
@@ -191,6 +195,7 @@ const PermissionKeys = {
   wallet_noopWithValidator: 'wallet_noopWithValidator',
   wallet_noopWithFactory: 'wallet_noopWithFactory',
   'wallet_getSecret_*': 'wallet_getSecret_*',
+  snap_foo: 'snap_foo',
   endowmentPermission1: 'endowmentPermission1',
   endowmentPermission2: 'endowmentPermission2',
 } as const;
@@ -227,6 +232,7 @@ const PermissionNames = {
   wallet_noopWithPermittedSideEffects:
     PermissionKeys.wallet_noopWithPermittedSideEffects,
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
+  snap_foo: PermissionKeys.snap_foo,
   endowmentPermission1: PermissionKeys.endowmentPermission1,
   endowmentPermission2: PermissionKeys.endowmentPermission2,
   wallet_getSecret_: (str: string) => `wallet_getSecret_${str}` as const,
@@ -396,6 +402,15 @@ function getDefaultPermissionSpecifications() {
         });
       },
     },
+    [PermissionKeys.snap_foo]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetKey: PermissionKeys.snap_foo,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+    },
     [PermissionKeys.endowmentPermission1]: {
       permissionType: PermissionType.Endowment,
       targetKey: PermissionKeys.endowmentPermission1,
@@ -407,6 +422,7 @@ function getDefaultPermissionSpecifications() {
       targetKey: PermissionKeys.endowmentPermission2,
       endowmentGetter: (_options: EndowmentGetterParams) => ['endowment2'],
       allowedCaveats: [CaveatTypes.endowmentCaveat],
+      subjectTypes: [SubjectType.Snap],
     },
   } as const;
 }
@@ -419,11 +435,12 @@ type DefaultPermissionSpecifications = ExtractSpecifications<
 
 const controllerName = 'PermissionController' as const;
 
-type ApprovalActions =
+type AllowedActions =
   | HasApprovalRequest
   | AddApprovalRequest
   | AcceptApprovalRequest
-  | RejectApprovalRequest;
+  | RejectApprovalRequest
+  | GetSubjectMetadata;
 
 /**
  * Gets a unrestricted controller messenger. Used for tests.
@@ -432,7 +449,7 @@ type ApprovalActions =
  */
 function getUnrestrictedMessenger() {
   return new ControllerMessenger<
-    PermissionControllerActions | ApprovalActions,
+    PermissionControllerActions | AllowedActions,
     PermissionControllerEvents
   >();
 }
@@ -449,7 +466,7 @@ function getPermissionControllerMessenger(
 ) {
   return messenger.getRestricted<
     typeof controllerName,
-    PermissionControllerActions['type'] | ApprovalActions['type'],
+    PermissionControllerActions['type'] | AllowedActions['type'],
     PermissionControllerEvents['type']
   >({
     name: controllerName,
@@ -458,6 +475,7 @@ function getPermissionControllerMessenger(
       'ApprovalController:addRequest',
       'ApprovalController:acceptRequest',
       'ApprovalController:rejectRequest',
+      'SubjectMetadataController:getSubjectMetadata',
     ],
   }) as PermissionControllerMessenger;
 }
@@ -2433,8 +2451,23 @@ describe('PermissionController', () => {
     });
 
     it('grants new permission (endowment with caveats)', () => {
-      const controller = getDefaultPermissionController();
-      const origin = 'metamask.io';
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'npm:@metamask/test-snap-bip44';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Snap,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
 
       controller.grantPermissions({
         subject: { origin },
@@ -2458,6 +2491,7 @@ describe('PermissionController', () => {
             origin,
             permissions: {
               [PermissionNames.endowmentPermission2]: getPermissionMatcher({
+                invoker: origin,
                 parentCapability: PermissionNames.endowmentPermission2,
                 caveats: [
                   {
@@ -2474,6 +2508,12 @@ describe('PermissionController', () => {
           },
         },
       });
+
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
     });
 
     it('preserves existing permissions if preserveExistingPermissions is true', () => {
@@ -3837,6 +3877,129 @@ describe('PermissionController', () => {
       );
 
       expect(callActionSpy).not.toHaveBeenCalled();
+    });
+
+    it('throws if subjectTypes do not match', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Website,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      await expect(
+        controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.snap_foo]: {},
+          },
+        ),
+      ).rejects.toThrow(
+        'The method "snap_foo" does not exist / is not available.',
+      );
+
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+    });
+
+    it('does not throw if subjectTypes match', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = '@metamask/test-snap-bip44';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Snap,
+            iconUrl: null,
+            extensionId: null,
+          };
+        })
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        })
+        .mockImplementation(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Snap,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      expect(
+        await controller.requestPermissions(
+          { origin },
+          {
+            [PermissionNames.snap_foo]: {},
+          },
+        ),
+      ).toMatchObject([
+        {
+          [PermissionNames.snap_foo]: getPermissionMatcher({
+            parentCapability: PermissionNames.snap_foo,
+            caveats: null,
+            invoker: origin,
+          }),
+        },
+        {
+          id: expect.any(String),
+          origin,
+        },
+      ]);
+
+      expect(callActionSpy).toHaveBeenCalledTimes(4);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        1,
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin,
+          requestData: {
+            metadata: { id: expect.any(String), origin },
+            permissions: { [PermissionNames.snap_foo]: {} },
+          },
+          type: MethodNames.requestPermissions,
+        },
+        true,
+      );
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        3,
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        4,
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
     });
 
     it('throws if the "caveat" property of a requested permission is invalid', async () => {

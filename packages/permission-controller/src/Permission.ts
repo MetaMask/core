@@ -487,7 +487,7 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
   /**
    * The Permission may be available to only a subset of the subject types. If so, specify the subject types as an array.
    */
-  subjectTypes?: SubjectType[];
+  subjectTypes?: readonly SubjectType[];
 };
 
 /**
