@@ -268,40 +268,6 @@ describe('NetworkController', () => {
               },
             );
           });
-
-          it('ensures that the existing provider is stopped while replacing it', async () => {
-            await withController(
-              {
-                state: {
-                  providerConfig: buildProviderConfig({
-                    type: networkType,
-                  }),
-                },
-                infuraProjectId: 'infura-project-id',
-              },
-              async ({ controller }) => {
-                const fakeInfuraClients = [
-                  buildFakeClient(),
-                  buildFakeClient(),
-                ];
-                const firstProvider = fakeInfuraClients[0].provider;
-                jest.spyOn(firstProvider, 'removeAllListeners');
-                createNetworkClientMock.mockReturnValueOnce(
-                  fakeInfuraClients[0],
-                );
-                createNetworkClientMock.mockReturnValueOnce(
-                  fakeInfuraClients[1],
-                );
-
-                await controller.initializeProvider();
-                await controller.initializeProvider();
-                assert(controller.getProviderAndBlockTracker().provider);
-                jest.runAllTimers();
-
-                expect(firstProvider.removeAllListeners).toHaveBeenCalled();
-              },
-            );
-          });
         });
       },
     );
@@ -352,33 +318,6 @@ describe('NetworkController', () => {
           },
         );
       });
-
-      it('ensures that the existing provider is stopped while replacing it', async () => {
-        await withController(
-          {
-            state: {
-              providerConfig: buildProviderConfig({
-                type: NetworkType.localhost,
-              }),
-            },
-            infuraProjectId: 'infura-project-id',
-          },
-          async ({ controller }) => {
-            const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
-            const firstProvider = fakeInfuraClients[0].provider;
-            jest.spyOn(firstProvider, 'removeAllListeners');
-            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
-            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
-
-            await controller.initializeProvider();
-            await controller.initializeProvider();
-            assert(controller.getProviderAndBlockTracker().provider);
-            jest.runAllTimers();
-
-            expect(firstProvider.removeAllListeners).toHaveBeenCalled();
-          },
-        );
-      });
     });
 
     describe('when the provider config in state contains a network type of "rpc"', () => {
@@ -425,34 +364,6 @@ describe('NetworkController', () => {
                 method: 'eth_chainId',
               });
               expect(chainIdResult.result).toBe('0x1337');
-            },
-          );
-        });
-
-        it('ensures that the existing provider is stopped while replacing it', async () => {
-          await withController(
-            {
-              state: {
-                providerConfig: buildProviderConfig({
-                  type: NetworkType.rpc,
-                  rpcTarget: 'https://example.com',
-                }),
-              },
-              infuraProjectId: 'infura-project-id',
-            },
-            async ({ controller }) => {
-              const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
-              const firstProvider = fakeInfuraClients[0].provider;
-              jest.spyOn(firstProvider, 'removeAllListeners');
-              createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
-              createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
-
-              await controller.initializeProvider();
-              await controller.initializeProvider();
-              assert(controller.getProviderAndBlockTracker().provider);
-              jest.runAllTimers();
-
-              expect(firstProvider.removeAllListeners).toHaveBeenCalled();
             },
           );
         });
@@ -935,23 +846,6 @@ describe('NetworkController', () => {
         );
       });
 
-      it('ensures that the existing provider is stopped while replacing it', async () => {
-        await withController(async ({ controller }) => {
-          const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
-          const firstProvider = fakeInfuraClients[0].provider;
-          jest.spyOn(firstProvider, 'removeAllListeners');
-          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
-          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
-
-          await controller.setProviderType(NetworkType.mainnet);
-          await controller.setProviderType(NetworkType.mainnet);
-          assert(controller.getProviderAndBlockTracker().provider);
-          jest.runAllTimers();
-
-          expect(firstProvider.removeAllListeners).toHaveBeenCalled();
-        });
-      });
-
       it('records the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
@@ -1111,23 +1005,6 @@ describe('NetworkController', () => {
               );
             },
           );
-        });
-
-        it('ensures that the existing provider is stopped while replacing it', async () => {
-          await withController(async ({ controller }) => {
-            const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
-            const firstProvider = fakeInfuraClients[0].provider;
-            jest.spyOn(firstProvider, 'removeAllListeners');
-            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
-            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
-
-            await controller.setProviderType(networkType);
-            await controller.setProviderType(networkType);
-            assert(controller.getProviderAndBlockTracker().provider);
-            jest.runAllTimers();
-
-            expect(firstProvider.removeAllListeners).toHaveBeenCalled();
-          });
         });
 
         it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
@@ -1292,23 +1169,6 @@ describe('NetworkController', () => {
           expect(controller.state.networkDetails.isEIP1559Compatible).toBe(
             true,
           );
-        });
-      });
-
-      it('ensures that the existing provider is stopped while replacing it', async () => {
-        await withController(async ({ controller }) => {
-          const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
-          const firstProvider = fakeInfuraClients[0].provider;
-          jest.spyOn(firstProvider, 'removeAllListeners');
-          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
-          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
-
-          await controller.setProviderType(NetworkType.localhost);
-          await controller.setProviderType(NetworkType.localhost);
-          assert(controller.getProviderAndBlockTracker().provider);
-          jest.runAllTimers();
-
-          expect(firstProvider.removeAllListeners).toHaveBeenCalled();
         });
       });
 
@@ -1512,41 +1372,6 @@ describe('NetworkController', () => {
           expect(controller.state.networkDetails.isEIP1559Compatible).toBe(
             true,
           );
-        },
-      );
-    });
-
-    it('ensures that the existing provider is stopped while replacing it', async () => {
-      const messenger = buildMessenger();
-      await withController(
-        {
-          messenger,
-          state: {
-            networkConfigurations: {
-              testNetworkConfigurationId: {
-                rpcUrl: 'https://mock-rpc-url',
-                chainId: '0xabc',
-                ticker: 'TEST',
-                id: 'testNetworkConfigurationId',
-                nickname: undefined,
-                rpcPrefs: undefined,
-              },
-            },
-          },
-        },
-        async ({ controller }) => {
-          const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
-          const firstProvider = fakeInfuraClients[0].provider;
-          jest.spyOn(firstProvider, 'removeAllListeners');
-          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
-          createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
-
-          await controller.setActiveNetwork('testNetworkConfigurationId');
-          await controller.setActiveNetwork('testNetworkConfigurationId');
-          assert(controller.getProviderAndBlockTracker().provider);
-          jest.runAllTimers();
-
-          expect(firstProvider.removeAllListeners).toHaveBeenCalled();
         },
       );
     });
@@ -2510,42 +2335,6 @@ describe('NetworkController', () => {
               },
             );
           });
-
-          it('ensures that the existing provider is stopped while replacing it', async () => {
-            await withController(
-              {
-                state: {
-                  providerConfig: {
-                    type: networkType,
-                    // NOTE: This doesn't need to match the logical chain ID of
-                    // the network selected, it just needs to exist
-                    chainId: '0x9999999',
-                  },
-                },
-              },
-              ({ controller }) => {
-                const fakeInfuraClients = [
-                  buildFakeClient(),
-                  buildFakeClient(),
-                ];
-                const firstProvider = fakeInfuraClients[0].provider;
-                jest.spyOn(firstProvider, 'removeAllListeners');
-                createNetworkClientMock.mockReturnValueOnce(
-                  fakeInfuraClients[0],
-                );
-                createNetworkClientMock.mockReturnValueOnce(
-                  fakeInfuraClients[1],
-                );
-
-                controller.resetConnection();
-                controller.resetConnection();
-                assert(controller.getProviderAndBlockTracker().provider);
-                jest.runAllTimers();
-
-                expect(firstProvider.removeAllListeners).toHaveBeenCalled();
-              },
-            );
-          });
         });
       },
     );
@@ -2720,36 +2509,6 @@ describe('NetworkController', () => {
             const { provider: providerAfter } =
               controller.getProviderAndBlockTracker();
             expect(providerBefore).toBe(providerAfter);
-          },
-        );
-      });
-
-      it('ensures that the existing provider is stopped while replacing it', async () => {
-        await withController(
-          {
-            state: {
-              providerConfig: {
-                type: NetworkType.rpc,
-                rpcTarget: 'https://mock-rpc-url',
-                chainId: '0xabc',
-                ticker: 'TEST',
-                id: 'testNetworkConfigurationId',
-              },
-            },
-          },
-          ({ controller }) => {
-            const fakeInfuraClients = [buildFakeClient(), buildFakeClient()];
-            const firstProvider = fakeInfuraClients[0].provider;
-            jest.spyOn(firstProvider, 'removeAllListeners');
-            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[0]);
-            createNetworkClientMock.mockReturnValueOnce(fakeInfuraClients[1]);
-
-            controller.resetConnection();
-            controller.resetConnection();
-            assert(controller.getProviderAndBlockTracker().provider);
-            jest.runAllTimers();
-
-            expect(firstProvider.removeAllListeners).toHaveBeenCalled();
           },
         );
       });

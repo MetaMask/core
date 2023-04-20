@@ -195,8 +195,6 @@ export class NetworkController extends BaseControllerV2<
 
   #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
 
-  #provider: Provider | undefined;
-
   #providerProxy: ProviderProxy | undefined;
 
   #blockTrackerProxy: BlockTrackerProxy | undefined;
@@ -346,18 +344,11 @@ export class NetworkController extends BaseControllerV2<
     provider: SafeEventEmitterProvider,
     blockTracker: PollingBlockTracker,
   ) {
-    this.#safelyStopProvider(this.#provider);
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker,
     });
     this.#registerProvider();
-  }
-
-  #safelyStopProvider(provider: Provider | undefined) {
-    setTimeout(() => {
-      provider?.removeAllListeners();
-    }, 500);
   }
 
   /**
@@ -539,7 +530,6 @@ export class NetworkController extends BaseControllerV2<
     } else {
       this.#providerProxy = createEventEmitterProxy(provider);
     }
-    this.#provider = provider;
 
     if (this.#blockTrackerProxy) {
       this.#blockTrackerProxy.setTarget(blockTracker);
