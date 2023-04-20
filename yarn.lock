@@ -2907,7 +2907,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"atob@npm:^2.1.1":
+"atob@npm:^2.1.2":
   version: 2.1.2
   resolution: "atob@npm:2.1.2"
   bin:
@@ -9536,32 +9536,32 @@ __metadata:
   linkType: hard
 
 "source-map-resolve@npm:^0.5.0":
-  version: 0.5.2
-  resolution: "source-map-resolve@npm:0.5.2"
+  version: 0.5.3
+  resolution: "source-map-resolve@npm:0.5.3"
   dependencies:
-    atob: ^2.1.1
+    atob: ^2.1.2
     decode-uri-component: ^0.2.0
     resolve-url: ^0.2.1
     source-map-url: ^0.4.0
     urix: ^0.1.0
-  checksum: 14fdb9db10cb010216ffc33a1b3793f8aed56beb76d37fe4edcbb234552c5a91a1071e015546ea7d837e5b37845db73fe65adcafd8c179ea449accf3eecde7de
+  checksum: c73fa44ac00783f025f6ad9e038ab1a2e007cd6a6b86f47fe717c3d0765b4a08d264f6966f3bd7cd9dbcd69e4832783d5472e43247775b2a550d6f2155d24bae
   languageName: node
   linkType: hard
 
 "source-map-support@npm:^0.5.6":
-  version: 0.5.13
-  resolution: "source-map-support@npm:0.5.13"
+  version: 0.5.21
+  resolution: "source-map-support@npm:0.5.21"
   dependencies:
     buffer-from: ^1.0.0
     source-map: ^0.6.0
-  checksum: 933550047b6c1a2328599a21d8b7666507427c0f5ef5eaadd56b5da0fd9505e239053c66fe181bf1df469a3b7af9d775778eee283cbb7ae16b902ddc09e93a97
+  checksum: 43e98d700d79af1d36f859bdb7318e601dfc918c7ba2e98456118ebc4c4872b327773e5a1df09b0524e9e5063bb18f0934538eace60cca2710d1fa687645d137
   languageName: node
   linkType: hard
 
 "source-map-url@npm:^0.4.0":
-  version: 0.4.0
-  resolution: "source-map-url@npm:0.4.0"
-  checksum: 63ed54045fcd7b4ec7ca17513f48fdc23b573eef679326ecf1a31333e1aaecc0a9c085adaa7d118283b160e65b71cc72da9e1385f2de4ac5ed68294e3920d719
+  version: 0.4.1
+  resolution: "source-map-url@npm:0.4.1"
+  checksum: 64c5c2c77aff815a6e61a4120c309ae4cac01298d9bcbb3deb1b46a4dd4c46d4a1eaeda79ec9f684766ae80e8dc86367b89326ce9dd2b89947bd9291fc1ac08c
   languageName: node
   linkType: hard
 
@@ -9580,9 +9580,9 @@ __metadata:
   linkType: hard
 
 "source-map@npm:^0.7.3":
-  version: 0.7.3
-  resolution: "source-map@npm:0.7.3"
-  checksum: cd24efb3b8fa69b64bf28e3c1b1a500de77e84260c5b7f2b873f88284df17974157cc88d386ee9b6d081f08fdd8242f3fc05c953685a6ad81aad94c7393dedea
+  version: 0.7.4
+  resolution: "source-map@npm:0.7.4"
+  checksum: 01cc5a74b1f0e1d626a58d36ad6898ea820567e87f18dfc9d24a9843a351aaa2ec09b87422589906d6ff1deed29693e176194dc88bcae7c9a852dc74b311dbf5
   languageName: node
   linkType: hard
 
