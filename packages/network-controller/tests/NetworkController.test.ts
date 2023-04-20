@@ -212,8 +212,8 @@ describe('NetworkController', () => {
                     },
                   },
                 ]);
-                const fakeInfuraClient = buildFakeClient(fakeProvider);
-                createNetworkClientMock.mockReturnValue(fakeInfuraClient);
+                const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
                 await controller.initializeProvider();
 
@@ -265,7 +265,7 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            const fakeClient = buildFakeClient(fakeProvider);
+            const fakeClient = buildFakeNetworkClient(fakeProvider);
             createNetworkClientMock.mockReturnValue(fakeClient);
 
             await controller.initializeProvider();
@@ -314,7 +314,7 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              const fakeClient = buildFakeClient(fakeProvider);
+              const fakeClient = buildFakeNetworkClient(fakeProvider);
               createNetworkClientMock.mockReturnValue(fakeClient);
 
               await controller.initializeProvider();
@@ -347,7 +347,7 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeClient = buildFakeClient();
+            const fakeClient = buildFakeNetworkClient();
             createNetworkClientMock.mockReturnValue(fakeClient);
 
             await expect(() => controller.initializeProvider()).rejects.toThrow(
@@ -385,7 +385,7 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          const fakeClient = buildFakeClient(fakeProvider);
+          const fakeClient = buildFakeNetworkClient(fakeProvider);
           createNetworkClientMock.mockReturnValue(fakeClient);
 
           await waitForStateChanges(messenger, {
@@ -861,8 +861,8 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeInfuraClient = buildFakeClient();
-              createNetworkClientMock.mockReturnValue(fakeInfuraClient);
+              const fakeNetworkClient = buildFakeNetworkClient();
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
               await controller.setProviderType(networkType);
 
@@ -893,8 +893,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              const fakeInfuraClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockReturnValue(fakeInfuraClient);
+              const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
               await controller.setProviderType(networkType);
 
@@ -935,8 +935,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              const fakeInfuraClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockReturnValue(fakeInfuraClient);
+              const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
               await controller.setProviderType(networkType);
 
@@ -961,8 +961,8 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            const fakeInfuraClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockReturnValue(fakeInfuraClient);
+            const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
             await controller.setProviderType(networkType);
 
@@ -1016,8 +1016,8 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeJsonRpcClient = buildFakeClient();
-            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+            const fakeNetworkClient = buildFakeNetworkClient();
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
             await controller.setProviderType(NetworkType.localhost);
 
@@ -1046,8 +1046,8 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          const fakeJsonRpcClient = buildFakeClient(fakeProvider);
-          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+          const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
           await controller.setProviderType(NetworkType.localhost);
 
@@ -1083,8 +1083,8 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          const fakeJsonRpcClient = buildFakeClient(fakeProvider);
-          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+          const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
           await controller.setProviderType(NetworkType.localhost);
 
@@ -1108,8 +1108,8 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          const fakeJsonRpcClient = buildFakeClient(fakeProvider);
-          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+          const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
           await controller.setProviderType(NetworkType.localhost);
 
@@ -1154,7 +1154,7 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeClient = buildFakeClient();
+          const fakeClient = buildFakeNetworkClient();
           createNetworkClientMock.mockReturnValue(fakeClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
@@ -1201,7 +1201,7 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          const fakeClient = buildFakeClient(fakeProvider);
+          const fakeClient = buildFakeNetworkClient(fakeProvider);
           createNetworkClientMock.mockReturnValue(fakeClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
@@ -1255,7 +1255,7 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          const fakeClient = buildFakeClient(fakeProvider);
+          const fakeClient = buildFakeNetworkClient(fakeProvider);
           createNetworkClientMock.mockReturnValue(fakeClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
@@ -1297,7 +1297,7 @@ describe('NetworkController', () => {
               },
             },
           ]);
-          const fakeClient = buildFakeClient(fakeProvider);
+          const fakeClient = buildFakeNetworkClient(fakeProvider);
           createNetworkClientMock.mockReturnValue(fakeClient);
 
           await controller.setActiveNetwork('testNetworkConfigurationId');
@@ -2115,7 +2115,7 @@ describe('NetworkController', () => {
                     },
                   },
                 ]);
-                const fakeClient = buildFakeClient(fakeProvider);
+                const fakeClient = buildFakeNetworkClient(fakeProvider);
                 createNetworkClientMock.mockReturnValue(fakeClient);
 
                 controller.resetConnection();
@@ -2155,7 +2155,7 @@ describe('NetworkController', () => {
                     },
                   },
                 ]);
-                const fakeClient = buildFakeClient(fakeProvider);
+                const fakeClient = buildFakeNetworkClient(fakeProvider);
                 createNetworkClientMock.mockReturnValue(fakeClient);
 
                 await waitForStateChanges(messenger, {
@@ -2185,7 +2185,7 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                const fakeClient = buildFakeClient();
+                const fakeClient = buildFakeNetworkClient();
                 createNetworkClientMock.mockReturnValue(fakeClient);
 
                 await controller.initializeProvider();
@@ -2237,7 +2237,7 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            const fakeClient = buildFakeClient(fakeProvider);
+            const fakeClient = buildFakeNetworkClient(fakeProvider);
             createNetworkClientMock.mockReturnValue(fakeClient);
 
             controller.resetConnection();
@@ -2285,7 +2285,7 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            const fakeClient = buildFakeClient(fakeProvider);
+            const fakeClient = buildFakeNetworkClient(fakeProvider);
             createNetworkClientMock.mockReturnValue(fakeClient);
 
             expect(controller.state.networkDetails).toStrictEqual({
@@ -2329,7 +2329,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeProvider = buildFakeProvider();
-            const fakeClient = buildFakeClient(fakeProvider);
+            const fakeClient = buildFakeNetworkClient(fakeProvider);
             createNetworkClientMock.mockReturnValue(fakeClient);
 
             await controller.initializeProvider();
@@ -2928,7 +2928,7 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeClient = buildFakeClient();
+          const fakeClient = buildFakeNetworkClient();
           createNetworkClientMock.mockReturnValue(fakeClient);
           const rpcUrlNetwork = {
             rpcUrl: 'https://test-rpc-url',
@@ -3169,8 +3169,8 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeJsonRpcClient = buildFakeClient();
-              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+              const fakeNetworkClient = buildFakeNetworkClient();
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.providerConfig).toStrictEqual({
                 ...customNetworkConfiguration,
@@ -3213,8 +3213,8 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeJsonRpcClient = buildFakeClient();
-              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+              const fakeNetworkClient = buildFakeNetworkClient();
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               const promiseForProviderConfigChange =
                 await waitForPublishedEvents(
@@ -3308,8 +3308,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              const fakeJsonRpcClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+              const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
               await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.networkDetails).toStrictEqual({
@@ -3372,8 +3372,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              const fakeJsonRpcClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+              const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
               await controller.setActiveNetwork('testNetworkConfigurationId');
               await waitForStateChanges(messenger, {
@@ -3424,8 +3424,8 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              const fakeJsonRpcClient = buildFakeClient();
-              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+              const fakeNetworkClient = buildFakeNetworkClient();
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               const { provider: providerBefore } =
                 controller.getProviderAndBlockTracker();
@@ -3492,8 +3492,8 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-              const fakeJsonRpcClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+              const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
               await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.networkId).toStrictEqual('999');
@@ -3544,8 +3544,8 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeJsonRpcClient = buildFakeClient();
-            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+            const fakeNetworkClient = buildFakeNetworkClient();
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
             await controller.setProviderType(NetworkType.mainnet);
             expect(controller.state.providerConfig).toStrictEqual({
               type: NetworkType.mainnet,
@@ -3608,8 +3608,8 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeJsonRpcClient = buildFakeClient();
-            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+            const fakeNetworkClient = buildFakeNetworkClient();
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
             await controller.setActiveNetwork('testNetworkConfigurationId2');
             expect(controller.state.providerConfig).toStrictEqual({
               ...networkConfiguration2,
@@ -3661,8 +3661,8 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeJsonRpcClient = buildFakeClient();
-            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+            const fakeNetworkClient = buildFakeNetworkClient();
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             const promiseForProviderConfigChange = await waitForPublishedEvents(
               messenger,
@@ -3750,8 +3750,8 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            const fakeJsonRpcClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+            const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             expect(controller.state.networkDetails).toStrictEqual({
               isEIP1559Compatible: true,
@@ -3824,8 +3824,8 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            const fakeJsonRpcClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+            const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             await waitForStateChanges(messenger, {
@@ -3887,8 +3887,8 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeJsonRpcClient = buildFakeClient();
-            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+            const fakeNetworkClient = buildFakeNetworkClient();
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             const { provider: providerBefore } =
               controller.getProviderAndBlockTracker();
@@ -3964,8 +3964,8 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-            const fakeJsonRpcClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+            const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             expect(controller.state.networkId).toStrictEqual('999');
@@ -4014,8 +4014,8 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeJsonRpcClient = buildFakeClient();
-          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+          const fakeNetworkClient = buildFakeNetworkClient();
+          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
           await controller.setActiveNetwork('testNetworkConfigurationId');
           expect(controller.state.providerConfig).toStrictEqual({
             ...networkConfiguration,
@@ -4047,8 +4047,8 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller }) => {
-          const fakeJsonRpcClient = buildFakeClient();
-          createNetworkClientMock.mockReturnValue(fakeJsonRpcClient);
+          const fakeNetworkClient = buildFakeNetworkClient();
+          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
           await controller.setProviderType(NetworkType.sepolia);
           expect(controller.state.providerConfig).toStrictEqual({
             ...buildProviderConfig({
@@ -4153,7 +4153,7 @@ function buildProviderConfig(config: Partial<ProviderConfig> = {}) {
  * @param provider - provider to use if you dont want the defaults
  * @returns The object.
  */
-function buildFakeClient(
+function buildFakeNetworkClient(
   provider: SafeEventEmitterProvider = buildFakeProvider(),
 ) {
   return {
@@ -4234,8 +4234,8 @@ async function setFakeProvider(
     stubGetEIP1559CompatibilityWhileSetting?: boolean;
   } = {},
 ): Promise<FakeProvider> {
-  const fakeProviderFromEngine = buildFakeProvider(stubs);
-  const fakeClient = buildFakeClient(fakeProviderFromEngine);
+  const fakeProvider = buildFakeProvider(stubs);
+  const fakeClient = buildFakeNetworkClient(fakeProvider);
   createNetworkClientMock.mockReturnValue(fakeClient);
   const lookupNetworkMock = jest.spyOn(controller, 'lookupNetwork');
   const lookupGetEIP1559CompatibilityMock = jest.spyOn(
