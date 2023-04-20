@@ -318,7 +318,7 @@ export const testsForProviderType = (providerType: ProviderType) => {
         {
           name: 'web3_clientVersion',
           numberOfParameters: 0,
-          result: 'ProviderEngine/v16.0.3/javascript',
+          result: 'ProviderEngine/v16.0.5/javascript',
         },
       ];
       notHandledByMiddleware.forEach(({ name, numberOfParameters, result }) => {
