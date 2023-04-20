@@ -1657,7 +1657,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/permission-controller@workspace:^, @metamask/permission-controller@workspace:packages/permission-controller":
+"@metamask/permission-controller@workspace:packages/permission-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
@@ -1757,26 +1757,6 @@ __metadata:
   checksum: 13e07f03077472e9b230f702cbba7848ecac752028396647ccdeedd7bc280ceb50ee15203e25603f05c4c6ca5d4dc7277825f7004beb113e1a415adc91f059f9
   languageName: node
   linkType: hard
-
-"@metamask/subject-metadata-controller@workspace:packages/subject-metadata-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/subject-metadata-controller@workspace:packages/subject-metadata-controller"
-  dependencies:
-    "@metamask/auto-changelog": ^3.1.0
-    "@metamask/base-controller": "workspace:^"
-    "@metamask/controller-utils": "workspace:^"
-    "@metamask/permission-controller": "workspace:^"
-    "@metamask/types": ^1.1.0
-    "@types/jest": ^26.0.22
-    deepmerge: ^4.2.2
-    immer: ^9.0.6
-    jest: ^26.4.2
-    ts-jest: ^26.5.2
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
-  languageName: unknown
-  linkType: soft
 
 "@metamask/swappable-obj-proxy@npm:^2.1.0":
   version: 2.1.0
