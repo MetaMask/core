@@ -1039,7 +1039,7 @@ describe('NetworkController', () => {
         );
       });
 
-      it('sets the provider to a custom RPC provider pointed to localhost, leaving chain ID undefined', async () => {
+      it('sets the provider to a custom RPC provider pointed to localhost, using "0x0" as the chainId', async () => {
         await withController(async ({ controller }) => {
           const fakeProvider = buildFakeProvider([
             {
