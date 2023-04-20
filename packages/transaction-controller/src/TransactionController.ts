@@ -534,14 +534,14 @@ export class TransactionController extends BaseController<
     origin?: string,
     deviceConfirmedOn?: WalletDevice,
   ): Promise<Result> {
-    const { providerConfig, network } = this.getNetworkState();
+    const { providerConfig, networkId } = this.getNetworkState();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
     const transactionMeta: TransactionMeta = {
       id: random(),
-      networkID: network,
+      networkID: networkId ?? undefined,
       chainId: providerConfig.chainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
@@ -618,7 +618,7 @@ export class TransactionController extends BaseController<
 
   getCommonConfiguration(): Common {
     const {
-      network: networkId,
+      networkId,
       providerConfig: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
@@ -629,7 +629,7 @@ export class TransactionController extends BaseController<
     const customChainParams = {
       name,
       chainId: parseInt(chainId, undefined),
-      networkId: parseInt(networkId, undefined),
+      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
     };
 
     return Common.forCustomChain(
@@ -1001,7 +1001,8 @@ export class TransactionController extends BaseController<
       typeof providedGasPrice === 'undefined'
         ? await query(this.ethQuery, 'gasPrice')
         : providedGasPrice;
-    const { isCustomNetwork } = this.getNetworkState();
+    const { providerConfig } = this.getNetworkState();
+    const isCustomNetwork = providerConfig.type === NetworkType.rpc;
     // 1. If gas is already defined on the transaction, use it
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
@@ -1070,7 +1071,7 @@ export class TransactionController extends BaseController<
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const { providerConfig, network: currentNetworkID } =
+    const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
     const { chainId: currentChainId } = providerConfig;
     let gotUpdates = false;
@@ -1131,7 +1132,7 @@ export class TransactionController extends BaseController<
       this.update({ transactions: [] });
       return;
     }
-    const { providerConfig, network: currentNetworkID } =
+    const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
     const { chainId: currentChainId } = providerConfig;
     const newTransactions = this.state.transactions.filter(
@@ -1162,14 +1163,17 @@ export class TransactionController extends BaseController<
     address: string,
     opt?: FetchAllOptions,
   ): Promise<string | void> {
-    const { providerConfig, network: currentNetworkID } =
+    const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
     const { chainId: currentChainId, type: networkType } = providerConfig;
     const { transactions } = this.state;
 
     const supportedNetworkIds = ['1', '5', '11155111'];
     /* istanbul ignore next */
-    if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
+    if (
+      currentNetworkID === null ||
+      supportedNetworkIds.indexOf(currentNetworkID) === -1
+    ) {
       return undefined;
     }
 

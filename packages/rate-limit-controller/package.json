@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
-    "eth-rpc-errors": "^4.0.0",
+    "eth-rpc-errors": "^4.0.2",
     "immer": "^9.0.6"
   },
   "devDependencies": {

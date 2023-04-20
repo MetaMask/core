@@ -3,10 +3,38 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import {
+  Web3Provider,
+  ExternalProvider,
+  JsonRpcFetchFunc,
+} from '@ethersproject/providers';
+import { createProjectLogger } from '@metamask/utils';
+import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
+  NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
+  convertHexToDecimal,
+  hasProperty,
 } from '@metamask/controller-utils';
+import { toASCII } from 'punycode/';
+import ensNetworkMap from 'ethereum-ens-network-map';
+
+const log = createProjectLogger('ens-controller');
+
+/**
+ * Checks whether the given string is a known network ID.
+ *
+ * @param networkId - Network id.
+ * @returns Boolean indicating if the network ID is recognized.
+ */
+function isKnownNetworkId(
+  networkId: string | null,
+): networkId is keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP {
+  return (
+    networkId !== null &&
+    hasProperty(NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP, networkId)
+  );
+}
 
 const name = 'EnsController';
 
@@ -36,6 +64,7 @@ export type EnsControllerState = {
       [ensName: string]: EnsEntry;
     };
   };
+  ensResolutionsByAddress: { [key: string]: string };
 };
 
 export type EnsControllerMessenger = RestrictedControllerMessenger<
@@ -48,11 +77,16 @@ export type EnsControllerMessenger = RestrictedControllerMessenger<
 
 const metadata = {
   ensEntries: { persist: true, anonymous: false },
+  ensResolutionsByAddress: { persist: true, anonymous: false },
 };
 
 const defaultState = {
   ensEntries: {},
+  ensResolutionsByAddress: {},
 };
+
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const ZERO_X_ERROR_ADDRESS = '0x';
 
 /**
  * Controller that manages a list ENS names and their resolved addresses
@@ -63,19 +97,35 @@ export class EnsController extends BaseControllerV2<
   EnsControllerState,
   EnsControllerMessenger
 > {
+  #ethProvider: Web3Provider | null = null;
+
   /**
    * Creates an EnsController instance.
    *
    * @param options - Constructor options.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
+   * @param options.provider - Provider instance.
+   * @param options.onNetworkStateChange - Allows registering an event handler for
+   * when the network controller state updated.
    */
   constructor({
     messenger,
-    state,
+    state = {},
+    provider,
+    onNetworkStateChange,
   }: {
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
+    provider?: ExternalProvider | JsonRpcFetchFunc;
+    onNetworkStateChange?: (
+      listener: (networkState: {
+        network: string;
+        providerConfig: {
+          chainId: string;
+        };
+      }) => void,
+    ) => void;
   }) {
     super({
       name,
@@ -85,6 +135,35 @@ export class EnsController extends BaseControllerV2<
         ...defaultState,
         ...state,
       },
+    });
+
+    if (provider && onNetworkStateChange) {
+      onNetworkStateChange((networkState) => {
+        this.resetState();
+        const currentNetwork =
+          networkState.network === 'loading' ? null : networkState.network;
+        if (
+          isKnownNetworkId(currentNetwork) &&
+          this.#getNetworkEnsSupport(currentNetwork)
+        ) {
+          this.#ethProvider = new Web3Provider(provider, {
+            chainId: convertHexToDecimal(networkState.providerConfig.chainId),
+            name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[currentNetwork],
+            ensAddress: ensNetworkMap[currentNetwork],
+          });
+        } else {
+          this.#ethProvider = null;
+        }
+      });
+    }
+  }
+
+  /**
+   * Clears ensResolutionsByAddress state property.
+   */
+  resetState() {
+    this.update((currentState) => {
+      currentState.ensResolutionsByAddress = {};
     });
   }
 
@@ -192,6 +271,73 @@ export class EnsController extends BaseControllerV2<
       };
     });
     return true;
+  }
+
+  /**
+   * Check if network supports ENS.
+   *
+   * @param networkId - Network id.
+   * @returns Boolean indicating if the network supports ENS.
+   */
+  #getNetworkEnsSupport(networkId: string) {
+    return Boolean(ensNetworkMap[networkId]);
+  }
+
+  /**
+   * Resolve ens by address.
+   *
+   * @param nonChecksummedAddress - address
+   * @returns ens resolution
+   */
+  async reverseResolveAddress(nonChecksummedAddress: string) {
+    if (!this.#ethProvider) {
+      return undefined;
+    }
+
+    const address = toChecksumHexAddress(nonChecksummedAddress);
+    if (this.state.ensResolutionsByAddress[address]) {
+      return this.state.ensResolutionsByAddress[address];
+    }
+
+    let domain: string | null;
+    try {
+      domain = await this.#ethProvider.lookupAddress(address);
+    } catch (error) {
+      log(error);
+      return undefined;
+    }
+
+    if (!domain) {
+      return undefined;
+    }
+
+    let registeredAddress: string | null;
+    try {
+      registeredAddress = await this.#ethProvider.resolveName(domain);
+    } catch (error) {
+      log(error);
+      return undefined;
+    }
+
+    if (!registeredAddress) {
+      return undefined;
+    }
+
+    if (
+      registeredAddress === ZERO_ADDRESS ||
+      registeredAddress === ZERO_X_ERROR_ADDRESS
+    ) {
+      return undefined;
+    }
+    if (toChecksumHexAddress(registeredAddress) !== address) {
+      return undefined;
+    }
+
+    this.update((state) => {
+      state.ensResolutionsByAddress[address] = toASCII(domain as string);
+    });
+
+    return domain;
   }
 }
 

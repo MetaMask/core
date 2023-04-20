@@ -1,10 +1,10 @@
-import { inspect, isDeepStrictEqual } from 'util';
+import {inspect, isDeepStrictEqual} from 'util';
 import {
   JsonRpcEngine,
   JsonRpcRequest,
   JsonRpcResponse,
 } from 'json-rpc-engine';
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider/dist/safe-event-emitter-provider';
+import {SafeEventEmitterProvider} from '@metamask/eth-json-rpc-provider/dist/safe-event-emitter-provider';
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
@@ -48,16 +48,16 @@ export type FakeProviderStub = {
   discardAfterMatching?: boolean;
   beforeCompleting?: () => void | Promise<void>;
 } & (
-  | {
-      response: { result: any } | { error: string };
+    | {
+      response: {result: any} | {error: string};
     }
-  | {
+    | {
       error: unknown;
     }
-  | {
+    | {
       implementation: () => void;
     }
-);
+  );
 
 /**
  * The set of options that the FakeProviderEngine constructor takes.
@@ -94,8 +94,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
    * @param options.stubs - A set of objects that allow specifying the behavior
    * of specific invocations of `sendAsync` matching a `method`.
    */
-  constructor({ stubs = [] }: FakeProviderEngineOptions) {
-    super({ engine: new JsonRpcEngine() });
+  constructor({stubs = []}: FakeProviderEngineOptions) {
+    super({engine: new JsonRpcEngine()});
     this.#originalStubs = stubs;
     this.#stubs = this.#originalStubs.slice();
     this.calledStubs = [];
@@ -145,7 +145,7 @@ export class FakeProvider extends SafeEventEmitterProvider {
       if (matchingCalledStubs.length > 0) {
         message += `\n\nIt appears the following stubs were defined, but have been called already:\n\n${inspect(
           matchingCalledStubs,
-          { depth: null },
+          {depth: null},
         )}`;
       }
 
@@ -165,7 +165,7 @@ export class FakeProvider extends SafeEventEmitterProvider {
         this.#handleRequest(stub, callback);
       }
 
-      this.calledStubs.push({ ...stub });
+      this.calledStubs.push({...stub});
     }
   }
 

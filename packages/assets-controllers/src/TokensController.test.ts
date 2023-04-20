@@ -8,7 +8,12 @@ import {
 import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  NetworksChainId,
+  NetworkType,
+  ORIGIN_METAMASK,
+} from '@metamask/controller-utils';
 import {
   NetworkState,
   ProviderConfig,
@@ -38,9 +43,6 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
 
 const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
 const GOERLI = { chainId: '5', type: NetworkType.goerli };
-
-const ORIGIN_METAMASK = 'metamask';
-const WATCH_ASSET_METHOD_NAME = 'wallet_watchAssets';
 
 const controllerName = 'TokensController' as const;
 
@@ -996,7 +998,7 @@ describe('TokensController', () => {
         {
           id: requestId,
           origin: ORIGIN_METAMASK,
-          type: WATCH_ASSET_METHOD_NAME,
+          type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,
             interactingAddress: '0x1',
@@ -1041,7 +1043,7 @@ describe('TokensController', () => {
         {
           id: requestId,
           origin: ORIGIN_METAMASK,
-          type: WATCH_ASSET_METHOD_NAME,
+          type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,
             interactingAddress,
@@ -1102,7 +1104,7 @@ describe('TokensController', () => {
           {
             id: requestId,
             origin: ORIGIN_METAMASK,
-            type: WATCH_ASSET_METHOD_NAME,
+            type: ApprovalType.WatchAsset,
             requestData: {
               id: requestId,
               interactingAddress: '0x1',
@@ -1162,7 +1164,7 @@ describe('TokensController', () => {
         {
           id: requestId,
           origin: ORIGIN_METAMASK,
-          type: WATCH_ASSET_METHOD_NAME,
+          type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,
             interactingAddress,
@@ -1238,7 +1240,7 @@ describe('TokensController', () => {
           {
             id: suggestedAssetMeta.id,
             origin: ORIGIN_METAMASK,
-            type: WATCH_ASSET_METHOD_NAME,
+            type: ApprovalType.WatchAsset,
             requestData: {
               id: suggestedAssetMeta.id,
               interactingAddress: suggestedAssetMeta.interactingAddress,
@@ -1280,7 +1282,7 @@ describe('TokensController', () => {
         {
           id: suggestedAssetMeta.id,
           origin: ORIGIN_METAMASK,
-          type: WATCH_ASSET_METHOD_NAME,
+          type: ApprovalType.WatchAsset,
           requestData: {
             id: suggestedAssetMeta.id,
             interactingAddress: suggestedAssetMeta.interactingAddress,
@@ -1346,7 +1348,7 @@ describe('TokensController', () => {
           {
             id: suggestedAssetMeta.id,
             origin: ORIGIN_METAMASK,
-            type: WATCH_ASSET_METHOD_NAME,
+            type: ApprovalType.WatchAsset,
             requestData: {
               id: suggestedAssetMeta.id,
               interactingAddress: suggestedAssetMeta.interactingAddress,

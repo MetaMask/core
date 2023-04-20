@@ -25,6 +25,7 @@ import {
   Json,
   NonEmptyArray,
 } from '@metamask/controller-utils';
+import { GetSubjectMetadata } from './SubjectMetadataController';
 import {
   CaveatConstraint,
   CaveatSpecificationConstraint,
@@ -333,7 +334,8 @@ type AllowedActions =
   | AddApprovalRequest
   | HasApprovalRequest
   | AcceptApprovalRequest
-  | RejectApprovalRequest;
+  | RejectApprovalRequest
+  | GetSubjectMetadata;
 
 /**
  * The messenger of the {@link PermissionController}.
@@ -1684,6 +1686,7 @@ export class PermissionController<
 
   /**
    * Validates the specified permission by:
+   * - Ensuring that if `subjectTypes` is specified, the subject requesting the permission is of a type in the list.
    * - Ensuring that its `caveats` property is either `null` or a non-empty array.
    * - Ensuring that it only includes caveats allowed by its specification.
    * - Ensuring that it includes no duplicate caveats (by caveat type).
@@ -1717,6 +1720,27 @@ export class PermissionController<
     },
   ): void {
     const { allowedCaveats, validator } = specification;
+
+    if (
+      specification.subjectTypes?.length &&
+      specification.subjectTypes.length > 0
+    ) {
+      const metadata = this.messagingSystem.call(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+
+      if (
+        !metadata ||
+        metadata.subjectType === null ||
+        !specification.subjectTypes.includes(metadata.subjectType)
+      ) {
+        throw specification.permissionType === PermissionType.RestrictedMethod
+          ? methodNotFound(targetName, { origin })
+          : new EndowmentPermissionDoesNotExistError(targetName, origin);
+      }
+    }
+
     if (hasProperty(permission, 'caveats')) {
       const { caveats } = permission;
 
