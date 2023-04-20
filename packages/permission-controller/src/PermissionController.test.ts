@@ -11,7 +11,7 @@ import { Json, hasProperty, isPlainObject } from '@metamask/controller-utils';
 import {
   GetSubjectMetadata,
   SubjectType,
-} from '@metamask/subject-metadata-controller';
+} from './SubjectMetadataController';
 import * as errors from './errors';
 import { EndowmentGetterParams } from './Permission';
 import {
