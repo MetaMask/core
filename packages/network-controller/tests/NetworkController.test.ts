@@ -13,9 +13,7 @@ import {
   NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
-import {
-  SafeEventEmitterProvider,
-} from '@metamask/eth-json-rpc-provider';
+import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { waitForResult } from '../../../tests/helpers';
 import {
   NetworkController,
