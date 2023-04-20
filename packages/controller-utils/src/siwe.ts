@@ -78,6 +78,10 @@ export const parseDomainParts = (
 
 /**
  * Validates origin of a Sign-In With Ethereum (SIWE)(EIP-4361) request.
+ * As per spec:
+ * hostname must match.
+ * port and username must match iff specified.
+ * Protocol binding and full same-origin are currently not performed.
  *
  * @param req - Signature request
  * @returns true if origin matches domain; false otherwise
