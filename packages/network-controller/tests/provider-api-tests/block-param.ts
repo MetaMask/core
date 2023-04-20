@@ -1,12 +1,10 @@
-/* eslint-disable jest/require-top-level-describe, jest/no-export */
-
 import {
   buildMockParams,
   buildRequestWithReplacedBlockParam,
+  ProviderType,
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
   withNetworkClient,
-  ProviderType,
 } from './helpers';
 import {
   buildFetchFailedErrorMessage,
@@ -20,7 +18,6 @@ type TestsForRpcMethodSupportingBlockParam = {
   numberOfParameters: number;
 };
 
-/* eslint-disable-next-line jest/no-export */
 /**
  * Defines tests which exercise the behavior exhibited by an RPC method that
  * takes a block parameter. The value of this parameter can be either a block
@@ -91,7 +88,6 @@ export function testsForRpcMethodSupportingBlockParam(
         continue;
       }
 
-      // eslint-disable-next-line no-loop-func
       it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {
         const firstMockParams = [
           ...new Array(numberOfParameters).fill('some value'),
@@ -198,7 +194,6 @@ export function testsForRpcMethodSupportingBlockParam(
     });
 
     for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-      // eslint-disable-next-line no-loop-func
       it(`does not retry an empty response of "${emptyValue}"`, async () => {
         const request = {
           method,
@@ -235,7 +230,6 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      // eslint-disable-next-line no-loop-func
       it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
         const requests = [
           { method, params: buildMockParams({ blockParamIndex, blockParam }) },
@@ -1502,7 +1496,6 @@ export function testsForRpcMethodSupportingBlockParam(
         // testing changes in block param is covered under later tests
         continue;
       }
-      // eslint-disable-next-line no-loop-func
       it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {
         const firstMockParams = [
           ...new Array(numberOfParameters).fill('some value'),
@@ -1629,7 +1622,6 @@ export function testsForRpcMethodSupportingBlockParam(
       });
 
       for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-        // eslint-disable-next-line no-loop-func
         it(`does not retry an empty response of "${emptyValue}"`, async () => {
           const request = {
             method,
@@ -1656,7 +1648,6 @@ export function testsForRpcMethodSupportingBlockParam(
           });
         });
 
-        // eslint-disable-next-line no-loop-func
         it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
           const requests = [
             {
@@ -1731,13 +1722,11 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      describe.each(
-        [
-          ['less than the current block number', '0x200'],
-          ['equal to the curent block number', '0x100'],
-        ] as any,
-        '%s',
-        (_nestedDesc: string, currentBlockNumber: string) => {
+      for (const [nestedDesc, currentBlockNumber] of [
+        ['less than the current block number', '0x200'],
+        ['equal to the curent block number', '0x100'],
+      ]) {
+        describe(`${nestedDesc}`, () => {
           it('makes an additional request to the RPC endpoint', async () => {
             await withMockedCommunications({ providerType }, async (comms) => {
               const request = {
@@ -1767,7 +1756,6 @@ export function testsForRpcMethodSupportingBlockParam(
 
           for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
             if (providerType === 'infura') {
-              // eslint-disable-next-line no-loop-func
               it(`retries up to 10 times if a "${emptyValue}" response is returned, returning successful non-empty response if there is one on the 10th try`, async () => {
                 const request = {
                   method,
@@ -1807,7 +1795,6 @@ export function testsForRpcMethodSupportingBlockParam(
                 );
               });
 
-              // eslint-disable-next-line no-loop-func
               it(`retries up to 10 times if a "${emptyValue}" response is returned, failing after the 10th try`, async () => {
                 const request = {
                   method,
@@ -1846,7 +1833,6 @@ export function testsForRpcMethodSupportingBlockParam(
                 );
               });
             } else {
-              // eslint-disable-next-line no-loop-func
               it(`does not retry an empty response of "${emptyValue}"`, async () => {
                 const request = {
                   method,
@@ -1882,7 +1868,6 @@ export function testsForRpcMethodSupportingBlockParam(
                 );
               });
 
-              // eslint-disable-next-line no-loop-func
               it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
                 const requests = [
                   {
@@ -1935,8 +1920,8 @@ export function testsForRpcMethodSupportingBlockParam(
               });
             }
           }
-        },
-      );
+        });
+      }
 
       describe('greater than the current block number', () => {
         it('makes an additional request to the RPC endpoint', async () => {
@@ -1965,7 +1950,6 @@ export function testsForRpcMethodSupportingBlockParam(
         });
 
         for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-          // eslint-disable-next-line no-loop-func
           it(`does not retry an empty response of "${emptyValue}"`, async () => {
             const request = {
               method,
@@ -1996,7 +1980,6 @@ export function testsForRpcMethodSupportingBlockParam(
             });
           });
 
-          // eslint-disable-next-line no-loop-func
           it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
             const requests = [
               {

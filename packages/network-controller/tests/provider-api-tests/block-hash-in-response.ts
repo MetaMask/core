@@ -1,9 +1,7 @@
-/* eslint-disable jest/require-top-level-describe, jest/no-export */
-
 import {
+  ProviderType,
   withMockedCommunications,
   withNetworkClient,
-  ProviderType,
 } from './helpers';
 
 type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
@@ -185,7 +183,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   });
 
   for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-    // eslint-disable-next-line no-loop-func
     it(`does not retry an empty response of "${emptyValue}"`, async () => {
       const request = { method };
       const mockResult = emptyValue;
@@ -209,7 +206,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       });
     });
 
-    // eslint-disable-next-line no-loop-func
     it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
       const requests = [{ method }, { method }];
       const mockResults = [emptyValue, { blockHash: '0x100' }];
@@ -239,7 +235,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   }
 
   for (const paramIndex of [...Array(numberOfParameters).keys()]) {
-    // eslint-disable-next-line no-loop-func
     it(`does not reuse the result of a previous request with a valid blockHash if parameter at index "${paramIndex}" differs`, async () => {
       const firstMockParams = [
         ...new Array(numberOfParameters).fill('some value'),

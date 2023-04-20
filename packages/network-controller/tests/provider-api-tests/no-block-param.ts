@@ -1,10 +1,8 @@
-/* eslint-disable jest/require-top-level-describe, jest/no-export */
-
 import {
+  ProviderType,
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
   withNetworkClient,
-  ProviderType,
 } from './helpers';
 import {
   buildFetchFailedErrorMessage,
@@ -65,7 +63,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
   });
 
   for (const paramIndex of [...Array(numberOfParameters).keys()]) {
-    // eslint-disable-next-line no-loop-func
     it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {
       const firstMockParams = [
         ...new Array(numberOfParameters).fill('some value'),
@@ -143,7 +140,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
   });
 
   for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-    // eslint-disable-next-line no-loop-func
     it(`does not retry an empty response of "${emptyValue}"`, async () => {
       const request = { method };
       const mockResult = emptyValue;
@@ -167,7 +163,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
       });
     });
 
-    // eslint-disable-next-line no-loop-func
     it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
       const requests = [{ method }, { method }];
       const mockResults = [emptyValue, 'some result'];
