@@ -8,8 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.0.0]
 ### Changed
-- Update `eth-rpc-errors` from 4.0.0 to 4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
-- Update `@metamask/utils` from 3.3.1 to 5.0.1 ([#1211](https://github.com/MetaMask/core/pull/1211))
 - **BREAKING:** Create approval requests using `@metamask/approval-controller` ([#1166](https://github.com/MetaMask/core/pull/1166))
 - **BREAKING:** Make `setProviderType` async ([#1191](https://github.com/MetaMask/core/pull/1191))
 

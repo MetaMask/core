@@ -12,8 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ApprovalType` enum ([#1174](https://github.com/MetaMask/core/pull/1174))
 
 ### Changed
-- Update `eth-rpc-errors` from 4.0.0 to 4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
-- Update `@metamask/utils` from 3.3.1 to 5.0.1 ([#1211](https://github.com/MetaMask/core/pull/1211))
 - Improve return type of `toHex` ([#1195](https://github.com/MetaMask/core/pull/1195))
 
 ## [3.1.0]
