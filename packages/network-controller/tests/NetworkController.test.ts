@@ -1295,6 +1295,137 @@ describe('NetworkController', () => {
         });
       });
 
+      describe('assuming that the network details of the current network are different from the network in state', () => {
+        it('updates the network in state to match', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: { networkDetails: { isEIP1559Compatible: false } },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: {
+                        baseFeePerGas: '0x1',
+                      },
+                    },
+                  },
+                ],
+              });
+
+              await controller.lookupNetwork();
+
+              expect(controller.state.networkDetails).toStrictEqual({
+                isEIP1559Compatible: true,
+              });
+            },
+          );
+        });
+      });
+
+      describe('if the network details of the current network are the same as that in state', () => {
+        it('does not change network in state', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: { networkDetails: { isEIP1559Compatible: true } },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: {
+                        baseFeePerGas: '0x1',
+                      },
+                    },
+                  },
+                ],
+              });
+              const promiseForNetworkDetailChanges = waitForStateChanges(
+                messenger,
+                {
+                  propertyPath: ['networkDetails'],
+                },
+              );
+
+              await controller.lookupNetwork();
+
+              await expect(promiseForNetworkDetailChanges).toNeverResolve();
+            },
+          );
+        });
+      });
+
+      describe('if an RPC error is encountered while retrieving the network details of the current network', () => {
+        it('updates the network in state to "unavailable"', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            { messenger, state: { networkId: '1' } },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    error: ethErrors.rpc.limitExceeded('some error'),
+                  },
+                ],
+                stubGetEIP1559CompatibilityWhileSetting: true,
+              });
+
+              await controller.lookupNetwork();
+
+              expect(controller.state.networkStatus).toBe(
+                NetworkStatus.Unavailable,
+              );
+            },
+          );
+        });
+      });
+
+      describe('if an internal error is encountered while retrieving the network details of the current network', () => {
+        it('updates the network in state to "unknown"', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            { messenger, state: { networkId: '1' } },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    error: ethErrors.rpc.internal('some error'),
+                  },
+                ],
+              });
+
+              await controller.lookupNetwork();
+
+              expect(controller.state.networkStatus).toBe(
+                NetworkStatus.Unknown,
+              );
+            },
+          );
+        });
+      });
+
       describe('if lookupNetwork is called multiple times in quick succession', () => {
         it('waits until each call finishes before resolving the next', async () => {
           const messenger = buildMessenger();
@@ -4975,7 +5106,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['networkId'],
-                count: 1,
+                count: 2,
                 produceStateChanges: () => {
                   controller.rollbackToPreviousProvider();
                 },
@@ -5445,7 +5576,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['networkId'],
-              count: 1,
+              count: 2,
               produceStateChanges: () => {
                 controller.rollbackToPreviousProvider();
               },
