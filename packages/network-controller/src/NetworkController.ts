@@ -310,7 +310,6 @@ export class NetworkController extends BaseControllerV2<
     const { provider } = this.getProviderAndBlockTracker();
 
     if (provider) {
-      provider.on('error', this.#verifyNetwork.bind(this));
       this.#ethQuery = new EthQuery(provider);
     }
   }
@@ -359,12 +358,6 @@ export class NetworkController extends BaseControllerV2<
     setTimeout(() => {
       provider?.removeAllListeners();
     }, 500);
-  }
-
-  async #verifyNetwork() {
-    if (this.state.network === 'loading') {
-      await this.lookupNetwork();
-    }
   }
 
   /**
