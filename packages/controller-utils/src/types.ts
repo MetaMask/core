@@ -27,6 +27,12 @@ export enum NetworksChainId {
   rpc = '',
 }
 
+export enum NetworkId {
+  mainnet = '1',
+  goerli = '5',
+  sepolia = '11155111',
+}
+
 export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
