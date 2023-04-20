@@ -486,6 +486,9 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
 
   /**
    * The Permission may be available to only a subset of the subject types. If so, specify the subject types as an array.
+   * If a subject with a type not in this array tries to request the permission, the call will fail.
+   *
+   * Leaving this as undefined uses default behaviour where the permission is available to request for all subject types.
    */
   subjectTypes?: readonly SubjectType[];
 };
