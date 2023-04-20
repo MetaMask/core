@@ -114,6 +114,8 @@ describe('KeyringController', () => {
   });
 
   it('should add new account without updating', async () => {
+    const initialUpdateIdentitiesCallCount =
+      preferences.updateIdentities.callCount;
     const currentKeyringMemState =
       await keyringController.addNewAccountWithoutUpdate();
     expect(initialState.keyrings).toHaveLength(1);
@@ -121,8 +123,11 @@ describe('KeyringController', () => {
       currentKeyringMemState.keyrings[0].accounts,
     );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
-    // the first time is called on vault creation
-    expect(preferences.updateIdentities.callCount).toBe(1);
+    // we make sure that updateIdentities is not called
+    // during this test
+    expect(preferences.updateIdentities.callCount).toBe(
+      initialUpdateIdentitiesCallCount,
+    );
   });
 
   it('should create new vault and restore', async () => {
