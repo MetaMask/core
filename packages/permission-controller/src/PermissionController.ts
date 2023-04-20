@@ -25,6 +25,7 @@ import {
   Json,
   NonEmptyArray,
 } from '@metamask/controller-utils';
+import { GetSubjectMetadata } from './SubjectMetadataController';
 import {
   CaveatConstraint,
   CaveatSpecificationConstraint,
@@ -333,7 +334,8 @@ type AllowedActions =
   | AddApprovalRequest
   | HasApprovalRequest
   | AcceptApprovalRequest
-  | RejectApprovalRequest;
+  | RejectApprovalRequest
+  | GetSubjectMetadata;
 
 /**
  * The messenger of the {@link PermissionController}.
@@ -851,6 +853,25 @@ export class PermissionController<
     const specification = this.getPermissionSpecification(targetKey);
     if (!hasSpecificationType(specification, permissionType)) {
       throw failureError;
+    }
+
+    if (specification.subjectTypes) {
+      if (!origin) {
+        throw failureError;
+      }
+
+      const metadata = this.messagingSystem.call(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+
+      if (
+        !metadata ||
+        metadata.subjectType === null ||
+        !specification.subjectTypes.includes(metadata.subjectType)
+      ) {
+        throw failureError;
+      }
     }
 
     return specification;
