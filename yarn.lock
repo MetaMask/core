@@ -7215,13 +7215,11 @@ __metadata:
   linkType: hard
 
 "json5@npm:2.x, json5@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "json5@npm:2.1.0"
-  dependencies:
-    minimist: ^1.2.0
+  version: 2.2.3
+  resolution: "json5@npm:2.2.3"
   bin:
     json5: lib/cli.js
-  checksum: ecd42a1d79ac40ae5b236a3a4a14959b4372f9c5915810029c56865904c8cf6e8ae671ff0083a3c381057e35de79635ba719fc1683e0fb350f42baa88a3c64ba
+  checksum: 2a7436a93393830bce797d4626275152e37e877b265e94ca69c99e3d20c2b9dab021279146a39cdb700e71b2dd32a4cebd1514cd57cee102b1af906ce5040349
   languageName: node
   linkType: hard
 
