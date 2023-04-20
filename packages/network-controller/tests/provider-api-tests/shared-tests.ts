@@ -1,4 +1,3 @@
-import { NetworkType } from '@metamask/controller-utils';
 import { testsForRpcMethodsThatCheckForBlockHashInResponse } from './block-hash-in-response';
 import { testsForRpcMethodSupportingBlockParam } from './block-param';
 import {
@@ -52,37 +51,52 @@ export function buildFetchFailedErrorMessage(url: string, reason: string) {
   );
 }
 
-export const testsForProviderType = (providerType: ProviderType) => {
+/**
+ * Defines tests that are common to both the Infura and JSON-RPC network client.
+ *
+ * @param providerType - The type of provider being tested, which determines
+ * which suite of middleware is being tested. If `infura`, then the middleware
+ * exposed by `createInfuraClient` is tested; if `custom`, then the middleware
+ * exposed by `createJsonRpcClient` will be tested.
+ */
+export function testsForProviderType(providerType: ProviderType) {
+  // Ethereum JSON-RPC spec: <https://ethereum.github.io/execution-apis/api-documentation/>
+  // Infura documentation: <https://docs.infura.io/infura/networks/ethereum/json-rpc-methods>
+
   describe('methods included in the Ethereum JSON-RPC spec', () => {
     describe('methods not handled by middleware', () => {
       const notHandledByMiddleware = [
-        { name: 'eth_accounts', numberOfParameters: 0 },
-        { name: 'eth_coinbase', numberOfParameters: 0 },
-        { name: 'eth_createAccessList', numberOfParameters: 2 },
-        { name: 'eth_feeHistory', numberOfParameters: 3 },
+        { name: 'eth_newFilter', numberOfParameters: 1 },
         { name: 'eth_getFilterChanges', numberOfParameters: 1 },
+        { name: 'eth_newBlockFilter', numberOfParameters: 0 },
+        { name: 'eth_newPendingTransactionFilter', numberOfParameters: 0 },
+        { name: 'eth_uninstallFilter', numberOfParameters: 1 },
+
+        { name: 'eth_sendRawTransaction', numberOfParameters: 1 },
+        { name: 'eth_sendTransaction', numberOfParameters: 1 },
+        { name: 'eth_sign', numberOfParameters: 2 },
+
+        { name: 'eth_createAccessList', numberOfParameters: 2 },
         { name: 'eth_getLogs', numberOfParameters: 1 },
         { name: 'eth_getProof', numberOfParameters: 3 },
         { name: 'eth_getWork', numberOfParameters: 0 },
-        { name: 'eth_hashrate', numberOfParameters: 0 },
         { name: 'eth_maxPriorityFeePerGas', numberOfParameters: 0 },
-        { name: 'eth_mining', numberOfParameters: 0 },
-        { name: 'eth_newBlockFilter', numberOfParameters: 0 },
-        { name: 'eth_newFilter', numberOfParameters: 1 },
-        { name: 'eth_newPendingTransactionFilter', numberOfParameters: 0 },
-        { name: 'eth_sendRawTransaction', numberOfParameters: 1 },
-        { name: 'eth_signTransaction', numberOfParameters: 1 },
-        { name: 'eth_sendTransaction', numberOfParameters: 1 },
-        { name: 'eth_sign', numberOfParameters: 2 },
         { name: 'eth_submitHashRate', numberOfParameters: 2 },
         { name: 'eth_submitWork', numberOfParameters: 3 },
         { name: 'eth_syncing', numberOfParameters: 0 },
-        { name: 'eth_uninstallFilter', numberOfParameters: 1 },
+        { name: 'eth_feeHistory', numberOfParameters: 3 },
         { name: 'debug_getRawHeader', numberOfParameters: 1 },
         { name: 'debug_getRawBlock', numberOfParameters: 1 },
         { name: 'debug_getRawTransaction', numberOfParameters: 1 },
         { name: 'debug_getRawReceipts', numberOfParameters: 1 },
         { name: 'debug_getBadBlocks', numberOfParameters: 0 },
+
+        { name: 'eth_accounts', numberOfParameters: 0 },
+        { name: 'eth_coinbase', numberOfParameters: 0 },
+        { name: 'eth_hashrate', numberOfParameters: 0 },
+        { name: 'eth_mining', numberOfParameters: 0 },
+
+        { name: 'eth_signTransaction', numberOfParameters: 1 },
       ];
       notHandledByMiddleware.forEach(({ name, numberOfParameters }) => {
         describe(`method name: ${name}`, () => {
@@ -96,69 +110,59 @@ export const testsForProviderType = (providerType: ProviderType) => {
 
     describe('methods with block hashes in their result', () => {
       const methodsWithBlockHashInResponse = [
-        { method: 'eth_getTransactionByHash', numberOfParameters: 1 },
-        { method: 'eth_getTransactionReceipt', numberOfParameters: 1 },
+        { name: 'eth_getTransactionByHash', numberOfParameters: 1 },
+        { name: 'eth_getTransactionReceipt', numberOfParameters: 1 },
       ];
-
-      methodsWithBlockHashInResponse.forEach(
-        ({ method, numberOfParameters }) => {
-          describe(`method name: ${method}`, () => {
-            testsForRpcMethodsThatCheckForBlockHashInResponse(method, {
-              providerType,
-              numberOfParameters,
-            });
+      methodsWithBlockHashInResponse.forEach(({ name, numberOfParameters }) => {
+        describe(`method name: ${name}`, () => {
+          testsForRpcMethodsThatCheckForBlockHashInResponse(name, {
+            numberOfParameters,
+            providerType,
           });
-        },
-      );
+        });
+      });
     });
 
     describe('methods that assume there is no block param', () => {
       const assumingNoBlockParam = [
+        { name: 'eth_getFilterLogs', numberOfParameters: 1 },
         { name: 'eth_blockNumber', numberOfParameters: 0 },
         { name: 'eth_estimateGas', numberOfParameters: 2 },
         { name: 'eth_gasPrice', numberOfParameters: 0 },
         { name: 'eth_getBlockByHash', numberOfParameters: 2 },
-        // NOTE: eth_getBlockTransactionCountByNumber does take a block param at
-        // the 0th index, but this is not handled by our cache middleware
-        // currently
-        {
-          name: 'eth_getBlockTransactionCountByNumber',
-          numberOfParameters: 1,
-        },
-        // NOTE: eth_getTransactionByBlockNumberAndIndex does take a block param
-        // at the 0th index, but this is not handled by our cache middleware
-        // currently
-        {
-          name: 'eth_getTransactionByBlockNumberAndIndex',
-          numberOfParameters: 2,
-        },
         {
           name: 'eth_getBlockTransactionCountByHash',
           numberOfParameters: 1,
         },
-        { name: 'eth_getFilterLogs', numberOfParameters: 1 },
         {
           name: 'eth_getTransactionByBlockHashAndIndex',
           numberOfParameters: 2,
         },
         { name: 'eth_getUncleByBlockHashAndIndex', numberOfParameters: 2 },
-        // NOTE: eth_getUncleByBlockNumberAndIndex does take a block param at
-        // the 0th index, but this is not handled by our cache middleware
-        // currently
-        { name: 'eth_getUncleByBlockNumberAndIndex', numberOfParameters: 2 },
         { name: 'eth_getUncleCountByBlockHash', numberOfParameters: 1 },
-        // NOTE: eth_getUncleCountByBlockNumber does take a block param at the
-        // 0th index, but this is not handled by our cache middleware currently
-        { name: 'eth_getUncleCountByBlockNumber', numberOfParameters: 1 },
       ];
-      assumingNoBlockParam.forEach(({ name, numberOfParameters }) =>
-        describe(`method name: ${name}`, () => {
-          testsForRpcMethodAssumingNoBlockParam(name, {
-            providerType,
-            numberOfParameters,
-          });
-        }),
-      );
+      const blockParamIgnored = [
+        { name: 'eth_getUncleCountByBlockNumber', numberOfParameters: 1 },
+        { name: 'eth_getUncleByBlockNumberAndIndex', numberOfParameters: 2 },
+        {
+          name: 'eth_getTransactionByBlockNumberAndIndex',
+          numberOfParameters: 2,
+        },
+        {
+          name: 'eth_getBlockTransactionCountByNumber',
+          numberOfParameters: 1,
+        },
+      ];
+      assumingNoBlockParam
+        .concat(blockParamIgnored)
+        .forEach(({ name, numberOfParameters }) =>
+          describe(`method name: ${name}`, () => {
+            testsForRpcMethodAssumingNoBlockParam(name, {
+              providerType,
+              numberOfParameters,
+            });
+          }),
+        );
     });
 
     describe('methods that have a param to specify the block', () => {
@@ -266,18 +270,14 @@ export const testsForProviderType = (providerType: ProviderType) => {
 
       describe('eth_chainId', () => {
         it('does not hit the RPC endpoint, instead returning the configured chain id', async () => {
-          await withMockedCommunications({ providerType }, async () => {
-            const request = { method: 'eth_chainId', customChainId: '0x1' };
+          const networkId = await withNetworkClient(
+            { providerType: 'custom', customChainId: '0x1' },
+            ({ makeRpcCall }) => {
+              return makeRpcCall({ method: 'eth_chainId' });
+            },
+          );
 
-            const networkId = await withNetworkClient(
-              { providerType },
-              ({ makeRpcCall }) => {
-                return makeRpcCall(request);
-              },
-            );
-
-            expect(networkId).toStrictEqual('0x1');
-          });
+          expect(networkId).toStrictEqual('0x1');
         });
       });
     });
@@ -286,10 +286,11 @@ export const testsForProviderType = (providerType: ProviderType) => {
   describe('methods not included in the Ethereum JSON-RPC spec', () => {
     describe('methods not handled by middleware', () => {
       const notHandledByMiddleware = [
-        { name: 'eth_subscribe', numberOfParameters: 1 },
-        { name: 'eth_unsubscribe', numberOfParameters: 1 },
-        { name: 'custom_rpc_method', numberOfParameters: 1 },
         { name: 'net_listening', numberOfParameters: 0 },
+        // TODO: Methods to add back when we add testing for subscribe middleware
+        // { name: 'eth_subscribe', numberOfParameters: 1 },
+        // { name: 'eth_unsubscribe', numberOfParameters: 1 },
+        { name: 'custom_rpc_method', numberOfParameters: 1 },
         { name: 'net_peerCount', numberOfParameters: 0 },
         { name: 'parity_nextNonce', numberOfParameters: 1 },
       ];
@@ -305,8 +306,8 @@ export const testsForProviderType = (providerType: ProviderType) => {
 
     describe('methods that assume there is no block param', () => {
       const assumingNoBlockParam = [
-        { name: 'eth_protocolVersion', numberOfParameters: 0 },
         { name: 'web3_clientVersion', numberOfParameters: 0 },
+        { name: 'eth_protocolVersion', numberOfParameters: 0 },
       ];
       assumingNoBlockParam.forEach(({ name, numberOfParameters }) =>
         describe(`method name: ${name}`, () => {
@@ -325,7 +326,7 @@ export const testsForProviderType = (providerType: ProviderType) => {
         if (providerType === 'infura') {
           it('does not hit Infura, instead returning the network ID that maps to the Infura network, as a decimal string', async () => {
             const networkId = await withNetworkClient(
-              { providerType: 'infura', infuraNetwork: NetworkType.goerli },
+              { providerType: 'infura', infuraNetwork: 'goerli' },
               ({ makeRpcCall }) => {
                 return makeRpcCall({
                   method: 'net_version',
@@ -361,4 +362,4 @@ export const testsForProviderType = (providerType: ProviderType) => {
       });
     });
   });
-};
+}
