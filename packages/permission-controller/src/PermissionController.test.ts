@@ -8,10 +8,7 @@ import {
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { Json, hasProperty, isPlainObject } from '@metamask/controller-utils';
-import {
-  GetSubjectMetadata,
-  SubjectType,
-} from './SubjectMetadataController';
+import { GetSubjectMetadata, SubjectType } from './SubjectMetadataController';
 import * as errors from './errors';
 import { EndowmentGetterParams } from './Permission';
 import {
