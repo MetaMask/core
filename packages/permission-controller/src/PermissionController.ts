@@ -1686,6 +1686,7 @@ export class PermissionController<
 
   /**
    * Validates the specified permission by:
+   * - Ensuring that if `subjectTypes` is specified, the subject requesting the permission is of a type in the list.
    * - Ensuring that its `caveats` property is either `null` or a non-empty array.
    * - Ensuring that it only includes caveats allowed by its specification.
    * - Ensuring that it includes no duplicate caveats (by caveat type).

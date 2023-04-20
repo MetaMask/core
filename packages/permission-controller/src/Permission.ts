@@ -2,7 +2,7 @@ import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '@metamask/controller-utils';
 import { ActionConstraint, EventConstraint } from '@metamask/base-controller';
-import { SubjectType } from './SubjectMetadataController';
+import type { SubjectType } from './SubjectMetadataController';
 import { CaveatConstraint } from './Caveat';
 
 import type {
