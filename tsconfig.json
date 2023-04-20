@@ -56,9 +56,6 @@
       "path": "./packages/rate-limit-controller"
     },
     {
-      "path": "./packages/subject-metadata-controller"
-    },
-    {
       "path": "./packages/transaction-controller"
     }
   ],
