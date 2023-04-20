@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.2.0]
-### Uncategorized
-- deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
-- deps: bump @metamask/utils to 5.0.1 ([#1211](https://github.com/MetaMask/core/pull/1211))
+### Added
 - Add ORIGIN_METAMASK constant ([#1166](https://github.com/MetaMask/core/pull/1166))
 - Add ApprovalType enum ([#1174](https://github.com/MetaMask/core/pull/1174))
+
+### Changed
+- Updated `eth-rpc-errors` from 4.0.0 to 4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
+- Updated `@metamask/utils` from 3.3.1 to 5.0.1 ([#1211](https://github.com/MetaMask/core/pull/1211))
 - Improve return type of `toHex` ([#1195](https://github.com/MetaMask/core/pull/1195))
 
 ## [3.1.0]

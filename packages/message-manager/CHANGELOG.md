@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.1.0]
-### Uncategorized
+### Added
 - Add DecryptMessageManager ([#1149](https://github.com/MetaMask/core/pull/1149))
 
 ## [3.0.0]

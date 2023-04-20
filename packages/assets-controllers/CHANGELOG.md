@@ -7,12 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.0.0]
-### Uncategorized
+### Changed
 - Use enum for apporoval type ([#1217](https://github.com/MetaMask/core/pull/1217))
-- deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
-- deps: bump @metamask/utils to 5.0.1 ([#1211](https://github.com/MetaMask/core/pull/1211))
-- Send confirmation popups via approval controller ([#1166](https://github.com/MetaMask/core/pull/1166))
-- Make `setProviderType` async ([#1191](https://github.com/MetaMask/core/pull/1191))
+- Update `eth-rpc-errors` from 4.0.0 to 4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
+- Update `@metamask/utils` from 3.3.1 to 5.0.1 ([#1211](https://github.com/MetaMask/core/pull/1211))
+- **BREAKING:** Send confirmation popups via approval controller ([#1166](https://github.com/MetaMask/core/pull/1166))
+- **BREAKING:** Make `setProviderType` async ([#1191](https://github.com/MetaMask/core/pull/1191))
 
 ## [5.1.0]
 ### Added
