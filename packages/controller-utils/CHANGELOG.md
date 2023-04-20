@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.0]
 ### Added
-- Add ORIGIN_METAMASK constant ([#1166](https://github.com/MetaMask/core/pull/1166))
+- Add `ORIGIN_METAMASK` constant ([#1166](https://github.com/MetaMask/core/pull/1166))
 - Add ApprovalType enum ([#1174](https://github.com/MetaMask/core/pull/1174))
 
 ### Changed
