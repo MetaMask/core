@@ -7,12 +7,7 @@ import * as ethQueryModule from 'eth-query';
 import { Patch } from 'immer';
 import { v4 } from 'uuid';
 import { ethErrors } from 'eth-rpc-errors';
-import {
-  NetworkType,
-  NetworksChainId,
-  NetworksTicker,
-  toHex,
-} from '@metamask/controller-utils';
+import { NetworkType, toHex } from '@metamask/controller-utils';
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { waitForResult } from '../../../tests/helpers';
 import {
@@ -108,19 +103,28 @@ const POST_1559_BLOCK = {
  */
 const INFURA_NETWORKS = [
   {
+    nickname: 'Mainnet',
     networkType: NetworkType.mainnet,
     chainId: '1',
     ticker: 'ETH',
+    blockExplorerUrl: `https://etherscan.io`,
+    networkVersion: '1',
   },
   {
+    nickname: 'Goerli',
     networkType: NetworkType.goerli,
     chainId: '5',
     ticker: 'GoerliETH',
+    blockExplorerUrl: `https://goerli.etherscan.io`,
+    networkVersion: '5',
   },
   {
+    nickname: 'Sepolia',
     networkType: NetworkType.sepolia,
     chainId: '11155111',
     ticker: 'SepoliaETH',
+    blockExplorerUrl: `https://sepolia.etherscan.io`,
+    networkVersion: '11155111',
   },
 ];
 
@@ -992,7 +996,7 @@ describe('NetworkController', () => {
             await expect(() =>
               controller.setProviderType(NetworkType.rpc),
             ).rejects.toThrow(
-              'rpcTarget must be provided for custom RPC endpoints'
+              'rpcTarget must be provided for custom RPC endpoints',
             );
           },
         );
@@ -3087,50 +3091,15 @@ describe('NetworkController', () => {
   });
 
   describe('rollbackToPreviousProvider', () => {
-    /**
-     * The set of networks that, when specified, create an Infura provider as
-     * opposed to a "standard" provider (one suited for a custom RPC endpoint).
-     */
-    const INFURA_NETWORKS = {
-      mainnet: {
-        nickname: 'Mainnet',
-        networkType: NetworkType.mainnet,
-        chainId: NetworksChainId.mainnet,
-        ticker: NetworksTicker.mainnet,
-        blockExplorerUrl: `https://etherscan.io`,
-        networkVersion: '1',
-      },
-
-      goerli: {
-        nickname: 'Goerli',
-        networkType: NetworkType.goerli,
-        chainId: NetworksChainId.goerli,
-        ticker: NetworksTicker.goerli,
-        blockExplorerUrl: `https://goerli.etherscan.io`,
-        networkVersion: '5',
-      },
-      sepolia: {
-        nickname: 'Sepolia',
-        networkType: NetworkType.sepolia,
-        chainId: NetworksChainId.sepolia,
-        ticker: NetworksTicker.sepolia,
-        blockExplorerUrl: `https://sepolia.etherscan.io`,
-        networkVersion: '11155111',
-      },
-    };
-
-    for (const [
-      chainName,
-      {
-        networkType: type,
-        chainId,
-        blockExplorerUrl,
-        ticker,
-        nickname,
-        networkVersion,
-      },
-    ] of Object.entries(INFURA_NETWORKS)) {
-      describe(`if the previous provider configuration had a type of "${chainName}"`, () => {
+    for (const {
+      nickname,
+      networkType: type,
+      chainId,
+      blockExplorerUrl,
+      ticker,
+      networkVersion,
+    } of INFURA_NETWORKS) {
+      describe(`if the previous provider configuration had a type of "${type}"`, () => {
         it('overwrites the the current provider configuration with the previous provider configuration', async () => {
           const messenger = buildMessenger();
           const rpcUrlOrTarget = 'https://mock-rpc-url-1';
