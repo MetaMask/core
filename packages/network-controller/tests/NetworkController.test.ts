@@ -14,7 +14,6 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import {
-  providerFromEngine,
   SafeEventEmitterProvider,
 } from '@metamask/eth-json-rpc-provider';
 import { waitForResult } from '../../../tests/helpers';
@@ -45,8 +44,6 @@ jest.mock('eth-query', () => {
 });
 
 jest.mock('../src/create-network-client');
-jest.mock('@metamask/eth-json-rpc-middleware');
-jest.mock('@metamask/eth-json-rpc-provider');
 
 jest.mock('uuid', () => {
   const actual = jest.requireActual('uuid');
@@ -61,7 +58,6 @@ jest.mock('uuid', () => {
 const originalSetTimeout = global.setTimeout;
 
 const createNetworkClientMock = mocked(createNetworkClient);
-const providerFromEngineMock = mocked(providerFromEngine);
 
 /**
  * A dummy block that matches the pre-EIP-1559 format (i.e. it doesn't have the
@@ -359,7 +355,6 @@ describe('NetworkController', () => {
             await expect(() => controller.initializeProvider()).rejects.toThrow(
               'rpcTarget must be passed in for custom rpcs',
             );
-            expect(providerFromEngineMock).not.toHaveBeenCalled();
             const { provider, blockTracker } =
               controller.getProviderAndBlockTracker();
             expect(provider).toBeUndefined();
@@ -2935,8 +2930,6 @@ describe('NetworkController', () => {
         async ({ controller }) => {
           const fakeClient = buildFakeClient();
           createNetworkClientMock.mockReturnValue(fakeClient);
-          const fakeProviderFromEngine = buildFakeProvider();
-          providerFromEngineMock.mockReturnValue(fakeProviderFromEngine);
           const rpcUrlNetwork = {
             rpcUrl: 'https://test-rpc-url',
             chainId: '0x1',
