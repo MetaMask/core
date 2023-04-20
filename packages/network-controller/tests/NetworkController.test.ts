@@ -11,7 +11,6 @@ import {
   NetworksChainId,
   NetworksTicker,
 } from '@metamask/controller-utils';
-import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   providerFromEngine,
   SafeEventEmitterProvider,
@@ -33,6 +32,7 @@ import {
   NetworkClientType,
 } from '../src/create-network-client';
 import { FakeProvider, FakeProviderStub } from './fake-provider-engine';
+import { FakeBlockTracker } from './fake-block-tracker';
 
 jest.mock('eth-query', () => {
   return {
@@ -44,7 +44,6 @@ jest.mock('eth-query', () => {
 jest.mock('../src/create-network-client');
 jest.mock('@metamask/eth-json-rpc-middleware');
 jest.mock('@metamask/eth-json-rpc-provider');
-jest.mock('eth-block-tracker');
 
 jest.mock('uuid', () => {
   const actual = jest.requireActual('uuid');
@@ -5376,7 +5375,8 @@ async function withController<ReturnValue>(
   try {
     return await fn({ controller });
   } finally {
-    controller.getProviderAndBlockTracker().provider?.stop();
+    const { blockTracker } = controller.getProviderAndBlockTracker()
+    blockTracker?.destroy();
   }
 }
 
@@ -5399,16 +5399,6 @@ function buildProviderConfig(config: Partial<ProviderConfig> = {}) {
 }
 
 /**
- * Implements just enough of the block tracker interface to pass the tests but
- * nothing more.
- */
-class FakeBlockTracker extends PollingBlockTracker {
-  public eventNames() {
-    return [];
-  }
-}
-
-/**
  * Builds an object that `createInfuraProvider` or `createJsonRpcClient` returns.
  *
  * @param provider - provider to use if you dont want the defaults
@@ -5419,7 +5409,7 @@ function buildFakeClient(
 ) {
   return {
     provider,
-    blockTracker: new FakeBlockTracker() as PollingBlockTracker,
+    blockTracker: new FakeBlockTracker({ provider }),
   };
 }
 
