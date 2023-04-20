@@ -855,25 +855,6 @@ export class PermissionController<
       throw failureError;
     }
 
-    if (specification.subjectTypes) {
-      if (!origin) {
-        throw failureError;
-      }
-
-      const metadata = this.messagingSystem.call(
-        'SubjectMetadataController:getSubjectMetadata',
-        origin,
-      );
-
-      if (
-        !metadata ||
-        metadata.subjectType === null ||
-        !specification.subjectTypes.includes(metadata.subjectType)
-      ) {
-        throw failureError;
-      }
-    }
-
     return specification;
   }
 
@@ -1738,6 +1719,24 @@ export class PermissionController<
     },
   ): void {
     const { allowedCaveats, validator } = specification;
+
+    if (specification.subjectTypes && specification.subjectTypes.length > 0) {
+      const metadata = this.messagingSystem.call(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+
+      if (
+        !metadata ||
+        metadata.subjectType === null ||
+        !specification.subjectTypes.includes(metadata.subjectType)
+      ) {
+        throw specification.permissionType === PermissionType.RestrictedMethod
+          ? methodNotFound(targetName, { origin })
+          : new EndowmentPermissionDoesNotExistError(targetName, origin);
+      }
+    }
+
     if (hasProperty(permission, 'caveats')) {
       const { caveats } = permission;
 
