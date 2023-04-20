@@ -1720,7 +1720,10 @@ export class PermissionController<
   ): void {
     const { allowedCaveats, validator } = specification;
 
-    if (specification.subjectTypes && specification.subjectTypes.length > 0) {
+    if (
+      specification.subjectTypes?.length &&
+      specification.subjectTypes.length > 0
+    ) {
       const metadata = this.messagingSystem.call(
         'SubjectMetadataController:getSubjectMetadata',
         origin,
