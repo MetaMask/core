@@ -7,11 +7,11 @@ import {
   JSONRPCResponseResult,
 } from '@json-rpc-specification/meta-schema';
 import { NetworkType } from '@metamask/controller-utils';
+import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { Hex } from '@metamask/utils';
 import { EthQuery as TEthQuery } from '../../src/NetworkController';
 import {
   createNetworkClient,
-  InfuraNetworkType,
   NetworkClientType,
 } from '../../src/create-network-client';
 

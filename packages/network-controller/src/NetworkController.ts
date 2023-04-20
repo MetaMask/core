@@ -17,13 +17,13 @@ import {
   BUILT_IN_NETWORKS,
   toHex,
 } from '@metamask/controller-utils';
+import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import { assertIsStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import {
   createNetworkClient,
-  InfuraNetworkType,
   NetworkClientType,
 } from './create-network-client';
 

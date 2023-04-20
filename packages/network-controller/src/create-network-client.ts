@@ -22,7 +22,7 @@ import {
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import type { Hex } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
+import { InfuraNetworkType, NetworksChainId } from '@metamask/controller-utils';
 
 const SECOND = 1000;
 
@@ -36,8 +36,6 @@ type CustomNetworkConfiguration = {
   rpcUrl: string;
   type: NetworkClientType.Custom;
 };
-
-export type InfuraNetworkType = Exclude<NetworkType, 'localhost' | 'rpc'>;
 
 type InfuraNetworkConfiguration = {
   network: InfuraNetworkType;
