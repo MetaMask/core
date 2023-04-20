@@ -107,6 +107,28 @@ const POST_1559_BLOCK = {
   baseFeePerGas: '0x63c498a46',
 };
 
+/**
+ * The networks that NetworkController recognizes as built-in Infura networks,
+ * along with information we expect to be true for those networks.
+ */
+const INFURA_NETWORKS = [
+  {
+    networkType: NetworkType.mainnet,
+    chainId: '1',
+    ticker: 'ETH',
+  },
+  {
+    networkType: NetworkType.goerli,
+    chainId: '5',
+    ticker: 'GoerliETH',
+  },
+  {
+    networkType: NetworkType.sepolia,
+    chainId: '11155111',
+    ticker: 'SepoliaETH',
+  },
+];
+
 //                                                                                     setProviderType            setActiveNetwork
 //                                                                                            └───────────┬────────────┘
 // initializeProvider                                                                               refreshNetwork
@@ -125,7 +147,6 @@ const POST_1559_BLOCK = {
 //       │                 └─────────────────────────────┐                                                 │
 //       └───────────────────────────────────────────────┼─────────────────────────────────────────────────┘
 //                                                 lookupNetwork
-
 describe('NetworkController', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -828,25 +849,7 @@ describe('NetworkController', () => {
   });
 
   describe('setProviderType', () => {
-    (
-      [
-        {
-          networkType: NetworkType.mainnet,
-          ticker: NetworksTicker.mainnet,
-          chainId: NetworksChainId.mainnet,
-        },
-        {
-          networkType: NetworkType.goerli,
-          ticker: NetworksTicker.goerli,
-          chainId: NetworksChainId.goerli,
-        },
-        {
-          networkType: NetworkType.sepolia,
-          ticker: NetworksTicker.sepolia,
-          chainId: NetworksChainId.sepolia,
-        },
-      ] as const
-    ).forEach(({ networkType }) => {
+    for (const { networkType } of INFURA_NETWORKS) {
       describe(`given a network type of "${networkType}"`, () => {
         it('updates the provider config in state with the network type, the corresponding chain ID, and a special ticker, clearing any existing RPC target and nickname', async () => {
           const messenger = buildMessenger();
@@ -973,7 +976,7 @@ describe('NetworkController', () => {
           });
         });
       });
-    });
+    }
 
     describe('given a network type of "rpc"', () => {
       it('throws because there is no way to set the rpcTarget using this method', async () => {
