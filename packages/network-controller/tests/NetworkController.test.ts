@@ -11,6 +11,7 @@ import {
   NetworkType,
   NetworksChainId,
   NetworksTicker,
+  toHex,
 } from '@metamask/controller-utils';
 import {
   providerFromEngine,
@@ -252,7 +253,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: buildProviderConfig({
                 type: NetworkType.localhost,
-                chainId: '66666',
+                chainId: '1337',
                 nickname: "doesn't matter",
                 rpcTarget: 'http://doesntmatter.com',
                 ticker: 'ABC',
@@ -277,7 +278,7 @@ describe('NetworkController', () => {
 
             expect(createNetworkClientMock).toHaveBeenCalledWith({
               rpcUrl: 'http://localhost:8545',
-              chainId: '0x1046a',
+              chainId: toHex(1337),
               type: NetworkClientType.Custom,
             });
             const { provider } = controller.getProviderAndBlockTracker();
@@ -301,7 +302,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: NetworkType.rpc,
-                  chainId: '123',
+                  chainId: '1337',
                   nickname: 'some cool network',
                   rpcTarget: 'http://example.com',
                   ticker: 'ABC',
@@ -326,7 +327,7 @@ describe('NetworkController', () => {
 
               expect(createNetworkClientMock).toHaveBeenCalledWith({
                 rpcUrl: 'http://example.com',
-                chainId: '0x7b',
+                chainId: toHex(1337),
                 type: NetworkClientType.Custom,
               });
               const { provider } = controller.getProviderAndBlockTracker();
