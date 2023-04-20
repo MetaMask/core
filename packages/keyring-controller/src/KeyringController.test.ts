@@ -73,16 +73,7 @@ describe('KeyringController', () => {
       updateIdentities: sinon.stub(),
       setSelectedAddress: sinon.stub(),
     };
-    keyringController = new KeyringController(
-      {
-        setAccountLabel: preferences.setAccountLabel,
-        removeIdentity: preferences.removeIdentity,
-        syncIdentities: preferences.syncIdentities,
-        updateIdentities: preferences.updateIdentities,
-        setSelectedAddress: preferences.setSelectedAddress,
-      },
-      baseConfig,
-    );
+    keyringController = new KeyringController(preferences, baseConfig);
 
     initialState = await keyringController.createNewVaultAndKeychain(password);
   });
@@ -771,13 +762,7 @@ describe('KeyringController', () => {
 
     beforeEach(async () => {
       signProcessKeyringController = new KeyringController(
-        {
-          setAccountLabel: preferences.setAccountLabel,
-          removeIdentity: preferences.removeIdentity,
-          syncIdentities: preferences.syncIdentities,
-          updateIdentities: preferences.updateIdentities,
-          setSelectedAddress: preferences.setSelectedAddress,
-        },
+        preferences,
         baseConfig,
       );
       await signProcessKeyringController.createNewVaultAndKeychain(password);
