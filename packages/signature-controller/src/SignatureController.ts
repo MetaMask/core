@@ -29,12 +29,9 @@ import {
   AddApprovalRequest,
   RejectRequest,
 } from '@metamask/approval-controller';
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 
 const controllerName = 'SignatureController';
-const methodNameSign = 'eth_sign';
-const methodNamePersonalSign = 'personal_sign';
-const methodNameTypedSign = 'eth_signTypedData';
 
 const stateMetadata = {
   unapprovedMsgs: { persist: false, anonymous: false },
@@ -60,7 +57,6 @@ type CoreMessage = AbstractMessage & {
 
 type StateMessage = Required<AbstractMessage> & {
   msgParams: Required<AbstractMessageParams>;
-  securityProviderResponse: any;
 };
 
 type SignatureControllerState = {
@@ -187,17 +183,17 @@ export class SignatureController extends BaseControllerV2<
 
     this._handleMessageManagerEvents(
       this._messageManager,
-      methodNameSign,
+      ApprovalType.EthSign,
       'unapprovedMessage',
     );
     this._handleMessageManagerEvents(
       this._personalMessageManager,
-      methodNamePersonalSign,
+      ApprovalType.PersonalSign,
       'unapprovedPersonalMessage',
     );
     this._handleMessageManagerEvents(
       this._typedMessageManager,
-      methodNameTypedSign,
+      ApprovalType.EthSignTypedData,
       'unapprovedTypedMessage',
     );
 
@@ -345,7 +341,7 @@ export class SignatureController extends BaseControllerV2<
   async signMessage(msgParams: MessageParamsMetamask) {
     return await this._signAbstractMessage(
       this._messageManager,
-      methodNameSign,
+      ApprovalType.EthSign,
       msgParams,
       async (cleanMsgParams) =>
         await this._keyringController.signMessage(cleanMsgParams),
@@ -362,7 +358,7 @@ export class SignatureController extends BaseControllerV2<
   async signPersonalMessage(msgParams: PersonalMessageParamsMetamask) {
     return await this._signAbstractMessage(
       this._personalMessageManager,
-      methodNamePersonalSign,
+      ApprovalType.PersonalSign,
       msgParams,
       async (cleanMsgParams) =>
         await this._keyringController.signPersonalMessage(cleanMsgParams),
@@ -386,7 +382,7 @@ export class SignatureController extends BaseControllerV2<
 
     return await this._signAbstractMessage(
       this._typedMessageManager,
-      methodNameTypedSign,
+      ApprovalType.EthSignTypedData,
       msgParams,
       async (cleanMsgParams) => {
         const finalMessageParams = opts.parseJsonData
@@ -547,7 +543,7 @@ export class SignatureController extends BaseControllerV2<
     PM extends AbstractMessageParamsMetamask,
   >(
     messageManager: AbstractMessageManager<M, P, PM>,
-    methodName: string,
+    approvalType: ApprovalType,
     eventName: string,
   ) {
     messageManager.hub.on('updateBadge', () => {
@@ -558,7 +554,7 @@ export class SignatureController extends BaseControllerV2<
       'unapprovedMessage',
       (msgParams: AbstractMessageParamsMetamask) => {
         this.hub.emit(eventName, msgParams);
-        this._requestApproval(msgParams, methodName);
+        this._requestApproval(msgParams, approvalType);
       },
     );
   }
@@ -580,8 +576,10 @@ export class SignatureController extends BaseControllerV2<
         state.unapprovedMessages as any,
       );
 
-      this.update((draftState) => {
-        updateState(draftState, newMessages, state.unapprovedMessagesCount);
+      this.update(() => {
+        const newState = { ...this.state };
+        updateState(newState, newMessages, state.unapprovedMessagesCount);
+        return newState;
       });
     });
   }
@@ -632,10 +630,10 @@ export class SignatureController extends BaseControllerV2<
 
   private _requestApproval(
     msgParams: AbstractMessageParamsMetamask,
-    type: string,
+    type: ApprovalType,
   ) {
     const id = msgParams.metamaskId as string;
-    const origin = msgParams.origin ?? ORIGIN_METAMASK;
+    const origin = msgParams.origin || ORIGIN_METAMASK;
 
     this.messagingSystem
       .call(
