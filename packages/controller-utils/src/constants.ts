@@ -2,7 +2,7 @@ import {
   NetworkType,
   NetworksTicker,
   NetworksChainId,
-  NetworkIds,
+  NetworkId,
 } from './types';
 
 export const RPC = 'rpc';
@@ -116,8 +116,11 @@ export enum ApprovalType {
   ConnectAccounts = 'connect_accounts',
 }
 
-export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP = {
-  [NetworkIds.goerli]: NetworkType.goerli,
-  [NetworkIds.sepolia]: NetworkType.sepolia,
-  [NetworkIds.mainnet]: NetworkType.mainnet,
-} as const;
+export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
+  NetworkId,
+  NetworkType
+> = {
+  [NetworkId.goerli]: NetworkType.goerli,
+  [NetworkId.sepolia]: NetworkType.sepolia,
+  [NetworkId.mainnet]: NetworkType.mainnet,
+};

@@ -7,6 +7,7 @@ import {
   ExternalProvider,
   JsonRpcFetchFunc,
 } from '@ethersproject/providers';
+import { createProjectLogger } from '@metamask/utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
@@ -17,6 +18,8 @@ import {
 } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/';
 import ensNetworkMap from 'ethereum-ens-network-map';
+
+const log = createProjectLogger('ens-controller');
 
 /**
  * Checks whether the given string is a known network ID.
@@ -94,7 +97,7 @@ export class EnsController extends BaseControllerV2<
   EnsControllerState,
   EnsControllerMessenger
 > {
-  ethProvider: Web3Provider | null = null;
+  #ethProvider: Web3Provider | null = null;
 
   /**
    * Creates an EnsController instance.
@@ -136,22 +139,20 @@ export class EnsController extends BaseControllerV2<
 
     if (provider && onNetworkStateChange) {
       onNetworkStateChange((networkState) => {
-        this.update((currentState) => {
-          currentState.ensResolutionsByAddress = {};
-        });
+        this.resetState();
         const currentNetwork =
           networkState.network === 'loading' ? null : networkState.network;
         if (
           isKnownNetworkId(currentNetwork) &&
           this.#getNetworkEnsSupport(currentNetwork)
         ) {
-          this.ethProvider = new Web3Provider(provider, {
+          this.#ethProvider = new Web3Provider(provider, {
             chainId: convertHexToDecimal(networkState.providerConfig.chainId),
             name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[currentNetwork],
             ensAddress: ensNetworkMap[currentNetwork],
           });
         } else {
-          this.ethProvider = null;
+          this.#ethProvider = null;
         }
       });
     }
@@ -289,7 +290,7 @@ export class EnsController extends BaseControllerV2<
    * @returns ens resolution
    */
   async reverseResolveAddress(nonChecksummedAddress: string) {
-    if (!this.ethProvider) {
+    if (!this.#ethProvider) {
       return undefined;
     }
 
@@ -300,9 +301,9 @@ export class EnsController extends BaseControllerV2<
 
     let domain: string | null;
     try {
-      domain = await this.ethProvider.lookupAddress(address);
+      domain = await this.#ethProvider.lookupAddress(address);
     } catch (error) {
-      console.debug(error);
+      log(error);
       return undefined;
     }
 
@@ -312,9 +313,9 @@ export class EnsController extends BaseControllerV2<
 
     let registeredAddress: string | null;
     try {
-      registeredAddress = await this.ethProvider.resolveName(domain);
+      registeredAddress = await this.#ethProvider.resolveName(domain);
     } catch (error) {
-      console.debug(error);
+      log(error);
       return undefined;
     }
 

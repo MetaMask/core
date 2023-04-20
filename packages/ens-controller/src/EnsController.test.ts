@@ -58,84 +58,6 @@ describe('EnsController', () => {
     });
   });
 
-  it('should construct the controller given a provider, a network and a onNetworkStateChange', async function () {
-    const messenger = getMessenger();
-    const ens = new EnsController({
-      messenger,
-      provider: getProvider(),
-      onNetworkStateChange: (listener) => {
-        listener({
-          network: '1',
-          providerConfig: {
-            chainId: '1',
-          },
-        });
-      },
-    });
-
-    expect(ens.ethProvider).toBeDefined();
-  });
-
-  it('should return a null eth provider when not given onNetworkStateChange', async function () {
-    const messenger = getMessenger();
-    const ens = new EnsController({
-      messenger,
-      provider: getProvider(),
-    });
-    expect(ens.ethProvider).toBeNull();
-  });
-
-  it('should return a null eth provider when not given a provider', async function () {
-    const messenger = getMessenger();
-    const ens = new EnsController({
-      messenger,
-
-      onNetworkStateChange: (listener) => {
-        listener({
-          network: '1',
-          providerConfig: {
-            chainId: '1',
-          },
-        });
-      },
-    });
-    expect(ens.ethProvider).toBeNull();
-  });
-
-  it('should return a null eth provider when network is loading', async function () {
-    const messenger = getMessenger();
-    const ens = new EnsController({
-      messenger,
-      provider: getProvider(),
-      onNetworkStateChange: (listener) => {
-        listener({
-          network: 'loading',
-          providerConfig: {
-            chainId: '1',
-          },
-        });
-      },
-    });
-    expect(ens.ethProvider).toBeNull();
-  });
-
-  it('should return a null eth provider when network is not ens supported', async function () {
-    const messenger = getMessenger();
-    const ens = new EnsController({
-      messenger,
-      provider: getProvider(),
-      onNetworkStateChange: (listener) => {
-        listener({
-          network: '1544',
-          providerConfig: {
-            chainId: '1',
-          },
-        });
-      },
-    });
-    expect(ens.ethProvider).toBeNull();
-  });
-
   it('should add a new ENS entry and return true', () => {
     const messenger = getMessenger();
     const controller = new EnsController({
@@ -503,6 +425,40 @@ describe('EnsController', () => {
       const messenger = getMessenger();
       const ens = new EnsController({
         messenger,
+      });
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+    });
+
+    it('should return undefined when network is loading', async function () {
+      const messenger = getMessenger();
+      const ens = new EnsController({
+        messenger,
+        provider: getProvider(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: 'loading',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
+      });
+      expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
+    });
+
+    it('should return undefined when network is not ens supported', async function () {
+      const messenger = getMessenger();
+      const ens = new EnsController({
+        messenger,
+        provider: getProvider(),
+        onNetworkStateChange: (listener) => {
+          listener({
+            network: '1544',
+            providerConfig: {
+              chainId: '1',
+            },
+          });
+        },
       });
       expect(await ens.reverseResolveAddress(address1)).toBeUndefined();
     });

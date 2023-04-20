@@ -27,12 +27,11 @@ export enum NetworksChainId {
   rpc = '',
 }
 
-export const NetworkIds = {
-  mainnet: '1',
-  goerli: '5',
-  localhost: '1337',
-  sepolia: '11155111',
-} as const;
+export enum NetworkId {
+  mainnet = '1',
+  goerli = '5',
+  sepolia = '11155111',
+}
 
 export enum NetworksTicker {
   mainnet = 'ETH',
