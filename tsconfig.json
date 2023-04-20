@@ -59,9 +59,6 @@
       "path": "./packages/signature-controller"
     },
     {
-      "path": "./packages/subject-metadata-controller"
-    },
-    {
       "path": "./packages/transaction-controller"
     }
   ],
