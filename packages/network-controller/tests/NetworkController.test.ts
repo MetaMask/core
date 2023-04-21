@@ -98,6 +98,13 @@ const POST_1559_BLOCK = {
 };
 
 /**
+ * A dummy value for the `projectId` option that `createInfuraClient` needs.
+ * (Infura should not be hit during tests, but just in case, this should not
+ * refer to a real project ID.)
+ */
+const DEFAULT_INFURA_PROJECT_ID = 'fake-infura-project-id';
+
+/**
  * The networks that NetworkController recognizes as built-in Infura networks,
  * along with information we expect to be true for those networks.
  */
@@ -4512,6 +4519,22 @@ function buildMessenger() {
   });
 }
 
+/**
+ * Despite the signature of its constructor, NetworkController must take an
+ * Infura project ID. The object that this function returns is mixed into the
+ * options first when a NetworkController is instantiated in tests.
+ *
+ * @returns The controller options.
+ */
+function buildDefaultNetworkControllerOptions() {
+  const messenger = buildMessenger();
+  return {
+    messenger,
+    infuraProjectId: DEFAULT_INFURA_PROJECT_ID,
+    trackMetaMetricsEvent: jest.fn(),
+  };
+}
+
 type WithControllerCallback<ReturnValue> = ({
   controller,
 }: {
@@ -4537,13 +4560,13 @@ type WithControllerArgs<ReturnValue> =
 async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
-  const [{ messenger = buildMessenger(), ...rest }, fn] =
+  const [givenNetworkControllerOptions, fn] =
     args.length === 2 ? args : [{}, args[0]];
-  const controller = new NetworkController({
-    messenger,
-    trackMetaMetricsEvent: jest.fn(),
-    ...rest,
-  });
+  const networkControllerOptions = {
+    ...buildDefaultNetworkControllerOptions(),
+    ...givenNetworkControllerOptions,
+  };
+  const controller = new NetworkController(networkControllerOptions);
   try {
     return await fn({ controller });
   } finally {

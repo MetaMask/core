@@ -347,9 +347,14 @@ export class NetworkController extends BaseControllerV2<
   }
 
   #setupInfuraProvider(type: InfuraNetworkType) {
+    const infuraProjectId = this.#infuraProjectId;
+    if (infuraProjectId === undefined) {
+      throw new Error('infuraProjectId must be provided for Infura networks');
+    }
+
     const { provider, blockTracker } = createNetworkClient({
       network: type,
-      infuraProjectId: this.#infuraProjectId || '',
+      infuraProjectId,
       type: NetworkClientType.Infura,
     });
     this.#updateProvider(provider, blockTracker);
