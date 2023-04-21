@@ -5248,7 +5248,7 @@ describe('NetworkController', () => {
         );
       });
 
-      it('resets the network state to "unknown" and empties the network details emitting NetworkController:providerConfigChange', async () => {
+      it('resets the network state to "unknown" and empties the network details before emitting NetworkController:providerConfigChange', async () => {
         const messenger = buildMessenger();
         const initialProviderConfigNetworkConfiguration = {
           rpcUrl: 'https://mock-rpc-url-2',
