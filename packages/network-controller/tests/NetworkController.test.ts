@@ -3485,7 +3485,7 @@ describe('NetworkController', () => {
               url: 'https://test-dapp.com',
             },
             properties: {
-              chain_id: '0x222',
+              chain_id: '0x9999',
               symbol: 'NEW',
               source: 'dapp',
             },
