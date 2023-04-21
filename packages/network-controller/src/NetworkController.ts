@@ -311,7 +311,6 @@ export class NetworkController extends BaseControllerV2<
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
     }
-    this.getEIP1559Compatibility();
   }
 
   getProviderAndBlockTracker(): {
@@ -405,7 +404,10 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Refreshes the current network code.
+   * Performs side effects after switching to a network. If the network is
+   * available, updates the network state with the network ID of the network and
+   * stores whether the network supports EIP-1559; otherwise clears said
+   * information about the network that may have been previously stored.
    */
   async lookupNetwork() {
     if (!this.#ethQuery) {
@@ -415,7 +417,10 @@ export class NetworkController extends BaseControllerV2<
 
     try {
       try {
-        const networkId = await this.#getNetworkId();
+        const [networkId] = await Promise.all([
+          this.#getNetworkId(),
+          this.getEIP1559Compatibility(),
+        ]);
         if (this.state.networkId === networkId) {
           return;
         }
@@ -544,9 +549,11 @@ export class NetworkController extends BaseControllerV2<
     return isEIP1559Compatible;
   }
 
-  resetConnection() {
-    const { type, rpcTarget, chainId } = this.state.providerConfig;
-    this.#configureProvider(type, rpcTarget, chainId);
+  /**
+   * Re-initializes the provider and block tracker for the current network.
+   */
+  async resetConnection() {
+    await this.#refreshNetwork();
   }
 
   #setProviderAndBlockTracker({
@@ -699,12 +706,12 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Rolls back provider config to the previous provider in case of errors or inability to connect during network switch.
    */
-  rollbackToPreviousProvider() {
+  async rollbackToPreviousProvider() {
     const specifier = this.#previousNetworkSpecifier;
     if (isNetworkType(specifier)) {
-      this.setProviderType(specifier);
+      await this.setProviderType(specifier);
     } else if (typeof specifier === 'string') {
-      this.setActiveNetwork(specifier);
+      await this.setActiveNetwork(specifier);
     }
   }
 }
