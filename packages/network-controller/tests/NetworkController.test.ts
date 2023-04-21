@@ -2863,7 +2863,7 @@ describe('NetworkController', () => {
       const messenger = buildMessenger();
       await withController({ messenger }, async ({ controller }) => {
         const rpcUrlNetwork = {
-          chainId: '0x111',
+          chainId: '0x9999',
           rpcUrl: 'https://test-rpc.com',
           ticker: 'RPC',
         };
@@ -2900,7 +2900,7 @@ describe('NetworkController', () => {
                 ticker: 'old_rpc_ticker',
                 nickname: 'old_rpc_nickname',
                 rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-                chainId: '0x111',
+                chainId: '0x1',
                 id: 'testNetworkConfigurationId',
               },
             },
@@ -2913,7 +2913,7 @@ describe('NetworkController', () => {
               ticker: 'new_rpc_ticker',
               nickname: 'new_rpc_nickname',
               rpcPrefs: { blockExplorerUrl: 'alternativetestchainscan.io' },
-              chainId: '0x111',
+              chainId: '0x1',
             },
             { referrer: 'https://test-dapp.com', source: 'dapp' },
           );
@@ -2926,7 +2926,7 @@ describe('NetworkController', () => {
                 nickname: 'new_rpc_nickname',
                 ticker: 'new_rpc_ticker',
                 rpcPrefs: { blockExplorerUrl: 'alternativetestchainscan.io' },
-                chainId: '0x111',
+                chainId: '0x1',
                 id: 'testNetworkConfigurationId',
               },
             ]),
@@ -2987,7 +2987,7 @@ describe('NetworkController', () => {
         await expect(async () =>
           controller.upsertNetworkConfiguration(
             {
-              chainId: '0x111',
+              chainId: '0x1',
               nickname: 'RPC',
               rpcPrefs: { blockExplorerUrl: 'test-block-explorer.com' },
               ticker: 'RPC',
@@ -3268,7 +3268,7 @@ describe('NetworkController', () => {
                 ticker: 'ticker',
                 nickname: 'nickname',
                 rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-                chainId: '0x111',
+                chainId: '0x1',
                 id: 'networkConfigurationId',
               },
               networkConfigurationId2: {
@@ -3276,7 +3276,7 @@ describe('NetworkController', () => {
                 ticker: 'ticker-2',
                 nickname: 'nickname-2',
                 rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-                chainId: '0x222',
+                chainId: '0x9999',
                 id: 'networkConfigurationId2',
               },
             },
@@ -3289,7 +3289,7 @@ describe('NetworkController', () => {
               ticker: 'new-ticker',
               nickname: 'new-nickname',
               rpcPrefs: { blockExplorerUrl: 'alternativetestchainscan.io' },
-              chainId: '0x111',
+              chainId: '0x1',
             },
             {
               referrer: 'https://test-dapp.com',
@@ -3305,7 +3305,7 @@ describe('NetworkController', () => {
               ticker: 'new-ticker',
               nickname: 'new-nickname',
               rpcPrefs: { blockExplorerUrl: 'alternativetestchainscan.io' },
-              chainId: '0x111',
+              chainId: '0x1',
               id: 'networkConfigurationId',
             },
             {
@@ -3313,7 +3313,7 @@ describe('NetworkController', () => {
               ticker: 'ticker-2',
               nickname: 'nickname-2',
               rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-              chainId: '0x222',
+              chainId: '0x9999',
               id: 'networkConfigurationId2',
             },
           ]);
@@ -3451,7 +3451,7 @@ describe('NetworkController', () => {
         async ({ controller }) => {
           const newNetworkConfiguration = {
             rpcUrl: 'https://new-chain-rpc-url',
-            chainId: '0x222',
+            chainId: '0x9999',
             ticker: 'NEW',
             nickname: 'new-chain',
             rpcPrefs: { blockExplorerUrl: 'https://block-explorer' },
@@ -3507,7 +3507,7 @@ describe('NetworkController', () => {
                 ticker: 'old_rpc_ticker',
                 nickname: 'old_rpc_nickname',
                 rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-                chainId: '111',
+                chainId: '1',
                 id: testNetworkConfigurationId,
               },
             },
