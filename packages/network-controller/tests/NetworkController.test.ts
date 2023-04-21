@@ -3234,6 +3234,8 @@ describe('NetworkController', () => {
                   // happens before the network lookup
                   count: 1,
                   produceStateChanges: () => {
+                    // Intentionally not awaited because we want to check state
+                    // partway through the operation
                     controller.resetConnection();
                   },
                 });
@@ -3301,6 +3303,8 @@ describe('NetworkController', () => {
                   // happens before the network lookup
                   count: 1,
                   produceStateChanges: () => {
+                    // Intentionally not awaited because we want to check state
+                    // partway through the operation
                     controller.resetConnection();
                   },
                 });
@@ -3342,7 +3346,7 @@ describe('NetworkController', () => {
                   fakeMetamaskProvider,
                 );
 
-                controller.resetConnection();
+                await controller.resetConnection();
 
                 const { provider } = controller.getProviderAndBlockTracker();
                 const promisifiedSendAsync = promisify(provider.sendAsync).bind(
@@ -3382,7 +3386,7 @@ describe('NetworkController', () => {
 
                 const { provider: providerBefore } =
                   controller.getProviderAndBlockTracker();
-                controller.resetConnection();
+                await controller.resetConnection();
                 const { provider: providerAfter } =
                   controller.getProviderAndBlockTracker();
 
@@ -3403,7 +3407,7 @@ describe('NetworkController', () => {
                   },
                 },
               },
-              ({ controller }) => {
+              async ({ controller }) => {
                 const fakeInfuraProvider = buildFakeInfuraProvider();
                 createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
                 const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
@@ -3417,8 +3421,8 @@ describe('NetworkController', () => {
                   .mockImplementationOnce(() => fakeMetamaskProviders[0])
                   .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
-                controller.resetConnection();
-                controller.resetConnection();
+                await controller.resetConnection();
+                await controller.resetConnection();
                 assert(controller.getProviderAndBlockTracker().provider);
                 jest.runAllTimers();
 
@@ -3452,15 +3456,7 @@ describe('NetworkController', () => {
                 );
                 await controller.initializeProvider();
 
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['networkStatus'],
-                  // We need to wait for the second state change, which happens
-                  // during the network lookup after the state is initially cleared
-                  count: 2,
-                  produceStateChanges: () => {
-                    controller.resetConnection();
-                  },
-                });
+                await controller.resetConnection();
 
                 expect(controller.state.networkStatus).toBe(
                   NetworkStatus.Available,
@@ -3505,15 +3501,7 @@ describe('NetworkController', () => {
                   fakeMetamaskProvider,
                 );
 
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['networkDetails'],
-                  // We need to wait for the second state change, which happens
-                  // during the network lookup after the state is initially cleared
-                  count: 2,
-                  produceStateChanges: () => {
-                    controller.resetConnection();
-                  },
-                });
+                await controller.resetConnection();
 
                 expect(controller.state.networkDetails).toStrictEqual({
                   isEIP1559Compatible: true,
@@ -3552,12 +3540,7 @@ describe('NetworkController', () => {
                     fakeMetamaskProvider,
                   );
 
-                  controller.resetConnection();
-                  assert(controller.getProviderAndBlockTracker().provider);
-
-                  expect(controller.state.networkStatus).toBe(
-                    NetworkStatus.Unknown,
-                  );
+                  const resetPromise = controller.resetConnection();
 
                   await waitForStateChanges(messenger, {
                     propertyPath: ['networkId'],
@@ -3567,6 +3550,7 @@ describe('NetworkController', () => {
                         .provider.emit('error', { some: 'error' });
                     },
                   });
+                  await resetPromise;
 
                   expect(controller.state.networkId).toBe('42');
                 },
@@ -3627,6 +3611,8 @@ describe('NetworkController', () => {
               // happens before the network lookup
               count: 1,
               produceStateChanges: () => {
+                // Intentionally not awaited because we want to check state
+                // partway through the operation
                 controller.resetConnection();
               },
             });
@@ -3688,6 +3674,8 @@ describe('NetworkController', () => {
               // happens before the network lookup
               count: 1,
               produceStateChanges: () => {
+                // Intentionally not awaited because we want to check state
+                // partway through the operation
                 controller.resetConnection();
               },
             });
@@ -3731,7 +3719,7 @@ describe('NetworkController', () => {
             ]);
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-            controller.resetConnection();
+            await controller.resetConnection();
             const { provider } = controller.getProviderAndBlockTracker();
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
@@ -3775,7 +3763,7 @@ describe('NetworkController', () => {
             const { provider: providerBefore } =
               controller.getProviderAndBlockTracker();
 
-            controller.resetConnection();
+            await controller.resetConnection();
 
             const { provider: providerAfter } =
               controller.getProviderAndBlockTracker();
@@ -3797,7 +3785,7 @@ describe('NetworkController', () => {
               },
             },
           },
-          ({ controller }) => {
+          async ({ controller }) => {
             const fakeInfuraProvider = buildFakeInfuraProvider();
             createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
             const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
@@ -3811,8 +3799,8 @@ describe('NetworkController', () => {
               .mockImplementationOnce(() => fakeMetamaskProviders[0])
               .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
-            controller.resetConnection();
-            controller.resetConnection();
+            await controller.resetConnection();
+            await controller.resetConnection();
             assert(controller.getProviderAndBlockTracker().provider);
             jest.runAllTimers();
 
@@ -3839,15 +3827,7 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
             await controller.initializeProvider();
 
-            await waitForStateChanges(messenger, {
-              propertyPath: ['networkStatus'],
-              // We need to wait for the second state change, which happens
-              // during the network lookup after the state is initially cleared
-              count: 2,
-              produceStateChanges: () => {
-                controller.resetConnection();
-              },
-            });
+            await controller.resetConnection();
 
             expect(controller.state.networkStatus).toBe(
               NetworkStatus.Available,
@@ -3885,15 +3865,7 @@ describe('NetworkController', () => {
             ]);
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-            await waitForStateChanges(messenger, {
-              propertyPath: ['networkDetails'],
-              // We need to wait for the second state change, which happens
-              // during the network lookup after the state is initially cleared
-              count: 2,
-              produceStateChanges: () => {
-                controller.resetConnection();
-              },
-            });
+            await controller.resetConnection();
 
             expect(controller.state.networkDetails).toStrictEqual({
               isEIP1559Compatible: true,
@@ -3931,12 +3903,7 @@ describe('NetworkController', () => {
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-              controller.resetConnection();
-              assert(controller.getProviderAndBlockTracker().provider);
-
-              expect(controller.state.networkStatus).toBe(
-                NetworkStatus.Unknown,
-              );
+              const resetPromise = controller.resetConnection();
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['networkId'],
@@ -3946,6 +3913,7 @@ describe('NetworkController', () => {
                     .provider.emit('error', { some: 'error' });
                 },
               });
+              await resetPromise;
 
               expect(controller.state.networkId).toBe('42');
             },
