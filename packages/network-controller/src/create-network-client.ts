@@ -43,6 +43,11 @@ type InfuraNetworkConfiguration = {
   type: NetworkClientType.Infura;
 };
 
+export type NetworkClient = {
+  provider: SafeEventEmitterProvider;
+  blockTracker: PollingBlockTracker;
+};
+
 /**
  * Create a JSON RPC network client for a specific network.
  *
@@ -51,7 +56,7 @@ type InfuraNetworkConfiguration = {
  */
 export function createNetworkClient(
   networkConfig: CustomNetworkConfiguration | InfuraNetworkConfiguration,
-): { provider: SafeEventEmitterProvider; blockTracker: PollingBlockTracker } {
+): NetworkClient {
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
       ? createInfuraMiddleware({

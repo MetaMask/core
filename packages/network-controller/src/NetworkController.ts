@@ -131,11 +131,11 @@ const name = 'NetworkController';
 
 export type EthQuery = any;
 
-type Provider = any;
+type Provider = SafeEventEmitterProvider;
 
 export type ProviderProxy = SwappableProxy<Provider>;
 
-type BlockTracker = any;
+type BlockTracker = PollingBlockTracker;
 
 export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
 
