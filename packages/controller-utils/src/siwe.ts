@@ -35,9 +35,107 @@ function msgHexToText(hex: string): string {
 }
 
 /**
+ * @type WrappedSIWERequest
+ *
+ * Sign-In With Ethereum (SIWE)(EIP-4361) message with request metadata
+ * @property {string} from - Subject account address
+ * @property {string} origin - The RFC 3986 originating authority of the signing request, including scheme
+ * @property {ParsedMessage} siwe - The data parsed from the message
+ */
+export interface WrappedSIWERequest {
+  from: string;
+  origin: string;
+  siwe: SIWEMessage;
+}
+
+interface DomainParts {
+  username?: string;
+  hostname: string;
+  port?: string;
+}
+
+const DEFAULT_PORTS_BY_PROTOCOL = {
+  'http:': '80',
+  'https:': '443',
+} as Record<string, string>;
+
+/**
+ * Parses parts from RFC 3986 authority from EIP-4361 `domain` field.
+ *
+ * @param domain - input string
+ * @param originProtocol - implied protocol from origin
+ * @returns parsed parts
+ */
+export const parseDomainParts = (
+  domain: string,
+  originProtocol: string,
+): DomainParts => {
+  if (domain.match(/^[^/:]*:\/\//u)) {
+    return new URL(domain);
+  }
+  return new URL(`${originProtocol}//${domain}`);
+};
+
+/**
+ * Validates origin of a Sign-In With Ethereum (SIWE)(EIP-4361) request.
+ * As per spec:
+ * hostname must match.
+ * port and username must match iff specified.
+ * Protocol binding and full same-origin are currently not performed.
+ *
+ * @param req - Signature request
+ * @returns true if origin matches domain; false otherwise
+ */
+export const isValidSIWEOrigin = (req: WrappedSIWERequest): boolean => {
+  try {
+    const { origin, siwe } = req;
+
+    // origin = scheme://[user[:password]@]domain[:port]
+    // origin is supplied by environment and must match domain claim in message
+    if (!origin || !siwe?.parsedMessage?.domain) {
+      return false;
+    }
+
+    const originParts = new URL(origin);
+    const domainParts = parseDomainParts(
+      siwe.parsedMessage.domain,
+      originParts.protocol,
+    );
+
+    if (
+      domainParts.hostname.localeCompare(originParts.hostname, undefined, {
+        sensitivity: 'accent',
+      }) !== 0
+    ) {
+      return false;
+    }
+
+    if (domainParts.port !== '' && domainParts.port !== originParts.port) {
+      // If origin port is not specified, protocol default is implied
+      return (
+        originParts.port === '' &&
+        domainParts.port === DEFAULT_PORTS_BY_PROTOCOL[originParts.protocol]
+      );
+    }
+
+    if (
+      domainParts.username !== '' &&
+      domainParts.username !== originParts.username
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    log(e);
+    return false;
+  }
+};
+
+/**
  * A locally defined object used to provide data to identify a Sign-In With Ethereum (SIWE)(EIP-4361) message and provide the parsed message
  *
- * @typedef localSIWEObject
+ * @typedef SIWEMessage
  * @param {boolean} isSIWEMessage - Does the intercepted message conform to the SIWE specification?
  * @param {ParsedMessage} parsedMessage - The data parsed out of the message
  */

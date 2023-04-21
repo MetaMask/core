@@ -98,12 +98,15 @@ export abstract class AbstractMessageManager<
   /**
    * Saves the unapproved messages, and their count to state.
    *
+   * @param emitUpdateBadge - Whether to emit the updateBadge event.
    */
-  protected saveMessageList() {
+  protected saveMessageList(emitUpdateBadge = true) {
     const unapprovedMessages = this.getUnapprovedMessages();
     const unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     this.update({ unapprovedMessages, unapprovedMessagesCount });
-    this.hub.emit('updateBadge');
+    if (emitUpdateBadge) {
+      this.hub.emit('updateBadge');
+    }
   }
 
   /**
@@ -135,17 +138,15 @@ export abstract class AbstractMessageManager<
    * Then saves the unapprovedMessage list to storage.
    *
    * @param message - A Message that will replace an existing Message (with the id) in this.messages.
-   * @param emitUpdate - Whether to emit the updateBadge event.
+   * @param emitUpdateBadge - Whether to emit the updateBadge event.
    */
-  protected updateMessage(message: M, emitUpdate = true) {
+  protected updateMessage(message: M, emitUpdateBadge = true) {
     const index = this.messages.findIndex((msg) => message.id === msg.id);
     /* istanbul ignore next */
     if (index !== -1) {
       this.messages[index] = message;
     }
-    if (emitUpdate) {
-      this.saveMessageList();
-    }
+    this.saveMessageList(emitUpdateBadge);
   }
 
   /**

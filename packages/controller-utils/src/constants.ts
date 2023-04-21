@@ -114,6 +114,7 @@ export enum ApprovalType {
   SnapDialogPrompt = 'snap_dialog:prompt',
   Unlock = 'unlock',
   ConnectAccounts = 'connect_accounts',
+  WalletConnect = 'wallet_connect',
 }
 
 export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
