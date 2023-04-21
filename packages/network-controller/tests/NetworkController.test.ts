@@ -4785,7 +4785,9 @@ describe('NetworkController', () => {
                 rpcTarget: rpcUrlOrTarget,
                 type: NetworkType.rpc,
               });
-              controller.rollbackToPreviousProvider();
+
+              await controller.rollbackToPreviousProvider();
+
               expect(controller.state.providerConfig).toStrictEqual(
                 initialProviderConfig,
               );
@@ -4829,8 +4831,8 @@ describe('NetworkController', () => {
                   messenger,
                   'NetworkController:providerConfigChange',
                   {
-                    produceEvents: () => {
-                      controller.rollbackToPreviousProvider();
+                    produceEvents: async () => {
+                      await controller.rollbackToPreviousProvider();
                     },
                   },
                 );
@@ -4916,19 +4918,22 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
               await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.networkDetails).toStrictEqual({
                 isEIP1559Compatible: true,
               });
+
               await waitForStateChanges(messenger, {
-                propertyPath: ['networkId'],
+                propertyPath: ['networkStatus'],
                 count: 1,
                 produceStateChanges: () => {
+                  // Intentionally not awaited because we want to check state
+                  // partway through the operation
                   controller.rollbackToPreviousProvider();
                 },
               });
+
               expect(controller.state.networkStatus).toBe(
                 NetworkStatus.Unknown,
               );
@@ -4979,16 +4984,11 @@ describe('NetworkController', () => {
                   },
                 },
               ]);
-
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
               await controller.setActiveNetwork('testNetworkConfigurationId');
-              await waitForStateChanges(messenger, {
-                propertyPath: ['networkId'],
-                count: 1,
-                produceStateChanges: () => {
-                  controller.rollbackToPreviousProvider();
-                },
-              });
+
+              await controller.rollbackToPreviousProvider();
+
               const { provider } = controller.getProviderAndBlockTracker();
               const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                 provider,
@@ -5037,13 +5037,8 @@ describe('NetworkController', () => {
               const { provider: providerBefore } =
                 controller.getProviderAndBlockTracker();
 
-              await waitForStateChanges(messenger, {
-                propertyPath: ['networkId'],
-                count: 1,
-                produceStateChanges: () => {
-                  controller.rollbackToPreviousProvider();
-                },
-              });
+              await controller.rollbackToPreviousProvider();
+
               const { provider: providerAfter } =
                 controller.getProviderAndBlockTracker();
 
@@ -5104,13 +5099,8 @@ describe('NetworkController', () => {
               await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.networkId).toStrictEqual('999');
 
-              await waitForStateChanges(messenger, {
-                propertyPath: ['networkId'],
-                count: 2,
-                produceStateChanges: () => {
-                  controller.rollbackToPreviousProvider();
-                },
-              });
+              await controller.rollbackToPreviousProvider();
+
               expect(controller.state.networkId).toStrictEqual('1');
             },
           );
@@ -5160,7 +5150,9 @@ describe('NetworkController', () => {
               rpcTarget: undefined,
               id: undefined,
             });
-            controller.rollbackToPreviousProvider();
+
+            await controller.rollbackToPreviousProvider();
+
             expect(controller.state.providerConfig).toStrictEqual({
               ...networkConfiguration,
               rpcTarget: rpcUrlOrTarget,
@@ -5222,7 +5214,9 @@ describe('NetworkController', () => {
               rpcTarget: rpcUrlOrTarget2,
               type: NetworkType.rpc,
             });
-            controller.rollbackToPreviousProvider();
+
+            await controller.rollbackToPreviousProvider();
+
             expect(controller.state.providerConfig).toStrictEqual({
               ...initialProviderConfig,
               rpcTarget: rpcUrlOrTarget1,
@@ -5274,8 +5268,8 @@ describe('NetworkController', () => {
               messenger,
               'NetworkController:providerConfigChange',
               {
-                produceEvents: () => {
-                  controller.rollbackToPreviousProvider();
+                produceEvents: async () => {
+                  await controller.rollbackToPreviousProvider();
                 },
               },
             );
@@ -5286,7 +5280,7 @@ describe('NetworkController', () => {
         );
       });
 
-      it('resets the network state to "unknown" and the isEIP before emitting NetworkController:providerConfigChange', async () => {
+      it('resets the network state to "unknown" and empties the network details emitting NetworkController:providerConfigChange', async () => {
         const messenger = buildMessenger();
         const initialProviderConfigNetworkConfiguration = {
           rpcUrl: 'https://mock-rpc-url-2',
@@ -5364,19 +5358,22 @@ describe('NetworkController', () => {
             expect(controller.state.networkStatus).toStrictEqual(
               NetworkStatus.Available,
             );
+
+            await controller.rollbackToPreviousProvider();
             await waitForStateChanges(messenger, {
               propertyPath: ['networkStatus'],
               count: 1,
               produceStateChanges: () => {
+                // Intentionally not awaited because we want to check state
+                // partway through the operation
                 controller.rollbackToPreviousProvider();
               },
             });
+
             expect(controller.state.networkStatus).toStrictEqual(
               NetworkStatus.Unknown,
             );
-            expect(controller.state.networkDetails).toStrictEqual({
-              isEIP1559Compatible: false,
-            });
+            expect(controller.state.networkDetails).toStrictEqual({});
           },
         );
       });
@@ -5429,16 +5426,11 @@ describe('NetworkController', () => {
                 },
               },
             ]);
-
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
             await controller.setActiveNetwork('testNetworkConfigurationId1');
-            await waitForStateChanges(messenger, {
-              propertyPath: ['networkId'],
-              count: 1,
-              produceStateChanges: () => {
-                controller.rollbackToPreviousProvider();
-              },
-            });
+
+            await controller.rollbackToPreviousProvider();
+
             const { provider } = controller.getProviderAndBlockTracker();
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
@@ -5498,13 +5490,8 @@ describe('NetworkController', () => {
             const { provider: providerBefore } =
               controller.getProviderAndBlockTracker();
 
-            await waitForStateChanges(messenger, {
-              propertyPath: ['networkId'],
-              count: 1,
-              produceStateChanges: () => {
-                controller.rollbackToPreviousProvider();
-              },
-            });
+            await controller.rollbackToPreviousProvider();
+
             const { provider: providerAfter } =
               controller.getProviderAndBlockTracker();
 
@@ -5574,13 +5561,8 @@ describe('NetworkController', () => {
             await controller.setActiveNetwork('testNetworkConfigurationId1');
             expect(controller.state.networkId).toStrictEqual('999');
 
-            await waitForStateChanges(messenger, {
-              propertyPath: ['networkId'],
-              count: 2,
-              produceStateChanges: () => {
-                controller.rollbackToPreviousProvider();
-              },
-            });
+            await controller.rollbackToPreviousProvider();
+
             expect(controller.state.networkId).toStrictEqual('1');
           },
         );
@@ -5626,7 +5608,7 @@ describe('NetworkController', () => {
             rpcTarget: rpcUrlOrTarget,
             type: NetworkType.rpc,
           });
-          controller.rollbackToPreviousProvider();
+          await controller.rollbackToPreviousProvider();
 
           expect(controller.state.providerConfig).toStrictEqual(
             initialProviderConfig,
@@ -5660,7 +5642,7 @@ describe('NetworkController', () => {
               ...BUILT_IN_NETWORKS.sepolia,
             }),
           });
-          controller.rollbackToPreviousProvider();
+          await controller.rollbackToPreviousProvider();
           expect(controller.state.providerConfig).toStrictEqual(
             initialProviderConfig,
           );

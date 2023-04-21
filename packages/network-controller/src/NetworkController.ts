@@ -723,12 +723,12 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Rolls back provider config to the previous provider in case of errors or inability to connect during network switch.
    */
-  rollbackToPreviousProvider() {
+  async rollbackToPreviousProvider() {
     const specifier = this.#previousNetworkSpecifier;
     if (isNetworkType(specifier)) {
-      this.setProviderType(specifier);
+      await this.setProviderType(specifier);
     } else if (typeof specifier === 'string') {
-      this.setActiveNetwork(specifier);
+      await this.setActiveNetwork(specifier);
     }
   }
 }
