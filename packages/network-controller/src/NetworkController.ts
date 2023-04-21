@@ -568,8 +568,8 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Re-initializes the provider and block tracker for the current network.
    */
-  resetConnection() {
-    this.#refreshNetwork();
+  async resetConnection() {
+    await this.#refreshNetwork();
   }
 
   #setProviderAndBlockTracker({
