@@ -560,10 +560,11 @@ export class NetworkController extends BaseControllerV2<
     return isEIP1559Compatible;
   }
 
+  /**
+   * Re-initializes the provider and block tracker for the current network.
+   */
   resetConnection() {
-    const { type, rpcTarget, chainId, ticker, nickname } =
-      this.state.providerConfig;
-    this.#configureProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.#refreshNetwork();
   }
 
   #setProviderAndBlockTracker({
