@@ -302,7 +302,6 @@ export class NetworkController extends BaseControllerV2<
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
     }
-    this.getEIP1559Compatibility();
   }
 
   getProviderAndBlockTracker(): {
@@ -421,7 +420,10 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Refreshes the current network code.
+   * Performs side effects after switching to a network. If the network is
+   * available, updates the network state with the network ID of the network and
+   * stores whether the network supports EIP-1559; otherwise clears said
+   * information about the network that may have been previously stored.
    */
   async lookupNetwork() {
     if (!this.#ethQuery) {
@@ -431,7 +433,10 @@ export class NetworkController extends BaseControllerV2<
 
     try {
       try {
-        const networkId = await this.#getNetworkId();
+        const [networkId] = await Promise.all([
+          this.#getNetworkId(),
+          this.getEIP1559Compatibility(),
+        ]);
         if (this.state.networkId === networkId) {
           return;
         }
@@ -563,8 +568,8 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Re-initializes the provider and block tracker for the current network.
    */
-  resetConnection() {
-    this.#refreshNetwork();
+  async resetConnection() {
+    await this.#refreshNetwork();
   }
 
   #setProviderAndBlockTracker({

@@ -107,8 +107,8 @@ const POST_1559_BLOCK = {
 // initializeProvider                                                                               refreshNetwork
 //       │ │ └────────────────────────────────────────────┬──────────────────────────────────────────────┘ │
 //       │ │                                     configureProvider                                         │
-//       │ │                  ┌─────────────────────────┘ │ └─────────────────────────┐                    │
-//       │ │          setupInfuraProvider        setupStandardProvider      getEIP1559Compatibility        │
+//       │ │                  ┌─────────────────────────┘ │                                                |
+//       │ │          setupInfuraProvider        setupStandardProvider                                     │
 //       │ │                  └─────────────┬─────────────┘                                                │
 //       │ │                          updateProvider                                                       │
 //       │ └───────────────┬───────────────┘ └───────────────────────────────┐                             │
@@ -1290,6 +1290,137 @@ describe('NetworkController', () => {
                   },
                 ],
               ]);
+            },
+          );
+        });
+      });
+
+      describe('assuming that the network details of the current network are different from the network in state', () => {
+        it('updates the network in state to match', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: { networkDetails: { isEIP1559Compatible: false } },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: {
+                        baseFeePerGas: '0x1',
+                      },
+                    },
+                  },
+                ],
+              });
+
+              await controller.lookupNetwork();
+
+              expect(controller.state.networkDetails).toStrictEqual({
+                isEIP1559Compatible: true,
+              });
+            },
+          );
+        });
+      });
+
+      describe('if the network details of the current network are the same as that in state', () => {
+        it('does not change network in state', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            {
+              messenger,
+              state: { networkDetails: { isEIP1559Compatible: true } },
+            },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: {
+                        baseFeePerGas: '0x1',
+                      },
+                    },
+                  },
+                ],
+              });
+              const promiseForNetworkDetailChanges = waitForStateChanges(
+                messenger,
+                {
+                  propertyPath: ['networkDetails'],
+                },
+              );
+
+              await controller.lookupNetwork();
+
+              await expect(promiseForNetworkDetailChanges).toNeverResolve();
+            },
+          );
+        });
+      });
+
+      describe('if an RPC error is encountered while retrieving the network details of the current network', () => {
+        it('updates the network in state to "unavailable"', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            { messenger, state: { networkId: '1' } },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    error: ethErrors.rpc.limitExceeded('some error'),
+                  },
+                ],
+                stubGetEIP1559CompatibilityWhileSetting: true,
+              });
+
+              await controller.lookupNetwork();
+
+              expect(controller.state.networkStatus).toBe(
+                NetworkStatus.Unavailable,
+              );
+            },
+          );
+        });
+      });
+
+      describe('if an internal error is encountered while retrieving the network details of the current network', () => {
+        it('updates the network in state to "unknown"', async () => {
+          const messenger = buildMessenger();
+          await withController(
+            { messenger, state: { networkId: '1' } },
+            async ({ controller }) => {
+              await setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    error: ethErrors.rpc.internal('some error'),
+                  },
+                ],
+              });
+
+              await controller.lookupNetwork();
+
+              expect(controller.state.networkStatus).toBe(
+                NetworkStatus.Unknown,
+              );
             },
           );
         });
@@ -3103,6 +3234,8 @@ describe('NetworkController', () => {
                   // happens before the network lookup
                   count: 1,
                   produceStateChanges: () => {
+                    // Intentionally not awaited because we want to check state
+                    // partway through the operation
                     controller.resetConnection();
                   },
                 });
@@ -3170,6 +3303,8 @@ describe('NetworkController', () => {
                   // happens before the network lookup
                   count: 1,
                   produceStateChanges: () => {
+                    // Intentionally not awaited because we want to check state
+                    // partway through the operation
                     controller.resetConnection();
                   },
                 });
@@ -3211,7 +3346,7 @@ describe('NetworkController', () => {
                   fakeMetamaskProvider,
                 );
 
-                controller.resetConnection();
+                await controller.resetConnection();
 
                 const { provider } = controller.getProviderAndBlockTracker();
                 const promisifiedSendAsync = promisify(provider.sendAsync).bind(
@@ -3251,7 +3386,7 @@ describe('NetworkController', () => {
 
                 const { provider: providerBefore } =
                   controller.getProviderAndBlockTracker();
-                controller.resetConnection();
+                await controller.resetConnection();
                 const { provider: providerAfter } =
                   controller.getProviderAndBlockTracker();
 
@@ -3272,7 +3407,7 @@ describe('NetworkController', () => {
                   },
                 },
               },
-              ({ controller }) => {
+              async ({ controller }) => {
                 const fakeInfuraProvider = buildFakeInfuraProvider();
                 createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
                 const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
@@ -3286,8 +3421,8 @@ describe('NetworkController', () => {
                   .mockImplementationOnce(() => fakeMetamaskProviders[0])
                   .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
-                controller.resetConnection();
-                controller.resetConnection();
+                await controller.resetConnection();
+                await controller.resetConnection();
                 assert(controller.getProviderAndBlockTracker().provider);
                 jest.runAllTimers();
 
@@ -3321,15 +3456,7 @@ describe('NetworkController', () => {
                 );
                 await controller.initializeProvider();
 
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['networkStatus'],
-                  // We need to wait for the second state change, which happens
-                  // during the network lookup after the state is initially cleared
-                  count: 2,
-                  produceStateChanges: () => {
-                    controller.resetConnection();
-                  },
-                });
+                await controller.resetConnection();
 
                 expect(controller.state.networkStatus).toBe(
                   NetworkStatus.Available,
@@ -3374,15 +3501,7 @@ describe('NetworkController', () => {
                   fakeMetamaskProvider,
                 );
 
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['networkDetails'],
-                  // We need to wait for the second state change, which happens
-                  // during the network lookup after the state is initially cleared
-                  count: 2,
-                  produceStateChanges: () => {
-                    controller.resetConnection();
-                  },
-                });
+                await controller.resetConnection();
 
                 expect(controller.state.networkDetails).toStrictEqual({
                   isEIP1559Compatible: true,
@@ -3421,12 +3540,7 @@ describe('NetworkController', () => {
                     fakeMetamaskProvider,
                   );
 
-                  controller.resetConnection();
-                  assert(controller.getProviderAndBlockTracker().provider);
-
-                  expect(controller.state.networkStatus).toBe(
-                    NetworkStatus.Unknown,
-                  );
+                  const resetPromise = controller.resetConnection();
 
                   await waitForStateChanges(messenger, {
                     propertyPath: ['networkId'],
@@ -3436,6 +3550,7 @@ describe('NetworkController', () => {
                         .provider.emit('error', { some: 'error' });
                     },
                   });
+                  await resetPromise;
 
                   expect(controller.state.networkId).toBe('42');
                 },
@@ -3496,6 +3611,8 @@ describe('NetworkController', () => {
               // happens before the network lookup
               count: 1,
               produceStateChanges: () => {
+                // Intentionally not awaited because we want to check state
+                // partway through the operation
                 controller.resetConnection();
               },
             });
@@ -3557,6 +3674,8 @@ describe('NetworkController', () => {
               // happens before the network lookup
               count: 1,
               produceStateChanges: () => {
+                // Intentionally not awaited because we want to check state
+                // partway through the operation
                 controller.resetConnection();
               },
             });
@@ -3600,7 +3719,7 @@ describe('NetworkController', () => {
             ]);
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-            controller.resetConnection();
+            await controller.resetConnection();
             const { provider } = controller.getProviderAndBlockTracker();
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
@@ -3644,7 +3763,7 @@ describe('NetworkController', () => {
             const { provider: providerBefore } =
               controller.getProviderAndBlockTracker();
 
-            controller.resetConnection();
+            await controller.resetConnection();
 
             const { provider: providerAfter } =
               controller.getProviderAndBlockTracker();
@@ -3666,7 +3785,7 @@ describe('NetworkController', () => {
               },
             },
           },
-          ({ controller }) => {
+          async ({ controller }) => {
             const fakeInfuraProvider = buildFakeInfuraProvider();
             createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
             const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
@@ -3680,8 +3799,8 @@ describe('NetworkController', () => {
               .mockImplementationOnce(() => fakeMetamaskProviders[0])
               .mockImplementationOnce(() => fakeMetamaskProviders[1]);
 
-            controller.resetConnection();
-            controller.resetConnection();
+            await controller.resetConnection();
+            await controller.resetConnection();
             assert(controller.getProviderAndBlockTracker().provider);
             jest.runAllTimers();
 
@@ -3708,15 +3827,7 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
             await controller.initializeProvider();
 
-            await waitForStateChanges(messenger, {
-              propertyPath: ['networkStatus'],
-              // We need to wait for the second state change, which happens
-              // during the network lookup after the state is initially cleared
-              count: 2,
-              produceStateChanges: () => {
-                controller.resetConnection();
-              },
-            });
+            await controller.resetConnection();
 
             expect(controller.state.networkStatus).toBe(
               NetworkStatus.Available,
@@ -3754,15 +3865,7 @@ describe('NetworkController', () => {
             ]);
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-            await waitForStateChanges(messenger, {
-              propertyPath: ['networkDetails'],
-              // We need to wait for the second state change, which happens
-              // during the network lookup after the state is initially cleared
-              count: 2,
-              produceStateChanges: () => {
-                controller.resetConnection();
-              },
-            });
+            await controller.resetConnection();
 
             expect(controller.state.networkDetails).toStrictEqual({
               isEIP1559Compatible: true,
@@ -3800,12 +3903,7 @@ describe('NetworkController', () => {
               ]);
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
-              controller.resetConnection();
-              assert(controller.getProviderAndBlockTracker().provider);
-
-              expect(controller.state.networkStatus).toBe(
-                NetworkStatus.Unknown,
-              );
+              const resetPromise = controller.resetConnection();
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['networkId'],
@@ -3815,6 +3913,7 @@ describe('NetworkController', () => {
                     .provider.emit('error', { some: 'error' });
                 },
               });
+              await resetPromise;
 
               expect(controller.state.networkId).toBe('42');
             },
@@ -4975,7 +5074,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges(messenger, {
                 propertyPath: ['networkId'],
-                count: 1,
+                count: 2,
                 produceStateChanges: () => {
                   controller.rollbackToPreviousProvider();
                 },
@@ -5445,7 +5544,7 @@ describe('NetworkController', () => {
 
             await waitForStateChanges(messenger, {
               propertyPath: ['networkId'],
-              count: 1,
+              count: 2,
               produceStateChanges: () => {
                 controller.rollbackToPreviousProvider();
               },
