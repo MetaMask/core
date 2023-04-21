@@ -1,4 +1,9 @@
-import { NetworkType, NetworksTicker, NetworksChainId } from './types';
+import {
+  NetworkType,
+  NetworksTicker,
+  NetworksChainId,
+  NetworkId,
+} from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
@@ -110,3 +115,12 @@ export enum ApprovalType {
   Unlock = 'unlock',
   ConnectAccounts = 'connect_accounts',
 }
+
+export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
+  NetworkId,
+  NetworkType
+> = {
+  [NetworkId.goerli]: NetworkType.goerli,
+  [NetworkId.sepolia]: NetworkType.sepolia,
+  [NetworkId.mainnet]: NetworkType.mainnet,
+};

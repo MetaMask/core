@@ -40,7 +40,7 @@
     "eth-rpc-errors": "^4.0.2",
     "immer": "^9.0.6",
     "uuid": "^8.3.2",
-    "web3-provider-engine": "^16.0.3"
+    "web3-provider-engine": "^16.0.5"
   },
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
