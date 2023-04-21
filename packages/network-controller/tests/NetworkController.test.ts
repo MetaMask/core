@@ -107,8 +107,8 @@ const POST_1559_BLOCK = {
 // initializeProvider                                                                               refreshNetwork
 //       │ │ └────────────────────────────────────────────┬──────────────────────────────────────────────┘ │
 //       │ │                                     configureProvider                                         │
-//       │ │                  ┌─────────────────────────┘ │ └─────────────────────────┐                    │
-//       │ │          setupInfuraProvider        setupStandardProvider      getEIP1559Compatibility        │
+//       │ │                  ┌─────────────────────────┘ │                                                |
+//       │ │          setupInfuraProvider        setupStandardProvider                                     │
 //       │ │                  └─────────────┬─────────────┘                                                │
 //       │ │                          updateProvider                                                       │
 //       │ └───────────────┬───────────────┘ └───────────────────────────────┐                             │
