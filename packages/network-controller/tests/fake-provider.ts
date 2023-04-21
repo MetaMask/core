@@ -60,7 +60,7 @@ export type FakeProviderStub = {
 );
 
 /**
- * The set of options that the FakeProviderEngine constructor takes.
+ * The set of options that the FakeProvider constructor takes.
  *
  * @property stubs - A set of objects that allow specifying the behavior
  * of specific invocations of `sendAsync` matching a `method`.
@@ -70,12 +70,12 @@ interface FakeProviderEngineOptions {
 }
 
 /**
- * FakeProviderEngine is an implementation of the provider that
- * NetworkController exposes, which is actually an instance of
- * Web3ProviderEngine (from the `web3-provider-engine` package). Hence it
- * supports the same interface as Web3ProviderEngine, except that fake responses
- * for any RPC methods that are accessed can be supplied via an API that is more
- * succinct than using Jest's mocking API.
+ * An implementation of the provider that NetworkController exposes, which is
+ * actually an instance of SafeEventEmitterProvider (from the
+ * `@metamask/eth-json-rpc-provider` package). Hence it supports the same
+ * interface as SafeEventEmitterProvider, except that fake responses for any RPC
+ * methods that are accessed can be supplied via an API that is more succinct
+ * than using Jest's mocking API.
  */
 // NOTE: We shouldn't need to extend from the "real" provider here, but
 // we'd need a `SafeEventEmitterProvider` _interface_ and that doesn't exist (at
