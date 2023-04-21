@@ -2269,7 +2269,7 @@ describe('NetworkController', () => {
                   },
                 ]);
                 const fakeNetworkClient = buildFakeClient(fakeProvider);
-                createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
                 await controller.initializeProvider();
                 expect(controller.state.networkStatus).toBe(
                   NetworkStatus.Available,
@@ -2333,7 +2333,7 @@ describe('NetworkController', () => {
                   },
                 ]);
                 const fakeNetworkClient = buildFakeClient(fakeProvider);
-                createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
                 await controller.initializeProvider();
                 expect(controller.state.networkDetails).toStrictEqual({
                   isEIP1559Compatible: false,
@@ -2443,7 +2443,7 @@ describe('NetworkController', () => {
               },
               async ({ controller }) => {
                 const fakeNetworkClient = buildFakeClient();
-                createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
                 await controller.initializeProvider();
 
                 await controller.resetConnection();
@@ -2484,7 +2484,7 @@ describe('NetworkController', () => {
                   },
                 ]);
                 const fakeNetworkClient = buildFakeClient(fakeProvider);
-                createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
                 await controller.resetConnection();
 
@@ -2522,7 +2522,7 @@ describe('NetworkController', () => {
                     },
                   ]);
                   const fakeNetworkClient = buildFakeClient(fakeProvider);
-                  createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+                  createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
                   const resetPromise = controller.resetConnection();
 
@@ -2584,7 +2584,7 @@ describe('NetworkController', () => {
               },
             ]);
             const fakeNetworkClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
             await controller.initializeProvider();
             expect(controller.state.networkStatus).toBe(
               NetworkStatus.Available,
@@ -2648,7 +2648,7 @@ describe('NetworkController', () => {
               },
             ]);
             const fakeNetworkClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
             await controller.initializeProvider();
             expect(controller.state.networkDetails).toStrictEqual({
               isEIP1559Compatible: false,
@@ -2775,7 +2775,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const fakeNetworkClient = buildFakeClient();
-            createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
             await controller.initializeProvider();
 
             await controller.resetConnection();
@@ -2815,7 +2815,7 @@ describe('NetworkController', () => {
               },
             ]);
             const fakeNetworkClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
             await controller.resetConnection();
 
@@ -2854,7 +2854,7 @@ describe('NetworkController', () => {
                 },
               ]);
               const fakeNetworkClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockResolvedValue(fakeNetworkClient);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
               const resetPromise = controller.resetConnection();
 
