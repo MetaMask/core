@@ -283,7 +283,11 @@ export class NetworkController extends BaseControllerV2<
     this.#previousNetworkSpecifier = this.state.providerConfig.type;
   }
 
-  #configureProvider(type: NetworkType, rpcTarget?: string, chainId?: string) {
+  #configureProvider(
+    type: NetworkType,
+    rpcTarget: string | undefined,
+    chainId: string | undefined,
+  ) {
     switch (type) {
       case NetworkType.mainnet:
       case NetworkType.goerli:
