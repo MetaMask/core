@@ -22,7 +22,6 @@ import { NetworkStatus } from '../src/constants';
 import { BUILT_IN_NETWORKS } from '../../controller-utils/src/constants';
 import {
   createNetworkClient,
-  NetworkClient,
   NetworkClientType,
 } from '../src/create-network-client';
 import { FakeProvider, FakeProviderStub } from './fake-provider';
@@ -313,13 +312,10 @@ describe('NetworkController', () => {
               type: NetworkClientType.Custom,
             });
             const { provider } = controller.getProviderAndBlockTracker();
-            assert(provider, 'Block tracker is somehow unset');
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
             );
             const chainIdResult = await promisifiedSendAsync({
-              id: '1',
-              jsonrpc: '2.0',
               method: 'eth_chainId',
             });
             expect(chainIdResult.result).toBe('0x1337');
@@ -365,13 +361,10 @@ describe('NetworkController', () => {
                 type: NetworkClientType.Custom,
               });
               const { provider } = controller.getProviderAndBlockTracker();
-              assert(provider, 'Provider is somehow unset');
               const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                 provider,
               );
               const chainIdResult = await promisifiedSendAsync({
-                id: 1,
-                jsonrpc: '2.0',
                 method: 'eth_chainId',
               });
               expect(chainIdResult.result).toBe('0x1337');
@@ -1097,13 +1090,10 @@ describe('NetworkController', () => {
                 type: NetworkClientType.Infura,
               });
               const { provider } = controller.getProviderAndBlockTracker();
-              assert(provider, 'Provider is somehow unset');
               const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                 provider,
               );
               const chainIdResult = await promisifiedSendAsync({
-                id: 1,
-                jsonrpc: '2.0',
                 method: 'eth_chainId',
               });
               expect(chainIdResult.result).toBe('0x1337');
@@ -1254,13 +1244,10 @@ describe('NetworkController', () => {
             type: NetworkClientType.Custom,
           });
           const { provider } = controller.getProviderAndBlockTracker();
-          assert(provider, 'Provider is somehow unset');
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
             provider,
           );
           const chainIdResult = await promisifiedSendAsync({
-            id: 1,
-            jsonrpc: '2.0',
             method: 'eth_chainId',
           });
           expect(chainIdResult.result).toBe('0x1337');
@@ -1413,13 +1400,10 @@ describe('NetworkController', () => {
             type: NetworkClientType.Custom,
           });
           const { provider } = controller.getProviderAndBlockTracker();
-          assert(provider, 'Provider is somehow unset');
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
             provider,
           );
           const chainIdResult = await promisifiedSendAsync({
-            id: 1,
-            jsonrpc: '2.0',
             method: 'eth_chainId',
           });
           expect(chainIdResult.result).toBe('0x1337');
@@ -2478,13 +2462,10 @@ describe('NetworkController', () => {
                 await controller.resetConnection();
 
                 const { provider } = controller.getProviderAndBlockTracker();
-                assert(provider, 'Provider is somehow unset');
                 const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                   provider,
                 );
                 const { result: chainIdResult } = await promisifiedSendAsync({
-                  id: 1,
-                  jsonrpc: '2.0',
                   method: 'eth_chainId',
                 });
                 expect(chainIdResult).toBe('0x1337');
@@ -2757,13 +2738,10 @@ describe('NetworkController', () => {
 
             await controller.resetConnection();
             const { provider } = controller.getProviderAndBlockTracker();
-            assert(provider, 'Provider is somehow unset');
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
             );
             const { result: chainIdResult } = await promisifiedSendAsync({
-              id: 1,
-              jsonrpc: '2.0',
               method: 'eth_chainId',
             });
             expect(chainIdResult).toBe('0x1337');
@@ -3888,13 +3866,10 @@ describe('NetworkController', () => {
               await controller.rollbackToPreviousProvider();
 
               const { provider } = controller.getProviderAndBlockTracker();
-              assert(provider, 'Provider is somehow unset');
               const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                 provider,
               );
               const { result: chainIdResult } = await promisifiedSendAsync({
-                id: 1,
-                jsonrpc: '2.0',
                 method: 'eth_chainId',
               });
               expect(chainIdResult).toBe(chainId);
@@ -4340,13 +4315,10 @@ describe('NetworkController', () => {
             await controller.rollbackToPreviousProvider();
 
             const { provider } = controller.getProviderAndBlockTracker();
-            assert(provider, 'Provider is somehow unset');
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
             );
             const { result: chainIdResult } = await promisifiedSendAsync({
-              id: 1,
-              jsonrpc: '2.0',
               method: 'eth_chainId',
             });
             expect(chainIdResult).toBe(
@@ -4646,15 +4618,13 @@ async function withController<ReturnValue>(
 }
 
 /**
- * Builds a complete provider configuration object, filling in values that are not
+ * Builds a complete ProviderConfig object, filling in values that are not
  * provided with defaults.
  *
  * @param config - An incomplete ProviderConfig object.
- * @returns The complete provider configuration object.
+ * @returns The complete ProviderConfig object.
  */
-function buildProviderConfig(
-  config: Partial<ProviderConfig> = {},
-): ProviderConfig {
+function buildProviderConfig(config: Partial<ProviderConfig> = {}) {
   return {
     type: NetworkType.localhost,
     chainId: '1337',
@@ -4666,13 +4636,12 @@ function buildProviderConfig(
 }
 
 /**
- * Builds an object with the same shape as the object that `createNetworkClient`
- * returns (i.e. a provider / block tracker pair).
+ * Builds an object that `createInfuraProvider` or `createJsonRpcClient` returns.
  *
- * @param provider - The provider to use.
- * @returns The fake network client.
+ * @param provider - provider to use if you dont want the defaults
+ * @returns The object.
  */
-function buildFakeClient(provider: SafeEventEmitterProvider): NetworkClient {
+function buildFakeClient(provider: SafeEventEmitterProvider) {
   return {
     provider,
     blockTracker: new FakeBlockTracker({ provider }),
