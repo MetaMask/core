@@ -199,6 +199,32 @@ describe('NetworkController', () => {
   describe('initializeProvider', () => {
     [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
       (networkType) => {
+        it('throws if infuraProjectId was not supplied to the constructor', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: networkType,
+                  chainId: '99999',
+                  nickname: 'some nickname',
+                }),
+              },
+              infuraProjectId: undefined,
+            },
+            async ({ controller }) => {
+              const fakeProvider = buildFakeProvider();
+              const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+              await expect(() =>
+                controller.initializeProvider(),
+              ).rejects.toThrow(
+                'infuraProjectId must be provided for Infura networks',
+              );
+            },
+          );
+        });
+
         describe(`when the provider config in state contains a network type of "${networkType}"`, () => {
           it(`sets the provider to an Infura provider pointed to ${networkType}`, async () => {
             await withController(
@@ -994,6 +1020,23 @@ describe('NetworkController', () => {
   describe('setProviderType', () => {
     for (const { networkType } of INFURA_NETWORKS) {
       describe(`given a network type of "${networkType}"`, () => {
+        it('throws if infuraProjectId was not supplied to the constructor', async () => {
+          await withController(
+            { infuraProjectId: undefined },
+            async ({ controller }) => {
+              const fakeProvider = buildFakeProvider();
+              const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+              await expect(() =>
+                controller.setProviderType(networkType),
+              ).rejects.toThrow(
+                'infuraProjectId must be provided for Infura networks',
+              );
+            },
+          );
+        });
+
         it('updates the provider config in state with the network type, the corresponding chain ID, and a special ticker, clearing any existing RPC target and nickname', async () => {
           const messenger = buildMessenger();
           await withController(
@@ -2252,6 +2295,33 @@ describe('NetworkController', () => {
     [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
       (networkType) => {
         describe(`when the type in the provider configuration is "${networkType}"`, () => {
+          it('throws if infuraProjectId was not supplied to the constructor', async () => {
+            await withController(
+              {
+                state: {
+                  providerConfig: {
+                    type: networkType,
+                    // NOTE: This doesn't need to match the logical chain ID of
+                    // the network selected, it just needs to exist
+                    chainId: '9999999',
+                  },
+                },
+                infuraProjectId: undefined,
+              },
+              async ({ controller }) => {
+                const fakeProvider = buildFakeProvider();
+                const fakeNetworkClient = buildFakeNetworkClient(fakeProvider);
+                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+                await expect(() =>
+                  controller.resetConnection(),
+                ).rejects.toThrow(
+                  'infuraProjectId must be provided for Infura networks',
+                );
+              },
+            );
+          });
+
           it('resets the network status to "unknown"', async () => {
             const messenger = buildMessenger();
             await withController(
