@@ -748,8 +748,6 @@ export class TokensController extends BaseController<
             suggestedAssetMeta?.interactingAddress || selectedAddress,
           );
 
-          this._acceptApproval(suggestedAssetID);
-
           const acceptedSuggestedAssetMeta = {
             ...suggestedAssetMeta,
             status: SuggestedAssetStatus.accepted,
@@ -766,8 +764,6 @@ export class TokensController extends BaseController<
       }
     } catch (error) {
       this.failSuggestedAsset(suggestedAssetMeta, error);
-
-      this._rejectApproval(suggestedAssetID);
     }
 
     const newSuggestedAssets = suggestedAssets.filter(
@@ -803,8 +799,6 @@ export class TokensController extends BaseController<
       ({ id }) => id !== suggestedAssetID,
     );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
-
-    this._rejectApproval(suggestedAssetID);
   }
 
   /**
@@ -933,32 +927,6 @@ export class TokensController extends BaseController<
       .catch(() => {
         // Intentionally ignored as promise not currently used
       });
-  }
-
-  _acceptApproval(approvalRequestId: string) {
-    try {
-      this.messagingSystem.call(
-        'ApprovalController:acceptRequest',
-        approvalRequestId,
-      );
-    } catch (error) {
-      console.error('Failed to accept token watch approval request', error);
-    }
-  }
-
-  _rejectApproval(approvalRequestId: string) {
-    try {
-      this.messagingSystem.call(
-        'ApprovalController:rejectRequest',
-        approvalRequestId,
-        new Error('Rejected'),
-      );
-    } catch (messageCallError) {
-      console.error(
-        'Failed to reject token watch approval request',
-        messageCallError,
-      );
-    }
   }
 }
 
