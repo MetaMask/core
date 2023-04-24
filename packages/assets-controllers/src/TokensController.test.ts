@@ -1098,7 +1098,7 @@ describe('TokensController', () => {
             image: 'image',
           },
         ]);
-        expect(callActionSpy).toHaveBeenCalledTimes(2);
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
         expect(callActionSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
@@ -1117,10 +1117,6 @@ describe('TokensController', () => {
             },
           },
           true,
-        );
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:acceptRequest',
-          expect.any(String),
         );
 
         generateRandomIdStub.restore();
@@ -1158,7 +1154,7 @@ describe('TokensController', () => {
           image: 'image',
         },
       ]);
-      expect(callActionSpy).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
@@ -1177,10 +1173,6 @@ describe('TokensController', () => {
           },
         },
         true,
-      );
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:acceptRequest',
-        expect.any(String),
       );
 
       generateRandomIdStub.restore();
@@ -1234,7 +1226,7 @@ describe('TokensController', () => {
         await expect(result).rejects.toThrow(
           'User rejected to watch the asset.',
         );
-        expect(callActionSpy).toHaveBeenCalledTimes(2);
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
         expect(callActionSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
@@ -1254,11 +1246,6 @@ describe('TokensController', () => {
           },
           true,
         );
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:rejectRequest',
-          expect.any(String),
-          expect.any(Error),
-        );
       },
     );
 
@@ -1276,7 +1263,7 @@ describe('TokensController', () => {
       const res = await result;
       expect(tokensController.state.suggestedAssets).toHaveLength(0);
       expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
-      expect(callActionSpy).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
@@ -1295,10 +1282,6 @@ describe('TokensController', () => {
           },
         },
         true,
-      );
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:acceptRequest',
-        expect.any(String),
       );
     });
 
@@ -1342,7 +1325,7 @@ describe('TokensController', () => {
         await expect(result).rejects.toThrow(
           'Asset of type ERC721 not supported',
         );
-        expect(callActionSpy).toHaveBeenCalledTimes(2);
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
         expect(callActionSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
@@ -1361,11 +1344,6 @@ describe('TokensController', () => {
             },
           },
           true,
-        );
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:rejectRequest',
-          expect.any(String),
-          expect.any(Error),
         );
       },
     );
