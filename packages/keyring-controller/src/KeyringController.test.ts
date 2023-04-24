@@ -10,7 +10,6 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import * as uuid from 'uuid';
-import { PreferencesController } from '@metamask/preferences-controller';
 import { NetworkType } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
@@ -45,7 +44,13 @@ const commonConfig = { chain: 'goerli', hardfork: 'berlin' };
 
 describe('KeyringController', () => {
   let keyringController: KeyringController;
-  let preferences: PreferencesController;
+  let preferences: {
+    setAccountLabel: sinon.SinonStub;
+    removeIdentity: sinon.SinonStub;
+    syncIdentities: sinon.SinonStub;
+    updateIdentities: sinon.SinonStub;
+    setSelectedAddress: sinon.SinonStub;
+  };
   let initialState: {
     isUnlocked: boolean;
     keyringTypes: string[];
@@ -61,17 +66,14 @@ describe('KeyringController', () => {
   };
 
   beforeEach(async () => {
-    preferences = new PreferencesController();
-    keyringController = new KeyringController(
-      {
-        setAccountLabel: preferences.setAccountLabel.bind(preferences),
-        removeIdentity: preferences.removeIdentity.bind(preferences),
-        syncIdentities: preferences.syncIdentities.bind(preferences),
-        updateIdentities: preferences.updateIdentities.bind(preferences),
-        setSelectedAddress: preferences.setSelectedAddress.bind(preferences),
-      },
-      baseConfig,
-    );
+    preferences = {
+      setAccountLabel: sinon.stub(),
+      removeIdentity: sinon.stub(),
+      syncIdentities: sinon.stub(),
+      updateIdentities: sinon.stub(),
+      setSelectedAddress: sinon.stub(),
+    };
+    keyringController = new KeyringController(preferences, baseConfig);
 
     initialState = await keyringController.createNewVaultAndKeychain(password);
   });
@@ -89,23 +91,22 @@ describe('KeyringController', () => {
   });
 
   it('should add new account', async () => {
-    const initialIdentitiesLength = Object.keys(
-      preferences.state.identities,
-    ).length;
     const currentKeyringMemState = await keyringController.addNewAccount();
     expect(initialState.keyrings).toHaveLength(1);
     expect(initialState.keyrings[0].accounts).not.toStrictEqual(
       currentKeyringMemState.keyrings[0].accounts,
     );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
-    const identitiesLength = Object.keys(preferences.state.identities).length;
-    expect(identitiesLength).toBeGreaterThan(initialIdentitiesLength);
+    expect(
+      preferences.updateIdentities.calledWith(
+        currentKeyringMemState.keyrings[0].accounts,
+      ),
+    ).toBe(true);
   });
 
   it('should add new account without updating', async () => {
-    const initialIdentitiesLength = Object.keys(
-      preferences.state.identities,
-    ).length;
+    const initialUpdateIdentitiesCallCount =
+      preferences.updateIdentities.callCount;
     const currentKeyringMemState =
       await keyringController.addNewAccountWithoutUpdate();
     expect(initialState.keyrings).toHaveLength(1);
@@ -113,8 +114,11 @@ describe('KeyringController', () => {
       currentKeyringMemState.keyrings[0].accounts,
     );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
-    const identitiesLength = Object.keys(preferences.state.identities).length;
-    expect(identitiesLength).toStrictEqual(initialIdentitiesLength);
+    // we make sure that updateIdentities is not called
+    // during this test
+    expect(preferences.updateIdentities.callCount).toBe(
+      initialUpdateIdentitiesCallCount,
+    );
   });
 
   it('should create new vault and restore', async () => {
@@ -737,7 +741,6 @@ describe('KeyringController', () => {
     };
 
     let signProcessKeyringController: KeyringController;
-    preferences = new PreferencesController();
 
     let requestSignatureStub: sinon.SinonStub;
     let readAccountSub: sinon.SinonStub;
@@ -759,13 +762,7 @@ describe('KeyringController', () => {
 
     beforeEach(async () => {
       signProcessKeyringController = new KeyringController(
-        {
-          setAccountLabel: preferences.setAccountLabel.bind(preferences),
-          removeIdentity: preferences.removeIdentity.bind(preferences),
-          syncIdentities: preferences.syncIdentities.bind(preferences),
-          updateIdentities: preferences.updateIdentities.bind(preferences),
-          setSelectedAddress: preferences.setSelectedAddress.bind(preferences),
-        },
+        preferences,
         baseConfig,
       );
       await signProcessKeyringController.createNewVaultAndKeychain(password);

@@ -7,6 +7,7 @@ import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import { Mutex } from 'async-mutex';
 import { v4 as random } from 'uuid';
 import type { Patch } from 'immer';
+import { errorCodes } from 'eth-rpc-errors';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -19,8 +20,9 @@ import {
   isNetworkType,
   BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
-
 import { assertIsStrictHexString } from '@metamask/utils';
+
+import { NetworkStatus } from './constants';
 
 /**
  * @type ProviderConfig
@@ -71,18 +73,47 @@ export type NetworkConfiguration = {
 };
 
 /**
+ * Asserts that the given value is a network ID, i.e., that it is a decimal
+ * number represented as a string.
+ *
+ * @param value - The value to check.
+ */
+function assertNetworkId(value: string): asserts value is NetworkId {
+  if (!/^\d+$/u.test(value) || Number.isNaN(Number(value))) {
+    throw new Error('value is not a number');
+  }
+}
+
+/**
+ * Type guard for determining whether the given value is an error object with a
+ * `code` property, such as an instance of Error.
+ *
+ * TODO: Move this to @metamask/utils.
+ *
+ * @param error - The object to check.
+ * @returns True if `error` has a `code`, false otherwise.
+ */
+function isErrorWithCode(error: unknown): error is { code: string | number } {
+  return typeof error === 'object' && error !== null && 'code' in error;
+}
+
+/**
+ * The network ID of a network.
+ */
+export type NetworkId = `${number}`;
+
+/**
  * @type NetworkState
  *
  * Network controller state
  * @property network - Network ID as per net_version of the currently connected network
- * @property isCustomNetwork - Identifies if the currently connected network is a custom network
  * @property providerConfig - RPC URL and network name provider settings of the currently connected network
  * @property properties - an additional set of network properties for the currently connected network
  * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
  */
 export type NetworkState = {
-  network: string;
-  isCustomNetwork: boolean;
+  networkId: NetworkId | null;
+  networkStatus: NetworkStatus;
   providerConfig: ProviderConfig;
   networkDetails: NetworkDetails;
   networkConfigurations: Record<string, NetworkConfiguration & { id: string }>;
@@ -100,7 +131,7 @@ export type ProviderProxy = SwappableProxy<Provider>;
 
 type BlockTracker = any;
 
-type BlockTrackerProxy = SwappableProxy<BlockTracker>;
+export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
 
 export type NetworkControllerStateChangeEvent = {
   type: `NetworkController:stateChange`;
@@ -147,8 +178,8 @@ export type NetworkControllerOptions = {
 };
 
 export const defaultState: NetworkState = {
-  network: 'loading',
-  isCustomNetwork: false,
+  networkId: null,
+  networkStatus: NetworkStatus.Unknown,
   providerConfig: {
     type: NetworkType.mainnet,
     chainId: NetworksChainId.mainnet,
@@ -180,13 +211,13 @@ export class NetworkController extends BaseControllerV2<
   NetworkState,
   NetworkControllerMessenger
 > {
-  private ethQuery: EthQuery;
+  #ethQuery: EthQuery;
 
-  private infuraProjectId: string | undefined;
+  #infuraProjectId: string | undefined;
 
-  private trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
+  #trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
 
-  private mutex = new Mutex();
+  #mutex = new Mutex();
 
   #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
 
@@ -205,11 +236,11 @@ export class NetworkController extends BaseControllerV2<
     super({
       name,
       metadata: {
-        network: {
+        networkId: {
           persist: true,
           anonymous: false,
         },
-        isCustomNetwork: {
+        networkStatus: {
           persist: true,
           anonymous: false,
         },
@@ -229,8 +260,8 @@ export class NetworkController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.infuraProjectId = infuraProjectId;
-    this.trackMetaMetricsEvent = trackMetaMetricsEvent;
+    this.#infuraProjectId = infuraProjectId;
+    this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.messagingSystem.registerActionHandler(
       `${this.name}:getProviderConfig`,
       () => {
@@ -241,41 +272,36 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
-        return this.ethQuery;
+        return this.#ethQuery;
       },
     );
 
     this.#previousNetworkSpecifier = this.state.providerConfig.type;
   }
 
-  private configureProvider(
+  #configureProvider(
     type: NetworkType,
     rpcTarget?: string,
     chainId?: string,
     ticker?: string,
     nickname?: string,
   ) {
-    this.update((state) => {
-      state.isCustomNetwork = this.getIsCustomNetwork(chainId);
-    });
-
     switch (type) {
       case NetworkType.mainnet:
       case NetworkType.goerli:
       case NetworkType.sepolia:
-        this.setupInfuraProvider(type);
+        this.#setupInfuraProvider(type);
         break;
       case NetworkType.localhost:
-        this.setupStandardProvider(LOCALHOST_RPC_URL);
+        this.#setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case NetworkType.rpc:
         rpcTarget &&
-          this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
+          this.#setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
     }
-    this.getEIP1559Compatibility();
   }
 
   getProviderAndBlockTracker(): {
@@ -288,29 +314,30 @@ export class NetworkController extends BaseControllerV2<
     };
   }
 
-  private refreshNetwork() {
+  async #refreshNetwork() {
     this.update((state) => {
-      state.network = 'loading';
+      state.networkId = null;
+      state.networkStatus = NetworkStatus.Unknown;
       state.networkDetails = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
-    this.configureProvider(type, rpcTarget, chainId, ticker);
-    this.lookupNetwork();
+    this.#configureProvider(type, rpcTarget, chainId, ticker);
+    await this.lookupNetwork();
   }
 
-  private registerProvider() {
+  #registerProvider() {
     const { provider } = this.getProviderAndBlockTracker();
 
     if (provider) {
-      provider.on('error', this.verifyNetwork.bind(this));
-      this.ethQuery = new EthQuery(provider);
+      provider.on('error', this.#verifyNetwork.bind(this));
+      this.#ethQuery = new EthQuery(provider);
     }
   }
 
-  private setupInfuraProvider(type: NetworkType) {
+  #setupInfuraProvider(type: NetworkType) {
     const infuraProvider = createInfuraProvider({
       network: type,
-      projectId: this.infuraProjectId,
+      projectId: this.#infuraProjectId,
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
@@ -320,19 +347,10 @@ export class NetworkController extends BaseControllerV2<
         pollingInterval: 12000,
       },
     };
-    this.updateProvider(createMetamaskProvider(config));
+    this.#updateProvider(createMetamaskProvider(config));
   }
 
-  private getIsCustomNetwork(chainId?: string) {
-    return (
-      chainId !== NetworksChainId.mainnet &&
-      chainId !== NetworksChainId.goerli &&
-      chainId !== NetworksChainId.sepolia &&
-      chainId !== NetworksChainId.localhost
-    );
-  }
-
-  private setupStandardProvider(
+  #setupStandardProvider(
     rpcTarget: string,
     chainId?: string,
     ticker?: string,
@@ -345,26 +363,28 @@ export class NetworkController extends BaseControllerV2<
       rpcUrl: rpcTarget,
       ticker,
     };
-    this.updateProvider(createMetamaskProvider(config));
+    this.#updateProvider(createMetamaskProvider(config));
   }
 
-  private updateProvider(provider: Provider) {
-    this.safelyStopProvider(this.#provider);
+  #updateProvider(provider: Provider) {
+    this.#safelyStopProvider(this.#provider);
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker: provider._blockTracker,
     });
-    this.registerProvider();
+    this.#registerProvider();
   }
 
-  private safelyStopProvider(provider: Provider | undefined) {
+  #safelyStopProvider(provider: Provider | undefined) {
     setTimeout(() => {
       provider?.stop();
     }, 500);
   }
 
-  private verifyNetwork() {
-    this.state.network === 'loading' && this.lookupNetwork();
+  async #verifyNetwork() {
+    if (this.state.networkStatus !== NetworkStatus.Available) {
+      await this.lookupNetwork();
+    }
   }
 
   /**
@@ -373,17 +393,17 @@ export class NetworkController extends BaseControllerV2<
    * using the provider to gather details about the network.
    *
    */
-  initializeProvider() {
+  async initializeProvider() {
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
-    this.configureProvider(type, rpcTarget, chainId, ticker, nickname);
-    this.registerProvider();
-    this.lookupNetwork();
+    this.#configureProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.#registerProvider();
+    await this.lookupNetwork();
   }
 
-  async #getNetworkId(): Promise<string> {
-    return await new Promise((resolve, reject) => {
-      this.ethQuery.sendAsync(
+  async #getNetworkId(): Promise<NetworkId> {
+    const possibleNetworkId = await new Promise<string>((resolve, reject) => {
+      this.#ethQuery.sendAsync(
         { method: 'net_version' },
         (error: Error, result: string) => {
           if (error) {
@@ -394,30 +414,45 @@ export class NetworkController extends BaseControllerV2<
         },
       );
     });
+
+    assertNetworkId(possibleNetworkId);
+    return possibleNetworkId;
   }
 
   /**
-   * Refreshes the current network code.
+   * Performs side effects after switching to a network. If the network is
+   * available, updates the network state with the network ID of the network and
+   * stores whether the network supports EIP-1559; otherwise clears said
+   * information about the network that may have been previously stored.
    */
   async lookupNetwork() {
-    if (!this.ethQuery) {
+    if (!this.#ethQuery) {
       return;
     }
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
 
     try {
       try {
-        const networkId = await this.#getNetworkId();
-        if (this.state.network === networkId) {
+        const [networkId] = await Promise.all([
+          this.#getNetworkId(),
+          this.getEIP1559Compatibility(),
+        ]);
+        if (this.state.networkId === networkId) {
           return;
         }
 
         this.update((state) => {
-          state.network = networkId;
+          state.networkId = networkId;
+          state.networkStatus = NetworkStatus.Available;
         });
-      } catch (_error) {
+      } catch (error) {
+        const networkStatus =
+          isErrorWithCode(error) && error.code !== errorCodes.rpc.internal
+            ? NetworkStatus.Unavailable
+            : NetworkStatus.Unknown;
         this.update((state) => {
-          state.network = 'loading';
+          state.networkId = null;
+          state.networkStatus = networkStatus;
         });
       }
 
@@ -447,7 +482,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param type - Human readable network name.
    */
-  setProviderType(type: NetworkType) {
+  async setProviderType(type: NetworkType) {
     this.#setCurrentAsPreviousProvider();
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
@@ -464,7 +499,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.nickname = undefined;
       state.providerConfig.id = undefined;
     });
-    this.refreshNetwork();
+    await this.#refreshNetwork();
   }
 
   /**
@@ -472,7 +507,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
-  setActiveNetwork(networkConfigurationId: string) {
+  async setActiveNetwork(networkConfigurationId: string) {
     this.#setCurrentAsPreviousProvider();
 
     const targetNetwork =
@@ -494,12 +529,12 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.id = targetNetwork.id;
     });
 
-    this.refreshNetwork();
+    await this.#refreshNetwork();
   }
 
   #getLatestBlock(): Promise<Block> {
     return new Promise((resolve, reject) => {
-      this.ethQuery.sendAsync(
+      this.#ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: Error, block: Block) => {
           if (error) {
@@ -515,7 +550,7 @@ export class NetworkController extends BaseControllerV2<
   async getEIP1559Compatibility() {
     const { networkDetails = {} } = this.state;
 
-    if (networkDetails.isEIP1559Compatible || !this.ethQuery) {
+    if (networkDetails.isEIP1559Compatible || !this.#ethQuery) {
       return true;
     }
 
@@ -528,6 +563,13 @@ export class NetworkController extends BaseControllerV2<
       });
     }
     return isEIP1559Compatible;
+  }
+
+  /**
+   * Re-initializes the provider and block tracker for the current network.
+   */
+  async resetConnection() {
+    await this.#refreshNetwork();
   }
 
   #setProviderAndBlockTracker({
@@ -569,14 +611,14 @@ export class NetworkController extends BaseControllerV2<
    * @param options.source - Where the upsertNetwork event originated (i.e. from a dapp or from the network form) - used for event metrics.
    * @returns id for the added or updated network configuration
    */
-  upsertNetworkConfiguration(
+  async upsertNetworkConfiguration(
     { rpcUrl, chainId, ticker, nickname, rpcPrefs }: NetworkConfiguration,
     {
       setActive = false,
       referrer,
       source,
     }: { setActive?: boolean; referrer: string; source: string },
-  ): string {
+  ): Promise<string> {
     assertIsStrictHexString(chainId);
 
     if (!isSafeChainId(parseInt(chainId, 16))) {
@@ -641,7 +683,7 @@ export class NetworkController extends BaseControllerV2<
     });
 
     if (!oldNetworkConfigurationId) {
-      this.trackMetaMetricsEvent({
+      this.#trackMetaMetricsEvent({
         event: 'Custom Network Added',
         category: 'Network',
         referrer: {
@@ -656,7 +698,7 @@ export class NetworkController extends BaseControllerV2<
     }
 
     if (setActive) {
-      this.setActiveNetwork(newNetworkConfigurationId);
+      await this.setActiveNetwork(newNetworkConfigurationId);
     }
 
     return newNetworkConfigurationId;
@@ -681,12 +723,12 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Rolls back provider config to the previous provider in case of errors or inability to connect during network switch.
    */
-  rollbackToPreviousProvider() {
+  async rollbackToPreviousProvider() {
     const specifier = this.#previousNetworkSpecifier;
     if (isNetworkType(specifier)) {
-      this.setProviderType(specifier);
+      await this.setProviderType(specifier);
     } else if (typeof specifier === 'string') {
-      this.setActiveNetwork(specifier);
+      await this.setActiveNetwork(specifier);
     }
   }
 }

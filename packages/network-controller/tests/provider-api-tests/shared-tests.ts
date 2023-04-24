@@ -256,7 +256,7 @@ export const testsForProviderType = (providerType: ProviderType) => {
       });
 
       describe('eth_chainId', () => {
-        it('does not hit the RPC endpoint, instead returning the configured chain id', async () => {
+        it('hits the RPC endpoint to get the chain ID', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
             const request = { method: 'eth_chainId' };
             comms.mockRpcCall({
@@ -318,7 +318,7 @@ export const testsForProviderType = (providerType: ProviderType) => {
         {
           name: 'web3_clientVersion',
           numberOfParameters: 0,
-          result: 'ProviderEngine/v16.0.3/javascript',
+          result: 'ProviderEngine/v16.0.5/javascript',
         },
       ];
       notHandledByMiddleware.forEach(({ name, numberOfParameters, result }) => {

@@ -98,12 +98,15 @@ export abstract class AbstractMessageManager<
   /**
    * Saves the unapproved messages, and their count to state.
    *
+   * @param emitUpdateBadge - Whether to emit the updateBadge event.
    */
-  protected saveMessageList() {
+  protected saveMessageList(emitUpdateBadge = true) {
     const unapprovedMessages = this.getUnapprovedMessages();
     const unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     this.update({ unapprovedMessages, unapprovedMessagesCount });
-    this.hub.emit('updateBadge');
+    if (emitUpdateBadge) {
+      this.hub.emit('updateBadge');
+    }
   }
 
   /**
@@ -135,14 +138,15 @@ export abstract class AbstractMessageManager<
    * Then saves the unapprovedMessage list to storage.
    *
    * @param message - A Message that will replace an existing Message (with the id) in this.messages.
+   * @param emitUpdateBadge - Whether to emit the updateBadge event.
    */
-  protected updateMessage(message: M) {
+  protected updateMessage(message: M, emitUpdateBadge = true) {
     const index = this.messages.findIndex((msg) => message.id === msg.id);
     /* istanbul ignore next */
     if (index !== -1) {
       this.messages[index] = message;
     }
-    this.saveMessageList();
+    this.saveMessageList(emitUpdateBadge);
   }
 
   /**
@@ -283,22 +287,31 @@ export abstract class AbstractMessageManager<
   }
 
   /**
-   * Sets the message to a new status via a call to this.setMsgStatus and
-   * updates the rawSig field in this.messages.
+   * Sets the message via a call to this.setResult and updates status of the message.
    *
    * @param messageId - The id of the Message to sign.
    * @param rawSig - The data to update rawSig in the message.
    * @param status - The new message status.
    */
   setMessageStatusAndResult(messageId: string, rawSig: string, status: string) {
+    this.setResult(messageId, rawSig);
+    this.setMessageStatus(messageId, status);
+  }
+
+  /**
+   * Sets the message result.
+   *
+   * @param messageId - The id of the Message to sign.
+   * @param result - The data to update result in the message.
+   */
+  setResult(messageId: string, result: string) {
     const message = this.getMessage(messageId);
     /* istanbul ignore if */
     if (!message) {
       return;
     }
-    message.rawSig = rawSig;
-    this.updateMessage(message);
-    this.setMessageStatus(messageId, status);
+    message.rawSig = result;
+    this.updateMessage(message, false);
   }
 
   /**

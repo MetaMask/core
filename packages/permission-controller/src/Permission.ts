@@ -2,6 +2,7 @@ import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '@metamask/controller-utils';
 import { ActionConstraint, EventConstraint } from '@metamask/base-controller';
+import type { SubjectType } from './SubjectMetadataController';
 import { CaveatConstraint } from './Caveat';
 
 import type {
@@ -482,6 +483,14 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    * If the side-effect action fails, the permission that triggered it is revoked.
    */
   sideEffect?: PermissionSideEffect<any, any>;
+
+  /**
+   * The Permission may be available to only a subset of the subject types. If so, specify the subject types as an array.
+   * If a subject with a type not in this array tries to request the permission, the call will fail.
+   *
+   * Leaving this as undefined uses default behaviour where the permission is available to request for all subject types.
+   */
+  subjectTypes?: readonly SubjectType[];
 };
 
 /**
