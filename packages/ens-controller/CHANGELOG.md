@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0]
+### Uncategorized
+- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core.git/pull/1198))
+- Merge extension ens controller ([#1170](https://github.com/MetaMask/core.git/pull/1170))
+
 ## [3.0.0]
 ### Changed
 - **BREAKING:** Convert the ENS controller to the BaseController v2 API ([#1134](https://github.com/MetaMask/core/pull/1134))
@@ -33,9 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.0.0...HEAD
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@2.0.0...@metamask/ens-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@1.0.2...@metamask/ens-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@1.0.1...@metamask/ens-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@1.0.0...@metamask/ens-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/ens-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/ens-controller@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/ens-controller@3.0.0...@metamask/ens-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/ens-controller@2.0.0...@metamask/ens-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/ens-controller@1.0.2...@metamask/ens-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/ens-controller@1.0.1...@metamask/ens-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/ens-controller@1.0.0...@metamask/ens-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/ens-controller@1.0.0

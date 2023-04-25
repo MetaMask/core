@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.0]
+### Uncategorized
+- add WalletConnect in approval type ([#1240](https://github.com/MetaMask/core.git/pull/1240))
+- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core.git/pull/1198))
+
 ## [3.3.0]
 ### Added
 - Add Sign-in-with-Ethereum origin validation ([#1163](https://github.com/MetaMask/core/pull/1163))
@@ -82,10 +87,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.3.0...HEAD
-[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.2.0...@metamask/controller-utils@3.3.0
-[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.1.0...@metamask/controller-utils@3.2.0
-[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.0.0...@metamask/controller-utils@3.1.0
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@2.0.0...@metamask/controller-utils@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@1.0.0...@metamask/controller-utils@2.0.0
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/controller-utils@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.4.0...HEAD
+[3.4.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.3.0...@metamask/controller-utils@3.4.0
+[3.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.2.0...@metamask/controller-utils@3.3.0
+[3.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.1.0...@metamask/controller-utils@3.2.0
+[3.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.0.0...@metamask/controller-utils@3.1.0
+[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@2.0.0...@metamask/controller-utils@3.0.0
+[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@1.0.0...@metamask/controller-utils@2.0.0
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/controller-utils@1.0.0

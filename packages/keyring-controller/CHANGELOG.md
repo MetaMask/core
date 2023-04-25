@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0]
+### Uncategorized
+- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core.git/pull/1198))
+- Stub PreferencesController in KeyringController tests ([#1194](https://github.com/MetaMask/core.git/pull/1194))
+- add rollbackToPreviousProvider method ([#1132](https://github.com/MetaMask/core.git/pull/1132))
+
 ## [4.0.0]
 ### Removed
 - **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
@@ -37,9 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@4.0.0...HEAD
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@3.0.0...@metamask/keyring-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@2.0.0...@metamask/keyring-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@1.0.1...@metamask/keyring-controller@2.0.0
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@1.0.0...@metamask/keyring-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/keyring-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@4.0.0...@metamask/keyring-controller@4.1.0
+[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@3.0.0...@metamask/keyring-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@2.0.0...@metamask/keyring-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@1.0.1...@metamask/keyring-controller@2.0.0
+[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@1.0.0...@metamask/keyring-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/keyring-controller@1.0.0
