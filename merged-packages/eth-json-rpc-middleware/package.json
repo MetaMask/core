@@ -30,7 +30,7 @@
   "dependencies": {
     "@metamask/eth-json-rpc-provider": "^1.0.0",
     "@metamask/eth-sig-util": "^5.0.0",
-    "@metamask/utils": "^3.0.3",
+    "@metamask/utils": "^5.0.1",
     "clone": "^2.1.1",
     "eth-block-tracker": "^7.0.0",
     "eth-rpc-errors": "^4.0.3",
