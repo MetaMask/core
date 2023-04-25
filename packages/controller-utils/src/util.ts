@@ -6,11 +6,12 @@ import {
   toChecksumAddress,
   stripHexPrefix,
 } from 'ethereumjs-util';
+import type EthQuery from 'eth-query';
 import { fromWei, toWei } from 'ethjs-unit';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 import type { Hex } from '@metamask/utils';
-import { isStrictHexString } from '@metamask/utils';
+import { hasProperty, isStrictHexString } from '@metamask/utils';
 import type { Json } from './types';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 
@@ -426,12 +427,12 @@ export function normalizeEnsName(ensName: string): string | null {
  * @returns Promise resolving the request.
  */
 export function query(
-  ethQuery: any,
+  ethQuery: EthQuery,
   method: string,
   args: any[] = [],
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const cb = (error: Error, result: any) => {
+    const cb = (error: unknown, result: any) => {
       if (error) {
         reject(error);
         return;
@@ -439,7 +440,13 @@ export function query(
       resolve(result);
     };
 
-    if (typeof ethQuery[method] === 'function') {
+    if (
+      hasProperty(ethQuery, method) &&
+      typeof ethQuery[method] === 'function'
+    ) {
+      // All of the generated method types have this signature, but our types don't support these yet
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       ethQuery[method](...args, cb);
     } else {
       ethQuery.sendAsync({ method, params: args }, cb);

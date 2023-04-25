@@ -83,6 +83,8 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
       .calledWith(blocks)
       .mockReturnValue(levelSpecificEstimates);
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     const gasFeeEstimates = await fetchGasEstimatesViaEthFeeHistory(ethQuery);
 
     expect(gasFeeEstimates).toStrictEqual({
