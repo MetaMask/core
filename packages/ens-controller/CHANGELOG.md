@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.1.0]
 ### Changed
-- Merge extension ens controller ([#1170](https://github.com/MetaMask/core/pull/1170))
+- Add support for reverse ENS address resolution ([#1170](https://github.com/MetaMask/core/pull/1170))
+  - This controller can now resolve a network address to an ENS address. This feature was ported from the extension ENS controller.
 
 ## [3.0.0]
 ### Changed
