@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.2.0]
+### Added
+- Allow restricting permissions by subject type ([#1233](https://github.com/MetaMask/core/pull/1233))
+
 ### Changed
-- Restrict certain permissions by subject type ([#1233](https://github.com/MetaMask/core/pull/1233))
 - Move `SubjectMetadataController` to permission-controller package ([#1234](https://github.com/MetaMask/core/pull/1234))
 - Update minimum `eth-rpc-errors` version from `4.0.0` to `4.0.2` ([#1215](https://github.com/MetaMask/core/pull/1215))
 
