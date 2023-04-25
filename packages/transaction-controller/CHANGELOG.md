@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
 - Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core/pull/1196))
 - Add nonce tracker to transactions controller ([#1147](https://github.com/MetaMask/core/pull/1147))
+  - Previously this controller would get the next nonce by calling `eth_getTransactionCount` with a block reference of `pending`.  The next nonce would then be returned from our middleware (within `web3-provider-engine`).
+  - Instead we're now using the nonce tracker to get the next nonce, dropping our reliance on this `eth_getTransactionCount` middleware. This will let us drop that middleware in a future update without impacting the transaction controller.
+  - This should result in no functional changes, except that the nonce middleware is no longer required.
 
 ### Removed
 - Remove `isCustomNetwork` ([#1199](https://github.com/MetaMask/core/pull/1199))
