@@ -7,9 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.1.0]
-### Uncategorized
-- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core.git/pull/1198))
-- Stub PreferencesController in KeyringController tests ([#1194](https://github.com/MetaMask/core.git/pull/1194))
+### Changed
 - add rollbackToPreviousProvider method ([#1132](https://github.com/MetaMask/core.git/pull/1132))
 
 ## [4.0.0]
@@ -29,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - This change was introduced by an indirect dependency on `ethereumjs/util` v8
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
 - Update `@metamask/eth-sig-util` to v5 ([#914](https://github.com/MetaMask/controllers/pull/914))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [1.0.1]
 ### Changed

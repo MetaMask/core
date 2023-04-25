@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.1.0]
-### Uncategorized
-- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core.git/pull/1198))
+### Changed
 - deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core.git/pull/1215))
-- Remove `isCustomNetwork` ([#1199](https://github.com/MetaMask/core.git/pull/1199))
 - Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core.git/pull/1196))
 - Add nonce tracker to transactions controller ([#1147](https://github.com/MetaMask/core.git/pull/1147))
+
+### Removed
+- Remove `isCustomNetwork` ([#1199](https://github.com/MetaMask/core.git/pull/1199))
 
 ## [4.0.1]
 ### Changed
@@ -31,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **BREAKING**: Drop Etherscan API support for Ropsten, Rinkeby, and Kovan ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [2.0.0]
 ### Changed

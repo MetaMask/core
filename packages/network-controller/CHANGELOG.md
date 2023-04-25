@@ -7,30 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [8.0.0]
-### Uncategorized
-- Make `rollbackToPreviousProvider` async ([#1237](https://github.com/MetaMask/core.git/pull/1237))
-- Make `resetConnection` async ([#1239](https://github.com/MetaMask/core.git/pull/1239))
+### Changed
 - Update EIP-1559 compatibility during network lookup ([#1236](https://github.com/MetaMask/core.git/pull/1236))
-- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core.git/pull/1198))
 - Refresh network when connection is reset ([#1235](https://github.com/MetaMask/core.git/pull/1235))
-- deps: bump web3-provider-engine@16.0.3->16.0.5 ([#1212](https://github.com/MetaMask/core.git/pull/1212))
-- Simplify `setProviderType` unit tests ([#1222](https://github.com/MetaMask/core.git/pull/1222))
-- Consolidate `setProviderType` unit tests ([#1221](https://github.com/MetaMask/core.git/pull/1221))
-- deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core.git/pull/1215))
-- deps: bump @metamask/utils to 5.0.1 ([#1211](https://github.com/MetaMask/core.git/pull/1211))
-- Remove `isCustomNetwork` ([#1199](https://github.com/MetaMask/core.git/pull/1199))
 - Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core.git/pull/1196))
-- Make `upsertNetworkConfiguration` async ([#1192](https://github.com/MetaMask/core.git/pull/1192))
 - Make network controller internal fields private ([#1189](https://github.com/MetaMask/core.git/pull/1189))
-- Make `setActiveNetwork` async ([#1190](https://github.com/MetaMask/core.git/pull/1190))
-- Make `setProviderType` async ([#1191](https://github.com/MetaMask/core.git/pull/1191))
-- Make `refreshNetwork` async ([#1182](https://github.com/MetaMask/core.git/pull/1182))
-- Make `initializeProvider` async ([#1180](https://github.com/MetaMask/core.git/pull/1180))
-- Make `verifyNetwork` async ([#1181](https://github.com/MetaMask/core.git/pull/1181))
-- Eliminate console error when running test ([#1179](https://github.com/MetaMask/core.git/pull/1179))
-- Fix test description ([#1175](https://github.com/MetaMask/core.git/pull/1175))
 - Add nonce tracker to transactions controller ([#1147](https://github.com/MetaMask/core.git/pull/1147))
 - Implement resetConnection method in network controller ([#1131](https://github.com/MetaMask/core.git/pull/1131))
+- Async refactor
+  - Make `rollbackToPreviousProvider` async ([#1237](https://github.com/MetaMask/core.git/pull/1237))
+  - Make `resetConnection` async ([#1239](https://github.com/MetaMask/core.git/pull/1239))
+  - Make `upsertNetworkConfiguration` async ([#1192](https://github.com/MetaMask/core.git/pull/1192))
+  - Make `setActiveNetwork` async ([#1190](https://github.com/MetaMask/core.git/pull/1190))
+  - Make `setProviderType` async ([#1191](https://github.com/MetaMask/core.git/pull/1191))
+  - Make `refreshNetwork` async ([#1182](https://github.com/MetaMask/core.git/pull/1182))
+  - Make `initializeProvider` async ([#1180](https://github.com/MetaMask/core.git/pull/1180))
+  - Make `verifyNetwork` async ([#1181](https://github.com/MetaMask/core.git/pull/1181))
+- Dependency updates
+  - deps: bump web3-provider-engine@16.0.3->16.0.5 ([#1212](https://github.com/MetaMask/core.git/pull/1212))
+  - deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core.git/pull/1215))
+  - deps: bump @metamask/utils to 5.0.1 ([#1211](https://github.com/MetaMask/core.git/pull/1211))
+
+### Removed
+- Remove `isCustomNetwork` ([#1199](https://github.com/MetaMask/core.git/pull/1199))
 
 ## [7.0.0]
 ### Changed
@@ -76,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Make `lookupNetwork` block on completing the lookup ([#1063](https://github.com/MetaMask/controllers/pull/1063))
   - This function was always `async`, but it would return before completing any async work. Now it will not return until after the network lookup has been completed.
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ### Removed
 - **BREAKING:**: Drop support for Ropsten, Rinkeby, and Kovan as built-in Infura networks ([#1041](https://github.com/MetaMask/controllers/pull/1041))

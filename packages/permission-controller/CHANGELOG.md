@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.0]
-### Uncategorized
-- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core.git/pull/1198))
+### Changed
 - Restrict certain permissions by subject type ([#1233](https://github.com/MetaMask/core.git/pull/1233))
-- BREAKING: Move `SubjectMetadataController` to permission-controller package ([#1234](https://github.com/MetaMask/core.git/pull/1234))
+- Move `SubjectMetadataController` to permission-controller package ([#1234](https://github.com/MetaMask/core.git/pull/1234))
 - deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core.git/pull/1215))
 
 ## [3.1.0]
@@ -29,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **BREAKING:** Update `@metamask/network-controller` peer dependency to v3 ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [1.0.2]
 ### Fixed

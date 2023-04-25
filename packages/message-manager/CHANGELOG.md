@@ -7,10 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.1.1]
-### Uncategorized
+### Changed
 - fix: prevent setResult to emit updateBadge but state updates ([#1245](https://github.com/MetaMask/core.git/pull/1245))
-- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core.git/pull/1198))
-- fix changelog ([#1232](https://github.com/MetaMask/core.git/pull/1232))
 
 ## [3.1.0]
 ### Added
@@ -36,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.2]
 ### Changed
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [1.0.1]
 ### Changed

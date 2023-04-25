@@ -7,9 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.4.0]
-### Uncategorized
+### Added
 - add WalletConnect in approval type ([#1240](https://github.com/MetaMask/core.git/pull/1240))
-- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core.git/pull/1198))
 
 ## [3.3.0]
 ### Added
