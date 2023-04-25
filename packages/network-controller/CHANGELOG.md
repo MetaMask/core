@@ -9,12 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [8.0.0]
 ### Changed
 - Update EIP-1559 compatibility during network lookup ([#1236](https://github.com/MetaMask/core/pull/1236))
-- Refresh network when connection is reset ([#1235](https://github.com/MetaMask/core/pull/1235))
 - Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core/pull/1196))
 - Make network controller internal fields private ([#1189](https://github.com/MetaMask/core/pull/1189))
 - Export `BlockTrackerProxy` type ([#1147](https://github.com/MetaMask/core/pull/1147))
   - This is the type of the block tracker returned from the `getProviderAndBlockTracker` method
-- Implement resetConnection method in network controller ([#1131](https://github.com/MetaMask/core/pull/1131)) [#1239](https://github.com/MetaMask/core/pull/1239)
+- Implement `resetConnection` method ([#1131](https://github.com/MetaMask/core/pull/1131), [#1235](https://github.com/MetaMask/core/pull/1235), [#1239](https://github.com/MetaMask/core/pull/1239))
 - Async refactor
   - Make `rollbackToPreviousProvider` async ([#1237](https://github.com/MetaMask/core/pull/1237))
   - Make `upsertNetworkConfiguration` async ([#1192](https://github.com/MetaMask/core/pull/1192))
