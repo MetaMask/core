@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refresh network when connection is reset ([#1235](https://github.com/MetaMask/core/pull/1235))
 - Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core/pull/1196))
 - Make network controller internal fields private ([#1189](https://github.com/MetaMask/core/pull/1189))
-- Add nonce tracker to transactions controller ([#1147](https://github.com/MetaMask/core/pull/1147))
+- Export `BlockTrackerProxy` type ([#1147](https://github.com/MetaMask/core/pull/1147))
+  - This is the type of the block tracker returned from the `getProviderAndBlockTracker` method
 - Implement resetConnection method in network controller ([#1131](https://github.com/MetaMask/core/pull/1131))
 - Async refactor
   - Make `rollbackToPreviousProvider` async ([#1237](https://github.com/MetaMask/core/pull/1237))
