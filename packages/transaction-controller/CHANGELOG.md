@@ -8,12 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0]
 ### Changed
-- deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core.git/pull/1215))
-- Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core.git/pull/1196))
-- Add nonce tracker to transactions controller ([#1147](https://github.com/MetaMask/core.git/pull/1147))
+- deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
+- Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core/pull/1196))
+- Add nonce tracker to transactions controller ([#1147](https://github.com/MetaMask/core/pull/1147))
 
 ### Removed
-- Remove `isCustomNetwork` ([#1199](https://github.com/MetaMask/core.git/pull/1199))
+- Remove `isCustomNetwork` ([#1199](https://github.com/MetaMask/core/pull/1199))
 
 ## [4.0.1]
 ### Changed
@@ -48,10 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@4.1.0...HEAD
-[4.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@4.0.1...@metamask/transaction-controller@4.1.0
-[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@4.0.0...@metamask/transaction-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@3.0.0...@metamask/transaction-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@2.0.0...@metamask/transaction-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/transaction-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.0.1...@metamask/transaction-controller@4.1.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.0.0...@metamask/transaction-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@3.0.0...@metamask/transaction-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@2.0.0...@metamask/transaction-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/transaction-controller@1.0.0

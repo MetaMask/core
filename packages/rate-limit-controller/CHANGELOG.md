@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.1]
 ### Changed
-- deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core.git/pull/1215))
+- deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
 
 ## [2.0.0]
 ### Removed
@@ -32,9 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/rate-limit-controller@2.0.1...HEAD
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/rate-limit-controller@2.0.0...@metamask/rate-limit-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/rate-limit-controller@1.0.2...@metamask/rate-limit-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/rate-limit-controller@1.0.1...@metamask/rate-limit-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/rate-limit-controller@1.0.0...@metamask/rate-limit-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/rate-limit-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@2.0.1...HEAD
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@2.0.0...@metamask/rate-limit-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@1.0.2...@metamask/rate-limit-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@1.0.1...@metamask/rate-limit-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@1.0.0...@metamask/rate-limit-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/rate-limit-controller@1.0.0

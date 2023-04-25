@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.1]
 ### Changed
-- deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core.git/pull/1215))
+- deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
 
 ## [2.1.0]
 ### Added
@@ -39,10 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/approval-controller@2.1.1...HEAD
-[2.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/approval-controller@2.1.0...@metamask/approval-controller@2.1.1
-[2.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/approval-controller@2.0.0...@metamask/approval-controller@2.1.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/approval-controller@1.1.0...@metamask/approval-controller@2.0.0
-[1.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/approval-controller@1.0.1...@metamask/approval-controller@1.1.0
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/approval-controller@1.0.0...@metamask/approval-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/approval-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.1...HEAD
+[2.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.0...@metamask/approval-controller@2.1.1
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.0.0...@metamask/approval-controller@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@1.1.0...@metamask/approval-controller@2.0.0
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@1.0.1...@metamask/approval-controller@1.1.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@1.0.0...@metamask/approval-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/approval-controller@1.0.0

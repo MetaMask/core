@@ -8,28 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 ### Changed
-- Update EIP-1559 compatibility during network lookup ([#1236](https://github.com/MetaMask/core.git/pull/1236))
-- Refresh network when connection is reset ([#1235](https://github.com/MetaMask/core.git/pull/1235))
-- Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core.git/pull/1196))
-- Make network controller internal fields private ([#1189](https://github.com/MetaMask/core.git/pull/1189))
-- Add nonce tracker to transactions controller ([#1147](https://github.com/MetaMask/core.git/pull/1147))
-- Implement resetConnection method in network controller ([#1131](https://github.com/MetaMask/core.git/pull/1131))
+- Update EIP-1559 compatibility during network lookup ([#1236](https://github.com/MetaMask/core/pull/1236))
+- Refresh network when connection is reset ([#1235](https://github.com/MetaMask/core/pull/1235))
+- Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core/pull/1196))
+- Make network controller internal fields private ([#1189](https://github.com/MetaMask/core/pull/1189))
+- Add nonce tracker to transactions controller ([#1147](https://github.com/MetaMask/core/pull/1147))
+- Implement resetConnection method in network controller ([#1131](https://github.com/MetaMask/core/pull/1131))
 - Async refactor
-  - Make `rollbackToPreviousProvider` async ([#1237](https://github.com/MetaMask/core.git/pull/1237))
-  - Make `resetConnection` async ([#1239](https://github.com/MetaMask/core.git/pull/1239))
-  - Make `upsertNetworkConfiguration` async ([#1192](https://github.com/MetaMask/core.git/pull/1192))
-  - Make `setActiveNetwork` async ([#1190](https://github.com/MetaMask/core.git/pull/1190))
-  - Make `setProviderType` async ([#1191](https://github.com/MetaMask/core.git/pull/1191))
-  - Make `refreshNetwork` async ([#1182](https://github.com/MetaMask/core.git/pull/1182))
-  - Make `initializeProvider` async ([#1180](https://github.com/MetaMask/core.git/pull/1180))
-  - Make `verifyNetwork` async ([#1181](https://github.com/MetaMask/core.git/pull/1181))
+  - Make `rollbackToPreviousProvider` async ([#1237](https://github.com/MetaMask/core/pull/1237))
+  - Make `resetConnection` async ([#1239](https://github.com/MetaMask/core/pull/1239))
+  - Make `upsertNetworkConfiguration` async ([#1192](https://github.com/MetaMask/core/pull/1192))
+  - Make `setActiveNetwork` async ([#1190](https://github.com/MetaMask/core/pull/1190))
+  - Make `setProviderType` async ([#1191](https://github.com/MetaMask/core/pull/1191))
+  - Make `refreshNetwork` async ([#1182](https://github.com/MetaMask/core/pull/1182))
+  - Make `initializeProvider` async ([#1180](https://github.com/MetaMask/core/pull/1180))
+  - Make `verifyNetwork` async ([#1181](https://github.com/MetaMask/core/pull/1181))
 - Dependency updates
-  - deps: bump web3-provider-engine@16.0.3->16.0.5 ([#1212](https://github.com/MetaMask/core.git/pull/1212))
-  - deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core.git/pull/1215))
-  - deps: bump @metamask/utils to 5.0.1 ([#1211](https://github.com/MetaMask/core.git/pull/1211))
+  - deps: bump web3-provider-engine@16.0.3->16.0.5 ([#1212](https://github.com/MetaMask/core/pull/1212))
+  - deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
+  - deps: bump @metamask/utils to 5.0.1 ([#1211](https://github.com/MetaMask/core/pull/1211))
 
 ### Removed
-- Remove `isCustomNetwork` ([#1199](https://github.com/MetaMask/core.git/pull/1199))
+- Remove `isCustomNetwork` ([#1199](https://github.com/MetaMask/core/pull/1199))
 
 ## [7.0.0]
 ### Changed
@@ -95,12 +95,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@8.0.0...HEAD
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@7.0.0...@metamask/network-controller@8.0.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@6.0.0...@metamask/network-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@5.0.0...@metamask/network-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@4.0.0...@metamask/network-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@3.0.0...@metamask/network-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/network-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@7.0.0...@metamask/network-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@6.0.0...@metamask/network-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@5.0.0...@metamask/network-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@4.0.0...@metamask/network-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@3.0.0...@metamask/network-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/network-controller@1.0.0
