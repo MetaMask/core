@@ -24,7 +24,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/safe-event-emitter": "^2.0.0",
+    "@metamask/safe-event-emitter": "^3.0.0",
     "readable-stream": "^2.3.3"
   },
   "devDependencies": {
