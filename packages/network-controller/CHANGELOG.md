@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make network controller internal fields private ([#1189](https://github.com/MetaMask/core/pull/1189))
 - Export `BlockTrackerProxy` type ([#1147](https://github.com/MetaMask/core/pull/1147))
   - This is the type of the block tracker returned from the `getProviderAndBlockTracker` method
-- Implement resetConnection method in network controller ([#1131](https://github.com/MetaMask/core/pull/1131))
+- Implement resetConnection method in network controller ([#1131](https://github.com/MetaMask/core/pull/1131)) [#1239](https://github.com/MetaMask/core/pull/1239)
 - Async refactor
   - Make `rollbackToPreviousProvider` async ([#1237](https://github.com/MetaMask/core/pull/1237))
   - Make `resetConnection` async ([#1239](https://github.com/MetaMask/core/pull/1239))
