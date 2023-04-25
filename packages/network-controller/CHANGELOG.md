@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement resetConnection method in network controller ([#1131](https://github.com/MetaMask/core/pull/1131)) [#1239](https://github.com/MetaMask/core/pull/1239)
 - Async refactor
   - Make `rollbackToPreviousProvider` async ([#1237](https://github.com/MetaMask/core/pull/1237))
-  - Make `resetConnection` async ([#1239](https://github.com/MetaMask/core/pull/1239))
   - Make `upsertNetworkConfiguration` async ([#1192](https://github.com/MetaMask/core/pull/1192))
   - Make `setActiveNetwork` async ([#1190](https://github.com/MetaMask/core/pull/1190))
   - Make `setProviderType` async ([#1191](https://github.com/MetaMask/core/pull/1191))
