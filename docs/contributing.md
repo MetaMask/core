@@ -2,7 +2,7 @@
 
 ## Getting started
 
-- Install [Node.js](https://nodejs.org) version 14.
+- Install [Node.js](https://nodejs.org) version 16.
   - If you're using [NVM](https://github.com/creationix/nvm#installation) (recommended), `nvm use` will ensure that the right version is installed.
 - Install [Yarn v3](https://yarnpkg.com/getting-started/install).
 - Run `yarn install` to install dependencies and run any required post-install scripts.
@@ -14,7 +14,8 @@
 - Run `yarn workspace <workspaceName> run jest --no-coverage <file>` to run a test file within the context of a package.
 - Run `yarn test` to run tests for all packages.
 
-> **Note**  
+> **Note**
+>
 > `workspaceName` in these commands is the `name` field within a package's `package.json`, e.g., `@metamask/address-book-controller`, not the directory where it is located, e.g., `packages/address-book-controller`.
 
 ## Using packages in other projects during development/testing
