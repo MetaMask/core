@@ -1041,10 +1041,9 @@ export class NftController extends BaseController<NftConfig, NftState> {
     const existingNft = this.findNftByAddressAndTokenId(
       address,
       tokenId,
-      chainId,
       interactingAddress ?? selectedAddress,
+      chainId,
     );
-
     if (existingNft) {
       throw new Error(
         `NFT with address "${address}" and token ID "${tokenId}" already exists.`,
@@ -1533,7 +1532,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
   ): { nft: Nft; index: number } | null {
     const { allNfts } = this.state;
     const nfts = allNfts[selectedAddress]?.[chainId] || [];
-
     const index: number = nfts.findIndex(
       (nft) =>
         nft.address.toLowerCase() === address.toLowerCase() &&
