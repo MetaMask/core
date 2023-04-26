@@ -10,7 +10,7 @@
     "noErrorTruncation": true,
     "noUncheckedIndexedAccess": true,
     "strict": true,
-    "target": "ES2017"
+    "target": "es2020"
   },
   "exclude": ["./dist/**/*"]
 }
