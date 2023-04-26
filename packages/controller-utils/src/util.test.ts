@@ -525,16 +525,6 @@ describe('util', () => {
     });
   });
 
-  describe('hasProperty', () => {
-    it('returns false for non existing properties', () => {
-      expect(util.hasProperty({ foo: 'bar' }, 'property')).toBe(false);
-    });
-
-    it('returns true for existing properties', () => {
-      expect(util.hasProperty({ foo: 'bar' }, 'foo')).toBe(true);
-    });
-  });
-
   describe('isNonEmptyArray', () => {
     it('returns false non arrays', () => {
       // @ts-expect-error Invalid type for testing purposes
