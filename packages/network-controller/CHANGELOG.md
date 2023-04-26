@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [8.0.0]
 ### Changed
 - Update EIP-1559 compatibility during network lookup ([#1236](https://github.com/MetaMask/core/pull/1236))
-- Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core/pull/1196))
+- **BREAKING:** Replace `network` state with `networkId` and `networkStatus` ([#1196](https://github.com/MetaMask/core/pull/1196))
+  - If you were using `network` to access the network ID, use `networkId` now instead. It will be set to `null` rather than `loading` if the network is not currently available.
+  - If you were using `network` to see if the network was currently available, use `networkStatus` instead. It will be set to `NetworkStatus.Available` if the network is available.
+  - When the network is unavailable, we now have two different states to represent that: "Unknown" and "Unavailable". Unavailable means that we know the network is not currently available, whereas unknown is used for unknown errors and for cases where we don't yet know the network status (e.g. before initialization, or while the network is loading).
 - Use JavaScript private fields rather than `private` TypeScript keyword for internal methods/fields ([#1189](https://github.com/MetaMask/core/pull/1189))
 - Export `BlockTrackerProxy` type ([#1147](https://github.com/MetaMask/core/pull/1147))
   - This is the type of the block tracker returned from the `getProviderAndBlockTracker` method
