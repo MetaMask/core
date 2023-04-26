@@ -1355,7 +1355,7 @@ __metadata:
     "@metamask/preferences-controller": "workspace:^"
     "@metamask/utils": ^5.0.2
     "@types/jest": ^27.4.1
-    "@types/node": ^14.14.31
+    "@types/node": ^16.18.24
     "@types/uuid": ^8.3.0
     abort-controller: ^3.0.0
     async-mutex: ^0.2.6
@@ -1482,7 +1482,7 @@ __metadata:
     "@metamask/eslint-config-jest": ^9.0.0
     "@metamask/eslint-config-nodejs": ^9.0.0
     "@metamask/eslint-config-typescript": ^9.0.1
-    "@types/node": ^14.14.31
+    "@types/node": ^16.18.24
     "@typescript-eslint/eslint-plugin": ^4.33.0
     "@typescript-eslint/parser": ^4.33.0
     eslint: ^7.24.0
@@ -1917,7 +1917,7 @@ __metadata:
     "@metamask/controller-utils": "workspace:^"
     "@metamask/network-controller": "workspace:^"
     "@types/jest": ^27.4.1
-    "@types/node": ^14.14.31
+    "@types/node": ^16.18.24
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
@@ -2414,10 +2414,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*, @types/node@npm:^14.14.31":
-  version: 14.14.31
-  resolution: "@types/node@npm:14.14.31"
-  checksum: 5b9ab3660ee63abc57affc836c0d50b2941a862c5b6c241c02762d8e1ad610f6b0d350d7426218dc401b5abc7d6294ee1b475da7c331e486d59a5608d1a0b777
+"@types/node@npm:*, @types/node@npm:^16.18.24":
+  version: 16.18.24
+  resolution: "@types/node@npm:16.18.24"
+  checksum: 0b221b7f56f3c4911e90dfcc217db3866eb13b7af9390b8f668377f1211b2b3ca808e0128a29d0cef8aa0944523852531e827b923b35e5fa9063db87af7b41a0
   languageName: node
   linkType: hard
 

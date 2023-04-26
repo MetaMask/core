@@ -56,7 +56,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
     "@types/jest": "^27.4.1",
-    "@types/node": "^14.14.31",
+    "@types/node": "^16.18.24",
     "deepmerge": "^4.2.2",
     "ethjs-provider-http": "^0.1.6",
     "jest": "^27.5.1",
@@ -73,7 +73,7 @@
     "@metamask/network-controller": "workspace:^"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "publishConfig": {
     "access": "public",
