@@ -1,6 +1,6 @@
 import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
-import { hasProperty } from '@metamask/controller-utils';
+import { hasProperty } from '@metamask/utils';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
