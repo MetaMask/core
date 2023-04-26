@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+### Changed
+- **BREAKING**: deps: @metamask/network-controller@6.0.0->8.0.0
+  - Adjust types to align with new version of `NetworkController` ([#1091](https://github.com/MetaMask/core/pull/1091))
+
 ## [6.0.0]
 ### Changed
 - **BREAKING:** Create approval requests using `@metamask/approval-controller` ([#1166](https://github.com/MetaMask/core/pull/1166))
