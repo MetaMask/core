@@ -8,8 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.0]
 ### Changed
-- **BREAKING**: deps: @metamask/network-controller@6.0.0->8.0.0
-  - Adjust types to align with new version of `NetworkController` ([#1091](https://github.com/MetaMask/core/pull/1091))
+- **BREAKING**: peerDeps: @metamask/network-controller@6.0.0->8.0.0 ([#1196](https://github.com/MetaMask/core/pull/1196))
 
 ## [6.0.0]
 ### Changed
