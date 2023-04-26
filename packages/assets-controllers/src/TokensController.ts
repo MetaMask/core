@@ -1,9 +1,5 @@
 import { EventEmitter } from 'events';
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
@@ -53,53 +49,22 @@ export interface TokensConfig extends BaseConfig {
 }
 
 /**
- * @type AssetSuggestionResult
- * @property result - Promise resolving to a new suggested asset address
- * @property suggestedAssetMeta - Meta information about this new suggested asset
- */
-interface AssetSuggestionResult {
-  result: Promise<string>;
-  suggestedAssetMeta: SuggestedAssetMeta;
-}
-
-enum SuggestedAssetStatus {
-  accepted = 'accepted',
-  failed = 'failed',
-  pending = 'pending',
-  rejected = 'rejected',
-}
-
-export type SuggestedAssetMetaBase = {
-  id: string;
-  time: number;
-  type: string;
-  asset: Token;
-  interactingAddress?: string;
-};
-
-/**
  * @type SuggestedAssetMeta
  *
  * Suggested asset by EIP747 meta data
- * @property error - Synthesized error information for failed asset suggestions
  * @property id - Generated UUID associated with this suggested asset
- * @property status - String status of this this suggested asset
  * @property time - Timestamp associated with this this suggested asset
  * @property type - Type type this suggested asset
  * @property asset - Asset suggested object
  * @property interactingAddress - Account address that requested watch asset
  */
-export type SuggestedAssetMeta =
-  | (SuggestedAssetMetaBase & {
-      status: SuggestedAssetStatus.failed;
-      error: Error;
-    })
-  | (SuggestedAssetMetaBase & {
-      status:
-        | SuggestedAssetStatus.accepted
-        | SuggestedAssetStatus.rejected
-        | SuggestedAssetStatus.pending;
-    });
+export type SuggestedAssetMeta = {
+  id: string;
+  time: number;
+  type: string;
+  asset: Token;
+  interactingAddress: string;
+};
 
 /**
  * @type TokensState
@@ -131,10 +96,7 @@ const controllerName = 'TokensController';
 /**
  * The external actions available to the {@link TokensController}.
  */
-type AllowedActions =
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest;
+type AllowedActions = AddApprovalRequest;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -655,20 +617,27 @@ export class TokensController extends BaseController<
   ): Promise<string> {
     const { selectedAddress } = this.config;
 
-    const suggestedAssetMeta: SuggestedAssetMeta & {
-      interactingAddress: string;
-    } = {
+    const suggestedAssetMeta: SuggestedAssetMeta = {
       asset,
       id: this._generateRandomId(),
-      status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
       time: Date.now(),
       type,
       interactingAddress: interactingAddress || selectedAddress,
     };
 
+    let acceptWatchAsset: () => Promise<void>;
     switch (type) {
       case 'ERC20':
         validateTokenToWatch(asset);
+        acceptWatchAsset = async () => {
+          this.addToken(
+            asset.address,
+            asset.symbol,
+            asset.decimals,
+            asset.image,
+            suggestedAssetMeta.interactingAddress,
+          );
+        };
         break;
       default:
         throw new Error(`Asset of type ${type} not supported`);
@@ -680,64 +649,15 @@ export class TokensController extends BaseController<
 
     try {
       await this._requestApproval(suggestedAssetMeta);
-    } catch (error) {
-      this.removeSuggestedAsset(suggestedAssetMeta.id);
-      throw new Error('User rejected to watch the asset.');
+      await acceptWatchAsset();
+    } finally {
+      const newSuggestedAssets = suggestedAssets.filter(
+        ({ id }) => id !== suggestedAssetMeta.id,
+      );
+      this.update({ suggestedAssets: [...newSuggestedAssets] });
     }
-
-    await this.acceptWatchAsset(suggestedAssetMeta);
 
     return suggestedAssetMeta.asset.address;
-  }
-
-  /**
-   * Accepts to watch an asset and updates it's status and deletes the suggestedAsset from state,
-   * adding the asset to corresponding asset state. In this case ERC20 tokens.
-   * A `<suggestedAssetMeta.id>:finished` hub event is fired after accepted or failure.
-   *
-   * @param suggestedAssetMeta - The ID of the suggestedAsset to accept.
-   */
-  private async acceptWatchAsset(
-    suggestedAssetMeta: SuggestedAssetMeta & {
-      interactingAddress: string;
-    },
-  ): Promise<void> {
-    try {
-      switch (suggestedAssetMeta.type) {
-        case 'ERC20':
-          const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
-          await this.addToken(
-            address,
-            symbol,
-            decimals,
-            image,
-            suggestedAssetMeta.interactingAddress,
-          );
-          break;
-        default:
-          /* istanbul ignore next */
-          throw new Error(
-            `Asset of type ${suggestedAssetMeta.type} not supported`,
-          );
-      }
-    } finally {
-      this.removeSuggestedAsset(suggestedAssetMeta.id);
-    }
-  }
-
-  /**
-   * Rejects a watchAsset request based on its ID by setting its status to "rejected"
-   * and emitting a `<suggestedAssetMeta.id>:finished` hub event.
-   *
-   * @param suggestedAssetId - The ID of the suggestedAsset to accept.
-   */
-  private removeSuggestedAsset(suggestedAssetId: string) {
-    const { suggestedAssets } = this.state;
-
-    const newSuggestedAssets = suggestedAssets.filter(
-      ({ id }) => id !== suggestedAssetId,
-    );
-    this.update({ suggestedAssets: [...newSuggestedAssets] });
   }
 
   /**
@@ -838,11 +758,7 @@ export class TokensController extends BaseController<
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });
   }
 
-  _requestApproval(
-    suggestedAssetMeta: SuggestedAssetMeta & {
-      interactingAddress: string;
-    },
-  ) {
+  _requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
     return this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
