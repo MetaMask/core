@@ -724,7 +724,7 @@ describe('KeyringController', () => {
     });
   });
 
-  describe('subscribe', () => {
+  describe('subscribe and unsubscribe', () => {
     it('should subscribe and unsubscribe', async () => {
       const listener = sinon.stub();
       keyringController.subscribe(listener);
