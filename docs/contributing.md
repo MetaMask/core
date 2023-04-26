@@ -14,7 +14,8 @@
 - Run `yarn workspace <workspaceName> run jest --no-coverage <file>` to run a test file within the context of a package.
 - Run `yarn test` to run tests for all packages.
 
-> **Note** > `workspaceName` in these commands is the `name` field within a package's `package.json`, e.g., `@metamask/address-book-controller`, not the directory where it is located, e.g., `packages/address-book-controller`.
+> **Note**
+> `workspaceName` in these commands is the `name` field within a package's `package.json`, e.g., `@metamask/address-book-controller`, not the directory where it is located, e.g., `packages/address-book-controller`.
 
 ## Using packages in other projects during development/testing
 
