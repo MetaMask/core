@@ -961,11 +961,23 @@ describe('TokensController', () => {
       await expect(result).rejects.toThrow('Invalid address "0x123".');
     });
 
-    it('should add token correctly if user confirms', async () => {
-      const generateRandomIdStub = sinon
-        .stub(tokensController, '_generateRandomId')
-        .callsFake(() => requestId);
-      type = 'ERC20';
+    it('fails with an invalid type suggested', async () => {
+      await expect(
+        tokensController.watchAsset(
+          {
+            address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+            decimals: 18,
+            symbol: 'TKN',
+          },
+          'ERC721',
+        ),
+      ).rejects.toThrow('Asset of type ERC721 not supported');
+    });
+
+    it('stores token correctly if user confirms', async () => {
+      const generateRandomIdStub = jest
+        .spyOn(tokensController, '_generateRandomId')
+        .mockReturnValue(requestId);
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
@@ -998,14 +1010,13 @@ describe('TokensController', () => {
         true,
       );
 
-      generateRandomIdStub.restore();
+      generateRandomIdStub.mockRestore();
     });
 
-    it('should store token correctly under interacting address if user confirms', async function () {
-      const generateRandomIdStub = sinon
-        .stub(tokensController, '_generateRandomId')
-        .callsFake(() => requestId);
-      type = 'ERC20';
+    it('stores token correctly under interacting address if user confirms', async function () {
+      const generateRandomIdStub = jest
+        .spyOn(tokensController, '_generateRandomId')
+        .mockReturnValue(requestId);
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
@@ -1048,20 +1059,7 @@ describe('TokensController', () => {
         true,
       );
 
-      generateRandomIdStub.restore();
-    });
-
-    it('should fail an invalid type suggested asset via watchAsset', async () => {
-      await expect(
-        tokensController.watchAsset(
-          {
-            address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-            decimals: 18,
-            symbol: 'TKN',
-          },
-          'ERC721',
-        ),
-      ).rejects.toThrow('Asset of type ERC721 not supported');
+      generateRandomIdStub.mockRestore();
     });
   });
 

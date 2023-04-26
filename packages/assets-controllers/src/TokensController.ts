@@ -614,7 +614,7 @@ export class TokensController extends BaseController<
     asset: Token,
     type: string,
     interactingAddress?: string,
-  ): Promise<string> {
+  ): Promise<void> {
     const { selectedAddress } = this.config;
 
     const suggestedAssetMeta: SuggestedAssetMeta = {
@@ -656,8 +656,6 @@ export class TokensController extends BaseController<
       );
       this.update({ suggestedAssets: [...newSuggestedAssets] });
     }
-
-    return suggestedAssetMeta.asset.address;
   }
 
   /**
