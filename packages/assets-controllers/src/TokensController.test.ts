@@ -1,10 +1,6 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
@@ -26,18 +22,10 @@ import {
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
 
-const mockERC20Token: Token = {
-  address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-  decimals: 18,
-  symbol: 'TKN',
-};
-
-const uuidMock = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
-
 jest.mock('uuid', () => {
   return {
     ...jest.requireActual('uuid'),
-    v1: () => uuidMock,
+    v1: () => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
   };
 });
 
@@ -54,10 +42,7 @@ const GOERLI = { chainId: '5', type: NetworkType.goerli };
 
 const controllerName = 'TokensController' as const;
 
-type ApprovalActions =
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest;
+type ApprovalActions = AddApprovalRequest;
 
 describe('TokensController', () => {
   let tokensController: TokensController;
@@ -68,11 +53,7 @@ describe('TokensController', () => {
     never
   >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
     name: controllerName,
-    allowedActions: [
-      'ApprovalController:addRequest',
-      'ApprovalController:acceptRequest',
-      'ApprovalController:rejectRequest',
-    ],
+    allowedActions: ['ApprovalController:addRequest'],
   }) as TokensControllerMessenger;
 
   let onNetworkStateChangeListener: (state: NetworkState) => void;
@@ -980,65 +961,45 @@ describe('TokensController', () => {
       await expect(result).rejects.toThrow('Invalid address "0x123".');
     });
 
-    it.each([
-      ['resolves', true],
-      ['rejects', false],
-    ])(
-      'should add token correctly if user confirms and message to ApprovalController %s',
-      async function (_, approvalControllerCallResolves: boolean) {
-        const generateRandomIdStub = sinon
-          .stub(tokensController, '_generateRandomId')
-          .callsFake(() => requestId);
-        type = 'ERC20';
+    it('should add token correctly if user confirms', async () => {
+      const generateRandomIdStub = sinon
+        .stub(tokensController, '_generateRandomId')
+        .callsFake(() => requestId);
+      type = 'ERC20';
 
-        let calledOnce = false;
-        const callActionSpy = approvalControllerCallResolves
-          ? jest.spyOn(messenger, 'call').mockResolvedValue({})
-          : jest.spyOn(messenger, 'call').mockImplementation(() => {
-              if (!calledOnce) {
-                calledOnce = true;
-                return Promise.resolve({});
-              }
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockResolvedValue(undefined);
 
-              throw new Error();
-            });
+      await tokensController.watchAsset(asset, type);
 
-        await tokensController.watchAsset(asset, type);
-
-        expect(tokensController.state.suggestedAssets).toStrictEqual([]);
-        expect(tokensController.state.tokens).toHaveLength(1);
-        expect(tokensController.state.tokens).toStrictEqual([
-          {
-            isERC721: false,
-            aggregators: [],
-            ...asset,
-            image: 'image',
-          },
-        ]);
-        expect(callActionSpy).toHaveBeenCalledTimes(1);
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:addRequest',
-          {
+      expect(tokensController.state.suggestedAssets).toStrictEqual([]);
+      expect(tokensController.state.tokens).toHaveLength(1);
+      expect(tokensController.state.tokens).toStrictEqual([
+        {
+          isERC721: false,
+          aggregators: [],
+          ...asset,
+        },
+      ]);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
             id: requestId,
-            origin: ORIGIN_METAMASK,
-            type: ApprovalType.WatchAsset,
-            requestData: {
-              id: requestId,
-              interactingAddress: '0x1',
-              asset: {
-                address: asset.address,
-                decimals: asset.decimals,
-                symbol: asset.symbol,
-                image: asset.image,
-              },
-            },
+            interactingAddress: '0x1',
+            asset,
           },
-          true,
-        );
+        },
+        true,
+      );
 
-        generateRandomIdStub.restore();
-      },
-    );
+      generateRandomIdStub.restore();
+    });
 
     it('should store token correctly under interacting address if user confirms', async function () {
       const generateRandomIdStub = sinon
@@ -1046,7 +1007,9 @@ describe('TokensController', () => {
         .callsFake(() => requestId);
       type = 'ERC20';
 
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockResolvedValue(undefined);
 
       await tokensController.watchAsset(asset, type, interactingAddress);
 
@@ -1067,7 +1030,6 @@ describe('TokensController', () => {
           isERC721: false,
           aggregators: [],
           ...asset,
-          image: 'image',
         },
       ]);
       expect(callActionSpy).toHaveBeenCalledTimes(1);
@@ -1080,12 +1042,7 @@ describe('TokensController', () => {
           requestData: {
             id: requestId,
             interactingAddress,
-            asset: {
-              address: asset.address,
-              decimals: asset.decimals,
-              symbol: asset.symbol,
-              image: asset.image,
-            },
+            asset,
           },
         },
         true,
@@ -1105,66 +1062,6 @@ describe('TokensController', () => {
           'ERC721',
         ),
       ).rejects.toThrow('Asset of type ERC721 not supported');
-    });
-
-    it('should reject a valid suggested asset via watchAsset', async () => {
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockImplementation(() => {
-          throw new Error();
-        });
-
-      const result = tokensController.watchAsset(mockERC20Token, 'ERC20');
-
-      await expect(result).rejects.toThrow('User rejected to watch the asset.');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: uuidMock,
-          origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: uuidMock,
-            interactingAddress: '0x1',
-            asset: {
-              ...mockERC20Token,
-              image: null,
-            },
-          },
-        },
-        true,
-      );
-      expect(tokensController.state.suggestedAssets).toHaveLength(0);
-    });
-
-    it('should accept a valid suggested asset via watchAsset', async () => {
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockResolvedValue(undefined);
-
-      const result = await tokensController.watchAsset(mockERC20Token, 'ERC20');
-
-      expect(result).toStrictEqual(mockERC20Token.address);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: uuidMock,
-          origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: uuidMock,
-            interactingAddress: '0x1',
-            asset: {
-              ...mockERC20Token,
-              image: null,
-            },
-          },
-        },
-        true,
-      );
-      expect(tokensController.state.suggestedAssets).toHaveLength(0);
     });
   });
 

@@ -630,7 +630,7 @@ export class TokensController extends BaseController<
       case 'ERC20':
         validateTokenToWatch(asset);
         acceptWatchAsset = async () => {
-          this.addToken(
+          await this.addToken(
             asset.address,
             asset.symbol,
             asset.decimals,
