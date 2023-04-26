@@ -173,7 +173,7 @@ export type NetworkControllerMessenger = RestrictedControllerMessenger<
 export type NetworkControllerOptions = {
   messenger: NetworkControllerMessenger;
   trackMetaMetricsEvent: () => void;
-  infuraProjectId?: string;
+  infuraProjectId: string;
   state?: Partial<NetworkState>;
 };
 
@@ -213,7 +213,7 @@ export class NetworkController extends BaseControllerV2<
 > {
   #ethQuery: EthQuery;
 
-  #infuraProjectId: string | undefined;
+  #infuraProjectId: string;
 
   #trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
 
@@ -260,6 +260,9 @@ export class NetworkController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
+    if (!infuraProjectId || typeof infuraProjectId !== 'string') {
+      throw new Error('Invalid Infura project ID');
+    }
     this.#infuraProjectId = infuraProjectId;
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.messagingSystem.registerActionHandler(

@@ -162,6 +162,35 @@ describe('NetworkController', () => {
         },
       );
     });
+
+    it('throws if the infura project ID is missing', async () => {
+      const messenger = buildMessenger();
+
+      expect(
+        () =>
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          new NetworkController({
+            messenger,
+            trackMetaMetricsEvent: jest.fn(),
+          }),
+      ).toThrow('Invalid Infura project ID');
+    });
+
+    it('throws if the infura project ID is not a string', async () => {
+      const messenger = buildMessenger();
+
+      expect(
+        () =>
+          new NetworkController({
+            messenger,
+            trackMetaMetricsEvent: jest.fn(),
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            infuraProjectId: 10,
+          }),
+      ).toThrow('Invalid Infura project ID');
+    });
   });
 
   describe('initializeProvider', () => {
@@ -235,7 +264,6 @@ describe('NetworkController', () => {
                     type: networkType,
                   }),
                 },
-                infuraProjectId: 'infura-project-id',
               },
               async ({ controller }) => {
                 const fakeInfuraProvider = buildFakeInfuraProvider();
@@ -273,7 +301,6 @@ describe('NetworkController', () => {
                         type: networkType,
                       }),
                     },
-                    infuraProjectId: 'infura-project-id',
                   },
                   async ({ controller }) => {
                     const fakeInfuraProvider = buildFakeInfuraProvider();
@@ -351,7 +378,6 @@ describe('NetworkController', () => {
                         type: networkType,
                       }),
                     },
-                    infuraProjectId: 'infura-project-id',
                   },
                   async ({ controller }) => {
                     const fakeInfuraProvider = buildFakeInfuraProvider();
@@ -3325,7 +3351,6 @@ describe('NetworkController', () => {
                     chainId: '0x9999999',
                   },
                 },
-                infuraProjectId: 'infura-project-id',
               },
               async ({ controller }) => {
                 const fakeInfuraProvider = buildFakeInfuraProvider();
@@ -5673,6 +5698,7 @@ async function withController<ReturnValue>(
   const controller = new NetworkController({
     messenger,
     trackMetaMetricsEvent: jest.fn(),
+    infuraProjectId: 'infura-project-id',
     ...rest,
   });
   try {
