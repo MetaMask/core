@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.1.1]
 ### Fixed
-- Ensure message updates get saved in state even when they aren't emited right away  ([#1245](https://github.com/MetaMask/core/pull/1245))
+- Ensure message updates get saved in state even when they aren't emitted right away  ([#1245](https://github.com/MetaMask/core/pull/1245))
   - The `updateMessage` method included in each message manager accepted an `emitUpdate` boolean argument that would enable to caller to prevent that update from updating the badge (which displays the count of pending confirmations). Unfortunately this option would also prevent the update from being saved in state.
   - This method has been updated to ensure message updates are saved in state, even when the badge update event is suppressed
 
