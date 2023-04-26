@@ -158,9 +158,7 @@ export class AccountTrackerController extends BaseController<
     const accounts = { ...this.state.accounts };
     for (const address in accounts) {
       await safelyExecuteWithTimeout(async () => {
-        if (!this.ethQuery) {
-          throw new Error('Provider not set');
-        }
+        assert(this.ethQuery, 'Provider not set.');
         const balance = await query(this.ethQuery, 'getBalance', [address]);
         accounts[address] = { balance: BNToHex(balance) };
       });
