@@ -444,9 +444,7 @@ export function query(
       hasProperty(ethQuery, method) &&
       typeof ethQuery[method] === 'function'
     ) {
-      // All of the generated method types have this signature, but our types don't support these yet
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
+      // @ts-expect-error All of the generated method types have this signature, but our EthQuery type doesn't include them
       ethQuery[method](...args, cb);
     } else {
       ethQuery.sendAsync({ method, params: args }, cb);

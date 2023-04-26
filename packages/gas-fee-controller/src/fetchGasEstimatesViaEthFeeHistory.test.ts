@@ -83,8 +83,7 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
       .calledWith(blocks)
       .mockReturnValue(levelSpecificEstimates);
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+    // @ts-expect-error Mock eth query does not fulfill type requirements
     const gasFeeEstimates = await fetchGasEstimatesViaEthFeeHistory(ethQuery);
 
     expect(gasFeeEstimates).toStrictEqual({

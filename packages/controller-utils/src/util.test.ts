@@ -441,8 +441,7 @@ describe('util', () => {
         const ethQuery = {
           getBlockByHash: (blockId: any, cb: any) => cb(null, { id: blockId }),
         };
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
+        // @ts-expect-error Mock eth query does not fulfill type requirements
         const result = await util.query(ethQuery, 'getBlockByHash', ['0x1234']);
         expect(result).toStrictEqual({ id: '0x1234' });
       });
@@ -453,8 +452,7 @@ describe('util', () => {
             cb(new Error('uh oh'), null),
         };
         await expect(
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
+          // @ts-expect-error Mock eth query does not fulfill type requirements
           util.query(ethQuery, 'getBlockByHash', ['0x1234']),
         ).rejects.toThrow('uh oh');
       });
