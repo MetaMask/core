@@ -162,21 +162,6 @@ export class TokensController extends BaseController<
 
   private messagingSystem: TokensControllerMessenger;
 
-  private failSuggestedAsset(
-    suggestedAssetMeta: SuggestedAssetMeta,
-    error: unknown,
-  ) {
-    const failedSuggestedAssetMeta = {
-      ...suggestedAssetMeta,
-      status: SuggestedAssetStatus.failed,
-      error,
-    };
-    this.hub.emit(
-      `${suggestedAssetMeta.id}:finished`,
-      failedSuggestedAssetMeta,
-    );
-  }
-
   /**
    * Fetch metadata for a token.
    *
@@ -667,7 +652,7 @@ export class TokensController extends BaseController<
     asset: Token,
     type: string,
     interactingAddress?: string,
-  ): Promise<AssetSuggestionResult> {
+  ): Promise<string> {
     const { selectedAddress } = this.config;
 
     const suggestedAssetMeta: SuggestedAssetMeta & {
@@ -681,45 +666,28 @@ export class TokensController extends BaseController<
       interactingAddress: interactingAddress || selectedAddress,
     };
 
-    try {
-      switch (type) {
-        case 'ERC20':
-          validateTokenToWatch(asset);
-          break;
-        default:
-          throw new Error(`Asset of type ${type} not supported`);
-      }
-    } catch (error) {
-      this.failSuggestedAsset(suggestedAssetMeta, error);
-      return Promise.reject(error);
+    switch (type) {
+      case 'ERC20':
+        validateTokenToWatch(asset);
+        break;
+      default:
+        throw new Error(`Asset of type ${type} not supported`);
     }
-
-    const result: Promise<string> = new Promise((resolve, reject) => {
-      this.hub.once(
-        `${suggestedAssetMeta.id}:finished`,
-        (meta: SuggestedAssetMeta) => {
-          switch (meta.status) {
-            case SuggestedAssetStatus.accepted:
-              return resolve(meta.asset.address);
-            case SuggestedAssetStatus.rejected:
-              return reject(new Error('User rejected to watch the asset.'));
-            case SuggestedAssetStatus.failed:
-              return reject(new Error(meta.error.message));
-            /* istanbul ignore next */
-            default:
-              return reject(new Error(`Unknown status: ${meta.status}`));
-          }
-        },
-      );
-    });
 
     const { suggestedAssets } = this.state;
     suggestedAssets.push(suggestedAssetMeta);
     this.update({ suggestedAssets: [...suggestedAssets] });
 
-    this._requestApproval(suggestedAssetMeta);
+    try {
+      await this._requestApproval(suggestedAssetMeta);
+    } catch (error) {
+      this.removeSuggestedAsset(suggestedAssetMeta.id);
+      throw new Error('User rejected to watch the asset.');
+    }
 
-    return { result, suggestedAssetMeta };
+    await this.acceptWatchAsset(suggestedAssetMeta);
+
+    return suggestedAssetMeta.asset.address;
   }
 
   /**
@@ -727,15 +695,13 @@ export class TokensController extends BaseController<
    * adding the asset to corresponding asset state. In this case ERC20 tokens.
    * A `<suggestedAssetMeta.id>:finished` hub event is fired after accepted or failure.
    *
-   * @param suggestedAssetID - The ID of the suggestedAsset to accept.
+   * @param suggestedAssetMeta - The ID of the suggestedAsset to accept.
    */
-  async acceptWatchAsset(suggestedAssetID: string): Promise<void> {
-    const { selectedAddress } = this.config;
-    const { suggestedAssets } = this.state;
-    const index = suggestedAssets.findIndex(
-      ({ id }) => suggestedAssetID === id,
-    );
-    const suggestedAssetMeta = suggestedAssets[index];
+  private async acceptWatchAsset(
+    suggestedAssetMeta: SuggestedAssetMeta & {
+      interactingAddress: string;
+    },
+  ): Promise<void> {
     try {
       switch (suggestedAssetMeta.type) {
         case 'ERC20':
@@ -745,58 +711,31 @@ export class TokensController extends BaseController<
             symbol,
             decimals,
             image,
-            suggestedAssetMeta?.interactingAddress || selectedAddress,
-          );
-
-          const acceptedSuggestedAssetMeta = {
-            ...suggestedAssetMeta,
-            status: SuggestedAssetStatus.accepted,
-          };
-          this.hub.emit(
-            `${suggestedAssetMeta.id}:finished`,
-            acceptedSuggestedAssetMeta,
+            suggestedAssetMeta.interactingAddress,
           );
           break;
         default:
+          /* istanbul ignore next */
           throw new Error(
             `Asset of type ${suggestedAssetMeta.type} not supported`,
           );
       }
-    } catch (error) {
-      this.failSuggestedAsset(suggestedAssetMeta, error);
+    } finally {
+      this.removeSuggestedAsset(suggestedAssetMeta.id);
     }
-
-    const newSuggestedAssets = suggestedAssets.filter(
-      ({ id }) => id !== suggestedAssetID,
-    );
-    this.update({ suggestedAssets: [...newSuggestedAssets] });
   }
 
   /**
    * Rejects a watchAsset request based on its ID by setting its status to "rejected"
    * and emitting a `<suggestedAssetMeta.id>:finished` hub event.
    *
-   * @param suggestedAssetID - The ID of the suggestedAsset to accept.
+   * @param suggestedAssetId - The ID of the suggestedAsset to accept.
    */
-  rejectWatchAsset(suggestedAssetID: string) {
+  private removeSuggestedAsset(suggestedAssetId: string) {
     const { suggestedAssets } = this.state;
-    const index = suggestedAssets.findIndex(
-      ({ id }) => suggestedAssetID === id,
-    );
-    const suggestedAssetMeta = suggestedAssets[index];
-    if (!suggestedAssetMeta) {
-      return;
-    }
-    const rejectedSuggestedAssetMeta = {
-      ...suggestedAssetMeta,
-      status: SuggestedAssetStatus.rejected,
-    };
-    this.hub.emit(
-      `${suggestedAssetMeta.id}:finished`,
-      rejectedSuggestedAssetMeta,
-    );
+
     const newSuggestedAssets = suggestedAssets.filter(
-      ({ id }) => id !== suggestedAssetID,
+      ({ id }) => id !== suggestedAssetId,
     );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
   }
@@ -904,29 +843,25 @@ export class TokensController extends BaseController<
       interactingAddress: string;
     },
   ) {
-    this.messagingSystem
-      .call(
-        'ApprovalController:addRequest',
-        {
+    return this.messagingSystem.call(
+      'ApprovalController:addRequest',
+      {
+        id: suggestedAssetMeta.id,
+        origin: ORIGIN_METAMASK,
+        type: ApprovalType.WatchAsset,
+        requestData: {
           id: suggestedAssetMeta.id,
-          origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: suggestedAssetMeta.id,
-            interactingAddress: suggestedAssetMeta.interactingAddress,
-            asset: {
-              address: suggestedAssetMeta.asset.address,
-              decimals: suggestedAssetMeta.asset.decimals,
-              symbol: suggestedAssetMeta.asset.symbol,
-              image: suggestedAssetMeta.asset.image || null,
-            },
+          interactingAddress: suggestedAssetMeta.interactingAddress,
+          asset: {
+            address: suggestedAssetMeta.asset.address,
+            decimals: suggestedAssetMeta.asset.decimals,
+            symbol: suggestedAssetMeta.asset.symbol,
+            image: suggestedAssetMeta.asset.image || null,
           },
         },
-        true,
-      )
-      .catch(() => {
-        // Intentionally ignored as promise not currently used
-      });
+      },
+      true,
+    );
   }
 }
 
