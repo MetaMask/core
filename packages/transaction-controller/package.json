@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
