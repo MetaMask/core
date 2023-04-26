@@ -1038,19 +1038,20 @@ export class NftController extends BaseController<NftConfig, NftState> {
     const { address, tokenId, standard, name, description, image, tokenUri } =
       asset;
 
-    try {
-      const existingNft = this.findNftByAddressAndTokenId(
-        address,
-        tokenId,
-        chainId,
-        interactingAddress ?? selectedAddress,
-      );
+    const existingNft = this.findNftByAddressAndTokenId(
+      address,
+      tokenId,
+      chainId,
+      interactingAddress ?? selectedAddress,
+    );
 
-      if (existingNft) {
-        throw new Error(
-          `NFT with address "${address}" and token ID "${tokenId}" already exists.`,
-        );
-      }
+    if (existingNft) {
+      throw new Error(
+        `NFT with address "${address}" and token ID "${tokenId}" already exists.`,
+      );
+    }
+
+    try {
       const isOwned = await this.isNftOwner(
         interactingAddress ?? selectedAddress,
         address,

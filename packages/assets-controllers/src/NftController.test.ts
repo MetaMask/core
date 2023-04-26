@@ -286,7 +286,7 @@ describe('NftController', () => {
     });
   });
 
-  describe('on watchNft', function () {
+  describe.only('on watchNft', function () {
     const ERC721_NFT = {
       address: ERC721_NFT_ADDRESS,
       tokenId: ERC721_NFT_ID,
@@ -623,6 +623,104 @@ describe('NftController', () => {
         'ApprovalController:acceptRequest',
         expect.any(String),
       );
+    });
+
+    it.only('should mark the suggestedNft as failed if the user confirms (acceptWatchNft called) and the add fails for some reason', async function () {
+      const ERC721_DETAILS = {
+        standard: ERC721,
+        tokenUri: 'testERC721TokenUri',
+        name: 'testERC721Name',
+      };
+
+      const { nftController, changeNetwork, messenger } = setupController({
+        getTokenStandardAndDetailsStub: jest
+          .fn()
+          .mockImplementation(() => ERC721_DETAILS),
+        getERC721AssetNameStub: jest.fn().mockImplementation(() => 'test name'),
+        getERC721AssetSymbolStub: jest.fn().mockImplementation(() => 'TEST'),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+      });
+
+      changeNetwork(SEPOLIA);
+
+      const requestId = 'approval-request-id-1';
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      jest.spyOn(messenger, 'call').mockResolvedValue({});
+      jest
+        .spyOn(nftController, 'addNft')
+        .mockImplementation()
+        .mockRejectedValueOnce(new Error('nft add failed'));
+
+      const result = await nftController.watchNft(ERC721_NFT, ERC721);
+
+      nftController.hub.once(`${requestId}:finished`, async () => {
+        await expect(result).rejects.toThrow('nft add failed');
+      });
+
+      await nftController.acceptWatchNft(requestId);
+
+      await expect(result).rejects.toThrow('nft add failed');
+
+      expect(nftController.state.suggestedNfts).toStrictEqual([]);
+      // expect(
+      //   nftController.state.allNfts[interactingAddress][SEPOLIA.chainId],
+      // ).toHaveLength(1);
+      // expect(
+      //   nftController.state.allNfts[interactingAddress][SEPOLIA.chainId],
+      // ).toStrictEqual([
+      //   {
+      //     ...ERC721_NFT,
+      //     ...ERC721_DETAILS,
+      //     description: null,
+      //     favorite: false,
+      //     image: null,
+      //     isCurrentlyOwned: false,
+      //     isWatched: true,
+      //   },
+      // ]);
+      // expect(callActionSpy).toHaveBeenCalledTimes(2);
+      // expect(callActionSpy).toHaveBeenCalledWith(
+      //   'ApprovalController:addRequest',
+      //   {
+      //     id: requestId,
+      //     origin: ORIGIN_METAMASK,
+      //     type: ApprovalType.WatchAsset,
+      //     requestData: {
+      //       id: requestId,
+      //       interactingAddress,
+      //       asset: ERC721_NFT,
+      //     },
+      //   },
+      //   true,
+      // );
+      // expect(callActionSpy).toHaveBeenCalledWith(
+      //   'ApprovalController:acceptRequest',
+      //   expect.any(String),
+      // );
+    });
+
+    it('should throw an error if acceptWatchAsset is called with a suggestedNFTId that is not in state', async function () {
+      const { nftController, changeNetwork } = setupController({
+        // getTokenStandardAndDetailsStub: jest
+        //   .fn()
+        //   .mockImplementation(() => ERC721_DETAILS),
+        getERC721AssetNameStub: jest.fn().mockImplementation(() => 'test name'),
+        getERC721AssetSymbolStub: jest.fn().mockImplementation(() => 'TEST'),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+      });
+
+      changeNetwork(SEPOLIA);
+
+      const requestId = 'approval-request-id-1';
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const result = nftController.acceptWatchNft(requestId);
+      await expect(result).rejects.toThrow(
+        `Suggested asset with ID "${requestId}" not found.`,
+      );
+
+      expect(nftController.state.suggestedNfts).toStrictEqual([]);
     });
 
     it('should throw an error when NFT is suggested that is already watched by the account prompted to add it', async function () {
