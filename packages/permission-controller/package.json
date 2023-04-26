@@ -33,6 +33,7 @@
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/types": "^1.1.0",
+    "@metamask/utils": "^5.0.2",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
     "eth-rpc-errors": "^4.0.2",
@@ -54,7 +55,7 @@
     "@metamask/approval-controller": "workspace:^"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "publishConfig": {
     "access": "public",
