@@ -21,7 +21,7 @@ import {
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { assertIsStrictHexString } from '@metamask/utils';
+import { assertIsStrictHexString, assert } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import {
   createNetworkClient,
@@ -129,15 +129,13 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 
 const name = 'NetworkController';
 
-export type EthQuery = any;
-
-type Provider = any;
-
-export type ProviderProxy = SwappableProxy<Provider>;
-
-type BlockTracker = any;
+type BlockTracker = PollingBlockTracker;
 
 export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
+
+export type Provider = SafeEventEmitterProvider;
+
+export type ProviderProxy = SwappableProxy<Provider>;
 
 export type NetworkControllerStateChangeEvent = {
   type: `NetworkController:stateChange`;
@@ -179,7 +177,7 @@ export type NetworkControllerMessenger = RestrictedControllerMessenger<
 export type NetworkControllerOptions = {
   messenger: NetworkControllerMessenger;
   trackMetaMetricsEvent: () => void;
-  infuraProjectId?: string;
+  infuraProjectId: string;
   state?: Partial<NetworkState>;
 };
 
@@ -217,9 +215,9 @@ export class NetworkController extends BaseControllerV2<
   NetworkState,
   NetworkControllerMessenger
 > {
-  #ethQuery: EthQuery;
+  #ethQuery?: EthQuery;
 
-  #infuraProjectId: string | undefined;
+  #infuraProjectId: string;
 
   #trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
 
@@ -264,6 +262,9 @@ export class NetworkController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
+    if (!infuraProjectId || typeof infuraProjectId !== 'string') {
+      throw new Error('Invalid Infura project ID');
+    }
     this.#infuraProjectId = infuraProjectId;
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.messagingSystem.registerActionHandler(
@@ -276,6 +277,7 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
+        assert(this.#ethQuery, 'Provider has not been initialized.');
         return this.#ethQuery;
       },
     );
@@ -348,9 +350,6 @@ export class NetworkController extends BaseControllerV2<
 
   #setupInfuraProvider(type: InfuraNetworkType) {
     const infuraProjectId = this.#infuraProjectId;
-    if (infuraProjectId === undefined) {
-      throw new Error('infuraProjectId must be provided for Infura networks');
-    }
 
     const { provider, blockTracker } = createNetworkClient({
       network: type,
@@ -396,13 +395,17 @@ export class NetworkController extends BaseControllerV2<
 
   async #getNetworkId(): Promise<NetworkId> {
     const possibleNetworkId = await new Promise<string>((resolve, reject) => {
+      if (!this.#ethQuery) {
+        throw new Error('Provider has not been initialized');
+      }
       this.#ethQuery.sendAsync(
         { method: 'net_version' },
-        (error: Error, result: string) => {
+        (error: unknown, result?: unknown) => {
           if (error) {
             reject(error);
           } else {
-            resolve(result);
+            // TODO: Validate this type
+            resolve(result as string);
           }
         },
       );
@@ -527,13 +530,17 @@ export class NetworkController extends BaseControllerV2<
 
   #getLatestBlock(): Promise<Block> {
     return new Promise((resolve, reject) => {
+      if (!this.#ethQuery) {
+        throw new Error('Provider has not been initialized');
+      }
       this.#ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
-        (error: Error, block: Block) => {
+        (error: unknown, block?: unknown) => {
           if (error) {
             reject(error);
           } else {
-            resolve(block);
+            // TODO: Validate this type
+            resolve(block as Block);
           }
         },
       );

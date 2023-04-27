@@ -4,7 +4,6 @@ import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import EthQuery from 'eth-query';
 import { Hex } from '@metamask/utils';
-import type { EthQuery as TEthQuery } from '../../src/NetworkController';
 import {
   createNetworkClient,
   NetworkClientType,
