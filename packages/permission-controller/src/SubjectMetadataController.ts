@@ -221,7 +221,7 @@ export class SubjectMetadataController extends BaseControllerV2<
     this.update((draftState) => {
       return SubjectMetadataController.getTrimmedState(
         // Typecast: ts(2589)
-        draftState as any,
+        draftState,
         this.subjectHasPermissions,
       );
     });

@@ -201,7 +201,7 @@ export class RateLimitController<
    */
   private resetRequestCount(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
-      (state as any).requests[api][origin] = 0;
+      state.requests[api][origin] = 0;
     });
   }
 }

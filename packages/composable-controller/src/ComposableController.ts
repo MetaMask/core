@@ -58,7 +58,7 @@ export class ComposableController extends BaseController<never, any> {
           this.update({ [name]: state });
         });
       } else if (this.messagingSystem) {
-        (this.messagingSystem.subscribe as any)(
+        (this.messagingSystem.subscribe)(
           `${name}:stateChange`,
           (state: any) => {
             this.update({ [name]: state });
