@@ -516,6 +516,8 @@ export class TransactionController extends BaseController<
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
+    // TODO: Fix dangling promise
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises, @typescript-eslint/no-floating-promises
     this.poll();
   }
 
@@ -529,6 +531,8 @@ export class TransactionController extends BaseController<
     this.handle && clearTimeout(this.handle);
     await safelyExecute(async () => this.queryTransactionStatuses());
     this.handle = setTimeout(() => {
+      // TODO: Fix dangling promise
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises, @typescript-eslint/no-floating-promises
       this.poll(this.config.interval);
     }, this.config.interval);
   }
@@ -1099,7 +1103,7 @@ export class TransactionController extends BaseController<
     allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
 
     let latestIncomingTxBlockNumber: string | undefined;
-    allTxs.forEach(async (tx) => {
+    for (const tx of allTxs) {
       /* istanbul ignore next */
       if (
         // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
@@ -1133,7 +1137,7 @@ export class TransactionController extends BaseController<
           tx.toSmartContract = false;
         }
       }
-    });
+    }
 
     // Update state only if new transactions were fetched or
     // the status or gas data of a transaction has changed
