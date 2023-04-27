@@ -22,7 +22,7 @@ import {
   isNetworkType,
   BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
-import { assertIsStrictHexString, hasProperty } from '@metamask/utils';
+import { assert, assertIsStrictHexString, hasProperty } from '@metamask/utils';
 
 import { NetworkStatus } from './constants';
 
