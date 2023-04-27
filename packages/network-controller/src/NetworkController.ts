@@ -221,8 +221,6 @@ export class NetworkController extends BaseControllerV2<
 
   #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
 
-  #provider: Provider | undefined;
-
   #providerProxy: ProviderProxy | undefined;
 
   #blockTrackerProxy: BlockTrackerProxy | undefined;
@@ -379,7 +377,7 @@ export class NetworkController extends BaseControllerV2<
   }
 
   #updateProvider(provider: Provider) {
-    this.#safelyStopProvider(this.#provider);
+    this.#safelyStopProvider();
     assert(
       hasProperty(provider, '_blockTracker'),
       'Provider is missing block tracker.',
@@ -391,9 +389,9 @@ export class NetworkController extends BaseControllerV2<
     this.#registerProvider();
   }
 
-  #safelyStopProvider(provider: Provider | undefined) {
+  #safelyStopProvider() {
     setTimeout(() => {
-      provider?.stop();
+      this.#providerProxy?.stop();
     }, 500);
   }
 
@@ -608,7 +606,6 @@ export class NetworkController extends BaseControllerV2<
     } else {
       this.#providerProxy = createEventEmitterProxy(provider);
     }
-    this.#provider = provider;
 
     if (this.#blockTrackerProxy) {
       this.#blockTrackerProxy.setTarget(blockTracker);
