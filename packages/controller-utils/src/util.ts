@@ -6,7 +6,6 @@ import {
   toChecksumAddress,
   stripHexPrefix,
 } from 'ethereumjs-util';
-import type EthQuery from 'eth-query';
 import { fromWei, toWei } from 'ethjs-unit';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
@@ -418,6 +417,24 @@ export function normalizeEnsName(ensName: string): string | null {
   return null;
 }
 
+// Inline a minimal EthQuery type here so that we don't need to include
+// it as a dependency just for the type.
+type EthQueryLike = {
+  sendAsync: (
+    opts: Partial<{
+      id: number;
+      jsonrpc: '2.0';
+      method: string;
+      params: unknown;
+    }>,
+    callback: (
+      ...args:
+        | [error: unknown, result: undefined]
+        | [error: null, result: unknown]
+    ) => void,
+  ) => void;
+};
+
 /**
  * Wrapper method to handle EthQuery requests.
  *
@@ -427,12 +444,12 @@ export function normalizeEnsName(ensName: string): string | null {
  * @returns Promise resolving the request.
  */
 export function query(
-  ethQuery: EthQuery,
+  ethQuery: EthQueryLike,
   method: string,
   args: any[] = [],
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const cb = (error: unknown, result: any) => {
+    const cb = (error: unknown, result: unknown) => {
       if (error) {
         reject(error);
         return;
