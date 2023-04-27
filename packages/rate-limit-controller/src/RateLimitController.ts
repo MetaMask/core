@@ -181,7 +181,11 @@ export class RateLimitController<
       this.implementations[api].rateLimitTimeout ?? this.rateLimitTimeout;
     this.update((state) => {
       const previous = (state as any).requests[api][origin] ?? 0;
-      (state as any).requests[api][origin] = previous + 1;
+      (
+        state as {
+          requests: Record<keyof RateLimitedApis, Record<string, number>>;
+        }
+      ).requests[api][origin] = previous + 1;
 
       if (previous === 0) {
         setTimeout(() => this.resetRequestCount(api, origin), rateLimitTimeout);
