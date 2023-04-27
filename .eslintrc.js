@@ -26,6 +26,7 @@ module.exports = {
         'jest/no-test-return-statement': 'off',
         // TODO: Re-enable this rule; we can accomodate this even in our test helpers
         'jest/expect-expect': 'off',
+        'jest/no-identical-title': 'off',
       },
     },
     {
