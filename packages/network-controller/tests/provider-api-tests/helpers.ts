@@ -263,7 +263,7 @@ async function mockAllBlockTrackerRequests({
  * response if it is successful or rejects with the error from the JSON-RPC
  * response otherwise.
  */
-function makeRpcCall(ethQuery: TEthQuery, request: Request) {
+function makeRpcCall(ethQuery: EthQuery, request: Request) {
   return new Promise((resolve, reject) => {
     debug('[makeRpcCall] making request', request);
     ethQuery.sendAsync(request, (error: any, result: any) => {
