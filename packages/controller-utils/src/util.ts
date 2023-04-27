@@ -361,6 +361,7 @@ export async function fetchWithErrorHandling({
     if (timeout) {
       result = Promise.race([
         await handleFetch(url, options),
+        // eslint-disable-next-line no-restricted-globals
         new Promise<Response>((_, reject) =>
           setTimeout(() => {
             reject(TIMEOUT_ERROR);
@@ -388,9 +389,11 @@ export async function timeoutFetch(
   url: string,
   options?: RequestInit,
   timeout = 500,
+  // eslint-disable-next-line no-restricted-globals
 ): Promise<Response> {
   return Promise.race([
     successfulFetch(url, options),
+    // eslint-disable-next-line no-restricted-globals
     new Promise<Response>((_, reject) =>
       setTimeout(() => {
         reject(TIMEOUT_ERROR);

@@ -133,7 +133,11 @@ describe('util', () => {
         123456000000600,
       );
       expect(util.gweiDecToWEIBN(1.000000016025).toNumber()).toBe(1000000016);
+      // eslint-disable-next-line @typescript-eslint/no-loss-of-precision
       expect(util.gweiDecToWEIBN(1.0000000160000028).toNumber()).toBe(
+        1000000016,
+      );
+      expect(util.gweiDecToWEIBN(1.0000000160000029).toNumber()).toBe(
         1000000016,
       );
       expect(util.gweiDecToWEIBN(1.000000016522).toNumber()).toBe(1000000017);
