@@ -33,7 +33,7 @@
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/eth-keyring-controller": "^10.0.0",
-    "@metamask/eth-sig-util": "^5.0.2",
+    "@metamask/eth-sig-util": "^5.0.3",
     "@metamask/message-manager": "workspace:^",
     "@metamask/preferences-controller": "workspace:^",
     "async-mutex": "^0.2.6",
