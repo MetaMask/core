@@ -255,7 +255,7 @@ export class GasFeeController extends BaseControllerV2<
 
   private currentChainId;
 
-  private ethQuery: any;
+  private ethQuery?: EthQuery;
 
   private clientId?: string;
 
@@ -346,9 +346,6 @@ export class GasFeeController extends BaseControllerV2<
         'NetworkController:getProviderConfig',
       );
       this.currentChainId = providerConfig.chainId;
-      this.ethQuery = this.messagingSystem.call(
-        'NetworkController:getEthQuery',
-      );
 
       this.messagingSystem.subscribe(
         'NetworkController:providerConfigChange',
