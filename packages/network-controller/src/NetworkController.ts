@@ -272,9 +272,7 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
-        if (!this.#ethQuery) {
-          throw new Error('Provider has not been initialized');
-        }
+        assert(this.#ethQuery, 'Provider has not been initialized.');
         return this.#ethQuery;
       },
     );
@@ -379,9 +377,7 @@ export class NetworkController extends BaseControllerV2<
 
   #updateProvider(provider: Provider) {
     this.#safelyStopProvider(this.#provider);
-    if (!hasProperty(provider, '_blockTracker')) {
-      throw new Error('Provider is missing block tracker');
-    }
+    assert(hasProperty(provider, '_blockTracker'), 'Provider is missing block tracker.');
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker: provider._blockTracker,

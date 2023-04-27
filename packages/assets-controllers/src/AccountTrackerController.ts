@@ -179,9 +179,7 @@ export class AccountTrackerController extends BaseController<
     return await Promise.all(
       addresses.map((address): Promise<[string, string] | undefined> => {
         return safelyExecuteWithTimeout(async () => {
-          if (!this.ethQuery) {
-            throw new Error('Provider not set');
-          }
+          assert(this.ethQuery, 'Provider not set.');
           const balance = await query(this.ethQuery, 'getBalance', [address]);
           return [address, balance];
         });

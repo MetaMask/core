@@ -437,9 +437,7 @@ export const withNetworkClient = async (
     getEIP1559CompatibilityMock.mockRestore();
     lookupNetworkMock.mockRestore();
     blockTracker.removeAllListeners();
-    if (provider) {
-      provider.stop();
-    }
+    provider?.stop();
     clock.restore();
   }
 };
