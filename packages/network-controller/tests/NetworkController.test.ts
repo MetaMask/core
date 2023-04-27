@@ -6,7 +6,6 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import * as ethQueryModule from 'eth-query';
 import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
-import type { ProviderEngine } from 'web3-provider-engine';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Patch } from 'immer';
 import { v4 } from 'uuid';
@@ -27,6 +26,7 @@ import {
   NetworkState,
   ProviderConfig,
 } from '../src/NetworkController';
+import type { Provider } from '../src/NetworkController';
 import { NetworkStatus } from '../src/constants';
 import { BUILT_IN_NETWORKS } from '../../controller-utils/src/constants';
 import { FakeProviderEngine, FakeProviderStub } from './fake-provider-engine';
@@ -221,6 +221,7 @@ describe('NetworkController', () => {
                   id: 1,
                   jsonrpc: '2.0',
                   method: 'eth_chainId',
+                  params: [],
                 });
                 expect(chainIdResult.result).toBe('0x1337');
               },
@@ -331,7 +332,7 @@ describe('NetworkController', () => {
                       produceStateChanges: () => {
                         controller
                           .getProviderAndBlockTracker()
-                          .provider.emit('error', { some: 'error' });
+                          .provider?.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.networkId).toBe('2');
@@ -401,7 +402,7 @@ describe('NetworkController', () => {
                       produceStateChanges: () => {
                         controller
                           .getProviderAndBlockTracker()
-                          .provider.emit('error', { some: 'error' });
+                          .provider?.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.networkId).toBe('1');
@@ -451,11 +452,15 @@ describe('NetworkController', () => {
               ticker: undefined,
             });
             const { provider } = controller.getProviderAndBlockTracker();
+            assert(provider);
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
             );
             const chainIdResult = await promisifiedSendAsync({
+              id: 1,
+              jsonrpc: '2.0',
               method: 'eth_chainId',
+              params: [],
             });
             expect(chainIdResult.result).toBe('0x1337');
           },
@@ -552,7 +557,7 @@ describe('NetworkController', () => {
                   produceStateChanges: () => {
                     controller
                       .getProviderAndBlockTracker()
-                      .provider.emit('error', { some: 'error' });
+                      .provider?.emit('error', { some: 'error' });
                   },
                 });
                 expect(controller.state.networkId).toBe('2');
@@ -613,7 +618,7 @@ describe('NetworkController', () => {
                   produceStateChanges: () => {
                     controller
                       .getProviderAndBlockTracker()
-                      .provider.emit('error', { some: 'error' });
+                      .provider?.emit('error', { some: 'error' });
                   },
                 });
                 expect(controller.state.networkId).toBe('1');
@@ -662,11 +667,15 @@ describe('NetworkController', () => {
                 ticker: 'ABC',
               });
               const { provider } = controller.getProviderAndBlockTracker();
+              assert(provider);
               const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                 provider,
               );
               const chainIdResult = await promisifiedSendAsync({
+                id: 1,
+                jsonrpc: '2.0',
                 method: 'eth_chainId',
+                params: [],
               });
               expect(chainIdResult.result).toBe('0x1337');
             },
@@ -767,7 +776,7 @@ describe('NetworkController', () => {
                     produceStateChanges: () => {
                       controller
                         .getProviderAndBlockTracker()
-                        .provider.emit('error', { some: 'error' });
+                        .provider?.emit('error', { some: 'error' });
                     },
                   });
                   expect(controller.state.networkId).toBe('2');
@@ -831,7 +840,7 @@ describe('NetworkController', () => {
                     produceStateChanges: () => {
                       controller
                         .getProviderAndBlockTracker()
-                        .provider.emit('error', { some: 'error' });
+                        .provider?.emit('error', { some: 'error' });
                     },
                   });
                   expect(controller.state.networkId).toBe('1');
@@ -1559,11 +1568,15 @@ describe('NetworkController', () => {
                   },
                 });
                 const { provider } = controller.getProviderAndBlockTracker();
+                assert(provider);
                 const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                   provider,
                 );
                 const chainIdResult = await promisifiedSendAsync({
+                  id: 1,
+                  jsonrpc: '2.0',
                   method: 'eth_chainId',
+                  params: [],
                 });
                 expect(chainIdResult.result).toBe('0x1337');
               },
@@ -1695,7 +1708,7 @@ describe('NetworkController', () => {
                     produceStateChanges: () => {
                       controller
                         .getProviderAndBlockTracker()
-                        .provider.emit('error', { some: 'error' });
+                        .provider?.emit('error', { some: 'error' });
                     },
                   });
                   expect(controller.state.networkId).toBe('42');
@@ -1741,7 +1754,7 @@ describe('NetworkController', () => {
                     produceStateChanges: () => {
                       controller
                         .getProviderAndBlockTracker()
-                        .provider.emit('error', { some: 'error' });
+                        .provider?.emit('error', { some: 'error' });
                     },
                   });
                   expect(controller.state.networkId).toBe('1');
@@ -1893,11 +1906,15 @@ describe('NetworkController', () => {
             ticker: undefined,
           });
           const { provider } = controller.getProviderAndBlockTracker();
+          assert(provider);
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
             provider,
           );
           const chainIdResult = await promisifiedSendAsync({
+            id: 1,
+            jsonrpc: '2.0',
             method: 'eth_chainId',
+            params: [],
           });
           expect(chainIdResult.result).toBe('0x1337');
         });
@@ -2003,7 +2020,7 @@ describe('NetworkController', () => {
                 produceStateChanges: () => {
                   controller
                     .getProviderAndBlockTracker()
-                    .provider.emit('error', { some: 'error' });
+                    .provider?.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.networkId).toBe('42');
@@ -2043,7 +2060,7 @@ describe('NetworkController', () => {
                 produceStateChanges: () => {
                   controller
                     .getProviderAndBlockTracker()
-                    .provider.emit('error', { some: 'error' });
+                    .provider?.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.networkId).toBe('1');
@@ -2148,11 +2165,15 @@ describe('NetworkController', () => {
             engineParams: { pollingInterval: 12000 },
           });
           const { provider } = controller.getProviderAndBlockTracker();
+          assert(provider);
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
             provider,
           );
           const chainIdResult = await promisifiedSendAsync({
+            id: 1,
+            jsonrpc: '2.0',
             method: 'eth_chainId',
+            params: [],
           });
           expect(chainIdResult.result).toBe('0x1337');
         },
@@ -2327,7 +2348,7 @@ describe('NetworkController', () => {
                 produceStateChanges: () => {
                   controller
                     .getProviderAndBlockTracker()
-                    .provider.emit('error', { some: 'error' });
+                    .provider?.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.networkId).toBe('42');
@@ -2384,7 +2405,7 @@ describe('NetworkController', () => {
                 produceStateChanges: () => {
                   controller
                     .getProviderAndBlockTracker()
-                    .provider.emit('error', { some: 'error' });
+                    .provider?.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.networkId).toBe('1');
@@ -3349,11 +3370,15 @@ describe('NetworkController', () => {
                 await controller.resetConnection();
 
                 const { provider } = controller.getProviderAndBlockTracker();
+                assert(provider);
                 const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                   provider,
                 );
                 const { result: chainIdResult } = await promisifiedSendAsync({
+                  id: 1,
+                  jsonrpc: '2.0',
                   method: 'eth_chainId',
+                  params: [],
                 });
                 expect(chainIdResult).toBe('0x1337');
               },
@@ -3547,7 +3572,7 @@ describe('NetworkController', () => {
                     produceStateChanges: () => {
                       controller
                         .getProviderAndBlockTracker()
-                        .provider.emit('error', { some: 'error' });
+                        .provider?.emit('error', { some: 'error' });
                     },
                   });
                   await resetPromise;
@@ -3721,11 +3746,15 @@ describe('NetworkController', () => {
 
             await controller.resetConnection();
             const { provider } = controller.getProviderAndBlockTracker();
+            assert(provider);
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
             );
             const { result: chainIdResult } = await promisifiedSendAsync({
+              id: 1,
+              jsonrpc: '2.0',
               method: 'eth_chainId',
+              params: [],
             });
             expect(chainIdResult).toBe('0x1337');
           },
@@ -3910,7 +3939,7 @@ describe('NetworkController', () => {
                 produceStateChanges: () => {
                   controller
                     .getProviderAndBlockTracker()
-                    .provider.emit('error', { some: 'error' });
+                    .provider?.emit('error', { some: 'error' });
                 },
               });
               await resetPromise;
@@ -3963,6 +3992,20 @@ describe('NetworkController', () => {
         const ethQuery = await messenger.call('NetworkController:getEthQuery');
 
         expect(ethQuery).toBe(fakeEthQuery);
+      });
+    });
+
+    it('throws if the provider is not set', async () => {
+      const messenger = buildMessenger();
+      await withController({ messenger }, async () => {
+        const fakeEthQuery = {
+          sendAsync: jest.fn(),
+        };
+        jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
+
+        await expect(
+          async () => await messenger.call('NetworkController:getEthQuery'),
+        ).rejects.toThrow('Provider has not been initialized');
       });
     });
   });
@@ -4958,11 +5001,15 @@ describe('NetworkController', () => {
               await controller.rollbackToPreviousProvider();
 
               const { provider } = controller.getProviderAndBlockTracker();
+              assert(provider);
               const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                 provider,
               );
               const { result: chainIdResult } = await promisifiedSendAsync({
+                id: 1,
+                jsonrpc: '2.0',
                 method: 'eth_chainId',
+                params: [],
               });
               expect(chainIdResult).toBe(chainId);
             },
@@ -5400,11 +5447,15 @@ describe('NetworkController', () => {
             await controller.rollbackToPreviousProvider();
 
             const { provider } = controller.getProviderAndBlockTracker();
+            assert(provider);
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
             );
             const { result: chainIdResult } = await promisifiedSendAsync({
+              id: 1,
+              jsonrpc: '2.0',
               method: 'eth_chainId',
+              params: [],
             });
             expect(chainIdResult).toBe(
               initialProviderConfigNetworkConfiguration.chainId,
@@ -5793,7 +5844,7 @@ async function setFakeProvider(
     stubLookupNetworkWhileSetting?: boolean;
     stubGetEIP1559CompatibilityWhileSetting?: boolean;
   } = {},
-): Promise<ProviderEngine> {
+): Promise<Provider> {
   const fakeMetamaskProvider = buildFakeMetamaskProvider(stubs);
   createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
   const lookupNetworkMock = jest.spyOn(controller, 'lookupNetwork');
@@ -5823,7 +5874,9 @@ async function setFakeProvider(
     lookupGetEIP1559CompatibilityMock.mockRestore();
   }
 
-  return controller.getProviderAndBlockTracker().provider;
+  const { provider } = controller.getProviderAndBlockTracker();
+  assert(provider);
+  return provider;
 }
 
 /**

@@ -1,6 +1,7 @@
 /* eslint-disable node/no-process-env */
 import nock, { Scope as NockScope } from 'nock';
 import sinon from 'sinon';
+import type EthQuery from 'eth-query';
 import {
   JSONRPCResponse,
   JSONRPCResponseResult,
@@ -9,7 +10,6 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworkType } from '@metamask/controller-utils';
 import {
   NetworkController,
-  EthQuery,
   NetworkControllerMessenger,
 } from '../../src/NetworkController';
 
@@ -437,7 +437,7 @@ export const withNetworkClient = async (
     getEIP1559CompatibilityMock.mockRestore();
     lookupNetworkMock.mockRestore();
     blockTracker.removeAllListeners();
-    provider.stop();
+    provider?.stop();
     clock.restore();
   }
 };
