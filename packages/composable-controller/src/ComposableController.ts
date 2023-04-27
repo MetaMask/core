@@ -58,12 +58,9 @@ export class ComposableController extends BaseController<never, any> {
           this.update({ [name]: state });
         });
       } else if (this.messagingSystem) {
-        (this.messagingSystem.subscribe)(
-          `${name}:stateChange`,
-          (state: any) => {
-            this.update({ [name]: state });
-          },
-        );
+        this.messagingSystem.subscribe(`${name}:stateChange`, (state: any) => {
+          this.update({ [name]: state });
+        });
       } else {
         throw new Error(
           `Messaging system required if any BaseControllerV2 controllers are used`,
