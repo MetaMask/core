@@ -390,9 +390,7 @@ export class NetworkController extends BaseControllerV2<
 
   #safelyStopProvider(provider: Provider | undefined) {
     setTimeout(() => {
-      if (provider) {
-        provider?.stop();
-      }
+      provider?.stop();
     }, 500);
   }
 
