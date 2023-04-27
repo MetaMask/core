@@ -1,10 +1,11 @@
+import * as providersModule from '@ethersproject/providers';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkType,
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
-import * as providersModule from '@ethersproject/providers';
+
 import { EnsController } from './EnsController';
 
 jest.mock('@ethersproject/providers', () => {
@@ -47,7 +48,7 @@ function getMessenger() {
  * @returns mock provider
  */
 function getProvider() {
-  return () => Promise.resolve(null);
+  return async () => Promise.resolve(null);
 }
 
 describe('EnsController', () => {
@@ -67,7 +68,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         [toHex(1)]: {
@@ -134,7 +135,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, null)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, null)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         [toHex(1)]: {
@@ -154,8 +155,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
-    expect(controller.set(toHex(1), name1, address2)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
+    expect(controller.set(toHex(1), name1, address2)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         [toHex(1)]: {
@@ -175,8 +176,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
-    expect(controller.set(toHex(1), name1, null)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
+    expect(controller.set(toHex(1), name1, null)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         [toHex(1)]: {
@@ -196,8 +197,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(false);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(false);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         [toHex(1)]: {
@@ -217,8 +218,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, null)).toStrictEqual(true);
-    expect(controller.set(toHex(1), name1, null)).toStrictEqual(false);
+    expect(controller.set(toHex(1), name1, null)).toBe(true);
+    expect(controller.set(toHex(1), name1, null)).toBe(false);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         [toHex(1)]: {
@@ -238,10 +239,10 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
-    expect(controller.set(toHex(1), name2, address2)).toStrictEqual(true);
-    expect(controller.set(toHex(2), name1, address1)).toStrictEqual(true);
-    expect(controller.set(toHex(1), name1, address3)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
+    expect(controller.set(toHex(1), name2, address2)).toBe(true);
+    expect(controller.set(toHex(2), name1, address1)).toBe(true);
+    expect(controller.set(toHex(1), name1, address3)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         [toHex(1)]: {
@@ -273,7 +274,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
     expect(controller.get(toHex(1), name1)).toStrictEqual({
       address: address1Checksum,
       chainId: toHex(1),
@@ -286,7 +287,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
     expect(controller.get(toHex(1), name2)).toBeNull();
   });
 
@@ -295,7 +296,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
     expect(controller.get(toHex(2), name1)).toBeNull();
   });
 
@@ -351,8 +352,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
-    expect(controller.delete(toHex(1), name1)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
+    expect(controller.delete(toHex(1), name1)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {},
       ensResolutionsByAddress: {},
@@ -365,8 +366,8 @@ describe('EnsController', () => {
       messenger,
     });
     controller.set(toHex(1), name1, address1);
-    expect(controller.delete(toHex(1), 'bar')).toStrictEqual(false);
-    expect(controller.delete(toHex(2), 'bar')).toStrictEqual(false);
+    expect(controller.delete(toHex(1), 'bar')).toBe(false);
+    expect(controller.delete(toHex(2), 'bar')).toBe(false);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         [toHex(1)]: {
@@ -386,10 +387,10 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
-    expect(controller.set(toHex(1), name2, address2)).toStrictEqual(true);
-    expect(controller.set(toHex(2), name1, address1)).toStrictEqual(true);
-    expect(controller.delete(toHex(1), name1)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
+    expect(controller.set(toHex(1), name2, address2)).toBe(true);
+    expect(controller.set(toHex(2), name1, address1)).toBe(true);
+    expect(controller.delete(toHex(1), name1)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         [toHex(1)]: {
@@ -416,9 +417,9 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set(toHex(1), name1, address1)).toStrictEqual(true);
-    expect(controller.set(toHex(1), name2, address2)).toStrictEqual(true);
-    expect(controller.set(toHex(2), name1, address1)).toStrictEqual(true);
+    expect(controller.set(toHex(1), name1, address1)).toBe(true);
+    expect(controller.set(toHex(1), name2, address2)).toBe(true);
+    expect(controller.set(toHex(2), name1, address1)).toBe(true);
     controller.clear();
     expect(controller.state).toStrictEqual({
       ensEntries: {},
@@ -494,12 +495,8 @@ describe('EnsController', () => {
         },
       });
 
-      expect(await ens.reverseResolveAddress(address1)).toStrictEqual(
-        'peaksignal.eth',
-      );
-      expect(await ens.reverseResolveAddress(address1)).toStrictEqual(
-        'peaksignal.eth',
-      );
+      expect(await ens.reverseResolveAddress(address1)).toBe('peaksignal.eth');
+      expect(await ens.reverseResolveAddress(address1)).toBe('peaksignal.eth');
     });
 
     it('should fail if lookupAddress through an error', async () => {

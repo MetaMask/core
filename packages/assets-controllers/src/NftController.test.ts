@@ -1,14 +1,9 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import { BN } from 'ethereumjs-util';
-import { v4 } from 'uuid';
-import HttpProvider from 'ethjs-provider-http';
-import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkState,
-  ProviderConfig,
-  defaultState as defaultNetworkState,
-} from '@metamask/network-controller';
+import type { Network } from '@ethersproject/providers';
+import type {
+  AddApprovalRequest,
+  ApprovalStateChange,
+} from '@metamask/approval-controller';
+import { ApprovalController } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
@@ -22,16 +17,22 @@ import {
   ApprovalType,
   ERC20,
 } from '@metamask/controller-utils';
-import {
-  AddApprovalRequest,
-  ApprovalController,
-  ApprovalStateChange,
-} from '@metamask/approval-controller';
-import { Network } from '@ethersproject/providers';
+import type {
+  NetworkState,
+  ProviderConfig,
+} from '@metamask/network-controller';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
+import { BN } from 'ethereumjs-util';
+import nock from 'nock';
+import * as sinon from 'sinon';
+import { v4 } from 'uuid';
+import HttpProvider from 'ethjs-provider-http';
+
 import { AssetsContractController } from './AssetsContractController';
-import { NftController } from './NftController';
 import { getFormattedIpfsUrl } from './assetsUtil';
 import { Source } from './constants';
+import { NftController } from './NftController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -71,7 +72,7 @@ const controllerName = 'NftController' as const;
 jest.mock('@ethersproject/providers', () => {
   const providers = jest.requireActual('@ethersproject/providers');
   const MockWeb3Provider = class extends providers.Web3Provider {
-    detectNetwork(): Promise<Network> {
+    async detectNetwork(): Promise<Network> {
       return Promise.resolve({
         name: 'mainnet',
         chainId: 1,
@@ -399,7 +400,7 @@ describe('NftController', () => {
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
 
-      await expect(() =>
+      await expect(async () =>
         nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com'),
       ).rejects.toThrow('Suggested NFT is not owned by the selected account');
       expect(callActionSpy).toHaveBeenCalledTimes(0);
@@ -412,7 +413,7 @@ describe('NftController', () => {
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
 
-      await expect(() =>
+      await expect(async () =>
         nftController.watchNft(ERC1155_NFT, ERC1155, 'https://test-dapp.com'),
       ).rejects.toThrow('Suggested NFT is not owned by the selected account');
       expect(callActionSpy).toHaveBeenCalledTimes(0);

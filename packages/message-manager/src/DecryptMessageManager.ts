@@ -1,12 +1,13 @@
 import { v1 as random } from 'uuid';
-import { normalizeMessageData, validateDecryptedMessageData } from './utils';
-import {
-  AbstractMessageManager,
+
+import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
+import { normalizeMessageData, validateDecryptedMessageData } from './utils';
 
 /**
  * @type DecryptMessage
@@ -146,7 +147,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
    * @param messageParams - The messageParams to modify.
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
-  prepMessageForSigning(
+  async prepMessageForSigning(
     messageParams: DecryptMessageParamsMetamask,
   ): Promise<DecryptMessageParams> {
     delete messageParams.metamaskId;

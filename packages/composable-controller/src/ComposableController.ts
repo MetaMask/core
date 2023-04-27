@@ -1,7 +1,5 @@
-import {
-  BaseController,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 
 /**
  * List of child controller instances
@@ -24,9 +22,9 @@ export type ComposableControllerRestrictedMessenger =
  * Controller that can be used to compose multiple controllers together.
  */
 export class ComposableController extends BaseController<never, any> {
-  private controllers: ControllerList = [];
+  private readonly controllers: ControllerList = [];
 
-  private messagingSystem?: ComposableControllerRestrictedMessenger;
+  private readonly messagingSystem?: ComposableControllerRestrictedMessenger;
 
   /**
    * Name of this controller used during composition
@@ -45,10 +43,10 @@ export class ComposableController extends BaseController<never, any> {
   ) {
     super(
       undefined,
-      controllers.reduce((state, controller) => {
+      controllers.reduce<any>((state, controller) => {
         state[controller.name] = controller.state;
         return state;
-      }, {} as any),
+      }, {}),
     );
     this.initialize();
     this.controllers = controllers;

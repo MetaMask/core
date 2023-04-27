@@ -1,11 +1,12 @@
 import { v1 as random } from 'uuid';
-import {
-  AbstractMessageManager,
+
+import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
 import { normalizeMessageData, validateSignMessageData } from './utils';
 
 /**
@@ -104,7 +105,7 @@ export class MessageManager extends AbstractMessageManager<
    * @param messageParams - The messageParams to modify.
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
-  prepMessageForSigning(
+  async prepMessageForSigning(
     messageParams: MessageParamsMetamask,
   ): Promise<MessageParams> {
     delete messageParams.metamaskId;

@@ -1,11 +1,11 @@
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import type { Json, OptionalField } from '@metamask/utils';
+import type { EthereumRpcError } from 'eth-rpc-errors';
+import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
-import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
 import { nanoid } from 'nanoid';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { Json, OptionalField } from '@metamask/utils';
+
 import {
   ApprovalRequestNotFoundError,
   ApprovalRequestNoResultSupportError,
@@ -390,7 +390,7 @@ export class ApprovalController extends BaseControllerV2<
 
     this.messagingSystem.registerActionHandler(
       `${controllerName}:addRequest` as const,
-      (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
+      async (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
         if (shouldShowRequest) {
           return this.addAndShowApprovalRequest(opts);
         }
@@ -486,7 +486,7 @@ export class ApprovalController extends BaseControllerV2<
    */
   addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown>;
 
-  addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
+  async addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
     const promise = this.#add(
       opts.origin,
       opts.type,
@@ -535,7 +535,7 @@ export class ApprovalController extends BaseControllerV2<
    */
   add(opts: AddApprovalOptions): Promise<unknown>;
 
-  add(opts: AddApprovalOptions): Promise<unknown | AddResult> {
+  async add(opts: AddApprovalOptions): Promise<unknown | AddResult> {
     return this.#add(
       opts.origin,
       opts.type,
@@ -671,7 +671,7 @@ export class ApprovalController extends BaseControllerV2<
    * the creator of the approval request, or immediately if `options.waitForResult`
    * is `false` or `undefined`.
    */
-  accept(
+  async accept(
     id: string,
     value?: unknown,
     options?: AcceptOptions,
@@ -864,7 +864,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param expectsResult - Whether the approval request expects a result object to be returned.
    * @returns The approval promise.
    */
-  #add(
+  async #add(
     origin: string,
     type: string,
     id: string = nanoid(),

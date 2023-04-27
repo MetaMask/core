@@ -1,9 +1,7 @@
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
 import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
-import {
-  BaseControllerV2 as BaseController,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
 
 /**
  * @type RateLimitedApi
@@ -76,11 +74,11 @@ export class RateLimitController<
   RateLimitState<RateLimitedApis>,
   RateLimitMessenger<RateLimitedApis>
 > {
-  private implementations;
+  private readonly implementations;
 
-  private rateLimitTimeout;
+  private readonly rateLimitTimeout;
 
-  private rateLimitCount;
+  private readonly rateLimitCount;
 
   /**
    * Creates a RateLimitController instance.
@@ -106,10 +104,9 @@ export class RateLimitController<
     implementations: RateLimitedApis;
   }) {
     const defaultState = {
-      requests: Object.keys(implementations).reduce(
-        (acc, key) => ({ ...acc, [key]: {} }),
-        {} as Record<keyof RateLimitedApis, Record<string, number>>,
-      ),
+      requests: Object.keys(implementations).reduce<
+        Record<keyof RateLimitedApis, Record<string, number>>
+      >((acc, key) => ({ ...acc, [key]: {} }), {}),
     };
     super({
       name,
@@ -123,7 +120,7 @@ export class RateLimitController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:call` as const,
-      ((
+      (async (
         origin: string,
         type: keyof RateLimitedApis,
         ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>

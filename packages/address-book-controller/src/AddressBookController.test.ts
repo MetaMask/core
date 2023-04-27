@@ -1,4 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
+
 import { AddressBookController, AddressType } from './AddressBookController';
 
 describe('AddressBookController', () => {
@@ -273,7 +274,7 @@ describe('AddressBookController', () => {
     const controller = new AddressBookController();
     expect(
       controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo'),
-    ).toStrictEqual(true);
+    ).toBe(true);
   });
 
   it('should return false to indicate an address book entry has NOT been added', () => {
@@ -281,7 +282,7 @@ describe('AddressBookController', () => {
     expect(
       // @ts-expect-error Intentionally invalid entry
       controller.set('0x00', 'foo', AddressType.externallyOwnedAccounts),
-    ).toStrictEqual(false);
+    ).toBe(false);
   });
 
   it('should return true to indicate an address book entry has been deleted', () => {
@@ -290,13 +291,13 @@ describe('AddressBookController', () => {
 
     expect(
       controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'),
-    ).toStrictEqual(true);
+    ).toBe(true);
   });
 
   it('should return false to indicate an address book entry has NOT been deleted', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', '0x00');
-    expect(controller.delete(toHex(1), '0x01')).toStrictEqual(false);
+    expect(controller.delete(toHex(1), '0x01')).toBe(false);
   });
 
   it('should normalize addresses so adding and removing entries work across casings', () => {

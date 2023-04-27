@@ -1,24 +1,25 @@
-import { EventEmitter } from 'events';
-import { addHexPrefix, bufferToHex, BN } from 'ethereumjs-util';
-import { errorCodes, ethErrors } from 'eth-rpc-errors';
-import MethodRegistry from 'eth-method-registry';
-import EthQuery from 'eth-query';
 import Common from '@ethereumjs/common';
-import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
-import { v1 as random } from 'uuid';
-import { Mutex } from 'async-mutex';
-import type { Hex } from '@metamask/utils';
-import {
-  BaseController,
+import type { TypedTransaction } from '@ethereumjs/tx';
+import { TransactionFactory } from '@ethereumjs/tx';
+import type {
+  AcceptResultCallbacks,
+  AddApprovalRequest,
+  AddResult,
+} from '@metamask/approval-controller';
+import type {
   BaseConfig,
   BaseState,
-  RestrictedControllerMessenger,
+  RestrictedControllerMessenger} from '@metamask/base-controller';
+import {
+  BaseController
 } from '@metamask/base-controller';
 import type {
   BlockTracker,
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 import {
   BNToHex,
   fractionBN,
@@ -32,12 +33,14 @@ import {
   ORIGIN_METAMASK,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
-import {
-  AcceptResultCallbacks,
-  AddApprovalRequest,
-  AddResult,
-} from '@metamask/approval-controller';
+import MethodRegistry from 'eth-method-registry';
+import EthQuery from 'eth-query';
+import { errorCodes, ethErrors } from 'eth-rpc-errors';
+import { addHexPrefix, bufferToHex, BN } from 'ethereumjs-util';
+import { EventEmitter } from 'events';
 import NonceTracker from 'nonce-tracker';
+import { v1 as random } from 'uuid';
+
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -83,7 +86,7 @@ export interface FetchAllOptions {
  * @property from - Address to send this transaction from
  * @property gas - Gas to send with this transaction
  * @property gasPrice - Price of gas with this transaction
- * @property gasUsed -  Gas used in the transaction
+ * @property gasUsed - Gas used in the transaction
  * @property nonce - Unique number to prevent replay attacks
  * @property to - Address to send this transaction to
  * @property value - Value associated with this transaction
@@ -304,19 +307,19 @@ export class TransactionController extends BaseController<
 > {
   private ethQuery: EthQuery;
 
-  private nonceTracker: NonceTracker;
+  private readonly nonceTracker: NonceTracker;
 
   private registry: any;
 
-  private provider: Provider;
+  private readonly provider: Provider;
 
   private handle?: ReturnType<typeof setTimeout>;
 
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
-  private getNetworkState: () => NetworkState;
+  private readonly getNetworkState: () => NetworkState;
 
-  private messagingSystem: TransactionControllerMessenger;
+  private readonly messagingSystem: TransactionControllerMessenger;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -385,7 +388,7 @@ export class TransactionController extends BaseController<
     };
   }
 
-  private normalizeTokenTx = (
+  private readonly normalizeTokenTx = (
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
     currentChainId: Hex,
@@ -524,7 +527,7 @@ export class TransactionController extends BaseController<
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.queryTransactionStatuses());
+    await safelyExecute(async () => this.queryTransactionStatuses());
     this.handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
@@ -969,7 +972,7 @@ export class TransactionController extends BaseController<
       this.getNetworkState();
     const { chainId: currentChainId } = providerConfig;
     let gotUpdates = false;
-    await safelyExecute(() =>
+    await safelyExecute(async () =>
       Promise.all(
         transactions.map(async (meta, index) => {
           // Using fallback to networkID only when there is no chainId present.
@@ -1066,7 +1069,7 @@ export class TransactionController extends BaseController<
     /* istanbul ignore next */
     if (
       currentNetworkID === null ||
-      supportedNetworkIds.indexOf(currentNetworkID) === -1
+      !supportedNetworkIds.includes(currentNetworkID)
     ) {
       return undefined;
     }

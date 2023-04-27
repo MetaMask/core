@@ -1,10 +1,9 @@
+import type { Json } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches } from 'immer';
 
 // Imported separately because only the type is used
 // eslint-disable-next-line no-duplicate-imports
 import type { Draft, Patch } from 'immer';
-
-import type { Json } from '@metamask/utils';
 
 import type {
   RestrictedControllerMessenger,
@@ -251,16 +250,17 @@ function deriveStateFromMetadata<S extends Record<string, Json>>(
   metadata: StateMetadata<S>,
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
-  return Object.keys(state).reduce((persistedState, key) => {
-    const propertyMetadata = metadata[key as keyof S][metadataProperty];
-    const stateProperty = state[key];
-    if (typeof propertyMetadata === 'function') {
-      persistedState[key as string] = propertyMetadata(
-        stateProperty as S[keyof S],
-      );
-    } else if (propertyMetadata) {
-      persistedState[key as string] = stateProperty;
-    }
-    return persistedState;
-  }, {} as Record<string, Json>);
+  return Object.keys(state).reduce<Record<string, Json>>(
+    (persistedState, key) => {
+      const propertyMetadata = metadata[key as keyof S][metadataProperty];
+      const stateProperty = state[key];
+      if (typeof propertyMetadata === 'function') {
+        persistedState[key] = propertyMetadata(stateProperty as S[keyof S]);
+      } else if (propertyMetadata) {
+        persistedState[key] = stateProperty;
+      }
+      return persistedState;
+    },
+    {},
+  );
 }

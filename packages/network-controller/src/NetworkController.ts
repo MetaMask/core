@@ -1,14 +1,5 @@
-import { strict as assert } from 'assert';
-import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
-import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
-import EthQuery from 'eth-query';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { v4 as random } from 'uuid';
-import type { Patch } from 'immer';
-import { errorCodes } from 'eth-rpc-errors';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   convertHexToDecimal,
@@ -18,27 +9,36 @@ import {
   NetworkType,
   isSafeChainId,
 } from '@metamask/controller-utils';
+import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
+import type { Hex } from '@metamask/utils';
 import {
-  Hex,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
   isStrictHexString,
 } from '@metamask/utils';
+import { strict as assert } from 'assert';
+import EthQuery from 'eth-query';
+import { errorCodes } from 'eth-rpc-errors';
+import type { Patch } from 'immer';
+import { v4 as random } from 'uuid';
+
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import type {
+  AutoManagedNetworkClient,
+  ProxyWithAccessibleTarget,
+} from './create-auto-managed-network-client';
+import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import { projectLogger, createModuleLogger } from './logger';
-import {
+import { NetworkClientType } from './types';
+import type {
+  BlockTracker,
+  Provider,
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
-  NetworkClientType,
 } from './types';
-import type { BlockTracker, Provider } from './types';
-import {
-  AutoManagedNetworkClient,
-  createAutoManagedNetworkClient,
-  ProxyWithAccessibleTarget,
-} from './create-auto-managed-network-client';
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
 
@@ -875,7 +875,7 @@ export class NetworkController extends BaseControllerV2<
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(): Promise<Block> {
+  async #getLatestBlock(): Promise<Block> {
     return new Promise((resolve, reject) => {
       if (!this.#ethQuery) {
         throw new Error('Provider has not been initialized');

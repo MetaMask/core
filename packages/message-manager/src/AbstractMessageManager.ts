@@ -1,11 +1,7 @@
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { Hex, Json } from '@metamask/utils';
 import { EventEmitter } from 'events';
-import type { Hex } from '@metamask/utils';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
-import { Json } from '@metamask/utils';
 
 /**
  * @type OriginalRequest
@@ -101,9 +97,9 @@ export abstract class AbstractMessageManager<
 
   protected getCurrentChainId: getCurrentChainId | undefined;
 
-  private securityProviderRequest: SecurityProviderRequest | undefined;
+  private readonly securityProviderRequest: SecurityProviderRequest | undefined;
 
-  private additionalFinishStatuses: string[];
+  private readonly additionalFinishStatuses: string[];
 
   /**
    * Saves the unapproved messages, and their count to state.
@@ -280,7 +276,7 @@ export abstract class AbstractMessageManager<
    * plus data added by MetaMask.
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
-  approveMessage(messageParams: PM): Promise<P> {
+  async approveMessage(messageParams: PM): Promise<P> {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.setMessageStatusApproved(messageParams.metamaskId);

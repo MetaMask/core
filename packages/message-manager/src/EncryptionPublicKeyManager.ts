@@ -1,11 +1,12 @@
 import { v1 as random } from 'uuid';
-import {
-  AbstractMessageManager,
+
+import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
 import { validateEncryptionPublicKeyMessageData } from './utils';
 
 /**
@@ -139,7 +140,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
    * @param messageParams - The messageParams to modify.
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
-  prepMessageForSigning(
+  async prepMessageForSigning(
     messageParams: EncryptionPublicKeyParamsMetamask,
   ): Promise<EncryptionPublicKeyParams> {
     delete messageParams.metamaskId;

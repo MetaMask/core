@@ -1,19 +1,17 @@
-import {
+import type { SecurityProviderRequest } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
+import type {
   TypedMessage,
   TypedMessageParams,
   TypedMessageParamsMetamask,
 } from './TypedMessageManager';
-import {
-  AbstractMessageManager,
-  SecurityProviderRequest,
-} from './AbstractMessageManager';
 
 class AbstractTestManager extends AbstractMessageManager<
   TypedMessage,
   TypedMessageParams,
   TypedMessageParamsMetamask
 > {
-  prepMessageForSigning(
+  async prepMessageForSigning(
     messageParams: TypedMessageParamsMetamask,
   ): Promise<TypedMessageParams> {
     delete messageParams.metamaskId;
@@ -288,7 +286,7 @@ describe('AbstractTestManager', () => {
     const controller = new AbstractTestManager();
     await controller.addMessage(firstMessage);
     await controller.addMessage(secondMessage);
-    expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
+    expect(controller.getUnapprovedMessagesCount()).toBe(2);
     expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
       [secondMessage.id]: secondMessage,
@@ -316,7 +314,7 @@ describe('AbstractTestManager', () => {
     if (!message) {
       throw new Error('"message" is falsy');
     }
-    expect(message.status).toStrictEqual('approved');
+    expect(message.status).toBe('approved');
   });
 
   describe('setMessageStatus', () => {
@@ -330,11 +328,11 @@ describe('AbstractTestManager', () => {
         type: 'type',
       });
       const messageBefore = controller.getMessage(messageId);
-      expect(messageBefore?.status).toStrictEqual('status');
+      expect(messageBefore?.status).toBe('status');
 
       controller.setMessageStatus(messageId, 'newstatus');
       const messageAfter = controller.getMessage(messageId);
-      expect(messageAfter?.status).toStrictEqual('newstatus');
+      expect(messageAfter?.status).toBe('newstatus');
     });
 
     it('should throw an error if message is not found', () => {
@@ -361,13 +359,13 @@ describe('AbstractTestManager', () => {
         type: 'type',
       });
       const messageBefore = controller.getMessage(messageId);
-      expect(messageBefore?.status).toStrictEqual('status');
+      expect(messageBefore?.status).toBe('status');
 
       controller.setMessageStatusAndResult(messageId, 'newRawSig', 'newstatus');
       const messageAfter = controller.getMessage(messageId);
 
       // expect(controller.hub.emit).toHaveBeenNthCalledWith(1, 'updateBadge');
-      expect(messageAfter?.status).toStrictEqual('newstatus');
+      expect(messageAfter?.status).toBe('newstatus');
     });
   });
 
@@ -436,7 +434,7 @@ describe('AbstractTestManager', () => {
         });
       }, 100);
 
-      await expect(() => promise).rejects.toThrow(
+      await expect(async () => promise).rejects.toThrow(
         'MetaMask AbstractTestManager Signature: User denied message signature.',
       );
     });
@@ -457,7 +455,7 @@ describe('AbstractTestManager', () => {
         });
       }, 100);
 
-      await expect(() => promise).rejects.toThrow(
+      await expect(async () => promise).rejects.toThrow(
         `MetaMask AbstractTestManager Signature: Unknown problem: ${JSON.stringify(
           {
             from: fromMock,
@@ -483,7 +481,7 @@ describe('AbstractTestManager', () => {
         });
       }, 100);
 
-      await expect(() => promise).rejects.toThrow(
+      await expect(async () => promise).rejects.toThrow(
         `MetaMask AbstractTestManager Signature: error message`,
       );
     });

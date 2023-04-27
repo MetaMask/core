@@ -1,5 +1,10 @@
-import { createNetworkClient, NetworkClient } from './create-network-client';
-import { BlockTracker, NetworkClientConfiguration, Provider } from './types';
+import type { NetworkClient } from './create-network-client';
+import { createNetworkClient } from './create-network-client';
+import type {
+  BlockTracker,
+  NetworkClientConfiguration,
+  Provider,
+} from './types';
 
 /**
  * The name of the method on both the provider and block tracker proxy which can
@@ -132,7 +137,7 @@ export function createAutoManagedNetworkClient<
             // Ensure that the method on the provider is called with `this` as
             // the target, *not* the proxy (which happens by default) —
             // this allows private properties to be accessed
-            return function (this: unknown, ...args: any[]) {
+            return async function (this: unknown, ...args: any[]) {
               // @ts-expect-error We don't care that `this` may not be
               // compatible with the signature of the method being called, as
               // technically it can be anything.

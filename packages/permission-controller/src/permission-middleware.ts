@@ -1,21 +1,22 @@
 import type { Json } from '@metamask/utils';
-import {
+import { createAsyncMiddleware } from 'json-rpc-engine';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type {
+  JsonRpcEngine,
   JsonRpcMiddleware,
   AsyncJsonRpcEngineNextCallback,
-  createAsyncMiddleware,
   PendingJsonRpcResponse,
   JsonRpcRequest,
 } from 'json-rpc-engine';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { JsonRpcEngine } from 'json-rpc-engine';
-import { internalError } from './errors';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { PermissionController } from './PermissionController';
-import {
+
+import type {
   GenericPermissionController,
   PermissionSubjectMetadata,
   RestrictedMethodParameters,
 } from '.';
+import { internalError } from './errors';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { PermissionController } from './PermissionController';
 
 type PermissionMiddlewareFactoryOptions = {
   executeRestrictedMethod: GenericPermissionController['_executeRestrictedMethod'];

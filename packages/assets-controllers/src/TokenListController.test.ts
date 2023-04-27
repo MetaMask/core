@@ -1,26 +1,27 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  NetworkControllerStateChangeEvent,
-  NetworkState,
-  NetworkStatus,
-  ProviderConfig,
-} from '@metamask/network-controller';
 import {
   ChainId,
   NetworkType,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import {
-  TokenListController,
+import type {
+  NetworkControllerStateChangeEvent,
+  NetworkState,
+  ProviderConfig,
+} from '@metamask/network-controller';
+import { NetworkStatus } from '@metamask/network-controller';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
+import { TOKEN_END_POINT_API } from './token-service';
+import type {
   TokenListStateChange,
   GetTokenListState,
   TokenListMap,
   TokenListState,
 } from './TokenListController';
-import { TOKEN_END_POINT_API } from './token-service';
+import { TokenListController } from './TokenListController';
 
 const name = 'TokenListController';
 const timestamp = Date.now();
@@ -93,13 +94,11 @@ const sampleMainnetTokenList = [
   },
 ];
 
-const sampleMainnetTokensChainsCache = sampleMainnetTokenList.reduce(
-  (output, current) => {
+const sampleMainnetTokensChainsCache =
+  sampleMainnetTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleWithDuplicateSymbols = [
   {
@@ -125,10 +124,10 @@ const sampleWithDuplicateSymbols = [
 ];
 
 const sampleWithDuplicateSymbolsTokensChainsCache =
-  sampleWithDuplicateSymbols.reduce((output, current) => {
+  sampleWithDuplicateSymbols.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  }, {} as TokenListMap);
+  }, {});
 
 const sampleWithLessThan3OccurencesResponse = [
   {
@@ -179,12 +178,15 @@ const sampleWithLessThan3OccurencesResponse = [
 ];
 
 const sampleWith3OrMoreOccurrences =
-  sampleWithLessThan3OccurencesResponse.reduce((output, token) => {
-    if (token.occurrences >= 3) {
-      output[token.address] = token;
-    }
-    return output;
-  }, {} as TokenListMap);
+  sampleWithLessThan3OccurencesResponse.reduce<TokenListMap>(
+    (output, token) => {
+      if (token.occurrences >= 3) {
+        output[token.address] = token;
+      }
+      return output;
+    },
+    {},
+  );
 
 const sampleBinanceTokenList = [
   {
@@ -297,13 +299,11 @@ const sampleSingleChainState = {
   },
 };
 
-const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
-  (output, current) => {
+const sampleBinanceTokensChainsCache =
+  sampleBinanceTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleTwoChainState = {
   tokenList: {

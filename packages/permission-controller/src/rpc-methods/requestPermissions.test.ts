@@ -1,5 +1,6 @@
-import { JsonRpcEngine, createAsyncMiddleware } from 'json-rpc-engine';
 import { ethErrors, serializeError } from 'eth-rpc-errors';
+import { JsonRpcEngine, createAsyncMiddleware } from 'json-rpc-engine';
+
 import { requestPermissionsHandler } from './requestPermissions';
 
 describe('requestPermissions RPC method', () => {
@@ -7,7 +8,7 @@ describe('requestPermissions RPC method', () => {
     const { implementation } = requestPermissionsHandler;
     const mockRequestPermissionsForOrigin = jest
       .fn()
-      .mockImplementationOnce(() => {
+      .mockImplementationOnce(async () => {
         // Resolve this promise after a timeout to ensure that the function
         // is awaited properly.
         return new Promise((resolve) => {
@@ -18,7 +19,7 @@ describe('requestPermissions RPC method', () => {
       });
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
+    engine.push(async (req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
       }),
@@ -76,7 +77,7 @@ describe('requestPermissions RPC method', () => {
     const mockRequestPermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
+    engine.push(async (req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
       }),
@@ -110,7 +111,7 @@ describe('requestPermissions RPC method', () => {
     const mockRequestPermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
+    engine.push(async (req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
       }),

@@ -1,17 +1,20 @@
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import type {
+  AbstractMessage,
+  OriginalRequest,
+} from '@metamask/message-manager';
 import {
   MessageManager,
   PersonalMessageManager,
   TypedMessageManager,
-  AbstractMessage,
-  OriginalRequest,
 } from '@metamask/message-manager';
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { EthereumProviderError } from 'eth-rpc-errors';
-import {
-  SignatureController,
+
+import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
 } from './SignatureController';
+import { SignatureController } from './SignatureController';
 
 jest.mock('@metamask/message-manager', () => ({
   MessageManager: jest.fn(),
@@ -747,12 +750,12 @@ describe('SignatureController', () => {
 
     it('updates state on message manager state change', async () => {
       await messageManagerMock.subscribe.mock.calls[0][0]({
-        unapprovedMessages: { [messageIdMock]: coreMessageMock as any },
+        unapprovedMessages: { [messageIdMock]: coreMessageMock },
         unapprovedMessagesCount: 3,
       });
 
       expect(await signatureController.state).toStrictEqual({
-        unapprovedMsgs: { [messageIdMock]: stateMessageMock as any },
+        unapprovedMsgs: { [messageIdMock]: stateMessageMock },
         unapprovedPersonalMsgs: {},
         unapprovedTypedMessages: {},
         unapprovedMsgCount: 3,
@@ -763,13 +766,13 @@ describe('SignatureController', () => {
 
     it('updates state on personal message manager state change', async () => {
       await personalMessageManagerMock.subscribe.mock.calls[0][0]({
-        unapprovedMessages: { [messageIdMock]: coreMessageMock as any },
+        unapprovedMessages: { [messageIdMock]: coreMessageMock },
         unapprovedMessagesCount: 4,
       });
 
       expect(await signatureController.state).toStrictEqual({
         unapprovedMsgs: {},
-        unapprovedPersonalMsgs: { [messageIdMock]: stateMessageMock as any },
+        unapprovedPersonalMsgs: { [messageIdMock]: stateMessageMock },
         unapprovedTypedMessages: {},
         unapprovedMsgCount: 0,
         unapprovedPersonalMsgCount: 4,
@@ -779,14 +782,14 @@ describe('SignatureController', () => {
 
     it('updates state on typed message manager state change', async () => {
       await typedMessageManagerMock.subscribe.mock.calls[0][0]({
-        unapprovedMessages: { [messageIdMock]: coreMessageMock as any },
+        unapprovedMessages: { [messageIdMock]: coreMessageMock },
         unapprovedMessagesCount: 5,
       });
 
       expect(await signatureController.state).toStrictEqual({
         unapprovedMsgs: {},
         unapprovedPersonalMsgs: {},
-        unapprovedTypedMessages: { [messageIdMock]: stateMessageMock as any },
+        unapprovedTypedMessages: { [messageIdMock]: stateMessageMock },
         unapprovedMsgCount: 0,
         unapprovedPersonalMsgCount: 0,
         unapprovedTypedMessagesCount: 5,

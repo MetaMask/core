@@ -1,4 +1,5 @@
 import { JsonRpcEngine } from 'json-rpc-engine';
+
 import { getPermissionsHandler } from './getPermissions';
 
 describe('getPermissions RPC method', () => {
@@ -9,7 +10,7 @@ describe('getPermissions RPC method', () => {
     });
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
+    engine.push(async (req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         getPermissionsForOrigin: mockGetPermissionsForOrigin,
       }),
@@ -31,7 +32,7 @@ describe('getPermissions RPC method', () => {
       .mockImplementationOnce(() => null);
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
+    engine.push(async (req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         getPermissionsForOrigin: mockGetPermissionsForOrigin,
       }),

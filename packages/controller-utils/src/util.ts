@@ -1,3 +1,7 @@
+import type { Hex, Json } from '@metamask/utils';
+import { isStrictHexString } from '@metamask/utils';
+import ensNamehash from 'eth-ens-namehash';
+import type EthQuery from 'eth-query';
 import {
   addHexPrefix,
   isValidAddress,
@@ -6,12 +10,9 @@ import {
   toChecksumAddress,
   stripHexPrefix,
 } from 'ethereumjs-util';
-import type EthQuery from 'eth-query';
 import { fromWei, toWei } from 'ethjs-unit';
-import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
-import type { Hex } from '@metamask/utils';
-import { isStrictHexString, Json } from '@metamask/utils';
+
 import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
@@ -428,7 +429,7 @@ export function normalizeEnsName(ensName: string): string | null {
  * @param args - Arguments to send.
  * @returns Promise resolving the request.
  */
-export function query(
+export async function query(
   ethQuery: EthQuery,
   method: string,
   args: any[] = [],

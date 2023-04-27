@@ -1,9 +1,8 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import * as uuid from 'uuid';
-import {
-  LoggingController,
-  LoggingControllerActions,
-} from './LoggingController';
+
+import type { LoggingControllerActions } from './LoggingController';
+import { LoggingController } from './LoggingController';
 import { LogType } from './logTypes';
 import { SigningMethod, SigningStage } from './logTypes/EthSignLog';
 
