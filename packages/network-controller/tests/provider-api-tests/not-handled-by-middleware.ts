@@ -1,5 +1,3 @@
-/* eslint-disable jest/require-top-level-describe, jest/no-export */
-
 import { fill } from 'lodash';
 import {
   ProviderType,
