@@ -20,6 +20,7 @@ import {
   defaultState as defaultNetworkState,
 } from '@metamask/network-controller';
 import {
+  SuggestedAssetStatus,
   TokensController,
   TokensControllerMessenger,
 } from './TokensController';
@@ -1544,6 +1545,99 @@ describe('TokensController', () => {
           selectedAddress
         ],
       ).toStrictEqual([]);
+    });
+  });
+
+  describe('addPendingApprovals', function () {
+    it('sends approval request for pending approvals', async () => {
+      tokensController.state.suggestedAssets = [
+        {
+          id: '1',
+          status: SuggestedAssetStatus.accepted,
+          interactingAddress: '0x1',
+          time: 1,
+          type: 'ERC20',
+          asset: {
+            address: '0x001',
+            symbol: 'XYZ',
+            decimals: 18,
+          },
+        },
+        {
+          id: '2',
+          status: SuggestedAssetStatus.pending,
+          interactingAddress: '0x1',
+          time: 2,
+          type: 'ERC20',
+          asset: {
+            address: '0x002',
+            symbol: 'XYZ',
+            decimals: 18,
+          },
+        },
+        {
+          id: '3',
+          status: SuggestedAssetStatus.pending,
+          interactingAddress: '0x1',
+          time: 3,
+          type: 'ERC20',
+          asset: {
+            address: '0x003',
+            symbol: 'XYZ',
+            decimals: 18,
+          },
+        },
+      ];
+
+      const mockUpdateBadge = jest.fn();
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockResolvedValue(undefined);
+
+      tokensController.addPendingApprovals(mockUpdateBadge);
+
+      expect(callActionSpy).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: '2',
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: '2',
+            interactingAddress: '0x1',
+            asset: {
+              address: '0x002',
+              decimals: 18,
+              symbol: 'XYZ',
+              image: null,
+            },
+          },
+        },
+        false,
+      );
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: '3',
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: '3',
+            interactingAddress: '0x1',
+            asset: {
+              address: '0x003',
+              decimals: 18,
+              symbol: 'XYZ',
+              image: null,
+            },
+          },
+        },
+        false,
+      );
+
+      expect(mockUpdateBadge).toHaveBeenCalledTimes(1);
     });
   });
 });

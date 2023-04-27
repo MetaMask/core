@@ -62,7 +62,7 @@ interface AssetSuggestionResult {
   suggestedAssetMeta: SuggestedAssetMeta;
 }
 
-enum SuggestedAssetStatus {
+export enum SuggestedAssetStatus {
   accepted = 'accepted',
   failed = 'failed',
   pending = 'pending',
@@ -909,6 +909,7 @@ export class TokensController extends BaseController<
     suggestedAssetMeta: SuggestedAssetMeta & {
       interactingAddress: string;
     },
+    shouldShowRequest = true,
   ) {
     this.messagingSystem
       .call(
@@ -928,7 +929,7 @@ export class TokensController extends BaseController<
             },
           },
         },
-        true,
+        shouldShowRequest,
       )
       .catch(() => {
         // Intentionally ignored as promise not currently used
@@ -959,6 +960,24 @@ export class TokensController extends BaseController<
         messageCallError,
       );
     }
+  }
+
+  addPendingApprovals(updateBadge: () => void) {
+    const { suggestedAssets } = this.state;
+    suggestedAssets.forEach((asset) => {
+      if (asset.status !== SuggestedAssetStatus.pending) {
+        return;
+      }
+
+      this._requestApproval(
+        asset as SuggestedAssetMeta & {
+          interactingAddress: string;
+        },
+        false,
+      );
+    });
+
+    updateBadge();
   }
 }
 
