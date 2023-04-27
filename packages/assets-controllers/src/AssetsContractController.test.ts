@@ -37,6 +37,7 @@ const setupControllers = () => {
       allowedActions: [],
     });
   const network = new NetworkController({
+    infuraProjectId: 'infura-project-id',
     messenger,
     trackMetaMetricsEvent: jest.fn(),
   });
