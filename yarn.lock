@@ -1608,16 +1608,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-keyring-controller@npm:^10.0.0":
-  version: 10.0.0
-  resolution: "@metamask/eth-keyring-controller@npm:10.0.0"
+"@metamask/eth-keyring-controller@npm:^10.0.1":
+  version: 10.0.1
+  resolution: "@metamask/eth-keyring-controller@npm:10.0.1"
   dependencies:
     "@metamask/browser-passworder": ^4.0.2
     "@metamask/eth-hd-keyring": ^6.0.0
     "@metamask/eth-sig-util": 5.0.2
     "@metamask/eth-simple-keyring": ^5.0.0
     obs-store: ^4.0.3
-  checksum: 6b06a74ae5da610289a4f5a7018b55d17d55b3d533fcd2d1675704902575d435373e4c2b3f4a019f6c14492f326e0dbfe7c04bd94ae8ebc38382fbe3b9c86b7c
+  checksum: 61ce1c7de37c414b5917c004e61c4d1ca71465bd95a00c749408fdde2105cd9c15bedc32c7ce2f6f2f4ff31ca8b6c7056f3460ad91e3d24d9f43974d84b5603b
   languageName: node
   linkType: hard
 
@@ -1703,7 +1703,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
-    "@metamask/eth-keyring-controller": ^10.0.0
+    "@metamask/eth-keyring-controller": ^10.0.1
     "@metamask/eth-sig-util": ^5.0.3
     "@metamask/message-manager": "workspace:^"
     "@metamask/preferences-controller": "workspace:^"
