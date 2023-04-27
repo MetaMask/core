@@ -154,7 +154,7 @@ export type NetworkControllerGetProviderConfigAction = {
 
 export type NetworkControllerGetEthQueryAction = {
   type: `NetworkController:getEthQuery`;
-  handler: () => EthQuery;
+  handler: () => EthQuery | undefined;
 };
 
 export type NetworkControllerActions =
@@ -275,7 +275,6 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
-        assert(this.#ethQuery, 'Provider has not been initialized.');
         return this.#ethQuery;
       },
     );
