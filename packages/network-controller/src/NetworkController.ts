@@ -1,4 +1,6 @@
+import type EventEmitter from 'events';
 import EthQuery from 'eth-query';
+import type { Provider as EthQueryProvider } from 'eth-query';
 import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
@@ -20,7 +22,7 @@ import {
   isNetworkType,
   BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
-import { assertIsStrictHexString } from '@metamask/utils';
+import { assert, assertIsStrictHexString, hasProperty } from '@metamask/utils';
 
 import { NetworkStatus } from './constants';
 
@@ -123,15 +125,13 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 
 const name = 'NetworkController';
 
-export type EthQuery = any;
-
-type Provider = any;
-
-export type ProviderProxy = SwappableProxy<Provider>;
-
 type BlockTracker = any;
 
 export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
+
+export type Provider = EventEmitter & EthQueryProvider & { stop: () => void };
+
+export type ProviderProxy = SwappableProxy<Provider>;
 
 export type NetworkControllerStateChangeEvent = {
   type: `NetworkController:stateChange`;
@@ -211,7 +211,7 @@ export class NetworkController extends BaseControllerV2<
   NetworkState,
   NetworkControllerMessenger
 > {
-  #ethQuery: EthQuery;
+  #ethQuery?: EthQuery;
 
   #infuraProjectId: string;
 
@@ -275,6 +275,7 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
+        assert(this.#ethQuery, 'Provider has not been initialized.');
         return this.#ethQuery;
       },
     );
@@ -350,7 +351,11 @@ export class NetworkController extends BaseControllerV2<
         pollingInterval: 12000,
       },
     };
-    this.#updateProvider(createMetamaskProvider(config));
+
+    // Cast needed because the `web3-provider-engine` type for `sendAsync`
+    // incorrectly suggests that an array is accepted as the first parameter
+    // of `sendAsync`.
+    this.#updateProvider(createMetamaskProvider(config) as Provider);
   }
 
   #setupStandardProvider(
@@ -366,11 +371,19 @@ export class NetworkController extends BaseControllerV2<
       rpcUrl: rpcTarget,
       ticker,
     };
-    this.#updateProvider(createMetamaskProvider(config));
+
+    // Cast needed because the `web3-provider-engine` type for `sendAsync`
+    // incorrectly suggests that an array is accepted as the first parameter
+    // of `sendAsync`.
+    this.#updateProvider(createMetamaskProvider(config) as Provider);
   }
 
   #updateProvider(provider: Provider) {
     this.#safelyStopProvider(this.#provider);
+    assert(
+      hasProperty(provider, '_blockTracker'),
+      'Provider is missing block tracker.',
+    );
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker: provider._blockTracker,
@@ -406,13 +419,17 @@ export class NetworkController extends BaseControllerV2<
 
   async #getNetworkId(): Promise<NetworkId> {
     const possibleNetworkId = await new Promise<string>((resolve, reject) => {
+      if (!this.#ethQuery) {
+        throw new Error('Provider has not been initialized');
+      }
       this.#ethQuery.sendAsync(
         { method: 'net_version' },
-        (error: Error, result: string) => {
+        (error: unknown, result?: unknown) => {
           if (error) {
             reject(error);
           } else {
-            resolve(result);
+            // TODO: Validate this type
+            resolve(result as string);
           }
         },
       );
@@ -537,13 +554,17 @@ export class NetworkController extends BaseControllerV2<
 
   #getLatestBlock(): Promise<Block> {
     return new Promise((resolve, reject) => {
+      if (!this.#ethQuery) {
+        throw new Error('Provider has not been initialized');
+      }
       this.#ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
-        (error: Error, block: Block) => {
+        (error: unknown, block?: unknown) => {
           if (error) {
             reject(error);
           } else {
-            resolve(block);
+            // TODO: Validate this type
+            resolve(block as Block);
           }
         },
       );
