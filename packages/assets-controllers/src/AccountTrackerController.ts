@@ -1,4 +1,3 @@
-import assert from 'assert';
 import EthQuery from 'eth-query';
 import type { Provider } from 'eth-query';
 import { Mutex } from 'async-mutex';
@@ -7,6 +6,7 @@ import {
   BaseController,
   BaseState,
 } from '@metamask/base-controller';
+import { assert } from '@metamask/utils';
 import { PreferencesState } from '@metamask/preferences-controller';
 import {
   BNToHex,
