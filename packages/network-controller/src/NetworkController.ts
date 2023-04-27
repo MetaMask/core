@@ -377,7 +377,10 @@ export class NetworkController extends BaseControllerV2<
 
   #updateProvider(provider: Provider) {
     this.#safelyStopProvider(this.#provider);
-    assert(hasProperty(provider, '_blockTracker'), 'Provider is missing block tracker.');
+    assert(
+      hasProperty(provider, '_blockTracker'),
+      'Provider is missing block tracker.',
+    );
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker: provider._blockTracker,
