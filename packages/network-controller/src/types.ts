@@ -1,6 +1,5 @@
-import type EventEmitter from 'events';
-import type { Provider as EthQueryProvider } from 'eth-query';
+import type { ProviderEngine } from 'web3-provider-engine';
 
-export type Provider = EventEmitter & EthQueryProvider & { stop: () => void };
+export type Provider = ProviderEngine;
 
 export type BlockTracker = any;

@@ -49,11 +49,7 @@ export function createNetworkClient(
       ? buildInfuraNetworkProviderConfig(networkConfig)
       : buildCustomNetworkProviderConfig(networkConfig);
 
-  // Cast needed because the `web3-provider-engine` type for `sendAsync`
-  // incorrectly suggests that an array is accepted as the first parameter
-  // of `sendAsync`. This (along with the bad type) will go away when we replace
-  // `web3-provider-engine`.
-  const provider = createMetamaskProvider(providerConfig) as Provider;
+  const provider = createMetamaskProvider(providerConfig);
 
   assert(
     hasProperty(provider, '_blockTracker'),
