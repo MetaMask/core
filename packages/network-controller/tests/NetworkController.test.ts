@@ -903,6 +903,7 @@ describe('NetworkController', () => {
             async ({ controller }) => {
               const fakeProvider = buildFakeProvider();
               const fakeNetworkClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
               await controller.initializeProvider();
 
@@ -3621,6 +3622,7 @@ describe('NetworkController', () => {
         await withController(async ({ controller }) => {
           const fakeProvider = buildFakeProvider();
           const fakeNetworkClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
           await controller.setProviderType(NetworkType.rpc);
 
