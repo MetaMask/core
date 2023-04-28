@@ -10,6 +10,7 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import {
+  InfuraNetworkType,
   NetworksChainId,
   NetworkType,
   isSafeChainId,
@@ -18,17 +19,24 @@ import {
   BUILT_IN_NETWORKS,
   toHex,
 } from '@metamask/controller-utils';
-import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { assertIsStrictHexString, assert } from '@metamask/utils';
+import {
+  assertIsStrictHexString,
+  assert,
+  hasProperty,
+  isPlainObject,
+} from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import {
   createNetworkClient,
   NetworkClientType,
 } from './create-network-client';
 
-import { NetworkStatus } from './constants';
+import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import { projectLogger, createModuleLogger } from './logger';
+
+const log = createModuleLogger(projectLogger, 'NetworkController');
 
 /**
  * @type ProviderConfig
@@ -104,6 +112,18 @@ function isErrorWithCode(error: unknown): error is { code: string | number } {
 }
 
 /**
+ * Returns whether the given argument is a type that our Infura middleware
+ * recognizes.
+ *
+ * @param type - A type to compare.
+ * @returns True or false, depending on whether the given type is one that our
+ * Infura middleware recognizes.
+ */
+function isInfuraProviderType(type: string): type is InfuraNetworkType {
+  return Object.keys(InfuraNetworkType).includes(type);
+}
+
+/**
  * The network ID of a network.
  */
 export type NetworkId = `${number}`;
@@ -147,9 +167,31 @@ export type NetworkControllerProviderConfigChangeEvent = {
   payload: [ProviderConfig];
 };
 
+/**
+ * `infuraIsBlocked` is published after the network is switched to an Infura
+ * network, but when Infura returns an error blocking the user based on their
+ * location.
+ */
+export type NetworkControllerInfuraIsBlockedEvent = {
+  type: 'NetworkController:infuraIsBlocked';
+  payload: [];
+};
+
+/**
+ * `infuraIsBlocked` is published either after the network is switched to an
+ * Infura network and Infura does not return an error blocking the user based on
+ * their location, or the network is switched to a non-Infura network.
+ */
+export type NetworkControllerInfuraIsUnblockedEvent = {
+  type: 'NetworkController:infuraIsUnblocked';
+  payload: [];
+};
+
 export type NetworkControllerEvents =
   | NetworkControllerStateChangeEvent
-  | NetworkControllerProviderConfigChangeEvent;
+  | NetworkControllerProviderConfigChangeEvent
+  | NetworkControllerInfuraIsBlockedEvent
+  | NetworkControllerInfuraIsUnblockedEvent;
 
 export type NetworkControllerGetProviderConfigAction = {
   type: `NetworkController:getProviderConfig`;
@@ -168,8 +210,7 @@ export type NetworkControllerActions =
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   NetworkControllerGetProviderConfigAction | NetworkControllerGetEthQueryAction,
-  | NetworkControllerStateChangeEvent
-  | NetworkControllerProviderConfigChangeEvent,
+  NetworkControllerEvents,
   string,
   string
 >;
@@ -420,14 +461,22 @@ export class NetworkController extends BaseControllerV2<
    * available, updates the network state with the network ID of the network and
    * stores whether the network supports EIP-1559; otherwise clears said
    * information about the network that may have been previously stored.
+   *
+   * @fires infuraIsBlocked if the network is Infura-supported and is blocking
+   * requests.
+   * @fires infuraIsUnblocked if the network is Infura-supported and is not
+   * blocking requests, or if the network is not Infura-supported.
    */
   async lookupNetwork() {
     if (!this.#ethQuery) {
       return;
     }
+    const isInfura = isInfuraProviderType(this.state.providerConfig.type);
     const releaseLock = await this.#mutex.acquire();
 
     try {
+      let updatedNetworkStatus: NetworkStatus;
+      let updatedNetworkId: NetworkId | null = null;
       try {
         const [networkId] = await Promise.all([
           this.#getNetworkId(),
@@ -436,20 +485,55 @@ export class NetworkController extends BaseControllerV2<
         if (this.state.networkId === networkId) {
           return;
         }
-
-        this.update((state) => {
-          state.networkId = networkId;
-          state.networkStatus = NetworkStatus.Available;
-        });
+        updatedNetworkStatus = NetworkStatus.Available;
+        updatedNetworkId = networkId;
       } catch (error) {
-        const networkStatus =
-          isErrorWithCode(error) && error.code !== errorCodes.rpc.internal
-            ? NetworkStatus.Unavailable
-            : NetworkStatus.Unknown;
-        this.update((state) => {
-          state.networkId = null;
-          state.networkStatus = networkStatus;
-        });
+        if (isErrorWithCode(error)) {
+          let responseBody;
+          if (
+            isInfura &&
+            hasProperty(error, 'message') &&
+            typeof error.message === 'string'
+          ) {
+            try {
+              responseBody = JSON.parse(error.message);
+            } catch {
+              // error.message must not be JSON
+            }
+          }
+
+          if (
+            isPlainObject(responseBody) &&
+            responseBody.error === INFURA_BLOCKED_KEY
+          ) {
+            updatedNetworkStatus = NetworkStatus.Blocked;
+          } else if (error.code === errorCodes.rpc.internal) {
+            updatedNetworkStatus = NetworkStatus.Unknown;
+          } else {
+            updatedNetworkStatus = NetworkStatus.Unavailable;
+          }
+        } else {
+          log('NetworkController - could not determine network status', error);
+          updatedNetworkStatus = NetworkStatus.Unknown;
+        }
+      }
+
+      this.update((state) => {
+        state.networkId = updatedNetworkId;
+        state.networkStatus = updatedNetworkStatus;
+      });
+
+      if (isInfura) {
+        if (updatedNetworkStatus === NetworkStatus.Available) {
+          this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+        } else if (updatedNetworkStatus === NetworkStatus.Blocked) {
+          this.messagingSystem.publish('NetworkController:infuraIsBlocked');
+        }
+      } else {
+        // Always publish infuraIsUnblocked regardless of network status to
+        // prevent consumers from being stuck in a blocked state if they were
+        // previously connected to an Infura network that was blocked
+        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
       }
 
       this.messagingSystem.publish(
