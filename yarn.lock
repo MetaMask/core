@@ -1482,6 +1482,7 @@ __metadata:
     "@metamask/eslint-config-jest": ^9.0.0
     "@metamask/eslint-config-nodejs": ^9.0.0
     "@metamask/eslint-config-typescript": ^9.0.1
+    "@metamask/eth-json-rpc-provider": ^1.0.0
     "@types/node": ^16.18.24
     "@typescript-eslint/eslint-plugin": ^4.33.0
     "@typescript-eslint/parser": ^4.33.0
@@ -1495,6 +1496,7 @@ __metadata:
     eslint-plugin-prettier: ^3.4.1
     execa: ^5.0.0
     isomorphic-fetch: ^3.0.0
+    json-rpc-engine: ^6.1.0
     prettier: ^2.6.2
     prettier-plugin-packagejson: ^2.2.17
     rimraf: ^3.0.2
@@ -1974,11 +1976,13 @@ __metadata:
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
     "@metamask/network-controller": "workspace:^"
+    "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.24
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
+    eth-block-tracker: ^7.0.0
     eth-method-registry: 1.1.0
     eth-query: ^2.1.2
     eth-rpc-errors: ^4.0.2
