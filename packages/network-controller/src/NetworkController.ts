@@ -1,40 +1,38 @@
-import EthQuery from 'eth-query';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
+import EthQuery from 'eth-query';
+import {
+  BaseControllerV2,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { Mutex } from 'async-mutex';
 import { v4 as random } from 'uuid';
 import type { Patch } from 'immer';
 import { errorCodes } from 'eth-rpc-errors';
 import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import {
-  InfuraNetworkType,
+  BUILT_IN_NETWORKS,
+  NetworksTicker,
   NetworksChainId,
+  InfuraNetworkType,
   NetworkType,
   isSafeChainId,
-  NetworksTicker,
   isNetworkType,
-  BUILT_IN_NETWORKS,
   toHex,
 } from '@metamask/controller-utils';
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import { PollingBlockTracker } from 'eth-block-tracker';
 import {
-  assertIsStrictHexString,
   assert,
+  assertIsStrictHexString,
   hasProperty,
   isPlainObject,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import { projectLogger, createModuleLogger } from './logger';
 import {
   createNetworkClient,
   NetworkClientType,
 } from './create-network-client';
-
-import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
-import { projectLogger, createModuleLogger } from './logger';
+import type { Provider, BlockTracker } from './types';
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
 
@@ -149,11 +147,7 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 
 const name = 'NetworkController';
 
-type BlockTracker = PollingBlockTracker;
-
 export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
-
-export type Provider = SafeEventEmitterProvider;
 
 export type ProviderProxy = SwappableProxy<Provider>;
 
@@ -410,10 +404,7 @@ export class NetworkController extends BaseControllerV2<
     this.#updateProvider(provider, blockTracker);
   }
 
-  #updateProvider(
-    provider: SafeEventEmitterProvider,
-    blockTracker: PollingBlockTracker,
-  ) {
+  #updateProvider(provider: Provider, blockTracker: BlockTracker) {
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker,

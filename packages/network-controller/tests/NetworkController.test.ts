@@ -1,31 +1,33 @@
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import assert from 'assert';
-
-import { ControllerMessenger } from '@metamask/base-controller';
 import * as ethQueryModule from 'eth-query';
-import { Patch } from 'immer';
 import { v4 } from 'uuid';
+import { ControllerMessenger } from '@metamask/base-controller';
 import { ethErrors } from 'eth-rpc-errors';
-import { NetworkType, toHex } from '@metamask/controller-utils';
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { Patch } from 'immer';
+import {
+  BUILT_IN_NETWORKS,
+  NetworkType,
+  toHex,
+} from '@metamask/controller-utils';
 import {
   NetworkController,
-  NetworkControllerActions,
   NetworkControllerEvents,
-  NetworkControllerMessenger,
+  NetworkControllerActions,
   NetworkControllerOptions,
-  NetworkControllerStateChangeEvent,
   NetworkState,
+  NetworkControllerMessenger,
+  NetworkControllerStateChangeEvent,
   ProviderConfig,
 } from '../src/NetworkController';
-import { NetworkStatus } from '../src/constants';
-import { BUILT_IN_NETWORKS } from '../../controller-utils/src/constants';
 import {
   createNetworkClient,
   NetworkClientType,
 } from '../src/create-network-client';
-import { FakeProvider, FakeProviderStub } from './fake-provider';
+import { NetworkStatus } from '../src/constants';
+import type { Provider } from '../src/types';
 import { FakeBlockTracker } from './fake-block-tracker';
+import { FakeProvider, FakeProviderStub } from './fake-provider';
 
 jest.mock('eth-query', () => {
   return {
@@ -6473,7 +6475,7 @@ function buildProviderConfig(config: Partial<ProviderConfig> = {}) {
  * @param provider - provider to use if you dont want the defaults
  * @returns The object.
  */
-function buildFakeClient(provider: SafeEventEmitterProvider) {
+function buildFakeClient(provider: Provider) {
   return {
     provider,
     blockTracker: new FakeBlockTracker({ provider }),
@@ -6490,9 +6492,7 @@ function buildFakeClient(provider: SafeEventEmitterProvider) {
  * default.
  * @returns The object.
  */
-function buildFakeProvider(
-  stubs: FakeProviderStub[] = [],
-): SafeEventEmitterProvider {
+function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
   const completeStubs = stubs.slice();
   if (!stubs.some((stub) => stub.request.method === 'eth_getBlockByNumber')) {
     completeStubs.unshift({
