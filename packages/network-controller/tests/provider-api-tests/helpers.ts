@@ -1,4 +1,5 @@
 /* eslint-disable node/no-process-env */
+import { strict as assert } from 'assert';
 import nock, { Scope as NockScope } from 'nock';
 import sinon from 'sinon';
 import type EthQuery from 'eth-query';
@@ -411,8 +412,10 @@ export const withNetworkClient = async (
       { referrer: 'https://test-dapp.com', source: 'dapp', setActive: true },
     );
   }
-  const ethQuery = messenger.call('NetworkController:getEthQuery');
   const { provider, blockTracker } = controller.getProviderAndBlockTracker();
+  assert(provider, 'provider has not been set for some reason');
+  const ethQuery = messenger.call('NetworkController:getEthQuery');
+  assert(ethQuery, 'EthQuery has not been set for some reason');
 
   const curriedMakeRpcCall = (request: Request) =>
     makeRpcCall(ethQuery, request, clock);
