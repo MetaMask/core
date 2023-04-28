@@ -162,6 +162,25 @@ export type NetworkControllerStateChangeEvent = {
 };
 
 /**
+ * `networkWillChange` is published when the current network is about to be
+ * switched, but the new provider has not been created and no state changes have
+ * occurred yet.
+ */
+export type NetworkControllerNetworkWillChangeEvent = {
+  type: 'NetworkController:networkWillChange';
+  payload: [];
+};
+
+/**
+ * `networkDidChange` is published after a provider has been created for a newly
+ * switched network (but before the network has been confirmed to be available).
+ */
+export type NetworkControllerNetworkDidChangeEvent = {
+  type: 'NetworkController:networkDidChange';
+  payload: [];
+};
+
+/**
  * `infuraIsBlocked` is published after the network is switched to an Infura
  * network, but when Infura returns an error blocking the user based on their
  * location.
@@ -183,6 +202,8 @@ export type NetworkControllerInfuraIsUnblockedEvent = {
 
 export type NetworkControllerEvents =
   | NetworkControllerStateChangeEvent
+  | NetworkControllerNetworkWillChangeEvent
+  | NetworkControllerNetworkDidChangeEvent
   | NetworkControllerInfuraIsBlockedEvent
   | NetworkControllerInfuraIsUnblockedEvent;
 
@@ -365,6 +386,7 @@ export class NetworkController extends BaseControllerV2<
   }
 
   async #refreshNetwork() {
+    this.messagingSystem.publish('NetworkController:networkWillChange');
     this.update((state) => {
       state.networkId = null;
       state.networkStatus = NetworkStatus.Unknown;
@@ -374,6 +396,7 @@ export class NetworkController extends BaseControllerV2<
     });
     const { rpcUrl, type, chainId } = this.state.providerConfig;
     this.#configureProvider(type, rpcUrl, chainId);
+    this.messagingSystem.publish('NetworkController:networkDidChange');
     await this.lookupNetwork();
   }
 
