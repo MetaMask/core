@@ -1,6 +1,5 @@
 /**
- * The names of built-in Infura-supported networks that can be used to create an
- * Infura-specific network client.
+ * The names of built-in Infura networks
  */
 export const InfuraNetworkType = {
   mainnet: 'mainnet',
@@ -8,17 +7,11 @@ export const InfuraNetworkType = {
   sepolia: 'sepolia',
 } as const;
 
-/**
- * The name of a built-in Infura-supported network that can be used to create an
- * Infura-specific network client.
- */
 export type InfuraNetworkType =
   typeof InfuraNetworkType[keyof typeof InfuraNetworkType];
 
 /**
- * Symbols that can be used to create a network client: either names of
- * built-in Infura-supported networks, "localhost" for a locally operated custom network,
- * or "rpc" for a remotely operated custom network.
+ * The "network type"; either the name of a built-in network, or "rpc" for custom networks.
  */
 export const NetworkType = {
   ...InfuraNetworkType,
@@ -26,11 +19,6 @@ export const NetworkType = {
   rpc: 'rpc',
 } as const;
 
-/**
- * A symbol that can be used to create a network client: either names of
- * built-in Infura-supported networks, "localhost" for a locally operated custom
- * network, or "rpc" for a remotely operated custom network.
- */
 export type NetworkType = typeof NetworkType[keyof typeof NetworkType];
 
 /**
