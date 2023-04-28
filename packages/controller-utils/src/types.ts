@@ -1,13 +1,31 @@
 /**
- * Human-readable network name
+ * Ethereum networks that can be used to create an Infura network client.
  */
-export enum NetworkType {
-  localhost = 'localhost',
-  mainnet = 'mainnet',
-  goerli = 'goerli',
-  sepolia = 'sepolia',
-  rpc = 'rpc',
-}
+export const InfuraNetworkType = {
+  mainnet: 'mainnet',
+  goerli: 'goerli',
+  sepolia: 'sepolia',
+} as const;
+
+/**
+ * Ethereum networks that can be used to create an Infura network client.
+ */
+export type InfuraNetworkType =
+  typeof InfuraNetworkType[keyof typeof InfuraNetworkType];
+
+/**
+ * Networks that can be used to create a network client.
+ */
+export const NetworkType = {
+  ...InfuraNetworkType,
+  localhost: 'localhost',
+  rpc: 'rpc',
+} as const;
+
+/**
+ * Networks that can be used to create a network client.
+ */
+export type NetworkType = typeof NetworkType[keyof typeof NetworkType];
 
 /**
  * A helper to determine whether a given input is NetworkType.

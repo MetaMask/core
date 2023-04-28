@@ -26,7 +26,7 @@ import {
   NetworkState,
   ProviderConfig,
 } from '../src/NetworkController';
-import type { Provider } from '../src/NetworkController';
+import type { Provider } from '../src/types';
 import { NetworkStatus } from '../src/constants';
 import { BUILT_IN_NETWORKS } from '../../controller-utils/src/constants';
 import { FakeProviderEngine, FakeProviderStub } from './fake-provider-engine';

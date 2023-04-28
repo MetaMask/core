@@ -1,9 +1,4 @@
-import type EventEmitter from 'events';
 import EthQuery from 'eth-query';
-import type { Provider as EthQueryProvider } from 'eth-query';
-import Subprovider from 'web3-provider-engine/subproviders/provider';
-import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
-import createMetamaskProvider from 'web3-provider-engine/zero';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import { Mutex } from 'async-mutex';
@@ -21,10 +16,15 @@ import {
   NetworksTicker,
   isNetworkType,
   BUILT_IN_NETWORKS,
+  InfuraNetworkType,
 } from '@metamask/controller-utils';
-import { assert, assertIsStrictHexString, hasProperty } from '@metamask/utils';
-
+import { assert, assertIsStrictHexString } from '@metamask/utils';
+import {
+  createNetworkClient,
+  NetworkClientType,
+} from './create-network-client';
 import { NetworkStatus } from './constants';
+import type { BlockTracker, Provider } from './types';
 
 /**
  * @type ProviderConfig
@@ -125,11 +125,7 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 
 const name = 'NetworkController';
 
-type BlockTracker = any;
-
 export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
-
-export type Provider = EventEmitter & EthQueryProvider & { stop: () => void };
 
 export type ProviderProxy = SwappableProxy<Provider>;
 
@@ -338,24 +334,14 @@ export class NetworkController extends BaseControllerV2<
     }
   }
 
-  #setupInfuraProvider(type: NetworkType) {
-    const infuraProvider = createInfuraProvider({
+  #setupInfuraProvider(type: InfuraNetworkType) {
+    const { provider, blockTracker } = createNetworkClient({
       network: type,
-      projectId: this.#infuraProjectId,
+      infuraProjectId: this.#infuraProjectId,
+      type: NetworkClientType.Infura,
     });
-    const infuraSubprovider = new Subprovider(infuraProvider);
-    const config = {
-      dataSubprovider: infuraSubprovider,
-      engineParams: {
-        blockTrackerProvider: infuraProvider,
-        pollingInterval: 12000,
-      },
-    };
 
-    // Cast needed because the `web3-provider-engine` type for `sendAsync`
-    // incorrectly suggests that an array is accepted as the first parameter
-    // of `sendAsync`.
-    this.#updateProvider(createMetamaskProvider(config) as Provider);
+    this.#updateProvider(provider, blockTracker);
   }
 
   #setupStandardProvider(
@@ -364,29 +350,22 @@ export class NetworkController extends BaseControllerV2<
     ticker?: string,
     nickname?: string,
   ) {
-    const config = {
+    const { provider, blockTracker } = createNetworkClient({
       chainId,
-      engineParams: { pollingInterval: 12000 },
       nickname,
       rpcUrl: rpcTarget,
       ticker,
-    };
+      type: NetworkClientType.Custom,
+    });
 
-    // Cast needed because the `web3-provider-engine` type for `sendAsync`
-    // incorrectly suggests that an array is accepted as the first parameter
-    // of `sendAsync`.
-    this.#updateProvider(createMetamaskProvider(config) as Provider);
+    this.#updateProvider(provider, blockTracker);
   }
 
-  #updateProvider(provider: Provider) {
+  #updateProvider(provider: Provider, blockTracker: any) {
     this.#safelyStopProvider(this.#provider);
-    assert(
-      hasProperty(provider, '_blockTracker'),
-      'Provider is missing block tracker.',
-    );
     this.#setProviderAndBlockTracker({
       provider,
-      blockTracker: provider._blockTracker,
+      blockTracker,
     });
     this.#registerProvider();
   }
