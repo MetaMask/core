@@ -1,5 +1,6 @@
 /**
- * Ethereum networks that can be used to create an Infura network client.
+ * The names of built-in Infura-supported networks that can be used to create an
+ * Infura-specific network client.
  */
 export const InfuraNetworkType = {
   mainnet: 'mainnet',
@@ -8,13 +9,16 @@ export const InfuraNetworkType = {
 } as const;
 
 /**
- * Ethereum networks that can be used to create an Infura network client.
+ * The name of a built-in Infura-supported network that can be used to create an
+ * Infura-specific network client.
  */
 export type InfuraNetworkType =
   typeof InfuraNetworkType[keyof typeof InfuraNetworkType];
 
 /**
- * Networks that can be used to create a network client.
+ * Symbols that can be used to create a network client: either names of
+ * built-in Infura-supported networks, "localhost" for a locally operated custom network,
+ * or "rpc" for a remotely operated custom network.
  */
 export const NetworkType = {
   ...InfuraNetworkType,
@@ -23,7 +27,9 @@ export const NetworkType = {
 } as const;
 
 /**
- * Networks that can be used to create a network client.
+ * A symbol that can be used to create a network client: either names of
+ * built-in Infura-supported networks, "localhost" for a locally operated custom
+ * network, or "rpc" for a remotely operated custom network.
  */
 export type NetworkType = typeof NetworkType[keyof typeof NetworkType];
 
