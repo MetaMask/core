@@ -5857,32 +5857,32 @@ describe('NetworkController', () => {
   });
 
   describe('NetworkController:getEthQuery action', () => {
-    it('returns the EthQuery object set after the provider is set', async () => {
+    it('returns the EthQuery object that is set after the provider is set', async () => {
       const messenger = buildMessenger();
-      await withController({ messenger }, async ({ controller }) => {
+      await withController({ messenger }, ({ controller }) => {
         const fakeEthQuery = {
           sendAsync: jest.fn(),
         };
         jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
         setFakeProvider(controller);
 
-        const ethQuery = await messenger.call('NetworkController:getEthQuery');
+        const ethQuery = messenger.call('NetworkController:getEthQuery');
 
         expect(ethQuery).toBe(fakeEthQuery);
       });
     });
 
-    it('throws if the provider is not set', async () => {
+    it('returns undefined if the provider has not been set yet', async () => {
       const messenger = buildMessenger();
-      await withController({ messenger }, async () => {
+      await withController({ messenger }, () => {
         const fakeEthQuery = {
           sendAsync: jest.fn(),
         };
         jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
 
-        await expect(
-          async () => await messenger.call('NetworkController:getEthQuery'),
-        ).rejects.toThrow('Provider has not been initialized');
+        const ethQuery = messenger.call('NetworkController:getEthQuery');
+
+        expect(ethQuery).toBeUndefined();
       });
     });
   });
