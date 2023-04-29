@@ -20,7 +20,6 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import {
-  assert,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
