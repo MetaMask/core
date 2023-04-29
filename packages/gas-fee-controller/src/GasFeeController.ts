@@ -346,6 +346,9 @@ export class GasFeeController extends BaseControllerV2<
         'NetworkController:getProviderConfig',
       );
       this.currentChainId = providerConfig.chainId;
+      this.ethQuery = this.messagingSystem.call(
+        'NetworkController:getEthQuery',
+      );
 
       this.messagingSystem.subscribe(
         'NetworkController:providerConfigChange',
