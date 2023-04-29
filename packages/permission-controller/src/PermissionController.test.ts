@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { JsonRpcEngine, PendingJsonRpcResponse } from 'json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -7,9 +7,14 @@ import {
   RejectRequest as RejectApprovalRequest,
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { hasProperty } from '@metamask/utils';
-import { Json, isPlainObject } from '@metamask/controller-utils';
+import {
+  hasProperty,
+  PendingJsonRpcResponse,
+  isPlainObject,
+  Json,
+} from '@metamask/utils';
 import { GetSubjectMetadata, SubjectType } from './SubjectMetadataController';
+
 import * as errors from './errors';
 import { EndowmentGetterParams } from './Permission';
 import {
@@ -251,7 +256,7 @@ function getDefaultPermissionSpecifications() {
         CaveatTypes.filterArrayResponse,
         CaveatTypes.reverseArrayResponse,
       ],
-      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<undefined>) => {
         return ['a', 'b', 'c'];
       },
     },
@@ -262,7 +267,7 @@ function getDefaultPermissionSpecifications() {
         CaveatTypes.filterObjectResponse,
         CaveatTypes.noopCaveat,
       ],
-      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<undefined>) => {
         return { a: 'x', b: 'y', c: 'z' };
       },
       validator: (permission: PermissionConstraint) => {
@@ -279,7 +284,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetKey: PermissionKeys['wallet_getSecret_*'],
       allowedCaveats: [CaveatTypes.noopCaveat],
-      methodImplementation: (args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (args: RestrictedMethodOptions<undefined>) => {
         return `Hello, secret friend "${args.method.replace(
           'wallet_getSecret_',
           '',
@@ -315,7 +320,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetKey: PermissionKeys.wallet_noop,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<undefined>) => {
         return null;
       },
     },
@@ -323,7 +328,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetKey: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<undefined>) => {
         return null;
       },
       sideEffect: {
@@ -335,7 +340,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetKey: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<undefined>) => {
         return null;
       },
       sideEffect: {
@@ -347,7 +352,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetKey: PermissionKeys.wallet_noopWithPermittedSideEffects,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<undefined>) => {
         return null;
       },
       sideEffect: {
@@ -358,7 +363,7 @@ function getDefaultPermissionSpecifications() {
     [PermissionKeys.wallet_noopWithValidator]: {
       permissionType: PermissionType.RestrictedMethod,
       targetKey: PermissionKeys.wallet_noopWithValidator,
-      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<undefined>) => {
         return null;
       },
       allowedCaveats: [CaveatTypes.noopCaveat, CaveatTypes.filterArrayResponse],
@@ -377,7 +382,7 @@ function getDefaultPermissionSpecifications() {
     [PermissionKeys.wallet_noopWithFactory]: {
       permissionType: PermissionType.RestrictedMethod,
       targetKey: PermissionKeys.wallet_noopWithFactory,
-      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<undefined>) => {
         return null;
       },
       allowedCaveats: [CaveatTypes.filterArrayResponse],
@@ -404,7 +409,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetKey: PermissionKeys.snap_foo,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<undefined>) => {
         return null;
       },
       subjectTypes: [SubjectType.Snap],
@@ -3748,6 +3753,40 @@ describe('PermissionController', () => {
       );
     });
 
+    it('throws if requested permissions object is not JSON', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+      const controller = getDefaultPermissionController(options);
+
+      jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce(async (...args: any) => {
+          const [, { requestData }] = args;
+          return {
+            metadata: { ...requestData.metadata },
+            permissions: { ...requestData.permissions },
+          };
+        });
+
+      await expect(
+        async () =>
+          await controller.requestPermissions(
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {
+                // @ts-expect-error - Invalid JSON value.
+                foo: () => undefined,
+              },
+            },
+          ),
+      ).rejects.toThrow(
+        errors.invalidParams({
+          message: `Approved permissions request for subject "metamask.io" is not a valid JSON value.`,
+        }),
+      );
+    });
+
     it('throws if requested permissions object is not a plain object', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
@@ -5413,7 +5452,11 @@ describe('PermissionController', () => {
       };
 
       const expectedError = errors.unauthorized({
-        data: { origin, method: PermissionNames.wallet_getSecretArray },
+        data: {
+          origin,
+          method: PermissionNames.wallet_getSecretArray,
+          cause: null,
+        },
       });
 
       const { error }: any = await engine.handle(request);
@@ -5433,7 +5476,10 @@ describe('PermissionController', () => {
         method: 'wallet_foo',
       };
 
-      const expectedError = errors.methodNotFound('wallet_foo', { origin });
+      const expectedError = errors.methodNotFound('wallet_foo', {
+        origin,
+        cause: null,
+      });
 
       const { error }: any = await engine.handle(request);
       expect(error).toMatchObject(expect.objectContaining(expectedError));
@@ -5473,7 +5519,7 @@ describe('PermissionController', () => {
 
       const expectedError = errors.internalError(
         `Request for method "${PermissionNames.wallet_doubleNumber}" returned undefined result.`,
-        { request: { ...request } },
+        { request: { ...request }, cause: null },
       );
 
       const { error }: any = await engine.handle(request);

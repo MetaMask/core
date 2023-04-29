@@ -1,5 +1,8 @@
-import { JsonRpcEngine, createAsyncMiddleware } from 'json-rpc-engine';
-import { ethErrors, serializeError } from 'eth-rpc-errors';
+import {
+  JsonRpcEngine,
+  createAsyncMiddleware,
+} from '@metamask/json-rpc-engine';
+import { rpcErrors, serializeError } from '@metamask/rpc-errors';
 import { requestPermissionsHandler } from './requestPermissions';
 
 describe('requestPermissions RPC method', () => {
@@ -38,10 +41,12 @@ describe('requestPermissions RPC method', () => {
 
   it('returns an error if requestPermissionsForOrigin rejects', async () => {
     const { implementation } = requestPermissionsHandler;
+
+    const error = new Error('foo');
     const mockRequestPermissionsForOrigin = jest
       .fn()
       .mockImplementationOnce(async () => {
-        throw new Error('foo');
+        throw error;
       });
 
     const engine = new JsonRpcEngine();
@@ -66,7 +71,7 @@ describe('requestPermissions RPC method', () => {
     });
 
     expect(response.result).toBeUndefined();
-    expect(response.error).toStrictEqual(serializeError(new Error('foo')));
+    expect(response.error).toStrictEqual(serializeError(error));
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledTimes(1);
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledWith({}, '1');
   });
@@ -90,7 +95,7 @@ describe('requestPermissions RPC method', () => {
         params: [], // doesn't matter
       };
 
-      const expectedError = ethErrors.rpc
+      const expectedError = rpcErrors
         .invalidRequest({
           message: 'Invalid request: Must specify a valid id.',
           data: { request: { ...req } },
@@ -124,7 +129,7 @@ describe('requestPermissions RPC method', () => {
         params: invalidParams,
       };
 
-      const expectedError = ethErrors.rpc
+      const expectedError = rpcErrors
         .invalidParams({
           data: { request: { ...req } },
         })

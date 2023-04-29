@@ -1,10 +1,9 @@
 /* eslint-enable @typescript-eslint/no-unused-vars */
-import { Mutable } from '@metamask/types';
 import deepFreeze from 'deep-freeze-strict';
 import { castDraft, Draft, Patch } from 'immer';
 import { nanoid } from 'nanoid';
-import { EthereumRpcError } from 'eth-rpc-errors';
-import { hasProperty } from '@metamask/utils';
+import { hasProperty, Mutable } from '@metamask/utils';
+import { JsonRpcError, serializeError } from '@metamask/rpc-errors';
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -26,6 +25,7 @@ import {
   NonEmptyArray,
 } from '@metamask/controller-utils';
 import { GetSubjectMetadata } from './SubjectMetadataController';
+
 import {
   CaveatConstraint,
   CaveatSpecificationConstraint,
@@ -1849,6 +1849,10 @@ export class PermissionController<
     origin: OriginString,
     target: string,
   ): void {
+    if (!isValidJson(caveat)) {
+      throw new CaveatInvalidJsonError(caveat, origin, target);
+    }
+
     if (!isPlainObject(caveat)) {
       throw new InvalidCaveatError(caveat, origin, target);
     }
@@ -1868,10 +1872,6 @@ export class PermissionController<
 
     if (!hasProperty(caveat, 'value') || caveat.value === undefined) {
       throw new CaveatMissingValueError(caveat, origin, target);
-    }
-
-    if (!isValidJson(caveat.value)) {
-      throw new CaveatInvalidJsonError(caveat, origin, target);
     }
 
     // Typecast: TypeScript still believes that the caveat is a PlainObject.
@@ -1987,7 +1987,7 @@ export class PermissionController<
    */
   private validateRequestedPermissions(
     origin: OriginString,
-    requestedPermissions: unknown,
+    requestedPermissions: Json,
   ): void {
     if (!isPlainObject(requestedPermissions)) {
       throw invalidParams({
@@ -2127,7 +2127,9 @@ export class PermissionController<
             failureHandlersList.map((failureHandler) => failureHandler(params)),
           );
         } catch (error) {
-          throw internalError('Unexpected error in side-effects', { error });
+          throw internalError('Unexpected error in side-effects', {
+            cause: error,
+          });
         }
       }
       const reasons = rejectedHandlers.map((handler) => handler.reason);
@@ -2139,7 +2141,7 @@ export class PermissionController<
       throw reasons.length > 1
         ? internalError(
             'Multiple errors occurred during side-effects execution',
-            { errors: reasons },
+            { errors: reasons.map((error) => serializeError(error)) },
           )
         : reasons[0];
     }
@@ -2168,6 +2170,12 @@ export class PermissionController<
     originalMetadata: PermissionsRequestMetadata,
   ) {
     const { id, origin } = originalMetadata;
+
+    if (!isValidJson(approvedRequest)) {
+      throw internalError(
+        `Approved permissions request for subject "${origin}" is not a valid JSON value.`,
+      );
+    }
 
     if (
       !isPlainObject(approvedRequest) ||
@@ -2201,7 +2209,7 @@ export class PermissionController<
     try {
       this.validateRequestedPermissions(origin, permissions);
     } catch (error) {
-      if (error instanceof EthereumRpcError) {
+      if (error instanceof JsonRpcError) {
         // Re-throw as an internal error; we should never receive invalid approved
         // permissions.
         throw internalError(
@@ -2209,7 +2217,11 @@ export class PermissionController<
           error.data,
         );
       }
-      throw internalError('Unrecognized error type', { error });
+
+      /* istanbul ignore next: should never happen */
+      throw internalError('Unrecognized error type', {
+        cause: error,
+      });
     }
   }
 
