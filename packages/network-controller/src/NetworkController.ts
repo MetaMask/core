@@ -19,7 +19,6 @@ import {
   isNetworkType,
 } from '@metamask/controller-utils';
 import {
-  assert,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
