@@ -1261,13 +1261,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/abi-utils@npm:^1.1.0":
-  version: 1.1.0
-  resolution: "@metamask/abi-utils@npm:1.1.0"
+"@metamask/abi-utils@npm:^1.2.0":
+  version: 1.2.0
+  resolution: "@metamask/abi-utils@npm:1.2.0"
   dependencies:
-    "@metamask/utils": ^3.2.0
-    superstruct: ^0.16.5
-  checksum: 9b199a856b4fc5ee034cc64f776977f2d38eae78c5f08c6a485d2479c9230ec40bd0e3e299e924acdf0dffa6cafe50921e4b43a2319cbc0a25bdc95aed316645
+    "@metamask/utils": ^3.4.1
+    superstruct: ^1.0.3
+  checksum: 55fde5bcbc7b2b72fb469867e3f2c41fddb1b2e992c6ea846de5701ad8fa5fcc66701facf1df793f8f58b8befcaa3c21a5e5519e839cc6fd5a3932806db7a5d5
   languageName: node
   linkType: hard
 
@@ -1344,7 +1344,7 @@ __metadata:
     "@ethersproject/bignumber": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
-    "@metamask/abi-utils": ^1.1.0
+    "@metamask/abi-utils": ^1.2.0
     "@metamask/approval-controller": "workspace:^"
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
@@ -1959,7 +1959,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^3.0.3, @metamask/utils@npm:^3.2.0":
+"@metamask/utils@npm:^3.0.3":
   version: 3.3.1
   resolution: "@metamask/utils@npm:3.3.1"
   dependencies:
@@ -1967,6 +1967,18 @@ __metadata:
     debug: ^4.3.4
     superstruct: ^0.16.7
   checksum: 5b6b6b54fdff4bc3f77b31ef50c23adca8fdf21d81d4f68d3d9c2b383b145cd61c2435f5ba0a11344484ae1f6d2355fab82eec58ce6b19eb35b476928b2e4ee6
+  languageName: node
+  linkType: hard
+
+"@metamask/utils@npm:^3.4.1":
+  version: 3.6.0
+  resolution: "@metamask/utils@npm:3.6.0"
+  dependencies:
+    "@types/debug": ^4.1.7
+    debug: ^4.3.4
+    semver: ^7.3.8
+    superstruct: ^1.0.3
+  checksum: 1ebc6677bb017e4d09d4af143621fe27194d8ed815234cfd76469c3c734dc1db2ea7b577c01a2096c21c04d8c9c4d721d3035b5353fe2ded3b4737f326755e43
   languageName: node
   linkType: hard
 
@@ -8976,7 +8988,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"superstruct@npm:^0.16.5, superstruct@npm:^0.16.7":
+"superstruct@npm:^0.16.7":
   version: 0.16.7
   resolution: "superstruct@npm:0.16.7"
   checksum: c8c855ff6945da8a41048c6d236de7b1af5d4d9c31742b3ee54d65647c31597488620281f65e095d5efc9e2fbdaad529b8c8f2506c12569d428467c835a21477
