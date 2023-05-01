@@ -320,7 +320,7 @@ describe('GasFeeController', () => {
               providerConfig: {
                 type: NetworkType.rpc,
                 chainId: '1337',
-                rpcTarget: 'http://some/url',
+                rpcUrl: 'http://some/url',
               },
             },
             clientId: '99999',
@@ -375,7 +375,7 @@ describe('GasFeeController', () => {
               providerConfig: {
                 type: NetworkType.rpc,
                 chainId: '1337',
-                rpcTarget: 'http://some/url',
+                rpcUrl: 'http://some/url',
               },
             },
             clientId: '99999',
@@ -685,7 +685,7 @@ describe('GasFeeController', () => {
             providerConfig: {
               type: NetworkType.rpc,
               chainId: '1337',
-              rpcTarget: 'http://some/url',
+              rpcUrl: 'http://some/url',
             },
           },
           clientId: '99999',
@@ -796,7 +796,7 @@ describe('GasFeeController', () => {
             providerConfig: {
               type: NetworkType.rpc,
               chainId: '1337',
-              rpcTarget: 'http://some/url',
+              rpcUrl: 'http://some/url',
             },
           },
           clientId: '99999',

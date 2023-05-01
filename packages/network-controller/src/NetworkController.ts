@@ -37,7 +37,7 @@ const log = createModuleLogger(projectLogger, 'NetworkController');
  * @type ProviderConfig
  *
  * Configuration passed to web3-provider-engine
- * @property rpcTarget - RPC target URL.
+ * @property rpcUrl - RPC target URL.
  * @property type - Human-readable network name.
  * @property chainId - Network ID as per EIP-155.
  * @property ticker - Currency ticker.
@@ -45,7 +45,7 @@ const log = createModuleLogger(projectLogger, 'NetworkController');
  * @property id - Network Configuration Id.
  */
 export type ProviderConfig = {
-  rpcTarget?: string;
+  rpcUrl?: string;
   type: NetworkType;
   chainId: string;
   ticker?: string;
@@ -65,7 +65,7 @@ export type NetworkDetails = {
 /**
  * Custom RPC network information
  *
- * @property rpcTarget - RPC target URL.
+ * @property rpcUrl - RPC target URL.
  * @property chainId - Network ID as per EIP-155
  * @property nickname - Personalized network name.
  * @property ticker - Currency ticker.
@@ -320,7 +320,7 @@ export class NetworkController extends BaseControllerV2<
 
   #configureProvider(
     type: NetworkType,
-    rpcTarget?: string,
+    rpcUrl?: string,
     chainId?: string,
     ticker?: string,
     nickname?: string,
@@ -335,8 +335,8 @@ export class NetworkController extends BaseControllerV2<
         this.#setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case NetworkType.rpc:
-        rpcTarget &&
-          this.#setupStandardProvider(rpcTarget, chainId, ticker, nickname);
+        rpcUrl &&
+          this.#setupStandardProvider(rpcUrl, chainId, ticker, nickname);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -359,8 +359,8 @@ export class NetworkController extends BaseControllerV2<
       state.networkStatus = NetworkStatus.Unknown;
       state.networkDetails = {};
     });
-    const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
-    this.#configureProvider(type, rpcTarget, chainId, ticker);
+    const { rpcUrl, type, chainId, ticker } = this.state.providerConfig;
+    this.#configureProvider(type, rpcUrl, chainId, ticker);
     await this.lookupNetwork();
   }
 
@@ -384,7 +384,7 @@ export class NetworkController extends BaseControllerV2<
   }
 
   #setupStandardProvider(
-    rpcTarget: string,
+    rpcUrl: string,
     chainId?: string,
     ticker?: string,
     nickname?: string,
@@ -392,7 +392,7 @@ export class NetworkController extends BaseControllerV2<
     const { provider, blockTracker } = createNetworkClient({
       chainId,
       nickname,
-      rpcUrl: rpcTarget,
+      rpcUrl,
       ticker,
       type: NetworkClientType.Custom,
     });
@@ -428,9 +428,9 @@ export class NetworkController extends BaseControllerV2<
    *
    */
   async initializeProvider() {
-    const { type, rpcTarget, chainId, ticker, nickname } =
+    const { type, rpcUrl, chainId, ticker, nickname } =
       this.state.providerConfig;
-    this.#configureProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.#configureProvider(type, rpcUrl, chainId, ticker, nickname);
     this.#registerProvider();
     await this.lookupNetwork();
   }
@@ -576,7 +576,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.ticker = ticker;
       state.providerConfig.chainId = NetworksChainId[type];
       state.providerConfig.rpcPrefs = BUILT_IN_NETWORKS[type].rpcPrefs;
-      state.providerConfig.rpcTarget = undefined;
+      state.providerConfig.rpcUrl = undefined;
       state.providerConfig.nickname = undefined;
       state.providerConfig.id = undefined;
     });
@@ -602,7 +602,7 @@ export class NetworkController extends BaseControllerV2<
 
     this.update((state) => {
       state.providerConfig.type = NetworkType.rpc;
-      state.providerConfig.rpcTarget = targetNetwork.rpcUrl;
+      state.providerConfig.rpcUrl = targetNetwork.rpcUrl;
       state.providerConfig.chainId = targetNetwork.chainId;
       state.providerConfig.ticker = targetNetwork.ticker;
       state.providerConfig.nickname = targetNetwork.nickname;
