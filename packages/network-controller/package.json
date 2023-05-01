@@ -48,13 +48,10 @@
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/auto-changelog": "^3.1.0",
-    "@metamask/eth-json-rpc-provider": "^1.0.0",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",
-    "eth-block-tracker": "^7.0.1",
     "jest": "^27.5.1",
-    "json-rpc-engine": "^6.1.0",
     "lodash": "^4.17.21",
     "nock": "^13.0.7",
     "sinon": "^9.2.4",
