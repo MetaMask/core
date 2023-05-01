@@ -56,7 +56,7 @@ type InfuraNetworkConfiguration = {
 };
 
 /**
- * Create a JSON-RPC network client for a specific network.
+ * Create a JSON RPC network client for a specific network.
  *
  * @param networkConfig - The network configuration.
  * @returns The network client.

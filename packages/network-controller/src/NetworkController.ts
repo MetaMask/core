@@ -20,6 +20,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import {
+  Hex,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
@@ -390,17 +391,10 @@ export class NetworkController extends BaseControllerV2<
     this.#updateProvider(provider, blockTracker);
   }
 
-  #setupStandardProvider(
-    rpcTarget: string,
-    chainId?: string,
-    ticker?: string,
-    nickname?: string,
-  ) {
+  #setupStandardProvider(rpcTarget: string, chainId: Hex) {
     const { provider, blockTracker } = createNetworkClient({
       chainId,
-      nickname,
       rpcUrl: rpcTarget,
-      ticker,
       type: NetworkClientType.Custom,
     });
 

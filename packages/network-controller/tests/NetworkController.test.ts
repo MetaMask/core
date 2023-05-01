@@ -12,11 +12,11 @@ import {
 } from '@metamask/controller-utils';
 import {
   NetworkController,
-  NetworkControllerEvents,
   NetworkControllerActions,
+  NetworkControllerEvents,
   NetworkControllerOptions,
-  NetworkState,
   NetworkControllerStateChangeEvent,
+  NetworkState,
   ProviderConfig,
 } from '../src/NetworkController';
 import type { Provider } from '../src/types';
@@ -25,7 +25,7 @@ import {
   createNetworkClient,
   NetworkClientType,
 } from '../src/create-network-client';
-import { FakeProviderStub } from '../../../tests/fake-provider';
+import { FakeProvider, FakeProviderStub } from '../../../tests/fake-provider';
 import { FakeBlockTracker } from './fake-block-tracker';
 
 jest.mock('../src/create-network-client');
@@ -96,13 +96,6 @@ const POST_1559_BLOCK = {
   ...PRE_1559_BLOCK,
   baseFeePerGas: '0x63c498a46',
 };
-
-/**
- * A dummy value for the `projectId` option that `createInfuraClient` needs.
- * (Infura should not be hit during tests, but just in case, this should not
- * refer to a real project ID.)
- */
-const DEFAULT_INFURA_PROJECT_ID = 'fake-infura-project-id';
 
 /**
  * The networks that NetworkController recognizes as built-in Infura networks,
@@ -389,30 +382,34 @@ describe('NetworkController', () => {
         });
       });
 
-      it('throws when the rpcTarget is not set', async () => {
-        await withController(
-          {
-            state: {
-              providerConfig: buildProviderConfig({
-                type: NetworkType.rpc,
-                rpcTarget: undefined,
-              }),
+      describe('if the provider config does not contain an RPC target', () => {
+        it('throws', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: NetworkType.rpc,
+                  rpcTarget: undefined,
+                }),
+              },
             },
-          },
-          async ({ controller }) => {
-            const fakeProvider = buildFakeProvider();
-            const fakeNetworkClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+            async ({ controller }) => {
+              const fakeProvider = buildFakeProvider();
+              const fakeNetworkClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
-            await expect(() => controller.initializeProvider()).rejects.toThrow(
-              'rpcTarget must be provided for custom RPC endpoints',
-            );
-            const { provider, blockTracker } =
-              controller.getProviderAndBlockTracker();
-            expect(provider).toBeUndefined();
-            expect(blockTracker).toBeUndefined();
-          },
-        );
+              await expect(() =>
+                controller.initializeProvider(),
+              ).rejects.toThrow(
+                'rpcTarget must be provided for custom RPC endpoints',
+              );
+              const { provider, blockTracker } =
+                controller.getProviderAndBlockTracker();
+              expect(provider).toBeUndefined();
+              expect(blockTracker).toBeUndefined();
+            },
+          );
+        });
       });
     });
 
@@ -4297,7 +4294,7 @@ describe('NetworkController', () => {
               providerConfig: {
                 type: NetworkType.rpc,
                 rpcTarget: 'https://mock-rpc-url',
-                chainId: '111',
+                chainId: '1337',
               },
               networkDetails: {
                 isEIP1559Compatible: false,
@@ -4359,14 +4356,14 @@ describe('NetworkController', () => {
               providerConfig: {
                 type: NetworkType.rpc,
                 rpcTarget: 'https://mock-rpc-url',
-                chainId: '111',
+                chainId: '1337',
                 ticker: 'TEST',
                 id: 'testNetworkConfigurationId',
               },
               networkConfigurations: {
                 testNetworkConfigurationId: {
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '111',
+                  chainId: '1337',
                   ticker: 'TEST',
                   id: 'testNetworkConfigurationId',
                 },
@@ -4411,14 +4408,14 @@ describe('NetworkController', () => {
               providerConfig: {
                 type: NetworkType.rpc,
                 rpcTarget: 'https://mock-rpc-url',
-                chainId: '111',
+                chainId: '1337',
                 ticker: 'TEST',
                 id: 'testNetworkConfigurationId',
               },
               networkConfigurations: {
                 testNetworkConfigurationId: {
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '111',
+                  chainId: '1337',
                   ticker: 'TEST',
                   id: 'testNetworkConfigurationId',
                 },
@@ -6214,22 +6211,6 @@ function buildNetworkControllerMessenger(messenger = buildMessenger()) {
       'NetworkController:infuraIsUnblocked',
     ],
   });
-}
-
-/**
- * Despite the signature of its constructor, NetworkController must take an
- * Infura project ID. The object that this function returns is mixed into the
- * options first when a NetworkController is instantiated in tests.
- *
- * @returns The controller options.
- */
-function buildDefaultNetworkControllerOptions() {
-  const messenger = buildMessenger();
-  return {
-    messenger,
-    infuraProjectId: DEFAULT_INFURA_PROJECT_ID,
-    trackMetaMetricsEvent: jest.fn(),
-  };
 }
 
 type WithControllerCallback<ReturnValue> = ({
