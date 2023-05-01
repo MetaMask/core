@@ -271,10 +271,8 @@ describe('GasFeeController', () => {
 
   afterEach(() => {
     gasFeeController.destroy();
-    const { provider } = networkController.getProviderAndBlockTracker();
-    if (provider) {
-      provider.stop();
-    }
+    const { blockTracker } = networkController.getProviderAndBlockTracker();
+    blockTracker?.destroy();
     sinon.restore();
     jest.clearAllMocks();
     nock.enableNetConnect();
