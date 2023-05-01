@@ -14,7 +14,10 @@ export type ExtractActionResponse<Action, T> = Action extends {
   ? H
   : never;
 
-export type ExtractEventHandler<Event, T> = Event extends {
+export type ExtractEventHandler<
+  Event extends EventConstraint,
+  T,
+> = Event extends {
   type: T;
   payload: infer P;
 }
@@ -22,7 +25,10 @@ export type ExtractEventHandler<Event, T> = Event extends {
     ? (...payload: P) => void
     : never
   : never;
-export type ExtractEventPayload<Event, T> = Event extends {
+export type ExtractEventPayload<
+  Event extends EventConstraint,
+  T,
+> = Event extends {
   type: T;
   payload: infer P;
 }
@@ -62,18 +68,6 @@ export type Namespaced<Name extends string, T> = T extends `${Name}:${string}`
   ? T
   : never;
 
-type NarrowToNamespace<T, Namespace extends string> = T extends {
-  type: `${Namespace}:${string}`;
-}
-  ? T
-  : never;
-
-type NarrowToAllowed<T, Allowed extends string> = T extends {
-  type: Allowed;
-}
-  ? T
-  : never;
-
 /**
  * A restricted controller messenger.
  *
@@ -92,8 +86,8 @@ export class RestrictedControllerMessenger<
   N extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
-  AllowedAction extends string,
-  AllowedEvent extends string,
+  AllowedAction extends Action['type'],
+  AllowedEvent extends Event['type'],
 > {
   private controllerMessenger: ControllerMessenger<
     ActionConstraint,
@@ -483,9 +477,9 @@ export class ControllerMessenger<
    * match the type of the payload for this event type.
    * @template E - A type union of Event type strings.
    */
-  subscribe<E extends Event['type']>(
-    eventType: E,
-    handler: ExtractEventHandler<Event, E>,
+  subscribe<E extends Event>(
+    eventType: E['type'],
+    handler: (...payload: E['payload']) => void,
   ): void;
 
   /**
@@ -505,15 +499,15 @@ export class ControllerMessenger<
    * @template E - A type union of Event type strings.
    * @template V - The selector return value.
    */
-  subscribe<E extends Event['type'], V>(
-    eventType: E,
+  subscribe<E extends Event, V>(
+    eventType: E['type'],
     handler: SelectorEventHandler<V>,
     selector: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ): void;
 
-  subscribe<E extends Event['type'], V>(
-    eventType: E,
-    handler: ExtractEventHandler<Event, E>,
+  subscribe<E extends Event, V>(
+    eventType: E['type'],
+    handler: (...payload: E['payload']) => void,
     selector?: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ): void {
     let subscribers = this.events.get(eventType);
@@ -535,9 +529,9 @@ export class ControllerMessenger<
    * @throws Will throw when the given event handler is not registered for this event.
    * @template E - A type union of Event type strings.
    */
-  unsubscribe<E extends Event['type']>(
-    eventType: E,
-    handler: ExtractEventHandler<Event, E>,
+  unsubscribe<E extends Event>(
+    eventType: E['type'],
+    handler: (...payload: E['payload']) => void,
   ) {
     const subscribers = this.events.get(eventType);
 
@@ -600,8 +594,8 @@ export class ControllerMessenger<
    */
   getRestricted<
     N extends string,
-    AllowedAction extends string,
-    AllowedEvent extends string,
+    AllowedAction extends Action['type'],
+    AllowedEvent extends Event['type'],
   >({
     name,
     allowedActions,
@@ -612,15 +606,15 @@ export class ControllerMessenger<
     allowedEvents?: Extract<Event['type'], AllowedEvent>[];
   }): RestrictedControllerMessenger<
     N,
-    NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
-    NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
+    Action,
+    Event,
     AllowedAction,
     AllowedEvent
   > {
     return new RestrictedControllerMessenger<
       N,
-      NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
-      NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
+      Action,
+      Event,
       AllowedAction,
       AllowedEvent
     >({
