@@ -2855,7 +2855,11 @@ describe('NetworkController', () => {
 
       it("doesn't set a provider", async () => {
         await withController(async ({ controller }) => {
-          await controller.setProviderType(NetworkType.rpc);
+          try {
+            await controller.setProviderType(NetworkType.rpc);
+          } catch {
+            // catch the rejection (it is tested above)
+          }
 
           expect(createNetworkClientMock).not.toHaveBeenCalled();
           expect(
@@ -2882,7 +2886,11 @@ describe('NetworkController', () => {
           const fakeNetworkClient = buildFakeClient(fakeProvider);
           createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
-          await controller.setProviderType(NetworkType.rpc);
+          try {
+            await controller.setProviderType(NetworkType.rpc);
+          } catch {
+            // catch the rejection (it is tested above)
+          }
 
           expect(
             controller.state.networkDetails.isEIP1559Compatible,
