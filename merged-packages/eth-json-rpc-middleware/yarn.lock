@@ -930,7 +930,7 @@ __metadata:
     eslint-plugin-jest: ^24.1.3
     eslint-plugin-node: ^11.1.0
     eslint-plugin-prettier: ^3.3.1
-    eth-block-tracker: ^7.0.0
+    eth-block-tracker: ^7.0.1
     eth-rpc-errors: ^4.0.3
     jest: ^27.5.1
     json-rpc-engine: ^6.1.0
@@ -976,15 +976,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^3.0.1":
-  version: 3.6.0
-  resolution: "@metamask/utils@npm:3.6.0"
-  dependencies:
-    "@types/debug": ^4.1.7
-    debug: ^4.3.4
-    semver: ^7.3.8
-    superstruct: ^1.0.3
-  checksum: 1ebc6677bb017e4d09d4af143621fe27194d8ed815234cfd76469c3c734dc1db2ea7b577c01a2096c21c04d8c9c4d721d3035b5353fe2ded3b4737f326755e43
+"@metamask/safe-event-emitter@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "@metamask/safe-event-emitter@npm:3.0.0"
+  checksum: 8dc58a76f9f75bf2405931465fc311c68043d851e6b8ebe9f82ae339073a08a83430dba9338f8e3adc4bfc8067607125074bcafa32baee3a5157f42343dc89e5
   languageName: node
   linkType: hard
 
@@ -2884,16 +2879,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-block-tracker@npm:^7.0.0":
-  version: 7.0.0
-  resolution: "eth-block-tracker@npm:7.0.0"
+"eth-block-tracker@npm:^7.0.1":
+  version: 7.0.1
+  resolution: "eth-block-tracker@npm:7.0.1"
   dependencies:
     "@metamask/eth-json-rpc-provider": ^1.0.0
-    "@metamask/safe-event-emitter": ^2.0.0
-    "@metamask/utils": ^3.0.1
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^5.0.1
     json-rpc-random-id: ^1.0.1
     pify: ^3.0.0
-  checksum: b76f6ba022947eec0161e5592bc5386e8f05bff8a2c3e0e10c76bce21bc51900ef1cb153eb8bf31858fb0027e929c6a85a159bdf84aa1e3ef77b24e53e82ba84
+  checksum: b8ecdaebed26423fa8444a779ecf34fb102f873fd1a29135189a3c553f679e34c19151f6b8d1cbbe180fdcc9ba967a7a55af6a72678140d6e3c8e725e630771e
   languageName: node
   linkType: hard
 
