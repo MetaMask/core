@@ -23,20 +23,32 @@ import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import type { Hex } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import { InfuraNetworkType, NetworksChainId } from '@metamask/controller-utils';
+import type { BlockTracker, Provider } from './types';
 
 const SECOND = 1000;
 
+/**
+ * The type of network client that can be created.
+ */
 export enum NetworkClientType {
   Custom = 'custom',
   Infura = 'infura',
 }
 
+/**
+ * A configuration object that can be used to create a provider engine for a
+ * custom network.
+ */
 type CustomNetworkConfiguration = {
   chainId: Hex;
   rpcUrl: string;
   type: NetworkClientType.Custom;
 };
 
+/**
+ * A configuration object that can be used to create a provider engine for an
+ * Infura network.
+ */
 type InfuraNetworkConfiguration = {
   network: InfuraNetworkType;
   infuraProjectId: string;
@@ -44,14 +56,14 @@ type InfuraNetworkConfiguration = {
 };
 
 /**
- * Create a JSON RPC network client for a specific network.
+ * Create a JSON-RPC network client for a specific network.
  *
  * @param networkConfig - The network configuration.
  * @returns The network client.
  */
 export function createNetworkClient(
   networkConfig: CustomNetworkConfiguration | InfuraNetworkConfiguration,
-): { provider: SafeEventEmitterProvider; blockTracker: PollingBlockTracker } {
+): { provider: Provider; blockTracker: BlockTracker } {
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
       ? createInfuraMiddleware({

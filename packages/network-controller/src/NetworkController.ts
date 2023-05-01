@@ -24,14 +24,13 @@ import {
   hasProperty,
   isPlainObject,
 } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
 import {
   createNetworkClient,
   NetworkClientType,
 } from './create-network-client';
-import type { Provider, BlockTracker } from './types';
+import type { BlockTracker, Provider } from './types';
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
 
@@ -382,20 +381,26 @@ export class NetworkController extends BaseControllerV2<
   }
 
   #setupInfuraProvider(type: InfuraNetworkType) {
-    const infuraProjectId = this.#infuraProjectId;
-
     const { provider, blockTracker } = createNetworkClient({
       network: type,
-      infuraProjectId,
+      infuraProjectId: this.#infuraProjectId,
       type: NetworkClientType.Infura,
     });
+
     this.#updateProvider(provider, blockTracker);
   }
 
-  #setupStandardProvider(rpcTarget: string, chainId: Hex) {
+  #setupStandardProvider(
+    rpcTarget: string,
+    chainId?: string,
+    ticker?: string,
+    nickname?: string,
+  ) {
     const { provider, blockTracker } = createNetworkClient({
-      rpcUrl: rpcTarget,
       chainId,
+      nickname,
+      rpcUrl: rpcTarget,
+      ticker,
       type: NetworkClientType.Custom,
     });
 
