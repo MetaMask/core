@@ -124,6 +124,13 @@ describe('KeyringController', () => {
       expect(firstAccountAdded).toBe(secondAccountAdded);
       expect(keyringState.keyrings[0].accounts).toHaveLength(accountCount + 1);
     });
+
+    it('should throw an error if passed accountCount param is out of sequence', async () => {
+      const accountCount = initialState.keyrings[0].accounts.length;
+      await expect(
+        keyringController.addNewAccount(accountCount + 1),
+      ).rejects.toThrow('Account out of sequence');
+    });
   });
 
   describe('addNewAccountWithoutUpdate', () => {

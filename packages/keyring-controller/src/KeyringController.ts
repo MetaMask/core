@@ -210,7 +210,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to keyring current state and added account
    * address.
    */
-  async addNewAccount(accountCount: number): Promise<{
+  async addNewAccount(accountCount?: number): Promise<{
     keyringState: KeyringMemState;
     addedAccountAddress: string;
   }> {
@@ -221,13 +221,15 @@ export class KeyringController extends BaseController<
     }
     const oldAccounts = await this.#keyring.getAccounts();
 
-    if (oldAccounts.length !== accountCount) {
-      // we return the last account added to the primary keyring
+    if (accountCount && oldAccounts.length !== accountCount) {
+      if (accountCount > oldAccounts.length) {
+        throw new Error('Account out of sequence');
+      }
+      // we return the account already existing at index `accountCount`
       const primaryKeyringAccounts = await primaryKeyring.getAccounts();
       return {
         keyringState: await this.fullUpdate(),
-        addedAccountAddress:
-          primaryKeyringAccounts[primaryKeyringAccounts.length - 1],
+        addedAccountAddress: primaryKeyringAccounts[accountCount],
       };
     }
 
