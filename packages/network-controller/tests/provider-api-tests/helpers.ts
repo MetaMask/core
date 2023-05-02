@@ -427,6 +427,7 @@ export const withNetworkClient = async (
   }
   const { provider, blockTracker } = controller.getProviderAndBlockTracker();
   assert(provider, 'provider has not been set for some reason');
+  assert(blockTracker, 'blockTracker has not been set for some reason');
   const ethQuery = messenger.call('NetworkController:getEthQuery');
   assert(ethQuery, 'EthQuery has not been set for some reason');
 
@@ -452,7 +453,7 @@ export const withNetworkClient = async (
   } finally {
     lookupNetworkMock.mockRestore();
     blockTracker.removeAllListeners();
-    provider?.stop();
+    provider.stop();
     clock.restore();
   }
 };

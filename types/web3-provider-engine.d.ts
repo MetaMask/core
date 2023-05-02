@@ -1,5 +1,6 @@
 declare module 'web3-provider-engine' {
   import type { EventEmitter } from 'events';
+  import type { PollingBlockTracker } from 'eth-block-tracker';
 
   type RpcPayload<P> = {
     id: unknown;
@@ -32,6 +33,7 @@ declare module 'web3-provider-engine' {
 
   export type ProviderEngine = EventEmitter &
     Provider & {
+      _blockTracker: PollingBlockTracker;
       stop: () => void;
     };
 }
