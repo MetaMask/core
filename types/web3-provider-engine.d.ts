@@ -13,8 +13,8 @@ declare module 'web3-provider-engine' {
     jsonrpc: Y['jsonrpc'];
     result: V | undefined;
     error?: {
-      message: unknown;
-      code: number;
+      message: any;
+      code?: number;
     };
   };
 

@@ -1,36 +1,35 @@
-import type EventEmitter from 'events';
-import EthQuery from 'eth-query';
-import type { Provider as EthQueryProvider } from 'eth-query';
-import Subprovider from 'web3-provider-engine/subproviders/provider';
-import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
-import createMetamaskProvider from 'web3-provider-engine/zero';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
+import EthQuery from 'eth-query';
+import {
+  BaseControllerV2,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { Mutex } from 'async-mutex';
 import { v4 as random } from 'uuid';
 import type { Patch } from 'immer';
 import { errorCodes } from 'eth-rpc-errors';
 import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import {
-  InfuraNetworkType,
+  BUILT_IN_NETWORKS,
+  NetworksTicker,
   NetworksChainId,
+  InfuraNetworkType,
   NetworkType,
   isSafeChainId,
-  NetworksTicker,
   isNetworkType,
-  BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
 import {
-  assert,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
 } from '@metamask/utils';
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
+import {
+  createNetworkClient,
+  NetworkClientType,
+} from './create-network-client';
+import type { BlockTracker, Provider } from './types';
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
 
@@ -38,7 +37,7 @@ const log = createModuleLogger(projectLogger, 'NetworkController');
  * @type ProviderConfig
  *
  * Configuration passed to web3-provider-engine
- * @property rpcTarget - RPC target URL.
+ * @property rpcUrl - RPC target URL.
  * @property type - Human-readable network name.
  * @property chainId - Network ID as per EIP-155.
  * @property ticker - Currency ticker.
@@ -46,7 +45,7 @@ const log = createModuleLogger(projectLogger, 'NetworkController');
  * @property id - Network Configuration Id.
  */
 export type ProviderConfig = {
-  rpcTarget?: string;
+  rpcUrl?: string;
   type: NetworkType;
   chainId: string;
   ticker?: string;
@@ -66,7 +65,7 @@ export type NetworkDetails = {
 /**
  * Custom RPC network information
  *
- * @property rpcTarget - RPC target URL.
+ * @property rpcUrl - RPC target URL.
  * @property chainId - Network ID as per EIP-155
  * @property nickname - Personalized network name.
  * @property ticker - Currency ticker.
@@ -145,11 +144,7 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 
 const name = 'NetworkController';
 
-type BlockTracker = any;
-
 export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
-
-export type Provider = EventEmitter & EthQueryProvider & { stop: () => void };
 
 export type ProviderProxy = SwappableProxy<Provider>;
 
@@ -325,7 +320,7 @@ export class NetworkController extends BaseControllerV2<
 
   #configureProvider(
     type: NetworkType,
-    rpcTarget?: string,
+    rpcUrl?: string,
     chainId?: string,
     ticker?: string,
     nickname?: string,
@@ -340,8 +335,8 @@ export class NetworkController extends BaseControllerV2<
         this.#setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case NetworkType.rpc:
-        rpcTarget &&
-          this.#setupStandardProvider(rpcTarget, chainId, ticker, nickname);
+        rpcUrl &&
+          this.#setupStandardProvider(rpcUrl, chainId, ticker, nickname);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -364,8 +359,8 @@ export class NetworkController extends BaseControllerV2<
       state.networkStatus = NetworkStatus.Unknown;
       state.networkDetails = {};
     });
-    const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
-    this.#configureProvider(type, rpcTarget, chainId, ticker);
+    const { rpcUrl, type, chainId, ticker } = this.state.providerConfig;
+    this.#configureProvider(type, rpcUrl, chainId, ticker);
     await this.lookupNetwork();
   }
 
@@ -378,55 +373,38 @@ export class NetworkController extends BaseControllerV2<
     }
   }
 
-  #setupInfuraProvider(type: NetworkType) {
-    const infuraProvider = createInfuraProvider({
+  #setupInfuraProvider(type: InfuraNetworkType) {
+    const { provider, blockTracker } = createNetworkClient({
       network: type,
-      projectId: this.#infuraProjectId,
+      infuraProjectId: this.#infuraProjectId,
+      type: NetworkClientType.Infura,
     });
-    const infuraSubprovider = new Subprovider(infuraProvider);
-    const config = {
-      dataSubprovider: infuraSubprovider,
-      engineParams: {
-        blockTrackerProvider: infuraProvider,
-        pollingInterval: 12000,
-      },
-    };
 
-    // Cast needed because the `web3-provider-engine` type for `sendAsync`
-    // incorrectly suggests that an array is accepted as the first parameter
-    // of `sendAsync`.
-    this.#updateProvider(createMetamaskProvider(config) as Provider);
+    this.#updateProvider(provider, blockTracker);
   }
 
   #setupStandardProvider(
-    rpcTarget: string,
+    rpcUrl: string,
     chainId?: string,
     ticker?: string,
     nickname?: string,
   ) {
-    const config = {
+    const { provider, blockTracker } = createNetworkClient({
       chainId,
-      engineParams: { pollingInterval: 12000 },
       nickname,
-      rpcUrl: rpcTarget,
+      rpcUrl,
       ticker,
-    };
+      type: NetworkClientType.Custom,
+    });
 
-    // Cast needed because the `web3-provider-engine` type for `sendAsync`
-    // incorrectly suggests that an array is accepted as the first parameter
-    // of `sendAsync`.
-    this.#updateProvider(createMetamaskProvider(config) as Provider);
+    this.#updateProvider(provider, blockTracker);
   }
 
-  #updateProvider(provider: Provider) {
+  #updateProvider(provider: Provider, blockTracker: any) {
     this.#safelyStopProvider(this.#provider);
-    assert(
-      hasProperty(provider, '_blockTracker'),
-      'Provider is missing block tracker.',
-    );
     this.#setProviderAndBlockTracker({
       provider,
-      blockTracker: provider._blockTracker,
+      blockTracker,
     });
     this.#registerProvider();
   }
@@ -450,9 +428,9 @@ export class NetworkController extends BaseControllerV2<
    *
    */
   async initializeProvider() {
-    const { type, rpcTarget, chainId, ticker, nickname } =
+    const { type, rpcUrl, chainId, ticker, nickname } =
       this.state.providerConfig;
-    this.#configureProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.#configureProvider(type, rpcUrl, chainId, ticker, nickname);
     this.#registerProvider();
     await this.lookupNetwork();
   }
@@ -598,7 +576,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.ticker = ticker;
       state.providerConfig.chainId = NetworksChainId[type];
       state.providerConfig.rpcPrefs = BUILT_IN_NETWORKS[type].rpcPrefs;
-      state.providerConfig.rpcTarget = undefined;
+      state.providerConfig.rpcUrl = undefined;
       state.providerConfig.nickname = undefined;
       state.providerConfig.id = undefined;
     });
@@ -624,7 +602,7 @@ export class NetworkController extends BaseControllerV2<
 
     this.update((state) => {
       state.providerConfig.type = NetworkType.rpc;
-      state.providerConfig.rpcTarget = targetNetwork.rpcUrl;
+      state.providerConfig.rpcUrl = targetNetwork.rpcUrl;
       state.providerConfig.chainId = targetNetwork.chainId;
       state.providerConfig.ticker = targetNetwork.ticker;
       state.providerConfig.nickname = targetNetwork.nickname;
