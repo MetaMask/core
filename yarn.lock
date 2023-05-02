@@ -1456,7 +1456,7 @@ __metadata:
     eslint-plugin-jsdoc: ^36.1.0
     eslint-plugin-node: ^11.1.0
     eslint-plugin-prettier: ^3.4.1
-    eth-block-tracker: ^7.0.0
+    eth-block-tracker: ^7.0.1
     execa: ^5.0.0
     isomorphic-fetch: ^3.0.0
     json-rpc-engine: ^6.1.0
@@ -1774,7 +1774,7 @@ __metadata:
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
-    eth-block-tracker: ^7.0.0
+    eth-block-tracker: ^7.0.1
     eth-query: ^2.1.2
     eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
@@ -1952,7 +1952,7 @@ __metadata:
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
-    eth-block-tracker: ^7.0.0
+    eth-block-tracker: ^7.0.1
     eth-method-registry: 1.1.0
     eth-query: ^2.1.2
     eth-rpc-errors: ^4.0.2
@@ -4462,7 +4462,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-block-tracker@npm:^7.0.0":
+"eth-block-tracker@npm:^7.0.0, eth-block-tracker@npm:^7.0.1":
   version: 7.0.1
   resolution: "eth-block-tracker@npm:7.0.1"
   dependencies:
