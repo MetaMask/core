@@ -204,9 +204,13 @@ export class KeyringController extends BaseController<
   /**
    * Adds a new account to the default (first) HD seed phrase keyring.
    *
-   * @returns Promise resolving to current state when the account is added.
+   * @returns Promise resolving to keyring current state and added account
+   * address.
    */
-  async addNewAccount(): Promise<KeyringMemState> {
+  async addNewAccount(): Promise<{
+    keyringState: KeyringMemState;
+    addedAccountAddress: string;
+  }> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
@@ -219,12 +223,14 @@ export class KeyringController extends BaseController<
     await this.verifySeedPhrase();
 
     this.updateIdentities(newAccounts);
-    newAccounts.forEach((selectedAddress: string) => {
-      if (!oldAccounts.includes(selectedAddress)) {
-        this.setSelectedAddress(selectedAddress);
-      }
-    });
-    return this.fullUpdate();
+    const addedAccountAddress = newAccounts.find(
+      (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
+    );
+    this.setSelectedAddress(addedAccountAddress);
+    return {
+      keyringState: await this.fullUpdate(),
+      addedAccountAddress,
+    };
   }
 
   /**

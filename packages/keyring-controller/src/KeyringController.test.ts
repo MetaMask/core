@@ -92,12 +92,19 @@ describe('KeyringController', () => {
 
   describe('addNewAccount', () => {
     it('should add new account', async () => {
-      const currentKeyringMemState = await keyringController.addNewAccount();
+      const { keyringState: currentKeyringMemState, addedAccountAddress } =
+        await keyringController.addNewAccount();
       expect(initialState.keyrings).toHaveLength(1);
       expect(initialState.keyrings[0].accounts).not.toStrictEqual(
         currentKeyringMemState.keyrings[0].accounts,
       );
       expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
+      expect(initialState.keyrings[0].accounts).not.toContain(
+        addedAccountAddress,
+      );
+      expect(addedAccountAddress).toBe(
+        currentKeyringMemState.keyrings[0].accounts[1],
+      );
       expect(
         preferences.updateIdentities.calledWith(
           currentKeyringMemState.keyrings[0].accounts,
