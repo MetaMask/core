@@ -407,12 +407,6 @@ export const withNetworkClient = async (
     trackMetaMetricsEvent: jest.fn(),
   });
 
-  const getEIP1559CompatibilityMock = jest
-    .spyOn(controller, 'getEIP1559Compatibility')
-    .mockImplementation(async () => {
-      return true;
-    });
-
   const lookupNetworkMock = jest
     .spyOn(controller, 'lookupNetwork')
     .mockImplementation(() => {
@@ -456,7 +450,6 @@ export const withNetworkClient = async (
   try {
     return await fn(client);
   } finally {
-    getEIP1559CompatibilityMock.mockRestore();
     lookupNetworkMock.mockRestore();
     blockTracker.removeAllListeners();
     provider?.stop();
