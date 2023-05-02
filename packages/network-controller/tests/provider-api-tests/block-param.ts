@@ -69,7 +69,7 @@ export const testsForRpcMethodSupportingBlockParam = (
         continue;
       }
 
-      it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {// eslint-disable-line
+      it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {
         const firstMockParams = [
           ...new Array(numberOfParameters).fill('some value'),
         ];
@@ -1316,7 +1316,7 @@ export const testsForRpcMethodSupportingBlockParam = (
         continue;
       }
 
-      it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {// eslint-disable-line
+      it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {
         const firstMockParams = [
           ...new Array(numberOfParameters).fill('some value'),
         ];
