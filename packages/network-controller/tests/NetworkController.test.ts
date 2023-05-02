@@ -49,8 +49,9 @@ jest.mock('uuid', () => {
   };
 });
 
-// Store this up front so it doesn't get lost when it is stubbed
+// Store these up front so we can use them even when faking timers
 const originalSetTimeout = global.setTimeout;
+const originalClearTimeout = global.clearTimeout;
 
 const createNetworkClientMock = jest.mocked(createNetworkClient);
 
@@ -7514,7 +7515,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
        */
       function stopTimer() {
         if (timer) {
-          clearTimeout(timer);
+          originalClearTimeout(timer);
         }
       }
 
