@@ -23,9 +23,6 @@ jest.mock('@metamask/controller-utils', () => {
   return { ...actual, detectSIWE: jest.fn() };
 });
 
-// eslint-disable-next-line jest/prefer-spy-on
-console.info = jest.fn();
-
 const messageIdMock = '123';
 const messageIdMock2 = '456';
 const versionMock = '1';
@@ -123,12 +120,13 @@ describe('SignatureController', () => {
   );
   const messengerMock = createMessengerMock();
   const keyringControllerMock = createKeyringControllerMock();
-  const getStateMock = jest.fn();
+  const getAllStateMock = jest.fn();
   const securityProviderRequestMock = jest.fn();
   const isEthSignEnabledMock = jest.fn();
 
   beforeEach(() => {
     jest.resetAllMocks();
+    jest.spyOn(console, 'info').mockImplementation(() => undefined);
 
     messageManagerConstructorMock.mockReturnValue(messageManagerMock);
     personalMessageManagerConstructorMock.mockReturnValue(
@@ -140,10 +138,10 @@ describe('SignatureController', () => {
     isEthSignEnabledMock.mockReturnValue(true);
 
     signatureController = new SignatureController({
-      messenger: messengerMock as any,
-      keyringController: keyringControllerMock as any,
-      getState: getStateMock as any,
-      securityProviderRequest: securityProviderRequestMock as any,
+      messenger: messengerMock,
+      keyringController: keyringControllerMock,
+      getAllState: getAllStateMock,
+      securityProviderRequest: securityProviderRequestMock,
       isEthSignEnabled: isEthSignEnabledMock,
     } as SignatureControllerOptions);
   });
@@ -437,7 +435,7 @@ describe('SignatureController', () => {
       });
 
       it('returns current state', async () => {
-        getStateMock.mockReturnValueOnce(stateMock);
+        getAllStateMock.mockReturnValueOnce(stateMock);
         expect(
           await signatureControllerMethod(messageParamsMock),
         ).toStrictEqual(stateMock);

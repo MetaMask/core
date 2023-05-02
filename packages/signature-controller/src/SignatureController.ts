@@ -107,7 +107,7 @@ export type SignatureControllerOptions = {
   messenger: SignatureControllerMessenger;
   keyringController: KeyringController;
   isEthSignEnabled: () => boolean;
-  getState: () => any;
+  getAllState: () => unknown;
   securityProviderRequest?: (
     requestData: any,
     methodName: string,
@@ -124,17 +124,17 @@ export class SignatureController extends BaseControllerV2<
 > {
   hub: EventEmitter;
 
-  private _keyringController: KeyringController;
+  #keyringController: KeyringController;
 
-  private _isEthSignEnabled: () => boolean;
+  #isEthSignEnabled: () => boolean;
 
-  private _getState: () => any;
+  #getAllState: () => any;
 
-  private _messageManager: MessageManager;
+  #messageManager: MessageManager;
 
-  private _personalMessageManager: PersonalMessageManager;
+  #personalMessageManager: PersonalMessageManager;
 
-  private _typedMessageManager: TypedMessageManager;
+  #typedMessageManager: TypedMessageManager;
 
   /**
    * Construct a Sign controller.
@@ -143,14 +143,14 @@ export class SignatureController extends BaseControllerV2<
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.keyringController - An instance of a keyring controller used to perform the signing operations.
    * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
-   * @param options.getState - Callback to retrieve all user state.
+   * @param options.getAllState - Callback to retrieve all user state.
    * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    */
   constructor({
     messenger,
     keyringController,
     isEthSignEnabled,
-    getState,
+    getAllState,
     securityProviderRequest,
   }: SignatureControllerOptions) {
     super({
@@ -160,61 +160,61 @@ export class SignatureController extends BaseControllerV2<
       state: getDefaultState(),
     });
 
-    this._keyringController = keyringController;
-    this._isEthSignEnabled = isEthSignEnabled;
-    this._getState = getState;
+    this.#keyringController = keyringController;
+    this.#isEthSignEnabled = isEthSignEnabled;
+    this.#getAllState = getAllState;
 
     this.hub = new EventEmitter();
-    this._messageManager = new MessageManager(
+    this.#messageManager = new MessageManager(
       undefined,
       undefined,
       securityProviderRequest,
     );
-    this._personalMessageManager = new PersonalMessageManager(
+    this.#personalMessageManager = new PersonalMessageManager(
       undefined,
       undefined,
       securityProviderRequest,
     );
-    this._typedMessageManager = new TypedMessageManager(
+    this.#typedMessageManager = new TypedMessageManager(
       undefined,
       undefined,
       securityProviderRequest,
     );
 
-    this._handleMessageManagerEvents(
-      this._messageManager,
+    this.#handleMessageManagerEvents(
+      this.#messageManager,
       ApprovalType.EthSign,
       'unapprovedMessage',
     );
-    this._handleMessageManagerEvents(
-      this._personalMessageManager,
+    this.#handleMessageManagerEvents(
+      this.#personalMessageManager,
       ApprovalType.PersonalSign,
       'unapprovedPersonalMessage',
     );
-    this._handleMessageManagerEvents(
-      this._typedMessageManager,
+    this.#handleMessageManagerEvents(
+      this.#typedMessageManager,
       ApprovalType.EthSignTypedData,
       'unapprovedTypedMessage',
     );
 
-    this._subscribeToMessageState(
-      this._messageManager,
+    this.#subscribeToMessageState(
+      this.#messageManager,
       (state, newMessages, messageCount) => {
         state.unapprovedMsgs = newMessages;
         state.unapprovedMsgCount = messageCount;
       },
     );
 
-    this._subscribeToMessageState(
-      this._personalMessageManager,
+    this.#subscribeToMessageState(
+      this.#personalMessageManager,
       (state, newMessages, messageCount) => {
         state.unapprovedPersonalMsgs = newMessages;
         state.unapprovedPersonalMsgCount = messageCount;
       },
     );
 
-    this._subscribeToMessageState(
-      this._typedMessageManager,
+    this.#subscribeToMessageState(
+      this.#typedMessageManager,
       (state, newMessages, messageCount) => {
         state.unapprovedTypedMessages = newMessages;
         state.unapprovedTypedMessagesCount = messageCount;
@@ -228,7 +228,7 @@ export class SignatureController extends BaseControllerV2<
    * @returns The number of 'unapproved' Messages in this.messages
    */
   get unapprovedMsgCount(): number {
-    return this._messageManager.getUnapprovedMessagesCount();
+    return this.#messageManager.getUnapprovedMessagesCount();
   }
 
   /**
@@ -237,7 +237,7 @@ export class SignatureController extends BaseControllerV2<
    * @returns The number of 'unapproved' PersonalMessages in this.messages
    */
   get unapprovedPersonalMessagesCount(): number {
-    return this._personalMessageManager.getUnapprovedMessagesCount();
+    return this.#personalMessageManager.getUnapprovedMessagesCount();
   }
 
   /**
@@ -246,7 +246,7 @@ export class SignatureController extends BaseControllerV2<
    * @returns The number of 'unapproved' TypedMessages in this.messages
    */
   get unapprovedTypedMessagesCount(): number {
-    return this._typedMessageManager.getUnapprovedMessagesCount();
+    return this.#typedMessageManager.getUnapprovedMessagesCount();
   }
 
   /**
@@ -270,14 +270,13 @@ export class SignatureController extends BaseControllerV2<
     msgParams: MessageParams,
     req: OriginalRequest,
   ): Promise<string> {
-    // eslint-disable-next-line camelcase
-    if (!this._isEthSignEnabled()) {
+    if (!this.#isEthSignEnabled()) {
       throw ethErrors.rpc.methodNotFound(
         'eth_sign has been disabled. You must enable it in the advanced settings',
       );
     }
 
-    const data = this._normalizeMsgData(msgParams.data);
+    const data = this.#normalizeMsgData(msgParams.data);
 
     // 64 hex + "0x" at the beginning
     // This is needed because Ethereum's EcSign works only on 32 byte numbers
@@ -288,7 +287,7 @@ export class SignatureController extends BaseControllerV2<
       );
     }
 
-    return this._messageManager.addUnapprovedMessageAsync(msgParams, req);
+    return this.#messageManager.addUnapprovedMessageAsync(msgParams, req);
   }
 
   /**
@@ -306,7 +305,7 @@ export class SignatureController extends BaseControllerV2<
     msgParams: PersonalMessageParams,
     req: OriginalRequest,
   ): Promise<string> {
-    return this._personalMessageManager.addUnapprovedMessageAsync(
+    return this.#personalMessageManager.addUnapprovedMessageAsync(
       msgParams,
       req,
     );
@@ -325,7 +324,7 @@ export class SignatureController extends BaseControllerV2<
     req: OriginalRequest,
     version: string,
   ): Promise<string> {
-    return this._typedMessageManager.addUnapprovedMessageAsync(
+    return this.#typedMessageManager.addUnapprovedMessageAsync(
       msgParams,
       version,
       req,
@@ -339,12 +338,12 @@ export class SignatureController extends BaseControllerV2<
    * @returns Full state update.
    */
   async signMessage(msgParams: MessageParamsMetamask) {
-    return await this._signAbstractMessage(
-      this._messageManager,
+    return await this.#signAbstractMessage(
+      this.#messageManager,
       ApprovalType.EthSign,
       msgParams,
       async (cleanMsgParams) =>
-        await this._keyringController.signMessage(cleanMsgParams),
+        await this.#keyringController.signMessage(cleanMsgParams),
     );
   }
 
@@ -356,12 +355,12 @@ export class SignatureController extends BaseControllerV2<
    * @returns A full state update.
    */
   async signPersonalMessage(msgParams: PersonalMessageParamsMetamask) {
-    return await this._signAbstractMessage(
-      this._personalMessageManager,
+    return await this.#signAbstractMessage(
+      this.#personalMessageManager,
       ApprovalType.PersonalSign,
       msgParams,
       async (cleanMsgParams) =>
-        await this._keyringController.signPersonalMessage(cleanMsgParams),
+        await this.#keyringController.signPersonalMessage(cleanMsgParams),
     );
   }
 
@@ -380,16 +379,16 @@ export class SignatureController extends BaseControllerV2<
   ): Promise<any> {
     const { version } = msgParams;
 
-    return await this._signAbstractMessage(
-      this._typedMessageManager,
+    return await this.#signAbstractMessage(
+      this.#typedMessageManager,
       ApprovalType.EthSignTypedData,
       msgParams,
       async (cleanMsgParams) => {
         const finalMessageParams = opts.parseJsonData
-          ? this._removeJsonData(cleanMsgParams, version as string)
+          ? this.#removeJsonData(cleanMsgParams, version as string)
           : cleanMsgParams;
 
-        return await this._keyringController.signTypedMessage(
+        return await this.#keyringController.signTypedMessage(
           finalMessageParams,
           {
             version,
@@ -406,7 +405,7 @@ export class SignatureController extends BaseControllerV2<
    * @returns A full state update.
    */
   cancelMessage(msgId: string): any {
-    return this._cancelAbstractMessage(this._messageManager, msgId);
+    return this.#cancelAbstractMessage(this.#messageManager, msgId);
   }
 
   /**
@@ -416,7 +415,7 @@ export class SignatureController extends BaseControllerV2<
    * @returns A full state update.
    */
   cancelPersonalMessage(msgId: string): any {
-    return this._cancelAbstractMessage(this._personalMessageManager, msgId);
+    return this.#cancelAbstractMessage(this.#personalMessageManager, msgId);
   }
 
   /**
@@ -426,7 +425,7 @@ export class SignatureController extends BaseControllerV2<
    * @returns A full state update.
    */
   cancelTypedMessage(msgId: string): any {
-    return this._cancelAbstractMessage(this._typedMessageManager, msgId);
+    return this.#cancelAbstractMessage(this.#typedMessageManager, msgId);
   }
 
   /**
@@ -435,31 +434,31 @@ export class SignatureController extends BaseControllerV2<
    * @param reason - A message to indicate why.
    */
   rejectUnapproved(reason?: string) {
-    this._rejectUnapproved(this._messageManager, reason);
-    this._rejectUnapproved(this._personalMessageManager, reason);
-    this._rejectUnapproved(this._typedMessageManager, reason);
+    this.#rejectUnapproved(this.#messageManager, reason);
+    this.#rejectUnapproved(this.#personalMessageManager, reason);
+    this.#rejectUnapproved(this.#typedMessageManager, reason);
   }
 
   /**
    * Clears all unapproved messages from memory.
    */
   clearUnapproved() {
-    this._clearUnapproved(this._messageManager);
-    this._clearUnapproved(this._personalMessageManager);
-    this._clearUnapproved(this._typedMessageManager);
+    this.#clearUnapproved(this.#messageManager);
+    this.#clearUnapproved(this.#personalMessageManager);
+    this.#clearUnapproved(this.#typedMessageManager);
   }
 
-  private _rejectUnapproved<
+  #rejectUnapproved<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
   >(messageManager: AbstractMessageManager<M, P, PM>, reason?: string) {
     Object.keys(messageManager.getUnapprovedMessages()).forEach((messageId) => {
-      this._cancelAbstractMessage(messageManager, messageId, reason);
+      this.#cancelAbstractMessage(messageManager, messageId, reason);
     });
   }
 
-  private _clearUnapproved<
+  #clearUnapproved<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
@@ -470,7 +469,7 @@ export class SignatureController extends BaseControllerV2<
     });
   }
 
-  private async _signAbstractMessage<
+  async #signAbstractMessage<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
@@ -490,17 +489,17 @@ export class SignatureController extends BaseControllerV2<
 
       messageManager.setMessageStatusSigned(messageId, signature);
 
-      this._acceptApproval(messageId);
+      this.#acceptApproval(messageId);
 
-      return this._getState();
+      return this.#getAllState();
     } catch (error: any) {
       console.info(`MetaMaskController - ${methodName} failed.`, error);
-      this._errorMessage(messageManager, messageId, error.message);
+      this.#errorMessage(messageManager, messageId, error.message);
       throw error;
     }
   }
 
-  private _errorMessage<
+  #errorMessage<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
@@ -511,13 +510,13 @@ export class SignatureController extends BaseControllerV2<
   ) {
     if (messageManager instanceof TypedMessageManager) {
       messageManager.setMessageStatusErrored(messageId, error);
-      this._rejectApproval(messageId);
+      this.#rejectApproval(messageId);
     } else {
-      this._cancelAbstractMessage(messageManager, messageId);
+      this.#cancelAbstractMessage(messageManager, messageId);
     }
   }
 
-  private _cancelAbstractMessage<
+  #cancelAbstractMessage<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
@@ -527,17 +526,17 @@ export class SignatureController extends BaseControllerV2<
     reason?: string,
   ) {
     if (reason) {
-      const message = this._getMessage(messageId);
+      const message = this.#getMessage(messageId);
       this.hub.emit('cancelWithReason', { message, reason });
     }
 
     messageManager.rejectMessage(messageId);
-    this._rejectApproval(messageId);
+    this.#rejectApproval(messageId);
 
-    return this._getState();
+    return this.#getAllState();
   }
 
-  private _handleMessageManagerEvents<
+  #handleMessageManagerEvents<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
@@ -554,12 +553,12 @@ export class SignatureController extends BaseControllerV2<
       'unapprovedMessage',
       (msgParams: AbstractMessageParamsMetamask) => {
         this.hub.emit(eventName, msgParams);
-        this._requestApproval(msgParams, approvalType);
+        this.#requestApproval(msgParams, approvalType);
       },
     );
   }
 
-  private _subscribeToMessageState<
+  #subscribeToMessageState<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
@@ -572,7 +571,7 @@ export class SignatureController extends BaseControllerV2<
     ) => void,
   ) {
     messageManager.subscribe((state: MessageManagerState<AbstractMessage>) => {
-      const newMessages = this._migrateMessages(
+      const newMessages = this.#migrateMessages(
         state.unapprovedMessages as any,
       );
 
@@ -584,14 +583,14 @@ export class SignatureController extends BaseControllerV2<
     });
   }
 
-  private _migrateMessages(
+  #migrateMessages(
     coreMessages: Record<string, CoreMessage>,
   ): Record<string, StateMessage> {
     const stateMessages: Record<string, StateMessage> = {};
 
     for (const messageId of Object.keys(coreMessages)) {
       const coreMessage = coreMessages[messageId];
-      const stateMessage = this._migrateMessage(coreMessage);
+      const stateMessage = this.#migrateMessage(coreMessage);
 
       stateMessages[messageId] = stateMessage;
     }
@@ -599,7 +598,7 @@ export class SignatureController extends BaseControllerV2<
     return stateMessages;
   }
 
-  private _migrateMessage(coreMessage: CoreMessage): StateMessage {
+  #migrateMessage(coreMessage: CoreMessage): StateMessage {
     const { messageParams, ...coreMessageData } = coreMessage;
 
     // Core message managers use messageParams but frontend uses msgParams with lots of references
@@ -611,7 +610,7 @@ export class SignatureController extends BaseControllerV2<
     return stateMessage as StateMessage;
   }
 
-  private _normalizeMsgData(data: string) {
+  #normalizeMsgData(data: string) {
     if (data.slice(0, 2) === '0x') {
       // data is already hex
       return data;
@@ -620,7 +619,7 @@ export class SignatureController extends BaseControllerV2<
     return bufferToHex(Buffer.from(data, 'utf8'));
   }
 
-  private _getMessage(messageId: string): StateMessage {
+  #getMessage(messageId: string): StateMessage {
     return {
       ...this.state.unapprovedMsgs,
       ...this.state.unapprovedPersonalMsgs,
@@ -628,7 +627,7 @@ export class SignatureController extends BaseControllerV2<
     }[messageId];
   }
 
-  private _requestApproval(
+  #requestApproval(
     msgParams: AbstractMessageParamsMetamask,
     type: ApprovalType,
   ) {
@@ -650,11 +649,11 @@ export class SignatureController extends BaseControllerV2<
       });
   }
 
-  private _acceptApproval(messageId: string) {
+  #acceptApproval(messageId: string) {
     this.messagingSystem.call('ApprovalController:acceptRequest', messageId);
   }
 
-  private _rejectApproval(messageId: string) {
+  #rejectApproval(messageId: string) {
     this.messagingSystem.call(
       'ApprovalController:rejectRequest',
       messageId,
@@ -662,7 +661,7 @@ export class SignatureController extends BaseControllerV2<
     );
   }
 
-  private _removeJsonData(
+  #removeJsonData(
     messageParams: TypedMessageParams,
     version: string,
   ): TypedMessageParams {
