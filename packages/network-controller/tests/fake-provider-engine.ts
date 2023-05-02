@@ -40,6 +40,10 @@ type SendAsyncPayload<P> = RpcPayload<P> | RpcPayload<P>[];
  * @property discardAfterMatching - Usually after the stub matches a request, it
  * is discarded, but setting this to true prevents that from happening. True by
  * default.
+ * @property beforeCompleting - Sometimes it is useful to do something after the
+ * request is kicked off but before it ends (or, in terms of a `fetch` promise,
+ * when the promise is initiated but before it is resolved). You can pass an
+ * (async) function for this option to do this.
  */
 export type FakeProviderStub = {
   request: {
@@ -48,6 +52,7 @@ export type FakeProviderStub = {
   };
   delay?: number;
   discardAfterMatching?: boolean;
+  beforeCompleting?: () => void | Promise<void>;
 } & (
   | {
       response: { result: any } | { error: string };
@@ -180,10 +185,14 @@ operation that was not fulfilled before the test ended.`);
     }
   }
 
-  #handleRequest<P, V>(
+  async #handleRequest<P, V>(
     stub: FakeProviderStub,
     callback: (error: unknown, response: RpcResponse<RpcPayload<P>, V>) => void,
   ) {
+    if (stub.beforeCompleting) {
+      await stub.beforeCompleting();
+    }
+
     if ('implementation' in stub) {
       stub.implementation();
     } else if ('response' in stub) {
