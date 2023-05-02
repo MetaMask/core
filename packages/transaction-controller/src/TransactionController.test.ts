@@ -10,7 +10,7 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
-import { FakeProvider } from '../../../tests/fake-provider';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import {
   TransactionController,
@@ -143,21 +143,9 @@ function mockFetchWithDynamicResponse(dataForUrl: any) {
  * @returns The mocked block tracker.
  */
 function buildMockBlockTracker(latestBlockNumber: string): BlockTrackerProxy {
-  const provider = new FakeProvider({
-    stubs: [
-      {
-        request: {
-          method: 'eth_blockNumber',
-        },
-        response: {
-          result: latestBlockNumber,
-        },
-        discardAfterMatching: false,
-      },
-    ],
-  });
-  const blockTracker = new PollingBlockTracker({ provider });
-  return createEventEmitterProxy<PollingBlockTracker>(blockTracker);
+  const fakeBlockTracker = new FakeBlockTracker();
+  fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
+  return createEventEmitterProxy<PollingBlockTracker>(fakeBlockTracker);
 }
 
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };

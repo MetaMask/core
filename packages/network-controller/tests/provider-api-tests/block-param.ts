@@ -87,7 +87,6 @@ export function testsForRpcMethodSupportingBlockParam(
         // testing changes in block param is covered under later tests
         continue;
       }
-
       it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {
         const firstMockParams = [
           ...new Array(numberOfParameters).fill('some value'),
@@ -1496,6 +1495,7 @@ export function testsForRpcMethodSupportingBlockParam(
         // testing changes in block param is covered under later tests
         continue;
       }
+
       it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {
         const firstMockParams = [
           ...new Array(numberOfParameters).fill('some value'),

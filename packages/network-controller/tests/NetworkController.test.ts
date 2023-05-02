@@ -25,8 +25,8 @@ import {
   createNetworkClient,
   NetworkClientType,
 } from '../src/create-network-client';
-import { FakeProvider, FakeProviderStub } from '../../../tests/fake-provider';
-import { FakeBlockTracker } from './fake-block-tracker';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProviderEngine, FakeProviderStub } from './fake-provider-engine';
 
 jest.mock('../src/create-network-client');
 
@@ -198,8 +198,7 @@ describe('NetworkController', () => {
     it('throws if the infura project ID is missing', async () => {
       expect(
         () =>
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
+          // @ts-expect-error Required parameter intentionally omitted
           new NetworkController({
             messenger: buildNetworkControllerMessenger(),
             trackMetaMetricsEvent: jest.fn(),
@@ -213,8 +212,7 @@ describe('NetworkController', () => {
           new NetworkController({
             messenger: buildNetworkControllerMessenger(),
             trackMetaMetricsEvent: jest.fn(),
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
+            // @ts-expect-error Required parameter intentionally omitted
             infuraProjectId: 10,
           }),
       ).toThrow('Invalid Infura project ID');
@@ -308,8 +306,8 @@ describe('NetworkController', () => {
             await controller.initializeProvider();
 
             expect(createNetworkClientMock).toHaveBeenCalledWith({
-              rpcUrl: 'http://localhost:8545',
               chainId: toHex(1337),
+              rpcUrl: 'http://localhost:8545',
               type: NetworkClientType.Custom,
             });
             const { provider } = controller.getProviderAndBlockTracker();
@@ -361,8 +359,8 @@ describe('NetworkController', () => {
               await controller.initializeProvider();
 
               expect(createNetworkClientMock).toHaveBeenCalledWith({
-                rpcUrl: 'http://example.com',
                 chainId: toHex(1337),
+                rpcUrl: 'http://example.com',
                 type: NetworkClientType.Custom,
               });
               const { provider } = controller.getProviderAndBlockTracker();
@@ -2951,8 +2949,8 @@ describe('NetworkController', () => {
           await controller.setProviderType(NetworkType.localhost);
 
           expect(createNetworkClientMock).toHaveBeenCalledWith({
-            rpcUrl: 'http://localhost:8545',
             chainId: '0x0',
+            rpcUrl: 'http://localhost:8545',
             type: NetworkClientType.Custom,
           });
           const { provider } = controller.getProviderAndBlockTracker();
@@ -3105,8 +3103,8 @@ describe('NetworkController', () => {
           await controller.setActiveNetwork('testNetworkConfigurationId');
 
           expect(createNetworkClientMock).toHaveBeenCalledWith({
-            rpcUrl: 'https://mock-rpc-url',
             chainId: toHex(1337),
+            rpcUrl: 'https://mock-rpc-url',
             type: NetworkClientType.Custom,
           });
           const { provider } = controller.getProviderAndBlockTracker();
@@ -4740,17 +4738,15 @@ describe('NetworkController', () => {
 
     it('throws if an options object is not passed as a second argument', async () => {
       await withController(async ({ controller }) => {
-        await expect(
-          async () =>
-            // @ts-expect-error - we want to test the case where no second arg is passed.
-            controller.upsertNetworkConfiguration({
-              chainId: '0x5',
-              nickname: 'RPC',
-              rpcPrefs: { blockExplorerUrl: 'test-block-explorer.com' },
-              rpcUrl: 'https://mock-rpc-url',
-            }),
-          // eslint-disable-next-line
-        ).rejects.toThrow();
+        await expect(async () =>
+          // @ts-expect-error - we want to test the case where no second arg is passed.
+          controller.upsertNetworkConfiguration({
+            chainId: '0x5',
+            nickname: 'RPC',
+            rpcPrefs: { blockExplorerUrl: 'test-block-explorer.com' },
+            rpcUrl: 'https://mock-rpc-url',
+          }),
+        ).rejects.toThrow('Cannot read properties of undefined');
       });
     });
 

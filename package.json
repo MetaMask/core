@@ -51,6 +51,7 @@
     "eslint-plugin-jsdoc": "^36.1.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^3.4.1",
+    "eth-block-tracker": "^7.0.0",
     "execa": "^5.0.0",
     "isomorphic-fetch": "^3.0.0",
     "json-rpc-engine": "^6.1.0",
