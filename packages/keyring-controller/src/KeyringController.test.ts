@@ -110,6 +110,7 @@ describe('KeyringController', () => {
           currentKeyringMemState.keyrings[0].accounts,
         ),
       ).toBe(true);
+      expect(preferences.setSelectedAddress.called).toBe(false);
     });
   });
 

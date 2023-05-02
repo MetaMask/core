@@ -226,7 +226,6 @@ export class KeyringController extends BaseController<
     const addedAccountAddress = newAccounts.find(
       (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
     );
-    this.setSelectedAddress(addedAccountAddress);
     return {
       keyringState: await this.fullUpdate(),
       addedAccountAddress,
