@@ -92,17 +92,25 @@ describe('KeyringController', () => {
 
   describe('addNewAccount', () => {
     it('should add new account', async () => {
-      const currentKeyringMemState = await keyringController.addNewAccount();
+      const { keyringState: currentKeyringMemState, addedAccountAddress } =
+        await keyringController.addNewAccount();
       expect(initialState.keyrings).toHaveLength(1);
       expect(initialState.keyrings[0].accounts).not.toStrictEqual(
         currentKeyringMemState.keyrings[0].accounts,
       );
       expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
+      expect(initialState.keyrings[0].accounts).not.toContain(
+        addedAccountAddress,
+      );
+      expect(addedAccountAddress).toBe(
+        currentKeyringMemState.keyrings[0].accounts[1],
+      );
       expect(
         preferences.updateIdentities.calledWith(
           currentKeyringMemState.keyrings[0].accounts,
         ),
       ).toBe(true);
+      expect(preferences.setSelectedAddress.called).toBe(false);
     });
   });
 
@@ -254,15 +262,17 @@ describe('KeyringController', () => {
 
       const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
       const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
-      const obj = await keyringController.importAccountWithStrategy(
-        AccountImportStrategy.privateKey,
-        [privateKey],
-      );
+      const { keyringState, importedAccountAddress } =
+        await keyringController.importAccountWithStrategy(
+          AccountImportStrategy.privateKey,
+          [privateKey],
+        );
       const modifiedState = {
         ...initialState,
         keyrings: [initialState.keyrings[0], newKeyring],
       };
-      expect(obj).toStrictEqual(modifiedState);
+      expect(keyringState).toStrictEqual(modifiedState);
+      expect(importedAccountAddress).toBe(address);
     });
 
     it('should not import account with strategy privateKey if wrong data is provided', async () => {
@@ -302,17 +312,19 @@ describe('KeyringController', () => {
 
       const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
 
-      const obj = await keyringController.importAccountWithStrategy(
-        AccountImportStrategy.json,
-        [input, somePassword],
-      );
+      const { keyringState, importedAccountAddress } =
+        await keyringController.importAccountWithStrategy(
+          AccountImportStrategy.json,
+          [input, somePassword],
+        );
 
       const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
       const modifiedState = {
         ...initialState,
         keyrings: [initialState.keyrings[0], newKeyring],
       };
-      expect(obj).toStrictEqual(modifiedState);
+      expect(keyringState).toStrictEqual(modifiedState);
+      expect(importedAccountAddress).toBe(address);
     });
 
     it('should throw when passed an unrecognized strategy', async () => {

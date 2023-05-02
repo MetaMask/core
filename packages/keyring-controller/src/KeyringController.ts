@@ -205,9 +205,13 @@ export class KeyringController extends BaseController<
   /**
    * Adds a new account to the default (first) HD seed phrase keyring.
    *
-   * @returns Promise resolving to current state when the account is added.
+   * @returns Promise resolving to keyring current state and added account
+   * address.
    */
-  async addNewAccount(): Promise<KeyringMemState> {
+  async addNewAccount(): Promise<{
+    keyringState: KeyringMemState;
+    addedAccountAddress: string;
+  }> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
@@ -220,12 +224,13 @@ export class KeyringController extends BaseController<
     await this.verifySeedPhrase();
 
     this.updateIdentities(newAccounts);
-    newAccounts.forEach((selectedAddress: string) => {
-      if (!oldAccounts.includes(selectedAddress)) {
-        this.setSelectedAddress(selectedAddress);
-      }
-    });
-    return this.fullUpdate();
+    const addedAccountAddress = newAccounts.find(
+      (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
+    );
+    return {
+      keyringState: await this.fullUpdate(),
+      addedAccountAddress,
+    };
   }
 
   /**
@@ -352,12 +357,16 @@ export class KeyringController extends BaseController<
    * @param strategy - Import strategy name.
    * @param args - Array of arguments to pass to the underlying stategy.
    * @throws Will throw when passed an unrecognized strategy.
-   * @returns Promise resolving to current state when the import is complete.
+   * @returns Promise resolving to keyring current state and imported account
+   * address.
    */
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
     args: any[],
-  ): Promise<KeyringMemState> {
+  ): Promise<{
+    keyringState: KeyringMemState;
+    importedAccountAddress: string;
+  }> {
     let privateKey;
     switch (strategy) {
       case 'privateKey':
@@ -405,7 +414,10 @@ export class KeyringController extends BaseController<
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
     this.setSelectedAddress(accounts[0]);
-    return this.fullUpdate();
+    return {
+      keyringState: await this.fullUpdate(),
+      importedAccountAddress: accounts[0],
+    };
   }
 
   /**
