@@ -286,7 +286,7 @@ describe('NetworkController', () => {
                 type: NetworkType.localhost,
                 chainId: '1337',
                 nickname: 'some cool network',
-                rpcTarget: 'http://doesntmatter.com',
+                rpcUrl: 'http://doesntmatter.com',
                 ticker: 'ABC',
               }),
             },
@@ -339,7 +339,7 @@ describe('NetworkController', () => {
                   type: NetworkType.rpc,
                   chainId: '1337',
                   nickname: 'some cool network',
-                  rpcTarget: 'http://example.com',
+                  rpcUrl: 'http://example.com',
                   ticker: 'ABC',
                 },
               },
@@ -389,7 +389,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  rpcTarget: undefined,
+                  rpcUrl: undefined,
                 }),
               },
             },
@@ -2729,7 +2729,7 @@ describe('NetworkController', () => {
               expect(controller.state.providerConfig).toStrictEqual({
                 type: networkType,
                 ...BUILT_IN_NETWORKS[networkType],
-                rpcTarget: undefined,
+                rpcUrl: undefined,
                 nickname: undefined,
                 id: undefined,
               });
@@ -2836,7 +2836,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: NetworkType.localhost,
-                rpcTarget: 'http://somethingexisting.com',
+                rpcUrl: 'http://somethingexisting.com',
                 chainId: '99999',
                 ticker: 'something existing',
                 nickname: 'something existing',
@@ -2906,7 +2906,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: NetworkType.localhost,
-                rpcTarget: 'http://somethingexisting.com',
+                rpcUrl: 'http://somethingexisting.com',
                 chainId: '99999',
                 ticker: 'something existing',
                 nickname: 'something existing',
@@ -2924,7 +2924,7 @@ describe('NetworkController', () => {
               type: NetworkType.localhost,
               ticker: 'ETH',
               chainId: '',
-              rpcTarget: undefined,
+              rpcUrl: undefined,
               nickname: undefined,
               id: undefined,
               rpcPrefs: undefined,
@@ -3021,13 +3021,13 @@ describe('NetworkController', () => {
   });
 
   describe('setActiveNetwork', () => {
-    it('updates the provider config in state with the rpcTarget and chainId, clearing the previous provider details', async () => {
+    it('updates the provider config in state with the rpcUrl and chainId, clearing the previous provider details', async () => {
       await withController(
         {
           state: {
             providerConfig: {
               type: NetworkType.localhost,
-              rpcTarget: 'http://somethingexisting.com',
+              rpcUrl: 'http://somethingexisting.com',
               chainId: '99999',
               ticker: 'something existing',
               nickname: 'something existing',
@@ -3061,7 +3061,7 @@ describe('NetworkController', () => {
 
           expect(controller.state.providerConfig).toStrictEqual({
             type: 'rpc',
-            rpcTarget: 'https://mock-rpc-url',
+            rpcUrl: 'https://mock-rpc-url',
             chainId: '1337',
             ticker: 'TEST',
             id: 'testNetworkConfigurationId',
@@ -4242,7 +4242,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: NetworkType.rpc,
-                rpcTarget: 'https://mock-rpc-url',
+                rpcUrl: 'https://mock-rpc-url',
                 chainId: '111',
               },
             },
@@ -4301,7 +4301,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: NetworkType.rpc,
-                rpcTarget: 'https://mock-rpc-url',
+                rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
               },
               networkDetails: {
@@ -4363,7 +4363,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: NetworkType.rpc,
-                rpcTarget: 'https://mock-rpc-url',
+                rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
                 ticker: 'TEST',
                 id: 'testNetworkConfigurationId',
@@ -4415,7 +4415,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: NetworkType.rpc,
-                rpcTarget: 'https://mock-rpc-url',
+                rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
                 ticker: 'TEST',
                 id: 'testNetworkConfigurationId',
@@ -4448,13 +4448,14 @@ describe('NetworkController', () => {
         );
       });
 
+
       it('checks the status of the network again, updating state appropriately', async () => {
         await withController(
           {
             state: {
               providerConfig: {
                 type: NetworkType.rpc,
-                rpcTarget: 'https://mock-rpc-url',
+                rpcUrl: 'https://mock-rpc-url',
                 chainId: '111',
               },
             },
@@ -4480,7 +4481,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: NetworkType.rpc,
-                rpcTarget: 'https://mock-rpc-url',
+                rpcUrl: 'https://mock-rpc-url',
                 chainId: '111',
               },
               networkDetails: {
@@ -4762,7 +4763,7 @@ describe('NetworkController', () => {
           state: {
             providerConfig: {
               type: NetworkType.rpc,
-              rpcTarget: 'https://mock-rpc-url',
+              rpcUrl: 'https://mock-rpc-url',
               chainId: '0x111',
               ticker: 'TEST',
               id: 'testNetworkConfigurationId',
@@ -5037,7 +5038,7 @@ describe('NetworkController', () => {
       (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
       const originalProvider = {
         type: 'rpc' as NetworkType,
-        rpcTarget: 'https://mock-rpc-url',
+        rpcUrl: 'https://mock-rpc-url',
         chainId: '111',
         ticker: 'TEST',
         id: 'testNetworkConfigurationId',
@@ -5084,7 +5085,7 @@ describe('NetworkController', () => {
           state: {
             providerConfig: {
               type: NetworkType.rpc,
-              rpcTarget: 'https://mock-rpc-url',
+              rpcUrl: 'https://mock-rpc-url',
               chainId: '111',
               ticker: 'TEST',
               id: 'testNetworkConfigurationId',
@@ -5121,7 +5122,7 @@ describe('NetworkController', () => {
 
           expect(controller.state.providerConfig).toStrictEqual({
             type: 'rpc',
-            rpcTarget: 'https://test-rpc-url',
+            rpcUrl: 'https://test-rpc-url',
             chainId: '0x1',
             ticker: 'test_ticker',
             id: 'networkConfigurationId',
@@ -5140,7 +5141,7 @@ describe('NetworkController', () => {
           state: {
             providerConfig: {
               type: NetworkType.rpc,
-              rpcTarget: 'https://mock-rpc-url',
+              rpcUrl: 'https://mock-rpc-url',
               chainId: '111',
               ticker: 'TEST',
               id: 'testNetworkConfigurationId',
@@ -5315,7 +5316,7 @@ describe('NetworkController', () => {
               await controller.setActiveNetwork('testNetworkConfigurationId');
               expect(controller.state.providerConfig).toStrictEqual({
                 ...customNetworkConfiguration,
-                rpcTarget: rpcUrlOrTarget,
+                rpcUrl: rpcUrlOrTarget,
                 type: NetworkType.rpc,
               });
 
@@ -5378,7 +5379,7 @@ describe('NetworkController', () => {
                     rpcPrefs: { blockExplorerUrl },
                     id: undefined,
                     nickname: undefined,
-                    rpcTarget: undefined,
+                    rpcUrl: undefined,
                   },
                 ],
               ]);
@@ -5682,7 +5683,7 @@ describe('NetworkController', () => {
               type: NetworkType.mainnet,
               ...BUILT_IN_NETWORKS.mainnet,
               nickname: undefined,
-              rpcTarget: undefined,
+              rpcUrl: undefined,
               id: undefined,
             });
 
@@ -5690,7 +5691,7 @@ describe('NetworkController', () => {
 
             expect(controller.state.providerConfig).toStrictEqual({
               ...networkConfiguration,
-              rpcTarget: rpcUrlOrTarget,
+              rpcUrl: rpcUrlOrTarget,
               type: NetworkType.rpc,
             });
           },
@@ -5745,7 +5746,7 @@ describe('NetworkController', () => {
             await controller.setActiveNetwork('testNetworkConfigurationId2');
             expect(controller.state.providerConfig).toStrictEqual({
               ...networkConfiguration2,
-              rpcTarget: rpcUrlOrTarget2,
+              rpcUrl: rpcUrlOrTarget2,
               type: NetworkType.rpc,
             });
 
@@ -5753,7 +5754,7 @@ describe('NetworkController', () => {
 
             expect(controller.state.providerConfig).toStrictEqual({
               ...initialProviderConfig,
-              rpcTarget: rpcUrlOrTarget1,
+              rpcUrl: rpcUrlOrTarget1,
             });
           },
         );
@@ -5809,7 +5810,7 @@ describe('NetworkController', () => {
             );
 
             expect(promiseForProviderConfigChange).toStrictEqual([
-              [{ ...initialProviderConfig, rpcTarget: rpcUrlOrTarget }],
+              [{ ...initialProviderConfig, rpcUrl: rpcUrlOrTarget }],
             ]);
           },
         );
@@ -6137,7 +6138,7 @@ describe('NetworkController', () => {
           await controller.setActiveNetwork('testNetworkConfigurationId');
           expect(controller.state.providerConfig).toStrictEqual({
             ...networkConfiguration,
-            rpcTarget: rpcUrlOrTarget,
+            rpcUrl: rpcUrlOrTarget,
             type: NetworkType.rpc,
           });
 
@@ -6280,7 +6281,7 @@ function buildProviderConfig(config: Partial<ProviderConfig> = {}) {
     chainId: '1337',
     id: undefined,
     nickname: undefined,
-    rpcTarget:
+    rpcUrl:
       config.type === NetworkType.rpc ? 'http://doesntmatter.com' : undefined,
     ...config,
   };
