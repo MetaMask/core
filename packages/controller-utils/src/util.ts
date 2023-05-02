@@ -10,7 +10,7 @@ import { fromWei, toWei } from 'ethjs-unit';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 import type { Hex } from '@metamask/utils';
-import { isStrictHexString } from '@metamask/utils';
+import { hasProperty, isStrictHexString } from '@metamask/utils';
 import type { Json } from './types';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 
@@ -417,6 +417,24 @@ export function normalizeEnsName(ensName: string): string | null {
   return null;
 }
 
+// Inline a minimal EthQuery type here so that we don't need to include
+// it as a dependency just for the type.
+type EthQueryLike = {
+  sendAsync: (
+    opts: Partial<{
+      id: number;
+      jsonrpc: '2.0';
+      method: string;
+      params: unknown;
+    }>,
+    callback: (
+      ...args:
+        | [error: unknown, result: undefined]
+        | [error: null, result: unknown]
+    ) => void,
+  ) => void;
+};
+
 /**
  * Wrapper method to handle EthQuery requests.
  *
@@ -426,12 +444,12 @@ export function normalizeEnsName(ensName: string): string | null {
  * @returns Promise resolving the request.
  */
 export function query(
-  ethQuery: any,
+  ethQuery: EthQueryLike,
   method: string,
   args: any[] = [],
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const cb = (error: Error, result: any) => {
+    const cb = (error: unknown, result: unknown) => {
       if (error) {
         reject(error);
         return;
@@ -439,7 +457,11 @@ export function query(
       resolve(result);
     };
 
-    if (typeof ethQuery[method] === 'function') {
+    if (
+      hasProperty(ethQuery, method) &&
+      typeof ethQuery[method] === 'function'
+    ) {
+      // @ts-expect-error All of the generated method types have this signature, but our EthQuery type doesn't include them
       ethQuery[method](...args, cb);
     } else {
       ethQuery.sendAsync({ method, params: args }, cb);
@@ -474,11 +496,6 @@ type PlainObject = Record<number | string | symbol, unknown>;
 export function isPlainObject(value: unknown): value is PlainObject {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
-
-export const hasProperty = (
-  object: PlainObject,
-  key: string | number | symbol,
-) => Reflect.hasOwnProperty.call(object, key);
 
 /**
  * Like {@link Array}, but always non-empty.

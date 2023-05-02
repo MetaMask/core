@@ -7,14 +7,13 @@ import {
   ExternalProvider,
   JsonRpcFetchFunc,
 } from '@ethersproject/providers';
-import { createProjectLogger } from '@metamask/utils';
+import { createProjectLogger, hasProperty } from '@metamask/utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
   NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
-  hasProperty,
 } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/';
 import ensNetworkMap from 'ethereum-ens-network-map';

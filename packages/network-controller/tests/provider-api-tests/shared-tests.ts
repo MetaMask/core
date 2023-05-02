@@ -1,5 +1,3 @@
-/* eslint-disable jest/require-top-level-describe, jest/no-export, jest/no-identical-title, jest/no-if */
-
 import { NetworkType } from '@metamask/controller-utils';
 import { testsForRpcMethodsThatCheckForBlockHashInResponse } from './block-hash-in-response';
 import { testsForRpcMethodSupportingBlockParam } from './block-param';
