@@ -4448,7 +4448,6 @@ describe('NetworkController', () => {
         );
       });
 
-
       it('checks the status of the network again, updating state appropriately', async () => {
         await withController(
           {
