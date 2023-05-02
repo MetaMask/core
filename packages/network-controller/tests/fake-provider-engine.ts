@@ -6,6 +6,7 @@ import type {
   RpcResponse,
 } from 'web3-provider-engine';
 import { serializeError } from 'eth-rpc-errors';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
@@ -74,12 +75,6 @@ export type FakeProviderStub = {
 interface FakeProviderEngineOptions {
   stubs?: FakeProviderStub[];
 }
-
-/**
- * Implements just enough of the block tracker interface to pass the tests but
- * nothing more.
- */
-class FakeBlockTracker extends EventEmitter {}
 
 /**
  * FakeProviderEngine is an implementation of the provider that
