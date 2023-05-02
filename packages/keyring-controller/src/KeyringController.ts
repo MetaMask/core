@@ -205,10 +205,12 @@ export class KeyringController extends BaseController<
   /**
    * Adds a new account to the default (first) HD seed phrase keyring.
    *
+   * @param accountCount - Number of accounts before adding a new one, used to
+   * make the method idempotent.
    * @returns Promise resolving to keyring current state and added account
    * address.
    */
-  async addNewAccount(): Promise<{
+  async addNewAccount(accountCount?: number): Promise<{
     keyringState: KeyringMemState;
     addedAccountAddress: string;
   }> {
@@ -218,6 +220,19 @@ export class KeyringController extends BaseController<
       throw new Error('No HD keyring found');
     }
     const oldAccounts = await this.#keyring.getAccounts();
+
+    if (accountCount && oldAccounts.length !== accountCount) {
+      if (accountCount > oldAccounts.length) {
+        throw new Error('Account out of sequence');
+      }
+      // we return the account already existing at index `accountCount`
+      const primaryKeyringAccounts = await primaryKeyring.getAccounts();
+      return {
+        keyringState: await this.fullUpdate(),
+        addedAccountAddress: primaryKeyringAccounts[accountCount],
+      };
+    }
+
     await this.#keyring.addNewAccount(primaryKeyring);
     const newAccounts = await this.#keyring.getAccounts();
 
