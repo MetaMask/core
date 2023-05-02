@@ -725,7 +725,6 @@ export class NetworkController extends BaseControllerV2<
     }
 
     try {
-      // eslint-disable-next-line no-new
       new URL(rpcUrl);
     } catch (e: any) {
       if (e.message.includes('Invalid URL')) {
