@@ -20,8 +20,6 @@ export enum NetworkClientType {
 type CustomNetworkConfiguration = {
   chainId?: string;
   rpcUrl: string;
-  nickname?: string;
-  ticker?: string;
   type: NetworkClientType.Custom;
 };
 
