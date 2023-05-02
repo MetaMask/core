@@ -356,12 +356,16 @@ export class KeyringController extends BaseController<
    * @param strategy - Import strategy name.
    * @param args - Array of arguments to pass to the underlying stategy.
    * @throws Will throw when passed an unrecognized strategy.
-   * @returns Promise resolving to current state when the import is complete.
+   * @returns Promise resolving to keyring current state and imported account
+   * address.
    */
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
     args: any[],
-  ): Promise<KeyringMemState> {
+  ): Promise<{
+    keyringState: KeyringMemState;
+    importedAccountAddress: string;
+  }> {
     let privateKey;
     switch (strategy) {
       case 'privateKey':
@@ -405,7 +409,10 @@ export class KeyringController extends BaseController<
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
     this.setSelectedAddress(accounts[0]);
-    return this.fullUpdate();
+    return {
+      keyringState: await this.fullUpdate(),
+      importedAccountAddress: accounts[0],
+    };
   }
 
   /**
