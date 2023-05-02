@@ -26,7 +26,7 @@ import {
   NetworkClientType,
 } from '../src/create-network-client';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProviderEngine, FakeProviderStub } from './fake-provider-engine';
+import { FakeProvider, FakeProviderStub } from './fake-provider';
 
 jest.mock('../src/create-network-client');
 
