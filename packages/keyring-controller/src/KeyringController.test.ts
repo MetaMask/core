@@ -93,7 +93,9 @@ describe('KeyringController', () => {
   describe('addNewAccount', () => {
     it('should add new account', async () => {
       const { keyringState: currentKeyringMemState, addedAccountAddress } =
-        await keyringController.addNewAccount();
+        await keyringController.addNewAccount(
+          initialState.keyrings[0].accounts.length,
+        );
       expect(initialState.keyrings).toHaveLength(1);
       expect(initialState.keyrings[0].accounts).not.toStrictEqual(
         currentKeyringMemState.keyrings[0].accounts,
@@ -111,6 +113,15 @@ describe('KeyringController', () => {
         ),
       ).toBe(true);
       expect(preferences.setSelectedAddress.called).toBe(false);
+    });
+
+    it('should not add a new account if called twice with the same accountCount param', async () => {
+      const accountCount = initialState.keyrings[0].accounts.length;
+      const { addedAccountAddress: firstAccountAdded } =
+        await keyringController.addNewAccount(accountCount);
+      const { addedAccountAddress: secondAccountAdded } =
+        await keyringController.addNewAccount(accountCount);
+      expect(firstAccountAdded).toBe(secondAccountAdded);
     });
   });
 
