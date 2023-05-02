@@ -401,7 +401,7 @@ describe('NetworkController', () => {
               await expect(() =>
                 controller.initializeProvider(),
               ).rejects.toThrow(
-                'rpcTarget must be provided for custom RPC endpoints',
+                'rpcUrl must be provided for custom RPC endpoints',
               );
               const { provider, blockTracker } =
                 controller.getProviderAndBlockTracker();
@@ -2712,7 +2712,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: NetworkType.localhost,
-                  rpcTarget: 'http://somethingexisting.com',
+                  rpcUrl: 'http://somethingexisting.com',
                   chainId: '99999',
                   ticker: 'something existing',
                   nickname: 'something existing',
@@ -2830,7 +2830,7 @@ describe('NetworkController', () => {
     }
 
     describe('given a network type of "rpc"', () => {
-      it('throws because there is no way to set the rpcTarget using this method', async () => {
+      it('throws because there is no way to set the rpcUrl using this method', async () => {
         await withController(
           {
             state: {
@@ -2847,7 +2847,7 @@ describe('NetworkController', () => {
             await expect(() =>
               controller.setProviderType(NetworkType.rpc),
             ).rejects.toThrow(
-              'rpcTarget must be provided for custom RPC endpoints',
+              'rpcUrl must be provided for custom RPC endpoints',
             );
           },
         );
