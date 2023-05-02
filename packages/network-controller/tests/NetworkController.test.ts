@@ -257,7 +257,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                 });
                 const { provider } = controller.getProviderAndBlockTracker();
-                assert(provider, 'Provider is somehow unset');
+                assert(provider, 'Provider is not unset');
                 const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                   provider,
                 );
@@ -2954,7 +2954,7 @@ describe('NetworkController', () => {
             type: NetworkClientType.Custom,
           });
           const { provider } = controller.getProviderAndBlockTracker();
-          assert(provider, 'Provider is somehow unset');
+          assert(provider);
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
             provider,
           );
@@ -3108,7 +3108,7 @@ describe('NetworkController', () => {
             type: NetworkClientType.Custom,
           });
           const { provider } = controller.getProviderAndBlockTracker();
-          assert(provider, 'Provider is somehow unset');
+          assert(provider);
           const promisifiedSendAsync = promisify(provider.sendAsync).bind(
             provider,
           );
