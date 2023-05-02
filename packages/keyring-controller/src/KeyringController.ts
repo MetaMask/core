@@ -4,6 +4,7 @@ import {
   isValidPrivate,
   toBuffer,
   stripHexPrefix,
+  getBinarySize,
 } from 'ethereumjs-util';
 import {
   normalize as normalizeAddress,
@@ -383,7 +384,11 @@ export class KeyringController extends BaseController<
         }
 
         /* istanbul ignore if */
-        if (!isValidPrivate(bufferedPrivateKey)) {
+        if (
+          !isValidPrivate(bufferedPrivateKey) ||
+          // ensures that the key is 64 bytes long
+          getBinarySize(prefixed) !== 64 + '0x'.length
+        ) {
           throw new Error('Cannot import invalid private key.');
         }
 
