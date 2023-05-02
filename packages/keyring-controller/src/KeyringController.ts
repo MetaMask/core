@@ -493,6 +493,11 @@ export class KeyringController extends BaseController<
   ) {
     try {
       const address = normalizeAddress(messageParams.from);
+      if (!address?.length) {
+        throw new Error(
+          `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
+        );
+      }
       const qrKeyring = await this.getOrAddQRKeyring();
       const qrAccounts = await qrKeyring.getAccounts();
       if (
@@ -751,6 +756,8 @@ export class KeyringController extends BaseController<
         };
       });
     } catch (e) {
+      // TODO: Add test case for when keyring throws
+      /* istanbul ignore next */
       throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
     }
   }
