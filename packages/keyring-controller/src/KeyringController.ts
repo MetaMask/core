@@ -356,7 +356,10 @@ export class KeyringController extends BaseController<
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
     args: any[],
-  ): Promise<KeyringMemState> {
+  ): Promise<{
+    keyringState: KeyringMemState;
+    importedAccountAddress: string;
+  }> {
     let privateKey;
     switch (strategy) {
       case 'privateKey':
@@ -400,7 +403,10 @@ export class KeyringController extends BaseController<
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
     this.setSelectedAddress(accounts[0]);
-    return this.fullUpdate();
+    return {
+      keyringState: await this.fullUpdate(),
+      importedAccountAddress: accounts[0],
+    };
   }
 
   /**
