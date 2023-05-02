@@ -1,6 +1,5 @@
 /**
- * The names of Infura-supported built-in networks that can be used to create an
- * Infura-specific network client.
+ * The names of built-in Infura networks
  */
 export const InfuraNetworkType = {
   mainnet: 'mainnet',
@@ -12,9 +11,7 @@ export type InfuraNetworkType =
   typeof InfuraNetworkType[keyof typeof InfuraNetworkType];
 
 /**
- * Symbols that can be used to create a network client: either a
- * Infura-supported built-in network, "localhost" for a locally-operated custom
- * network, or "rpc" for a remotely-operated custom network.
+ * The "network type"; either the name of a built-in network, or "rpc" for custom networks.
  */
 export const NetworkType = {
   ...InfuraNetworkType,
