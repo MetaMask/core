@@ -8,7 +8,7 @@ import {
   JSONRPCResponseResult,
 } from '@json-rpc-specification/meta-schema';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { NetworkType } from '@metamask/controller-utils';
+import { InfuraNetworkType } from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkControllerMessenger,
@@ -289,7 +289,7 @@ export type ProviderType = 'infura' | 'custom';
 
 export type MockOptions = {
   providerType: ProviderType;
-  infuraNetwork?: NetworkType;
+  infuraNetwork?: InfuraNetworkType;
   customRpcUrl?: string;
 };
 
@@ -298,13 +298,13 @@ export type MockCommunications = {
   mockAllBlockTrackerRequests: (options?: any) => void;
   mockRpcCall: (arg0: CurriedMockRpcCallOptions) => MockRpcCallResult;
   rpcUrl: string;
-  infuraNetwork: NetworkType;
+  infuraNetwork: InfuraNetworkType;
 };
 
 export const withMockedCommunications = async (
   {
     providerType,
-    infuraNetwork = NetworkType.mainnet,
+    infuraNetwork = InfuraNetworkType.mainnet,
     customRpcUrl = MOCK_RPC_URL,
   }: MockOptions,
   fn: (comms: MockCommunications) => Promise<void>,
@@ -387,7 +387,7 @@ export const waitForPromiseToBeFulfilledAfterRunningAllTimers = async (
 export const withNetworkClient = async (
   {
     providerType,
-    infuraNetwork = NetworkType.mainnet,
+    infuraNetwork = InfuraNetworkType.mainnet,
     customRpcUrl = MOCK_RPC_URL,
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<any>,
