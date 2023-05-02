@@ -318,13 +318,7 @@ export class NetworkController extends BaseControllerV2<
     this.#previousNetworkSpecifier = this.state.providerConfig.type;
   }
 
-  #configureProvider(
-    type: NetworkType,
-    rpcUrl?: string,
-    chainId?: string,
-    ticker?: string,
-    nickname?: string,
-  ) {
+  #configureProvider(type: NetworkType, rpcUrl?: string, chainId?: string) {
     switch (type) {
       case NetworkType.mainnet:
       case NetworkType.goerli:
@@ -335,8 +329,7 @@ export class NetworkController extends BaseControllerV2<
         this.#setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case NetworkType.rpc:
-        rpcUrl &&
-          this.#setupStandardProvider(rpcUrl, chainId, ticker, nickname);
+        rpcUrl && this.#setupStandardProvider(rpcUrl, chainId);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -359,8 +352,8 @@ export class NetworkController extends BaseControllerV2<
       state.networkStatus = NetworkStatus.Unknown;
       state.networkDetails = {};
     });
-    const { rpcUrl, type, chainId, ticker } = this.state.providerConfig;
-    this.#configureProvider(type, rpcUrl, chainId, ticker);
+    const { rpcUrl, type, chainId } = this.state.providerConfig;
+    this.#configureProvider(type, rpcUrl, chainId);
     await this.lookupNetwork();
   }
 
@@ -383,17 +376,10 @@ export class NetworkController extends BaseControllerV2<
     this.#updateProvider(provider, blockTracker);
   }
 
-  #setupStandardProvider(
-    rpcUrl: string,
-    chainId?: string,
-    ticker?: string,
-    nickname?: string,
-  ) {
+  #setupStandardProvider(rpcUrl: string, chainId?: string) {
     const { provider, blockTracker } = createNetworkClient({
       chainId,
-      nickname,
       rpcUrl,
-      ticker,
       type: NetworkClientType.Custom,
     });
 
@@ -428,9 +414,8 @@ export class NetworkController extends BaseControllerV2<
    *
    */
   async initializeProvider() {
-    const { type, rpcUrl, chainId, ticker, nickname } =
-      this.state.providerConfig;
-    this.#configureProvider(type, rpcUrl, chainId, ticker, nickname);
+    const { type, rpcUrl, chainId } = this.state.providerConfig;
+    this.#configureProvider(type, rpcUrl, chainId);
     this.#registerProvider();
     await this.lookupNetwork();
   }

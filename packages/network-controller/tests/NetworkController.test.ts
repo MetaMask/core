@@ -475,9 +475,7 @@ describe('NetworkController', () => {
 
             expect(createNetworkClientMock).toHaveBeenCalledWith({
               chainId: undefined,
-              nickname: undefined,
               rpcUrl: 'http://localhost:8545',
-              ticker: undefined,
               type: NetworkClientType.Custom,
             });
             const { provider } = controller.getProviderAndBlockTracker();
@@ -686,9 +684,7 @@ describe('NetworkController', () => {
 
               expect(createNetworkClientMock).toHaveBeenCalledWith({
                 chainId: '123',
-                nickname: 'some cool network',
                 rpcUrl: 'http://example.com',
-                ticker: 'ABC',
                 type: NetworkClientType.Custom,
               });
               const { provider } = controller.getProviderAndBlockTracker();
@@ -3549,9 +3545,7 @@ describe('NetworkController', () => {
 
           expect(createNetworkClientMock).toHaveBeenCalledWith({
             chainId: undefined,
-            nickname: undefined,
             rpcUrl: 'http://localhost:8545',
-            ticker: undefined,
             type: NetworkClientType.Custom,
           });
           const { provider } = controller.getProviderAndBlockTracker();
@@ -3807,9 +3801,7 @@ describe('NetworkController', () => {
 
           expect(createNetworkClientMock).toHaveBeenCalledWith({
             chainId: '0xtest',
-            nickname: undefined,
             rpcUrl: 'https://mock-rpc-url',
-            ticker: 'TEST',
             type: NetworkClientType.Custom,
           });
           const { provider } = controller.getProviderAndBlockTracker();
