@@ -119,9 +119,10 @@ describe('KeyringController', () => {
       const accountCount = initialState.keyrings[0].accounts.length;
       const { addedAccountAddress: firstAccountAdded } =
         await keyringController.addNewAccount(accountCount);
-      const { addedAccountAddress: secondAccountAdded } =
+      const { keyringState, addedAccountAddress: secondAccountAdded } =
         await keyringController.addNewAccount(accountCount);
       expect(firstAccountAdded).toBe(secondAccountAdded);
+      expect(keyringState.keyrings[0].accounts).toHaveLength(accountCount + 1);
     });
   });
 
