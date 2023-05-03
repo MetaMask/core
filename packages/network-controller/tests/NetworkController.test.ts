@@ -418,7 +418,8 @@ describe('NetworkController', () => {
           const fakeNetworkClient = buildFakeClient(fakeProvider);
           createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
-          await waitForStateChanges(messenger, {
+          await waitForStateChanges({
+            messenger,
             propertyPath: ['networkDetails', 'isEIP1559Compatible'],
             produceStateChanges: async () => {
               await controller.initializeProvider();
@@ -437,7 +438,8 @@ describe('NetworkController', () => {
     describe('if a provider has not been set', () => {
       it('does not change network in state', async () => {
         await withController(async ({ controller, messenger }) => {
-          const promiseForNetworkChanges = waitForStateChanges(messenger, {
+          const promiseForNetworkChanges = waitForStateChanges({
+            messenger,
             propertyPath: ['networkId'],
           });
 
@@ -484,7 +486,8 @@ describe('NetworkController', () => {
                     stubLookupNetworkWhileSetting: true,
                   });
 
-                  await waitForStateChanges(messenger, {
+                  await waitForStateChanges({
+                    messenger,
                     propertyPath: ['networkId'],
                     produceStateChanges: async () => {
                       await controller.lookupNetwork();
@@ -551,12 +554,10 @@ describe('NetworkController', () => {
                     ],
                     stubLookupNetworkWhileSetting: true,
                   });
-                  const promiseForNetworkChanges = waitForStateChanges(
+                  const promiseForNetworkChanges = waitForStateChanges({
                     messenger,
-                    {
-                      propertyPath: ['networkId'],
-                    },
-                  );
+                    propertyPath: ['networkId'],
+                  });
 
                   await controller.lookupNetwork();
 
@@ -657,12 +658,10 @@ describe('NetworkController', () => {
                       },
                     ],
                   });
-                  const promiseForNetworkDetailChanges = waitForStateChanges(
+                  const promiseForNetworkDetailChanges = waitForStateChanges({
                     messenger,
-                    {
-                      propertyPath: ['networkDetails'],
-                    },
-                  );
+                    propertyPath: ['networkDetails'],
+                  });
 
                   await controller.lookupNetwork();
 
@@ -1633,12 +1632,10 @@ describe('NetworkController', () => {
                   ],
                   stubLookupNetworkWhileSetting: true,
                 });
-                const promiseForNetworkChanges = waitForStateChanges(
+                const promiseForNetworkChanges = waitForStateChanges({
                   messenger,
-                  {
-                    propertyPath: ['networkId'],
-                  },
-                );
+                  propertyPath: ['networkId'],
+                });
 
                 await controller.lookupNetwork();
 
@@ -1745,12 +1742,10 @@ describe('NetworkController', () => {
                     },
                   ],
                 });
-                const promiseForNetworkDetailChanges = waitForStateChanges(
+                const promiseForNetworkDetailChanges = waitForStateChanges({
                   messenger,
-                  {
-                    propertyPath: ['networkDetails'],
-                  },
-                );
+                  propertyPath: ['networkDetails'],
+                });
 
                 await controller.lookupNetwork();
 
@@ -2656,7 +2651,8 @@ describe('NetworkController', () => {
             ],
             stubLookupNetworkWhileSetting: true,
           });
-          const promiseForStateChanges = waitForStateChanges(messenger, {
+          const promiseForStateChanges = waitForStateChanges({
+            messenger,
             propertyPath: ['networkId'],
             count: 3,
             wait: 400,
@@ -3210,7 +3206,8 @@ describe('NetworkController', () => {
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
 
-                await waitForStateChanges(messenger, {
+                await waitForStateChanges({
+                  messenger,
                   propertyPath: ['networkDetails', 'isEIP1559Compatible'],
                   produceStateChanges: async () => {
                     await controller.getEIP1559Compatibility();
@@ -3284,7 +3281,8 @@ describe('NetworkController', () => {
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
                 const promiseForIsEIP1559CompatibleChanges =
-                  waitForStateChanges(messenger, {
+                  waitForStateChanges({
+                    messenger,
                     propertyPath: ['networkDetails', 'isEIP1559Compatible'],
                   });
 
@@ -3355,12 +3353,10 @@ describe('NetworkController', () => {
                 ],
                 stubGetEIP1559CompatibilityWhileSetting: true,
               });
-              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
                 messenger,
-                {
-                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                },
-              );
+                propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+              });
 
               try {
                 await controller.getEIP1559Compatibility();
@@ -3440,7 +3436,8 @@ describe('NetworkController', () => {
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
 
-                await waitForStateChanges(messenger, {
+                await waitForStateChanges({
+                  messenger,
                   propertyPath: ['networkDetails', 'isEIP1559Compatible'],
                   produceStateChanges: async () => {
                     await controller.getEIP1559Compatibility();
@@ -3518,7 +3515,8 @@ describe('NetworkController', () => {
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
 
-                await waitForStateChanges(messenger, {
+                await waitForStateChanges({
+                  messenger,
                   propertyPath: ['networkDetails', 'isEIP1559Compatible'],
                   produceStateChanges: async () => {
                     await controller.getEIP1559Compatibility();
@@ -3594,12 +3592,10 @@ describe('NetworkController', () => {
                 ],
                 stubGetEIP1559CompatibilityWhileSetting: true,
               });
-              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
                 messenger,
-                {
-                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                },
-              );
+                propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+              });
 
               try {
                 await controller.getEIP1559Compatibility();
@@ -3681,7 +3677,8 @@ describe('NetworkController', () => {
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
 
-                await waitForStateChanges(messenger, {
+                await waitForStateChanges({
+                  messenger,
                   propertyPath: ['networkDetails', 'isEIP1559Compatible'],
                   produceStateChanges: async () => {
                     await controller.getEIP1559Compatibility();
@@ -3759,7 +3756,8 @@ describe('NetworkController', () => {
                   stubGetEIP1559CompatibilityWhileSetting: true,
                 });
                 const promiseForIsEIP1559CompatibleChanges =
-                  waitForStateChanges(messenger, {
+                  waitForStateChanges({
+                    messenger,
                     propertyPath: ['networkDetails', 'isEIP1559Compatible'],
                   });
 
@@ -3834,12 +3832,10 @@ describe('NetworkController', () => {
                 ],
                 stubGetEIP1559CompatibilityWhileSetting: true,
               });
-              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
                 messenger,
-                {
-                  propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-                },
-              );
+                propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+              });
 
               try {
                 await controller.getEIP1559Compatibility();
@@ -3905,12 +3901,10 @@ describe('NetworkController', () => {
             await setFakeProvider(controller, {
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
-            const promiseForIsEIP1559CompatibleChanges = waitForStateChanges(
+            const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
               messenger,
-              {
-                propertyPath: ['networkDetails', 'isEIP1559Compatible'],
-              },
-            );
+              propertyPath: ['networkDetails', 'isEIP1559Compatible'],
+            });
 
             await controller.getEIP1559Compatibility();
 
@@ -3989,7 +3983,8 @@ describe('NetworkController', () => {
                   NetworkStatus.Available,
                 );
 
-                await waitForStateChanges(messenger, {
+                await waitForStateChanges({
+                  messenger,
                   propertyPath: ['networkStatus'],
                   // We only care about the first state change, because it
                   // happens before the network lookup
@@ -4051,7 +4046,8 @@ describe('NetworkController', () => {
                   isEIP1559Compatible: false,
                 });
 
-                await waitForStateChanges(messenger, {
+                await waitForStateChanges({
+                  messenger,
                   propertyPath: ['networkDetails'],
                   // We only care about the first state change, because it
                   // happens before the network lookup
@@ -4253,7 +4249,8 @@ describe('NetworkController', () => {
               NetworkStatus.Available,
             );
 
-            await waitForStateChanges(messenger, {
+            await waitForStateChanges({
+              messenger,
               propertyPath: ['networkStatus'],
               // We only care about the first state change, because it
               // happens before the network lookup
@@ -4315,7 +4312,8 @@ describe('NetworkController', () => {
               isEIP1559Compatible: false,
             });
 
-            await waitForStateChanges(messenger, {
+            await waitForStateChanges({
+              messenger,
               propertyPath: ['networkDetails'],
               // We only care about the first state change, because it
               // happens before the network lookup
@@ -5491,7 +5489,8 @@ describe('NetworkController', () => {
                 isEIP1559Compatible: true,
               });
 
-              await waitForStateChanges(messenger, {
+              await waitForStateChanges({
+                messenger,
                 propertyPath: ['networkStatus'],
                 count: 1,
                 produceStateChanges: () => {
@@ -5927,7 +5926,8 @@ describe('NetworkController', () => {
             );
 
             await controller.rollbackToPreviousProvider();
-            await waitForStateChanges(messenger, {
+            await waitForStateChanges({
+              messenger,
               propertyPath: ['networkStatus'],
               count: 1,
               produceStateChanges: () => {
@@ -6554,8 +6554,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
  * Waits for state change events to be emitted (optionally centered around a
  * particular property) before proceeding.
  *
- * @param messenger - The messenger suited for NetworkController.
  * @param options - An options bag.
+ * @param options.messenger - The messenger suited for NetworkController.
  * @param options.propertyPath - The path of the property you expect the state
  * changes to concern.
  * @param options.count - The number of events you expect to occur (default: 1).
@@ -6567,23 +6567,22 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
  * @returns A promise that resolves to the list of state changes, optionally
  * filtered by the property, when a specific number of them have occurred.
  */
-async function waitForStateChanges(
+async function waitForStateChanges({
+  messenger,
+  propertyPath,
+  count,
+  wait,
+  produceStateChanges,
+}: {
   messenger: ControllerMessenger<
     NetworkControllerActions,
     NetworkControllerEvents
-  >,
-  {
-    propertyPath,
-    count,
-    wait,
-    produceStateChanges,
-  }: {
-    propertyPath?: string[];
-    count?: number;
-    wait?: number;
-    produceStateChanges?: () => void | Promise<void>;
-  } = {},
-): Promise<[NetworkState, Patch[]][]> {
+  >;
+  propertyPath?: string[];
+  count?: number;
+  wait?: number;
+  produceStateChanges?: () => void | Promise<void>;
+}): Promise<[NetworkState, Patch[]][]> {
   const filter =
     propertyPath === undefined
       ? () => true
