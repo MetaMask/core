@@ -140,8 +140,6 @@ export type NetworkState = {
   networkConfigurations: Record<string, NetworkConfiguration & { id: string }>;
 };
 
-const LOCALHOST_RPC_URL = 'http://localhost:8545';
-
 const name = 'NetworkController';
 
 export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
@@ -324,9 +322,6 @@ export class NetworkController extends BaseControllerV2<
       case NetworkType.goerli:
       case NetworkType.sepolia:
         this.#setupInfuraProvider(type);
-        break;
-      case NetworkType.localhost:
-        this.#setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case NetworkType.rpc:
         rpcUrl && this.#setupStandardProvider(rpcUrl, chainId);

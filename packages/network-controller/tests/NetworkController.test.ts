@@ -437,214 +437,6 @@ describe('NetworkController', () => {
       },
     );
 
-    describe(`when the provider config in state contains a network type of "localhost"`, () => {
-      it('sets the provider to a custom RPC provider pointed to localhost, initialized with the configured chain ID, nickname, and ticker', async () => {
-        await withController(
-          {
-            state: {
-              providerConfig: buildProviderConfig({
-                type: NetworkType.localhost,
-                chainId: '123',
-                nickname: 'some cool network',
-                rpcUrl: 'http://doesntmatter.com',
-                ticker: 'ABC',
-              }),
-            },
-          },
-          async ({ controller }) => {
-            const fakeProvider = buildFakeProvider([
-              {
-                request: {
-                  method: 'eth_chainId',
-                },
-                response: {
-                  result: '0x1337',
-                },
-              },
-            ]);
-            const fakeNetworkClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-            await controller.initializeProvider();
-
-            expect(createNetworkClientMock).toHaveBeenCalledWith({
-              chainId: undefined,
-              rpcUrl: 'http://localhost:8545',
-              type: NetworkClientType.Custom,
-            });
-            const { provider } = controller.getProviderAndBlockTracker();
-            assert(provider);
-            const promisifiedSendAsync = promisify(provider.sendAsync).bind(
-              provider,
-            );
-            const chainIdResult = await promisifiedSendAsync({
-              id: 1,
-              jsonrpc: '2.0',
-              method: 'eth_chainId',
-              params: [],
-            });
-            expect(chainIdResult.result).toBe('0x1337');
-          },
-        );
-      });
-
-      it('ensures that the existing provider is stopped while replacing it', async () => {
-        await withController(
-          {
-            state: {
-              providerConfig: buildProviderConfig({
-                type: NetworkType.localhost,
-              }),
-            },
-          },
-          async ({ controller }) => {
-            const fakeProviders = [buildFakeProvider(), buildFakeProvider()];
-            jest.spyOn(fakeProviders[0], 'stop');
-            const fakeNetworkClients = [
-              buildFakeClient(fakeProviders[0]),
-              buildFakeClient(fakeProviders[1]),
-            ];
-            createNetworkClientMock
-              .mockImplementationOnce(() => fakeNetworkClients[0])
-              .mockImplementationOnce(() => fakeNetworkClients[1]);
-
-            await controller.initializeProvider();
-            await controller.initializeProvider();
-            assert(controller.getProviderAndBlockTracker().provider);
-            jest.runAllTimers();
-
-            expect(fakeProviders[0].stop).toHaveBeenCalled();
-          },
-        );
-      });
-
-      describe('when an "error" event occurs on the new provider', () => {
-        describe('if the network version could not be retrieved while providerConfig was being set', () => {
-          it('retrieves the network version twice more (due to the "error" event being listened to twice) and, assuming success, persists it to state', async () => {
-            await withController(
-              {
-                state: {
-                  providerConfig: buildProviderConfig({
-                    type: NetworkType.localhost,
-                  }),
-                },
-              },
-              async ({ controller, messenger }) => {
-                const fakeProvider = buildFakeProvider([
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      error: 'oops',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '2',
-                    },
-                  },
-                ]);
-                const fakeNetworkClient = buildFakeClient(fakeProvider);
-                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-                await waitForPublishedEvents(
-                  messenger,
-                  'NetworkController:providerConfigChange',
-                  {
-                    produceEvents: async () => {
-                      await controller.initializeProvider();
-                      assert(controller.getProviderAndBlockTracker().provider);
-                    },
-                  },
-                );
-
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['networkId'],
-                  count: 2,
-                  produceStateChanges: () => {
-                    controller
-                      .getProviderAndBlockTracker()
-                      .provider?.emit('error', { some: 'error' });
-                  },
-                });
-                expect(controller.state.networkId).toBe('2');
-              },
-            );
-          });
-        });
-
-        describe('if the network version could be retrieved while providerConfig was being set', () => {
-          it('does not retrieve the network version again', async () => {
-            await withController(
-              {
-                state: {
-                  providerConfig: buildProviderConfig({
-                    type: NetworkType.localhost,
-                  }),
-                },
-              },
-              async ({ controller, messenger }) => {
-                const fakeProvider = buildFakeProvider([
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '2',
-                    },
-                  },
-                ]);
-                const fakeNetworkClient = buildFakeClient(fakeProvider);
-                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-                await waitForPublishedEvents(
-                  messenger,
-                  'NetworkController:providerConfigChange',
-                  {
-                    produceEvents: async () => {
-                      await controller.initializeProvider();
-                      assert(controller.getProviderAndBlockTracker().provider);
-                    },
-                  },
-                );
-
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['networkId'],
-                  count: 0,
-                  produceStateChanges: () => {
-                    controller
-                      .getProviderAndBlockTracker()
-                      .provider?.emit('error', { some: 'error' });
-                  },
-                });
-                expect(controller.state.networkId).toBe('1');
-              },
-            );
-          });
-        });
-      });
-    });
-
     describe('when the provider config in state contains a network type of "rpc"', () => {
       describe('if the provider config contains an RPC target', () => {
         it('sets the provider to a custom RPC provider initialized with the configured target, chain ID, nickname, and ticker', async () => {
@@ -3188,7 +2980,7 @@ describe('NetworkController', () => {
             {
               state: {
                 providerConfig: {
-                  type: NetworkType.localhost,
+                  type: NetworkType.rpc,
                   rpcUrl: 'http://somethingexisting.com',
                   chainId: '99999',
                   ticker: 'something existing',
@@ -3414,7 +3206,7 @@ describe('NetworkController', () => {
           {
             state: {
               providerConfig: {
-                type: NetworkType.localhost,
+                type: NetworkType.rpc,
                 rpcUrl: 'http://somethingexisting.com',
                 chainId: '99999',
                 ticker: 'something existing',
@@ -3483,228 +3275,6 @@ describe('NetworkController', () => {
         });
       });
     });
-
-    describe('given a network type of "localhost"', () => {
-      it('updates the provider config in state with the network type, using "ETH" for the ticker and an empty string for the chain id and clearing any existing RPC target and nickname', async () => {
-        await withController(
-          {
-            state: {
-              providerConfig: {
-                type: NetworkType.localhost,
-                rpcUrl: 'http://somethingexisting.com',
-                chainId: '99999',
-                ticker: 'something existing',
-                nickname: 'something existing',
-              },
-            },
-          },
-          async ({ controller }) => {
-            const fakeProvider = buildFakeProvider();
-            const fakeNetworkClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-            await controller.setProviderType(NetworkType.localhost);
-
-            expect(controller.state.providerConfig).toStrictEqual({
-              type: NetworkType.localhost,
-              ticker: 'ETH',
-              chainId: '',
-              rpcUrl: undefined,
-              nickname: undefined,
-              id: undefined,
-              rpcPrefs: undefined,
-            });
-          },
-        );
-      });
-
-      it('sets the provider to a custom RPC provider pointed to localhost, leaving chain ID undefined', async () => {
-        await withController(async ({ controller }) => {
-          const fakeProvider = buildFakeProvider([
-            {
-              request: {
-                method: 'eth_chainId',
-              },
-              response: {
-                result: '0x1337',
-              },
-            },
-          ]);
-          const fakeNetworkClient = buildFakeClient(fakeProvider);
-          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-          await controller.setProviderType(NetworkType.localhost);
-
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
-            chainId: undefined,
-            rpcUrl: 'http://localhost:8545',
-            type: NetworkClientType.Custom,
-          });
-          const { provider } = controller.getProviderAndBlockTracker();
-          assert(provider);
-          const promisifiedSendAsync = promisify(provider.sendAsync).bind(
-            provider,
-          );
-          const chainIdResult = await promisifiedSendAsync({
-            id: 1,
-            jsonrpc: '2.0',
-            method: 'eth_chainId',
-            params: [],
-          });
-          expect(chainIdResult.result).toBe('0x1337');
-        });
-      });
-
-      it('updates networkDetails.isEIP1559Compatible in state based on the latest block (assuming that the request eth_getBlockByNumber is made successfully)', async () => {
-        await withController(async ({ controller }) => {
-          const fakeProvider = buildFakeProvider([
-            {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['latest', false],
-              },
-              response: {
-                result: {
-                  baseFeePerGas: '0x1',
-                },
-              },
-            },
-          ]);
-          const fakeNetworkClient = buildFakeClient(fakeProvider);
-          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-          await controller.setProviderType(NetworkType.localhost);
-
-          expect(controller.state.networkDetails.isEIP1559Compatible).toBe(
-            true,
-          );
-        });
-      });
-
-      it('ensures that the existing provider is stopped while replacing it', async () => {
-        await withController(async ({ controller }) => {
-          const fakeProviders = [buildFakeProvider(), buildFakeProvider()];
-          jest.spyOn(fakeProviders[0], 'stop');
-          const fakeNetworkClients = [
-            buildFakeClient(fakeProviders[0]),
-            buildFakeClient(fakeProviders[1]),
-          ];
-          createNetworkClientMock
-            .mockImplementationOnce(() => fakeNetworkClients[0])
-            .mockImplementationOnce(() => fakeNetworkClients[1]);
-
-          await controller.setProviderType(NetworkType.localhost);
-          await controller.setProviderType(NetworkType.localhost);
-          assert(controller.getProviderAndBlockTracker().provider);
-          jest.runAllTimers();
-
-          expect(fakeProviders[0].stop).toHaveBeenCalled();
-        });
-      });
-
-      it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
-        await withController(async ({ controller }) => {
-          const fakeProvider = buildFakeProvider([
-            {
-              request: {
-                method: 'net_version',
-                params: [],
-              },
-              response: {
-                result: '42',
-              },
-            },
-          ]);
-          const fakeNetworkClient = buildFakeClient(fakeProvider);
-          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-          await controller.setProviderType(NetworkType.localhost);
-
-          expect(controller.state.networkId).toBe('42');
-        });
-      });
-
-      describe('when an "error" event occurs on the new provider', () => {
-        describe('if the network version could not be retrieved during setProviderType', () => {
-          it('retrieves the network version again and, assuming success, persists it to state', async () => {
-            await withController(async ({ controller, messenger }) => {
-              const fakeProvider = buildFakeProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    error: 'oops',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '42',
-                  },
-                },
-              ]);
-              const fakeNetworkClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-              await controller.setProviderType(NetworkType.localhost);
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['networkId'],
-                produceStateChanges: () => {
-                  controller
-                    .getProviderAndBlockTracker()
-                    .provider?.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.networkId).toBe('42');
-            });
-          });
-        });
-
-        describe('if the network version could be retrieved during setProviderType', () => {
-          it('does not retrieve the network version again', async () => {
-            await withController(async ({ controller, messenger }) => {
-              const fakeProvider = buildFakeProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '1',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '2',
-                  },
-                },
-              ]);
-              const fakeNetworkClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-              await controller.setProviderType(NetworkType.localhost);
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['networkId'],
-                count: 0,
-                produceStateChanges: () => {
-                  controller
-                    .getProviderAndBlockTracker()
-                    .provider?.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.networkId).toBe('1');
-            });
-          });
-        });
-      });
-    });
   });
 
   describe('setActiveNetwork', () => {
@@ -3713,7 +3283,7 @@ describe('NetworkController', () => {
         {
           state: {
             providerConfig: {
-              type: NetworkType.localhost,
+              type: NetworkType.rpc,
               rpcUrl: 'http://somethingexisting.com',
               chainId: '111',
               ticker: 'something existing',
@@ -7271,12 +6841,14 @@ async function withController<ReturnValue>(
  */
 function buildProviderConfig(config: Partial<ProviderConfig> = {}) {
   return {
-    type: NetworkType.localhost,
+    type: NetworkType.rpc,
     chainId: '1337',
     id: undefined,
     nickname: undefined,
     rpcUrl:
-      config.type === NetworkType.rpc ? 'http://doesntmatter.com' : undefined,
+      !config.type || config.type === NetworkType.rpc
+        ? 'http://doesntmatter.com'
+        : undefined,
     ...config,
   };
 }
