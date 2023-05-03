@@ -641,6 +641,7 @@ export class SignatureController extends BaseControllerV2<
           id,
           origin,
           type,
+          requestData: msgParams as Required<AbstractMessageParamsMetamask>,
         },
         true,
       )

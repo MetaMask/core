@@ -646,6 +646,7 @@ describe('SignatureController', () => {
             id: messageIdMock,
             origin: messageParamsMock.origin,
             type: methodName,
+            requestData: messageParamsMock,
           },
           true,
         );
@@ -672,6 +673,7 @@ describe('SignatureController', () => {
             id: messageIdMock,
             origin: ORIGIN_METAMASK,
             type: methodName,
+            requestData: { ...messageParamsMock, origin: undefined },
           },
           true,
         );
