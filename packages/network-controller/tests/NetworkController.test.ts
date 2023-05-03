@@ -329,7 +329,7 @@ describe('NetworkController', () => {
         });
       });
 
-      describe('if the provider config does not contain an RPC target', () => {
+      describe('if the provider config does not contain an RPC URL', () => {
         it('throws', async () => {
           await withController(
             {
@@ -350,6 +350,40 @@ describe('NetworkController', () => {
               ).rejects.toThrow(
                 'rpcUrl must be provided for custom RPC endpoints',
               );
+
+              expect(createNetworkClientMock).not.toHaveBeenCalled();
+              const { provider, blockTracker } =
+                controller.getProviderAndBlockTracker();
+              expect(provider).toBeUndefined();
+              expect(blockTracker).toBeUndefined();
+            },
+          );
+        });
+      });
+
+      describe('if the provider config does not contain a chain ID', () => {
+        it('throws', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: NetworkType.rpc,
+                  chainId: undefined,
+                }),
+              },
+            },
+            async ({ controller }) => {
+              const fakeProvider = buildFakeProvider();
+              const fakeNetworkClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+              await expect(() =>
+                controller.initializeProvider(),
+              ).rejects.toThrow(
+                'chainId must be provided for custom RPC endpoints',
+              );
+
+              expect(createNetworkClientMock).not.toHaveBeenCalled();
               const { provider, blockTracker } =
                 controller.getProviderAndBlockTracker();
               expect(provider).toBeUndefined();
@@ -2802,6 +2836,10 @@ describe('NetworkController', () => {
 
       it("doesn't set a provider", async () => {
         await withController(async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
           try {
             await controller.setProviderType(NetworkType.rpc);
           } catch {
@@ -3030,6 +3068,116 @@ describe('NetworkController', () => {
           expect(controller.state.networkId).toBe('42');
         },
       );
+    });
+
+    describe('if the network config does not contain an RPC URL', () => {
+      it('throws', async () => {
+        await withController(
+          // @ts-expect-error RPC URL intentionally omitted
+          {
+            state: {
+              providerConfig: {
+                type: NetworkType.rpc,
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: '111',
+                ticker: 'TEST',
+                nickname: 'something existing',
+                rpcPrefs: undefined,
+              },
+              networkConfigurations: {
+                testNetworkConfigurationId1: {
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: '111',
+                  ticker: 'TEST',
+                  nickname: 'something existing',
+                  id: 'testNetworkConfigurationId1',
+                  rpcPrefs: undefined,
+                },
+                testNetworkConfigurationId2: {
+                  rpcUrl: undefined,
+                  chainId: '222',
+                  ticker: 'something existing',
+                  nickname: 'something existing',
+                  id: 'testNetworkConfigurationId2',
+                  rpcPrefs: undefined,
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider();
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+            await expect(() =>
+              controller.setActiveNetwork('testNetworkConfigurationId2'),
+            ).rejects.toThrow(
+              'rpcUrl must be provided for custom RPC endpoints',
+            );
+
+            expect(createNetworkClientMock).not.toHaveBeenCalled();
+            const { provider, blockTracker } =
+              controller.getProviderAndBlockTracker();
+            expect(provider).toBeUndefined();
+            expect(blockTracker).toBeUndefined();
+          },
+        );
+      });
+    });
+
+    describe('if the network config does not contain a chain ID', () => {
+      it('throws', async () => {
+        await withController(
+          // @ts-expect-error chain ID intentionally omitted
+          {
+            state: {
+              providerConfig: {
+                type: NetworkType.rpc,
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: '111',
+                ticker: 'TEST',
+                nickname: 'something existing',
+                rpcPrefs: undefined,
+              },
+              networkConfigurations: {
+                testNetworkConfigurationId1: {
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: '111',
+                  ticker: 'TEST',
+                  nickname: 'something existing',
+                  id: 'testNetworkConfigurationId1',
+                  rpcPrefs: undefined,
+                },
+                testNetworkConfigurationId2: {
+                  rpcUrl: 'http://somethingexisting.com',
+                  chainId: undefined,
+                  ticker: 'something existing',
+                  nickname: 'something existing',
+                  id: 'testNetworkConfigurationId2',
+                  rpcPrefs: undefined,
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider();
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+            await expect(() =>
+              controller.setActiveNetwork('testNetworkConfigurationId2'),
+            ).rejects.toThrow(
+              'chainId must be provided for custom RPC endpoints',
+            );
+
+            expect(createNetworkClientMock).not.toHaveBeenCalled();
+            const { provider, blockTracker } =
+              controller.getProviderAndBlockTracker();
+            expect(provider).toBeUndefined();
+            expect(blockTracker).toBeUndefined();
+          },
+        );
+      });
     });
   });
 
@@ -4336,6 +4484,66 @@ describe('NetworkController', () => {
             });
           },
         );
+      });
+
+      describe('if the provider config does not contain an RPC URL', () => {
+        it('throws', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: NetworkType.rpc,
+                  rpcUrl: undefined,
+                }),
+              },
+            },
+            async ({ controller }) => {
+              const fakeProvider = buildFakeProvider();
+              const fakeNetworkClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+              await expect(() => controller.resetConnection()).rejects.toThrow(
+                'rpcUrl must be provided for custom RPC endpoints',
+              );
+
+              expect(createNetworkClientMock).not.toHaveBeenCalled();
+              const { provider, blockTracker } =
+                controller.getProviderAndBlockTracker();
+              expect(provider).toBeUndefined();
+              expect(blockTracker).toBeUndefined();
+            },
+          );
+        });
+      });
+
+      describe('if the provider config does not contain a chain ID', () => {
+        it('throws', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: NetworkType.rpc,
+                  chainId: undefined,
+                }),
+              },
+            },
+            async ({ controller }) => {
+              const fakeProvider = buildFakeProvider();
+              const fakeNetworkClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+              await expect(() => controller.resetConnection()).rejects.toThrow(
+                'chainId must be provided for custom RPC endpoints',
+              );
+
+              expect(createNetworkClientMock).not.toHaveBeenCalled();
+              const { provider, blockTracker } =
+                controller.getProviderAndBlockTracker();
+              expect(provider).toBeUndefined();
+              expect(blockTracker).toBeUndefined();
+            },
+          );
+        });
       });
     });
   });
