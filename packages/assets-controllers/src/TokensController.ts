@@ -905,13 +905,13 @@ export class TokensController extends BaseController<
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });
   }
 
-  _requestApproval(
+  async _requestApproval(
     suggestedAssetMeta: SuggestedAssetMeta & {
       interactingAddress: string;
     },
     shouldShowRequest = true,
   ) {
-    this.messagingSystem
+    return this.messagingSystem
       .call(
         'ApprovalController:addRequest',
         {
@@ -962,22 +962,20 @@ export class TokensController extends BaseController<
     }
   }
 
-  addPendingApprovals(updateBadge: () => void) {
+  initApprovals() {
     const { suggestedAssets } = this.state;
-    suggestedAssets.forEach((asset) => {
-      if (asset.status !== SuggestedAssetStatus.pending) {
-        return;
-      }
-
-      this._requestApproval(
-        asset as SuggestedAssetMeta & {
-          interactingAddress: string;
-        },
-        false,
-      );
-    });
-
-    updateBadge();
+    return Promise.all(
+      suggestedAssets
+        .filter((asset) => asset.status === SuggestedAssetStatus.pending)
+        .map((asset) =>
+          this._requestApproval(
+            asset as SuggestedAssetMeta & {
+              interactingAddress: string;
+            },
+            false,
+          ),
+        ),
+    );
   }
 }
 

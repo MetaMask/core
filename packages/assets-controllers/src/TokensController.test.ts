@@ -1548,8 +1548,8 @@ describe('TokensController', () => {
     });
   });
 
-  describe('addPendingApprovals', function () {
-    it('sends approval request for pending approvals', async () => {
+  describe('initApprovals', function () {
+    it('sends approval requests for pending approvals', async () => {
       tokensController.state.suggestedAssets = [
         {
           id: '1',
@@ -1589,14 +1589,13 @@ describe('TokensController', () => {
         },
       ];
 
-      const mockUpdateBadge = jest.fn();
-
       const callActionSpy = jest
         .spyOn(messenger, 'call')
         .mockResolvedValue(undefined);
 
-      tokensController.addPendingApprovals(mockUpdateBadge);
+      const approvals = await tokensController.initApprovals();
 
+      expect(approvals).toHaveLength(2);
       expect(callActionSpy).toHaveBeenCalledTimes(2);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -1636,8 +1635,6 @@ describe('TokensController', () => {
         },
         false,
       );
-
-      expect(mockUpdateBadge).toHaveBeenCalledTimes(1);
     });
   });
 });
