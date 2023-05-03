@@ -153,6 +153,7 @@ const INFURA_NETWORKS = [
 //       │                 └─────────────────────────────┐                                                 │
 //       └───────────────────────────────────────────────┼─────────────────────────────────────────────────┘
 //                                                 lookupNetwork
+
 describe('NetworkController', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -257,7 +258,7 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Infura,
                 });
                 const { provider } = controller.getProviderAndBlockTracker();
-                assert(provider, 'Provider is not unset');
+                assert(provider, 'Provider is not set');
                 const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                   provider,
                 );
