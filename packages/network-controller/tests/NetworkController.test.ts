@@ -7,7 +7,6 @@ import { Patch } from 'immer';
 import { v4 } from 'uuid';
 import { ethErrors } from 'eth-rpc-errors';
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
-import { waitForResult } from '../../../tests/helpers';
 import {
   NetworkController,
   NetworkControllerActions,
@@ -7145,7 +7144,7 @@ async function setFakeProvider(
     stubLookupNetworkWhileSetting?: boolean;
     stubGetEIP1559CompatibilityWhileSetting?: boolean;
   } = {},
-): Promise<Provider> {
+): Promise<void> {
   const fakeProvider = buildFakeProvider(stubs);
   const fakeNetworkClient = buildFakeClient(fakeProvider);
   createNetworkClientMock.mockReturnValue(fakeNetworkClient);
@@ -7163,10 +7162,6 @@ async function setFakeProvider(
   }
 
   await controller.initializeProvider();
-  await waitForResult(
-    true,
-    () => controller.getProviderAndBlockTracker().provider !== undefined,
-  );
   assert(controller.getProviderAndBlockTracker().provider);
 
   if (stubLookupNetworkWhileSetting) {
@@ -7175,10 +7170,6 @@ async function setFakeProvider(
   if (stubGetEIP1559CompatibilityWhileSetting) {
     lookupGetEIP1559CompatibilityMock.mockRestore();
   }
-
-  const { provider } = controller.getProviderAndBlockTracker();
-  assert(provider);
-  return provider;
 }
 
 /**
