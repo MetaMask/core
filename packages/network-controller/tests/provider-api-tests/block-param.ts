@@ -1457,6 +1457,8 @@ export function testsForRpcMethodSupportingBlockParam(
     ['given a block tag of "earliest"', 'earliest', 'earliest'],
     ['given a block number', 'block number', '0x100'],
   ])('%s', (_desc, blockParamType, blockParam) => {
+    // This lint rule gets confused by `describe.each`
+    // eslint-disable-next-line jest/no-identical-title
     it('does not hit the RPC endpoint more than once for identical requests', async () => {
       const requests = [
         {
