@@ -1,9 +1,16 @@
 import * as sinon from 'sinon';
+import { PollingBlockTracker } from 'eth-block-tracker';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  BlockTrackerProxy,
+  NetworkState,
+  ProviderProxy,
+} from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
+import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import {
   TransactionController,
@@ -127,6 +134,20 @@ function mockFetchWithDynamicResponse(dataForUrl: any) {
     );
 }
 
+/**
+ * Builds a mock block tracker with a canned block number that can be used in
+ * tests.
+ *
+ * @param latestBlockNumber - The block number that the block tracker should
+ * always return.
+ * @returns The mocked block tracker.
+ */
+function buildMockBlockTracker(latestBlockNumber: string): BlockTrackerProxy {
+  const fakeBlockTracker = new FakeBlockTracker();
+  fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
+  return createEventEmitterProxy<PollingBlockTracker>(fakeBlockTracker);
+}
+
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const GOERLI_PROVIDER = new HttpProvider(
   'https://goerli.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
@@ -139,15 +160,15 @@ const PALM_PROVIDER = new HttpProvider(
 );
 
 type MockNetwork = {
-  provider: typeof HttpProvider;
-  blockTracker: { getLatestBlock: () => string };
+  provider: ProviderProxy;
+  blockTracker: BlockTrackerProxy;
   state: NetworkState;
   subscribe: (listener: (state: NetworkState) => void) => void;
 };
 
 const MOCK_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
-  blockTracker: { getLatestBlock: () => '0x102833C' },
+  blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
     networkId: '5',
     networkStatus: NetworkStatus.Available,
@@ -162,7 +183,7 @@ const MOCK_NETWORK: MockNetwork = {
 };
 const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
   provider: GOERLI_PROVIDER,
-  blockTracker: { getLatestBlock: () => '0x102833C' },
+  blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
     networkId: '5',
     networkStatus: NetworkStatus.Available,
@@ -176,7 +197,7 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
 };
 const MOCK_MAINNET_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
-  blockTracker: { getLatestBlock: () => '0x102833C' },
+  blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
     networkId: '1',
     networkStatus: NetworkStatus.Available,
@@ -191,7 +212,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
 };
 const MOCK_CUSTOM_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
-  blockTracker: { getLatestBlock: () => '0xA6EDFC' },
+  blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
     networkId: '11297108109',
     networkStatus: NetworkStatus.Available,
@@ -562,7 +583,7 @@ describe('TransactionController', () => {
       getNetworkState,
       onNetworkStateChange,
       provider: GOERLI_PROVIDER,
-      blockTracker: undefined,
+      blockTracker: MOCK_NETWORK.blockTracker,
     });
 
     // switch from Goerli to Mainnet

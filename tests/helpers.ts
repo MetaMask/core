@@ -6,13 +6,13 @@ const originalSetTimeout = global.setTimeout;
  * times) until it returns a value.
  *
  * @param expectedValue - The value that the function should return.
- * @param test - The function to call.
+ * @param operation - The function to call.
  * @returns A promise that either resolves to a successful result as soon as it
  * returns the expected value, or a failure result if that never happens.
  */
 export async function waitForResult(
   expectedValue: any,
-  test: () => any,
+  operation: () => any,
 ): Promise<{ pass: boolean; lastActualValue?: any }> {
   const approximateRunTime = 10000;
   const intervalBetweenRetries = 25;
@@ -22,7 +22,7 @@ export async function waitForResult(
   let lastActualValue: any;
 
   while (numIterations < maxNumIterations) {
-    const actualValue = test();
+    const actualValue = operation();
     if (actualValue === expectedValue) {
       return { pass: true };
     }

@@ -1,4 +1,3 @@
-/* eslint-disable no-loop-func */
 import {
   ProviderType,
   waitForNextBlockTracker,
@@ -189,7 +188,7 @@ export const testsForRpcMethodsThatCheckForBlockHashInResponse = (
   }
 
   for (const paramIndex of [...Array(numberOfParameters).keys()]) {
-    it(`does not reuse the result of a previous request with a valid blockHash if parameter at index "${paramIndex}" differs`, async () => { // eslint-disable-line
+    it(`does not reuse the result of a previous request with a valid blockHash if parameter at index "${paramIndex}" differs`, async () => {
       const firstMockParams = [
         ...new Array(numberOfParameters).fill('some value'),
       ];

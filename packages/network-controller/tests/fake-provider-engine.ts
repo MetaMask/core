@@ -6,6 +6,7 @@ import type {
   RpcResponse,
 } from 'web3-provider-engine';
 import { serializeError } from 'eth-rpc-errors';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
@@ -40,6 +41,10 @@ type SendAsyncPayload<P> = RpcPayload<P> | RpcPayload<P>[];
  * @property discardAfterMatching - Usually after the stub matches a request, it
  * is discarded, but setting this to true prevents that from happening. True by
  * default.
+ * @property beforeCompleting - Sometimes it is useful to do something after the
+ * request is kicked off but before it ends (or, in terms of a `fetch` promise,
+ * when the promise is initiated but before it is resolved). You can pass an
+ * (async) function for this option to do this.
  */
 export type FakeProviderStub = {
   request: {
@@ -48,6 +53,7 @@ export type FakeProviderStub = {
   };
   delay?: number;
   discardAfterMatching?: boolean;
+  beforeCompleting?: () => void | Promise<void>;
 } & (
   | {
       response: { result: any } | { error: string };
@@ -69,12 +75,6 @@ export type FakeProviderStub = {
 interface FakeProviderEngineOptions {
   stubs?: FakeProviderStub[];
 }
-
-/**
- * Implements just enough of the block tracker interface to pass the tests but
- * nothing more.
- */
-class FakeBlockTracker extends EventEmitter {}
 
 /**
  * FakeProviderEngine is an implementation of the provider that
@@ -180,10 +180,14 @@ operation that was not fulfilled before the test ended.`);
     }
   }
 
-  #handleRequest<P, V>(
+  async #handleRequest<P, V>(
     stub: FakeProviderStub,
     callback: (error: unknown, response: RpcResponse<RpcPayload<P>, V>) => void,
   ) {
+    if (stub.beforeCompleting) {
+      await stub.beforeCompleting();
+    }
+
     if ('implementation' in stub) {
       stub.implementation();
     } else if ('response' in stub) {

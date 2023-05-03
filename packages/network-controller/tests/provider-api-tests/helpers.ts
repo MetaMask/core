@@ -1,15 +1,16 @@
 /* eslint-disable node/no-process-env */
+import { strict as assert } from 'assert';
 import nock, { Scope as NockScope } from 'nock';
 import sinon from 'sinon';
+import type EthQuery from 'eth-query';
 import {
   JSONRPCResponse,
   JSONRPCResponseResult,
 } from '@json-rpc-specification/meta-schema';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { NetworkType } from '@metamask/controller-utils';
+import { InfuraNetworkType } from '@metamask/controller-utils';
 import {
   NetworkController,
-  EthQuery,
   NetworkControllerMessenger,
 } from '../../src/NetworkController';
 
@@ -53,7 +54,6 @@ function debug(...args: any) {
       console.error(args[0]);
       return;
     }
-    // eslint-disable-next-line
     console.log(...args);
   }
 }
@@ -89,14 +89,12 @@ const mockNextBlockTrackerRequest = ({
   blockNumber = DEFAULT_LATEST_BLOCK_NUMBER,
   block = DEFAULT_BLOCK,
 }: MockBlockTrackerRequestOptions) => {
-  // eslint-disable-next-line
   mockRpcCall({
     nockScope,
     request: { method: 'eth_blockNumber', params: [] },
     response: { result: blockNumber },
   });
 
-  // eslint-disable-next-line
   mockRpcCall({
     nockScope,
     request: { method: 'eth_getBlockByNumber', params: [blockNumber, false] },
@@ -112,7 +110,7 @@ const mockAllBlockTrackerRequests = ({
   block = DEFAULT_BLOCK,
 }: MockBlockTrackerRequestOptions) => {
   (
-    mockRpcCall({ // eslint-disable-line
+    mockRpcCall({
       nockScope,
       request: { method: 'eth_blockNumber', params: [] },
       response: { result: blockNumber },
@@ -120,7 +118,7 @@ const mockAllBlockTrackerRequests = ({
   ).persist();
 
   (
-    mockRpcCall({ // eslint-disable-line
+    mockRpcCall({
       nockScope,
       request: { method: 'eth_getBlockByNumber', params: [blockNumber, false] },
       response: {
@@ -167,14 +165,36 @@ type MockRpcCallOptions = {
 
 type MockRpcCallResult = nock.Interceptor | nock.Scope;
 
-const mockRpcCall = ({
+/**
+ * Mocks a JSON-RPC request sent to the provider with the given response.
+ * Provider type is inferred from the base url set on the nockScope.
+ *
+ * @param args - The arguments.
+ * @param args.nockScope - A nock scope (a set of mocked requests scoped to a
+ * certain base URL).
+ * @param args.request - The request data.
+ * @param args.response - Information concerning the response that the request
+ * should have. If a `body` property is present, this is taken as the complete
+ * response body. If an `httpStatus` property is present, then it is taken as
+ * the HTTP status code to respond with. Properties other than these two are
+ * used to build a complete response body (including `id` and `jsonrpc`
+ * properties).
+ * @param args.error - An error to throw while making the request. Takes
+ * precedence over `response`.
+ * @param args.delay - The amount of time that should pass before the request
+ * resolves with the response.
+ * @param args.times - The number of times that the request is expected to be
+ * made.
+ * @returns The nock scope.
+ */
+function mockRpcCall({
   nockScope,
   request,
   response,
   error,
   delay,
   times,
-}: MockRpcCallOptions): MockRpcCallResult => {
+}: MockRpcCallOptions): MockRpcCallResult {
   // eth-query always passes `params`, so even if we don't supply this property,
   // for consistency with makeRpcCall, assume that the `body` contains it
   const { method, params = [], ...rest } = request;
@@ -240,7 +260,7 @@ const mockRpcCall = ({
     });
   }
   return nockRequest;
-};
+}
 
 const makeRpcCall = (
   ethQuery: EthQuery,
@@ -269,7 +289,7 @@ export type ProviderType = 'infura' | 'custom';
 
 export type MockOptions = {
   providerType: ProviderType;
-  infuraNetwork?: NetworkType;
+  infuraNetwork?: InfuraNetworkType;
   customRpcUrl?: string;
 };
 
@@ -278,13 +298,13 @@ export type MockCommunications = {
   mockAllBlockTrackerRequests: (options?: any) => void;
   mockRpcCall: (arg0: CurriedMockRpcCallOptions) => MockRpcCallResult;
   rpcUrl: string;
-  infuraNetwork: NetworkType;
+  infuraNetwork: InfuraNetworkType;
 };
 
 export const withMockedCommunications = async (
   {
     providerType,
-    infuraNetwork = NetworkType.mainnet,
+    infuraNetwork = InfuraNetworkType.mainnet,
     customRpcUrl = MOCK_RPC_URL,
   }: MockOptions,
   fn: (comms: MockCommunications) => Promise<void>,
@@ -367,7 +387,7 @@ export const waitForPromiseToBeFulfilledAfterRunningAllTimers = async (
 export const withNetworkClient = async (
   {
     providerType,
-    infuraNetwork = NetworkType.mainnet,
+    infuraNetwork = InfuraNetworkType.mainnet,
     customRpcUrl = MOCK_RPC_URL,
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<any>,
@@ -387,12 +407,6 @@ export const withNetworkClient = async (
     trackMetaMetricsEvent: jest.fn(),
   });
 
-  const getEIP1559CompatibilityMock = jest
-    .spyOn(controller, 'getEIP1559Compatibility')
-    .mockImplementation(async () => {
-      return true;
-    });
-
   const lookupNetworkMock = jest
     .spyOn(controller, 'lookupNetwork')
     .mockImplementation(() => {
@@ -411,8 +425,11 @@ export const withNetworkClient = async (
       { referrer: 'https://test-dapp.com', source: 'dapp', setActive: true },
     );
   }
-  const ethQuery = messenger.call('NetworkController:getEthQuery');
   const { provider, blockTracker } = controller.getProviderAndBlockTracker();
+  assert(provider, 'provider has not been set for some reason');
+  assert(blockTracker, 'blockTracker has not been set for some reason');
+  const ethQuery = messenger.call('NetworkController:getEthQuery');
+  assert(ethQuery, 'EthQuery has not been set for some reason');
 
   const curriedMakeRpcCall = (request: Request) =>
     makeRpcCall(ethQuery, request, clock);
@@ -434,7 +451,6 @@ export const withNetworkClient = async (
   try {
     return await fn(client);
   } finally {
-    getEIP1559CompatibilityMock.mockRestore();
     lookupNetworkMock.mockRestore();
     blockTracker.removeAllListeners();
     provider.stop();
