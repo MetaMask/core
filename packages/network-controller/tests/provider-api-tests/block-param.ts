@@ -18,14 +18,28 @@ type TestsForRpcMethodSupportingBlockParam = {
   numberOfParameters: number;
 };
 
-export const testsForRpcMethodSupportingBlockParam = (
+/**
+ * Defines tests which exercise the behavior exhibited by an RPC method that
+ * takes a block parameter. The value of this parameter can be either a block
+ * number or a block tag ("latest", "earliest", or "pending") and affects how
+ * the method is cached.
+ *
+ * @param method - The name of the RPC method under test.
+ * @param additionalArgs - Additional arguments.
+ * @param additionalArgs.blockParamIndex - The index of the block parameter.
+ * @param additionalArgs.numberOfParameters - The number of parameters
+ * supported by the method under test.
+ * @param additionalArgs.providerType - The type of provider being tested.
+ * either `infura` or `custom`.
+ */
+export function testsForRpcMethodSupportingBlockParam(
   method: string,
   {
     blockParamIndex,
     numberOfParameters,
     providerType,
   }: TestsForRpcMethodSupportingBlockParam,
-) => {
+) {
   describe.each([
     ['given no block tag', undefined],
     ['given a block tag of "latest"', 'latest'],
@@ -1796,4 +1810,4 @@ export const testsForRpcMethodSupportingBlockParam = (
       });
     });
   }
-};
+}

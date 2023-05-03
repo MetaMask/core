@@ -10,13 +10,25 @@ type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
   numberOfParameters: number;
 };
 
-export const testsForRpcMethodsThatCheckForBlockHashInResponse = (
+/**
+ * Defines tests which exercise the behavior exhibited by an RPC method that
+ * use `blockHash` in the response data to determine whether the response is
+ * cacheable.
+ *
+ * @param method - The name of the RPC method under test.
+ * @param additionalArgs - Additional arguments.
+ * @param additionalArgs.numberOfParameters - The number of parameters supported
+ * by the method under test.
+ * @param additionalArgs.providerType - The type of provider being tested;
+ * either `infura` or `custom`.
+ */
+export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   method: string,
   {
     providerType,
     numberOfParameters,
   }: TestsForRpcMethodThatCheckForBlockHashInResponseOptions,
-) => {
+) {
   it('does not hit the RPC endpoint more than once for identical requests and it has a valid blockHash', async () => {
     const requests = [{ method }, { method }];
     const mockResult = { blockHash: '0x1' };
@@ -227,4 +239,4 @@ export const testsForRpcMethodsThatCheckForBlockHashInResponse = (
       });
     });
   }
-};
+}
