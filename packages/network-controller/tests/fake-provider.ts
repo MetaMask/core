@@ -42,7 +42,7 @@ const originalSetTimeout = global.setTimeout;
 export type FakeProviderStub = {
   request: {
     method: string;
-    params?: any[];
+    params?: unknown[];
   };
   delay?: number;
   discardAfterMatching?: boolean;
