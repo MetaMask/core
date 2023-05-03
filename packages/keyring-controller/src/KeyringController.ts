@@ -7,6 +7,10 @@ import {
   getBinarySize,
 } from 'ethereumjs-util';
 import {
+  isValidHexAddress,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
+import {
   normalize as normalizeAddress,
   signTypedData,
 } from '@metamask/eth-sig-util';
@@ -28,7 +32,6 @@ import {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 /**
  * Available keyring types
@@ -493,6 +496,11 @@ export class KeyringController extends BaseController<
   ) {
     try {
       const address = normalizeAddress(messageParams.from);
+      if (!address || !isValidHexAddress(address)) {
+        throw new Error(
+          `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
+        );
+      }
       const qrKeyring = await this.getOrAddQRKeyring();
       const qrAccounts = await qrKeyring.getAccounts();
       if (
@@ -751,6 +759,8 @@ export class KeyringController extends BaseController<
         };
       });
     } catch (e) {
+      // TODO: Add test case for when keyring throws
+      /* istanbul ignore next */
       throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
     }
   }
