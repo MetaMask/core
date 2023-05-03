@@ -752,7 +752,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.localhost,
+      chainId: NetworksChainId.sepolia,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
