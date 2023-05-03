@@ -807,6 +807,24 @@ export class TokensController extends BaseController<
     this._rejectApproval(suggestedAssetID);
   }
 
+  async initApprovals() {
+    const { suggestedAssets } = this.state;
+    return Promise.all(
+      suggestedAssets
+        .filter((asset) => asset.status === SuggestedAssetStatus.pending)
+        .map((asset) =>
+          this._requestApproval(
+            asset as SuggestedAssetMeta & {
+              interactingAddress: string;
+            },
+            {
+              shouldShowRequest: false,
+            },
+          ),
+        ),
+    );
+  }
+
   /**
    * Takes a new tokens and ignoredTokens array for the current network/account combination
    * and returns new allTokens and allIgnoredTokens state to update to.
@@ -909,7 +927,9 @@ export class TokensController extends BaseController<
     suggestedAssetMeta: SuggestedAssetMeta & {
       interactingAddress: string;
     },
-    shouldShowRequest = true,
+    { shouldShowRequest } = {
+      shouldShowRequest: true,
+    },
   ) {
     return this.messagingSystem
       .call(
@@ -960,22 +980,6 @@ export class TokensController extends BaseController<
         messageCallError,
       );
     }
-  }
-
-  initApprovals() {
-    const { suggestedAssets } = this.state;
-    return Promise.all(
-      suggestedAssets
-        .filter((asset) => asset.status === SuggestedAssetStatus.pending)
-        .map((asset) =>
-          this._requestApproval(
-            asset as SuggestedAssetMeta & {
-              interactingAddress: string;
-            },
-            false,
-          ),
-        ),
-    );
   }
 }
 
