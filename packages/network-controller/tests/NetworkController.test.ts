@@ -98,37 +98,6 @@ const POST_1559_BLOCK = {
 };
 
 /**
- * The networks that NetworkController recognizes as built-in Infura networks,
- * along with information we expect to be true for those networks.
- */
-const INFURA_NETWORKS = [
-  {
-    nickname: 'Mainnet',
-    networkType: NetworkType.mainnet,
-    chainId: '1',
-    ticker: 'ETH',
-    blockExplorerUrl: `https://etherscan.io`,
-    networkVersion: '1',
-  },
-  {
-    nickname: 'Goerli',
-    networkType: NetworkType.goerli,
-    chainId: '5',
-    ticker: 'GoerliETH',
-    blockExplorerUrl: `https://goerli.etherscan.io`,
-    networkVersion: '5',
-  },
-  {
-    nickname: 'Sepolia',
-    networkType: NetworkType.sepolia,
-    chainId: '11155111',
-    ticker: 'SepoliaETH',
-    blockExplorerUrl: `https://sepolia.etherscan.io`,
-    networkVersion: '11155111',
-  },
-];
-
-/**
  * A response object for a request that has been geoblocked by Infura.
  */
 const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
