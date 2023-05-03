@@ -44,13 +44,25 @@ type TestsForRpcMethodAssumingNoBlockParamOptions = {
   numberOfParameters: number;
 };
 
-export const testsForRpcMethodAssumingNoBlockParam = (
+/**
+ * Defines tests which exercise the behavior exhibited by an RPC method which is
+ * assumed to not take a block parameter. Even if it does, the value of this
+ * parameter will not be used in determining how to cache the method.
+ *
+ * @param method - The name of the RPC method under test.
+ * @param additionalArgs - Additional arguments.
+ * @param additionalArgs.numberOfParameters - The number of parameters
+ * supported by the method under test.
+ * @param additionalArgs.providerType - The type of provider being tested;
+ * either `infura` or `custom`.
+ */
+export function testsForRpcMethodAssumingNoBlockParam(
   method: string,
   {
     numberOfParameters,
     providerType,
   }: TestsForRpcMethodAssumingNoBlockParamOptions,
-) => {
+) {
   it('does not hit the RPC endpoint more than once for identical requests', async () => {
     const requests = [{ method }, { method }];
     const mockResults = ['first result', 'second result'];
@@ -913,4 +925,4 @@ export const testsForRpcMethodAssumingNoBlockParam = (
       });
     });
   }
-};
+}

@@ -11,23 +11,46 @@ import { testsForRpcMethodAssumingNoBlockParam } from './no-block-param';
 import { testsForRpcMethodNotHandledByMiddleware } from './not-handled-by-middleware';
 import { testsForRpcMethodWithStaticResult } from './static-results';
 
-export const buildInfuraClientRetriesExhaustedErrorMessage = (
-  reason: string,
-) => {
+/**
+ * Constructs an error message that the Infura client would produce in the event
+ * that it has attempted to retry the request to Infura and has failed.
+ *
+ * @param reason - The exact reason for failure.
+ * @returns The error message.
+ */
+export function buildInfuraClientRetriesExhaustedErrorMessage(reason: string) {
   return new RegExp(
     `^InfuraProvider - cannot complete request. All retries exhausted\\..+${reason}`,
     'us',
   );
-};
+}
 
-export const buildFetchFailedErrorMessage = (url: string, reason: string) => {
+/**
+ * Constructs an error message that `fetch` with throw if it cannot make a
+ * request.
+ *
+ * @param url - The URL being fetched
+ * @param reason - The reason.
+ * @returns The error message.
+ */
+export function buildFetchFailedErrorMessage(url: string, reason: string) {
   return new RegExp(
     `^request to ${url}(/[^/ ]*)+ failed, reason: ${reason}`,
     'us',
   );
-};
+}
 
-export const testsForProviderType = (providerType: ProviderType) => {
+/**
+ * Defines tests that are common to both the Infura and JSON-RPC network client.
+ *
+ * @param providerType - The type of provider being tested, which determines
+ * which suite of middleware is being tested. If `infura`, then the middleware
+ * exposed by `createInfuraClient` is tested; if `custom`, then the middleware
+ * exposed by `createJsonRpcClient` will be tested.
+ */
+export function testsForProviderType(providerType: ProviderType) {
+  // Ethereum JSON-RPC spec: <https://ethereum.github.io/execution-apis/api-documentation/>
+  // Infura documentation: <https://docs.infura.io/infura/networks/ethereum/json-rpc-methods>
   describe('methods included in the Ethereum JSON-RPC spec', () => {
     describe('methods not handled by middleware', () => {
       const notHandledByMiddleware = [
@@ -387,4 +410,4 @@ export const testsForProviderType = (providerType: ProviderType) => {
       });
     });
   });
-};
+}
