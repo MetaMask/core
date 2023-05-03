@@ -2970,7 +2970,7 @@ describe('NetworkController', () => {
           await controller.setActiveNetwork('testNetworkConfigurationId');
 
           expect(createNetworkClientMock).toHaveBeenCalledWith({
-            chainId: '0x539',
+            chainId: toHex(1337),
             rpcUrl: 'https://mock-rpc-url',
             type: NetworkClientType.Custom,
           });
