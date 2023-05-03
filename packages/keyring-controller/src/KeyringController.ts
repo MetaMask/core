@@ -431,7 +431,6 @@ export class KeyringController extends BaseController<
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
-    this.setSelectedAddress(accounts[0]);
     return {
       keyringState: await this.fullUpdate(),
       importedAccountAddress: accounts[0],
