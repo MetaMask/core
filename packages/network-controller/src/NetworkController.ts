@@ -324,7 +324,14 @@ export class NetworkController extends BaseControllerV2<
         this.#setupInfuraProvider(type);
         break;
       case NetworkType.rpc:
-        rpcUrl && this.#setupStandardProvider(rpcUrl, chainId);
+        if (chainId === undefined) {
+          throw new Error('chainId must be provided for custom RPC endpoints');
+        }
+
+        if (rpcUrl === undefined) {
+          throw new Error('rpcUrl must be provided for custom RPC endpoints');
+        }
+        this.#setupStandardProvider(rpcUrl, chainId);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -371,7 +378,7 @@ export class NetworkController extends BaseControllerV2<
     this.#updateProvider(provider, blockTracker);
   }
 
-  #setupStandardProvider(rpcUrl: string, chainId?: string) {
+  #setupStandardProvider(rpcUrl: string, chainId: string) {
     const { provider, blockTracker } = createNetworkClient({
       chainId,
       rpcUrl,
