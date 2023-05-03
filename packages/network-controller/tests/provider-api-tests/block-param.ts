@@ -2,7 +2,6 @@ import {
   buildMockParams,
   buildRequestWithReplacedBlockParam,
   ProviderType,
-  waitForNextBlockTracker,
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
   withNetworkClient,
@@ -10,6 +9,7 @@ import {
 import {
   buildFetchFailedErrorMessage,
   buildInfuraClientRetriesExhaustedErrorMessage,
+  buildJsonRpcEngineEmptyResponseErrorMessage,
 } from './shared-tests';
 
 type TestsForRpcMethodSupportingBlockParam = {
@@ -57,13 +57,19 @@ export function testsForRpcMethodSupportingBlockParam(
       await withMockedCommunications({ providerType }, async (comms) => {
         // The first time a block-cacheable request is made, the block-cache
         // middleware will request the latest block number through the block
-        // tracker to determine the cache key.
-        comms.mockNextBlockTrackerRequest();
+        // tracker to determine the cache key. Later, the block-ref
+        // middleware will request the latest block number again to resolve
+        // the value of "latest", but the block number is cached once made,
+        // so we only need to mock the request once.
+        comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+        // The block-ref middleware will make the request as specified
+        // except that the block param is replaced with the latest block
+        // number.
         comms.mockRpcCall({
           request: buildRequestWithReplacedBlockParam(
             requests[0],
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x100',
           ),
           response: { result: mockResults[0] },
         });
@@ -82,7 +88,6 @@ export function testsForRpcMethodSupportingBlockParam(
         // testing changes in block param is covered under later tests
         continue;
       }
-
       it(`does not reuse the result of a previous request if parameter at index "${paramIndex}" differs`, async () => {
         const firstMockParams = [
           ...new Array(numberOfParameters).fill('some value'),
@@ -102,22 +107,27 @@ export function testsForRpcMethodSupportingBlockParam(
         await withMockedCommunications({ providerType }, async (comms) => {
           // The first time a block-cacheable request is made, the block-cache
           // middleware will request the latest block number through the block
-          // tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // tracker to determine the cache key. Later, the block-ref
+          // middleware will request the latest block number again to resolve
+          // the value of "latest", but the block number is cached once made,
+          // so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               requests[0],
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: { result: mockResults[0] },
           });
-
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               requests[1],
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: { result: mockResults[1] },
           });
@@ -146,11 +156,14 @@ export function testsForRpcMethodSupportingBlockParam(
         // occur because of the second RPC request, but rather because we
         // call `clock.runAll()` below.
         comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+        // The block-ref middleware will make the request as specified
+        // except that the block param is replaced with the latest block
+        // number.
         comms.mockRpcCall({
           request: buildRequestWithReplacedBlockParam(
             requests[0],
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x100',
           ),
           response: { result: mockResults[0] },
         });
@@ -159,7 +172,7 @@ export function testsForRpcMethodSupportingBlockParam(
           request: buildRequestWithReplacedBlockParam(
             requests[1],
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x200',
           ),
           response: { result: mockResults[1] },
         });
@@ -170,7 +183,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await client.makeRpcCall(requests[0]);
             // Proceed to the next iteration of the block tracker so that a
             // new block is fetched and the current block is updated.
-            await waitForNextBlockTracker(client.blockTracker, client.clock);
+            client.clock.runAll();
             const secondResult = await client.makeRpcCall(requests[1]);
             return [firstResult, secondResult];
           },
@@ -191,13 +204,19 @@ export function testsForRpcMethodSupportingBlockParam(
         await withMockedCommunications({ providerType }, async (comms) => {
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: { result: mockResult },
           });
@@ -221,13 +240,19 @@ export function testsForRpcMethodSupportingBlockParam(
         await withMockedCommunications({ providerType }, async (comms) => {
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               requests[0],
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: { result: mockResults[0] },
           });
@@ -235,7 +260,7 @@ export function testsForRpcMethodSupportingBlockParam(
             request: buildRequestWithReplacedBlockParam(
               requests[1],
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: { result: mockResults[1] },
           });
@@ -252,44 +277,46 @@ export function testsForRpcMethodSupportingBlockParam(
 
     it('queues requests while a previous identical call is still pending, then runs the queue when it finishes, reusing the result from the first request', async () => {
       const requests = [
-        { method, params: buildMockParams({ blockParam, blockParamIndex }) },
-        { method, params: buildMockParams({ blockParam, blockParamIndex }) },
-        { method, params: buildMockParams({ blockParam, blockParamIndex }) },
+        { method, params: buildMockParams({ blockParamIndex, blockParam }) },
+        { method, params: buildMockParams({ blockParamIndex, blockParam }) },
+        { method, params: buildMockParams({ blockParamIndex, blockParam }) },
       ];
       const mockResults = ['first result', 'second result', 'third result'];
 
       await withMockedCommunications({ providerType }, async (comms) => {
         // The first time a block-cacheable request is made, the
         // block-cache middleware will request the latest block number
-        // through the block tracker to determine the cache key.
-        comms.mockNextBlockTrackerRequest();
-        // A second block tracker request is made for some reason
-        comms.mockNextBlockTrackerRequest();
+        // through the block tracker to determine the cache key. Later,
+        // the block-ref middleware will request the latest block number
+        // again to resolve the value of "latest", but the block number is
+        // cached once made, so we only need to mock the request once.
+        comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+        // The block-ref middleware will make the request as specified
+        // except that the block param is replaced with the latest block
+        // number, and we delay it.
         comms.mockRpcCall({
           delay: 100,
           request: buildRequestWithReplacedBlockParam(
             requests[0],
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x100',
           ),
           response: { result: mockResults[0] },
         });
-
         // The previous two requests will happen again, in the same order.
         comms.mockRpcCall({
           request: buildRequestWithReplacedBlockParam(
             requests[1],
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x100',
           ),
           response: { result: mockResults[1] },
         });
-
         comms.mockRpcCall({
           request: buildRequestWithReplacedBlockParam(
             requests[2],
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x100',
           ),
           response: { result: mockResults[2] },
         });
@@ -321,20 +348,23 @@ export function testsForRpcMethodSupportingBlockParam(
 
     it('throws an error with a custom message if the request to the RPC endpoint returns a 405 response', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
-        const request = {
-          method,
-          params: buildMockParams({ blockParam, blockParamIndex }),
-        };
+        const request = { method };
 
         // The first time a block-cacheable request is made, the
         // block-cache middleware will request the latest block number
-        // through the block tracker to determine the cache key.
-        comms.mockNextBlockTrackerRequest();
+        // through the block tracker to determine the cache key. Later,
+        // the block-ref middleware will request the latest block number
+        // again to resolve the value of "latest", but the block number is
+        // cached once made, so we only need to mock the request once.
+        comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+        // The block-ref middleware will make the request as specified
+        // except that the block param is replaced with the latest block
+        // number.
         comms.mockRpcCall({
           request: buildRequestWithReplacedBlockParam(
             request,
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x100',
           ),
           response: {
             httpStatus: 405,
@@ -367,13 +397,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               httpStatus: 418,
@@ -399,13 +435,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               httpStatus: 429,
@@ -431,13 +473,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
           comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               httpStatus: 418,
@@ -463,13 +511,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               httpStatus: 429,
@@ -489,23 +543,27 @@ export function testsForRpcMethodSupportingBlockParam(
 
     it('throws an undescriptive error message if the request to the RPC endpoint returns a response that is not 405, 418, 429, 503, or 504', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
-        const request = {
-          method,
-          params: buildMockParams({ blockParam, blockParamIndex }),
-        };
+        const request = { method };
 
         // The first time a block-cacheable request is made, the
         // block-cache middleware will request the latest block number
-        // through the block tracker to determine the cache key.
-        comms.mockNextBlockTrackerRequest();
+        // through the block tracker to determine the cache key. Later,
+        // the block-ref middleware will request the latest block number
+        // again to resolve the value of "latest", but the block number is
+        // cached once made, so we only need to mock the request once.
+        comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+        // The block-ref middleware will make the request as specified
+        // except that the block param is replaced with the latest block
+        // number.
         comms.mockRpcCall({
           request: buildRequestWithReplacedBlockParam(
             request,
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x100',
           ),
           response: {
             id: 12345,
+            jsonrpc: '2.0',
             error: 'some error',
             httpStatus: 420,
           },
@@ -533,15 +591,22 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
+          //
           // Here we have the request fail for the first 4 tries, then succeed
           // on the 5th try.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               error: 'some error',
@@ -549,12 +614,11 @@ export function testsForRpcMethodSupportingBlockParam(
             },
             times: 4,
           });
-
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               result: 'the result',
@@ -575,10 +639,10 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      // Both the Infura middleware and custom RPC middleware detect a 503 or 504
-      // response and retry the request to the RPC endpoint automatically but
-      // differ in what sort of response is returned when the number of retries is
-      // exhausted.
+      // Both the Infura middleware and custom RPC middleware detect a 503 or
+      // 504 response and retry the request to the RPC endpoint automatically
+      // but differ in what sort of response is returned when the number of
+      // retries is exhausted.
       if (providerType === 'infura') {
         it(`causes a request to fail with a custom error if the request to the RPC endpoint returns a ${httpStatus} response 5 times in a row`, async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
@@ -589,13 +653,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
             // The first time a block-cacheable request is made, the
             // block-cache middleware will request the latest block number
-            // through the block tracker to determine the cache key.
-            comms.mockNextBlockTrackerRequest();
+            // through the block tracker to determine the cache key. Later,
+            // the block-ref middleware will request the latest block number
+            // again to resolve the value of "latest", but the block number is
+            // cached once made, so we only need to mock the request once.
+            comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+            // The block-ref middleware will make the request as specified
+            // except that the block param is replaced with the latest block
+            // number.
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
                 request,
                 blockParamIndex,
-                blockParam === undefined ? null : 'latest',
+                '0x100',
               ),
               response: {
                 error: 'Some error',
@@ -618,7 +688,7 @@ export function testsForRpcMethodSupportingBlockParam(
           });
         });
       } else {
-        it(`produces a response without a result if the request to the RPC endpoint returns a ${httpStatus} response 5 times in a row`, async () => {
+        it(`produces an empty response if the request to the RPC endpoint returns a ${httpStatus} response 5 times in a row`, async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
             const request = {
               method,
@@ -627,13 +697,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
             // The first time a block-cacheable request is made, the
             // block-cache middleware will request the latest block number
-            // through the block tracker to determine the cache key.
-            comms.mockNextBlockTrackerRequest();
+            // through the block tracker to determine the cache key. Later,
+            // the block-ref middleware will request the latest block number
+            // again to resolve the value of "latest", but the block number is
+            // cached once made, so we only need to mock the request once.
+            comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+            // The block-ref middleware will make the request as specified
+            // except that the block param is replaced with the latest block
+            // number.
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
                 request,
                 blockParamIndex,
-                blockParam === undefined ? null : 'latest',
+                '0x100',
               ),
               response: {
                 error: 'Some error',
@@ -641,7 +717,7 @@ export function testsForRpcMethodSupportingBlockParam(
               },
               times: 5,
             });
-            const result = await withNetworkClient(
+            const promiseForResult = withNetworkClient(
               { providerType },
               async ({ makeRpcCall, clock }) => {
                 return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
@@ -650,7 +726,9 @@ export function testsForRpcMethodSupportingBlockParam(
                 );
               },
             );
-            expect(result).toBeUndefined();
+            await expect(promiseForResult).rejects.toThrow(
+              buildJsonRpcEngineEmptyResponseErrorMessage(method),
+            );
           });
         });
       }
@@ -665,25 +743,31 @@ export function testsForRpcMethodSupportingBlockParam(
 
         // The first time a block-cacheable request is made, the
         // block-cache middleware will request the latest block number
-        // through the block tracker to determine the cache key.
-        comms.mockNextBlockTrackerRequest();
+        // through the block tracker to determine the cache key. Later,
+        // the block-ref middleware will request the latest block number
+        // again to resolve the value of "latest", but the block number is
+        // cached once made, so we only need to mock the request once.
+        comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+        // The block-ref middleware will make the request as specified
+        // except that the block param is replaced with the latest block
+        // number.
+        //
         // Here we have the request fail for the first 4 tries, then
         // succeed on the 5th try.
         comms.mockRpcCall({
           request: buildRequestWithReplacedBlockParam(
             request,
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x100',
           ),
           error: 'ETIMEDOUT: Some message',
           times: 4,
         });
-
         comms.mockRpcCall({
           request: buildRequestWithReplacedBlockParam(
             request,
             blockParamIndex,
-            blockParam === undefined ? null : 'latest',
+            '0x100',
           ),
           response: {
             result: 'the result',
@@ -711,22 +795,25 @@ export function testsForRpcMethodSupportingBlockParam(
     if (providerType === 'infura') {
       it('causes a request to fail with a custom error if an "ETIMEDOUT" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
-          const request = {
-            method,
-            params: buildMockParams({ blockParam, blockParamIndex }),
-          };
+          const request = { method };
           const errorMessage = 'ETIMEDOUT: Some message';
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
 
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: errorMessage,
             times: 5,
@@ -748,7 +835,7 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
     } else {
-      it('produces a response without a result if an "ETIMEDOUT" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
+      it('produces an empty response if an "ETIMEDOUT" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
@@ -758,20 +845,26 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
 
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: errorMessage,
             times: 5,
           });
 
-          const result = await withNetworkClient(
+          const promiseForResult = withNetworkClient(
             { providerType },
             async ({ makeRpcCall, clock }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
@@ -781,7 +874,9 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          expect(result).toBeUndefined();
+          await expect(promiseForResult).rejects.toThrow(
+            buildJsonRpcEngineEmptyResponseErrorMessage(method),
+          );
         });
       });
     }
@@ -800,25 +895,31 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
+          //
           // Here we have the request fail for the first 4 tries, then
           // succeed on the 5th try.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: 'ECONNRESET: Some message',
             times: 4,
           });
-
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               result: 'the result',
@@ -850,13 +951,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: errorMessage,
             times: 5,
@@ -892,13 +999,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
             // The first time a block-cacheable request is made, the
             // block-cache middleware will request the latest block number
-            // through the block tracker to determine the cache key.
-            comms.mockNextBlockTrackerRequest();
+            // through the block tracker to determine the cache key. Later,
+            // the block-ref middleware will request the latest block number
+            // again to resolve the value of "latest", but the block number is
+            // cached once made, so we only need to mock the request once.
+            comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+            // The block-ref middleware will make the request as specified
+            // except that the block param is replaced with the latest block
+            // number.
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
                 request,
                 blockParamIndex,
-                blockParam === undefined ? null : 'latest',
+                '0x100',
               ),
               error: errorMessage,
             });
@@ -933,25 +1046,31 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
+          //
           // Here we have the request fail for the first 4 tries, then
           // succeed on the 5th try.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: 'SyntaxError: Some message',
             times: 4,
           });
-
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               result: 'the result',
@@ -982,13 +1101,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: errorMessage,
             times: 5,
@@ -1020,13 +1145,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: errorMessage,
           });
@@ -1052,18 +1183,23 @@ export function testsForRpcMethodSupportingBlockParam(
               method,
               params: buildMockParams({ blockParam, blockParamIndex }),
             };
-
             const errorMessage = 'SyntaxError: Some message';
 
             // The first time a block-cacheable request is made, the
             // block-cache middleware will request the latest block number
-            // through the block tracker to determine the cache key.
-            comms.mockNextBlockTrackerRequest();
+            // through the block tracker to determine the cache key. Later,
+            // the block-ref middleware will request the latest block number
+            // again to resolve the value of "latest", but the block number is
+            // cached once made, so we only need to mock the request once.
+            comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+            // The block-ref middleware will make the request as specified
+            // except that the block param is replaced with the latest block
+            // number.
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
                 request,
                 blockParamIndex,
-                blockParam === undefined ? null : 'latest',
+                '0x100',
               ),
               error: errorMessage,
             });
@@ -1089,25 +1225,31 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
+          //
           // Here we have the request fail for the first 4 tries, then
           // succeed on the 5th try.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: 'failed to parse response body: Some message',
             times: 4,
           });
-
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               result: 'the result',
@@ -1129,7 +1271,7 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      it('produces a response without a result if a "failed to parse response body" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
+      it('produces an empty response if a "failed to parse response body" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
@@ -1139,18 +1281,24 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: errorMessage,
             times: 5,
           });
-          const result = await withNetworkClient(
+          const promiseForResult = withNetworkClient(
             { providerType },
             async ({ makeRpcCall, clock }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
@@ -1160,7 +1308,9 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          expect(result).toBeUndefined();
+          await expect(promiseForResult).rejects.toThrow(
+            buildJsonRpcEngineEmptyResponseErrorMessage(method),
+          );
         });
       });
     }
@@ -1179,13 +1329,19 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: errorMessage,
           });
@@ -1210,25 +1366,31 @@ export function testsForRpcMethodSupportingBlockParam(
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
+          //
           // Here we have the request fail for the first 4 tries, then
           // succeed on the 5th try.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: 'Failed to fetch: Some message',
             times: 4,
           });
-
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             response: {
               result: 'the result',
@@ -1250,28 +1412,31 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      it('produces a response without a result if a "Failed to fetch" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
+      it('produces an empty response if a "Failed to fetch" error is thrown while making the request to the RPC endpoint 5 times in a row', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
-          const request = {
-            method,
-            params: buildMockParams({ blockParam, blockParamIndex }),
-          };
+          const request = { method };
           const errorMessage = 'Failed to fetch: some message';
 
           // The first time a block-cacheable request is made, the
           // block-cache middleware will request the latest block number
-          // through the block tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // through the block tracker to determine the cache key. Later,
+          // the block-ref middleware will request the latest block number
+          // again to resolve the value of "latest", but the block number is
+          // cached once made, so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
               request,
               blockParamIndex,
-              blockParam === undefined ? null : 'latest',
+              '0x100',
             ),
             error: errorMessage,
             times: 5,
           });
-          const result = await withNetworkClient(
+          const promiseForResult = withNetworkClient(
             { providerType },
             async ({ makeRpcCall, clock }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
@@ -1281,7 +1446,9 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          expect(result).toBeUndefined();
+          await expect(promiseForResult).rejects.toThrow(
+            buildJsonRpcEngineEmptyResponseErrorMessage(method),
+          );
         });
       });
     }
@@ -1291,7 +1458,9 @@ export function testsForRpcMethodSupportingBlockParam(
     ['given a block tag of "earliest"', 'earliest', 'earliest'],
     ['given a block number', 'block number', '0x100'],
   ])('%s', (_desc, blockParamType, blockParam) => {
-    it(`does not hit the RPC endpoint more than once for identical requests when block param is ${blockParam} and param type of ${blockParamType}`, async () => {
+    // This lint rule gets confused by `describe.each`
+    // eslint-disable-next-line jest/no-identical-title
+    it('does not hit the RPC endpoint more than once for identical requests', async () => {
       const requests = [
         {
           method,
@@ -1349,13 +1518,18 @@ export function testsForRpcMethodSupportingBlockParam(
         await withMockedCommunications({ providerType }, async (comms) => {
           // The first time a block-cacheable request is made, the block-cache
           // middleware will request the latest block number through the block
-          // tracker to determine the cache key.
-          comms.mockNextBlockTrackerRequest();
+          // tracker to determine the cache key. Later, the block-ref
+          // middleware will request the latest block number again to resolve
+          // the value of "latest", but the block number is cached once made,
+          // so we only need to mock the request once.
+          comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+          // The block-ref middleware will make the request as specified
+          // except that the block param is replaced with the latest block
+          // number.
           comms.mockRpcCall({
             request: requests[0],
             response: { result: mockResults[0] },
           });
-
           comms.mockRpcCall({
             request: requests[1],
             response: { result: mockResults[1] },
@@ -1537,7 +1711,6 @@ export function testsForRpcMethodSupportingBlockParam(
             request: requests[0],
             response: { result: 'first result' },
           });
-
           comms.mockRpcCall({
             request: requests[1],
             response: { result: 'second result' },
@@ -1552,59 +1725,27 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      describe.each([
+      for (const [nestedDesc, currentBlockNumber] of [
         ['less than the current block number', '0x200'],
-        ['equal to the current block number', '0x100'],
-      ])('%s', (_nestedDesc, currentBlockNumber) => {
-        it('makes an additional request to the RPC endpoint', async () => {
-          await withMockedCommunications({ providerType }, async (comms) => {
-            const request = {
-              method,
-              // Note that `blockParam` is `0x100` here
-              params: buildMockParams({ blockParamIndex, blockParam }),
-            };
-
-            // The first time a block-cacheable request is made, the latest
-            // block number is retrieved through the block tracker first.
-            comms.mockNextBlockTrackerRequest({
-              blockNumber: currentBlockNumber,
-            });
-            comms.mockRpcCall({
-              request,
-              response: { result: 'the result' },
-            });
-
-            const result = await withNetworkClient(
-              { providerType },
-              ({ makeRpcCall }) => makeRpcCall(request),
-            );
-
-            expect(result).toStrictEqual('the result');
-          });
-        });
-
-        for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-          it(`does not retry an empty response of "${emptyValue}"`, async () => {
-            const request = {
-              method,
-              // Note that `blockParam` is `0x100` here
-              params: buildMockParams({ blockParamIndex, blockParam }),
-            };
-            const mockResult = emptyValue;
-
+        ['equal to the curent block number', '0x100'],
+      ]) {
+        describe(`${nestedDesc}`, () => {
+          it('makes an additional request to the RPC endpoint', async () => {
             await withMockedCommunications({ providerType }, async (comms) => {
-              // The first time a block-cacheable request is made, the latest block
-              // number is retrieved through the block tracker first.
+              const request = {
+                method,
+                // Note that `blockParam` is `0x100` here
+                params: buildMockParams({ blockParamIndex, blockParam }),
+              };
+
+              // The first time a block-cacheable request is made, the latest
+              // block number is retrieved through the block tracker first.
               comms.mockNextBlockTrackerRequest({
                 blockNumber: currentBlockNumber,
               });
               comms.mockRpcCall({
-                request: buildRequestWithReplacedBlockParam(
-                  request,
-                  blockParamIndex,
-                  '0x100',
-                ),
-                response: { result: mockResult },
+                request,
+                response: { result: 'the result' },
               });
 
               const result = await withNetworkClient(
@@ -1612,58 +1753,178 @@ export function testsForRpcMethodSupportingBlockParam(
                 ({ makeRpcCall }) => makeRpcCall(request),
               );
 
-              expect(result).toStrictEqual(mockResult);
+              expect(result).toStrictEqual('the result');
             });
           });
 
-          it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
-            const requests = [
-              {
-                method,
-                // Note that `blockParam` is `0x100` here
-                params: buildMockParams({ blockParamIndex, blockParam }),
-              },
-              {
-                method,
-                // Note that `blockParam` is `0x100` here
-                params: buildMockParams({ blockParamIndex, blockParam }),
-              },
-            ];
-            const mockResults = [emptyValue, { blockHash: '0x100' }];
+          for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
+            if (providerType === 'infura') {
+              it(`retries up to 10 times if a "${emptyValue}" response is returned, returning successful non-empty response if there is one on the 10th try`, async () => {
+                const request = {
+                  method,
+                  // Note that `blockParam` is `0x100` here
+                  params: buildMockParams({ blockParamIndex, blockParam }),
+                };
 
-            await withMockedCommunications({ providerType }, async (comms) => {
-              // The first time a block-cacheable request is made, the latest block
-              // number is retrieved through the block tracker first.
-              comms.mockNextBlockTrackerRequest({
-                blockNumber: currentBlockNumber,
-              });
-              comms.mockRpcCall({
-                request: buildRequestWithReplacedBlockParam(
-                  requests[0],
-                  blockParamIndex,
-                  '0x100',
-                ),
-                response: { result: mockResults[0] },
-              });
-              comms.mockRpcCall({
-                request: buildRequestWithReplacedBlockParam(
-                  requests[1],
-                  blockParamIndex,
-                  '0x100',
-                ),
-                response: { result: mockResults[1] },
+                await withMockedCommunications(
+                  { providerType },
+                  async (comms) => {
+                    // The first time a block-cacheable request is made, the latest block
+                    // number is retrieved through the block tracker first.
+                    comms.mockNextBlockTrackerRequest({
+                      blockNumber: currentBlockNumber,
+                    });
+                    comms.mockRpcCall({
+                      request,
+                      response: { result: emptyValue },
+                      times: 9,
+                    });
+                    comms.mockRpcCall({
+                      request,
+                      response: { result: 'some value' },
+                    });
+
+                    const result = await withNetworkClient(
+                      { providerType },
+                      ({ makeRpcCall, clock }) =>
+                        waitForPromiseToBeFulfilledAfterRunningAllTimers(
+                          makeRpcCall(request),
+                          clock,
+                        ),
+                    );
+
+                    expect(result).toStrictEqual('some value');
+                  },
+                );
               });
 
-              const results = await withNetworkClient(
-                { providerType },
-                ({ makeRpcCallsInSeries }) => makeRpcCallsInSeries(requests),
-              );
+              it(`retries up to 10 times if a "${emptyValue}" response is returned, failing after the 10th try`, async () => {
+                const request = {
+                  method,
+                  // Note that `blockParam` is `0x100` here
+                  params: buildMockParams({ blockParamIndex, blockParam }),
+                };
+                const mockResult = emptyValue;
 
-              expect(results).toStrictEqual(mockResults);
-            });
-          });
-        }
-      });
+                await withMockedCommunications(
+                  { providerType },
+                  async (comms) => {
+                    // The first time a block-cacheable request is made, the latest block
+                    // number is retrieved through the block tracker first.
+                    comms.mockNextBlockTrackerRequest({
+                      blockNumber: currentBlockNumber,
+                    });
+                    comms.mockRpcCall({
+                      request,
+                      response: { result: mockResult },
+                      times: 10,
+                    });
+
+                    const promiseForResult = withNetworkClient(
+                      { providerType },
+                      ({ makeRpcCall, clock }) =>
+                        waitForPromiseToBeFulfilledAfterRunningAllTimers(
+                          makeRpcCall(request),
+                          clock,
+                        ),
+                    );
+
+                    await expect(promiseForResult).rejects.toThrow(
+                      'RetryOnEmptyMiddleware - retries exhausted',
+                    );
+                  },
+                );
+              });
+            } else {
+              it(`does not retry an empty response of "${emptyValue}"`, async () => {
+                const request = {
+                  method,
+                  // Note that `blockParam` is `0x100` here
+                  params: buildMockParams({ blockParamIndex, blockParam }),
+                };
+                const mockResult = emptyValue;
+
+                await withMockedCommunications(
+                  { providerType },
+                  async (comms) => {
+                    // The first time a block-cacheable request is made, the latest block
+                    // number is retrieved through the block tracker first.
+                    comms.mockNextBlockTrackerRequest({
+                      blockNumber: currentBlockNumber,
+                    });
+                    comms.mockRpcCall({
+                      request: buildRequestWithReplacedBlockParam(
+                        request,
+                        blockParamIndex,
+                        '0x100',
+                      ),
+                      response: { result: mockResult },
+                    });
+
+                    const result = await withNetworkClient(
+                      { providerType },
+                      ({ makeRpcCall }) => makeRpcCall(request),
+                    );
+
+                    expect(result).toStrictEqual(mockResult);
+                  },
+                );
+              });
+
+              it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
+                const requests = [
+                  {
+                    method,
+                    // Note that `blockParam` is `0x100` here
+                    params: buildMockParams({ blockParamIndex, blockParam }),
+                  },
+                  {
+                    method,
+                    // Note that `blockParam` is `0x100` here
+                    params: buildMockParams({ blockParamIndex, blockParam }),
+                  },
+                ];
+                const mockResults = [emptyValue, { blockHash: '0x100' }];
+
+                await withMockedCommunications(
+                  { providerType },
+                  async (comms) => {
+                    // The first time a block-cacheable request is made, the latest block
+                    // number is retrieved through the block tracker first.
+                    comms.mockNextBlockTrackerRequest({
+                      blockNumber: currentBlockNumber,
+                    });
+                    comms.mockRpcCall({
+                      request: buildRequestWithReplacedBlockParam(
+                        requests[0],
+                        blockParamIndex,
+                        '0x100',
+                      ),
+                      response: { result: mockResults[0] },
+                    });
+                    comms.mockRpcCall({
+                      request: buildRequestWithReplacedBlockParam(
+                        requests[1],
+                        blockParamIndex,
+                        '0x100',
+                      ),
+                      response: { result: mockResults[1] },
+                    });
+
+                    const results = await withNetworkClient(
+                      { providerType },
+                      ({ makeRpcCallsInSeries }) =>
+                        makeRpcCallsInSeries(requests),
+                    );
+
+                    expect(results).toStrictEqual(mockResults);
+                  },
+                );
+              });
+            }
+          }
+        });
+      }
 
       describe('greater than the current block number', () => {
         it('makes an additional request to the RPC endpoint', async () => {
@@ -1771,43 +2032,37 @@ export function testsForRpcMethodSupportingBlockParam(
     }
   });
 
-  if (method !== 'eth_getTransactionCount') {
-    describe('given a block tag of "pending"', () => {
-      const params = buildMockParams({
-        blockParamIndex,
-        blockParam: 'pending',
-      });
+  describe('given a block tag of "pending"', () => {
+    const params = buildMockParams({ blockParamIndex, blockParam: 'pending' });
 
-      it('hits the RPC endpoint once per request', async () => {
-        const requests = [
-          { method, params },
-          { method, params },
-        ];
-        const mockResults = ['first result', 'second result'];
+    it('hits the RPC endpoint on all calls and does not cache anything', async () => {
+      const requests = [
+        { method, params },
+        { method, params },
+      ];
+      const mockResults = ['first result', 'second result'];
 
-        await withMockedCommunications({ providerType }, async (comms) => {
-          // The first time a block-cacheable request is made, the latest
-          // block number is retrieved through the block tracker first. It
-          // doesn't matter what this is — it's just used as a cache key.
-          comms.mockNextBlockTrackerRequest();
-          comms.mockRpcCall({
-            request: requests[0],
-            response: { result: mockResults[0] },
-          });
-
-          comms.mockRpcCall({
-            request: requests[1],
-            response: { result: mockResults[1] },
-          });
-
-          const results = await withNetworkClient(
-            { providerType },
-            ({ makeRpcCallsInSeries }) => makeRpcCallsInSeries(requests),
-          );
-
-          expect(results).toStrictEqual([mockResults[0], mockResults[1]]);
+      await withMockedCommunications({ providerType }, async (comms) => {
+        // The first time a block-cacheable request is made, the latest
+        // block number is retrieved through the block tracker first. It
+        // doesn't matter what this is — it's just used as a cache key.
+        comms.mockNextBlockTrackerRequest();
+        comms.mockRpcCall({
+          request: requests[0],
+          response: { result: mockResults[0] },
         });
+        comms.mockRpcCall({
+          request: requests[1],
+          response: { result: mockResults[1] },
+        });
+
+        const results = await withNetworkClient(
+          { providerType },
+          ({ makeRpcCallsInSeries }) => makeRpcCallsInSeries(requests),
+        );
+
+        expect(results).toStrictEqual(mockResults);
       });
     });
-  }
+  });
 }

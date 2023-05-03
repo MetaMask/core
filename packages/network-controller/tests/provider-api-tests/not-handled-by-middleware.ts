@@ -36,7 +36,10 @@ export function testsForRpcMethodNotHandledByMiddleware(
     const expectedResult = 'the result';
 
     await withMockedCommunications({ providerType }, async (comms) => {
-      comms.mockNextBlockTrackerRequest({ blockNumber: '0x1' });
+      // The first time a block-cacheable request is made, the latest block
+      // number is retrieved through the block tracker first. It doesn't
+      // matter what this is — it's just used as a cache key.
+      comms.mockNextBlockTrackerRequest();
       comms.mockRpcCall({
         request,
         response: { result: expectedResult },

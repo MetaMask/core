@@ -15,8 +15,10 @@ import {
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
 
+const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
+
 const MAINNET_PROVIDER = new HttpProvider(
-  'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
@@ -37,7 +39,7 @@ const setupControllers = () => {
       allowedActions: [],
     });
   const network = new NetworkController({
-    infuraProjectId: 'infura-project-id',
+    infuraProjectId: INFURA_PROJECT_ID,
     messenger,
     trackMetaMetricsEvent: jest.fn(),
   });

@@ -17,8 +17,10 @@ import {
   NetworkType,
   isSafeChainId,
   isNetworkType,
+  toHex,
 } from '@metamask/controller-utils';
 import {
+  Hex,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
@@ -255,8 +257,6 @@ export class NetworkController extends BaseControllerV2<
 
   #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
 
-  #provider: Provider | undefined;
-
   #providerProxy: ProviderProxy | undefined;
 
   #blockTrackerProxy: BlockTrackerProxy | undefined;
@@ -316,7 +316,11 @@ export class NetworkController extends BaseControllerV2<
     this.#previousNetworkSpecifier = this.state.providerConfig.type;
   }
 
-  #configureProvider(type: NetworkType, rpcUrl?: string, chainId?: string) {
+  #configureProvider(
+    type: NetworkType,
+    rpcUrl: string | undefined,
+    chainId: string | undefined,
+  ) {
     switch (type) {
       case NetworkType.mainnet:
       case NetworkType.goerli:
@@ -331,7 +335,7 @@ export class NetworkController extends BaseControllerV2<
         if (rpcUrl === undefined) {
           throw new Error('rpcUrl must be provided for custom RPC endpoints');
         }
-        this.#setupStandardProvider(rpcUrl, chainId);
+        this.#setupStandardProvider(rpcUrl, toHex(chainId));
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -363,7 +367,6 @@ export class NetworkController extends BaseControllerV2<
     const { provider } = this.getProviderAndBlockTracker();
 
     if (provider) {
-      provider.on('error', this.#verifyNetwork.bind(this));
       this.#ethQuery = new EthQuery(provider);
     }
   }
@@ -378,7 +381,7 @@ export class NetworkController extends BaseControllerV2<
     this.#updateProvider(provider, blockTracker);
   }
 
-  #setupStandardProvider(rpcUrl: string, chainId: string) {
+  #setupStandardProvider(rpcUrl: string, chainId: Hex) {
     const { provider, blockTracker } = createNetworkClient({
       chainId,
       rpcUrl,
@@ -388,25 +391,12 @@ export class NetworkController extends BaseControllerV2<
     this.#updateProvider(provider, blockTracker);
   }
 
-  #updateProvider(provider: Provider, blockTracker: any) {
-    this.#safelyStopProvider(this.#provider);
+  #updateProvider(provider: Provider, blockTracker: BlockTracker) {
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker,
     });
     this.#registerProvider();
-  }
-
-  #safelyStopProvider(provider: Provider | undefined) {
-    setTimeout(() => {
-      provider?.stop();
-    }, 500);
-  }
-
-  async #verifyNetwork() {
-    if (this.state.networkStatus !== NetworkStatus.Available) {
-      await this.lookupNetwork();
-    }
   }
 
   /**
@@ -656,7 +646,6 @@ export class NetworkController extends BaseControllerV2<
     } else {
       this.#providerProxy = createEventEmitterProxy(provider);
     }
-    this.#provider = provider;
 
     if (this.#blockTrackerProxy) {
       this.#blockTrackerProxy.setTarget(blockTracker);
