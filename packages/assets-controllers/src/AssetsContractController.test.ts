@@ -291,9 +291,9 @@ describe('AssetsContractController', () => {
 
   it('should not have balance in a single call after switching to network without token detection support', async () => {
     const { assetsContract, messenger, network } = setupControllers();
-    await network.initializeProvider();
-    const { provider } = network.getProviderAndBlockTracker();
-    assetsContract.configure({ provider });
+    assetsContract.configure({
+      provider: MAINNET_PROVIDER,
+    });
 
     const balances = await assetsContract.getBalancesInSingleCall(
       ERC20_DAI_ADDRESS,
