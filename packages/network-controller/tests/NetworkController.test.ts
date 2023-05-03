@@ -4097,7 +4097,7 @@ describe('NetworkController', () => {
                 await controller.resetConnection();
 
                 const { provider } = controller.getProviderAndBlockTracker();
-                assert(provider, 'Provider is somehow unset');
+                assert(provider);
                 const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                   provider,
                 );
@@ -4369,7 +4369,7 @@ describe('NetworkController', () => {
 
             await controller.resetConnection();
             const { provider } = controller.getProviderAndBlockTracker();
-            assert(provider, 'Provider is somehow unset');
+            assert(provider);
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
             );
@@ -5557,7 +5557,7 @@ describe('NetworkController', () => {
               await controller.rollbackToPreviousProvider();
 
               const { provider } = controller.getProviderAndBlockTracker();
-              assert(provider, 'Provider is somehow unset');
+              assert(provider);
               const promisifiedSendAsync = promisify(provider.sendAsync).bind(
                 provider,
               );
@@ -5998,7 +5998,7 @@ describe('NetworkController', () => {
             await controller.rollbackToPreviousProvider();
 
             const { provider } = controller.getProviderAndBlockTracker();
-            assert(provider, 'Provider is somehow unset');
+            assert(provider);
             const promisifiedSendAsync = promisify(provider.sendAsync).bind(
               provider,
             );
