@@ -62,7 +62,6 @@ export function buildFetchFailedErrorMessage(url: string, reason: string) {
 export function testsForProviderType(providerType: ProviderType) {
   // Ethereum JSON-RPC spec: <https://ethereum.github.io/execution-apis/api-documentation/>
   // Infura documentation: <https://docs.infura.io/infura/networks/ethereum/json-rpc-methods>
-
   describe('methods included in the Ethereum JSON-RPC spec', () => {
     describe('methods not handled by middleware', () => {
       const notHandledByMiddleware = [

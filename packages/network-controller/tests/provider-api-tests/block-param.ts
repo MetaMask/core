@@ -27,9 +27,10 @@ type TestsForRpcMethodSupportingBlockParam = {
  * @param method - The name of the RPC method under test.
  * @param additionalArgs - Additional arguments.
  * @param additionalArgs.blockParamIndex - The index of the block parameter.
- * @param additionalArgs.numberOfParameters - The number of parameters supported by the method under test.
+ * @param additionalArgs.numberOfParameters - The number of parameters
+ * supported by the method under test.
  * @param additionalArgs.providerType - The type of provider being tested.
- * either `infura` or `custom` (default: "infura").
+ * either `infura` or `custom`.
  */
 export function testsForRpcMethodSupportingBlockParam(
   method: string,

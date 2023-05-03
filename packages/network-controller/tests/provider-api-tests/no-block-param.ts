@@ -22,9 +22,10 @@ type TestsForRpcMethodAssumingNoBlockParamOptions = {
  *
  * @param method - The name of the RPC method under test.
  * @param additionalArgs - Additional arguments.
- * @param additionalArgs.numberOfParameters - The number of parameters supported by the method under test.
+ * @param additionalArgs.numberOfParameters - The number of parameters
+ * supported by the method under test.
  * @param additionalArgs.providerType - The type of provider being tested;
- * either `infura` or `custom` (default: "infura").
+ * either `infura` or `custom`.
  */
 export function testsForRpcMethodAssumingNoBlockParam(
   method: string,
@@ -33,12 +34,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
     providerType,
   }: TestsForRpcMethodAssumingNoBlockParamOptions,
 ) {
-  if (providerType !== 'infura' && providerType !== 'custom') {
-    throw new Error(
-      `providerType must be either "infura" or "custom", was "${providerType}" instead`,
-    );
-  }
-
   it('does not hit the RPC endpoint more than once for identical requests', async () => {
     const requests = [{ method }, { method }];
     const mockResults = ['first result', 'second result'];

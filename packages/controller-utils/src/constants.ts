@@ -72,11 +72,6 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: 'https://etherscan.io',
     },
   },
-  [NetworkType.localhost]: {
-    chainId: NetworksChainId.localhost,
-    blockExplorerUrl: undefined,
-    rpcPrefs: undefined,
-  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,

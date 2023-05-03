@@ -19,7 +19,7 @@ type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
  * @param additionalArgs.numberOfParameters - The number of parameters supported
  * by the method under test.
  * @param additionalArgs.providerType - The type of provider being tested;
- * either `infura` or `custom` (default: "infura").
+ * either `infura` or `custom`.
  */
 export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   method: string,
