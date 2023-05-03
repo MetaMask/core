@@ -6,7 +6,7 @@ import * as ethQueryModule from 'eth-query';
 import { Patch } from 'immer';
 import { v4 } from 'uuid';
 import { ethErrors } from 'eth-rpc-errors';
-import { NetworkType } from '@metamask/controller-utils';
+import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 import { waitForResult } from '../../../tests/helpers';
 import {
   NetworkController,
@@ -19,7 +19,6 @@ import {
 } from '../src/NetworkController';
 import type { Provider } from '../src/types';
 import { NetworkStatus } from '../src/constants';
-import { BUILT_IN_NETWORKS } from '../../controller-utils/src/constants';
 import {
   createNetworkClient,
   NetworkClientType,
