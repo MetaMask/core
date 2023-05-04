@@ -153,11 +153,6 @@ export type NetworkControllerStateChangeEvent = {
   payload: [NetworkState, Patch[]];
 };
 
-export type NetworkControllerProviderConfigChangeEvent = {
-  type: `NetworkController:providerConfigChange`;
-  payload: [ProviderConfig];
-};
-
 /**
  * `infuraIsBlocked` is published after the network is switched to an Infura
  * network, but when Infura returns an error blocking the user based on their
@@ -180,9 +175,13 @@ export type NetworkControllerInfuraIsUnblockedEvent = {
 
 export type NetworkControllerEvents =
   | NetworkControllerStateChangeEvent
-  | NetworkControllerProviderConfigChangeEvent
   | NetworkControllerInfuraIsBlockedEvent
   | NetworkControllerInfuraIsUnblockedEvent;
+
+export type NetworkControllerGetStateAction = {
+  type: `NetworkController:getState`;
+  handler: () => NetworkState;
+};
 
 export type NetworkControllerGetProviderConfigAction = {
   type: `NetworkController:getProviderConfig`;
@@ -195,12 +194,13 @@ export type NetworkControllerGetEthQueryAction = {
 };
 
 export type NetworkControllerActions =
+  | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  NetworkControllerGetProviderConfigAction | NetworkControllerGetEthQueryAction,
+  NetworkControllerActions,
   NetworkControllerEvents,
   string,
   string
@@ -513,11 +513,6 @@ export class NetworkController extends BaseControllerV2<
         // previously connected to an Infura network that was blocked
         this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
       }
-
-      this.messagingSystem.publish(
-        `NetworkController:providerConfigChange`,
-        this.state.providerConfig,
-      );
     } finally {
       releaseLock();
     }

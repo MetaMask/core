@@ -2,7 +2,6 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import {
-  NetworkControllerProviderConfigChangeEvent,
   NetworkControllerStateChangeEvent,
   defaultState as defaultNetworkState,
   NetworkState,
@@ -89,9 +88,7 @@ const sampleTokenB: Token = {
 
 type MainControllerMessenger = ControllerMessenger<
   GetTokenListState,
-  | TokenListStateChange
-  | NetworkControllerProviderConfigChangeEvent
-  | NetworkControllerStateChangeEvent
+  TokenListStateChange | NetworkControllerStateChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -106,7 +103,7 @@ const setupTokenListController = (
     allowedActions: [],
     allowedEvents: [
       'TokenListController:stateChange',
-      'NetworkController:providerConfigChange',
+      'NetworkController:stateChange',
     ],
   });
 

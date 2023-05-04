@@ -448,19 +448,6 @@ describe('NetworkController', () => {
           await expect(promiseForNetworkChanges).toNeverResolve();
         });
       });
-
-      it('does not publish NetworkController:providerConfigChange', async () => {
-        await withController(async ({ controller, messenger }) => {
-          const promiseForProviderConfigChange = waitForPublishedEvents(
-            messenger,
-            'NetworkController:providerConfigChange',
-          );
-
-          await controller.lookupNetwork();
-
-          await expect(promiseForProviderConfigChange).toNeverResolve();
-        });
-      });
     });
 
     for (const providerConfig of Object.values(NetworkType).map((networkType) =>
@@ -491,41 +478,6 @@ describe('NetworkController', () => {
                   await controller.lookupNetwork();
 
                   expect(controller.state.networkId).toBe('12345');
-                },
-              );
-            });
-
-            it("publishes NetworkController:providerConfigChange with the current provider config (even though it didn't change)", async () => {
-              await withController(
-                {
-                  state: {
-                    providerConfig,
-                  },
-                },
-                async ({ controller, messenger }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: { method: 'net_version' },
-                        response: { result: '12345' },
-                      },
-                    ],
-                    stubLookupNetworkWhileSetting: true,
-                  });
-
-                  const providerConfigChanges = await waitForPublishedEvents(
-                    messenger,
-                    'NetworkController:providerConfigChange',
-                    {
-                      produceEvents: async () => {
-                        await controller.lookupNetwork();
-                      },
-                    },
-                  );
-
-                  expect(providerConfigChanges).toStrictEqual([
-                    [providerConfig],
-                  ]);
                 },
               );
             });
@@ -713,39 +665,6 @@ describe('NetworkController', () => {
                 expect(controller.state.networkStatus).toBe(
                   NetworkStatus.Unavailable,
                 );
-              },
-            );
-          });
-
-          it("publishes NetworkController:providerConfigChange with the current provider config (even though it didn't change)", async () => {
-            await withController(
-              {
-                state: {
-                  providerConfig,
-                },
-              },
-              async ({ controller, messenger }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: { method: 'net_version' },
-                      error: ethErrors.rpc.limitExceeded('some error'),
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                const providerConfigChanges = await waitForPublishedEvents(
-                  messenger,
-                  'NetworkController:providerConfigChange',
-                  {
-                    produceEvents: async () => {
-                      await controller.lookupNetwork();
-                    },
-                  },
-                );
-
-                expect(providerConfigChanges).toStrictEqual([[providerConfig]]);
               },
             );
           });
@@ -1074,39 +993,6 @@ describe('NetworkController', () => {
             );
           });
 
-          it("publishes NetworkController:providerConfigChange with the current provider config (even though it didn't change)", async () => {
-            await withController(
-              {
-                state: {
-                  providerConfig,
-                },
-              },
-              async ({ controller, messenger }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: { method: 'net_version' },
-                      error: ethErrors.rpc.internal('some error'),
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                const providerConfigChanges = await waitForPublishedEvents(
-                  messenger,
-                  'NetworkController:providerConfigChange',
-                  {
-                    produceEvents: async () => {
-                      await controller.lookupNetwork();
-                    },
-                  },
-                );
-
-                expect(providerConfigChanges).toStrictEqual([[providerConfig]]);
-              },
-            );
-          });
-
           if (providerConfig.type === NetworkType.rpc) {
             it('emits infuraIsUnblocked', async () => {
               await withController(
@@ -1235,39 +1121,6 @@ describe('NetworkController', () => {
                 expect(controller.state.networkStatus).toBe(
                   NetworkStatus.Unknown,
                 );
-              },
-            );
-          });
-
-          it("publishes NetworkController:providerConfigChange with the current provider config (even though it didn't change)", async () => {
-            await withController(
-              {
-                state: {
-                  providerConfig,
-                },
-              },
-              async ({ controller, messenger }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: { method: 'net_version' },
-                      response: { result: 'invalid' },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                const providerConfigChanges = await waitForPublishedEvents(
-                  messenger,
-                  'NetworkController:providerConfigChange',
-                  {
-                    produceEvents: async () => {
-                      await controller.lookupNetwork();
-                    },
-                  },
-                );
-
-                expect(providerConfigChanges).toStrictEqual([[providerConfig]]);
               },
             );
           });
@@ -4606,65 +4459,7 @@ describe('NetworkController', () => {
           );
         });
 
-        it('emits NetworkController:providerConfigChange via the messenger', async () => {
-          const initialProviderConfig = {
-            ...buildProviderConfig({
-              type: networkType,
-              chainId,
-              ticker,
-              rpcPrefs: { blockExplorerUrl },
-            }),
-          };
-          await withController(
-            {
-              state: {
-                networkConfigurations: {
-                  testNetworkConfigurationId: {
-                    chainId: '0x1337',
-                    ticker: 'TEST',
-                    nickname: undefined,
-                    id: 'testNetworkConfigurationId',
-                    rpcUrl: 'https://mock-rpc-url',
-                  },
-                },
-                providerConfig: initialProviderConfig,
-              },
-            },
-            async ({ controller, messenger }) => {
-              const fakeProvider = buildFakeProvider();
-              const fakeNetworkClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-              await controller.setActiveNetwork('testNetworkConfigurationId');
-
-              const promiseForProviderConfigChange =
-                await waitForPublishedEvents(
-                  messenger,
-                  'NetworkController:providerConfigChange',
-                  {
-                    produceEvents: async () => {
-                      await controller.rollbackToPreviousProvider();
-                    },
-                  },
-                );
-
-              expect(promiseForProviderConfigChange).toStrictEqual([
-                [
-                  {
-                    type: networkType,
-                    chainId,
-                    ticker,
-                    rpcPrefs: { blockExplorerUrl },
-                    id: undefined,
-                    nickname: undefined,
-                    rpcUrl: undefined,
-                  },
-                ],
-              ]);
-            },
-          );
-        });
-
-        it('resets isEIP1559Compatible and sets network to "unknown" for the network before emitting NetworkController:providerConfigChange', async () => {
+        it('resets isEIP1559Compatible and sets network to "unknown" for the network before updating the provider', async () => {
           const networkConfiguration = {
             rpcUrl: 'https://mock-rpc-url',
             chainId: '0x1338',
@@ -5038,63 +4833,7 @@ describe('NetworkController', () => {
         );
       });
 
-      it('emits NetworkController:providerConfigChange via the messenger', async () => {
-        const rpcUrlOrTarget = 'https://mock-rpc-url-2';
-        const initialProviderConfigNetworkConfiguration = {
-          chainId: '0x222',
-          ticker: 'TEST2',
-          id: 'testNetworkConfigurationId2',
-          rpcPrefs: { blockExplorerUrl: 'https://test-block-explorer.com' },
-        };
-
-        const initialProviderConfig = {
-          ...buildProviderConfig({
-            ...initialProviderConfigNetworkConfiguration,
-            type: NetworkType.rpc,
-          }),
-        };
-        await withController(
-          {
-            state: {
-              providerConfig: initialProviderConfig,
-              networkConfigurations: {
-                testNetworkConfigurationId1: {
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x111',
-                  ticker: 'TEST',
-                  id: 'testNetworkConfigurationId1',
-                },
-                testNetworkConfigurationId2: {
-                  ...initialProviderConfigNetworkConfiguration,
-                  rpcUrl: rpcUrlOrTarget,
-                },
-              },
-            },
-          },
-          async ({ controller, messenger }) => {
-            const fakeProvider = buildFakeProvider();
-            const fakeNetworkClient = buildFakeClient(fakeProvider);
-            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-            await controller.setActiveNetwork('testNetworkConfigurationId1');
-
-            const promiseForProviderConfigChange = await waitForPublishedEvents(
-              messenger,
-              'NetworkController:providerConfigChange',
-              {
-                produceEvents: async () => {
-                  await controller.rollbackToPreviousProvider();
-                },
-              },
-            );
-
-            expect(promiseForProviderConfigChange).toStrictEqual([
-              [{ ...initialProviderConfig, rpcUrl: rpcUrlOrTarget }],
-            ]);
-          },
-        );
-      });
-
-      it('resets the network state to "unknown" and empties the network details before emitting NetworkController:providerConfigChange', async () => {
+      it('resets the network state to "unknown" and empties the network details before updating the provider', async () => {
         const initialProviderConfigNetworkConfiguration = {
           rpcUrl: 'https://mock-rpc-url-2',
           chainId: '0x1337',
@@ -5493,7 +5232,6 @@ function buildNetworkControllerMessenger(messenger = buildMessenger()) {
       'NetworkController:getEthQuery',
     ],
     allowedEvents: [
-      'NetworkController:providerConfigChange',
       'NetworkController:stateChange',
       'NetworkController:infuraIsBlocked',
       'NetworkController:infuraIsUnblocked',
