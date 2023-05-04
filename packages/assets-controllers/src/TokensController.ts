@@ -1,9 +1,5 @@
 import { EventEmitter } from 'events';
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
@@ -74,7 +70,7 @@ export type SuggestedAssetMetaBase = {
   time: number;
   type: string;
   asset: Token;
-  interactingAddress?: string;
+  interactingAddress: string;
 };
 
 /**
@@ -131,10 +127,7 @@ const controllerName = 'TokensController';
 /**
  * The external actions available to the {@link TokensController}.
  */
-type AllowedActions =
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest;
+type AllowedActions = AddApprovalRequest;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -670,12 +663,10 @@ export class TokensController extends BaseController<
   ): Promise<AssetSuggestionResult> {
     const { selectedAddress } = this.config;
 
-    const suggestedAssetMeta: SuggestedAssetMeta & {
-      interactingAddress: string;
-    } = {
+    const suggestedAssetMeta: SuggestedAssetMeta = {
       asset,
       id: this._generateRandomId(),
-      status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
+      status: SuggestedAssetStatus.pending,
       time: Date.now(),
       type,
       interactingAddress: interactingAddress || selectedAddress,
@@ -899,11 +890,7 @@ export class TokensController extends BaseController<
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });
   }
 
-  _requestApproval(
-    suggestedAssetMeta: SuggestedAssetMeta & {
-      interactingAddress: string;
-    },
-  ) {
+  _requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
     this.messagingSystem
       .call(
         'ApprovalController:addRequest',
