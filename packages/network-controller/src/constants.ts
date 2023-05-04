@@ -17,4 +17,12 @@ export enum NetworkStatus {
    * reasons.
    */
   Unavailable = 'unavailable',
+  /**
+   * The network is not only unavailable, but is also inaccessible for the user
+   * specifically based on their location. This state only applies to Infura
+   * networks.
+   */
+  Blocked = 'blocked',
 }
+
+export const INFURA_BLOCKED_KEY = 'countryBlocked';

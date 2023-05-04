@@ -441,6 +441,7 @@ describe('util', () => {
         const ethQuery = {
           getBlockByHash: (blockId: any, cb: any) => cb(null, { id: blockId }),
         };
+        // @ts-expect-error Mock eth query does not fulfill type requirements
         const result = await util.query(ethQuery, 'getBlockByHash', ['0x1234']);
         expect(result).toStrictEqual({ id: '0x1234' });
       });
@@ -451,6 +452,7 @@ describe('util', () => {
             cb(new Error('uh oh'), null),
         };
         await expect(
+          // @ts-expect-error Mock eth query does not fulfill type requirements
           util.query(ethQuery, 'getBlockByHash', ['0x1234']),
         ).rejects.toThrow('uh oh');
       });
@@ -522,16 +524,6 @@ describe('util', () => {
     it('returns true for objects', () => {
       expect(util.isPlainObject({ foo: 'bar' })).toBe(true);
       expect(util.isPlainObject({ foo: 'bar', test: { num: 5 } })).toBe(true);
-    });
-  });
-
-  describe('hasProperty', () => {
-    it('returns false for non existing properties', () => {
-      expect(util.hasProperty({ foo: 'bar' }, 'property')).toBe(false);
-    });
-
-    it('returns true for existing properties', () => {
-      expect(util.hasProperty({ foo: 'bar' }, 'foo')).toBe(true);
     });
   });
 

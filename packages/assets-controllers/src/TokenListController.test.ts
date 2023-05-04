@@ -752,7 +752,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.localhost,
+      chainId: NetworksChainId.sepolia,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -1036,7 +1036,7 @@ describe('TokenListController', () => {
     controllerMessenger.publish('NetworkController:providerConfigChange', {
       type: NetworkType.rpc,
       chainId: '56',
-      rpcTarget: 'http://localhost:8545',
+      rpcUrl: 'http://localhost:8545',
     });
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
@@ -1138,7 +1138,7 @@ describe('TokenListController', () => {
       controllerMessenger.publish('NetworkController:providerConfigChange', {
         type: NetworkType.rpc,
         chainId: '56',
-        rpcTarget: 'http://localhost:8545',
+        rpcUrl: 'http://localhost:8545',
       });
     });
   });

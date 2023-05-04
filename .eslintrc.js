@@ -11,8 +11,22 @@ module.exports = {
   ],
   overrides: [
     {
-      files: ['*.test.ts', '*.test.js'],
+      files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
       extends: ['@metamask/eslint-config-jest'],
+    },
+    {
+      // These files are test helpers, not tests. We still use the Jest ESLint
+      // config here to ensure that ESLint expects a test-like environment, but
+      // various rules meant just to apply to tests have been disabled.
+      files: ['**/tests/**/*.{ts,js}', '!*.test.{ts,js}'],
+      rules: {
+        'jest/no-export': 'off',
+        'jest/require-top-level-describe': 'off',
+        'jest/no-if': 'off',
+        'jest/no-test-return-statement': 'off',
+        // TODO: Re-enable this rule; we can accomodate this even in our test helpers
+        'jest/expect-expect': 'off',
+      },
     },
     {
       files: ['*.js'],

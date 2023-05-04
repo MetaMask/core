@@ -1,6 +1,6 @@
 {
   "name": "@metamask/message-manager",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "MetaMask",
@@ -48,7 +48,7 @@
     "typescript": "~4.6.3"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "publishConfig": {
     "access": "public",

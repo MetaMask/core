@@ -1,13 +1,24 @@
 /**
- * Human-readable network name
+ * The names of built-in Infura networks
  */
-export enum NetworkType {
-  localhost = 'localhost',
-  mainnet = 'mainnet',
-  goerli = 'goerli',
-  sepolia = 'sepolia',
-  rpc = 'rpc',
-}
+export const InfuraNetworkType = {
+  mainnet: 'mainnet',
+  goerli: 'goerli',
+  sepolia: 'sepolia',
+} as const;
+
+export type InfuraNetworkType =
+  typeof InfuraNetworkType[keyof typeof InfuraNetworkType];
+
+/**
+ * The "network type"; either the name of a built-in network, or "rpc" for custom networks.
+ */
+export const NetworkType = {
+  ...InfuraNetworkType,
+  rpc: 'rpc',
+} as const;
+
+export type NetworkType = typeof NetworkType[keyof typeof NetworkType];
 
 /**
  * A helper to determine whether a given input is NetworkType.
@@ -23,7 +34,6 @@ export enum NetworksChainId {
   mainnet = '1',
   goerli = '5',
   sepolia = '11155111',
-  localhost = '',
   rpc = '',
 }
 
@@ -37,7 +47,6 @@ export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
   sepolia = 'SepoliaETH',
-  localhost = '',
   rpc = '',
 }
 

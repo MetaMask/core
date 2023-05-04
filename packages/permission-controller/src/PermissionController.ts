@@ -4,6 +4,7 @@ import deepFreeze from 'deep-freeze-strict';
 import { castDraft, Draft, Patch } from 'immer';
 import { nanoid } from 'nanoid';
 import { EthereumRpcError } from 'eth-rpc-errors';
+import { hasProperty } from '@metamask/utils';
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -18,7 +19,6 @@ import {
   EventConstraint,
 } from '@metamask/base-controller';
 import {
-  hasProperty,
   isNonEmptyArray,
   isPlainObject,
   isValidJson,
