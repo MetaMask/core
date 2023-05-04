@@ -496,26 +496,20 @@ describe('NetworkController', () => {
       });
     });
 
-    [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
-      (networkType) => {
-        describe(`when the provider config in state contains a network type of "${networkType}"`, () => {
-          lookupNetworkTests(
-            buildProviderConfig({ type: networkType }),
-            async (controller: NetworkController) => {
-              await controller.lookupNetwork();
-            },
-          );
-        });
-      },
-    );
-
-    describe('when the provider config in state contains a network type of "rpc"', () => {
-      lookupNetworkTests(
-        buildProviderConfig({ type: NetworkType.rpc }),
-        async (controller: NetworkController) => {
-          await controller.lookupNetwork();
-        },
-      );
+    [
+      NetworkType.mainnet,
+      NetworkType.goerli,
+      NetworkType.sepolia,
+      NetworkType.rpc,
+    ].forEach((networkType) => {
+      describe(`when the provider config in state contains a network type of "${networkType}"`, () => {
+        lookupNetworkTests(
+          buildProviderConfig({ type: networkType }),
+          async (controller: NetworkController) => {
+            await controller.lookupNetwork();
+          },
+        );
+      });
     });
 
     describe('if lookupNetwork is called multiple times in quick succession', () => {
