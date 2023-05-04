@@ -92,7 +92,6 @@ describe('TokensController', () => {
       allTokens: {},
       allIgnoredTokens: {},
       ignoredTokens: [],
-      suggestedAssets: [],
       tokens: [],
       detectedTokens: [],
       allDetectedTokens: {},
@@ -985,7 +984,6 @@ describe('TokensController', () => {
 
       await tokensController.watchAsset(asset, type);
 
-      expect(tokensController.state.suggestedAssets).toStrictEqual([]);
       expect(tokensController.state.tokens).toHaveLength(1);
       expect(tokensController.state.tokens).toStrictEqual([
         {
@@ -1024,7 +1022,6 @@ describe('TokensController', () => {
 
       await tokensController.watchAsset(asset, type, interactingAddress);
 
-      expect(tokensController.state.suggestedAssets).toStrictEqual([]);
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.tokens).toStrictEqual([]);
       expect(

@@ -58,7 +58,7 @@ export interface TokensConfig extends BaseConfig {
  * @property asset - Asset suggested object
  * @property interactingAddress - Account address that requested watch asset
  */
-export type SuggestedAssetMeta = {
+type SuggestedAssetMeta = {
   id: string;
   time: number;
   type: string;
@@ -76,7 +76,6 @@ export type SuggestedAssetMeta = {
  * @property allTokens - Object containing tokens by network and account
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
- * @property suggestedAssets - List of pending suggested assets to be added or canceled
  */
 export interface TokensState extends BaseState {
   tokens: Token[];
@@ -85,7 +84,6 @@ export interface TokensState extends BaseState {
   allTokens: { [key: string]: { [key: string]: Token[] } };
   allIgnoredTokens: { [key: string]: { [key: string]: string[] } };
   allDetectedTokens: { [key: string]: { [key: string]: Token[] } };
-  suggestedAssets: SuggestedAssetMeta[];
 }
 
 /**
@@ -205,7 +203,6 @@ export class TokensController extends BaseController<
       allTokens: {},
       allIgnoredTokens: {},
       allDetectedTokens: {},
-      suggestedAssets: [],
       ...state,
     };
 
@@ -615,6 +612,10 @@ export class TokensController extends BaseController<
     type: string,
     interactingAddress?: string,
   ): Promise<void> {
+    if (type !== 'ERC20') {
+      throw new Error(`Asset of type ${type} not supported`);
+    }
+
     const { selectedAddress } = this.config;
 
     const suggestedAssetMeta: SuggestedAssetMeta = {
@@ -625,37 +626,17 @@ export class TokensController extends BaseController<
       interactingAddress: interactingAddress || selectedAddress,
     };
 
-    let acceptWatchAsset: () => Promise<void>;
-    switch (type) {
-      case 'ERC20':
-        validateTokenToWatch(asset);
-        acceptWatchAsset = async () => {
-          await this.addToken(
-            asset.address,
-            asset.symbol,
-            asset.decimals,
-            asset.image,
-            suggestedAssetMeta.interactingAddress,
-          );
-        };
-        break;
-      default:
-        throw new Error(`Asset of type ${type} not supported`);
-    }
+    validateTokenToWatch(asset);
 
-    const { suggestedAssets } = this.state;
-    suggestedAssets.push(suggestedAssetMeta);
-    this.update({ suggestedAssets: [...suggestedAssets] });
+    await this._requestApproval(suggestedAssetMeta);
 
-    try {
-      await this._requestApproval(suggestedAssetMeta);
-      await acceptWatchAsset();
-    } finally {
-      const newSuggestedAssets = suggestedAssets.filter(
-        ({ id }) => id !== suggestedAssetMeta.id,
-      );
-      this.update({ suggestedAssets: [...newSuggestedAssets] });
-    }
+    await this.addToken(
+      asset.address,
+      asset.symbol,
+      asset.decimals,
+      asset.image,
+      suggestedAssetMeta.interactingAddress,
+    );
   }
 
   /**
@@ -756,7 +737,7 @@ export class TokensController extends BaseController<
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });
   }
 
-  _requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
+  async _requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
     return this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
