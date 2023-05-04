@@ -6100,10 +6100,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
 
           await beforeResolving();
 
-          if (
-            expectedNumberOfEvents === null ||
-            interestingEventPayloads.length === expectedNumberOfEvents
-          ) {
+          if (interestingEventPayloads.length === expectedNumberOfEvents) {
             resolve(interestingEventPayloads);
           } else {
             // Using a string instead of an Error leads to better backtraces.
