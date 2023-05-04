@@ -365,6 +365,15 @@ describe('KeyringController', () => {
           expect(keyringState).toStrictEqual(modifiedState);
           expect(importedAccountAddress).toBe(address);
         });
+
+        it('should not select imported account', async () => {
+          const somePassword = 'holachao123';
+          await keyringController.importAccountWithStrategy(
+            AccountImportStrategy.json,
+            [input, somePassword],
+          );
+          expect(preferences.setSelectedAddress.called).toBe(false);
+        });
       });
 
       describe('when wrong data is provided', () => {
