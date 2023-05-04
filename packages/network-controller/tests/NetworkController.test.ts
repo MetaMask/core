@@ -5339,29 +5339,19 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                providerConfig: {
+                providerConfig: buildProviderConfig({
                   type: networkType,
-                  // NOTE: This doesn't need to match the logical chain ID
-                  // of the network selected, it just needs to exist
-                  chainId: '111',
-                  // NOTE: This doesn't need to match the logical chain ID
-                  // of the network selected, it just needs to exist
-                  rpcUrl: 'https://mock-rpc-url-1',
-                  ticker: 'TEST1',
-                  nickname: 'test network 1',
-                  rpcPrefs: {
-                    blockExplorerUrl: 'https://test-block-explorer-1.com',
-                  },
-                },
+                  ...BUILT_IN_NETWORKS[networkType],
+                }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
-                    rpcUrl: 'https://mock-rpc-url-2',
-                    chainId: '0x222',
-                    ticker: 'TEST2',
-                    nickname: 'test network 2',
+                    rpcUrl: 'https://mock-rpc-url',
+                    chainId: '0x1337',
+                    ticker: 'TEST',
+                    nickname: 'test network',
                     rpcPrefs: {
-                      blockExplorerUrl: 'https://test-block-explorer-2.com',
+                      blockExplorerUrl: 'https://test-block-explorer.com',
                     },
                   },
                 },
@@ -5376,8 +5366,8 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  rpcUrl: 'https://mock-rpc-url-2',
-                  chainId: '0x222',
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: '0x1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5391,27 +5381,23 @@ describe('NetworkController', () => {
               expect(controller.state.providerConfig).toStrictEqual({
                 type: 'rpc',
                 id: 'testNetworkConfiguration',
-                rpcUrl: 'https://mock-rpc-url-2',
-                chainId: '0x222',
-                ticker: 'TEST2',
-                nickname: 'test network 2',
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: '0x1337',
+                ticker: 'TEST',
+                nickname: 'test network',
                 rpcPrefs: {
-                  blockExplorerUrl: 'https://test-block-explorer-2.com',
+                  blockExplorerUrl: 'https://test-block-explorer.com',
                 },
               });
 
               await controller.rollbackToPreviousProvider();
 
-              expect(controller.state.providerConfig).toStrictEqual({
-                type: networkType,
-                chainId: '111',
-                rpcUrl: 'https://mock-rpc-url-1',
-                ticker: 'TEST1',
-                nickname: 'test network 1',
-                rpcPrefs: {
-                  blockExplorerUrl: 'https://test-block-explorer-1.com',
-                },
-              });
+              expect(controller.state.providerConfig).toStrictEqual(
+                buildProviderConfig({
+                  type: networkType,
+                  ...BUILT_IN_NETWORKS[networkType],
+                }),
+              );
             },
           );
         });
@@ -5420,17 +5406,14 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                providerConfig: {
+                providerConfig: buildProviderConfig({
                   type: networkType,
-                  // NOTE: This doesn't need to match the logical chain ID of
-                  // the network selected, it just needs to exist
-                  chainId: '0x111',
-                },
+                }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x222',
+                    chainId: '0x1337',
                     ticker: 'TEST',
                   },
                 },
@@ -5462,7 +5445,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x222',
+                  chainId: '0x1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5497,17 +5480,14 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                providerConfig: {
+                providerConfig: buildProviderConfig({
                   type: networkType,
-                  // NOTE: This doesn't need to match the logical chain ID of
-                  // the network selected, it just needs to exist
-                  chainId: '111',
-                },
+                }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x222',
+                    chainId: '0x1337',
                     ticker: 'TEST',
                   },
                 },
@@ -5536,7 +5516,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x222',
+                  chainId: '0x1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5573,17 +5553,14 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                providerConfig: {
+                providerConfig: buildProviderConfig({
                   type: networkType,
-                  // NOTE: This doesn't need to match the logical chain ID of
-                  // the network selected, it just needs to exist
-                  chainId: '111',
-                },
+                }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x222',
+                    chainId: '0x1337',
                     ticker: 'TEST',
                   },
                 },
@@ -5611,7 +5588,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x222',
+                  chainId: '0x1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5644,17 +5621,14 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                providerConfig: {
+                providerConfig: buildProviderConfig({
                   type: networkType,
-                  // NOTE: This doesn't need to match the logical chain ID of
-                  // the network selected, it just needs to exist
-                  chainId: '111',
-                },
+                }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x222',
+                    chainId: '0x1337',
                     ticker: 'TEST',
                   },
                 },
@@ -5670,7 +5644,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x222',
+                  chainId: '0x1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5697,17 +5671,14 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                providerConfig: {
+                providerConfig: buildProviderConfig({
                   type: networkType,
-                  // NOTE: This doesn't need to match the logical chain ID of
-                  // the network selected, it just needs to exist
-                  chainId: '111',
-                },
+                }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x222',
+                    chainId: '0x1337',
                     ticker: 'TEST',
                   },
                 },
@@ -5733,7 +5704,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x222',
+                  chainId: '0x1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5767,17 +5738,14 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                providerConfig: {
+                providerConfig: buildProviderConfig({
                   type: networkType,
-                  // NOTE: This doesn't need to match the logical chain ID of
-                  // the network selected, it just needs to exist
-                  chainId: '111',
-                },
+                }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x222',
+                    chainId: '0x1337',
                     ticker: 'TEST',
                   },
                 },
@@ -5810,7 +5778,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x222',
+                  chainId: '0x1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5838,17 +5806,14 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                providerConfig: {
+                providerConfig: buildProviderConfig({
                   type: networkType,
-                  // NOTE: This doesn't need to match the logical chain ID of
-                  // the network selected, it just needs to exist
-                  chainId: '111',
-                },
+                }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x222',
+                    chainId: '0x1337',
                     ticker: 'TEST',
                   },
                 },
@@ -5886,7 +5851,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x222',
+                  chainId: '0x1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5924,7 +5889,7 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              providerConfig: {
+              providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
@@ -5933,7 +5898,7 @@ describe('NetworkController', () => {
                 rpcPrefs: {
                   blockExplorerUrl: 'https://test-block-explorer.com',
                 },
-              },
+              }),
             },
             infuraProjectId: 'some-infura-project-id',
           },
@@ -5970,16 +5935,18 @@ describe('NetworkController', () => {
             });
 
             await controller.rollbackToPreviousProvider();
-            expect(controller.state.providerConfig).toStrictEqual({
-              type: 'rpc',
-              rpcUrl: 'https://mock-rpc-url',
-              chainId: '1337',
-              nickname: 'network',
-              ticker: 'TEST',
-              rpcPrefs: {
-                blockExplorerUrl: 'https://test-block-explorer.com',
-              },
-            });
+            expect(controller.state.providerConfig).toStrictEqual(
+              buildProviderConfig({
+                type: 'rpc',
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: '1337',
+                nickname: 'network',
+                ticker: 'TEST',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer.com',
+                },
+              }),
+            );
           },
         );
       });
@@ -5988,11 +5955,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              providerConfig: {
+              providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
-              },
+              }),
             },
             infuraProjectId: 'some-infura-project-id',
           },
@@ -6056,11 +6023,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              providerConfig: {
+              providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
-              },
+              }),
             },
             infuraProjectId: 'some-infura-project-id',
           },
@@ -6122,11 +6089,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              providerConfig: {
+              providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
-              },
+              }),
             },
             infuraProjectId: 'some-infura-project-id',
           },
@@ -6184,11 +6151,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              providerConfig: {
+              providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
-              },
+              }),
             },
             infuraProjectId: 'some-infura-project-id',
           },
@@ -6228,11 +6195,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              providerConfig: {
+              providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
-              },
+              }),
             },
             infuraProjectId: 'some-infura-project-id',
           },
@@ -6276,11 +6243,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              providerConfig: {
+              providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
-              },
+              }),
             },
             infuraProjectId: 'some-infura-project-id',
           },
@@ -6339,11 +6306,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              providerConfig: {
+              providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
                 chainId: '1337',
-              },
+              }),
               networkDetails: {},
             },
             infuraProjectId: 'some-infura-project-id',
