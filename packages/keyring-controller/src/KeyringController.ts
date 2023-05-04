@@ -306,12 +306,12 @@ export class KeyringController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     try {
       let vault;
-      const accounts = await this.#keyring.getAccounts();
+      const accounts = await this.getAccounts();
       if (accounts.length > 0) {
-        vault = await this.#keyring.fullUpdate();
+        vault = await this.fullUpdate();
       } else {
         vault = await this.#keyring.createNewVaultAndKeychain(password);
-        this.updateIdentities(await this.#keyring.getAccounts());
+        this.updateIdentities(await this.getAccounts());
         this.fullUpdate();
       }
 
