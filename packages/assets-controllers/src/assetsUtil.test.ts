@@ -264,6 +264,14 @@ describe('assetsUtil', () => {
       ).toBe(true);
     });
 
+    it('returns true for tbe Aurora network', () => {
+      expect(
+        assetsUtil.isTokenDetectionSupportedForNetwork(
+          assetsUtil.SupportedTokenDetectionNetworks.aurora,
+        ),
+      ).toBe(true);
+    });
+
     it('returns false for testnets such as Goerli', () => {
       expect(assetsUtil.isTokenDetectionSupportedForNetwork('5')).toBe(false);
     });
