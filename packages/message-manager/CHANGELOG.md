@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.0]
-### Uncategorized
-- Create signature controller package ([#1214](https://github.com/MetaMask/core/pull/1214))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+### Changed
+- **BREAKING:** Change type of `securityProviderResponse` to `Record` ([#1214](https://github.com/MetaMask/core/pull/1214))
+- **BREAKING:** Update to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
 
 ## [3.1.1]
 ### Fixed
