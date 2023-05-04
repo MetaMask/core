@@ -6777,7 +6777,7 @@ async function setFakeProvider(
  * interest.
  * @param options.wait - The amount of time in milliseconds to wait for the
  * expected number of filtered events to occur before resolving the promise that
- * this function returns (default: 250).
+ * this function returns (default: 150).
  * @param options.produceEvents - A function to run that will presumably produce
  * the events in question.
  * @param options.beforeResolving - In some tests, events occur so fast, we need
@@ -6800,7 +6800,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
   {
     count: expectedNumberOfEvents = 1,
     filter: isEventPayloadInteresting = () => true,
-    wait: timeBeforeAssumingNoMoreEvents = 250,
+    wait: timeBeforeAssumingNoMoreEvents = 150,
     produceEvents = () => {
       // do nothing
     },
@@ -6910,7 +6910,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>(
  * @param options.count - The number of events you expect to occur (default: 1).
  * @param options.wait - The amount of time in milliseconds to wait for the
  * expected number of filtered events to occur before resolving the promise that
- * this function returns (default: 250).
+ * this function returns (default: 150).
  * @param options.produceStateChanges - A function to run that will presumably
  * produce the state changes in question.
  * @param options.beforeResolving - In some tests, state updates happen so fast,

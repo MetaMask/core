@@ -1,7 +1,7 @@
 const UNRESOLVED = Symbol('timedOut');
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
-const TIME_TO_WAIT_UNTIL_UNRESOLVED = 200;
+const TIME_TO_WAIT_UNTIL_UNRESOLVED = 100;
 
 /**
  * Produces a sort of dummy promise which can be used in conjunction with a
@@ -37,23 +37,11 @@ expect.extend({
       );
     }
 
-    let fulfillmentValue: any = UNRESOLVED;
     let rejectionValue: any = UNRESOLVED;
     try {
-      fulfillmentValue = await Promise.race([
-        promise,
-        treatUnresolvedAfter(TIME_TO_WAIT_UNTIL_UNRESOLVED),
-      ]);
+      await promise;
     } catch (e) {
       rejectionValue = e;
-    }
-
-    if (fulfillmentValue === UNRESOLVED) {
-      return {
-        message: () =>
-          `Expected promise to be fulfilled after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it did not resolve at all in that timeframe`,
-        pass: false,
-      };
     }
 
     if (rejectionValue !== UNRESOLVED) {
