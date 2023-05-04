@@ -187,7 +187,7 @@ describe('NetworkController', () => {
           state: {
             networkDetails: {
               EIPS: {
-                1559: false,
+                1559: true,
               },
             },
           },
@@ -200,7 +200,7 @@ describe('NetworkController', () => {
             providerConfig: { type: NetworkType.mainnet, chainId: '1' },
             networkDetails: {
               EIPS: {
-                1559: false,
+                1559: true,
               },
             },
           });
