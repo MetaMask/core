@@ -5881,6 +5881,84 @@ describe('NetworkController', () => {
             },
           );
         });
+
+        it('emits NetworkController:providerConfigChange via the messenger', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: networkType,
+                  ...BUILT_IN_NETWORKS[networkType],
+                }),
+                networkConfigurations: {
+                  testNetworkConfiguration: {
+                    id: 'testNetworkConfiguration',
+                    rpcUrl: 'https://mock-rpc-url',
+                    chainId: '0x1337',
+                    ticker: 'TEST',
+                    nickname: 'test network',
+                    rpcPrefs: {
+                      blockExplorerUrl: 'https://test-block-explorer.com',
+                    },
+                  },
+                },
+              },
+              infuraProjectId: 'some-infura-project-id',
+            },
+            async ({ controller, messenger }) => {
+              const fakeProviders = [buildFakeProvider(), buildFakeProvider()];
+              const fakeNetworkClients = [
+                buildFakeClient(fakeProviders[0]),
+                buildFakeClient(fakeProviders[1]),
+              ];
+              mockCreateNetworkClient()
+                .calledWith({
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: '0x1337',
+                  type: NetworkClientType.Custom,
+                })
+                .mockReturnValue(fakeNetworkClients[0])
+                .calledWith({
+                  network: networkType,
+                  infuraProjectId: 'some-infura-project-id',
+                  type: NetworkClientType.Infura,
+                })
+                .mockReturnValue(fakeNetworkClients[1]);
+              await controller.setActiveNetwork('testNetworkConfiguration');
+              expect(controller.state.providerConfig).toStrictEqual({
+                type: 'rpc',
+                id: 'testNetworkConfiguration',
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: '0x1337',
+                ticker: 'TEST',
+                nickname: 'test network',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer.com',
+                },
+              });
+
+              const promiseForProviderConfigChange =
+                await waitForPublishedEvents(
+                  messenger,
+                  'NetworkController:providerConfigChange',
+                  {
+                    produceEvents: async () => {
+                      await controller.rollbackToPreviousProvider();
+                    },
+                  },
+                );
+
+              expect(promiseForProviderConfigChange).toStrictEqual([
+                [
+                  buildProviderConfig({
+                    type: networkType,
+                    ...BUILT_IN_NETWORKS[networkType],
+                  }),
+                ],
+              ]);
+            },
+          );
+        });
       });
     }
 
@@ -6364,6 +6442,83 @@ describe('NetworkController', () => {
             expect(controller.state.networkDetails).toStrictEqual({
               isEIP1559Compatible: true,
             });
+          },
+        );
+      });
+
+      it('emits NetworkController:providerConfigChange via the messenger', async () => {
+        await withController(
+          {
+            state: {
+              providerConfig: buildProviderConfig({
+                type: NetworkType.rpc,
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: '1337',
+                nickname: 'network',
+                ticker: 'TEST',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer.com',
+                },
+              }),
+            },
+            infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller, messenger }) => {
+            const fakeProviders = [buildFakeProvider(), buildFakeProvider()];
+            const fakeNetworkClients = [
+              buildFakeClient(fakeProviders[0]),
+              buildFakeClient(fakeProviders[1]),
+            ];
+            mockCreateNetworkClient()
+              .calledWith({
+                network: InfuraNetworkType.goerli,
+                infuraProjectId: 'some-infura-project-id',
+                type: NetworkClientType.Infura,
+              })
+              .mockReturnValue(fakeNetworkClients[0])
+              .calledWith({
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: toHex(1337),
+                type: NetworkClientType.Custom,
+              })
+              .mockReturnValue(fakeNetworkClients[1]);
+            await controller.setProviderType('goerli');
+            expect(controller.state.providerConfig).toStrictEqual({
+              type: 'goerli',
+              rpcUrl: undefined,
+              chainId: '5',
+              ticker: 'GoerliETH',
+              nickname: undefined,
+              rpcPrefs: {
+                blockExplorerUrl: 'https://goerli.etherscan.io',
+              },
+              id: undefined,
+            });
+
+            const promiseForProviderConfigChange = await waitForPublishedEvents(
+              messenger,
+              'NetworkController:providerConfigChange',
+              {
+                produceEvents: async () => {
+                  await controller.rollbackToPreviousProvider();
+                },
+              },
+            );
+
+            expect(promiseForProviderConfigChange).toStrictEqual([
+              [
+                buildProviderConfig({
+                  type: 'rpc',
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: '1337',
+                  nickname: 'network',
+                  ticker: 'TEST',
+                  rpcPrefs: {
+                    blockExplorerUrl: 'https://test-block-explorer.com',
+                  },
+                }),
+              ],
+            ]);
           },
         );
       });
