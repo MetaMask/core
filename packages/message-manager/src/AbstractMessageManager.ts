@@ -32,7 +32,7 @@ export interface AbstractMessage {
   status: string;
   type: string;
   rawSig?: string;
-  securityProviderResponse?: Map<string, Json>;
+  securityProviderResponse?: Record<string, Json>;
 }
 
 /**
