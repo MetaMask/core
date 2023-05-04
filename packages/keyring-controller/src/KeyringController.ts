@@ -7,6 +7,10 @@ import {
   getBinarySize,
 } from 'ethereumjs-util';
 import {
+  isValidHexAddress,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
+import {
   normalize as normalizeAddress,
   signTypedData,
 } from '@metamask/eth-sig-util';
@@ -28,7 +32,6 @@ import {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 /**
  * Available keyring types
@@ -205,10 +208,12 @@ export class KeyringController extends BaseController<
   /**
    * Adds a new account to the default (first) HD seed phrase keyring.
    *
+   * @param accountCount - Number of accounts before adding a new one, used to
+   * make the method idempotent.
    * @returns Promise resolving to keyring current state and added account
    * address.
    */
-  async addNewAccount(): Promise<{
+  async addNewAccount(accountCount?: number): Promise<{
     keyringState: KeyringMemState;
     addedAccountAddress: string;
   }> {
@@ -218,6 +223,19 @@ export class KeyringController extends BaseController<
       throw new Error('No HD keyring found');
     }
     const oldAccounts = await this.#keyring.getAccounts();
+
+    if (accountCount && oldAccounts.length !== accountCount) {
+      if (accountCount > oldAccounts.length) {
+        throw new Error('Account out of sequence');
+      }
+      // we return the account already existing at index `accountCount`
+      const primaryKeyringAccounts = await primaryKeyring.getAccounts();
+      return {
+        keyringState: await this.fullUpdate(),
+        addedAccountAddress: primaryKeyringAccounts[accountCount],
+      };
+    }
+
     await this.#keyring.addNewAccount(primaryKeyring);
     const newAccounts = await this.#keyring.getAccounts();
 
@@ -478,6 +496,11 @@ export class KeyringController extends BaseController<
   ) {
     try {
       const address = normalizeAddress(messageParams.from);
+      if (!address || !isValidHexAddress(address)) {
+        throw new Error(
+          `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
+        );
+      }
       const qrKeyring = await this.getOrAddQRKeyring();
       const qrAccounts = await qrKeyring.getAccounts();
       if (
@@ -736,6 +759,8 @@ export class KeyringController extends BaseController<
         };
       });
     } catch (e) {
+      // TODO: Add test case for when keyring throws
+      /* istanbul ignore next */
       throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
     }
   }

@@ -91,26 +91,73 @@ describe('KeyringController', () => {
   });
 
   describe('addNewAccount', () => {
-    it('should add new account', async () => {
-      const { keyringState: currentKeyringMemState, addedAccountAddress } =
-        await keyringController.addNewAccount();
-      expect(initialState.keyrings).toHaveLength(1);
-      expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-        currentKeyringMemState.keyrings[0].accounts,
-      );
-      expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
-      expect(initialState.keyrings[0].accounts).not.toContain(
-        addedAccountAddress,
-      );
-      expect(addedAccountAddress).toBe(
-        currentKeyringMemState.keyrings[0].accounts[1],
-      );
-      expect(
-        preferences.updateIdentities.calledWith(
+    describe('when accountCount is not provided', () => {
+      it('should add new account', async () => {
+        const { keyringState: currentKeyringMemState, addedAccountAddress } =
+          await keyringController.addNewAccount();
+        expect(initialState.keyrings).toHaveLength(1);
+        expect(initialState.keyrings[0].accounts).not.toStrictEqual(
           currentKeyringMemState.keyrings[0].accounts,
-        ),
-      ).toBe(true);
-      expect(preferences.setSelectedAddress.called).toBe(false);
+        );
+        expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
+        expect(initialState.keyrings[0].accounts).not.toContain(
+          addedAccountAddress,
+        );
+        expect(addedAccountAddress).toBe(
+          currentKeyringMemState.keyrings[0].accounts[1],
+        );
+        expect(
+          preferences.updateIdentities.calledWith(
+            currentKeyringMemState.keyrings[0].accounts,
+          ),
+        ).toBe(true);
+        expect(preferences.setSelectedAddress.called).toBe(false);
+      });
+    });
+
+    describe('when accountCount is provided', () => {
+      it('should add new account if accountCount is in sequence', async () => {
+        const { keyringState: currentKeyringMemState, addedAccountAddress } =
+          await keyringController.addNewAccount(
+            initialState.keyrings[0].accounts.length,
+          );
+        expect(initialState.keyrings).toHaveLength(1);
+        expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+          currentKeyringMemState.keyrings[0].accounts,
+        );
+        expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
+        expect(initialState.keyrings[0].accounts).not.toContain(
+          addedAccountAddress,
+        );
+        expect(addedAccountAddress).toBe(
+          currentKeyringMemState.keyrings[0].accounts[1],
+        );
+        expect(
+          preferences.updateIdentities.calledWith(
+            currentKeyringMemState.keyrings[0].accounts,
+          ),
+        ).toBe(true);
+        expect(preferences.setSelectedAddress.called).toBe(false);
+      });
+
+      it('should throw an error if passed accountCount param is out of sequence', async () => {
+        const accountCount = initialState.keyrings[0].accounts.length;
+        await expect(
+          keyringController.addNewAccount(accountCount + 1),
+        ).rejects.toThrow('Account out of sequence');
+      });
+
+      it('should not add a new account if called twice with the same accountCount param', async () => {
+        const accountCount = initialState.keyrings[0].accounts.length;
+        const { addedAccountAddress: firstAccountAdded } =
+          await keyringController.addNewAccount(accountCount);
+        const { keyringState, addedAccountAddress: secondAccountAdded } =
+          await keyringController.addNewAccount(accountCount);
+        expect(firstAccountAdded).toBe(secondAccountAdded);
+        expect(keyringState.keyrings[0].accounts).toHaveLength(
+          accountCount + 1,
+        );
+      });
     });
   });
 

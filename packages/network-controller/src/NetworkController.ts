@@ -17,8 +17,10 @@ import {
   NetworkType,
   isSafeChainId,
   isNetworkType,
+  toHex,
 } from '@metamask/controller-utils';
 import {
+  Hex,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
@@ -140,8 +142,6 @@ export type NetworkState = {
   networkConfigurations: Record<string, NetworkConfiguration & { id: string }>;
 };
 
-const LOCALHOST_RPC_URL = 'http://localhost:8545';
-
 const name = 'NetworkController';
 
 export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
@@ -257,8 +257,6 @@ export class NetworkController extends BaseControllerV2<
 
   #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
 
-  #provider: Provider | undefined;
-
   #providerProxy: ProviderProxy | undefined;
 
   #blockTrackerProxy: BlockTrackerProxy | undefined;
@@ -320,10 +318,8 @@ export class NetworkController extends BaseControllerV2<
 
   #configureProvider(
     type: NetworkType,
-    rpcUrl?: string,
-    chainId?: string,
-    ticker?: string,
-    nickname?: string,
+    rpcUrl: string | undefined,
+    chainId: string | undefined,
   ) {
     switch (type) {
       case NetworkType.mainnet:
@@ -331,12 +327,15 @@ export class NetworkController extends BaseControllerV2<
       case NetworkType.sepolia:
         this.#setupInfuraProvider(type);
         break;
-      case NetworkType.localhost:
-        this.#setupStandardProvider(LOCALHOST_RPC_URL);
-        break;
       case NetworkType.rpc:
-        rpcUrl &&
-          this.#setupStandardProvider(rpcUrl, chainId, ticker, nickname);
+        if (chainId === undefined) {
+          throw new Error('chainId must be provided for custom RPC endpoints');
+        }
+
+        if (rpcUrl === undefined) {
+          throw new Error('rpcUrl must be provided for custom RPC endpoints');
+        }
+        this.#setupStandardProvider(rpcUrl, toHex(chainId));
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -359,8 +358,8 @@ export class NetworkController extends BaseControllerV2<
       state.networkStatus = NetworkStatus.Unknown;
       state.networkDetails = {};
     });
-    const { rpcUrl, type, chainId, ticker } = this.state.providerConfig;
-    this.#configureProvider(type, rpcUrl, chainId, ticker);
+    const { rpcUrl, type, chainId } = this.state.providerConfig;
+    this.#configureProvider(type, rpcUrl, chainId);
     await this.lookupNetwork();
   }
 
@@ -368,7 +367,6 @@ export class NetworkController extends BaseControllerV2<
     const { provider } = this.getProviderAndBlockTracker();
 
     if (provider) {
-      provider.on('error', this.#verifyNetwork.bind(this));
       this.#ethQuery = new EthQuery(provider);
     }
   }
@@ -383,42 +381,22 @@ export class NetworkController extends BaseControllerV2<
     this.#updateProvider(provider, blockTracker);
   }
 
-  #setupStandardProvider(
-    rpcUrl: string,
-    chainId?: string,
-    ticker?: string,
-    nickname?: string,
-  ) {
+  #setupStandardProvider(rpcUrl: string, chainId: Hex) {
     const { provider, blockTracker } = createNetworkClient({
       chainId,
-      nickname,
       rpcUrl,
-      ticker,
       type: NetworkClientType.Custom,
     });
 
     this.#updateProvider(provider, blockTracker);
   }
 
-  #updateProvider(provider: Provider, blockTracker: any) {
-    this.#safelyStopProvider(this.#provider);
+  #updateProvider(provider: Provider, blockTracker: BlockTracker) {
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker,
     });
     this.#registerProvider();
-  }
-
-  #safelyStopProvider(provider: Provider | undefined) {
-    setTimeout(() => {
-      provider?.stop();
-    }, 500);
-  }
-
-  async #verifyNetwork() {
-    if (this.state.networkStatus !== NetworkStatus.Available) {
-      await this.lookupNetwork();
-    }
   }
 
   /**
@@ -428,9 +406,8 @@ export class NetworkController extends BaseControllerV2<
    *
    */
   async initializeProvider() {
-    const { type, rpcUrl, chainId, ticker, nickname } =
-      this.state.providerConfig;
-    this.#configureProvider(type, rpcUrl, chainId, ticker, nickname);
+    const { type, rpcUrl, chainId } = this.state.providerConfig;
+    this.#configureProvider(type, rpcUrl, chainId);
     this.#registerProvider();
     await this.lookupNetwork();
   }
@@ -669,7 +646,6 @@ export class NetworkController extends BaseControllerV2<
     } else {
       this.#providerProxy = createEventEmitterProxy(provider);
     }
-    this.#provider = provider;
 
     if (this.#blockTrackerProxy) {
       this.#blockTrackerProxy.setTarget(blockTracker);
@@ -725,7 +701,6 @@ export class NetworkController extends BaseControllerV2<
     }
 
     try {
-      // eslint-disable-next-line no-new
       new URL(rpcUrl);
     } catch (e: any) {
       if (e.message.includes('Invalid URL')) {

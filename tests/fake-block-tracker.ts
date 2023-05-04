@@ -7,13 +7,28 @@ import { JsonRpcEngine } from 'json-rpc-engine';
  * make any requests.
  */
 export class FakeBlockTracker extends PollingBlockTracker {
+  #latestBlockNumber = '0x0';
+
   constructor() {
     super({
       provider: new SafeEventEmitterProvider({ engine: new JsonRpcEngine() }),
     });
   }
 
-  async _start() {
-    // do nothing
+  override async _start() {
+    // Don't start the polling loop
+  }
+
+  /**
+   * Sets the number of the block that the block tracker will always return.
+   *
+   * @param latestBlockNumber - The block number to use.
+   */
+  mockLatestBlockNumber(latestBlockNumber: string) {
+    this.#latestBlockNumber = latestBlockNumber;
+  }
+
+  override async getLatestBlock() {
+    return this.#latestBlockNumber;
   }
 }

@@ -260,15 +260,12 @@ export function toChecksumHexAddress(address: string) {
 /**
  * Validates that the input is a hex address. This utility method is a thin
  * wrapper around ethereumjs-util.isValidAddress, with the exception that it
- * does not throw an error when provided values that are not hex strings. In
- * addition, and by default, this method will return true for hex strings that
- * meet the length requirement of a hex address, but are not prefixed with `0x`
- * Finally, if the mixedCaseUseChecksum flag is true and a mixed case string is
- * provided this method will validate it has the proper checksum formatting.
+ * by default will return true for hex strings that meet the length requirement
+ * of a hex address, but are not prefixed with `0x`.
  *
  * @param possibleAddress - Input parameter to check against.
  * @param options - The validation options.
- * @param options.allowNonPrefixed - If true will first ensure '0x' is prepended to the string.
+ * @param options.allowNonPrefixed - If true will allow addresses without `0x` prefix.`
  * @returns Whether or not the input is a valid hex address.
  */
 export function isValidHexAddress(
