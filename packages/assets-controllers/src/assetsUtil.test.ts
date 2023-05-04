@@ -264,7 +264,7 @@ describe('assetsUtil', () => {
       ).toBe(true);
     });
 
-    it('returns true for tbe Aurora network', () => {
+    it('returns true for the Aurora network', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
           assetsUtil.SupportedTokenDetectionNetworks.aurora,
