@@ -22,6 +22,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@artsy/lint-changed@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@artsy/lint-changed@npm:5.3.0"
+  dependencies:
+    await-to-js: ^2.1.1
+    commander: ^8.0.0
+    kleur: ^3.0.3
+    micromatch: ^4.0.2
+    p-limit: ^2.2.2
+  bin:
+    lint-changed: bin/lint-changed.js
+  checksum: 99118f94ea2acc1c91a789ac23312322febb0fd62390c12a6194b2c8b66b8cb1618d6a0d4997bd3d878e6363d1ce43b3097295e1ab08073f5da1ffb260dd1dfd
+  languageName: node
+  linkType: hard
+
 "@babel/code-frame@npm:7.12.11":
   version: 7.12.11
   resolution: "@babel/code-frame@npm:7.12.11"
@@ -1438,6 +1453,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/core-monorepo@workspace:."
   dependencies:
+    "@artsy/lint-changed": ^5.3.0
     "@lavamoat/allow-scripts": ^2.3.1
     "@metamask/create-release-branch": ^1.0.1
     "@metamask/eslint-config": ^9.0.0
@@ -3050,6 +3066,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"await-to-js@npm:^2.1.1":
+  version: 2.1.1
+  resolution: "await-to-js@npm:2.1.1"
+  checksum: b8a4a6f825aa3430e005551c1fe1ea8df51e0a4a7ad730d73a065adc9f982bec4353a2540981ee16d12be4933e59a1e90b8327889f1ff8a37a20765a716d9219
+  languageName: node
+  linkType: hard
+
 "aws-sign2@npm:~0.7.0":
   version: 0.7.0
   resolution: "aws-sign2@npm:0.7.0"
@@ -3281,7 +3304,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"braces@npm:^3.0.1":
+"braces@npm:^3.0.1, braces@npm:^3.0.2":
   version: 3.0.2
   resolution: "braces@npm:3.0.2"
   dependencies:
@@ -3662,6 +3685,13 @@ __metadata:
   dependencies:
     delayed-stream: ~1.0.0
   checksum: 49fa4aeb4916567e33ea81d088f6584749fc90c7abec76fd516bf1c5aa5c79f3584b5ba3de6b86d26ddd64bae5329c4c7479343250cfe71c75bb366eae53bb7c
+  languageName: node
+  linkType: hard
+
+"commander@npm:^8.0.0":
+  version: 8.3.0
+  resolution: "commander@npm:8.3.0"
+  checksum: 0f82321821fc27b83bd409510bb9deeebcfa799ff0bf5d102128b500b7af22872c0c92cb6a0ebc5a4cf19c6b550fba9cedfa7329d18c6442a625f851377bacf0
   languageName: node
   linkType: hard
 
@@ -7282,6 +7312,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"micromatch@npm:^4.0.2":
+  version: 4.0.5
+  resolution: "micromatch@npm:4.0.5"
+  dependencies:
+    braces: ^3.0.2
+    picomatch: ^2.3.1
+  checksum: 02a17b671c06e8fefeeb6ef996119c1e597c942e632a21ef589154f23898c9c6a9858526246abb14f8bca6e77734aa9dcf65476fca47cedfb80d9577d52843fc
+  languageName: node
+  linkType: hard
+
 "micromatch@npm:^4.0.4":
   version: 4.0.4
   resolution: "micromatch@npm:4.0.4"
@@ -7824,6 +7864,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"p-limit@npm:^2.2.2":
+  version: 2.3.0
+  resolution: "p-limit@npm:2.3.0"
+  dependencies:
+    p-try: ^2.0.0
+  checksum: 84ff17f1a38126c3314e91ecfe56aecbf36430940e2873dadaa773ffe072dc23b7af8e46d4b6485d302a11673fe94c6b67ca2cfbb60c989848b02100d0594ac1
+  languageName: node
+  linkType: hard
+
 "p-locate@npm:^2.0.0":
   version: 2.0.0
   resolution: "p-locate@npm:2.0.0"
@@ -8003,6 +8052,13 @@ __metadata:
   version: 2.3.0
   resolution: "picomatch@npm:2.3.0"
   checksum: 16818720ea7c5872b6af110760dee856c8e4cd79aed1c7a006d076b1cc09eff3ae41ca5019966694c33fbd2e1cc6ea617ab10e4adac6df06556168f13be3fca2
+  languageName: node
+  linkType: hard
+
+"picomatch@npm:^2.3.1":
+  version: 2.3.1
+  resolution: "picomatch@npm:2.3.1"
+  checksum: 050c865ce81119c4822c45d3c84f1ced46f93a0126febae20737bd05ca20589c564d6e9226977df859ed5e03dc73f02584a2b0faad36e896936238238b0446cf
   languageName: node
   linkType: hard
 

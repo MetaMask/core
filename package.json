@@ -19,10 +19,10 @@
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
     "child-workspace-package-names-as-json": "ts-node scripts/child-workspace-package-names-as-json.ts",
     "generate-dependency-graph": "ts-node scripts/generate-dependency-graph.ts",
-    "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints",
-    "lint:eslint": "eslint . --cache --ext js,ts",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn constraints --fix",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '!**/CHANGELOG.md' '!**/CHANGELOG.old.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore",
+    "lint": "yarn lint:js && yarn lint:misc --check && yarn constraints",
+    "lint:fix": "yarn lint:js --fix && yarn lint:misc --write && yarn constraints --fix",
+    "lint:js": "eslint . --cache --ext js,ts",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' --ignore-path .gitignore --ignore-path .prettierignore",
     "prepack": "./scripts/prepack.sh",
     "prepare-preview-builds": "yarn workspaces foreach --parallel run prepare-manifest:preview",
     "publish-previews": "yarn workspaces foreach --parallel run publish:preview",
@@ -30,7 +30,7 @@
     "test": "yarn workspaces foreach --parallel --verbose run test"
   },
   "simple-git-hooks": {
-    "pre-push": "yarn lint"
+    "pre-push": "yarn lint-changed"
   },
   "dependencies": {
     "@artsy/lint-changed": "^5.3.0",
