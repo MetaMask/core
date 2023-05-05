@@ -29,11 +29,11 @@ async function main() {
       default: false,
     })
     .help()
-    .strict()
     .parse();
 
   const mode: Mode = args.fix ? Mode.Fix : Mode.Check;
   const filePaths = args._.map((arg) => arg.toString());
+  console.log('filePaths', filePaths);
 
   await lintScripts(mode, filePaths);
   await lintPackageManifests(mode);
@@ -49,7 +49,11 @@ async function main() {
  */
 async function lintScripts(mode: Mode, filePaths: string[]) {
   const supportedExtensions = ['js', 'ts'];
-  const filePatterns = filePaths.length === 0 ? ['.'] : filePaths;
+  const filteredFilePaths = filePaths.filter((filePath) =>
+    supportedExtensions.some((extension) => filePath.endsWith(`.${extension}`)),
+  );
+  const filePatterns =
+    filteredFilePaths.length === 0 ? ['.'] : filteredFilePaths;
   const command = [
     'eslint',
     '--cache',
@@ -86,13 +90,13 @@ async function lintPackageManifests(mode: Mode) {
  * specified, defaults to the whole project.
  */
 async function lintOtherFiles(mode: Mode, filePaths: string[]) {
-  const supportedExtension = ['json', 'md', 'yml'];
+  const supportedExtensions = ['json', 'md', 'yml'];
   const filteredFilePaths = filePaths.filter((filePath) =>
-    supportedExtension.some((extension) => filePath.endsWith(`.${extension}`)),
+    supportedExtensions.some((extension) => filePath.endsWith(`.${extension}`)),
   );
   const filePatterns =
     filteredFilePaths.length === 0
-      ? supportedExtension.map((extension) => `**/*.${extension}`)
+      ? supportedExtensions.map((extension) => `**/*.${extension}`)
       : filteredFilePaths;
   const command = [
     'prettier',
