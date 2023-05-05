@@ -74,3 +74,5 @@ jobs:
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
         env:
           SKIP_PREPACK: true
+        secrets:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
