@@ -791,6 +791,13 @@ export class NetworkController extends BaseControllerV2<
       await this.setActiveNetwork(specifier);
     }
   }
+
+  /**
+   * Stops the block tracker polling.
+   */
+  async destroy() {
+    await this.#blockTrackerProxy?.destroy();
+  }
 }
 
 export default NetworkController;

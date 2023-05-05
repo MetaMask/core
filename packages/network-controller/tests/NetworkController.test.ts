@@ -5464,6 +5464,35 @@ describe('NetworkController', () => {
       );
     });
   });
+
+  describe('destroy', () => {
+    describe('if the blockTracker is defined', () => {
+      it('should stop the blockTracker', async () => {
+        await withController({}, async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+          await controller.initializeProvider();
+          const destroySpy = jest.spyOn(
+            fakeNetworkClient.blockTracker,
+            'destroy',
+          );
+
+          await controller.destroy();
+
+          expect(destroySpy).toHaveBeenCalled();
+        });
+      });
+    });
+
+    describe('if the blockTracker is undefined', () => {
+      it('should not throw errors', async () => {
+        await withController({}, async ({ controller }) => {
+          expect(async () => await controller.destroy()).not.toThrow();
+        });
+      });
+    });
+  });
 });
 
 /**
