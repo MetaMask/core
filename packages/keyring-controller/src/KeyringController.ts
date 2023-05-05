@@ -305,9 +305,16 @@ export class KeyringController extends BaseController<
   async createNewVaultAndKeychain(password: string) {
     const releaseLock = await this.mutex.acquire();
     try {
-      const vault = await this.#keyring.createNewVaultAndKeychain(password);
-      this.updateIdentities(await this.#keyring.getAccounts());
-      this.fullUpdate();
+      let vault;
+      const accounts = await this.getAccounts();
+      if (accounts.length > 0) {
+        vault = await this.fullUpdate();
+      } else {
+        vault = await this.#keyring.createNewVaultAndKeychain(password);
+        this.updateIdentities(await this.getAccounts());
+        this.fullUpdate();
+      }
+
       return vault;
     } finally {
       releaseLock();
@@ -431,7 +438,6 @@ export class KeyringController extends BaseController<
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
-    this.setSelectedAddress(accounts[0]);
     return {
       keyringState: await this.fullUpdate(),
       importedAccountAddress: accounts[0],

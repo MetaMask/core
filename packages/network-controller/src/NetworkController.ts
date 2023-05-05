@@ -59,8 +59,17 @@ export type Block = {
   baseFeePerGas?: string;
 };
 
+/**
+ * Information about the network not held by any other part of state. Currently
+ * only used to capture whether a network supports EIP-1559.
+ */
 export type NetworkDetails = {
-  isEIP1559Compatible?: boolean;
+  /**
+   * EIPs supported by the network.
+   */
+  EIPS: {
+    [eipNumber: number]: boolean;
+  };
 };
 
 /**
@@ -219,7 +228,11 @@ export const defaultState: NetworkState = {
     type: NetworkType.mainnet,
     chainId: NetworksChainId.mainnet,
   },
-  networkDetails: { isEIP1559Compatible: false },
+  networkDetails: {
+    EIPS: {
+      1559: false,
+    },
+  },
   networkConfigurations: {},
 };
 
@@ -355,7 +368,9 @@ export class NetworkController extends BaseControllerV2<
     this.update((state) => {
       state.networkId = null;
       state.networkStatus = NetworkStatus.Unknown;
-      state.networkDetails = {};
+      state.networkDetails = {
+        EIPS: {},
+      };
     });
     const { rpcUrl, type, chainId } = this.state.providerConfig;
     this.#configureProvider(type, rpcUrl, chainId);
@@ -598,18 +613,18 @@ export class NetworkController extends BaseControllerV2<
   }
 
   async getEIP1559Compatibility() {
-    const { networkDetails = {} } = this.state;
+    const { networkDetails = { EIPS: {} } } = this.state;
 
-    if (networkDetails.isEIP1559Compatible || !this.#ethQuery) {
+    if (networkDetails.EIPS[1559] || !this.#ethQuery) {
       return true;
     }
 
     const latestBlock = await this.#getLatestBlock();
     const isEIP1559Compatible =
       typeof latestBlock.baseFeePerGas !== 'undefined';
-    if (networkDetails.isEIP1559Compatible !== isEIP1559Compatible) {
+    if (networkDetails.EIPS[1559] !== isEIP1559Compatible) {
       this.update((state) => {
-        state.networkDetails.isEIP1559Compatible = isEIP1559Compatible;
+        state.networkDetails.EIPS[1559] = isEIP1559Compatible;
       });
     }
     return isEIP1559Compatible;
@@ -778,6 +793,15 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig = this.#previousProviderConfig;
     });
     await this.#refreshNetwork();
+  }
+
+  /**
+   * Deactivates the controller, stopping any ongoing polling.
+   *
+   * In-progress requests will not be aborted.
+   */
+  async destroy() {
+    await this.#blockTrackerProxy?.destroy();
   }
 }
 
