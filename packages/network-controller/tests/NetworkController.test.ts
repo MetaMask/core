@@ -644,8 +644,10 @@ describe('NetworkController', () => {
 
                   await controller.lookupNetwork();
 
-                  await expect(controller.state.networkDetails).toStrictEqual({
-                    isEIP1559Compatible: true,
+                  expect(controller.state.networkDetails).toStrictEqual({
+                    EIPS: {
+                      1559: true,
+                    },
                   });
                 },
               );
