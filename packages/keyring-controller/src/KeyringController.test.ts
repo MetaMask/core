@@ -10,7 +10,7 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import * as uuid from 'uuid';
-import { NetworkType } from '@metamask/controller-utils';
+import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
@@ -217,20 +217,46 @@ describe('KeyringController', () => {
   });
 
   describe('createNewVaultAndKeychain', () => {
-    it('should create new vault, mnemonic and keychain', async () => {
-      const initialSeedWord = await keyringController.exportSeedPhrase(
-        password,
-      );
-      expect(initialSeedWord).toBeDefined();
-      const currentState = await keyringController.createNewVaultAndKeychain(
-        password,
-      );
-      expect(initialState).not.toBe(currentState);
-      const currentSeedWord = await keyringController.exportSeedPhrase(
-        password,
-      );
-      expect(currentSeedWord).toBeDefined();
-      expect(initialSeedWord).not.toBe(currentSeedWord);
+    describe('when there is no existing vault', () => {
+      it('should create new vault, mnemonic and keychain', async () => {
+        const cleanKeyringController = new KeyringController(
+          preferences,
+          baseConfig,
+        );
+        const initialSeedWord = await keyringController.exportSeedPhrase(
+          password,
+        );
+        const currentState =
+          await cleanKeyringController.createNewVaultAndKeychain(password);
+        const currentSeedWord = await cleanKeyringController.exportSeedPhrase(
+          password,
+        );
+        expect(initialSeedWord).toBeDefined();
+        expect(initialState).not.toBe(currentState);
+        expect(currentSeedWord).toBeDefined();
+        expect(initialSeedWord).not.toBe(currentSeedWord);
+        expect(isValidHexAddress(currentState.keyrings[0].accounts[0])).toBe(
+          true,
+        );
+      });
+    });
+
+    describe('when there is an existing vault', () => {
+      it('should return existing vault', async () => {
+        const initialSeedWord = await keyringController.exportSeedPhrase(
+          password,
+        );
+        const currentState = await keyringController.createNewVaultAndKeychain(
+          password,
+        );
+        const currentSeedWord = await keyringController.exportSeedPhrase(
+          password,
+        );
+        expect(initialSeedWord).toBeDefined();
+        expect(initialState).toBe(currentState);
+        expect(currentSeedWord).toBeDefined();
+        expect(initialSeedWord).toBe(currentSeedWord);
+      });
     });
   });
 
@@ -283,125 +309,146 @@ describe('KeyringController', () => {
   });
 
   describe('importAccountWithStrategy', () => {
-    it('should import account with strategy privateKey', async () => {
-      await expect(
-        keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [],
-        ),
-      ).rejects.toThrow('Cannot import an empty key.');
+    describe('using strategy privateKey', () => {
+      describe('when correct key is provided', () => {
+        it('should import account', async () => {
+          const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
+          const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
+          const { keyringState, importedAccountAddress } =
+            await keyringController.importAccountWithStrategy(
+              AccountImportStrategy.privateKey,
+              [privateKey],
+            );
+          const modifiedState = {
+            ...initialState,
+            keyrings: [initialState.keyrings[0], newKeyring],
+          };
+          expect(keyringState).toStrictEqual(modifiedState);
+          expect(importedAccountAddress).toBe(address);
+        });
 
-      await expect(
-        keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          ['123'],
-        ),
-      ).rejects.toThrow(
-        'Expected private key to be an Uint8Array with length 32',
-      );
+        it('should not select imported account', async () => {
+          await keyringController.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+          expect(preferences.setSelectedAddress.called).toBe(false);
+        });
+      });
 
-      await expect(
-        keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          ['0xblahblah'],
-        ),
-      ).rejects.toThrow('Cannot import invalid private key.');
+      describe('when wrong key is provided', () => {
+        it('should not import account', async () => {
+          await expect(
+            keyringController.importAccountWithStrategy(
+              AccountImportStrategy.privateKey,
+              [],
+            ),
+          ).rejects.toThrow('Cannot import an empty key.');
 
-      const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
-      const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
-      const { keyringState, importedAccountAddress } =
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [privateKey],
-        );
-      const modifiedState = {
-        ...initialState,
-        keyrings: [initialState.keyrings[0], newKeyring],
-      };
-      expect(keyringState).toStrictEqual(modifiedState);
-      expect(importedAccountAddress).toBe(address);
+          await expect(
+            keyringController.importAccountWithStrategy(
+              AccountImportStrategy.privateKey,
+              ['123'],
+            ),
+          ).rejects.toThrow(
+            'Expected private key to be an Uint8Array with length 32',
+          );
+
+          await expect(
+            keyringController.importAccountWithStrategy(
+              AccountImportStrategy.privateKey,
+              ['0xblahblah'],
+            ),
+          ).rejects.toThrow('Cannot import invalid private key.');
+
+          await expect(
+            keyringController.importAccountWithStrategy(
+              AccountImportStrategy.privateKey,
+              [privateKey.slice(1)],
+            ),
+          ).rejects.toThrow('Cannot import invalid private key.');
+        });
+      });
     });
 
-    it('should not import account with strategy privateKey if wrong data is provided', async () => {
-      await expect(
-        keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [],
-        ),
-      ).rejects.toThrow('Cannot import an empty key.');
+    describe('using strategy json', () => {
+      describe('when correct data is provided', () => {
+        it('should import account', async () => {
+          const somePassword = 'holachao123';
+          const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
 
-      await expect(
-        keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          ['123'],
-        ),
-      ).rejects.toThrow(
-        'Expected private key to be an Uint8Array with length 32',
-      );
+          const { keyringState, importedAccountAddress } =
+            await keyringController.importAccountWithStrategy(
+              AccountImportStrategy.json,
+              [input, somePassword],
+            );
 
-      await expect(
-        keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [privateKey.slice(1)],
-        ),
-      ).rejects.toThrow('Cannot import invalid private key.');
+          const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
+          const modifiedState = {
+            ...initialState,
+            keyrings: [initialState.keyrings[0], newKeyring],
+          };
+          expect(keyringState).toStrictEqual(modifiedState);
+          expect(importedAccountAddress).toBe(address);
+        });
+
+        it('should not select imported account', async () => {
+          const somePassword = 'holachao123';
+          await keyringController.importAccountWithStrategy(
+            AccountImportStrategy.json,
+            [input, somePassword],
+          );
+          expect(preferences.setSelectedAddress.called).toBe(false);
+        });
+      });
+
+      describe('when wrong data is provided', () => {
+        it('should not import account with empty json', async () => {
+          const somePassword = 'holachao123';
+          await expect(
+            keyringController.importAccountWithStrategy(
+              AccountImportStrategy.json,
+              ['', somePassword],
+            ),
+          ).rejects.toThrow('Unexpected end of JSON input');
+        });
+
+        it('should not import account with wrong password', async () => {
+          const somePassword = 'holachao12';
+
+          await expect(
+            keyringController.importAccountWithStrategy(
+              AccountImportStrategy.json,
+              [input, somePassword],
+            ),
+          ).rejects.toThrow(
+            'Key derivation failed - possibly wrong passphrase',
+          );
+        });
+
+        it('should not import account with empty password', async () => {
+          await expect(
+            keyringController.importAccountWithStrategy(
+              AccountImportStrategy.json,
+              [input, ''],
+            ),
+          ).rejects.toThrow(
+            'Key derivation failed - possibly wrong passphrase',
+          );
+        });
+      });
     });
 
-    it('should import account with strategy json', async () => {
-      const somePassword = 'holachao123';
-
-      await expect(
-        keyringController.importAccountWithStrategy(
-          AccountImportStrategy.json,
-          ['', somePassword],
-        ),
-      ).rejects.toThrow('Unexpected end of JSON input');
-
-      const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
-
-      const { keyringState, importedAccountAddress } =
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.json,
-          [input, somePassword],
-        );
-
-      const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
-      const modifiedState = {
-        ...initialState,
-        keyrings: [initialState.keyrings[0], newKeyring],
-      };
-      expect(keyringState).toStrictEqual(modifiedState);
-      expect(importedAccountAddress).toBe(address);
-    });
-
-    it('should throw when passed an unrecognized strategy', async () => {
-      const somePassword = 'holachao123';
-      await expect(
-        keyringController.importAccountWithStrategy(
-          'junk' as AccountImportStrategy,
-          [input, somePassword],
-        ),
-      ).rejects.toThrow("Unexpected import strategy: 'junk'");
-    });
-
-    it('should import account with strategy json wrong password', async () => {
-      const somePassword = 'holachao12';
-
-      await expect(
-        keyringController.importAccountWithStrategy(
-          AccountImportStrategy.json,
-          [input, somePassword],
-        ),
-      ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
-    });
-
-    it('should import account with strategy json empty password', async () => {
-      await expect(
-        keyringController.importAccountWithStrategy(
-          AccountImportStrategy.json,
-          [input, ''],
-        ),
-      ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
+    describe('using unrecognized strategy', () => {
+      it('should throw an unexpected import strategy error', async () => {
+        const somePassword = 'holachao123';
+        await expect(
+          keyringController.importAccountWithStrategy(
+            'junk' as AccountImportStrategy,
+            [input, somePassword],
+          ),
+        ).rejects.toThrow("Unexpected import strategy: 'junk'");
+      });
     });
   });
 
