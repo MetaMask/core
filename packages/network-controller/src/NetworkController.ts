@@ -808,7 +808,9 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Stops the block tracker polling.
+   * Deactivates the controller, stopping any ongoing polling.
+   *
+   * In-progress requests will not be aborted.
    */
   async destroy() {
     await this.#blockTrackerProxy?.destroy();
