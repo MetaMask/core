@@ -71,7 +71,6 @@ export type NetworkDetails = {
   EIPS: {
     [eipNumber: number]: boolean;
   };
-  [otherProperty: string]: any;
 };
 
 /**
