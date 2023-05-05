@@ -10,7 +10,7 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import * as uuid from 'uuid';
-import { NetworkType } from '@metamask/controller-utils';
+import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
@@ -217,20 +217,46 @@ describe('KeyringController', () => {
   });
 
   describe('createNewVaultAndKeychain', () => {
-    it('should create new vault, mnemonic and keychain', async () => {
-      const initialSeedWord = await keyringController.exportSeedPhrase(
-        password,
-      );
-      expect(initialSeedWord).toBeDefined();
-      const currentState = await keyringController.createNewVaultAndKeychain(
-        password,
-      );
-      expect(initialState).not.toBe(currentState);
-      const currentSeedWord = await keyringController.exportSeedPhrase(
-        password,
-      );
-      expect(currentSeedWord).toBeDefined();
-      expect(initialSeedWord).not.toBe(currentSeedWord);
+    describe('when there is no existing vault', () => {
+      it('should create new vault, mnemonic and keychain', async () => {
+        const cleanKeyringController = new KeyringController(
+          preferences,
+          baseConfig,
+        );
+        const initialSeedWord = await keyringController.exportSeedPhrase(
+          password,
+        );
+        const currentState =
+          await cleanKeyringController.createNewVaultAndKeychain(password);
+        const currentSeedWord = await cleanKeyringController.exportSeedPhrase(
+          password,
+        );
+        expect(initialSeedWord).toBeDefined();
+        expect(initialState).not.toBe(currentState);
+        expect(currentSeedWord).toBeDefined();
+        expect(initialSeedWord).not.toBe(currentSeedWord);
+        expect(isValidHexAddress(currentState.keyrings[0].accounts[0])).toBe(
+          true,
+        );
+      });
+    });
+
+    describe('when there is an existing vault', () => {
+      it('should return existing vault', async () => {
+        const initialSeedWord = await keyringController.exportSeedPhrase(
+          password,
+        );
+        const currentState = await keyringController.createNewVaultAndKeychain(
+          password,
+        );
+        const currentSeedWord = await keyringController.exportSeedPhrase(
+          password,
+        );
+        expect(initialSeedWord).toBeDefined();
+        expect(initialState).toBe(currentState);
+        expect(currentSeedWord).toBeDefined();
+        expect(initialSeedWord).toBe(currentSeedWord);
+      });
     });
   });
 
