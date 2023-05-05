@@ -5,6 +5,8 @@ on:
     secrets:
       NPM_TOKEN:
         required: true
+      SLACK_WEBHOOK_URL:
+        required: false
 
 jobs:
   publish-release:
