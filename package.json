@@ -33,6 +33,7 @@
     "pre-push": "yarn lint"
   },
   "dependencies": {
+    "@artsy/lint-changed": "^5.3.0",
     "@lavamoat/allow-scripts": "^2.3.1",
     "@metamask/create-release-branch": "^1.0.1",
     "@metamask/eslint-config": "^9.0.0",
