@@ -117,7 +117,7 @@ async function lintOtherFiles(mode: Mode, filePaths: string[]) {
 async function runCommand(description: string, command: string[]) {
   process.stdout.write(`${description}... `);
 
-  console.log(command)
+  console.log(command);
 
   const { all, failed } = await execa(command[0], command.slice(1));
 

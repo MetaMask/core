@@ -19,10 +19,8 @@
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
     "child-workspace-package-names-as-json": "ts-node scripts/child-workspace-package-names-as-json.ts",
     "generate-dependency-graph": "ts-node scripts/generate-dependency-graph.ts",
-    "lint": "yarn lint:js && yarn lint:misc --check && yarn constraints",
-    "lint:fix": "yarn lint:js --fix && yarn lint:misc --write && yarn constraints --fix",
-    "lint:js": "eslint . --cache --ext js,ts",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' --ignore-path .gitignore --ignore-path .prettierignore",
+    "lint": "ts-node scripts/lint.ts",
+    "lint:fix": "ts-node scripts/lint.ts --fix",
     "prepack": "./scripts/prepack.sh",
     "prepare-preview-builds": "yarn workspaces foreach --parallel run prepare-manifest:preview",
     "publish-previews": "yarn workspaces foreach --parallel run publish:preview",
@@ -31,6 +29,9 @@
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint-changed"
+  },
+  "lint-changed": {
+    "*": "yarn lint"
   },
   "dependencies": {
     "@artsy/lint-changed": "^5.3.0",
