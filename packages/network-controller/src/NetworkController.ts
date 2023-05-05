@@ -806,6 +806,15 @@ export class NetworkController extends BaseControllerV2<
       await this.setActiveNetwork(specifier);
     }
   }
+
+  /**
+   * Deactivates the controller, stopping any ongoing polling.
+   *
+   * In-progress requests will not be aborted.
+   */
+  async destroy() {
+    await this.#blockTrackerProxy?.destroy();
+  }
 }
 
 export default NetworkController;
