@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "noEmit": true
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "strict": true
   },
   "references": [
     {
@@ -63,5 +66,5 @@
     }
   ],
   "files": [],
-  "include": ["./types"]
+  "include": ["./scripts", "./types"]
 }

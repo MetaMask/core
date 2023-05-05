@@ -5,11 +5,17 @@ set -euo pipefail
 # Parse arguments
 
 mode="check"
+show_help=0
 patterns=()
+
 while [[ "${1:-}" ]]; do
   case $1 in
     --fix)
       mode="fix"
+      shift
+      ;;
+    --help)
+      show_help=1
       shift
       ;;
     *)
@@ -18,6 +24,11 @@ while [[ "${1:-}" ]]; do
       ;;
   esac
 done
+
+if [[ $show_help -eq 1 ]]; then
+  echo "Run ESLint."
+  echo "USAGE: $0 [--fix]"
+fi
 
 if [[ ${#patterns[@]} -eq 0 ]]; then
   patterns=("*")
