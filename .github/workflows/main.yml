@@ -46,6 +46,7 @@ jobs:
     uses: ./.github/workflows/publish-release.yml
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   all-jobs-complete:
     name: All jobs complete
