@@ -4815,7 +4815,11 @@ describe('NetworkController', () => {
                     ticker: 'TEST',
                   },
                 },
-                networkDetails: {},
+                networkDetails: {
+                  EIPS: {
+                    1559: false,
+                  },
+                },
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -4867,7 +4871,11 @@ describe('NetworkController', () => {
                   controller.rollbackToPreviousProvider();
                 },
                 beforeResolving: () => {
-                  expect(controller.state.networkDetails).toStrictEqual({});
+                  expect(controller.state.networkDetails).toStrictEqual({
+                    EIPS: {
+                      1559: false,
+                    },
+                  });
                 },
               });
             },
@@ -5143,7 +5151,11 @@ describe('NetworkController', () => {
                     ticker: 'TEST',
                   },
                 },
-                networkDetails: {},
+                networkDetails: {
+                  EIPS: {
+                    1559: false,
+                  },
+                },
               },
               infuraProjectId: 'some-infura-project-id',
             },
@@ -5155,7 +5167,7 @@ describe('NetworkController', () => {
                       method: 'eth_getBlockByNumber',
                     },
                     response: {
-                      result: PRE_1559_BLOCK,
+                      result: POST_1559_BLOCK,
                     },
                   },
                 ]),
@@ -5189,7 +5201,9 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setActiveNetwork('testNetworkConfiguration');
               expect(controller.state.networkDetails).toStrictEqual({
-                isEIP1559Compatible: false,
+                EIPS: {
+                  1559: true,
+                },
               });
 
               await waitForStateChanges({
@@ -5203,7 +5217,9 @@ describe('NetworkController', () => {
                 },
               });
               expect(controller.state.networkDetails).toStrictEqual({
-                isEIP1559Compatible: true,
+                EIPS: {
+                  1559: false,
+                },
               });
             },
           );
