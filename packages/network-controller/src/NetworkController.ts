@@ -16,7 +16,6 @@ import {
   InfuraNetworkType,
   NetworkType,
   isSafeChainId,
-  isNetworkType,
   toHex,
 } from '@metamask/controller-utils';
 import {
@@ -162,11 +161,6 @@ export type NetworkControllerStateChangeEvent = {
   payload: [NetworkState, Patch[]];
 };
 
-export type NetworkControllerProviderConfigChangeEvent = {
-  type: `NetworkController:providerConfigChange`;
-  payload: [ProviderConfig];
-};
-
 /**
  * `infuraIsBlocked` is published after the network is switched to an Infura
  * network, but when Infura returns an error blocking the user based on their
@@ -189,9 +183,13 @@ export type NetworkControllerInfuraIsUnblockedEvent = {
 
 export type NetworkControllerEvents =
   | NetworkControllerStateChangeEvent
-  | NetworkControllerProviderConfigChangeEvent
   | NetworkControllerInfuraIsBlockedEvent
   | NetworkControllerInfuraIsUnblockedEvent;
+
+export type NetworkControllerGetStateAction = {
+  type: `NetworkController:getState`;
+  handler: () => NetworkState;
+};
 
 export type NetworkControllerGetProviderConfigAction = {
   type: `NetworkController:getProviderConfig`;
@@ -204,12 +202,13 @@ export type NetworkControllerGetEthQueryAction = {
 };
 
 export type NetworkControllerActions =
+  | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  NetworkControllerGetProviderConfigAction | NetworkControllerGetEthQueryAction,
+  NetworkControllerActions,
   NetworkControllerEvents,
   string,
   string
@@ -268,7 +267,7 @@ export class NetworkController extends BaseControllerV2<
 
   #mutex = new Mutex();
 
-  #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
+  #previousProviderConfig: ProviderConfig;
 
   #providerProxy: ProviderProxy | undefined;
 
@@ -326,7 +325,7 @@ export class NetworkController extends BaseControllerV2<
       },
     );
 
-    this.#previousNetworkSpecifier = this.state.providerConfig.type;
+    this.#previousProviderConfig = this.state.providerConfig;
   }
 
   #configureProvider(
@@ -528,25 +527,8 @@ export class NetworkController extends BaseControllerV2<
         // previously connected to an Infura network that was blocked
         this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
       }
-
-      this.messagingSystem.publish(
-        `NetworkController:providerConfigChange`,
-        this.state.providerConfig,
-      );
     } finally {
       releaseLock();
-    }
-  }
-
-  /**
-   * Convenience method to set the current provider config to the private providerConfig class variable.
-   */
-  #setCurrentAsPreviousProvider() {
-    const { type, id } = this.state.providerConfig;
-    if (type === NetworkType.rpc && id) {
-      this.#previousNetworkSpecifier = id;
-    } else {
-      this.#previousNetworkSpecifier = type;
     }
   }
 
@@ -556,7 +538,8 @@ export class NetworkController extends BaseControllerV2<
    * @param type - Human readable network name.
    */
   async setProviderType(type: NetworkType) {
-    this.#setCurrentAsPreviousProvider();
+    this.#previousProviderConfig = this.state.providerConfig;
+
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
       type in NetworksTicker && NetworksTicker[type].length > 0
@@ -581,7 +564,7 @@ export class NetworkController extends BaseControllerV2<
    * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
   async setActiveNetwork(networkConfigurationId: string) {
-    this.#setCurrentAsPreviousProvider();
+    this.#previousProviderConfig = this.state.providerConfig;
 
     const targetNetwork =
       this.state.networkConfigurations[networkConfigurationId];
@@ -796,15 +779,15 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Rolls back provider config to the previous provider in case of errors or inability to connect during network switch.
+   * Switches to the previous network, assuming that the current network is
+   * different than the initial network (if it is, then this is equivalent to
+   * calling `resetConnection`).
    */
   async rollbackToPreviousProvider() {
-    const specifier = this.#previousNetworkSpecifier;
-    if (isNetworkType(specifier)) {
-      await this.setProviderType(specifier);
-    } else if (typeof specifier === 'string') {
-      await this.setActiveNetwork(specifier);
-    }
+    this.update((state) => {
+      state.providerConfig = this.#previousProviderConfig;
+    });
+    await this.#refreshNetwork();
   }
 
   /**

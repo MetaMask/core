@@ -3,9 +3,8 @@ import * as sinon from 'sinon';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkController,
-  NetworkControllerGetEthQueryAction,
-  NetworkControllerGetProviderConfigAction,
-  NetworkControllerProviderConfigChangeEvent,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
 import EthQuery from 'eth-query';
@@ -40,10 +39,8 @@ const mockedDetermineGasFeeCalculations =
 const name = 'GasFeeController';
 
 type MainControllerMessenger = ControllerMessenger<
-  | GetGasFeeState
-  | NetworkControllerGetProviderConfigAction
-  | NetworkControllerGetEthQueryAction,
-  GasFeeStateChange | NetworkControllerProviderConfigChangeEvent
+  GetGasFeeState | NetworkControllerGetStateAction,
+  GasFeeStateChange | NetworkControllerStateChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -61,11 +58,8 @@ const setupNetworkController = async ({
 }) => {
   const restrictedMessenger = unrestrictedMessenger.getRestricted({
     name: 'NetworkController',
-    allowedEvents: ['NetworkController:providerConfigChange'],
-    allowedActions: [
-      'NetworkController:getProviderConfig',
-      'NetworkController:getEthQuery',
-    ],
+    allowedActions: ['NetworkController:getState'],
+    allowedEvents: ['NetworkController:stateChange'],
   });
 
   const networkController = new NetworkController({
@@ -89,11 +83,8 @@ const getRestrictedMessenger = (
 ) => {
   const messenger = controllerMessenger.getRestricted({
     name,
-    allowedActions: [
-      'NetworkController:getProviderConfig',
-      'NetworkController:getEthQuery',
-    ],
-    allowedEvents: ['NetworkController:providerConfigChange'],
+    allowedActions: ['NetworkController:getState'],
+    allowedEvents: ['NetworkController:stateChange'],
   });
 
   return messenger;
