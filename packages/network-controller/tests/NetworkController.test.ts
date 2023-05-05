@@ -4682,9 +4682,7 @@ function lookupNetworkTests(
 
             await operation(controller);
 
-            expect(controller.state.networkStatus).toBe(
-              NetworkStatus.Unknown,
-            );
+            expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
           },
         );
       });
@@ -4776,9 +4774,7 @@ function lookupNetworkTests(
 
             await operation(controller);
 
-            expect(controller.state.networkStatus).toBe(
-              NetworkStatus.Blocked,
-            );
+            expect(controller.state.networkStatus).toBe(NetworkStatus.Blocked);
           },
         );
       });
@@ -4873,9 +4869,7 @@ function lookupNetworkTests(
 
           await operation(controller);
 
-          expect(controller.state.networkStatus).toBe(
-            NetworkStatus.Unknown,
-          );
+          expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
         },
       );
     });
@@ -5005,9 +4999,7 @@ function lookupNetworkTests(
 
           await operation(controller);
 
-          expect(controller.state.networkStatus).toBe(
-            NetworkStatus.Unknown,
-          );
+          expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
         },
       );
     });
@@ -5285,9 +5277,7 @@ function lookupNetworkTests(
 
             await operation(controller);
 
-            expect(controller.state.networkStatus).toBe(
-              NetworkStatus.Unknown,
-            );
+            expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
           },
         );
       });
@@ -5388,9 +5378,7 @@ function lookupNetworkTests(
 
             await operation(controller);
 
-            expect(controller.state.networkStatus).toBe(
-              NetworkStatus.Blocked,
-            );
+            expect(controller.state.networkStatus).toBe(NetworkStatus.Blocked);
           },
         );
       });
@@ -5493,9 +5481,7 @@ function lookupNetworkTests(
 
           await operation(controller);
 
-          expect(controller.state.networkStatus).toBe(
-            NetworkStatus.Unknown,
-          );
+          expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
         },
       );
     });
