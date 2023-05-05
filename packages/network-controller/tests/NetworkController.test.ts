@@ -5488,6 +5488,8 @@ describe('NetworkController', () => {
     describe('if the blockTracker is undefined', () => {
       it('should not throw errors', async () => {
         await withController({}, async ({ controller }) => {
+          const { blockTracker } = controller.getProviderAndBlockTracker();
+          expect(blockTracker).toBeUndefined();
           expect(async () => await controller.destroy()).not.toThrow();
         });
       });
