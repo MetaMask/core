@@ -203,6 +203,7 @@ describe('TypedMessageManager', () => {
   });
 
   it('should throw when adding invalid typed message', async () => {
+    const mockGetChainId = jest.fn();
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const messageData = typedMessage;
     const version = 'V3';
@@ -216,8 +217,15 @@ describe('TypedMessageManager', () => {
       ),
     ).rejects.toThrow('Invalid message "data":');
 
+    const controllerWithGetCurrentChainIdCallback = new TypedMessageManager(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      mockGetChainId,
+    );
     await expect(
-      controller.addUnapprovedMessageAsync(
+      controllerWithGetCurrentChainIdCallback.addUnapprovedMessageAsync(
         {
           data: messageData,
           from,
@@ -225,6 +233,7 @@ describe('TypedMessageManager', () => {
         'V4',
       ),
     ).rejects.toThrow('Invalid message "data":');
+    expect(mockGetChainId).toHaveBeenCalled();
   });
 
   it('should get correct unapproved messages', async () => {
