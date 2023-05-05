@@ -81,6 +81,8 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
+type getCurrentChainId = () => string;
+
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
@@ -90,6 +92,8 @@ export abstract class AbstractMessageManager<
   PM extends AbstractMessageParamsMetamask,
 > extends BaseController<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
+
+  protected getCurrentChainId: getCurrentChainId | undefined;
 
   private securityProviderRequest: SecurityProviderRequest | undefined;
 
@@ -186,12 +190,14 @@ export abstract class AbstractMessageManager<
    * @param state - Initial state to set on this controller.
    * @param securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    * @param additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
+   * @param getCurrentChainId - Optional function to get the current chainId.
    */
   constructor(
     config?: Partial<BaseConfig>,
     state?: Partial<MessageManagerState<M>>,
     securityProviderRequest?: SecurityProviderRequest,
     additionalFinishStatuses?: string[],
+    getCurrentChainId?: getCurrentChainId,
   ) {
     super(config, state);
     this.defaultState = {
@@ -201,6 +207,7 @@ export abstract class AbstractMessageManager<
     this.messages = [];
     this.securityProviderRequest = securityProviderRequest;
     this.additionalFinishStatuses = additionalFinishStatuses ?? [];
+    this.getCurrentChainId = getCurrentChainId;
     this.initialize();
   }
 

@@ -215,6 +215,16 @@ describe('TypedMessageManager', () => {
         version,
       ),
     ).rejects.toThrow('Invalid message "data":');
+
+    await expect(
+      controller.addUnapprovedMessageAsync(
+        {
+          data: messageData,
+          from,
+        },
+        'V4',
+      ),
+    ).rejects.toThrow('Invalid message "data":');
   });
 
   it('should get correct unapproved messages', async () => {
