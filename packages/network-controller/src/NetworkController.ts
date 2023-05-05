@@ -16,7 +16,6 @@ import {
   InfuraNetworkType,
   NetworkType,
   isSafeChainId,
-  isNetworkType,
   toHex,
 } from '@metamask/controller-utils';
 import {
@@ -268,7 +267,7 @@ export class NetworkController extends BaseControllerV2<
 
   #mutex = new Mutex();
 
-  #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
+  #previousProviderConfig: ProviderConfig;
 
   #providerProxy: ProviderProxy | undefined;
 
@@ -326,7 +325,7 @@ export class NetworkController extends BaseControllerV2<
       },
     );
 
-    this.#previousNetworkSpecifier = this.state.providerConfig.type;
+    this.#previousProviderConfig = this.state.providerConfig;
   }
 
   #configureProvider(
@@ -534,24 +533,13 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Convenience method to set the current provider config to the private providerConfig class variable.
-   */
-  #setCurrentAsPreviousProvider() {
-    const { type, id } = this.state.providerConfig;
-    if (type === NetworkType.rpc && id) {
-      this.#previousNetworkSpecifier = id;
-    } else {
-      this.#previousNetworkSpecifier = type;
-    }
-  }
-
-  /**
    * Convenience method to update provider network type settings.
    *
    * @param type - Human readable network name.
    */
   async setProviderType(type: NetworkType) {
-    this.#setCurrentAsPreviousProvider();
+    this.#previousProviderConfig = this.state.providerConfig;
+
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
       type in NetworksTicker && NetworksTicker[type].length > 0
@@ -576,7 +564,7 @@ export class NetworkController extends BaseControllerV2<
    * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
   async setActiveNetwork(networkConfigurationId: string) {
-    this.#setCurrentAsPreviousProvider();
+    this.#previousProviderConfig = this.state.providerConfig;
 
     const targetNetwork =
       this.state.networkConfigurations[networkConfigurationId];
@@ -791,15 +779,15 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Rolls back provider config to the previous provider in case of errors or inability to connect during network switch.
+   * Switches to the previous network, assuming that the current network is
+   * different than the initial network (if it is, then this is equivalent to
+   * calling `resetConnection`).
    */
   async rollbackToPreviousProvider() {
-    const specifier = this.#previousNetworkSpecifier;
-    if (isNetworkType(specifier)) {
-      await this.setProviderType(specifier);
-    } else if (typeof specifier === 'string') {
-      await this.setActiveNetwork(specifier);
-    }
+    this.update((state) => {
+      state.providerConfig = this.#previousProviderConfig;
+    });
+    await this.#refreshNetwork();
   }
 
   /**

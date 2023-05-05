@@ -1770,6 +1770,7 @@ __metadata:
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^5.0.2
     "@types/jest": ^27.4.1
+    "@types/jest-when": ^2.7.3
     "@types/lodash": ^4.14.191
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
@@ -1779,6 +1780,7 @@ __metadata:
     eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^27.5.1
+    jest-when: ^3.4.2
     json-rpc-engine: ^6.1.0
     lodash: ^4.17.21
     nock: ^13.0.7
