@@ -503,12 +503,15 @@ describe('NetworkController', () => {
       NetworkType.rpc,
     ].forEach((networkType) => {
       describe(`when the provider config in state contains a network type of "${networkType}"`, () => {
-        lookupNetworkTests(
-          buildProviderConfig({ type: networkType }),
-          async (controller: NetworkController) => {
+        lookupNetworkTests({
+          expectedProviderConfig: buildProviderConfig({ type: networkType }),
+          initialState: {
+            providerConfig: buildProviderConfig({ type: networkType }),
+          },
+          operation: async (controller: NetworkController) => {
             await controller.lookupNetwork();
           },
-        );
+        });
       });
     });
 
@@ -4322,22 +4325,27 @@ function mockCreateNetworkClient() {
  * provider configuration. All effects of the `lookupNetwork` call should be
  * covered by these tests.
  *
- * @param providerConfig - The provider configuration to use.
- * @param operation - The operation to test.
+ * @param args - Arguments.
+ * @param args.expectedProviderConfig - The provider configuration that the
+ * operation is expected to set.
+ * @param args.initialState - The initial state of the network controller.
+ * @param args.operation - The operation to test.
  */
-function lookupNetworkTests(
-  providerConfig: ProviderConfig,
-  operation: (controller: NetworkController) => Promise<void>,
-) {
+function lookupNetworkTests({
+  expectedProviderConfig,
+  initialState,
+  operation,
+}: {
+  expectedProviderConfig: ProviderConfig;
+  initialState?: Partial<NetworkState>;
+  operation: (controller: NetworkController) => Promise<void>;
+}) {
   describe('if the network ID and network details requests resolve successfully', () => {
     describe('if the current network is different from the network in state', () => {
       it('updates the network in state to match', async () => {
         await withController(
           {
-            state: {
-              networkId: null,
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {
@@ -4362,10 +4370,7 @@ function lookupNetworkTests(
       it('does not change network ID in state', async () => {
         await withController(
           {
-            state: {
-              networkId: '12345',
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {
@@ -4391,12 +4396,12 @@ function lookupNetworkTests(
         await withController(
           {
             state: {
+              ...initialState,
               networkDetails: {
                 EIPS: {
                   1559: false,
                 },
               },
-              providerConfig,
             },
           },
           async ({ controller }) => {
@@ -4434,12 +4439,12 @@ function lookupNetworkTests(
         await withController(
           {
             state: {
+              ...initialState,
               networkDetails: {
                 EIPS: {
                   1559: true,
                 },
               },
-              providerConfig,
             },
           },
           async ({ controller }) => {
@@ -4474,9 +4479,7 @@ function lookupNetworkTests(
     it('emits infuraIsUnblocked', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller, messenger }) => {
           await setFakeProvider(controller, {
@@ -4501,9 +4504,7 @@ function lookupNetworkTests(
     it('does not emit infuraIsBlocked', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller, messenger }) => {
           await setFakeProvider(controller, {
@@ -4531,10 +4532,7 @@ function lookupNetworkTests(
     it('updates the network in state to "unavailable"', async () => {
       await withController(
         {
-          state: {
-            networkId: '1',
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller }) => {
           await setFakeProvider(controller, {
@@ -4556,13 +4554,11 @@ function lookupNetworkTests(
       );
     });
 
-    if (providerConfig.type === NetworkType.rpc) {
+    if (expectedProviderConfig.type === NetworkType.rpc) {
       it('emits infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -4593,9 +4589,7 @@ function lookupNetworkTests(
       it('does not emit infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -4628,9 +4622,7 @@ function lookupNetworkTests(
     it('does not emit infuraIsBlocked', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller, messenger }) => {
           await setFakeProvider(controller, {
@@ -4661,13 +4653,11 @@ function lookupNetworkTests(
   });
 
   describe('if a country blocked error is encountered while retrieving the version of the current network', () => {
-    if (providerConfig.type === NetworkType.rpc) {
+    if (expectedProviderConfig.type === NetworkType.rpc) {
       it('updates the network in state to "unknown"', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {
@@ -4690,9 +4680,7 @@ function lookupNetworkTests(
       it('emits infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -4723,9 +4711,7 @@ function lookupNetworkTests(
       it('does not emit infuraIsBlocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -4757,9 +4743,7 @@ function lookupNetworkTests(
       it('updates the network in state to "blocked"', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {
@@ -4782,9 +4766,7 @@ function lookupNetworkTests(
       it('does not emit infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -4816,9 +4798,7 @@ function lookupNetworkTests(
       it('emits infuraIsBlocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -4852,9 +4832,7 @@ function lookupNetworkTests(
     it('updates the network in state to "unknown"', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller }) => {
           await setFakeProvider(controller, {
@@ -4874,13 +4852,11 @@ function lookupNetworkTests(
       );
     });
 
-    if (providerConfig.type === NetworkType.rpc) {
+    if (expectedProviderConfig.type === NetworkType.rpc) {
       it('emits infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -4911,9 +4887,7 @@ function lookupNetworkTests(
       it('does not emit infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -4946,9 +4920,7 @@ function lookupNetworkTests(
     it('does not emit infuraIsBlocked', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller, messenger }) => {
           await setFakeProvider(controller, {
@@ -4982,9 +4954,7 @@ function lookupNetworkTests(
     it('updates the network in state to "unknown"', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller }) => {
           await setFakeProvider(controller, {
@@ -5004,13 +4974,11 @@ function lookupNetworkTests(
       );
     });
 
-    if (providerConfig.type === NetworkType.rpc) {
+    if (expectedProviderConfig.type === NetworkType.rpc) {
       it('emits infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5041,9 +5009,7 @@ function lookupNetworkTests(
       it('does not emit infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5076,9 +5042,7 @@ function lookupNetworkTests(
     it('does not emit infuraIsBlocked', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller, messenger }) => {
           await setFakeProvider(controller, {
@@ -5112,9 +5076,7 @@ function lookupNetworkTests(
     it('updates the network in state to "unavailable"', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller }) => {
           await setFakeProvider(controller, {
@@ -5139,13 +5101,11 @@ function lookupNetworkTests(
       );
     });
 
-    if (providerConfig.type === NetworkType.rpc) {
+    if (expectedProviderConfig.type === NetworkType.rpc) {
       it('emits infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5179,9 +5139,7 @@ function lookupNetworkTests(
       it('does not emit infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5217,9 +5175,7 @@ function lookupNetworkTests(
     it('does not emit infuraIsBlocked', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller, messenger }) => {
           await setFakeProvider(controller, {
@@ -5253,13 +5209,11 @@ function lookupNetworkTests(
   });
 
   describe('if a country blocked error is encountered while retrieving the network details of the current network', () => {
-    if (providerConfig.type === NetworkType.rpc) {
+    if (expectedProviderConfig.type === NetworkType.rpc) {
       it('updates the network in state to "unknown"', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {
@@ -5285,9 +5239,7 @@ function lookupNetworkTests(
       it('emits infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5321,9 +5273,7 @@ function lookupNetworkTests(
       it('does not emit infuraIsBlocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5358,9 +5308,7 @@ function lookupNetworkTests(
       it('updates the network in state to "blocked"', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {
@@ -5386,9 +5334,7 @@ function lookupNetworkTests(
       it('does not emit infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5423,9 +5369,7 @@ function lookupNetworkTests(
       it('emits infuraIsBlocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5462,9 +5406,7 @@ function lookupNetworkTests(
     it('updates the network in state to "unknown"', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller }) => {
           await setFakeProvider(controller, {
@@ -5486,13 +5428,11 @@ function lookupNetworkTests(
       );
     });
 
-    if (providerConfig.type === NetworkType.rpc) {
+    if (expectedProviderConfig.type === NetworkType.rpc) {
       it('emits infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5526,9 +5466,7 @@ function lookupNetworkTests(
       it('does not emit infuraIsUnblocked', async () => {
         await withController(
           {
-            state: {
-              providerConfig,
-            },
+            state: initialState,
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
@@ -5564,9 +5502,7 @@ function lookupNetworkTests(
     it('does not emit infuraIsBlocked', async () => {
       await withController(
         {
-          state: {
-            providerConfig,
-          },
+          state: initialState,
         },
         async ({ controller, messenger }) => {
           await setFakeProvider(controller, {
