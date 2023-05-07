@@ -841,7 +841,7 @@ export class PermissionController<
             requestingOrigin,
           );
 
-    if (!this.targetDoesExist(targetName)) {
+    if (!this.targetExists(targetName)) {
       throw failureError;
     }
 
@@ -1491,7 +1491,7 @@ export class PermissionController<
     origin: OriginString,
   ): void {
     /* istanbul ignore if: this should be impossible */
-    if (!this.targetDoesExist(permission.parentCapability)) {
+    if (!this.targetExists(permission.parentCapability)) {
       throw new Error(
         `Fatal: Existing permission target "${permission.parentCapability}" has no specification.`,
       );
@@ -1505,12 +1505,13 @@ export class PermissionController<
   }
 
   /**
-   * Gets the key for the specified permission target.
+   * Verifies the existence the specified permission target, i.e. whether it has
+   * a specification.
    *
    * @param target - The requested permission target.
-   * @returns The internal key of the permission target.
+   * @returns Whether the permission target exists.
    */
-  private targetDoesExist(
+  private targetExists(
     target: string,
   ): target is ControllerPermissionSpecification['targetName'] {
     return hasProperty(this._permissionSpecifications, target);
@@ -1573,7 +1574,7 @@ export class PermissionController<
     for (const [requestedTarget, approvedPermission] of Object.entries(
       approvedPermissions,
     )) {
-      if (!this.targetDoesExist(requestedTarget)) {
+      if (!this.targetExists(requestedTarget)) {
         throw methodNotFound(requestedTarget);
       }
 
@@ -1588,8 +1589,8 @@ export class PermissionController<
         );
       }
 
-      // The requested target must be a valid target name if we found its key.
-      // We reassign it to change its type.
+      // We have verified that the target exists, and reassign it to change its
+      // type.
       const targetName = requestedTarget as ExtractPermission<
         ControllerPermissionSpecification,
         ControllerCaveatSpecification
@@ -1955,7 +1956,7 @@ export class PermissionController<
     for (const targetName of Object.keys(requestedPermissions)) {
       const permission = requestedPermissions[targetName];
 
-      if (!this.targetDoesExist(targetName)) {
+      if (!this.targetExists(targetName)) {
         throw methodNotFound(targetName, { origin, requestedPermissions });
       }
 
@@ -2016,7 +2017,7 @@ export class PermissionController<
   private getSideEffects(permissions: RequestedPermissions) {
     return Object.keys(permissions).reduce<SideEffects>(
       (sideEffectList, targetName) => {
-        if (this.targetDoesExist(targetName)) {
+        if (this.targetExists(targetName)) {
           const specification = this.getPermissionSpecification(targetName);
 
           if (specification.sideEffect) {
