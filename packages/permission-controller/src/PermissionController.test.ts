@@ -240,7 +240,7 @@ function getDefaultPermissionSpecifications() {
   return {
     [PermissionKeys.wallet_getSecretArray]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_getSecretArray,
+      targetName: PermissionKeys.wallet_getSecretArray,
       allowedCaveats: [
         CaveatTypes.filterArrayResponse,
         CaveatTypes.reverseArrayResponse,
@@ -251,7 +251,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_getSecretObject]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_getSecretObject,
+      targetName: PermissionKeys.wallet_getSecretObject,
       allowedCaveats: [
         CaveatTypes.filterObjectResponse,
         CaveatTypes.noopCaveat,
@@ -271,7 +271,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_doubleNumber]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_doubleNumber,
+      targetName: PermissionKeys.wallet_doubleNumber,
       allowedCaveats: null,
       methodImplementation: ({ params }: RestrictedMethodOptions<[number]>) => {
         if (!Array.isArray(params)) {
@@ -284,7 +284,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_noop]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noop,
+      targetName: PermissionKeys.wallet_noop,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
@@ -292,7 +292,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
+      targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
@@ -304,7 +304,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
+      targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
@@ -316,7 +316,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithPermittedSideEffects,
+      targetName: PermissionKeys.wallet_noopWithPermittedSideEffects,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
@@ -328,7 +328,7 @@ function getDefaultPermissionSpecifications() {
     // This one exists to check some permission validator logic
     [PermissionKeys.wallet_noopWithValidator]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithValidator,
+      targetName: PermissionKeys.wallet_noopWithValidator,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
@@ -345,7 +345,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_noopWithRequiredCaveat]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithRequiredCaveat,
+      targetName: PermissionKeys.wallet_noopWithRequiredCaveat,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
@@ -381,7 +381,7 @@ function getDefaultPermissionSpecifications() {
     // requestData of approved permission requests
     [PermissionKeys.wallet_noopWithFactory]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithFactory,
+      targetName: PermissionKeys.wallet_noopWithFactory,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
@@ -407,7 +407,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.snap_foo]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.snap_foo,
+      targetName: PermissionKeys.snap_foo,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
@@ -416,13 +416,13 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.endowmentAnySubject]: {
       permissionType: PermissionType.Endowment,
-      targetKey: PermissionKeys.endowmentAnySubject,
+      targetName: PermissionKeys.endowmentAnySubject,
       endowmentGetter: (_options: EndowmentGetterParams) => ['endowment1'],
       allowedCaveats: null,
     },
     [PermissionKeys.endowmentSnapsOnly]: {
       permissionType: PermissionType.Endowment,
-      targetKey: PermissionKeys.endowmentSnapsOnly,
+      targetName: PermissionKeys.endowmentSnapsOnly,
       endowmentGetter: (_options: EndowmentGetterParams) => ['endowment2'],
       allowedCaveats: [CaveatTypes.endowmentCaveat],
       subjectTypes: [SubjectType.Snap],
@@ -642,8 +642,8 @@ describe('PermissionController', () => {
       });
     });
 
-    it('throws if a permission specification targetKey is invalid', () => {
-      const invalidTargetKey = '';
+    it('throws if a permission specification targetName is invalid', () => {
+      const invalidTargetName = '';
 
       expect(
         () =>
@@ -654,17 +654,17 @@ describe('PermissionController', () => {
             getPermissionControllerOptions({
               permissionSpecifications: {
                 ...getDefaultPermissionSpecifications(),
-                [invalidTargetKey]: {
+                [invalidTargetName]: {
                   permissionType: PermissionType.Endowment,
-                  targetKey: invalidTargetKey,
+                  targetName: invalidTargetName,
                 },
               },
             }),
           ),
-      ).toThrow(`Invalid permission target key: "${invalidTargetKey}"`);
+      ).toThrow(`Invalid permission target name: "${invalidTargetName}"`);
     });
 
-    it('throws if a permission specification map key does not match its "targetKey" value', () => {
+    it('throws if a permission specification map key does not match its "targetName" value', () => {
       expect(
         () =>
           new PermissionController<
@@ -676,13 +676,13 @@ describe('PermissionController', () => {
                 ...getDefaultPermissionSpecifications(),
                 foo: {
                   permissionType: PermissionType.Endowment,
-                  targetKey: 'bar',
+                  targetName: 'bar',
                 },
               },
             }),
           ),
       ).toThrow(
-        `Invalid permission specification: key "foo" must match specification.target value "bar".`,
+        `Invalid permission specification: target name "foo" must match specification.targetName value "bar".`,
       );
     });
 
@@ -718,7 +718,7 @@ describe('PermissionController', () => {
                 ...getDefaultPermissionSpecifications(),
                 foo: {
                   permissionType: PermissionType.Endowment,
-                  targetKey: 'foo',
+                  targetName: 'foo',
                   allowedCaveats: [defaultCaveats.reverseArrayResponse.type],
                 },
               },
@@ -742,7 +742,7 @@ describe('PermissionController', () => {
                 ...getDefaultPermissionSpecifications(),
                 foo: {
                   permissionType: PermissionType.RestrictedMethod,
-                  targetKey: 'foo',
+                  targetName: 'foo',
                   allowedCaveats: [defaultCaveats.endowmentCaveat.type],
                 },
               },

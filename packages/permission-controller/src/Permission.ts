@@ -82,13 +82,12 @@ export type PermissionConstraint = {
  *
  * See the README for details.
  *
- * @template TargetKey - They key of the permission target that the permission
- * corresponds to.
+ * @template Name - The name of the permission that the target corresponbds to.
  * @template AllowedCaveat - A union of the allowed {@link Caveat} types
  * for the permission.
  */
 export type ValidPermission<
-  TargetKey extends TargetName,
+  Name extends TargetName,
   AllowedCaveat extends CaveatConstraint,
 > = PermissionConstraint & {
   // TODO:TS4.4 Make optional
@@ -105,7 +104,7 @@ export type ValidPermission<
    * A pointer to the resource that possession of the capability grants
    * access to, for example a JSON-RPC method or endowment.
    */
-  readonly parentCapability: TargetKey;
+  readonly parentCapability: Name;
 };
 
 /**
@@ -343,20 +342,6 @@ export type PermissionSideEffect<
 };
 
 /**
- * A utility type for ensuring that the given permission target key conforms to
- * our naming conventions.
- *
- * See the README for the distinction between target names and keys.
- *
- * @template Key - The target key string to apply the constraint to.
- */
-type ValidTargetKey<Key extends string> = Key extends `${string}_`
-  ? never
-  : Key extends `${string}*`
-  ? never
-  : Key;
-
-/**
  * The different possible types of permissions.
  */
 export enum PermissionType {
@@ -390,12 +375,9 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
   permissionType: Type;
 
   /**
-   * The target resource of the permission. The shape of this string depends on
-   * the permission type. For example, a restricted method target key will
-   * consist of either a complete method name or the prefix of a namespaced
-   * method, e.g. `wallet_snap_*`.
+   * The name of the target resource of the permission.
    */
-  targetKey: string;
+  targetName: string;
 
   /**
    * An array of the caveat types that may be added to instances of this
@@ -497,7 +479,7 @@ type PermissionSpecificationBuilderOptions<
   MethodHooks extends Record<string, unknown>,
   ValidatorHooks extends Record<string, unknown>,
 > = {
-  targetKey?: string;
+  targetName?: string;
   allowedCaveats?: Readonly<NonEmptyArray<string>> | null;
   factoryHooks?: FactoryHooks;
   methodHooks?: MethodHooks;
@@ -523,7 +505,7 @@ export type PermissionSpecificationBuilder<
  * {@link PermissionSpecificationBuilder} function and "hook name" objects.
  */
 export type PermissionSpecificationBuilderExportConstraint = {
-  targetKey: string;
+  targetName: string;
   specificationBuilder: PermissionSpecificationBuilder<
     PermissionType,
     PermissionSpecificationBuilderOptions<any, any, any>,
@@ -550,9 +532,7 @@ type ValidRestrictedMethodSpecification<
  */
 export type ValidPermissionSpecification<
   Specification extends PermissionSpecificationConstraint,
-> = Specification['targetKey'] extends ValidTargetKey<
-  Specification['targetKey']
->
+> = Specification['targetName'] extends TargetName
   ? Specification['permissionType'] extends PermissionType.Endowment
     ? Specification
     : Specification['permissionType'] extends PermissionType.RestrictedMethod
@@ -592,8 +572,8 @@ export function hasSpecificationType<
 export type PermissionSpecificationMap<
   Specification extends PermissionSpecificationConstraint,
 > = {
-  [TargetKey in Specification['targetKey']]: Specification extends {
-    targetKey: TargetKey;
+  [Name in Specification['targetName']]: Specification extends {
+    targetName: Name;
   }
     ? Specification
     : never;
@@ -604,13 +584,13 @@ export type PermissionSpecificationMap<
  * permission specifications.
  *
  * @template Specification - The specification union type to extract from.
- * @template TargetKey - The `targetKey` of the specification to extract.
+ * @template Name - The `targetName` of the specification to extract.
  */
 export type ExtractPermissionSpecification<
   Specification extends PermissionSpecificationConstraint,
-  TargetKey extends Specification['targetKey'],
+  Name extends Specification['targetName'],
 > = Specification extends {
-  targetKey: TargetKey;
+  targetName: Name;
 }
   ? Specification
   : never;
