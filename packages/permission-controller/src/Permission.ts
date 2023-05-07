@@ -105,58 +105,8 @@ export type ValidPermission<
    * A pointer to the resource that possession of the capability grants
    * access to, for example a JSON-RPC method or endowment.
    */
-  readonly parentCapability: ExtractPermissionTargetNames<TargetKey>;
+  readonly parentCapability: TargetKey;
 };
-
-/**
- * A utility type for ensuring that the given permission target name conforms to
- * our naming conventions.
- *
- * See the README for the distinction between target names and keys.
- */
-type ValidTargetName<Name extends string> = Name extends `${string}*`
-  ? never
-  : Name extends `${string}_`
-  ? never
-  : Name;
-
-/**
- * A utility type for extracting permission target names from a union of target
- * keys.
- *
- * See the README for the distinction between target names and keys.
- *
- * @template Key - The target key type to extract target names from.
- */
-export type ExtractPermissionTargetNames<Key extends string> = ValidTargetName<
-  Key extends `${infer Base}_*` ? `${Base}_${string}` : Key
->;
-
-/**
- * Extracts the permission key of a particular name from a union of keys.
- * An internal utility type used in {@link ExtractPermissionTargetKey}.
- *
- * @template Key - The target key type to extract from.
- * @template Name - The name whose key to extract.
- */
-type KeyOfTargetName<
-  Key extends string,
-  Name extends string,
-> = Name extends ExtractPermissionTargetNames<Key> ? Key : never;
-
-/**
- * A utility type for finding the permission target key corresponding to a
- * target name. In a way, the inverse of {@link ExtractPermissionTargetNames}.
- *
- * See the README for the distinction between target names and keys.
- *
- * @template Key - The target key type to extract from.
- * @template Name - The name whose key to extract.
- */
-export type ExtractPermissionTargetKey<
-  Key extends string,
-  Name extends string,
-> = Key extends Name ? Key : Extract<Key, KeyOfTargetName<Key, Name>>;
 
 /**
  * Internal utility for extracting the members types of an array. The type
@@ -400,9 +350,7 @@ export type PermissionSideEffect<
  *
  * @template Key - The target key string to apply the constraint to.
  */
-type ValidTargetKey<Key extends string> = Key extends `${string}_*`
-  ? Key
-  : Key extends `${string}_`
+type ValidTargetKey<Key extends string> = Key extends `${string}_`
   ? never
   : Key extends `${string}*`
   ? never

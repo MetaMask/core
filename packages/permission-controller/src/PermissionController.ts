@@ -676,9 +676,7 @@ export class PermissionController<
           throw new Error(`Invalid permission type: "${permissionType}"`);
         }
 
-        // Check if the target key is the empty string, ends with "_", or ends
-        // with "*" but not "_*"
-        if (!targetKey || /_$/u.test(targetKey) || /[^_]\*$/u.test(targetKey)) {
+        if (!targetKey) {
           throw new Error(`Invalid permission target key: "${targetKey}"`);
         }
 
@@ -1519,9 +1517,6 @@ export class PermissionController<
   /**
    * Gets the key for the specified permission target.
    *
-   * Used to support our namespaced permission target feature, which is used
-   * to implement namespaced restricted JSON-RPC methods.
-   *
    * @param target - The requested permission target.
    * @returns The internal key of the permission target.
    */
@@ -1530,32 +1525,6 @@ export class PermissionController<
   ): ControllerPermissionSpecification['targetKey'] | undefined {
     if (hasProperty(this._permissionSpecifications, target)) {
       return target;
-    }
-
-    const namespacedTargetsWithoutWildcard: Record<string, boolean> = {};
-    for (const targetKey of Object.keys(this._permissionSpecifications)) {
-      const wildCardMatch = targetKey.match(/(.+)\*$/u);
-      if (wildCardMatch) {
-        namespacedTargetsWithoutWildcard[wildCardMatch[1]] = true;
-      }
-    }
-
-    // Check for potentially nested namespaces:
-    // Ex: wildzone_
-    // Ex: eth_plugin_
-    const segments = target.split('_');
-    let targetKey = '';
-
-    while (
-      segments.length > 0 &&
-      !hasProperty(this._permissionSpecifications, targetKey) &&
-      !namespacedTargetsWithoutWildcard[targetKey]
-    ) {
-      targetKey += `${segments.shift()}_`;
-    }
-
-    if (namespacedTargetsWithoutWildcard[targetKey]) {
-      return `${targetKey}*`;
     }
 
     return undefined;
