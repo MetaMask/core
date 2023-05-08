@@ -623,14 +623,14 @@ export class KeyringController extends BaseController<
    *
    * @returns Whether the verification succeeds.
    */
-  async verifySeedPhrase(): Promise<string> {
+  async verifySeedPhrase(): Promise<Uint8Array> {
     const primaryKeyring = this.#keyring.getKeyringsByType(KeyringTypes.hd)[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found.');
     }
 
-    const seedWords = (await primaryKeyring.serialize()).mnemonic;
+    const seedWords = primaryKeyring.mnemonic;
     const accounts = await primaryKeyring.getAccounts();
     /* istanbul ignore if */
     if (accounts.length === 0) {
