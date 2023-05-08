@@ -2353,7 +2353,6 @@ describe('NetworkController', () => {
                   },
                 },
               },
-              infuraProjectId: 'some-infura-project-id',
             },
             async ({ controller, messenger }) => {
               const fakeProvider = buildFakeProvider();
@@ -2397,7 +2396,6 @@ describe('NetworkController', () => {
                   },
                 },
               },
-              infuraProjectId: 'some-infura-project-id',
             },
             async ({ controller, messenger }) => {
               const fakeProvider = buildFakeProvider();
@@ -2988,7 +2986,6 @@ describe('NetworkController', () => {
                 chainId: '1337',
               }),
             },
-            infuraProjectId: 'some-infura-project-id',
           },
           async ({ controller, messenger }) => {
             const fakeProvider = buildFakeProvider();
@@ -3021,7 +3018,6 @@ describe('NetworkController', () => {
                 chainId: '1337',
               }),
             },
-            infuraProjectId: 'some-infura-project-id',
           },
           async ({ controller, messenger }) => {
             const fakeProvider = buildFakeProvider();
@@ -3615,7 +3611,6 @@ function refreshNetworkTests({
   it('emits networkWillChange', async () => {
     await withController(
       {
-        infuraProjectId: 'infura-project-id',
         state: initialState,
       },
       async ({ controller, messenger }) => {
@@ -3641,7 +3636,6 @@ function refreshNetworkTests({
   it('emits networkDidChange', async () => {
     await withController(
       {
-        infuraProjectId: 'infura-project-id',
         state: initialState,
       },
       async ({ controller, messenger }) => {
