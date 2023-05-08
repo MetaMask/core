@@ -13,7 +13,7 @@ import * as uuid from 'uuid';
 import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import MockEncryptor from '../tests/mocks/mockEncryptor';
+import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
   Keyring,
@@ -70,6 +70,7 @@ describe('KeyringController', () => {
   const baseConfig: Partial<KeyringConfig> = {
     encryptor,
     keyringBuilders: additionalKeyringBuilders,
+    cacheEncryptionKey: false,
   };
 
   beforeEach(async () => {
@@ -866,9 +867,48 @@ describe('KeyringController', () => {
   });
 
   describe('submitPassword', () => {
-    it('should submit password and decrypt', async () => {
-      const state = await keyringController.submitPassword(password);
-      expect(state).toStrictEqual(initialState);
+    [false, true].map((cacheEncryptionKey) =>
+      describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
+        it('should submit password and decrypt', async () => {
+          const keyringControllerWithCachedEncryptionKey =
+            new KeyringController(preferences, {
+              ...baseConfig,
+              cacheEncryptionKey,
+            });
+          const state =
+            await keyringControllerWithCachedEncryptionKey.createNewVaultAndKeychain(
+              password,
+            );
+
+          const recoveredState =
+            await keyringControllerWithCachedEncryptionKey.submitPassword(
+              password,
+            );
+
+          expect(recoveredState).toStrictEqual(state);
+        });
+      }),
+    );
+  });
+
+  describe('submitEncryptionKey', () => {
+    it('should submit encryption key and decrypt', async () => {
+      const keyringControllerWithCachedEncryptionKey = new KeyringController(
+        preferences,
+        { ...baseConfig, cacheEncryptionKey: true },
+      );
+      const state =
+        await keyringControllerWithCachedEncryptionKey.createNewVaultAndKeychain(
+          password,
+        );
+
+      const recoveredState =
+        await keyringControllerWithCachedEncryptionKey.submitEncryptionKey(
+          mockKey.toString('hex'),
+          state.encryptionSalt,
+        );
+
+      expect(state).toStrictEqual(recoveredState);
     });
   });
 

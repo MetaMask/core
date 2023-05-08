@@ -91,6 +91,7 @@ export interface KeyringMemState extends BaseState {
 export interface KeyringConfig extends BaseConfig {
   encryptor?: any;
   keyringBuilders?: any[];
+  cacheEncryptionKey?: boolean;
 }
 
 /**
@@ -800,6 +801,13 @@ export class KeyringController extends BaseController<
     });
     await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();
+  }
+
+  async submitEncryptionKey(
+    encryptionKey: string,
+    encryptionSalt: string,
+  ): Promise<KeyringMemState> {
+    return this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
   }
 }
 

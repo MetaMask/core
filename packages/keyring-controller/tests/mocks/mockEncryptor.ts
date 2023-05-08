@@ -1,27 +1,52 @@
 const mockHex = '0xabcdef0123456789';
-const mockKey = Buffer.alloc(32);
+export const mockKey = Buffer.alloc(32);
 let cacheVal: any;
 
 export default class MockEncryptor {
-  encrypt(_password: string, dataObj: any) {
+  async encrypt(password: string, dataObj: any) {
+    return JSON.stringify({
+      ...this.encryptWithKey(password, dataObj),
+      salt: this.generateSalt(),
+    });
+  }
+
+  async decrypt(_password: string, _text: string) {
+    return cacheVal || {};
+  }
+
+  async encryptWithKey(_key: string, dataObj: any) {
     cacheVal = dataObj;
-    return Promise.resolve(mockHex);
+    return {
+      data: mockHex,
+      iv: 'anIv',
+    };
   }
 
-  decrypt(_password: string, _text: string) {
-    return Promise.resolve(cacheVal || {});
+  async encryptWithDetail(key: string, dataObj: any) {
+    return {
+      vault: await this.encrypt(key, dataObj),
+      exportedKeyString: mockKey.toString('hex'),
+    };
   }
 
-  encryptWithKey(key: string, dataObj: any) {
-    return this.encrypt(key, dataObj);
+  async decryptWithDetail(key: string, text: string) {
+    return {
+      vault: await this.decrypt(key, text),
+      salt: this.generateSalt(),
+      exportedKeyString: mockKey.toString('hex'),
+    };
   }
 
-  decryptWithKey(key: string, text: string) {
+  async decryptWithKey(key: string, text: string) {
     return this.decrypt(key, text);
   }
 
-  keyFromPassword(_password: string) {
-    return Promise.resolve(mockKey);
+  async keyFromPassword(_password: string) {
+    return mockKey;
+  }
+
+  async importKey(_key: string) {
+    return {};
   }
 
   generateSalt() {
