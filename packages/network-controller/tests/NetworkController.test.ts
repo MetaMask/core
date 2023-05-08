@@ -3378,15 +3378,15 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setActiveNetwork('testNetworkConfiguration');
               const promiseForNoInfuraIsUnblockedEvents =
-                waitForPublishedEvents(
+                waitForPublishedEvents({
                   messenger,
-                  'NetworkController:infuraIsUnblocked',
-                  { count: 0 },
-                );
-              const promiseForInfuraIsBlocked = waitForPublishedEvents(
+                  eventType: 'NetworkController:infuraIsUnblocked',
+                  count: 0,
+                });
+              const promiseForInfuraIsBlocked = waitForPublishedEvents({
                 messenger,
-                'NetworkController:infuraIsBlocked',
-              );
+                eventType: 'NetworkController:infuraIsBlocked',
+              });
 
               await controller.rollbackToPreviousProvider();
 
@@ -3897,15 +3897,13 @@ describe('NetworkController', () => {
               .mockReturnValue(fakeNetworkClients[1]);
             await controller.setProviderType('goerli');
 
-            const promiseForInfuraIsUnblocked = waitForPublishedEvents(
+            const promiseForInfuraIsUnblocked = waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                produceEvents: async () => {
-                  await controller.rollbackToPreviousProvider();
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              produceEvents: async () => {
+                await controller.rollbackToPreviousProvider();
               },
-            );
+            });
 
             await expect(promiseForInfuraIsUnblocked).toBeFulfilled();
           },
@@ -4268,15 +4266,13 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents(
+          const payloads = await waitForPublishedEvents({
             messenger,
-            'NetworkController:infuraIsUnblocked',
-            {
-              produceEvents: async () => {
-                await operation(controller);
-              },
+            eventType: 'NetworkController:infuraIsUnblocked',
+            produceEvents: async () => {
+              await operation(controller);
             },
-          );
+          });
 
           expect(payloads).toStrictEqual([[]]);
         },
@@ -4293,16 +4289,14 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents(
+          const payloads = await waitForPublishedEvents({
             messenger,
-            'NetworkController:infuraIsBlocked',
-            {
-              count: 0,
-              produceEvents: async () => {
-                await operation(controller);
-              },
+            eventType: 'NetworkController:infuraIsBlocked',
+            count: 0,
+            produceEvents: async () => {
+              await operation(controller);
             },
-          );
+          });
 
           expect(payloads).toStrictEqual([]);
         },
@@ -4353,15 +4347,13 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([[]]);
           },
@@ -4384,16 +4376,14 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                count: 0,
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              count: 0,
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([]);
           },
@@ -4417,16 +4407,14 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents(
+          const payloads = await waitForPublishedEvents({
             messenger,
-            'NetworkController:infuraIsBlocked',
-            {
-              count: 0,
-              produceEvents: async () => {
-                await operation(controller);
-              },
+            eventType: 'NetworkController:infuraIsBlocked',
+            count: 0,
+            produceEvents: async () => {
+              await operation(controller);
             },
-          );
+          });
 
           expect(payloads).toStrictEqual([]);
         },
@@ -4475,15 +4463,13 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([[]]);
           },
@@ -4506,16 +4492,14 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsBlocked',
-              {
-                count: 0,
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsBlocked',
+              count: 0,
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([]);
           },
@@ -4561,16 +4545,14 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                count: 0,
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              count: 0,
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([]);
           },
@@ -4593,15 +4575,13 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsBlocked',
-              {
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsBlocked',
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([[]]);
           },
@@ -4651,15 +4631,13 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([[]]);
           },
@@ -4682,16 +4660,14 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                count: 0,
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              count: 0,
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([]);
           },
@@ -4715,16 +4691,14 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents(
+          const payloads = await waitForPublishedEvents({
             messenger,
-            'NetworkController:infuraIsBlocked',
-            {
-              count: 0,
-              produceEvents: async () => {
-                await operation(controller);
-              },
+            eventType: 'NetworkController:infuraIsBlocked',
+            count: 0,
+            produceEvents: async () => {
+              await operation(controller);
             },
-          );
+          });
 
           expect(payloads).toStrictEqual([]);
         },
@@ -4773,15 +4747,13 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([[]]);
           },
@@ -4804,16 +4776,14 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                count: 0,
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              count: 0,
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([]);
           },
@@ -4837,16 +4807,14 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents(
+          const payloads = await waitForPublishedEvents({
             messenger,
-            'NetworkController:infuraIsBlocked',
-            {
-              count: 0,
-              produceEvents: async () => {
-                await operation(controller);
-              },
+            eventType: 'NetworkController:infuraIsBlocked',
+            count: 0,
+            produceEvents: async () => {
+              await operation(controller);
             },
-          );
+          });
 
           expect(payloads).toStrictEqual([]);
         },
@@ -4903,15 +4871,13 @@ function lookupNetworkTests({
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([[]]);
           },
@@ -4937,16 +4903,14 @@ function lookupNetworkTests({
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                count: 0,
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              count: 0,
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([]);
           },
@@ -4973,16 +4937,14 @@ function lookupNetworkTests({
             stubGetEIP1559CompatibilityWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents(
+          const payloads = await waitForPublishedEvents({
             messenger,
-            'NetworkController:infuraIsBlocked',
-            {
-              count: 0,
-              produceEvents: async () => {
-                await operation(controller);
-              },
+            eventType: 'NetworkController:infuraIsBlocked',
+            count: 0,
+            produceEvents: async () => {
+              await operation(controller);
             },
-          );
+          });
 
           expect(payloads).toStrictEqual([]);
         },
@@ -5037,15 +4999,13 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([[]]);
           },
@@ -5071,16 +5031,14 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsBlocked',
-              {
-                count: 0,
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsBlocked',
+              count: 0,
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([]);
           },
@@ -5132,16 +5090,14 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                count: 0,
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              count: 0,
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([]);
           },
@@ -5167,15 +5123,13 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsBlocked',
-              {
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsBlocked',
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([[]]);
           },
@@ -5230,15 +5184,13 @@ function lookupNetworkTests({
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([[]]);
           },
@@ -5264,16 +5216,14 @@ function lookupNetworkTests({
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents(
+            const payloads = await waitForPublishedEvents({
               messenger,
-              'NetworkController:infuraIsUnblocked',
-              {
-                count: 0,
-                produceEvents: async () => {
-                  await operation(controller);
-                },
+              eventType: 'NetworkController:infuraIsUnblocked',
+              count: 0,
+              produceEvents: async () => {
+                await operation(controller);
               },
-            );
+            });
 
             expect(payloads).toStrictEqual([]);
           },
@@ -5300,16 +5250,14 @@ function lookupNetworkTests({
             stubGetEIP1559CompatibilityWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents(
+          const payloads = await waitForPublishedEvents({
             messenger,
-            'NetworkController:infuraIsBlocked',
-            {
-              count: 0,
-              produceEvents: async () => {
-                await operation(controller);
-              },
+            eventType: 'NetworkController:infuraIsBlocked',
+            count: 0,
+            produceEvents: async () => {
+              await operation(controller);
             },
-          );
+          });
 
           expect(payloads).toStrictEqual([]);
         },
@@ -5536,9 +5484,9 @@ async function setFakeProvider(
 /**
  * Waits for controller events to be emitted before proceeding.
  *
- * @param messenger - The messenger suited for NetworkController.
- * @param eventType - The type of NetworkController event you want to wait for.
  * @param options - An options bag.
+ * @param options.messenger - The messenger suited for NetworkController.
+ * @param options.eventType - The type of NetworkController event you want to wait for.
  * @param options.count - The number of events you expect to occur (default: 1).
  * @param options.filter - A function used to discard events that are not of
  * interest.
@@ -5558,30 +5506,30 @@ async function setFakeProvider(
  * @returns A promise that resolves to the list of payloads for the set of
  * events, optionally filtered, when a specific number of them have occurred.
  */
-async function waitForPublishedEvents<E extends NetworkControllerEvents>(
+async function waitForPublishedEvents<E extends NetworkControllerEvents>({
+  messenger,
+  eventType,
+  count: expectedNumberOfEvents = 1,
+  filter: isEventPayloadInteresting = () => true,
+  wait: timeBeforeAssumingNoMoreEvents = 150,
+  produceEvents = () => {
+    // do nothing
+  },
+  beforeResolving = async () => {
+    // do nothing
+  },
+}: {
   messenger: ControllerMessenger<
     NetworkControllerActions,
     NetworkControllerEvents
-  >,
-  eventType: E['type'],
-  {
-    count: expectedNumberOfEvents = 1,
-    filter: isEventPayloadInteresting = () => true,
-    wait: timeBeforeAssumingNoMoreEvents = 150,
-    produceEvents = () => {
-      // do nothing
-    },
-    beforeResolving = async () => {
-      // do nothing
-    },
-  }: {
-    count?: number;
-    filter?: (payload: E['payload']) => boolean;
-    wait?: number;
-    produceEvents?: () => void | Promise<void>;
-    beforeResolving?: () => void | Promise<void>;
-  } = {},
-): Promise<E['payload'][]> {
+  >;
+  eventType: E['type'];
+  count?: number;
+  filter?: (payload: E['payload']) => boolean;
+  wait?: number;
+  produceEvents?: () => void | Promise<void>;
+  beforeResolving?: () => void | Promise<void>;
+}): Promise<E['payload'][]> {
   const promiseForEventPayloads = new Promise<E['payload'][]>(
     (resolve, reject) => {
       let timer: NodeJS.Timeout | undefined;
@@ -5713,17 +5661,15 @@ async function waitForStateChanges({
       : ([_newState, patches]: [NetworkState, Patch[]]) =>
           didPropertyChange(patches, propertyPath);
 
-  return await waitForPublishedEvents<NetworkControllerStateChangeEvent>(
+  return await waitForPublishedEvents<NetworkControllerStateChangeEvent>({
     messenger,
-    'NetworkController:stateChange',
-    {
-      produceEvents: produceStateChanges,
-      count,
-      filter,
-      wait,
-      beforeResolving,
-    },
-  );
+    eventType: 'NetworkController:stateChange',
+    produceEvents: produceStateChanges,
+    count,
+    filter,
+    wait,
+    beforeResolving,
+  });
 }
 
 /**
