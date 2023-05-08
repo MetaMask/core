@@ -3474,10 +3474,10 @@ function refreshNetworkTests({
           // Called during provider initialization
           {
             request: {
-              method: 'eth_getBlockByNumber',
+              method: 'net_version',
             },
             response: {
-              result: '0x1',
+              result: '1',
             },
           },
           // Called during network lookup after resetting connection.
