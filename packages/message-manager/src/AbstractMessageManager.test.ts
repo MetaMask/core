@@ -186,6 +186,31 @@ describe('AbstractTestManager', () => {
     expect(message.status).toBe('test-status');
   });
 
+  it('should set a status to inProgress', async () => {
+    const controller = new AbstractTestManager(
+      undefined,
+      undefined,
+      undefined,
+      ['test-status'],
+    );
+    await controller.addMessage({
+      id: messageId,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    });
+    controller.setMessageStatusInProgress(messageId);
+    const message = controller.getMessage(messageId);
+    if (!message) {
+      throw new Error('"message" is falsy');
+    }
+    expect(message.status).toBe('inProgress');
+  });
+
   it('should get correct unapproved messages', async () => {
     const firstMessageData = [
       {

@@ -675,4 +675,12 @@ export class SignatureController extends BaseControllerV2<
       data: JSON.parse(messageParams.data),
     };
   }
+
+  setTypedMessageInProgress(messageId: string) {
+    this.#typedMessageManager.setMessageStatusInProgress(messageId);
+  }
+
+  setPersonalMessageInProgress(messageId: string) {
+    this.#personalMessageManager.setMessageStatusInProgress(messageId);
+  }
 }

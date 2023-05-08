@@ -282,6 +282,16 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Sets message status to inProgress in order to allow users to use extension
+   * while waiting for a custodian signature.
+   *
+   * @param messageId - The id of the message to set to inProgress
+   */
+  setMessageStatusInProgress(messageId: string) {
+    this.setMessageStatus(messageId, 'inProgress');
+  }
+
+  /**
    * Sets a Message status to 'signed' via a call to this.setMessageStatus and updates
    * that Message in this.messages by adding the raw signature data of the signature
    * request to the Message.
