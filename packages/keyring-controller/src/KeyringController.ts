@@ -621,7 +621,7 @@ export class KeyringController extends BaseController<
   /**
    * Verifies the that the seed phrase restores the current keychain's accounts.
    *
-   * @returns Whether the verification succeeds.
+   * @returns Promise resolving to the seed phrase as Uint8Array.
    */
   async verifySeedPhrase(): Promise<Uint8Array> {
     const primaryKeyring = this.#keyring.getKeyringsByType(KeyringTypes.hd)[0];
