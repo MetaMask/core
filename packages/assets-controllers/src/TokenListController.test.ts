@@ -2,8 +2,9 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
-  NetworkControllerProviderConfigChangeEvent,
+  NetworkControllerStateChangeEvent,
   NetworkState,
+  NetworkStatus,
   ProviderConfig,
 } from '@metamask/network-controller';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
@@ -474,7 +475,7 @@ const expiredCacheExistingState: TokenListState = {
 
 type MainControllerMessenger = ControllerMessenger<
   GetTokenListState,
-  TokenListStateChange | NetworkControllerProviderConfigChangeEvent
+  TokenListStateChange | NetworkControllerStateChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -489,12 +490,34 @@ const getRestrictedMessenger = (
     allowedActions: [],
     allowedEvents: [
       'TokenListController:stateChange',
-      'NetworkController:providerConfigChange',
+      'NetworkController:stateChange',
     ],
   });
 
   return messenger;
 };
+
+/**
+ * Builds an object that satisfies the NetworkState shape using the given
+ * provider config. This can be used to return a complete value for the
+ * `NetworkController:stateChange` event.
+ *
+ * @param providerConfig - The provider config to use.
+ * @returns A complete state object for NetworkController.
+ */
+function buildNetworkControllerStateWithProviderConfig(
+  providerConfig: ProviderConfig,
+): NetworkState {
+  return {
+    providerConfig,
+    networkId: '1',
+    networkStatus: NetworkStatus.Available,
+    networkDetails: {
+      EIPS: {},
+    },
+    networkConfigurations: {},
+  };
+}
 
 describe('TokenListController', () => {
   afterEach(() => {
@@ -519,7 +542,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerConfigChange',
+      'NetworkController:stateChange',
     );
   });
 
@@ -568,7 +591,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerConfigChange',
+      'NetworkController:stateChange',
     );
   });
 
@@ -613,9 +636,7 @@ describe('TokenListController', () => {
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
-    let onNetworkStateChangeCallback!: (
-      state: NetworkState | ProviderConfig,
-    ) => void;
+    let onNetworkStateChangeCallback!: (state: NetworkState) => void;
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
       onNetworkStateChange: (cb) => (onNetworkStateChangeCallback = cb),
@@ -628,10 +649,12 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
-    onNetworkStateChangeCallback({
-      chainId: NetworksChainId.goerli,
-      type: NetworkType.goerli,
-    });
+    onNetworkStateChangeCallback(
+      buildNetworkControllerStateWithProviderConfig({
+        chainId: NetworksChainId.goerli,
+        type: NetworkType.goerli,
+      }),
+    );
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
     expect(controller.state.tokenList).toStrictEqual({});
@@ -1019,10 +1042,14 @@ describe('TokenListController', () => {
       sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
 
-    controllerMessenger.publish('NetworkController:providerConfigChange', {
-      type: NetworkType.goerli,
-      chainId: NetworksChainId.goerli,
-    });
+    controllerMessenger.publish(
+      'NetworkController:stateChange',
+      buildNetworkControllerStateWithProviderConfig({
+        type: NetworkType.goerli,
+        chainId: NetworksChainId.goerli,
+      }),
+      [],
+    );
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
@@ -1033,11 +1060,15 @@ describe('TokenListController', () => {
       sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
 
-    controllerMessenger.publish('NetworkController:providerConfigChange', {
-      type: NetworkType.rpc,
-      chainId: '56',
-      rpcUrl: 'http://localhost:8545',
-    });
+    controllerMessenger.publish(
+      'NetworkController:stateChange',
+      buildNetworkControllerStateWithProviderConfig({
+        type: NetworkType.rpc,
+        chainId: '56',
+        rpcUrl: 'http://localhost:8545',
+      }),
+      [],
+    );
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
     expect(controller.state.tokenList).toStrictEqual(
@@ -1094,10 +1125,14 @@ describe('TokenListController', () => {
       interval: 100,
     });
     await controller.start();
-    controllerMessenger.publish('NetworkController:providerConfigChange', {
-      type: NetworkType.mainnet,
-      chainId: NetworksChainId.mainnet,
-    });
+    controllerMessenger.publish(
+      'NetworkController:stateChange',
+      buildNetworkControllerStateWithProviderConfig({
+        type: NetworkType.mainnet,
+        chainId: NetworksChainId.mainnet,
+      }),
+      [],
+    );
 
     expect(controller.state).toStrictEqual({
       tokenList: {},
@@ -1130,16 +1165,20 @@ describe('TokenListController', () => {
         messenger.clearEventSubscriptions('TokenListController:stateChange');
         controller.destroy();
         controllerMessenger.clearEventSubscriptions(
-          'NetworkController:providerConfigChange',
+          'NetworkController:stateChange',
         );
         resolve();
       });
 
-      controllerMessenger.publish('NetworkController:providerConfigChange', {
-        type: NetworkType.rpc,
-        chainId: '56',
-        rpcUrl: 'http://localhost:8545',
-      });
+      controllerMessenger.publish(
+        'NetworkController:stateChange',
+        buildNetworkControllerStateWithProviderConfig({
+          type: NetworkType.rpc,
+          chainId: '56',
+          rpcUrl: 'http://localhost:8545',
+        }),
+        [],
+      );
     });
   });
 });
