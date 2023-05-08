@@ -5052,8 +5052,6 @@ function buildProviderConfig(
   return {
     type: NetworkType.rpc,
     chainId: '1337',
-    id: undefined,
-    nickname: undefined,
     rpcUrl: 'http://doesntmatter.com',
     ...config,
   };
