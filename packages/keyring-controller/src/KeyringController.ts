@@ -858,6 +858,13 @@ export class KeyringController extends BaseController<
     await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();
   }
+
+  async submitEncryptionKey(
+    encryptionKey: string,
+    encryptionSalt: string,
+  ): Promise<KeyringMemState> {
+    return this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
+  }
 }
 
 export default KeyringController;
