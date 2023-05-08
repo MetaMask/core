@@ -988,7 +988,7 @@ describe('NetworkController', () => {
                 await waitForStateChanges({
                   messenger,
                   propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  produceStateChanges: async () => {
+                  operation: async () => {
                     await controller.getEIP1559Compatibility();
                   },
                 });
@@ -1217,7 +1217,7 @@ describe('NetworkController', () => {
                 await waitForStateChanges({
                   messenger,
                   propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  produceStateChanges: async () => {
+                  operation: async () => {
                     await controller.getEIP1559Compatibility();
                   },
                 });
@@ -1296,7 +1296,7 @@ describe('NetworkController', () => {
                 await waitForStateChanges({
                   messenger,
                   propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  produceStateChanges: async () => {
+                  operation: async () => {
                     await controller.getEIP1559Compatibility();
                   },
                 });
@@ -1461,7 +1461,7 @@ describe('NetworkController', () => {
                 await waitForStateChanges({
                   messenger,
                   propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  produceStateChanges: async () => {
+                  operation: async () => {
                     await controller.getEIP1559Compatibility();
                   },
                 });
@@ -1782,7 +1782,7 @@ describe('NetworkController', () => {
                   // We only care about the first state change, because it
                   // happens before the network lookup
                   count: 1,
-                  produceStateChanges: () => {
+                  operation: () => {
                     // Intentionally not awaited because we want to check state
                     // partway through the operation
                     controller.resetConnection();
@@ -1847,7 +1847,7 @@ describe('NetworkController', () => {
                   // We only care about the first state change, because it
                   // happens before the network lookup
                   count: 1,
-                  produceStateChanges: () => {
+                  operation: () => {
                     // Intentionally not awaited because we want to check state
                     // partway through the operation
                     controller.resetConnection();
@@ -1997,7 +1997,7 @@ describe('NetworkController', () => {
               // We only care about the first state change, because it
               // happens before the network lookup
               count: 1,
-              produceStateChanges: () => {
+              operation: () => {
                 // Intentionally not awaited because we want to check state
                 // partway through the operation
                 controller.resetConnection();
@@ -2064,7 +2064,7 @@ describe('NetworkController', () => {
               // We only care about the first state change, because it
               // happens before the network lookup
               count: 1,
-              produceStateChanges: () => {
+              operation: () => {
                 // Intentionally not awaited because we want to check state
                 // partway through the operation
                 controller.resetConnection();
@@ -3121,7 +3121,7 @@ describe('NetworkController', () => {
                 // We only care about the first state change, because it
                 // happens before networkDidChange
                 count: 1,
-                produceStateChanges: () => {
+                operation: () => {
                   // Intentionally not awaited because we want to check state
                   // while this operation is in-progress
                   controller.rollbackToPreviousProvider();
@@ -3196,7 +3196,7 @@ describe('NetworkController', () => {
                 // We only care about the first state change, because it
                 // happens before networkDidChange
                 count: 1,
-                produceStateChanges: () => {
+                operation: () => {
                   // Intentionally not awaited because we want to check state
                   // while this operation is in-progress
                   controller.rollbackToPreviousProvider();
@@ -3456,7 +3456,7 @@ describe('NetworkController', () => {
               await waitForStateChanges({
                 messenger,
                 propertyPath: ['networkStatus'],
-                produceStateChanges: async () => {
+                operation: async () => {
                   await controller.rollbackToPreviousProvider();
                 },
               });
@@ -3536,7 +3536,7 @@ describe('NetworkController', () => {
                 // rollbackToPreviousProvider clears networkDetails first, and
                 // then updates it to what we expect it to be
                 count: 2,
-                produceStateChanges: async () => {
+                operation: async () => {
                   await controller.rollbackToPreviousProvider();
                 },
               });
@@ -3674,7 +3674,7 @@ describe('NetworkController', () => {
               // We only care about the first state change, because it
               // happens before networkDidChange
               count: 1,
-              produceStateChanges: () => {
+              operation: () => {
                 // Intentionally not awaited because we want to check state
                 // while this operation is in-progress
                 controller.rollbackToPreviousProvider();
@@ -3743,7 +3743,7 @@ describe('NetworkController', () => {
               // We only care about the first state change, because it
               // happens before networkDidChange
               count: 1,
-              produceStateChanges: () => {
+              operation: () => {
                 // Intentionally not awaited because we want to check state
                 // while this operation is in-progress
                 controller.rollbackToPreviousProvider();
@@ -3900,7 +3900,7 @@ describe('NetworkController', () => {
             const promiseForInfuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await controller.rollbackToPreviousProvider();
               },
             });
@@ -4269,7 +4269,7 @@ function lookupNetworkTests({
           const payloads = await waitForPublishedEvents({
             messenger,
             eventType: 'NetworkController:infuraIsUnblocked',
-            produceEvents: async () => {
+            operation: async () => {
               await operation(controller);
             },
           });
@@ -4293,7 +4293,7 @@ function lookupNetworkTests({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
-            produceEvents: async () => {
+            operation: async () => {
               await operation(controller);
             },
           });
@@ -4350,7 +4350,7 @@ function lookupNetworkTests({
             const payloads = await waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4380,7 +4380,7 @@ function lookupNetworkTests({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4411,7 +4411,7 @@ function lookupNetworkTests({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
-            produceEvents: async () => {
+            operation: async () => {
               await operation(controller);
             },
           });
@@ -4466,7 +4466,7 @@ function lookupNetworkTests({
             const payloads = await waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4496,7 +4496,7 @@ function lookupNetworkTests({
               messenger,
               eventType: 'NetworkController:infuraIsBlocked',
               count: 0,
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4549,7 +4549,7 @@ function lookupNetworkTests({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4578,7 +4578,7 @@ function lookupNetworkTests({
             const payloads = await waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsBlocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4634,7 +4634,7 @@ function lookupNetworkTests({
             const payloads = await waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4664,7 +4664,7 @@ function lookupNetworkTests({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4695,7 +4695,7 @@ function lookupNetworkTests({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
-            produceEvents: async () => {
+            operation: async () => {
               await operation(controller);
             },
           });
@@ -4750,7 +4750,7 @@ function lookupNetworkTests({
             const payloads = await waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4780,7 +4780,7 @@ function lookupNetworkTests({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4811,7 +4811,7 @@ function lookupNetworkTests({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
-            produceEvents: async () => {
+            operation: async () => {
               await operation(controller);
             },
           });
@@ -4874,7 +4874,7 @@ function lookupNetworkTests({
             const payloads = await waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4907,7 +4907,7 @@ function lookupNetworkTests({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -4941,7 +4941,7 @@ function lookupNetworkTests({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
-            produceEvents: async () => {
+            operation: async () => {
               await operation(controller);
             },
           });
@@ -5002,7 +5002,7 @@ function lookupNetworkTests({
             const payloads = await waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -5035,7 +5035,7 @@ function lookupNetworkTests({
               messenger,
               eventType: 'NetworkController:infuraIsBlocked',
               count: 0,
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -5094,7 +5094,7 @@ function lookupNetworkTests({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -5126,7 +5126,7 @@ function lookupNetworkTests({
             const payloads = await waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsBlocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -5187,7 +5187,7 @@ function lookupNetworkTests({
             const payloads = await waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -5220,7 +5220,7 @@ function lookupNetworkTests({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
-              produceEvents: async () => {
+              operation: async () => {
                 await operation(controller);
               },
             });
@@ -5254,7 +5254,7 @@ function lookupNetworkTests({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
-            produceEvents: async () => {
+            operation: async () => {
               await operation(controller);
             },
           });
@@ -5493,7 +5493,7 @@ async function setFakeProvider(
  * @param options.wait - The amount of time in milliseconds to wait for the
  * expected number of filtered events to occur before resolving the promise that
  * this function returns (default: 150).
- * @param options.produceEvents - A function to run that will presumably produce
+ * @param options.operation - A function to run that will presumably produce
  * the events in question.
  * @param options.beforeResolving - In some tests, events occur so fast, we need
  * to make an assertion immediately after the event in question occurs. However,
@@ -5512,7 +5512,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
   count: expectedNumberOfEvents = 1,
   filter: isEventPayloadInteresting = () => true,
   wait: timeBeforeAssumingNoMoreEvents = 150,
-  produceEvents = () => {
+  operation = () => {
     // do nothing
   },
   beforeResolving = async () => {
@@ -5527,7 +5527,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
   count?: number;
   filter?: (payload: E['payload']) => boolean;
   wait?: number;
-  produceEvents?: () => void | Promise<void>;
+  operation?: () => void | Promise<void>;
   beforeResolving?: () => void | Promise<void>;
 }): Promise<E['payload'][]> {
   const promiseForEventPayloads = new Promise<E['payload'][]>(
@@ -5606,7 +5606,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
     },
   );
 
-  await produceEvents();
+  await operation();
 
   return await promiseForEventPayloads;
 }
@@ -5623,7 +5623,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
  * @param options.wait - The amount of time in milliseconds to wait for the
  * expected number of filtered events to occur before resolving the promise that
  * this function returns (default: 150).
- * @param options.produceStateChanges - A function to run that will presumably
+ * @param options.operation - A function to run that will presumably
  * produce the state changes in question.
  * @param options.beforeResolving - In some tests, state updates happen so fast,
  * we need to make an assertion immediately after the event in question occurs.
@@ -5642,7 +5642,7 @@ async function waitForStateChanges({
   propertyPath,
   count,
   wait,
-  produceStateChanges,
+  operation,
   beforeResolving,
 }: {
   messenger: ControllerMessenger<
@@ -5652,7 +5652,7 @@ async function waitForStateChanges({
   propertyPath?: string[];
   count?: number;
   wait?: number;
-  produceStateChanges?: () => void | Promise<void>;
+  operation?: () => void | Promise<void>;
   beforeResolving?: () => void | Promise<void>;
 }): Promise<[NetworkState, Patch[]][]> {
   const filter =
@@ -5664,7 +5664,7 @@ async function waitForStateChanges({
   return await waitForPublishedEvents<NetworkControllerStateChangeEvent>({
     messenger,
     eventType: 'NetworkController:stateChange',
-    produceEvents: produceStateChanges,
+    operation,
     count,
     filter,
     wait,
