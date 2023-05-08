@@ -508,7 +508,7 @@ describe('NetworkController', () => {
           initialState: {
             providerConfig: buildProviderConfig({ type: networkType }),
           },
-          operation: async (controller: NetworkController) => {
+          operation: async (controller) => {
             await controller.lookupNetwork();
           },
         });
