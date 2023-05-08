@@ -2369,7 +2369,7 @@ describe('NetworkController', () => {
                 },
               });
 
-              expect(networkWillChange).toStrictEqual([[]]);
+              expect(networkWillChange).toBeFulfilled();
             },
           );
         });
@@ -2411,7 +2411,7 @@ describe('NetworkController', () => {
                 },
               });
 
-              expect(networkDidChange).toStrictEqual([[]]);
+              expect(networkDidChange).toBeFulfilled();
             },
           );
         });
@@ -2999,7 +2999,7 @@ describe('NetworkController', () => {
               },
             });
 
-            expect(networkWillChange).toStrictEqual([[]]);
+            expect(networkWillChange).toBeFulfilled();
           },
         );
       });
@@ -3029,7 +3029,7 @@ describe('NetworkController', () => {
               },
             });
 
-            expect(networkDidChange).toStrictEqual([[]]);
+            expect(networkDidChange).toBeFulfilled();
           },
         );
       });
@@ -3622,7 +3622,7 @@ function refreshNetworkTests({
           },
         });
 
-        expect(networkWillChange).toStrictEqual([[]]);
+        expect(networkWillChange).toBeFulfilled();
       },
     );
   });
@@ -3647,7 +3647,7 @@ function refreshNetworkTests({
           },
         });
 
-        expect(networkDidChange).toStrictEqual([[]]);
+        expect(networkDidChange).toBeFulfilled();
       },
     );
   });
@@ -4151,7 +4151,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([[]]);
+          expect(payloads).toBeFulfilled();
         },
       );
     });
@@ -4175,7 +4175,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          expect(payloads).toBeFulfilled();
         },
       );
     });
@@ -4232,7 +4232,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4262,7 +4262,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4293,7 +4293,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          expect(payloads).toBeFulfilled();
         },
       );
     });
@@ -4348,7 +4348,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4378,7 +4378,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4431,7 +4431,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4460,7 +4460,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4516,7 +4516,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4546,7 +4546,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4577,7 +4577,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          expect(payloads).toBeFulfilled();
         },
       );
     });
@@ -4632,7 +4632,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4662,7 +4662,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4693,7 +4693,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          expect(payloads).toBeFulfilled();
         },
       );
     });
@@ -4756,7 +4756,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4789,7 +4789,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4823,7 +4823,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          expect(payloads).toBeFulfilled();
         },
       );
     });
@@ -4884,7 +4884,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4917,7 +4917,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -4976,7 +4976,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -5008,7 +5008,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -5069,7 +5069,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -5102,7 +5102,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            expect(payloads).toBeFulfilled();
           },
         );
       });
@@ -5136,7 +5136,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          expect(payloads).toBeFulfilled();
         },
       );
     });
