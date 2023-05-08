@@ -2338,7 +2338,6 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: networkType,
-                  ...BUILT_IN_NETWORKS[networkType],
                 }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
@@ -2381,7 +2380,6 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: networkType,
-                  ...BUILT_IN_NETWORKS[networkType],
                 }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
@@ -2982,8 +2980,6 @@ describe('NetworkController', () => {
             state: {
               providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
-                rpcUrl: 'https://mock-rpc-url',
-                chainId: '1337',
               }),
             },
           },
@@ -3014,8 +3010,6 @@ describe('NetworkController', () => {
             state: {
               providerConfig: buildProviderConfig({
                 type: NetworkType.rpc,
-                rpcUrl: 'https://mock-rpc-url',
-                chainId: '1337',
               }),
             },
           },
