@@ -564,7 +564,23 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Attempts to decrypt the current vault and load its keyrings.
+   * Attempts to decrypt the current vault and load its keyrings,
+   * using the given encryption key and salt.
+   *
+   * @param encryptionKey - Key to unlock the keychain.
+   * @param encryptionSalt - Salt to unlock the keychain.
+   * @returns Promise resolving to the current state.
+   */
+  async submitEncryptionKey(
+    encryptionKey: string,
+    encryptionSalt: string,
+  ): Promise<KeyringMemState> {
+    return this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
+  }
+
+  /**
+   * Attempts to decrypt the current vault and load its keyrings,
+   * using the given password.
    *
    * @param password - Password to unlock the keychain.
    * @returns Promise resolving to the current state.
@@ -801,13 +817,6 @@ export class KeyringController extends BaseController<
     });
     await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();
-  }
-
-  async submitEncryptionKey(
-    encryptionKey: string,
-    encryptionSalt: string,
-  ): Promise<KeyringMemState> {
-    return this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
   }
 }
 
