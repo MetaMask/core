@@ -3737,7 +3737,24 @@ function refreshNetworkTests({
           buildFakeClient(fakeProviders[0]),
           buildFakeClient(fakeProviders[1]),
         ];
-        const networkClientOptions: Parameters<typeof createNetworkClient>[0] =
+        const initializationNetworkClientOptions: Parameters<
+          typeof createNetworkClient
+        >[0] =
+          controller.state.providerConfig.type === NetworkType.rpc
+            ? {
+                chainId: toHex(controller.state.providerConfig.chainId),
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                rpcUrl: controller.state.providerConfig.rpcUrl!,
+                type: NetworkClientType.Custom,
+              }
+            : {
+                network: controller.state.providerConfig.type,
+                infuraProjectId: 'infura-project-id',
+                type: NetworkClientType.Infura,
+              };
+        const operationNetworkClientOptions: Parameters<
+          typeof createNetworkClient
+        >[0] =
           expectedProviderConfig.type === NetworkType.rpc
             ? {
                 chainId: toHex(expectedProviderConfig.chainId),
@@ -3751,13 +3768,9 @@ function refreshNetworkTests({
                 type: NetworkClientType.Infura,
               };
         mockCreateNetworkClient()
-          .calledWith({
-            network: NetworkType.mainnet,
-            infuraProjectId: 'infura-project-id',
-            type: NetworkClientType.Infura,
-          })
+          .calledWith(initializationNetworkClientOptions)
           .mockReturnValue(fakeNetworkClients[0])
-          .calledWith(networkClientOptions)
+          .calledWith(operationNetworkClientOptions)
           .mockReturnValue(fakeNetworkClients[1]);
         await controller.initializeProvider();
         const { provider: providerBefore } =
