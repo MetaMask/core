@@ -278,8 +278,6 @@ describe('NetworkController', () => {
                 state: {
                   providerConfig: buildProviderConfig({
                     type: networkType,
-                    chainId: '99999',
-                    nickname: 'some nickname',
                   }),
                 },
                 infuraProjectId: 'infura-project-id',
@@ -560,7 +558,6 @@ describe('NetworkController', () => {
         refreshNetworkTests({
           expectedProviderConfig: buildProviderConfig({
             type: networkType,
-            ...BUILT_IN_NETWORKS[networkType],
           }),
           operation: async (controller) => {
             await controller.setProviderType(networkType);
@@ -2341,7 +2338,6 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: networkType,
-                  ...BUILT_IN_NETWORKS[networkType],
                 }),
                 networkConfigurations: {
                   testNetworkConfiguration: {
@@ -2395,7 +2391,6 @@ describe('NetworkController', () => {
               expect(controller.state.providerConfig).toStrictEqual(
                 buildProviderConfig({
                   type: networkType,
-                  ...BUILT_IN_NETWORKS[networkType],
                 }),
               );
             },
@@ -5041,16 +5036,25 @@ async function withController<ReturnValue>(
  * @param config - An incomplete ProviderConfig object.
  * @returns The complete ProviderConfig object.
  */
-function buildProviderConfig(config: Partial<ProviderConfig> = {}) {
+function buildProviderConfig(
+  config: Partial<ProviderConfig> = {},
+): ProviderConfig {
+  if (config.type && config.type !== NetworkType.rpc) {
+    return {
+      ...BUILT_IN_NETWORKS[config.type],
+      // This is redundant with the spread operation below, but this was
+      // required for TypeScript to understand that this property was set to an
+      // Infura type.
+      type: config.type,
+      ...config,
+    };
+  }
   return {
     type: NetworkType.rpc,
     chainId: '1337',
     id: undefined,
     nickname: undefined,
-    rpcUrl:
-      !config.type || config.type === NetworkType.rpc
-        ? 'http://doesntmatter.com'
-        : undefined,
+    rpcUrl: 'http://doesntmatter.com',
     ...config,
   };
 }
