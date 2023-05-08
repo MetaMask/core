@@ -3529,9 +3529,13 @@ function refreshNetworkTests({
             request: {
               method: 'net_version',
             },
-            response: {
-              result: '1',
+            response: SUCCESSFUL_NET_VERSION_RESPONSE,
+          },
+          {
+            request: {
+              method: 'eth_getBlockByNumber',
             },
+            response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
           },
           // Called during network lookup after resetting connection.
           // Delayed to ensure that we can check the network status
@@ -3541,9 +3545,14 @@ function refreshNetworkTests({
             request: {
               method: 'net_version',
             },
-            response: {
-              result: '1',
+            response: SUCCESSFUL_NET_VERSION_RESPONSE,
+          },
+          {
+            delay: 1,
+            request: {
+              method: 'eth_getBlockByNumber',
             },
+            response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
           },
         ]);
         const fakeNetworkClient = buildFakeClient(fakeProvider);
