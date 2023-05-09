@@ -1,5 +1,6 @@
-import type { ProviderEngine } from 'web3-provider-engine';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { PollingBlockTracker } from 'eth-block-tracker';
 
-export type Provider = ProviderEngine;
+export type Provider = SafeEventEmitterProvider;
 
-export type BlockTracker = any;
+export type BlockTracker = PollingBlockTracker;

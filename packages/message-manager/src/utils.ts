@@ -89,9 +89,11 @@ export function validateTypedSignMessageDataV1(
  * the event of any validation error for eth_signTypedMessage_V3.
  *
  * @param messageData - TypedMessageParams object to validate.
+ * @param currentChainId - The current chainId.
  */
-export function validateTypedSignMessageDataV3(
+export function validateTypedSignMessageDataV3V4(
   messageData: TypedMessageParams,
+  currentChainId: string | undefined,
 ) {
   validateAddress(messageData.from, 'from');
 
@@ -111,6 +113,30 @@ export function validateTypedSignMessageDataV3(
     throw new Error(
       'Data must conform to EIP-712 schema. See https://git.io/fNtcx.',
     );
+  }
+
+  if (!currentChainId) {
+    throw new Error('Current chainId cannot be null or undefined.');
+  }
+
+  let { chainId } = data.domain;
+  if (chainId) {
+    if (typeof chainId === 'string') {
+      chainId = parseInt(chainId, chainId.startsWith('0x') ? 16 : 10);
+    }
+
+    const activeChainId = parseInt(currentChainId, 16);
+    if (Number.isNaN(activeChainId)) {
+      throw new Error(
+        `Cannot sign messages for chainId "${chainId}", because MetaMask is switching networks.`,
+      );
+    }
+
+    if (chainId !== activeChainId) {
+      throw new Error(
+        `Provided chainId "${chainId}" must match the active chainId "${activeChainId}"`,
+      );
+    }
   }
 }
 

@@ -4,7 +4,12 @@ import {
   isValidPrivate,
   toBuffer,
   stripHexPrefix,
+  getBinarySize,
 } from 'ethereumjs-util';
+import {
+  isValidHexAddress,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
 import {
   normalize as normalizeAddress,
   signTypedData,
@@ -27,7 +32,6 @@ import {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 /**
  * Available keyring types
@@ -204,27 +208,47 @@ export class KeyringController extends BaseController<
   /**
    * Adds a new account to the default (first) HD seed phrase keyring.
    *
-   * @returns Promise resolving to current state when the account is added.
+   * @param accountCount - Number of accounts before adding a new one, used to
+   * make the method idempotent.
+   * @returns Promise resolving to keyring current state and added account
+   * address.
    */
-  async addNewAccount(): Promise<KeyringMemState> {
+  async addNewAccount(accountCount?: number): Promise<{
+    keyringState: KeyringMemState;
+    addedAccountAddress: string;
+  }> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found');
     }
     const oldAccounts = await this.#keyring.getAccounts();
+
+    if (accountCount && oldAccounts.length !== accountCount) {
+      if (accountCount > oldAccounts.length) {
+        throw new Error('Account out of sequence');
+      }
+      // we return the account already existing at index `accountCount`
+      const primaryKeyringAccounts = await primaryKeyring.getAccounts();
+      return {
+        keyringState: await this.fullUpdate(),
+        addedAccountAddress: primaryKeyringAccounts[accountCount],
+      };
+    }
+
     await this.#keyring.addNewAccount(primaryKeyring);
     const newAccounts = await this.#keyring.getAccounts();
 
     await this.verifySeedPhrase();
 
     this.updateIdentities(newAccounts);
-    newAccounts.forEach((selectedAddress: string) => {
-      if (!oldAccounts.includes(selectedAddress)) {
-        this.setSelectedAddress(selectedAddress);
-      }
-    });
-    return this.fullUpdate();
+    const addedAccountAddress = newAccounts.find(
+      (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
+    );
+    return {
+      keyringState: await this.fullUpdate(),
+      addedAccountAddress,
+    };
   }
 
   /**
@@ -281,9 +305,16 @@ export class KeyringController extends BaseController<
   async createNewVaultAndKeychain(password: string) {
     const releaseLock = await this.mutex.acquire();
     try {
-      const vault = await this.#keyring.createNewVaultAndKeychain(password);
-      this.updateIdentities(await this.#keyring.getAccounts());
-      this.fullUpdate();
+      let vault;
+      const accounts = await this.getAccounts();
+      if (accounts.length > 0) {
+        vault = await this.fullUpdate();
+      } else {
+        vault = await this.#keyring.createNewVaultAndKeychain(password);
+        this.updateIdentities(await this.getAccounts());
+        this.fullUpdate();
+      }
+
       return vault;
     } finally {
       releaseLock();
@@ -351,12 +382,16 @@ export class KeyringController extends BaseController<
    * @param strategy - Import strategy name.
    * @param args - Array of arguments to pass to the underlying stategy.
    * @throws Will throw when passed an unrecognized strategy.
-   * @returns Promise resolving to current state when the import is complete.
+   * @returns Promise resolving to keyring current state and imported account
+   * address.
    */
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
     args: any[],
-  ): Promise<KeyringMemState> {
+  ): Promise<{
+    keyringState: KeyringMemState;
+    importedAccountAddress: string;
+  }> {
     let privateKey;
     switch (strategy) {
       case 'privateKey':
@@ -374,7 +409,11 @@ export class KeyringController extends BaseController<
         }
 
         /* istanbul ignore if */
-        if (!isValidPrivate(bufferedPrivateKey)) {
+        if (
+          !isValidPrivate(bufferedPrivateKey) ||
+          // ensures that the key is 64 bytes long
+          getBinarySize(prefixed) !== 64 + '0x'.length
+        ) {
           throw new Error('Cannot import invalid private key.');
         }
 
@@ -399,8 +438,10 @@ export class KeyringController extends BaseController<
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
-    this.setSelectedAddress(accounts[0]);
-    return this.fullUpdate();
+    return {
+      keyringState: await this.fullUpdate(),
+      importedAccountAddress: accounts[0],
+    };
   }
 
   /**
@@ -461,6 +502,11 @@ export class KeyringController extends BaseController<
   ) {
     try {
       const address = normalizeAddress(messageParams.from);
+      if (!address || !isValidHexAddress(address)) {
+        throw new Error(
+          `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
+        );
+      }
       const qrKeyring = await this.getOrAddQRKeyring();
       const qrAccounts = await qrKeyring.getAccounts();
       if (
@@ -575,16 +621,16 @@ export class KeyringController extends BaseController<
   /**
    * Verifies the that the seed phrase restores the current keychain's accounts.
    *
-   * @returns Whether the verification succeeds.
+   * @returns Promise resolving to the seed phrase as Uint8Array.
    */
-  async verifySeedPhrase(): Promise<string> {
+  async verifySeedPhrase(): Promise<Uint8Array> {
     const primaryKeyring = this.#keyring.getKeyringsByType(KeyringTypes.hd)[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found.');
     }
 
-    const seedWords = (await primaryKeyring.serialize()).mnemonic;
+    const seedWords = primaryKeyring.mnemonic;
     const accounts = await primaryKeyring.getAccounts();
     /* istanbul ignore if */
     if (accounts.length === 0) {
@@ -719,6 +765,8 @@ export class KeyringController extends BaseController<
         };
       });
     } catch (e) {
+      // TODO: Add test case for when keyring throws
+      /* istanbul ignore next */
       throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
     }
   }

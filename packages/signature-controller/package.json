@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/transaction-controller",
-  "version": "5.0.0",
-  "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
+  "name": "@metamask/signature-controller",
+  "version": "1.0.0",
+  "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/transaction-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/signature-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -22,37 +22,26 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/signature-controller",
     "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@ethereumjs/common": "^2.6.1",
-    "@ethereumjs/tx": "^3.5.2",
+    "@metamask/approval-controller": "workspace:^",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
-    "@metamask/network-controller": "workspace:^",
-    "async-mutex": "^0.2.6",
-    "babel-runtime": "^6.26.0",
-    "eth-method-registry": "1.1.0",
-    "eth-query": "^2.1.2",
+    "@metamask/message-manager": "workspace:^",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
-    "nonce-tracker": "^1.1.0",
-    "uuid": "^8.3.2"
+    "immer": "^9.0.6"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
-    "@metamask/swappable-obj-proxy": "^2.1.0",
     "@types/jest": "^27.4.1",
-    "@types/node": "^16.18.24",
     "deepmerge": "^4.2.2",
-    "eth-block-tracker": "^7.0.1",
-    "ethjs-provider-http": "^0.1.6",
     "jest": "^27.5.1",
-    "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",

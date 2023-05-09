@@ -2,7 +2,6 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import {
-  NetworkControllerProviderConfigChangeEvent,
   NetworkControllerStateChangeEvent,
   defaultState as defaultNetworkState,
   NetworkState,
@@ -89,9 +88,7 @@ const sampleTokenB: Token = {
 
 type MainControllerMessenger = ControllerMessenger<
   GetTokenListState,
-  | TokenListStateChange
-  | NetworkControllerProviderConfigChangeEvent
-  | NetworkControllerStateChangeEvent
+  TokenListStateChange | NetworkControllerStateChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -106,7 +103,7 @@ const setupTokenListController = (
     allowedActions: [],
     allowedEvents: [
       'TokenListController:stateChange',
-      'NetworkController:providerConfigChange',
+      'NetworkController:stateChange',
     ],
   });
 
@@ -271,6 +268,21 @@ describe('TokenDetectionController', () => {
   it('should detect tokens correctly on supported networks', async () => {
     preferences.update({ selectedAddress: '0x1' });
     changeNetwork(mainnet);
+
+    getBalancesInSingleCall.resolves({
+      [sampleTokenA.address]: new BN(1),
+    });
+    await tokenDetection.start();
+    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
+  });
+
+  it('should detect tokens correctly on the Aurora network', async () => {
+    const auroraMainnet = {
+      chainId: NetworksChainId.aurora,
+      type: NetworkType.mainnet,
+    };
+    preferences.update({ selectedAddress: '0x1' });
+    changeNetwork(auroraMainnet);
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),

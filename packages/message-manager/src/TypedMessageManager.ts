@@ -1,7 +1,7 @@
 import { v1 as random } from 'uuid';
 import {
-  validateTypedSignMessageDataV3,
   validateTypedSignMessageDataV1,
+  validateTypedSignMessageDataV3V4,
 } from './utils';
 import {
   AbstractMessageManager,
@@ -98,8 +98,9 @@ export class TypedMessageManager extends AbstractMessageManager<
       validateTypedSignMessageDataV1(messageParams);
     }
 
-    if (version === 'V3') {
-      validateTypedSignMessageDataV3(messageParams);
+    if (version === 'V3' || version === 'V4') {
+      const currentChainId = this.getCurrentChainId?.();
+      validateTypedSignMessageDataV3V4(messageParams, currentChainId);
     }
     const messageId = await this.addUnapprovedMessage(
       messageParams,

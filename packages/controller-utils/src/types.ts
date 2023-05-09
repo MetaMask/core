@@ -15,7 +15,6 @@ export type InfuraNetworkType =
  */
 export const NetworkType = {
   ...InfuraNetworkType,
-  localhost: 'localhost',
   rpc: 'rpc',
 } as const;
 
@@ -35,7 +34,7 @@ export enum NetworksChainId {
   mainnet = '1',
   goerli = '5',
   sepolia = '11155111',
-  localhost = '',
+  aurora = '1313161554',
   rpc = '',
 }
 
@@ -49,7 +48,6 @@ export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
   sepolia = 'SepoliaETH',
-  localhost = '',
   rpc = '',
 }
 
