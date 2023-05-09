@@ -567,7 +567,7 @@ describe('NetworkController', () => {
     }
 
     describe('given a network type of "rpc"', () => {
-      it('throws because there is no way to set the rpcUrl using this method', async () => {
+      it('throws because there is no way to switch to a custom RPC endpoint using this method', async () => {
         await withController(
           {
             state: {
@@ -582,9 +582,10 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             await expect(() =>
+              // @ts-expect-error Intentionally passing invalid type
               controller.setProviderType(NetworkType.rpc),
             ).rejects.toThrow(
-              'rpcUrl must be provided for custom RPC endpoints',
+              'chainId must be provided for custom RPC endpoints',
             );
           },
         );
@@ -597,6 +598,7 @@ describe('NetworkController', () => {
           createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
           try {
+            // @ts-expect-error Intentionally passing invalid type
             await controller.setProviderType(NetworkType.rpc);
           } catch {
             // catch the rejection (it is tested above)
@@ -628,6 +630,7 @@ describe('NetworkController', () => {
           createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
           try {
+            // @ts-expect-error Intentionally passing invalid type
             await controller.setProviderType(NetworkType.rpc);
           } catch {
             // catch the rejection (it is tested above)

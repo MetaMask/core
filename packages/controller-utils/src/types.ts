@@ -30,19 +30,38 @@ export function isNetworkType(val: any): val is NetworkType {
   return Object.values(NetworkType).includes(val);
 }
 
-export enum NetworksChainId {
-  mainnet = '1',
-  goerli = '5',
-  sepolia = '11155111',
-  aurora = '1313161554',
-  rpc = '',
+/**
+ * Names of networks built into the wallet.
+ *
+ * This includes both Infura and non-Infura networks.
+ */
+export enum BuiltInNetwork {
+  Mainnet = 'mainnet',
+  Goerli = 'goerli',
+  Sepolia = 'sepolia',
+  Aurora = 'aurora',
 }
 
-export enum NetworkId {
-  mainnet = '1',
-  goerli = '5',
-  sepolia = '11155111',
-}
+/**
+ * Decimal string chain IDs of built-in networks, by name.
+ */
+export const ChainId = {
+  [BuiltInNetwork.Mainnet]: '1',
+  [BuiltInNetwork.Goerli]: '5',
+  [BuiltInNetwork.Sepolia]: '11155111',
+  [BuiltInNetwork.Aurora]: '1313161554',
+} as const;
+export type ChainId = typeof ChainId[keyof typeof ChainId];
+
+/**
+ * Decimal string network IDs of built-in Infura networks, by name.
+ */
+export const NetworkId = {
+  [InfuraNetworkType.mainnet]: '1',
+  [InfuraNetworkType.goerli]: '5',
+  [InfuraNetworkType.sepolia]: '11155111',
+} as const;
+export type NetworkId = typeof NetworkId[keyof typeof NetworkId];
 
 export enum NetworksTicker {
   mainnet = 'ETH',

@@ -1,4 +1,4 @@
-import { GANACHE_CHAIN_ID, NetworksChainId } from '@metamask/controller-utils';
+import { GANACHE_CHAIN_ID, ChainId } from '@metamask/controller-utils';
 import * as assetsUtil from './assetsUtil';
 import { Nft, NftMetadata } from './NftController';
 
@@ -115,20 +115,20 @@ describe('assetsUtil', () => {
     it('should format icon url with Codefi proxy correctly when passed chainId as a decimal string', () => {
       const linkTokenAddress = '0x514910771af9ca656af840dff83e8264ecf986ca';
       const formattedIconUrl = assetsUtil.formatIconUrlWithProxy({
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${NetworksChainId.mainnet}/${linkTokenAddress}.png`;
+      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${ChainId.mainnet}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
 
     it('should format icon url with Codefi proxy correctly when passed chainId as a hexadecimal string', () => {
       const linkTokenAddress = '0x514910771af9ca656af840dff83e8264ecf986ca';
       const formattedIconUrl = assetsUtil.formatIconUrlWithProxy({
-        chainId: `0x${Number(NetworksChainId.mainnet).toString(16)}`,
+        chainId: `0x${Number(ChainId.mainnet).toString(16)}`,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${NetworksChainId.mainnet}/${linkTokenAddress}.png`;
+      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${ChainId.mainnet}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
   });
@@ -305,9 +305,9 @@ describe('assetsUtil', () => {
     });
 
     it('returns false for testnets such as Goerli', () => {
-      expect(
-        assetsUtil.isTokenListSupportedForNetwork(NetworksChainId.goerli),
-      ).toBe(false);
+      expect(assetsUtil.isTokenListSupportedForNetwork(ChainId.goerli)).toBe(
+        false,
+      );
     });
   });
 
