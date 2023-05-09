@@ -877,6 +877,11 @@ describe('KeyringController', () => {
       const seedPhrase = await keyringController.verifySeedPhrase();
       expect(seedPhrase).toBeDefined();
     });
+
+    it('should return current seedphrase as Uint8Array', async () => {
+      const seedPhrase = await keyringController.verifySeedPhrase();
+      expect(seedPhrase).toBeInstanceOf(Uint8Array);
+    });
   });
 
   describe('validatePassword', () => {

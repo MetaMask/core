@@ -34,6 +34,7 @@ export enum NetworksChainId {
   mainnet = '1',
   goerli = '5',
   sepolia = '11155111',
+  aurora = '1313161554',
   rpc = '',
 }
 
