@@ -35,7 +35,7 @@ export function isNetworkType(val: any): val is NetworkType {
  *
  * This includes both Infura and non-Infura networks.
  */
-export enum BuiltInNetwork {
+export enum BuiltInNetworkName {
   Mainnet = 'mainnet',
   Goerli = 'goerli',
   Sepolia = 'sepolia',
@@ -46,10 +46,10 @@ export enum BuiltInNetwork {
  * Decimal string chain IDs of built-in networks, by name.
  */
 export const ChainId = {
-  [BuiltInNetwork.Mainnet]: '1',
-  [BuiltInNetwork.Goerli]: '5',
-  [BuiltInNetwork.Sepolia]: '11155111',
-  [BuiltInNetwork.Aurora]: '1313161554',
+  [BuiltInNetworkName.Mainnet]: '1',
+  [BuiltInNetworkName.Goerli]: '5',
+  [BuiltInNetworkName.Sepolia]: '11155111',
+  [BuiltInNetworkName.Aurora]: '1313161554',
 } as const;
 export type ChainId = typeof ChainId[keyof typeof ChainId];
 
