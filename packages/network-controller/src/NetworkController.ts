@@ -28,11 +28,16 @@ import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
 import {
   createNetworkClient,
+  NetworkClientConfiguration,
   NetworkClientType,
 } from './create-network-client';
 import type { BlockTracker, Provider } from './types';
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
+
+// Capture a reference to the original version of this method in case fake
+// timers are being used in tests
+const originalPerformanceNow = performance.now.bind(performance);
 
 /**
  * @type ProviderConfig
@@ -91,6 +96,8 @@ export type NetworkConfiguration = {
   };
 };
 
+type TaggedLoggingProvider = Provider & { log: typeof console.log };
+
 /**
  * Asserts that the given value is a network ID, i.e., that it is a decimal
  * number represented as a string.
@@ -126,6 +133,49 @@ function isErrorWithCode(error: unknown): error is { code: string | number } {
  */
 function isInfuraProviderType(type: string): type is InfuraNetworkType {
   return Object.keys(InfuraNetworkType).includes(type);
+}
+
+/**
+ * Wraps a provider by adding a `log` method to it which tags each logged
+ * message with information about that provider. This can be used to debug
+ * issues with network switching in tests, where the network controller may be
+ * performing asynchronous operations for more than one network simultaneously.
+ *
+ * @param provider - The provider.
+ * @param networkClientConfig - The options used to construct the network
+ * client that created the provider.
+ * @returns The provider with the added `log` method.
+ */
+function buildTaggedLoggingProvider(
+  provider: Provider,
+  networkClientConfig: NetworkClientConfiguration,
+): TaggedLoggingProvider {
+  const id = Math.round(originalPerformanceNow() * 10).toString();
+
+  const tagParts: string[] = [id];
+  if ('chainId' in networkClientConfig) {
+    tagParts.push(
+      [networkClientConfig.type, networkClientConfig.chainId].join('/'),
+    );
+  }
+  if ('network' in networkClientConfig) {
+    tagParts.push(
+      [networkClientConfig.type, networkClientConfig.network].join('/'),
+    );
+  }
+  const tag = tagParts.join(',');
+
+  return Object.create(provider, {
+    log: {
+      value: (...messages: any[]) => {
+        if (typeof messages[0] === 'string') {
+          log(`[${tag}] ${messages[0]}`, ...messages.slice(1));
+        } else {
+          log(`[${tag}]`, ...messages);
+        }
+      },
+    },
+  });
 }
 
 /**
@@ -290,7 +340,7 @@ export class NetworkController extends BaseControllerV2<
 
   #previousProviderConfig: ProviderConfig;
 
-  #provider: Provider | undefined;
+  #provider: TaggedLoggingProvider | undefined;
 
   #providerProxy: ProviderProxy | undefined;
 
@@ -411,29 +461,42 @@ export class NetworkController extends BaseControllerV2<
   }
 
   #setupInfuraProvider(type: InfuraNetworkType) {
-    const { provider, blockTracker } = createNetworkClient({
+    const networkClientConfig = {
       network: type,
       infuraProjectId: this.#infuraProjectId,
       type: NetworkClientType.Infura,
-    });
+    } as const;
 
-    this.#updateProvider(provider, blockTracker);
+    const { provider, blockTracker } = createNetworkClient(networkClientConfig);
+
+    this.#updateProvider({ provider, blockTracker, networkClientConfig });
   }
 
   #setupStandardProvider(rpcUrl: string, chainId: Hex) {
-    const { provider, blockTracker } = createNetworkClient({
+    const networkClientConfig = {
       chainId,
       rpcUrl,
       type: NetworkClientType.Custom,
-    });
+    } as const;
 
-    this.#updateProvider(provider, blockTracker);
+    const { provider, blockTracker } = createNetworkClient(networkClientConfig);
+
+    this.#updateProvider({ provider, blockTracker, networkClientConfig });
   }
 
-  #updateProvider(provider: Provider, blockTracker: BlockTracker) {
+  #updateProvider({
+    provider,
+    blockTracker,
+    networkClientConfig,
+  }: {
+    provider: Provider;
+    blockTracker: BlockTracker;
+    networkClientConfig: NetworkClientConfiguration;
+  }) {
     this.#setProviderAndBlockTracker({
       provider,
       blockTracker,
+      networkClientConfig,
     });
     this.#registerProvider();
   }
@@ -447,6 +510,9 @@ export class NetworkController extends BaseControllerV2<
   async initializeProvider() {
     const { type, rpcUrl, chainId } = this.state.providerConfig;
     this.#configureProvider(type, rpcUrl, chainId);
+    if (this.#provider) {
+      this.#provider.log('initializeProvider');
+    }
     this.#registerProvider();
     await this.lookupNetwork();
   }
@@ -458,13 +524,15 @@ export class NetworkController extends BaseControllerV2<
    * @returns A promise that either resolves to the network ID, or rejects with
    * an error.
    */
-  async #getNetworkId(provider: Provider): Promise<NetworkId> {
+  async #getNetworkId(provider: TaggedLoggingProvider): Promise<NetworkId> {
     const ethQuery = new EthQuery(provider);
 
     const possibleNetworkId = await new Promise<string>((resolve, reject) => {
+      provider.log('Making net_version request...');
       ethQuery.sendAsync(
         { method: 'net_version' },
         (error: unknown, result?: unknown) => {
+          provider.log('Got net_version response %o', { error, result });
           if (error) {
             reject(error);
           } else {
@@ -499,21 +567,31 @@ export class NetworkController extends BaseControllerV2<
       return;
     }
 
+    provider.log('lookupNetwork');
+
     const isInfura = isInfuraProviderType(this.state.providerConfig.type);
+    provider.log('(lookupNetwork) Waiting to acquire lock...');
     const releaseLock = await this.#mutex.acquire();
+    provider.log('(lookupNetwork) Lock acquired!');
 
     try {
       let updatedNetworkStatus: NetworkStatus;
       let updatedNetworkId: NetworkId | null = null;
       let updatedIsEIP1559Compatible = false;
+
       try {
+        provider.log('(lookupNetwork) Waiting for Promise.all...');
         const [networkId, isEIP1559Compatible] = await Promise.all([
           this.#getNetworkId(provider),
           this.#determineEIP1559Compatibility(provider),
         ]);
         if (this.state.networkId === networkId) {
+          provider.log(
+            '(lookupNetwork) Network ID did not change, so making no state updates',
+          );
           return;
         }
+        provider.log('(lookupNetwork) Promise.all completed');
         updatedNetworkStatus = NetworkStatus.Available;
         updatedNetworkId = networkId;
         updatedIsEIP1559Compatible = isEIP1559Compatible;
@@ -548,6 +626,13 @@ export class NetworkController extends BaseControllerV2<
         }
       }
 
+      provider.log('(lookupNetwork) %o', {
+        'this.state.networkId': this.state.networkId,
+        updatedNetworkId,
+        updatedNetworkStatus,
+        updatedIsEIP1559Compatible,
+      });
+
       this.update((state) => {
         state.networkId = updatedNetworkId;
         state.networkStatus = updatedNetworkStatus;
@@ -556,17 +641,21 @@ export class NetworkController extends BaseControllerV2<
 
       if (isInfura) {
         if (updatedNetworkStatus === NetworkStatus.Available) {
+          provider.log('(lookupNetwork) Emitting infuraIsUnblocked');
           this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
         } else if (updatedNetworkStatus === NetworkStatus.Blocked) {
+          provider.log('(lookupNetwork) Emitting infuraIsBlocked');
           this.messagingSystem.publish('NetworkController:infuraIsBlocked');
         }
       } else {
         // Always publish infuraIsUnblocked regardless of network status to
         // prevent consumers from being stuck in a blocked state if they were
         // previously connected to an Infura network that was blocked
+        provider.log('(lookupNetwork) Emitting infuraIsUnblocked');
         this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
       }
     } finally {
+      provider.log('(lookupNetwork) Releasing lock...');
       releaseLock();
     }
   }
@@ -577,6 +666,9 @@ export class NetworkController extends BaseControllerV2<
    * @param type - Human readable network name.
    */
   async setProviderType(type: InfuraNetworkType) {
+    const provider = this.#provider;
+    provider?.log('setProviderType:', type);
+
     this.#previousProviderConfig = this.state.providerConfig;
 
     // If testnet the ticker symbol should use a testnet prefix
@@ -603,6 +695,8 @@ export class NetworkController extends BaseControllerV2<
    * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
   async setActiveNetwork(networkConfigurationId: string) {
+    log('setActiveNetwork');
+
     this.#previousProviderConfig = this.state.providerConfig;
 
     const targetNetwork =
@@ -634,13 +728,14 @@ export class NetworkController extends BaseControllerV2<
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(provider: Provider): Promise<Block> {
+  #getLatestBlock(provider: TaggedLoggingProvider): Promise<Block> {
     const ethQuery = new EthQuery(provider);
 
     return new Promise((resolve, reject) => {
       ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
+          provider.log('Got eth_getBlockByNumber response', { error, block });
           if (error) {
             reject(error);
           } else {
@@ -688,8 +783,12 @@ export class NetworkController extends BaseControllerV2<
    * @returns A promise that resolves to true if the network supports EIP-1559
    * and false otherwise.
    */
-  async #determineEIP1559Compatibility(provider: Provider): Promise<boolean> {
+  async #determineEIP1559Compatibility(
+    provider: TaggedLoggingProvider,
+  ): Promise<boolean> {
+    provider.log('Fetching latest block...');
     const latestBlock = await this.#getLatestBlock(provider);
+    provider.log('Got latest block:', latestBlock);
     return latestBlock?.baseFeePerGas !== undefined;
   }
 
@@ -703,16 +802,18 @@ export class NetworkController extends BaseControllerV2<
   #setProviderAndBlockTracker({
     provider,
     blockTracker,
+    networkClientConfig,
   }: {
     provider: Provider;
     blockTracker: BlockTracker;
+    networkClientConfig: NetworkClientConfiguration;
   }) {
     if (this.#providerProxy) {
       this.#providerProxy.setTarget(provider);
     } else {
       this.#providerProxy = createEventEmitterProxy(provider);
     }
-    this.#provider = provider;
+    this.#provider = buildTaggedLoggingProvider(provider, networkClientConfig);
 
     if (this.#blockTrackerProxy) {
       this.#blockTrackerProxy.setTarget(blockTracker);
