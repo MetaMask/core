@@ -123,6 +123,7 @@ describe('SignatureController', () => {
   const getAllStateMock = jest.fn();
   const securityProviderRequestMock = jest.fn();
   const isEthSignEnabledMock = jest.fn();
+  const getCurrentChainIdMock = jest.fn();
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -143,6 +144,7 @@ describe('SignatureController', () => {
       getAllState: getAllStateMock,
       securityProviderRequest: securityProviderRequestMock,
       isEthSignEnabled: isEthSignEnabledMock,
+      getCurrentChainId: getCurrentChainIdMock,
     } as SignatureControllerOptions);
   });
 

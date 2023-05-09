@@ -112,6 +112,7 @@ export type SignatureControllerOptions = {
     requestData: any,
     methodName: string,
   ) => Promise<any>;
+  getCurrentChainId: () => string;
 };
 
 /**
@@ -145,6 +146,7 @@ export class SignatureController extends BaseControllerV2<
    * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
    * @param options.getAllState - Callback to retrieve all user state.
    * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
+   * @param options.getCurrentChainId - A function for retrieving the current chainId.
    */
   constructor({
     messenger,
@@ -152,6 +154,7 @@ export class SignatureController extends BaseControllerV2<
     isEthSignEnabled,
     getAllState,
     securityProviderRequest,
+    getCurrentChainId,
   }: SignatureControllerOptions) {
     super({
       name: controllerName,
@@ -179,6 +182,8 @@ export class SignatureController extends BaseControllerV2<
       undefined,
       undefined,
       securityProviderRequest,
+      undefined,
+      getCurrentChainId,
     );
 
     this.#handleMessageManagerEvents(
