@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [5.0.0]
-### Uncategorized
-- Add chain validation for TypedMessageManager ([#1331](https://github.com/MetaMask/core/pull/1331))
+### Fixed
+- Add chain validation to `eth_signTypedData_v4` signature requests ([#1331](https://github.com/MetaMask/core/pull/1331))
 
 ## [4.0.0]
 ### Changed
