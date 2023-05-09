@@ -1,4 +1,5 @@
 import EventEmitter from 'events';
+import type { Hex } from '@metamask/utils';
 import {
   MessageManager,
   MessageParams,
@@ -112,7 +113,7 @@ export type SignatureControllerOptions = {
     requestData: any,
     methodName: string,
   ) => Promise<any>;
-  getCurrentChainId: () => string;
+  getCurrentChainId: () => Hex;
 };
 
 /**

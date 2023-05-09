@@ -9,6 +9,8 @@ import {
   ChainId,
   NetworkType,
   ORIGIN_METAMASK,
+  convertHexToDecimal,
+  toHex,
 } from '@metamask/controller-utils';
 import {
   NetworkState,
@@ -37,8 +39,8 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   });
 };
 
-const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
-const GOERLI = { chainId: '5', type: NetworkType.goerli };
+const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
+const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
 
 const controllerName = 'TokensController' as const;
 
@@ -661,7 +663,11 @@ describe('TokensController', () => {
       const error = 'An error occured';
       const fullErrorMessage = `TokenService Error: ${error}`;
       nock(TOKEN_END_POINT_API)
-        .get(`/token/${ChainId.mainnet}?address=${dummyTokenAddress}`)
+        .get(
+          `/token/${convertHexToDecimal(
+            ChainId.mainnet,
+          )}?address=${dummyTokenAddress}`,
+        )
         .reply(200, { error })
         .persist();
 

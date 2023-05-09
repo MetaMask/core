@@ -1,3 +1,4 @@
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -122,7 +123,7 @@ export interface ApiNftCreator {
  */
 export interface NftDetectionConfig extends BaseConfig {
   interval: number;
-  chainId: string;
+  chainId: Hex;
   selectedAddress: string;
 }
 
@@ -223,7 +224,7 @@ export class NftDetectionController extends BaseController<
       addNft,
       getNftState,
     }: {
-      chainId: string;
+      chainId: Hex;
       onNftsStateChange: (listener: (nftsState: NftState) => void) => void;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -395,7 +396,7 @@ export class NftDetectionController extends BaseController<
 
         await this.addNft(address, token_id, nftMetadata, {
           userAddress: selectedAddress,
-          chainId: chainId as string,
+          chainId,
         });
       }
     });

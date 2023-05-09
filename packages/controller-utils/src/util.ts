@@ -23,9 +23,15 @@ const TIMEOUT_ERROR = new Error('timeout');
  * @param chainId - The chain ID to check for safety.
  * @returns Whether the given chain ID is safe.
  */
-export function isSafeChainId(chainId: number): boolean {
+export function isSafeChainId(chainId: Hex): boolean {
+  if (!isHexString(chainId)) {
+    return false;
+  }
+  const decimalChainId = Number.parseInt(chainId);
   return (
-    Number.isSafeInteger(chainId) && chainId > 0 && chainId <= MAX_SAFE_CHAIN_ID
+    Number.isSafeInteger(decimalChainId) &&
+    decimalChainId > 0 &&
+    decimalChainId <= MAX_SAFE_CHAIN_ID
   );
 }
 /**

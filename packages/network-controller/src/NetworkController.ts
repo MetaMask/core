@@ -15,7 +15,6 @@ import {
   InfuraNetworkType,
   NetworkType,
   isSafeChainId,
-  toHex,
 } from '@metamask/controller-utils';
 import {
   Hex,
@@ -47,7 +46,7 @@ const log = createModuleLogger(projectLogger, 'NetworkController');
 export type ProviderConfig = {
   rpcUrl?: string;
   type: NetworkType;
-  chainId: string;
+  chainId: Hex;
   ticker?: string;
   nickname?: string;
   rpcPrefs?: { blockExplorerUrl?: string };
@@ -82,7 +81,7 @@ export type NetworkDetails = {
  */
 export type NetworkConfiguration = {
   rpcUrl: string;
-  chainId: string;
+  chainId: Hex;
   ticker: string;
   nickname?: string;
   rpcPrefs?: {
@@ -349,7 +348,7 @@ export class NetworkController extends BaseControllerV2<
   #configureProvider(
     type: NetworkType,
     rpcUrl: string | undefined,
-    chainId: string | undefined,
+    chainId: Hex | undefined,
   ) {
     switch (type) {
       case NetworkType.mainnet:
@@ -365,7 +364,7 @@ export class NetworkController extends BaseControllerV2<
         if (rpcUrl === undefined) {
           throw new Error('rpcUrl must be provided for custom RPC endpoints');
         }
-        this.#setupStandardProvider(rpcUrl, toHex(chainId));
+        this.#setupStandardProvider(rpcUrl, chainId);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -741,7 +740,7 @@ export class NetworkController extends BaseControllerV2<
   ): Promise<string> {
     assertIsStrictHexString(chainId);
 
-    if (!isSafeChainId(parseInt(chainId, 16))) {
+    if (!isSafeChainId(chainId)) {
       throw new Error(
         `Invalid chain ID "${chainId}": numerical value greater than max safe value.`,
       );

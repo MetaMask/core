@@ -7,6 +7,7 @@ import Common from '@ethereumjs/common';
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -26,6 +27,7 @@ import {
   query,
   NetworkType,
   RPC,
+  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import NonceTracker from 'nonce-tracker';
 import {
@@ -79,7 +81,7 @@ export interface FetchAllOptions {
  * @property value - Value associated with this transaction
  */
 export interface Transaction {
-  chainId?: number;
+  chainId?: Hex;
   data?: string;
   from: string;
   gas?: string;
@@ -137,7 +139,7 @@ type TransactionMetaBase = {
   };
   id: string;
   networkID?: string;
-  chainId?: string;
+  chainId?: Hex;
   origin?: string;
   rawTransaction?: string;
   time: number;
@@ -313,7 +315,7 @@ export class TransactionController extends BaseController<
   private normalizeTx(
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
-    currentChainId: string,
+    currentChainId: Hex,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const normalizedTransactionBase = {
@@ -355,7 +357,7 @@ export class TransactionController extends BaseController<
   private normalizeTokenTx = (
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
-    currentChainId: string,
+    currentChainId: Hex,
   ): TransactionMeta => {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const {
@@ -378,8 +380,7 @@ export class TransactionController extends BaseController<
       status: TransactionStatus.confirmed,
       time,
       transaction: {
-        // TODO: Change base to 16 once chainIds are consistently hex-formatted (#1367)
-        chainId: parseInt(currentChainId, undefined),
+        chainId: currentChainId,
         from,
         gas,
         gasPrice,
@@ -629,7 +630,7 @@ export class TransactionController extends BaseController<
 
     const customChainParams = {
       name,
-      chainId: parseInt(chainId, undefined),
+      chainId: parseInt(chainId, 16),
       networkId: networkId === null ? NaN : parseInt(networkId, undefined),
     };
 
@@ -652,7 +653,7 @@ export class TransactionController extends BaseController<
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const { providerConfig } = this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { chainId } = providerConfig;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
@@ -667,13 +668,12 @@ export class TransactionController extends BaseController<
           new Error('No sign method defined.'),
         );
         return;
-      } else if (!currentChainId) {
+      } else if (!chainId) {
         releaseLock();
         this.failTransaction(transactionMeta, new Error('No chainId defined.'));
         return;
       }
 
-      const chainId = parseInt(currentChainId, undefined);
       const { approved: status } = TransactionStatus;
       let nonceToUse = nonce;
       // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
@@ -1268,9 +1268,9 @@ export class TransactionController extends BaseController<
     const txsToKeep = transactions.reverse().filter((tx) => {
       const { chainId, networkID, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${chainId ?? networkID}-${new Date(
-          time,
-        ).toDateString()}`;
+        const key = `${transaction.nonce}-${
+          chainId ? convertHexToDecimal(chainId) : networkID
+        }-${new Date(time).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (

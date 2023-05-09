@@ -7,6 +7,7 @@ import { Mutex } from 'async-mutex';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -41,7 +42,7 @@ import {
  */
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
-  chainId: string;
+  chainId: Hex;
   provider: any;
 }
 
@@ -223,7 +224,7 @@ export class TokensController extends BaseController<
     state,
     messenger,
   }: {
-    chainId: string;
+    chainId: Hex;
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
@@ -500,7 +501,7 @@ export class TokensController extends BaseController<
    */
   async addDetectedTokens(
     incomingDetectedTokens: Token[],
-    detectionDetails?: { selectedAddress: string; chainId: string },
+    detectionDetails?: { selectedAddress: string; chainId: Hex },
   ) {
     const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
@@ -808,7 +809,7 @@ export class TokensController extends BaseController<
     newIgnoredTokens?: string[];
     newDetectedTokens?: Token[];
     interactingAddress?: string;
-    interactingChainId?: string;
+    interactingChainId?: Hex;
   }) {
     const {
       newTokens,

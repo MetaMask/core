@@ -1251,6 +1251,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
+    "@metamask/utils": ^5.0.2
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -1677,6 +1678,7 @@ __metadata:
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
     "@metamask/network-controller": "workspace:^"
+    "@metamask/utils": ^5.0.2
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
     "@types/uuid": ^8.3.0
@@ -1944,6 +1946,7 @@ __metadata:
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
     "@metamask/message-manager": "workspace:^"
+    "@metamask/utils": ^5.0.2
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     eth-rpc-errors: ^4.0.2
@@ -1975,6 +1978,7 @@ __metadata:
     "@metamask/controller-utils": "workspace:^"
     "@metamask/network-controller": "workspace:^"
     "@metamask/swappable-obj-proxy": ^2.1.0
+    "@metamask/utils": ^5.0.2
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.24
     async-mutex: ^0.2.6

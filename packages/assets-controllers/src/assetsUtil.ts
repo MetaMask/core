@@ -1,5 +1,6 @@
 import { ethErrors } from 'eth-rpc-errors';
 import { CID } from 'multiformats/cid';
+import type { Hex } from '@metamask/utils';
 import {
   convertHexToDecimal,
   isValidHexAddress,
@@ -86,7 +87,7 @@ export const formatAggregatorNames = (aggregators: string[]) => {
  * Format token list assets to use image proxy from Codefi.
  *
  * @param params - Object that contains chainID and tokenAddress.
- * @param params.chainId - ChainID of network in decimal or hexadecimal format.
+ * @param params.chainId - ChainID of network in 0x-prefixed hexadecimal format.
  * @param params.tokenAddress - Address of token in mixed or lowercase.
  * @returns Formatted image url
  */
@@ -94,7 +95,7 @@ export const formatIconUrlWithProxy = ({
   chainId,
   tokenAddress,
 }: {
-  chainId: string;
+  chainId: Hex;
   tokenAddress: string;
 }) => {
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
@@ -139,11 +140,11 @@ export function validateTokenToWatch(token: Token) {
  * Networks where token detection is supported - Values are in decimal format
  */
 export enum SupportedTokenDetectionNetworks {
-  mainnet = '1',
-  bsc = '56',
-  polygon = '137',
-  avax = '43114',
-  aurora = '1313161554',
+  mainnet = '0x1', // decimal: 1
+  bsc = '0x38', // decimal: 56
+  polygon = '0x89', // decimal: 137
+  avax = '0xa86a', // decimal: 43114
+  aurora = '0x4e454152', // decimal: 1313161554
 }
 
 /**
@@ -152,10 +153,8 @@ export enum SupportedTokenDetectionNetworks {
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
-  return Object.values<string>(SupportedTokenDetectionNetworks).includes(
-    chainId,
-  );
+export function isTokenDetectionSupportedForNetwork(chainId: Hex): boolean {
+  return Object.values<Hex>(SupportedTokenDetectionNetworks).includes(chainId);
 }
 
 /**
@@ -165,11 +164,9 @@ export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
  * @param chainId - ChainID of network
  * @returns Whether the current network supports tokenlists
  */
-export function isTokenListSupportedForNetwork(chainId: string): boolean {
-  const chainIdDecimal = convertHexToDecimal(chainId).toString();
+export function isTokenListSupportedForNetwork(chainId: Hex): boolean {
   return (
-    isTokenDetectionSupportedForNetwork(chainIdDecimal) ||
-    chainIdDecimal === GANACHE_CHAIN_ID
+    isTokenDetectionSupportedForNetwork(chainId) || chainId === GANACHE_CHAIN_ID
   );
 }
 

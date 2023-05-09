@@ -5,7 +5,8 @@ export const FALL_BACK_VS_CURRENCY = 'ETH';
 export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
 
 // NETWORKS ID
-export const GANACHE_CHAIN_ID = '1337';
+// `toHex` not invoked to avoid cyclic dependency
+export const GANACHE_CHAIN_ID = '0x539'; // toHex(1337)
 /**
  * The largest possible chain ID we can handle.
  * Explanation: https://gist.github.com/rekmarks/a47bd5f2525936c4b8eee31a16345553

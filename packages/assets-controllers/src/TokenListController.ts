@@ -1,6 +1,7 @@
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
+import type { Hex } from '@metamask/utils';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -39,7 +40,7 @@ type DataCache = {
   data: TokenListMap;
 };
 type TokensChainsCache = {
-  [chainSlug: string]: DataCache;
+  [chainId: Hex]: DataCache;
 };
 
 export type TokenListState = {
@@ -94,7 +95,7 @@ export class TokenListController extends BaseControllerV2<
 
   private cacheRefreshThreshold: number;
 
-  private chainId: string;
+  private chainId: Hex;
 
   private abortController: WhatwgAbortController;
 
@@ -119,7 +120,7 @@ export class TokenListController extends BaseControllerV2<
     messenger,
     state,
   }: {
-    chainId: string;
+    chainId: Hex;
     preventPollingOnNetworkRestart?: boolean;
     onNetworkStateChange?: (
       listener: (networkState: NetworkState) => void,
