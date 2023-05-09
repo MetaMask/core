@@ -5,6 +5,12 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 
+/**
+ * @type RateLimitedApi
+ * @property method - The method that is rate-limited.
+ * @property rateLimitTimeout - The time window in which the rate limit is applied (in ms).
+ * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
+ */
 export type RateLimitedApi = {
   method: (...args: any[]) => any;
   rateLimitTimeout?: number;
