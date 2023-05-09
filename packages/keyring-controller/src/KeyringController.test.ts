@@ -12,6 +12,7 @@ import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import * as uuid from 'uuid';
 import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
+import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
@@ -36,6 +37,11 @@ const input =
   '"n":131072,"r":8,"p":1},"mac":"8bd084028ecb331275a76583d41fe0e1212825a6d155e904d1baf448d33e7150"}}';
 const seedWords =
   'puzzle seed penalty soldier say clay field arctic metal hen cage runway';
+const uint8ArraySeed = new Uint8Array(
+  new Uint16Array(
+    seedWords.split(' ').map((word) => wordlist.indexOf(word)),
+  ).buffer,
+);
 const privateKey =
   '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';
 const password = 'password123';
@@ -184,7 +190,7 @@ describe('KeyringController', () => {
     it('should create new vault and restore', async () => {
       const currentState = await keyringController.createNewVaultAndRestore(
         password,
-        seedWords,
+        uint8ArraySeed,
       );
       expect(initialState).not.toBe(currentState);
     });
@@ -203,13 +209,17 @@ describe('KeyringController', () => {
 
     it('should throw error if creating new vault and restore without password', async () => {
       await expect(
-        keyringController.createNewVaultAndRestore('', seedWords),
+        keyringController.createNewVaultAndRestore('', uint8ArraySeed),
       ).rejects.toThrow('Invalid password');
     });
 
     it('should throw error if creating new vault and restoring without seed phrase', async () => {
       await expect(
-        keyringController.createNewVaultAndRestore(password, ''),
+        keyringController.createNewVaultAndRestore(
+          password,
+          // @ts-expect-error invalid seed phrase
+          '',
+        ),
       ).rejects.toThrow(
         'Eth-Hd-Keyring: Deserialize method cannot be called with an opts value for numberOfAccounts and no menmonic',
       );
