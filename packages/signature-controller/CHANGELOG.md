@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 ### Added
-- Pass `getCurrentChainId` in constructor to `TypedMessageManager` ([#1350](https://github.com/MetaMask/core/pull/1350))
+- **BREAKING:** Add `getCurrentChainId` argument to constructor ([#1350](https://github.com/MetaMask/core/pull/1350))
 
 ## [1.0.0]
 ### Added
