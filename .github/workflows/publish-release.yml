@@ -50,8 +50,9 @@ jobs:
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
         uses: MetaMask/action-npm-publish@v3
-        with:
-          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        # Temporarily disabled
+        # with:
+        #   slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
         env:
           SKIP_PREPACK: true
 
