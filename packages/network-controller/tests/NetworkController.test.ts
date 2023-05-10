@@ -807,7 +807,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 await waitForStateChanges({
@@ -845,7 +845,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 const isEIP1559Compatible =
@@ -880,7 +880,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
                 const promiseForIsEIP1559CompatibleChanges =
                   waitForStateChanges({
@@ -919,7 +919,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 const isEIP1559Compatible =
@@ -953,7 +953,7 @@ describe('NetworkController', () => {
                     },
                   },
                 ],
-                stubGetEIP1559CompatibilityWhileSetting: true,
+                stubLookupNetworkWhileSetting: true,
               });
               const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
                 messenger,
@@ -993,7 +993,7 @@ describe('NetworkController', () => {
                     },
                   },
                 ],
-                stubGetEIP1559CompatibilityWhileSetting: true,
+                stubLookupNetworkWhileSetting: true,
               });
 
               const promiseForIsEIP1559Compatible =
@@ -1036,7 +1036,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 await waitForStateChanges({
@@ -1077,7 +1077,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 const isEIP1559Compatible =
@@ -1115,7 +1115,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 await waitForStateChanges({
@@ -1156,7 +1156,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 const isEIP1559Compatible =
@@ -1193,7 +1193,7 @@ describe('NetworkController', () => {
                     },
                   },
                 ],
-                stubGetEIP1559CompatibilityWhileSetting: true,
+                stubLookupNetworkWhileSetting: true,
               });
               const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
                 messenger,
@@ -1236,7 +1236,7 @@ describe('NetworkController', () => {
                     },
                   },
                 ],
-                stubGetEIP1559CompatibilityWhileSetting: true,
+                stubLookupNetworkWhileSetting: true,
               });
 
               const promiseForIsEIP1559Compatible =
@@ -1280,7 +1280,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 await waitForStateChanges({
@@ -1322,7 +1322,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 const isEIP1559Compatible =
@@ -1361,7 +1361,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
                 const promiseForIsEIP1559CompatibleChanges =
                   waitForStateChanges({
@@ -1404,7 +1404,7 @@ describe('NetworkController', () => {
                       },
                     },
                   ],
-                  stubGetEIP1559CompatibilityWhileSetting: true,
+                  stubLookupNetworkWhileSetting: true,
                 });
 
                 const isEIP1559Compatible =
@@ -1442,7 +1442,7 @@ describe('NetworkController', () => {
                     },
                   },
                 ],
-                stubGetEIP1559CompatibilityWhileSetting: true,
+                stubLookupNetworkWhileSetting: true,
               });
               const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
                 messenger,
@@ -1486,7 +1486,7 @@ describe('NetworkController', () => {
                     },
                   },
                 ],
-                stubGetEIP1559CompatibilityWhileSetting: true,
+                stubLookupNetworkWhileSetting: true,
               });
 
               const promiseForIsEIP1559Compatible =
@@ -1515,7 +1515,7 @@ describe('NetworkController', () => {
           },
           async ({ controller, messenger }) => {
             await setFakeProvider(controller, {
-              stubGetEIP1559CompatibilityWhileSetting: true,
+              stubLookupNetworkWhileSetting: true,
             });
             const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
               messenger,
@@ -1542,7 +1542,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             await setFakeProvider(controller, {
-              stubGetEIP1559CompatibilityWhileSetting: true,
+              stubLookupNetworkWhileSetting: true,
             });
 
             const result = await controller.getEIP1559Compatibility();
@@ -4122,6 +4122,7 @@ function lookupNetworkTests({
                   },
                 },
               ],
+              stubLookupNetworkWhileSetting: true,
             });
 
             await operation(controller);
@@ -4719,7 +4720,7 @@ function lookupNetworkTests({
                 error: ethErrors.rpc.limitExceeded('some error'),
               },
             ],
-            stubGetEIP1559CompatibilityWhileSetting: true,
+            stubLookupNetworkWhileSetting: true,
           });
 
           await operation(controller);
@@ -4748,7 +4749,7 @@ function lookupNetworkTests({
                   error: ethErrors.rpc.limitExceeded('some error'),
                 },
               ],
-              stubGetEIP1559CompatibilityWhileSetting: true,
+              stubLookupNetworkWhileSetting: true,
             });
 
             const infuraIsUnblocked = waitForPublishedEvents({
@@ -4780,7 +4781,7 @@ function lookupNetworkTests({
                   error: ethErrors.rpc.limitExceeded('some error'),
                 },
               ],
-              stubGetEIP1559CompatibilityWhileSetting: true,
+              stubLookupNetworkWhileSetting: true,
             });
 
             const infuraIsUnblocked = waitForPublishedEvents({
@@ -4814,7 +4815,7 @@ function lookupNetworkTests({
                 error: ethErrors.rpc.limitExceeded('some error'),
               },
             ],
-            stubGetEIP1559CompatibilityWhileSetting: true,
+            stubLookupNetworkWhileSetting: true,
           });
 
           const infuraIsBlocked = waitForPublishedEvents({
@@ -5035,6 +5036,7 @@ function lookupNetworkTests({
                 error: ethErrors.rpc.internal('some error'),
               },
             ],
+            stubLookupNetworkWhileSetting: true,
           });
 
           await operation(controller);
@@ -5061,7 +5063,7 @@ function lookupNetworkTests({
                   error: ethErrors.rpc.internal('some error'),
                 },
               ],
-              stubGetEIP1559CompatibilityWhileSetting: true,
+              stubLookupNetworkWhileSetting: true,
             });
 
             const infuraIsUnblocked = waitForPublishedEvents({
@@ -5093,7 +5095,7 @@ function lookupNetworkTests({
                   error: ethErrors.rpc.internal('some error'),
                 },
               ],
-              stubGetEIP1559CompatibilityWhileSetting: true,
+              stubLookupNetworkWhileSetting: true,
             });
 
             const infuraIsUnblocked = waitForPublishedEvents({
@@ -5127,7 +5129,7 @@ function lookupNetworkTests({
                 error: ethErrors.rpc.internal('some error'),
               },
             ],
-            stubGetEIP1559CompatibilityWhileSetting: true,
+            stubLookupNetworkWhileSetting: true,
           });
 
           const infuraIsBlocked = waitForPublishedEvents({
@@ -5321,14 +5323,6 @@ function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
  * `lookupNetwork` once, and since `lookupNetwork` is called out of band, the
  * test may run with unexpected results. By stubbing `lookupNetwork` before
  * setting the provider, the test is free to explicitly call it.
- * @param options.stubGetEIP1559CompatibilityWhileSetting - Whether to stub the
- * call to `getEIP1559Compatibility` that happens when the provider is set. This
- * option is useful in tests that need a provider to get set but also call
- * `getEIP1559Compatibility` on their own. In this case, since the
- * `providerConfig` setter already calls `getEIP1559Compatibility` once, and
- * since `getEIP1559Compatibility` is called out of band, the test may run with
- * unexpected results. By stubbing `getEIP1559Compatibility` before setting the
- * provider, the test is free to explicitly call it.
  * @returns The set provider.
  */
 async function setFakeProvider(
@@ -5336,27 +5330,18 @@ async function setFakeProvider(
   {
     stubs = [],
     stubLookupNetworkWhileSetting = false,
-    stubGetEIP1559CompatibilityWhileSetting = false,
   }: {
     stubs?: FakeProviderStub[];
     stubLookupNetworkWhileSetting?: boolean;
-    stubGetEIP1559CompatibilityWhileSetting?: boolean;
   } = {},
 ): Promise<void> {
   const fakeProvider = buildFakeProvider(stubs);
   const fakeNetworkClient = buildFakeClient(fakeProvider);
   createNetworkClientMock.mockReturnValue(fakeNetworkClient);
   const lookupNetworkMock = jest.spyOn(controller, 'lookupNetwork');
-  const lookupGetEIP1559CompatibilityMock = jest.spyOn(
-    controller,
-    'getEIP1559Compatibility',
-  );
 
   if (stubLookupNetworkWhileSetting) {
     lookupNetworkMock.mockResolvedValue(undefined);
-  }
-  if (stubGetEIP1559CompatibilityWhileSetting) {
-    lookupGetEIP1559CompatibilityMock.mockResolvedValue(false);
   }
 
   await controller.initializeProvider();
@@ -5364,9 +5349,6 @@ async function setFakeProvider(
 
   if (stubLookupNetworkWhileSetting) {
     lookupNetworkMock.mockRestore();
-  }
-  if (stubGetEIP1559CompatibilityWhileSetting) {
-    lookupGetEIP1559CompatibilityMock.mockRestore();
   }
 }
 
