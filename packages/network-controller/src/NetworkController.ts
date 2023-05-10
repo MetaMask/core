@@ -12,7 +12,7 @@ import { errorCodes } from 'eth-rpc-errors';
 import {
   BUILT_IN_NETWORKS,
   NetworksTicker,
-  NetworksChainId,
+  ChainId,
   InfuraNetworkType,
   NetworkType,
   isSafeChainId,
@@ -247,7 +247,7 @@ export const defaultState: NetworkState = {
   networkStatus: NetworkStatus.Unknown,
   providerConfig: {
     type: NetworkType.mainnet,
-    chainId: NetworksChainId.mainnet,
+    chainId: ChainId.mainnet,
   },
   networkDetails: {
     EIPS: {
@@ -560,7 +560,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param type - Human readable network name.
    */
-  async setProviderType(type: NetworkType) {
+  async setProviderType(type: InfuraNetworkType) {
     this.#previousProviderConfig = this.state.providerConfig;
 
     // If testnet the ticker symbol should use a testnet prefix
@@ -572,7 +572,7 @@ export class NetworkController extends BaseControllerV2<
     this.update((state) => {
       state.providerConfig.type = type;
       state.providerConfig.ticker = ticker;
-      state.providerConfig.chainId = NetworksChainId[type];
+      state.providerConfig.chainId = ChainId[type];
       state.providerConfig.rpcPrefs = BUILT_IN_NETWORKS[type].rpcPrefs;
       state.providerConfig.rpcUrl = undefined;
       state.providerConfig.nickname = undefined;

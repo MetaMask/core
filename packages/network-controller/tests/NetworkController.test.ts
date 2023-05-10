@@ -567,7 +567,7 @@ describe('NetworkController', () => {
     }
 
     describe('given a network type of "rpc"', () => {
-      it('throws because there is no way to set the rpcUrl using this method', async () => {
+      it('throws because there is no way to switch to a custom RPC endpoint using this method', async () => {
         await withController(
           {
             state: {
@@ -582,9 +582,10 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             await expect(() =>
+              // @ts-expect-error Intentionally passing invalid type
               controller.setProviderType(NetworkType.rpc),
             ).rejects.toThrow(
-              'rpcUrl must be provided for custom RPC endpoints',
+              'chainId must be provided for custom RPC endpoints',
             );
           },
         );
@@ -597,6 +598,7 @@ describe('NetworkController', () => {
           createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
           try {
+            // @ts-expect-error Intentionally passing invalid type
             await controller.setProviderType(NetworkType.rpc);
           } catch {
             // catch the rejection (it is tested above)
@@ -628,6 +630,7 @@ describe('NetworkController', () => {
           createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
           try {
+            // @ts-expect-error Intentionally passing invalid type
             await controller.setProviderType(NetworkType.rpc);
           } catch {
             // catch the rejection (it is tested above)
@@ -2359,7 +2362,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
               await controller.setActiveNetwork('testNetworkConfiguration');
 
-              const networkWillChange = await waitForPublishedEvents({
+              const networkWillChange = waitForPublishedEvents({
                 messenger,
                 eventType: 'NetworkController:networkWillChange',
                 operation: () => {
@@ -2369,7 +2372,7 @@ describe('NetworkController', () => {
                 },
               });
 
-              expect(networkWillChange).toStrictEqual([[]]);
+              await expect(networkWillChange).toBeFulfilled();
             },
           );
         });
@@ -2401,7 +2404,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
               await controller.setActiveNetwork('testNetworkConfiguration');
 
-              const networkDidChange = await waitForPublishedEvents({
+              const networkDidChange = waitForPublishedEvents({
                 messenger,
                 eventType: 'NetworkController:networkDidChange',
                 operation: () => {
@@ -2411,7 +2414,7 @@ describe('NetworkController', () => {
                 },
               });
 
-              expect(networkDidChange).toStrictEqual([[]]);
+              await expect(networkDidChange).toBeFulfilled();
             },
           );
         });
@@ -2989,7 +2992,7 @@ describe('NetworkController', () => {
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
             await controller.setProviderType(InfuraNetworkType.goerli);
 
-            const networkWillChange = await waitForPublishedEvents({
+            const networkWillChange = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:networkWillChange',
               operation: () => {
@@ -2999,7 +3002,7 @@ describe('NetworkController', () => {
               },
             });
 
-            expect(networkWillChange).toStrictEqual([[]]);
+            await expect(networkWillChange).toBeFulfilled();
           },
         );
       });
@@ -3019,7 +3022,7 @@ describe('NetworkController', () => {
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
             await controller.setProviderType(InfuraNetworkType.goerli);
 
-            const networkDidChange = await waitForPublishedEvents({
+            const networkDidChange = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:networkDidChange',
               operation: () => {
@@ -3029,7 +3032,7 @@ describe('NetworkController', () => {
               },
             });
 
-            expect(networkDidChange).toStrictEqual([[]]);
+            await expect(networkDidChange).toBeFulfilled();
           },
         );
       });
@@ -3612,7 +3615,7 @@ function refreshNetworkTests({
         const fakeNetworkClient = buildFakeClient(fakeProvider);
         mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-        const networkWillChange = await waitForPublishedEvents({
+        const networkWillChange = waitForPublishedEvents({
           messenger,
           eventType: 'NetworkController:networkWillChange',
           operation: () => {
@@ -3622,7 +3625,7 @@ function refreshNetworkTests({
           },
         });
 
-        expect(networkWillChange).toStrictEqual([[]]);
+        await expect(networkWillChange).toBeFulfilled();
       },
     );
   });
@@ -3637,7 +3640,7 @@ function refreshNetworkTests({
         const fakeNetworkClient = buildFakeClient(fakeProvider);
         mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-        const networkDidChange = await waitForPublishedEvents({
+        const networkDidChange = waitForPublishedEvents({
           messenger,
           eventType: 'NetworkController:networkDidChange',
           operation: () => {
@@ -3647,7 +3650,7 @@ function refreshNetworkTests({
           },
         });
 
-        expect(networkDidChange).toStrictEqual([[]]);
+        await expect(networkDidChange).toBeFulfilled();
       },
     );
   });
@@ -4143,7 +4146,7 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents({
+          const infuraIsUnblocked = waitForPublishedEvents({
             messenger,
             eventType: 'NetworkController:infuraIsUnblocked',
             operation: async () => {
@@ -4151,7 +4154,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([[]]);
+          await expect(infuraIsUnblocked).toBeFulfilled();
         },
       );
     });
@@ -4166,7 +4169,7 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents({
+          const infuraIsBlocked = waitForPublishedEvents({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
@@ -4175,7 +4178,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          await expect(infuraIsBlocked).toBeFulfilled();
         },
       );
     });
@@ -4224,7 +4227,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               operation: async () => {
@@ -4232,7 +4235,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4253,7 +4256,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
@@ -4262,7 +4265,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4284,7 +4287,7 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents({
+          const infuraIsBlocked = waitForPublishedEvents({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
@@ -4293,7 +4296,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          await expect(infuraIsBlocked).toBeFulfilled();
         },
       );
     });
@@ -4340,7 +4343,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               operation: async () => {
@@ -4348,7 +4351,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4369,7 +4372,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsBlocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsBlocked',
               count: 0,
@@ -4378,7 +4381,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            await expect(infuraIsBlocked).toBeFulfilled();
           },
         );
       });
@@ -4422,7 +4425,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
@@ -4431,7 +4434,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4452,7 +4455,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsBlocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsBlocked',
               operation: async () => {
@@ -4460,7 +4463,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            await expect(infuraIsBlocked).toBeFulfilled();
           },
         );
       });
@@ -4508,7 +4511,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               operation: async () => {
@@ -4516,7 +4519,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4537,7 +4540,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
@@ -4546,7 +4549,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4568,7 +4571,7 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents({
+          const infuraIsBlocked = waitForPublishedEvents({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
@@ -4577,7 +4580,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          await expect(infuraIsBlocked).toBeFulfilled();
         },
       );
     });
@@ -4624,7 +4627,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               operation: async () => {
@@ -4632,7 +4635,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4653,7 +4656,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
@@ -4662,7 +4665,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4684,7 +4687,7 @@ function lookupNetworkTests({
             stubLookupNetworkWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents({
+          const infuraIsBlocked = waitForPublishedEvents({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
@@ -4693,7 +4696,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          await expect(infuraIsBlocked).toBeFulfilled();
         },
       );
     });
@@ -4748,7 +4751,7 @@ function lookupNetworkTests({
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               operation: async () => {
@@ -4756,7 +4759,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4780,7 +4783,7 @@ function lookupNetworkTests({
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
@@ -4789,7 +4792,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4814,7 +4817,7 @@ function lookupNetworkTests({
             stubGetEIP1559CompatibilityWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents({
+          const infuraIsBlocked = waitForPublishedEvents({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
@@ -4823,7 +4826,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          await expect(infuraIsBlocked).toBeFulfilled();
         },
       );
     });
@@ -4876,7 +4879,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               operation: async () => {
@@ -4884,7 +4887,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -4908,7 +4911,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsBlocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsBlocked',
               count: 0,
@@ -4917,7 +4920,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            await expect(infuraIsBlocked).toBeFulfilled();
           },
         );
       });
@@ -4967,7 +4970,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
@@ -4976,7 +4979,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -5000,7 +5003,7 @@ function lookupNetworkTests({
               stubLookupNetworkWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsBlocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsBlocked',
               operation: async () => {
@@ -5008,7 +5011,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            await expect(infuraIsBlocked).toBeFulfilled();
           },
         );
       });
@@ -5061,7 +5064,7 @@ function lookupNetworkTests({
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               operation: async () => {
@@ -5069,7 +5072,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([[]]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -5093,7 +5096,7 @@ function lookupNetworkTests({
               stubGetEIP1559CompatibilityWhileSetting: true,
             });
 
-            const payloads = await waitForPublishedEvents({
+            const infuraIsUnblocked = waitForPublishedEvents({
               messenger,
               eventType: 'NetworkController:infuraIsUnblocked',
               count: 0,
@@ -5102,7 +5105,7 @@ function lookupNetworkTests({
               },
             });
 
-            expect(payloads).toStrictEqual([]);
+            await expect(infuraIsUnblocked).toBeFulfilled();
           },
         );
       });
@@ -5127,7 +5130,7 @@ function lookupNetworkTests({
             stubGetEIP1559CompatibilityWhileSetting: true,
           });
 
-          const payloads = await waitForPublishedEvents({
+          const infuraIsBlocked = waitForPublishedEvents({
             messenger,
             eventType: 'NetworkController:infuraIsBlocked',
             count: 0,
@@ -5136,7 +5139,7 @@ function lookupNetworkTests({
             },
           });
 
-          expect(payloads).toStrictEqual([]);
+          await expect(infuraIsBlocked).toBeFulfilled();
         },
       );
     });

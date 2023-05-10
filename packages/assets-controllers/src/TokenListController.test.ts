@@ -7,7 +7,7 @@ import {
   NetworkStatus,
   ProviderConfig,
 } from '@metamask/network-controller';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
+import { ChainId, NetworkType } from '@metamask/controller-utils';
 import {
   TokenListController,
   TokenListStateChange,
@@ -529,7 +529,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
     });
@@ -550,7 +550,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: existingState,
@@ -599,7 +599,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       messenger,
     });
 
@@ -616,7 +616,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -630,7 +630,7 @@ describe('TokenListController', () => {
 
   it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -638,7 +638,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger(controllerMessenger);
     let onNetworkStateChangeCallback!: (state: NetworkState) => void;
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       onNetworkStateChange: (cb) => (onNetworkStateChangeCallback = cb),
       preventPollingOnNetworkRestart: false,
       interval: 100,
@@ -651,7 +651,7 @@ describe('TokenListController', () => {
     );
     onNetworkStateChangeCallback(
       buildNetworkControllerStateWithProviderConfig({
-        chainId: NetworksChainId.goerli,
+        chainId: ChainId.goerli,
         type: NetworkType.goerli,
       }),
     );
@@ -670,7 +670,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -695,7 +695,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -723,7 +723,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger(controllerMessenger);
 
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -753,7 +753,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -775,7 +775,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.sepolia,
+      chainId: ChainId.sepolia,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -792,14 +792,14 @@ describe('TokenListController', () => {
 
   it('should update token list from api', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       interval: 750,
@@ -812,16 +812,15 @@ describe('TokenListController', () => {
       );
 
       expect(
-        controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+        controller.state.tokensChainsCache[ChainId.mainnet].data,
       ).toStrictEqual(
-        sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+        sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
       );
 
       expect(
-        controller.state.tokensChainsCache[NetworksChainId.mainnet].timestamp,
+        controller.state.tokensChainsCache[ChainId.mainnet].timestamp,
       ).toBeGreaterThanOrEqual(
-        sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet]
-          .timestamp,
+        sampleSingleChainState.tokensChainsCache[ChainId.mainnet].timestamp,
       );
       controller.destroy();
     } finally {
@@ -831,19 +830,19 @@ describe('TokenListController', () => {
 
   it('should update the cache before threshold time if the current data is undefined', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .once()
       .reply(200, undefined);
 
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       interval: 100,
@@ -866,7 +865,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: existingState,
@@ -878,23 +877,23 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+      controller.state.tokensChainsCache[ChainId.mainnet].data,
     ).toStrictEqual(
-      sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+      sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
     );
     controller.destroy();
   });
 
   it('should update token list after removing data with duplicate symbols', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleWithDuplicateSymbols)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
     });
@@ -923,21 +922,21 @@ describe('TokenListController', () => {
     });
 
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+      controller.state.tokensChainsCache[ChainId.mainnet].data,
     ).toStrictEqual(sampleWithDuplicateSymbolsTokensChainsCache);
     controller.destroy();
   });
 
   it('should update token list after removing data less than 3 occurrences', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleWithLessThan3OccurencesResponse)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
     });
@@ -947,21 +946,21 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+      controller.state.tokensChainsCache[ChainId.mainnet].data,
     ).toStrictEqual(sampleWith3OrMoreOccurrences);
     controller.destroy();
   });
 
   it('should update token list when the token property changes', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: outdatedExistingState,
@@ -973,23 +972,23 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+      controller.state.tokensChainsCache[ChainId.mainnet].data,
     ).toStrictEqual(
-      sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+      sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
     );
     controller.destroy();
   });
 
   it('should update the cache when the timestamp expires', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: expiredCacheExistingState,
@@ -997,25 +996,24 @@ describe('TokenListController', () => {
     expect(controller.state).toStrictEqual(expiredCacheExistingState);
     await controller.start();
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].timestamp,
+      controller.state.tokensChainsCache[ChainId.mainnet].timestamp,
     ).toBeGreaterThan(
-      sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet]
-        .timestamp,
+      sampleSingleChainState.tokensChainsCache[ChainId.mainnet].timestamp,
     );
 
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+      controller.state.tokensChainsCache[ChainId.mainnet].data,
     ).toStrictEqual(
-      sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+      sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
     );
     controller.destroy();
   });
 
   it('should update token list when the chainId change', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${NetworksChainId.goerli}`)
+      .get(`/tokens/${ChainId.goerli}`)
       .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56`)
       .reply(200, sampleBinanceTokenList)
@@ -1024,7 +1022,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: existingState,
@@ -1037,16 +1035,16 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+      controller.state.tokensChainsCache[ChainId.mainnet].data,
     ).toStrictEqual(
-      sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+      sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
     );
 
     controllerMessenger.publish(
       'NetworkController:stateChange',
       buildNetworkControllerStateWithProviderConfig({
         type: NetworkType.goerli,
-        chainId: NetworksChainId.goerli,
+        chainId: ChainId.goerli,
       }),
       [],
     );
@@ -1055,9 +1053,9 @@ describe('TokenListController', () => {
 
     expect(controller.state.tokenList).toStrictEqual({});
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+      controller.state.tokensChainsCache[ChainId.mainnet].data,
     ).toStrictEqual(
-      sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+      sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
     );
 
     controllerMessenger.publish(
@@ -1076,9 +1074,9 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+      controller.state.tokensChainsCache[ChainId.mainnet].data,
     ).toStrictEqual(
-      sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+      sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
     );
 
     expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
@@ -1092,7 +1090,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: existingState,
@@ -1108,9 +1106,9 @@ describe('TokenListController', () => {
 
   it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${NetworksChainId.goerli}`)
+      .get(`/tokens/${ChainId.goerli}`)
       .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56`)
       .reply(200, sampleBinanceTokenList)
@@ -1119,7 +1117,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: NetworksChainId.goerli,
+      chainId: ChainId.goerli,
       preventPollingOnNetworkRestart: true,
       messenger,
       interval: 100,
@@ -1129,7 +1127,7 @@ describe('TokenListController', () => {
       'NetworkController:stateChange',
       buildNetworkControllerStateWithProviderConfig({
         type: NetworkType.mainnet,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       }),
       [],
     );
