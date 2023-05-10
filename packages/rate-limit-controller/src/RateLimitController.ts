@@ -171,7 +171,7 @@ export class RateLimitController<
    */
   private isRateLimited(api: keyof RateLimitedApis, origin: string) {
     const rateLimitCount =
-      this.implementations[api].rateLimitCount || this.rateLimitCount;
+      this.implementations[api].rateLimitCount ?? this.rateLimitCount;
     return this.state.requests[api][origin] >= rateLimitCount;
   }
 
@@ -183,7 +183,7 @@ export class RateLimitController<
    */
   private recordRequest(api: keyof RateLimitedApis, origin: string) {
     const rateLimitTimeout =
-      this.implementations[api].rateLimitTimeout || this.rateLimitTimeout;
+      this.implementations[api].rateLimitTimeout ?? this.rateLimitTimeout;
     this.update((state) => {
       const previous = (state as any).requests[api][origin] ?? 0;
       (state as any).requests[api][origin] = previous + 1;
