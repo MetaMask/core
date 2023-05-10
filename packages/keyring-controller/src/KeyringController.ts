@@ -80,6 +80,8 @@ export interface KeyringMemState extends BaseState {
   isUnlocked: boolean;
   keyringTypes: string[];
   keyrings: Keyring[];
+  encryptionKey?: string;
+  encryptionSalt?: string;
 }
 
 /**
@@ -313,7 +315,7 @@ export class KeyringController extends BaseController<
       } else {
         vault = await this.#keyring.createNewVaultAndKeychain(password);
         this.updateIdentities(await this.getAccounts());
-        this.fullUpdate();
+        await this.fullUpdate();
       }
 
       return vault;
