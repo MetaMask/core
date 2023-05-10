@@ -17,6 +17,7 @@ const implementations = {
   apiWithCustomLimit: {
     method: jest.fn(),
     rateLimitCount: 2,
+    rateLimitTimeout: 3000,
   },
 };
 
