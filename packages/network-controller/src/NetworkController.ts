@@ -492,16 +492,18 @@ export class NetworkController extends BaseControllerV2<
     try {
       let updatedNetworkStatus: NetworkStatus;
       let updatedNetworkId: NetworkId | null = null;
+      let updatedIsEIP1559Compatible = false;
       try {
-        const [networkId] = await Promise.all([
+        const [networkId, isEIP1559Compatible] = await Promise.all([
           this.#getNetworkId(),
-          this.getEIP1559Compatibility(),
+          this.#determineEIP1559Compatibility(),
         ]);
         if (this.state.networkId === networkId) {
           return;
         }
         updatedNetworkStatus = NetworkStatus.Available;
         updatedNetworkId = networkId;
+        updatedIsEIP1559Compatible = isEIP1559Compatible;
       } catch (error) {
         if (isErrorWithCode(error)) {
           let responseBody;
@@ -536,6 +538,7 @@ export class NetworkController extends BaseControllerV2<
       this.update((state) => {
         state.networkId = updatedNetworkId;
         state.networkStatus = updatedNetworkStatus;
+        state.networkDetails.EIPS[1559] = updatedIsEIP1559Compatible;
       });
 
       if (isInfura) {
@@ -630,6 +633,14 @@ export class NetworkController extends BaseControllerV2<
     });
   }
 
+  /**
+   * Determines whether the network supports EIP-1559 by checking whether the
+   * latest block has a `baseFeePerGas` property, then updates state
+   * appropriately.
+   *
+   * @returns A promise that resolves to true if the network supports EIP-1559
+   * and false otherwise.
+   */
   async getEIP1559Compatibility() {
     const { networkDetails = { EIPS: {} } } = this.state;
 
@@ -637,15 +648,26 @@ export class NetworkController extends BaseControllerV2<
       return true;
     }
 
-    const latestBlock = await this.#getLatestBlock();
-    const isEIP1559Compatible =
-      typeof latestBlock.baseFeePerGas !== 'undefined';
+    const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
     if (networkDetails.EIPS[1559] !== isEIP1559Compatible) {
       this.update((state) => {
         state.networkDetails.EIPS[1559] = isEIP1559Compatible;
       });
     }
     return isEIP1559Compatible;
+  }
+
+  /**
+   * Retrieves the latest block from the currently selected network; if the
+   * block has a `baseFeePerGas` property, then we know that the network
+   * supports EIP-1559; otherwise it doesn't.
+   *
+   * @returns A promise that resolves to true if the network supports EIP-1559
+   * and false otherwise.
+   */
+  async #determineEIP1559Compatibility(): Promise<boolean> {
+    const latestBlock = await this.#getLatestBlock();
+    return latestBlock?.baseFeePerGas !== undefined;
   }
 
   /**
