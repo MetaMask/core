@@ -20,7 +20,6 @@ import {
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { NetworkState } from '@metamask/network-controller';
 import {
-  NetworkType,
   toChecksumHexAddress,
   ERC721_INTERFACE_ID,
   ORIGIN_METAMASK,
@@ -42,11 +41,9 @@ import {
  * @type TokensConfig
  *
  * Tokens controller configuration
- * @property networkType - Network ID as per net_version
  * @property selectedAddress - Vault selected address
  */
 export interface TokensConfig extends BaseConfig {
-  networkType: NetworkType;
   selectedAddress: string;
   chainId: string;
   provider: any;
@@ -244,7 +241,6 @@ export class TokensController extends BaseController<
     super(config, state);
 
     this.defaultConfig = {
-      networkType: NetworkType.mainnet,
       selectedAddress: '',
       chainId: '',
       provider: undefined,
