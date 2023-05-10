@@ -272,7 +272,6 @@ describe('NftDetectionController', () => {
     });
 
     nftController.configure({
-      networkType: NetworkType.mainnet,
       selectedAddress,
     });
     const { chainId } = nftDetection.config;
@@ -495,7 +494,6 @@ describe('NftDetectionController', () => {
 
     nftController.configure({
       selectedAddress,
-      networkType: NetworkType.mainnet,
     });
 
     const { chainId } = nftDetection.config;
@@ -663,7 +661,6 @@ describe('NftDetectionController', () => {
     });
 
     nftController.configure({
-      networkType: NetworkType.mainnet,
       selectedAddress,
     });
 
@@ -701,7 +698,6 @@ describe('NftDetectionController', () => {
     });
 
     nftController.configure({
-      networkType: NetworkType.mainnet,
       selectedAddress,
     });
 
