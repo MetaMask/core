@@ -290,6 +290,8 @@ export class NetworkController extends BaseControllerV2<
 
   #previousProviderConfig: ProviderConfig;
 
+  #provider: Provider | undefined;
+
   #providerProxy: ProviderProxy | undefined;
 
   #blockTrackerProxy: BlockTrackerProxy | undefined;
@@ -449,12 +451,18 @@ export class NetworkController extends BaseControllerV2<
     await this.lookupNetwork();
   }
 
-  async #getNetworkId(): Promise<NetworkId> {
+  /**
+   * Fetches the network ID for the network.
+   *
+   * @param provider - A provider, which is guaranteed to be available.
+   * @returns A promise that either resolves to the network ID, or rejects with
+   * an error.
+   */
+  async #getNetworkId(provider: Provider): Promise<NetworkId> {
+    const ethQuery = new EthQuery(provider);
+
     const possibleNetworkId = await new Promise<string>((resolve, reject) => {
-      if (!this.#ethQuery) {
-        throw new Error('Provider has not been initialized');
-      }
-      this.#ethQuery.sendAsync(
+      ethQuery.sendAsync(
         { method: 'net_version' },
         (error: unknown, result?: unknown) => {
           if (error) {
@@ -468,6 +476,7 @@ export class NetworkController extends BaseControllerV2<
     });
 
     assertNetworkId(possibleNetworkId);
+
     return possibleNetworkId;
   }
 
@@ -483,9 +492,13 @@ export class NetworkController extends BaseControllerV2<
    * blocking requests, or if the network is not Infura-supported.
    */
   async lookupNetwork() {
-    if (!this.#ethQuery) {
+    const provider = this.#provider;
+
+    if (!provider) {
+      log('NetworkController - lookupNetwork aborted due to missing provider');
       return;
     }
+
     const isInfura = isInfuraProviderType(this.state.providerConfig.type);
     const releaseLock = await this.#mutex.acquire();
 
@@ -495,8 +508,8 @@ export class NetworkController extends BaseControllerV2<
       let updatedIsEIP1559Compatible = false;
       try {
         const [networkId, isEIP1559Compatible] = await Promise.all([
-          this.#getNetworkId(),
-          this.#determineEIP1559Compatibility(),
+          this.#getNetworkId(provider),
+          this.#determineEIP1559Compatibility(provider),
         ]);
         if (this.state.networkId === networkId) {
           return;
@@ -614,12 +627,18 @@ export class NetworkController extends BaseControllerV2<
     await this.#refreshNetwork();
   }
 
-  #getLatestBlock(): Promise<Block> {
+  /**
+   * Fetches the latest block for the network.
+   *
+   * @param provider - A provider, which is guaranteed to be available.
+   * @returns A promise that either resolves to the block header or null if
+   * there is no latest block, or rejects with an error.
+   */
+  #getLatestBlock(provider: Provider): Promise<Block> {
+    const ethQuery = new EthQuery(provider);
+
     return new Promise((resolve, reject) => {
-      if (!this.#ethQuery) {
-        throw new Error('Provider has not been initialized');
-      }
-      this.#ethQuery.sendAsync(
+      ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
           if (error) {
@@ -643,12 +662,15 @@ export class NetworkController extends BaseControllerV2<
    */
   async getEIP1559Compatibility() {
     const { networkDetails = { EIPS: {} } } = this.state;
+    const provider = this.#provider;
 
-    if (networkDetails.EIPS[1559] || !this.#ethQuery) {
+    if (networkDetails.EIPS[1559] || !provider) {
       return true;
     }
 
-    const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
+    const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
+      provider,
+    );
     if (networkDetails.EIPS[1559] !== isEIP1559Compatible) {
       this.update((state) => {
         state.networkDetails.EIPS[1559] = isEIP1559Compatible;
@@ -662,11 +684,12 @@ export class NetworkController extends BaseControllerV2<
    * block has a `baseFeePerGas` property, then we know that the network
    * supports EIP-1559; otherwise it doesn't.
    *
+   * @param provider - A provider, which is guaranteed to be available.
    * @returns A promise that resolves to true if the network supports EIP-1559
    * and false otherwise.
    */
-  async #determineEIP1559Compatibility(): Promise<boolean> {
-    const latestBlock = await this.#getLatestBlock();
+  async #determineEIP1559Compatibility(provider: Provider): Promise<boolean> {
+    const latestBlock = await this.#getLatestBlock(provider);
     return latestBlock?.baseFeePerGas !== undefined;
   }
 
@@ -689,6 +712,7 @@ export class NetworkController extends BaseControllerV2<
     } else {
       this.#providerProxy = createEventEmitterProxy(provider);
     }
+    this.#provider = provider;
 
     if (this.#blockTrackerProxy) {
       this.#blockTrackerProxy.setTarget(blockTracker);
