@@ -164,6 +164,7 @@ export class TokenRatesController extends BaseController<
    * Creates a TokenRatesController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
    * @param options.onCurrencyRateStateChange - Allows subscribing to currency rate controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network state changes.
@@ -172,10 +173,12 @@ export class TokenRatesController extends BaseController<
    */
   constructor(
     {
+      chainId: initialChainId,
       onTokensStateChange,
       onCurrencyRateStateChange,
       onNetworkStateChange,
     }: {
+      chainId: string;
       onTokensStateChange: (
         listener: (tokensState: TokensState) => void,
       ) => void;
@@ -194,7 +197,7 @@ export class TokenRatesController extends BaseController<
       disabled: false,
       interval: 3 * 60 * 1000,
       nativeCurrency: 'eth',
-      chainId: '',
+      chainId: initialChainId,
       tokens: [],
       threshold: 6 * 60 * 60 * 1000,
     };

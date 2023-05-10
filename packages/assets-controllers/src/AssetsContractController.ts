@@ -83,6 +83,7 @@ export class AssetsContractController extends BaseController<
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param config - Initial options used to configure this controller.
@@ -90,9 +91,11 @@ export class AssetsContractController extends BaseController<
    */
   constructor(
     {
+      chainId: initialChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
     }: {
+      chainId: string;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -107,7 +110,7 @@ export class AssetsContractController extends BaseController<
     this.defaultConfig = {
       provider: undefined,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: initialChainId,
     };
     this.initialize();
 
