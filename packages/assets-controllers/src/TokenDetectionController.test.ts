@@ -158,6 +158,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     tokensController = new TokensController({
+      chainId: '1',
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         onNetworkStateChangeListeners.push(listener),
