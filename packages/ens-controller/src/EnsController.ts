@@ -15,6 +15,7 @@ import {
   NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
+import type { NetworkState } from '@metamask/network-controller';
 import { toASCII } from 'punycode/';
 import ensNetworkMap from 'ethereum-ens-network-map';
 
@@ -118,12 +119,9 @@ export class EnsController extends BaseControllerV2<
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
     onNetworkStateChange?: (
-      listener: (networkState: {
-        network: string;
-        providerConfig: {
-          chainId: string;
-        };
-      }) => void,
+      listener: (
+        networkState: Pick<NetworkState, 'networkId' | 'providerConfig'>,
+      ) => void,
     ) => void;
   }) {
     super({
@@ -139,8 +137,7 @@ export class EnsController extends BaseControllerV2<
     if (provider && onNetworkStateChange) {
       onNetworkStateChange((networkState) => {
         this.resetState();
-        const currentNetwork =
-          networkState.network === 'loading' ? null : networkState.network;
+        const currentNetwork = networkState.networkId;
         if (
           isKnownNetworkId(currentNetwork) &&
           this.#getNetworkEnsSupport(currentNetwork)

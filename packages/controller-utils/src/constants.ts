@@ -1,9 +1,4 @@
-import {
-  NetworkType,
-  NetworksTicker,
-  NetworksChainId,
-  NetworkId,
-} from './types';
+import { NetworkType, NetworksTicker, ChainId, NetworkId } from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
@@ -52,21 +47,21 @@ export const TESTNET_TICKER_SYMBOLS = {
  */
 export const BUILT_IN_NETWORKS = {
   [NetworkType.goerli]: {
-    chainId: NetworksChainId.goerli,
+    chainId: ChainId.goerli,
     ticker: NetworksTicker.goerli,
     rpcPrefs: {
       blockExplorerUrl: `https://${NetworkType.goerli}.etherscan.io`,
     },
   },
   [NetworkType.sepolia]: {
-    chainId: NetworksChainId.sepolia,
+    chainId: ChainId.sepolia,
     ticker: NetworksTicker.sepolia,
     rpcPrefs: {
       blockExplorerUrl: `https://${NetworkType.sepolia}.etherscan.io`,
     },
   },
   [NetworkType.mainnet]: {
-    chainId: NetworksChainId.mainnet,
+    chainId: ChainId.mainnet,
     ticker: NetworksTicker.mainnet,
     rpcPrefs: {
       blockExplorerUrl: 'https://etherscan.io',

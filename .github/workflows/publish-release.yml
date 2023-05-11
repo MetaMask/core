@@ -5,6 +5,8 @@ on:
     secrets:
       NPM_TOKEN:
         required: true
+      SLACK_WEBHOOK_URL:
+        required: true
 
 jobs:
   publish-release:
@@ -47,7 +49,10 @@ jobs:
           key: ${{ github.sha }}
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
-        uses: MetaMask/action-npm-publish@v2
+        uses: MetaMask/action-npm-publish@v3
+        # Temporarily disabled
+        # with:
+        #   slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
         env:
           SKIP_PREPACK: true
 
@@ -66,7 +71,7 @@ jobs:
             ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
       - name: Publish
-        uses: MetaMask/action-npm-publish@v2
+        uses: MetaMask/action-npm-publish@v3
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
         env:

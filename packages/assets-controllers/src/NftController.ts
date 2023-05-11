@@ -19,7 +19,6 @@ import {
   ERC1155,
   OPENSEA_API_URL,
   OPENSEA_PROXY_URL,
-  NetworkType,
 } from '@metamask/controller-utils';
 import type {
   ApiNft,
@@ -131,11 +130,9 @@ interface AccountParams {
  * @type NftConfig
  *
  * NFT controller configuration
- * @property networkType - Network ID as per net_version
  * @property selectedAddress - Vault selected address
  */
 export interface NftConfig extends BaseConfig {
-  networkType: NetworkType;
   selectedAddress: string;
   chainId: string;
   ipfsGateway: string;
@@ -910,7 +907,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
   ) {
     super(config, state);
     this.defaultConfig = {
-      networkType: NetworkType.mainnet,
       selectedAddress: '',
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,

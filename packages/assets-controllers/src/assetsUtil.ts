@@ -143,6 +143,7 @@ export enum SupportedTokenDetectionNetworks {
   bsc = '56',
   polygon = '137',
   avax = '43114',
+  aurora = '1313161554',
 }
 
 /**

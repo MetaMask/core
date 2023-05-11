@@ -12,11 +12,10 @@ import { errorCodes } from 'eth-rpc-errors';
 import {
   BUILT_IN_NETWORKS,
   NetworksTicker,
-  NetworksChainId,
+  ChainId,
   InfuraNetworkType,
   NetworkType,
   isSafeChainId,
-  isNetworkType,
   toHex,
 } from '@metamask/controller-utils';
 import {
@@ -60,8 +59,17 @@ export type Block = {
   baseFeePerGas?: string;
 };
 
+/**
+ * Information about the network not held by any other part of state. Currently
+ * only used to capture whether a network supports EIP-1559.
+ */
 export type NetworkDetails = {
-  isEIP1559Compatible?: boolean;
+  /**
+   * EIPs supported by the network.
+   */
+  EIPS: {
+    [eipNumber: number]: boolean;
+  };
 };
 
 /**
@@ -153,9 +161,23 @@ export type NetworkControllerStateChangeEvent = {
   payload: [NetworkState, Patch[]];
 };
 
-export type NetworkControllerProviderConfigChangeEvent = {
-  type: `NetworkController:providerConfigChange`;
-  payload: [ProviderConfig];
+/**
+ * `networkWillChange` is published when the current network is about to be
+ * switched, but the new provider has not been created and no state changes have
+ * occurred yet.
+ */
+export type NetworkControllerNetworkWillChangeEvent = {
+  type: 'NetworkController:networkWillChange';
+  payload: [];
+};
+
+/**
+ * `networkDidChange` is published after a provider has been created for a newly
+ * switched network (but before the network has been confirmed to be available).
+ */
+export type NetworkControllerNetworkDidChangeEvent = {
+  type: 'NetworkController:networkDidChange';
+  payload: [];
 };
 
 /**
@@ -180,9 +202,15 @@ export type NetworkControllerInfuraIsUnblockedEvent = {
 
 export type NetworkControllerEvents =
   | NetworkControllerStateChangeEvent
-  | NetworkControllerProviderConfigChangeEvent
+  | NetworkControllerNetworkWillChangeEvent
+  | NetworkControllerNetworkDidChangeEvent
   | NetworkControllerInfuraIsBlockedEvent
   | NetworkControllerInfuraIsUnblockedEvent;
+
+export type NetworkControllerGetStateAction = {
+  type: `NetworkController:getState`;
+  handler: () => NetworkState;
+};
 
 export type NetworkControllerGetProviderConfigAction = {
   type: `NetworkController:getProviderConfig`;
@@ -195,12 +223,13 @@ export type NetworkControllerGetEthQueryAction = {
 };
 
 export type NetworkControllerActions =
+  | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  NetworkControllerGetProviderConfigAction | NetworkControllerGetEthQueryAction,
+  NetworkControllerActions,
   NetworkControllerEvents,
   string,
   string
@@ -218,9 +247,13 @@ export const defaultState: NetworkState = {
   networkStatus: NetworkStatus.Unknown,
   providerConfig: {
     type: NetworkType.mainnet,
-    chainId: NetworksChainId.mainnet,
+    chainId: ChainId.mainnet,
   },
-  networkDetails: { isEIP1559Compatible: false },
+  networkDetails: {
+    EIPS: {
+      1559: false,
+    },
+  },
   networkConfigurations: {},
 };
 
@@ -255,7 +288,7 @@ export class NetworkController extends BaseControllerV2<
 
   #mutex = new Mutex();
 
-  #previousNetworkSpecifier: NetworkType | NetworkConfigurationId | null;
+  #previousProviderConfig: ProviderConfig;
 
   #providerProxy: ProviderProxy | undefined;
 
@@ -313,7 +346,7 @@ export class NetworkController extends BaseControllerV2<
       },
     );
 
-    this.#previousNetworkSpecifier = this.state.providerConfig.type;
+    this.#previousProviderConfig = this.state.providerConfig;
   }
 
   #configureProvider(
@@ -353,13 +386,17 @@ export class NetworkController extends BaseControllerV2<
   }
 
   async #refreshNetwork() {
+    this.messagingSystem.publish('NetworkController:networkWillChange');
     this.update((state) => {
       state.networkId = null;
       state.networkStatus = NetworkStatus.Unknown;
-      state.networkDetails = {};
+      state.networkDetails = {
+        EIPS: {},
+      };
     });
     const { rpcUrl, type, chainId } = this.state.providerConfig;
     this.#configureProvider(type, rpcUrl, chainId);
+    this.messagingSystem.publish('NetworkController:networkDidChange');
     await this.lookupNetwork();
   }
 
@@ -455,16 +492,18 @@ export class NetworkController extends BaseControllerV2<
     try {
       let updatedNetworkStatus: NetworkStatus;
       let updatedNetworkId: NetworkId | null = null;
+      let updatedIsEIP1559Compatible = false;
       try {
-        const [networkId] = await Promise.all([
+        const [networkId, isEIP1559Compatible] = await Promise.all([
           this.#getNetworkId(),
-          this.getEIP1559Compatibility(),
+          this.#determineEIP1559Compatibility(),
         ]);
         if (this.state.networkId === networkId) {
           return;
         }
         updatedNetworkStatus = NetworkStatus.Available;
         updatedNetworkId = networkId;
+        updatedIsEIP1559Compatible = isEIP1559Compatible;
       } catch (error) {
         if (isErrorWithCode(error)) {
           let responseBody;
@@ -499,6 +538,7 @@ export class NetworkController extends BaseControllerV2<
       this.update((state) => {
         state.networkId = updatedNetworkId;
         state.networkStatus = updatedNetworkStatus;
+        state.networkDetails.EIPS[1559] = updatedIsEIP1559Compatible;
       });
 
       if (isInfura) {
@@ -513,25 +553,8 @@ export class NetworkController extends BaseControllerV2<
         // previously connected to an Infura network that was blocked
         this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
       }
-
-      this.messagingSystem.publish(
-        `NetworkController:providerConfigChange`,
-        this.state.providerConfig,
-      );
     } finally {
       releaseLock();
-    }
-  }
-
-  /**
-   * Convenience method to set the current provider config to the private providerConfig class variable.
-   */
-  #setCurrentAsPreviousProvider() {
-    const { type, id } = this.state.providerConfig;
-    if (type === NetworkType.rpc && id) {
-      this.#previousNetworkSpecifier = id;
-    } else {
-      this.#previousNetworkSpecifier = type;
     }
   }
 
@@ -540,8 +563,9 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param type - Human readable network name.
    */
-  async setProviderType(type: NetworkType) {
-    this.#setCurrentAsPreviousProvider();
+  async setProviderType(type: InfuraNetworkType) {
+    this.#previousProviderConfig = this.state.providerConfig;
+
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
       type in NetworksTicker && NetworksTicker[type].length > 0
@@ -551,7 +575,7 @@ export class NetworkController extends BaseControllerV2<
     this.update((state) => {
       state.providerConfig.type = type;
       state.providerConfig.ticker = ticker;
-      state.providerConfig.chainId = NetworksChainId[type];
+      state.providerConfig.chainId = ChainId[type];
       state.providerConfig.rpcPrefs = BUILT_IN_NETWORKS[type].rpcPrefs;
       state.providerConfig.rpcUrl = undefined;
       state.providerConfig.nickname = undefined;
@@ -566,7 +590,7 @@ export class NetworkController extends BaseControllerV2<
    * @param networkConfigurationId - The unique id for the network configuration to set as the active provider.
    */
   async setActiveNetwork(networkConfigurationId: string) {
-    this.#setCurrentAsPreviousProvider();
+    this.#previousProviderConfig = this.state.providerConfig;
 
     const targetNetwork =
       this.state.networkConfigurations[networkConfigurationId];
@@ -609,22 +633,41 @@ export class NetworkController extends BaseControllerV2<
     });
   }
 
+  /**
+   * Determines whether the network supports EIP-1559 by checking whether the
+   * latest block has a `baseFeePerGas` property, then updates state
+   * appropriately.
+   *
+   * @returns A promise that resolves to true if the network supports EIP-1559
+   * and false otherwise.
+   */
   async getEIP1559Compatibility() {
-    const { networkDetails = {} } = this.state;
+    const { networkDetails = { EIPS: {} } } = this.state;
 
-    if (networkDetails.isEIP1559Compatible || !this.#ethQuery) {
+    if (networkDetails.EIPS[1559] || !this.#ethQuery) {
       return true;
     }
 
-    const latestBlock = await this.#getLatestBlock();
-    const isEIP1559Compatible =
-      typeof latestBlock.baseFeePerGas !== 'undefined';
-    if (networkDetails.isEIP1559Compatible !== isEIP1559Compatible) {
+    const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
+    if (networkDetails.EIPS[1559] !== isEIP1559Compatible) {
       this.update((state) => {
-        state.networkDetails.isEIP1559Compatible = isEIP1559Compatible;
+        state.networkDetails.EIPS[1559] = isEIP1559Compatible;
       });
     }
     return isEIP1559Compatible;
+  }
+
+  /**
+   * Retrieves the latest block from the currently selected network; if the
+   * block has a `baseFeePerGas` property, then we know that the network
+   * supports EIP-1559; otherwise it doesn't.
+   *
+   * @returns A promise that resolves to true if the network supports EIP-1559
+   * and false otherwise.
+   */
+  async #determineEIP1559Compatibility(): Promise<boolean> {
+    const latestBlock = await this.#getLatestBlock();
+    return latestBlock?.baseFeePerGas !== undefined;
   }
 
   /**
@@ -781,15 +824,24 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Rolls back provider config to the previous provider in case of errors or inability to connect during network switch.
+   * Switches to the previous network, assuming that the current network is
+   * different than the initial network (if it is, then this is equivalent to
+   * calling `resetConnection`).
    */
   async rollbackToPreviousProvider() {
-    const specifier = this.#previousNetworkSpecifier;
-    if (isNetworkType(specifier)) {
-      await this.setProviderType(specifier);
-    } else if (typeof specifier === 'string') {
-      await this.setActiveNetwork(specifier);
-    }
+    this.update((state) => {
+      state.providerConfig = this.#previousProviderConfig;
+    });
+    await this.#refreshNetwork();
+  }
+
+  /**
+   * Deactivates the controller, stopping any ongoing polling.
+   *
+   * In-progress requests will not be aborted.
+   */
+  async destroy() {
+    await this.#blockTrackerProxy?.destroy();
   }
 }
 

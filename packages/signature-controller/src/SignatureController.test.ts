@@ -83,6 +83,7 @@ const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
     approveMessage: jest.fn(),
     setMessageStatusSigned: jest.fn(),
     setMessageStatusErrored: jest.fn(),
+    setMessageStatusInProgress: jest.fn(),
     rejectMessage: jest.fn(),
     subscribe: jest.fn(),
     update: jest.fn(),
@@ -123,6 +124,7 @@ describe('SignatureController', () => {
   const getAllStateMock = jest.fn();
   const securityProviderRequestMock = jest.fn();
   const isEthSignEnabledMock = jest.fn();
+  const getCurrentChainIdMock = jest.fn();
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -143,6 +145,7 @@ describe('SignatureController', () => {
       getAllState: getAllStateMock,
       securityProviderRequest: securityProviderRequestMock,
       isEthSignEnabled: isEthSignEnabledMock,
+      getCurrentChainId: getCurrentChainIdMock,
     } as SignatureControllerOptions);
   });
 
@@ -735,6 +738,29 @@ describe('SignatureController', () => {
         unapprovedPersonalMsgCount: 0,
         unapprovedTypedMessagesCount: 5,
       });
+    });
+  });
+  describe('setPersonalMessageInProgress', () => {
+    it('calls the message manager', async () => {
+      signatureController.setPersonalMessageInProgress(
+        messageParamsMock.metamaskId,
+      );
+
+      expect(
+        personalMessageManagerMock.setMessageStatusInProgress,
+      ).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('setTypedMessageInProgress', () => {
+    it('calls the message manager', async () => {
+      signatureController.setTypedMessageInProgress(
+        messageParamsMock.metamaskId,
+      );
+
+      expect(
+        typedMessageManagerMock.setMessageStatusInProgress,
+      ).toHaveBeenCalledTimes(1);
     });
   });
 });

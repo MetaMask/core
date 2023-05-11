@@ -1499,6 +1499,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
+    "@metamask/network-controller": "workspace:^"
     "@metamask/utils": ^5.0.2
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -1509,6 +1510,8 @@ __metadata:
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
+  peerDependencies:
+    "@metamask/network-controller": "workspace:^"
   languageName: unknown
   linkType: soft
 
@@ -1712,6 +1715,7 @@ __metadata:
     "@metamask/eth-sig-util": ^5.0.3
     "@metamask/message-manager": "workspace:^"
     "@metamask/preferences-controller": "workspace:^"
+    "@metamask/scure-bip39": ^2.1.0
     "@types/jest": ^27.4.1
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
@@ -1770,6 +1774,7 @@ __metadata:
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^5.0.2
     "@types/jest": ^27.4.1
+    "@types/jest-when": ^2.7.3
     "@types/lodash": ^4.14.191
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
@@ -1779,6 +1784,7 @@ __metadata:
     eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^27.5.1
+    jest-when: ^3.4.2
     json-rpc-engine: ^6.1.0
     lodash: ^4.17.21
     nock: ^13.0.7
@@ -1919,7 +1925,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/scure-bip39@npm:^2.0.3":
+"@metamask/scure-bip39@npm:^2.0.3, @metamask/scure-bip39@npm:^2.1.0":
   version: 2.1.0
   resolution: "@metamask/scure-bip39@npm:2.1.0"
   dependencies:

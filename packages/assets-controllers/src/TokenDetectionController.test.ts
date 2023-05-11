@@ -2,13 +2,12 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import {
-  NetworkControllerProviderConfigChangeEvent,
   NetworkControllerStateChangeEvent,
   defaultState as defaultNetworkState,
   NetworkState,
   ProviderConfig,
 } from '@metamask/network-controller';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
+import { ChainId, NetworkType } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
@@ -89,9 +88,7 @@ const sampleTokenB: Token = {
 
 type MainControllerMessenger = ControllerMessenger<
   GetTokenListState,
-  | TokenListStateChange
-  | NetworkControllerProviderConfigChangeEvent
-  | NetworkControllerStateChangeEvent
+  TokenListStateChange | NetworkControllerStateChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -106,12 +103,12 @@ const setupTokenListController = (
     allowedActions: [],
     allowedEvents: [
       'TokenListController:stateChange',
-      'NetworkController:providerConfigChange',
+      'NetworkController:stateChange',
     ],
   });
 
   const tokenList = new TokenListController({
-    chainId: NetworksChainId.mainnet,
+    chainId: ChainId.mainnet,
     preventPollingOnNetworkRestart: false,
     messenger: tokenListMessenger,
   });
@@ -140,21 +137,17 @@ describe('TokenDetectionController', () => {
     });
   };
   const mainnet = {
-    chainId: NetworksChainId.mainnet,
+    chainId: ChainId.mainnet,
     type: NetworkType.mainnet,
   };
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${ChainId.mainnet}`)
       .reply(200, sampleTokenList)
-      .get(
-        `/token/${NetworksChainId.mainnet}?address=${tokenAFromList.address}`,
-      )
+      .get(`/token/${ChainId.mainnet}?address=${tokenAFromList.address}`)
       .reply(200, tokenAFromList)
-      .get(
-        `/token/${NetworksChainId.mainnet}?address=${tokenBFromList.address}`,
-      )
+      .get(`/token/${ChainId.mainnet}?address=${tokenBFromList.address}`)
       .reply(200, tokenBFromList)
       .persist();
 
@@ -214,7 +207,7 @@ describe('TokenDetectionController', () => {
       interval: DEFAULT_INTERVAL,
       selectedAddress: '',
       disabled: true,
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
       isDetectionEnabledForNetwork: true,
       isDetectionEnabledFromPreferences: true,
     });
@@ -248,7 +241,7 @@ describe('TokenDetectionController', () => {
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toStrictEqual(true);
-    tokenDetection.configure({ chainId: NetworksChainId.goerli });
+    tokenDetection.configure({ chainId: ChainId.goerli });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toStrictEqual(false);
@@ -257,7 +250,7 @@ describe('TokenDetectionController', () => {
   it('should not autodetect while not on supported networks', async () => {
     tokenDetection.configure({
       selectedAddress: '0x1',
-      chainId: NetworksChainId.goerli,
+      chainId: ChainId.goerli,
       isDetectionEnabledForNetwork: false,
     });
 
@@ -271,6 +264,21 @@ describe('TokenDetectionController', () => {
   it('should detect tokens correctly on supported networks', async () => {
     preferences.update({ selectedAddress: '0x1' });
     changeNetwork(mainnet);
+
+    getBalancesInSingleCall.resolves({
+      [sampleTokenA.address]: new BN(1),
+    });
+    await tokenDetection.start();
+    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
+  });
+
+  it('should detect tokens correctly on the Aurora network', async () => {
+    const auroraMainnet = {
+      chainId: ChainId.aurora,
+      type: NetworkType.mainnet,
+    };
+    preferences.update({ selectedAddress: '0x1' });
+    changeNetwork(auroraMainnet);
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
@@ -428,7 +436,7 @@ describe('TokenDetectionController', () => {
         isDetectionEnabledForNetwork: true,
         isDetectionEnabledFromPreferences: true,
         selectedAddress: '0x1',
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       },
     );
 
@@ -544,7 +552,7 @@ describe('TokenDetectionController', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkStateChangeListener!({
-      providerConfig: { chainId: NetworksChainId.mainnet },
+      providerConfig: { chainId: ChainId.mainnet },
     });
 
     expect(getBalancesInSingleCallMock.called).toBe(true);
