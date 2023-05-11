@@ -330,8 +330,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the private key for an address.
    */
   exportAccount(address: string): Promise<string> {
-      return this.#keyring.exportAccount(address);
-    }
+    return this.#keyring.exportAccount(address);
+  }
 
   /**
    * Returns the public addresses of all accounts for the current keyring.
@@ -472,8 +472,6 @@ export class KeyringController extends BaseController<
         }
         return this.#keyring.signTypedMessage(messageParamsClone, { version });
       }
-
-      const { password } = this.#keyring;
       const privateKey = await this.exportAccount(address);
       const privateKeyBuffer = toBuffer(addHexPrefix(privateKey));
       switch (version) {
