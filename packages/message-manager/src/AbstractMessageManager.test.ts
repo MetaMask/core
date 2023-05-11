@@ -331,4 +331,32 @@ describe('AbstractTestManager', () => {
       expect(messageAfter?.status).toStrictEqual('newstatus');
     });
   });
+
+  describe('setMetadata', () => {
+    it('should set the given message metadata', async () => {
+      const controller = new AbstractTestManager();
+      await controller.addMessage({
+        id: messageId,
+        messageParams: { from: '0x1234', data: 'test' },
+        status: 'status',
+        time: 10,
+        type: 'type',
+      });
+
+      const messageBefore = controller.getMessage(messageId);
+      expect(messageBefore?.metadata).toBeUndefined();
+
+      controller.setMetadata(messageId, { foo: 'bar' });
+      const messageAfter = controller.getMessage(messageId);
+      expect(messageAfter?.metadata).toStrictEqual({ foo: 'bar' });
+    });
+
+    it('should throw an error if message is not found', () => {
+      const controller = new AbstractTestManager();
+
+      expect(() => controller.setMetadata(messageId, { foo: 'bar' })).toThrow(
+        'AbstractMessageManager: Message not found for id: 1.',
+      );
+    });
+  });
 });

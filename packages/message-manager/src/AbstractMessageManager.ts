@@ -25,6 +25,7 @@ export interface OriginalRequest {
  * A 'Message' which always has a signing type
  * @property rawSig - Raw data of the signature request
  * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
+ * @property metadata - Additional data for the message, for example external identifiers
  */
 export interface AbstractMessage {
   id: string;
@@ -33,6 +34,7 @@ export interface AbstractMessage {
   type: string;
   rawSig?: string;
   securityProviderResponse?: Record<string, Json>;
+  metadata?: Record<string, string>;
 }
 
 /**
@@ -328,6 +330,22 @@ export abstract class AbstractMessageManager<
       return;
     }
     message.rawSig = result;
+    this.updateMessage(message, false);
+  }
+
+  /**
+   * Sets the messsage metadata
+   *
+   * @param messageId - The id of the Message to update
+   * @param metadata - The data with which to replace the metadata property in the message
+   */
+
+  setMetadata(messageId: string, metadata: Record<string, string>) {
+    const message = this.getMessage(messageId);
+    if (!message) {
+      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
+    }
+    message.metadata = metadata;
     this.updateMessage(message, false);
   }
 
