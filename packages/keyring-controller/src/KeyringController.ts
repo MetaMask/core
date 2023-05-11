@@ -38,6 +38,7 @@ export enum KeyringTypes {
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
+  sc = 'Smart Contract',
 }
 
 /**
@@ -325,16 +326,12 @@ export class KeyringController extends BaseController<
   /**
    * Gets the private key from the keyring controlling an address.
    *
-   * @param password - Password of the keyring.
    * @param address - Address to export.
    * @returns Promise resolving to the private key for an address.
    */
-  exportAccount(password: string, address: string): Promise<string> {
-    if (this.validatePassword(password)) {
+  exportAccount(address: string): Promise<string> {
       return this.#keyring.exportAccount(address);
     }
-    throw new Error('Invalid password');
-  }
 
   /**
    * Returns the public addresses of all accounts for the current keyring.
@@ -477,7 +474,7 @@ export class KeyringController extends BaseController<
       }
 
       const { password } = this.#keyring;
-      const privateKey = await this.exportAccount(password, address);
+      const privateKey = await this.exportAccount(address);
       const privateKeyBuffer = toBuffer(addHexPrefix(privateKey));
       switch (version) {
         case SignTypedDataVersion.V1:
@@ -629,6 +626,11 @@ export class KeyringController extends BaseController<
     );
     this.update({ keyrings: [...keyrings] });
     return this.#keyring.fullUpdate();
+  }
+
+  async addKeyring(keyring: any) {
+    this.#keyring.keyrings.push(keyring);
+    return keyring;
   }
 
   // QR Hardware related methods
