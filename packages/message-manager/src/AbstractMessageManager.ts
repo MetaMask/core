@@ -262,6 +262,14 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Returns all the messages
+   *
+   */
+  getAllMessages() {
+    return this.messages;
+  }
+
+  /**
    * Approves a Message. Sets the message status via a call to this.setMessageStatusApproved,
    * and returns a promise with any the message params modified for proper signing.
    *

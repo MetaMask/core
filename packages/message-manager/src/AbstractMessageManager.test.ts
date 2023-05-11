@@ -84,6 +84,24 @@ describe('AbstractTestManager', () => {
     expect(message.type).toBe(messageType);
   });
 
+  it('should get all messages', async () => {
+    const controller = new AbstractTestManager();
+    const message = {
+      id: messageId,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    };
+
+    await controller.addMessage(message);
+    const messages = controller.getAllMessages();
+    expect(messages).toStrictEqual([message]);
+  });
+
   it('adds a valid message with provider security response', async () => {
     const securityProviderResponseMock = { flagAsDangerous: 2 };
     const securityProviderRequestMock: SecurityProviderRequest = jest
