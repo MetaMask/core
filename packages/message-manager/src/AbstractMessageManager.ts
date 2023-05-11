@@ -43,10 +43,12 @@ export interface AbstractMessage {
  * Represents the parameters to pass to the signing method once the signature request is approved.
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
+ * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
 export interface AbstractMessageParams {
   from: string;
   origin?: string;
+  deferSetAsSigned?: boolean;
 }
 
 /**

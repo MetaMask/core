@@ -25,6 +25,7 @@ jest.mock('@metamask/controller-utils', () => {
 
 const messageIdMock = '123';
 const messageIdMock2 = '456';
+const messageIdMock3 = '789';
 const versionMock = '1';
 const signatureMock = '0xAABBCC';
 const stateMock = { test: 123 };
@@ -42,6 +43,15 @@ const messageParamsMock2 = {
   origin: 'http://test4.com',
   data: '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA',
   metamaskId: messageIdMock,
+};
+
+const messageParamsMock3 = {
+  from: '0x125',
+  origin: 'http://test5.com',
+  data: '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
+  metamaskId: messageIdMock3,
+  deferSetAsSigned: true,
+  version: 'V1',
 };
 
 const messageMock = {
@@ -435,6 +445,28 @@ describe('SignatureController', () => {
           messageParamsMock2.metamaskId,
           signatureMock,
         );
+      });
+
+      it('does not set as signed, messages with deferSetAsSigned', async () => {
+        messageManager.approveMessage.mockReset();
+        messageManager.approveMessage.mockResolvedValueOnce(messageParamsMock3);
+
+        console.log('messageParamsMock3', messageParamsMock3);
+        await (signatureController as any)[signMethodName](messageParamsMock3);
+
+        const keyringControllerExtraArgs =
+          // eslint-disable-next-line jest/no-if
+          signMethodName === 'signTypedMessage'
+            ? [{ version: messageParamsMock.version }]
+            : [];
+
+        expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
+        expect(keyringControllerMethod).toHaveBeenCalledWith(
+          messageParamsMock3,
+          ...keyringControllerExtraArgs,
+        );
+
+        expect(messageManager.setMessageStatusSigned).not.toHaveBeenCalled();
       });
 
       it('returns current state', async () => {
