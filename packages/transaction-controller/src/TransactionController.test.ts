@@ -2,7 +2,7 @@ import * as sinon from 'sinon';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
+import { ChainId, NetworkType } from '@metamask/controller-utils';
 import type {
   BlockTrackerProxy,
   NetworkState,
@@ -172,10 +172,10 @@ const MOCK_NETWORK: MockNetwork = {
   state: {
     networkId: '5',
     networkStatus: NetworkStatus.Available,
-    networkDetails: { isEIP1559Compatible: false },
+    networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType.goerli,
-      chainId: NetworksChainId.goerli,
+      chainId: ChainId.goerli,
     },
     networkConfigurations: {},
   },
@@ -187,7 +187,7 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
   state: {
     networkId: '5',
     networkStatus: NetworkStatus.Available,
-    networkDetails: { isEIP1559Compatible: false },
+    networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType.goerli,
     } as NetworkState['providerConfig'],
@@ -201,10 +201,10 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
   state: {
     networkId: '1',
     networkStatus: NetworkStatus.Available,
-    networkDetails: { isEIP1559Compatible: false },
+    networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType.mainnet,
-      chainId: NetworksChainId.mainnet,
+      chainId: ChainId.mainnet,
     },
     networkConfigurations: {},
   },
@@ -216,7 +216,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
   state: {
     networkId: '11297108109',
     networkStatus: NetworkStatus.Available,
-    networkDetails: { isEIP1559Compatible: false },
+    networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType.rpc,
       chainId: '11297108109',

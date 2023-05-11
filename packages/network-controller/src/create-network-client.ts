@@ -22,7 +22,7 @@ import {
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import type { Hex } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { InfuraNetworkType, NetworksChainId } from '@metamask/controller-utils';
+import { InfuraNetworkType, ChainId } from '@metamask/controller-utils';
 import type { BlockTracker, Provider } from './types';
 
 const SECOND = 1000;
@@ -157,7 +157,7 @@ function createNetworkAndChainIdMiddleware({
 }: {
   network: InfuraNetworkType;
 }) {
-  const chainId = NetworksChainId[network];
+  const chainId = ChainId[network];
 
   return createScaffoldMiddleware({
     eth_chainId: `0x${parseInt(chainId, 10).toString(16)}`,

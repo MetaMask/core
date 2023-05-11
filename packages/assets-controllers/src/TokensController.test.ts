@@ -6,7 +6,7 @@ import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
   ApprovalType,
-  NetworksChainId,
+  ChainId,
   NetworkType,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
@@ -72,7 +72,7 @@ describe('TokensController', () => {
       onNetworkStateChange: (listener) =>
         (onNetworkStateChangeListener = listener),
       config: {
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
         selectedAddress: defaultSelectedAddress,
       },
       messenger,
@@ -660,7 +660,7 @@ describe('TokensController', () => {
       const error = 'An error occured';
       const fullErrorMessage = `TokenService Error: ${error}`;
       nock(TOKEN_END_POINT_API)
-        .get(`/token/${NetworksChainId.mainnet}?address=${dummyTokenAddress}`)
+        .get(`/token/${ChainId.mainnet}?address=${dummyTokenAddress}`)
         .reply(200, { error })
         .persist();
 
@@ -819,28 +819,26 @@ describe('TokensController', () => {
     it('should nest newTokens under chain ID and selected address when provided with newTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
         newTokens: dummyTokens,
       });
       expect(
-        processedTokens.newAllTokens[NetworksChainId.mainnet][
-          dummySelectedAddress
-        ],
+        processedTokens.newAllTokens[ChainId.mainnet][dummySelectedAddress],
       ).toStrictEqual(dummyTokens);
     });
 
     it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
         newDetectedTokens: dummyTokens,
       });
       expect(
-        processedTokens.newAllDetectedTokens[NetworksChainId.mainnet][
+        processedTokens.newAllDetectedTokens[ChainId.mainnet][
           dummySelectedAddress
         ],
       ).toStrictEqual(dummyTokens);
@@ -849,14 +847,14 @@ describe('TokensController', () => {
     it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       const dummyIgnoredTokens = [dummyTokens[0].address];
       const processedTokens = tokensController._getNewAllTokensState({
         newIgnoredTokens: dummyIgnoredTokens,
       });
       expect(
-        processedTokens.newAllIgnoredTokens[NetworksChainId.mainnet][
+        processedTokens.newAllIgnoredTokens[ChainId.mainnet][
           dummySelectedAddress
         ],
       ).toStrictEqual(dummyIgnoredTokens);
@@ -1025,14 +1023,10 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.tokens).toStrictEqual([]);
       expect(
-        tokensController.state.allTokens[NetworksChainId.mainnet][
-          interactingAddress
-        ],
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
       ).toHaveLength(1);
       expect(
-        tokensController.state.allTokens[NetworksChainId.mainnet][
-          interactingAddress
-        ],
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
       ).toStrictEqual([
         {
           isERC721: false,
@@ -1193,28 +1187,26 @@ describe('TokensController', () => {
     it('should clear nest allTokens under chain ID and selected address when an added token is ignored', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
       tokensController.ignoreTokens(['0x01']);
       expect(
-        tokensController.state.allTokens[NetworksChainId.mainnet][
-          selectedAddress
-        ],
+        tokensController.state.allTokens[ChainId.mainnet][selectedAddress],
       ).toStrictEqual([]);
     });
 
     it('should clear nest allIgnoredTokens under chain ID and selected address when an ignored token is re-added', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
       tokensController.ignoreTokens([tokenAddress]);
       await tokensController.addTokens(dummyTokens);
 
       expect(
-        tokensController.state.allIgnoredTokens[NetworksChainId.mainnet][
+        tokensController.state.allIgnoredTokens[ChainId.mainnet][
           selectedAddress
         ],
       ).toStrictEqual([]);
@@ -1223,13 +1215,13 @@ describe('TokensController', () => {
     it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       await tokensController.addDetectedTokens(dummyTokens);
       await tokensController.addTokens(dummyTokens);
 
       expect(
-        tokensController.state.allDetectedTokens[NetworksChainId.mainnet][
+        tokensController.state.allDetectedTokens[ChainId.mainnet][
           selectedAddress
         ],
       ).toStrictEqual([]);

@@ -7,9 +7,8 @@ import {
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import {
-  NetworkControllerProviderConfigChangeEvent,
+  NetworkControllerStateChangeEvent,
   NetworkState,
-  ProviderConfig,
 } from '@metamask/network-controller';
 import {
   isTokenListSupportedForNetwork,
@@ -62,10 +61,9 @@ export type GetTokenListState = {
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
   GetTokenListState,
-  TokenListStateChange | NetworkControllerProviderConfigChangeEvent,
+  TokenListStateChange | NetworkControllerStateChangeEvent,
   never,
-  | TokenListStateChange['type']
-  | NetworkControllerProviderConfigChangeEvent['type']
+  TokenListStateChange['type'] | NetworkControllerStateChangeEvent['type']
 >;
 
 const metadata = {
@@ -124,7 +122,7 @@ export class TokenListController extends BaseControllerV2<
     chainId: string;
     preventPollingOnNetworkRestart?: boolean;
     onNetworkStateChange?: (
-      listener: (networkState: NetworkState | ProviderConfig) => void,
+      listener: (networkState: NetworkState) => void,
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
@@ -143,40 +141,30 @@ export class TokenListController extends BaseControllerV2<
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new WhatwgAbortController();
     if (onNetworkStateChange) {
-      onNetworkStateChange(async (networkStateOrProviderConfig) => {
-        // this check for "provider" is for testing purposes, since in the extension this callback will receive
-        // an object typed as NetworkState but within repo we can only simulate as if the callback receives an
-        // object typed as ProviderConfig
-        if ('providerConfig' in networkStateOrProviderConfig) {
-          await this.#onNetworkStateChangeCallback(
-            networkStateOrProviderConfig.providerConfig,
-          );
-        } else {
-          await this.#onNetworkStateChangeCallback(
-            networkStateOrProviderConfig,
-          );
-        }
+      onNetworkStateChange(async (networkControllerState) => {
+        await this.#onNetworkControllerStateChange(networkControllerState);
       });
     } else {
       this.messagingSystem.subscribe(
-        'NetworkController:providerConfigChange',
-        async (providerConfig) => {
-          await this.#onNetworkStateChangeCallback(providerConfig);
+        'NetworkController:stateChange',
+        async (networkControllerState) => {
+          await this.#onNetworkControllerStateChange(networkControllerState);
         },
       );
     }
   }
 
   /**
-   * Updates state and restart polling when updates are received through NetworkController subscription.
+   * Updates state and restarts polling on changes to the network controller
+   * state.
    *
-   * @param providerConfig - the configuration for a provider containing critical network info.
+   * @param networkControllerState - The updated network controller state.
    */
-  async #onNetworkStateChangeCallback(providerConfig: ProviderConfig) {
-    if (this.chainId !== providerConfig.chainId) {
+  async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
+    if (this.chainId !== networkControllerState.providerConfig.chainId) {
       this.abortController.abort();
       this.abortController = new WhatwgAbortController();
-      this.chainId = providerConfig.chainId;
+      this.chainId = networkControllerState.providerConfig.chainId;
       if (this.state.preventPollingOnNetworkRestart) {
         this.clearingTokenListData();
       } else {
