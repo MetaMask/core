@@ -1,9 +1,5 @@
 import { EventEmitter } from 'events';
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
@@ -71,7 +67,7 @@ export type SuggestedAssetMetaBase = {
   time: number;
   type: string;
   asset: Token;
-  interactingAddress?: string;
+  interactingAddress: string;
 };
 
 /**
@@ -128,10 +124,7 @@ const controllerName = 'TokensController';
 /**
  * The external actions available to the {@link TokensController}.
  */
-type AllowedActions =
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest;
+type AllowedActions = AddApprovalRequest;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -666,12 +659,10 @@ export class TokensController extends BaseController<
   ): Promise<AssetSuggestionResult> {
     const { selectedAddress } = this.config;
 
-    const suggestedAssetMeta: SuggestedAssetMeta & {
-      interactingAddress: string;
-    } = {
+    const suggestedAssetMeta: SuggestedAssetMeta = {
       asset,
       id: this._generateRandomId(),
-      status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
+      status: SuggestedAssetStatus.pending,
       time: Date.now(),
       type,
       interactingAddress: interactingAddress || selectedAddress,
@@ -744,8 +735,6 @@ export class TokensController extends BaseController<
             suggestedAssetMeta?.interactingAddress || selectedAddress,
           );
 
-          this._acceptApproval(suggestedAssetID);
-
           const acceptedSuggestedAssetMeta = {
             ...suggestedAssetMeta,
             status: SuggestedAssetStatus.accepted,
@@ -762,8 +751,6 @@ export class TokensController extends BaseController<
       }
     } catch (error) {
       this.failSuggestedAsset(suggestedAssetMeta, error);
-
-      this._rejectApproval(suggestedAssetID);
     }
 
     const newSuggestedAssets = suggestedAssets.filter(
@@ -799,8 +786,6 @@ export class TokensController extends BaseController<
       ({ id }) => id !== suggestedAssetID,
     );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
-
-    this._rejectApproval(suggestedAssetID);
   }
 
   /**
@@ -901,11 +886,7 @@ export class TokensController extends BaseController<
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });
   }
 
-  _requestApproval(
-    suggestedAssetMeta: SuggestedAssetMeta & {
-      interactingAddress: string;
-    },
-  ) {
+  _requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
     this.messagingSystem
       .call(
         'ApprovalController:addRequest',
@@ -929,32 +910,6 @@ export class TokensController extends BaseController<
       .catch(() => {
         // Intentionally ignored as promise not currently used
       });
-  }
-
-  _acceptApproval(approvalRequestId: string) {
-    try {
-      this.messagingSystem.call(
-        'ApprovalController:acceptRequest',
-        approvalRequestId,
-      );
-    } catch (error) {
-      console.error('Failed to accept token watch approval request', error);
-    }
-  }
-
-  _rejectApproval(approvalRequestId: string) {
-    try {
-      this.messagingSystem.call(
-        'ApprovalController:rejectRequest',
-        approvalRequestId,
-        new Error('Rejected'),
-      );
-    } catch (messageCallError) {
-      console.error(
-        'Failed to reject token watch approval request',
-        messageCallError,
-      );
-    }
   }
 }
 
