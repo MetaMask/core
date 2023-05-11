@@ -89,6 +89,7 @@ function setupController({
   };
 
   const assetsContract = new AssetsContractController({
+    chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
@@ -96,6 +97,7 @@ function setupController({
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
 
   const nftController = new NftController({
+    chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),

@@ -68,11 +68,11 @@ describe('TokensController', () => {
     const defaultSelectedAddress = '0x1';
     preferences = new PreferencesController();
     tokensController = new TokensController({
+      chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         (onNetworkStateChangeListener = listener),
       config: {
-        chainId: ChainId.mainnet,
         selectedAddress: defaultSelectedAddress,
       },
       messenger,
