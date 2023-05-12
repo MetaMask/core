@@ -4,7 +4,7 @@ import deepFreeze from 'deep-freeze-strict';
 import { castDraft, Draft, Patch } from 'immer';
 import { nanoid } from 'nanoid';
 import { EthereumRpcError } from 'eth-rpc-errors';
-import { hasProperty } from '@metamask/utils';
+import { hasProperty, Json } from '@metamask/utils';
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -22,7 +22,6 @@ import {
   isNonEmptyArray,
   isPlainObject,
   isValidJson,
-  Json,
   NonEmptyArray,
 } from '@metamask/controller-utils';
 import { GetSubjectMetadata } from './SubjectMetadataController';

@@ -4,7 +4,7 @@ import { enablePatches, produceWithPatches, applyPatches } from 'immer';
 // eslint-disable-next-line no-duplicate-imports
 import type { Draft, Patch } from 'immer';
 
-import type { Json } from '@metamask/controller-utils';
+import type { Json } from '@metamask/utils';
 
 import type {
   RestrictedControllerMessenger,
