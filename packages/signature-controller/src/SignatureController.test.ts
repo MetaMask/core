@@ -430,7 +430,7 @@ describe('SignatureController', () => {
       });
 
       it('approves message and signs', async () => {
-        return new Promise(async (resolve) => {
+        await new Promise(async (resolve) => {
           signatureController.hub.once(`${rpcMethodName}:signed`, (data) => {
             expect(data).toStrictEqual(signatureMock);
             resolve('');

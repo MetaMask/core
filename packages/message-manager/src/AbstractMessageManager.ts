@@ -262,8 +262,9 @@ export abstract class AbstractMessageManager<
   }
 
   /**
-   * Returns all the messages
+   * Returns all the messages.
    *
+   * @returns An array of messages.
    */
   getAllMessages() {
     return this.messages;
