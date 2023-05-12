@@ -378,7 +378,7 @@ export class TransactionController extends BaseController<
       status: TransactionStatus.confirmed,
       time,
       transaction: {
-        chainId: 1,
+        chainId: parseInt(currentChainId, undefined),
         from,
         gas,
         gasPrice,
