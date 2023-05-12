@@ -1,11 +1,8 @@
 import { ethErrors } from 'eth-rpc-errors';
-import type {
-  JsonRpcEngineEndCallback,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-  PermittedHandlerExport,
-} from '@metamask/types';
+import type { JsonRpcEngineEndCallback } from 'json-rpc-engine';
+import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { isPlainObject } from '@metamask/controller-utils';
+import type { PermittedHandlerExport } from '../utils';
 import { MethodNames } from '../utils';
 import { invalidParams } from '../errors';
 import type { PermissionConstraint, RequestedPermissions } from '../Permission';
