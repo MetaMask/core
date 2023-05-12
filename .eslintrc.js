@@ -43,6 +43,9 @@ module.exports = {
         // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
         '@typescript-eslint/consistent-type-definitions': 'off',
 
+        // We really don't want to use any if we can avoid it.
+        '@typescript-eslint/no-explicit-any': 'error',
+
         // Modified to include the 'ignoreRestSiblings' option
         // TODO: Migrate this rule change back into `@metamask/eslint-config`
         '@typescript-eslint/no-unused-vars': [
