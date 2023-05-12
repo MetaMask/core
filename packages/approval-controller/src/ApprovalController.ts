@@ -5,7 +5,7 @@ import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { Json } from '@metamask/controller-utils';
+import { Json } from '@metamask/utils';
 import { ApprovalRequestNotFoundError } from './errors';
 
 const controllerName = 'ApprovalController';

@@ -1,4 +1,4 @@
-import type { Json } from '@metamask/types';
+import type { Json } from '@metamask/utils';
 import {
   JsonRpcMiddleware,
   AsyncJsonRpcEngineNextCallback,

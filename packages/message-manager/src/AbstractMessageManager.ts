@@ -4,7 +4,7 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import { Json } from '@metamask/controller-utils';
+import { Json } from '@metamask/utils';
 
 /**
  * @type OriginalRequest

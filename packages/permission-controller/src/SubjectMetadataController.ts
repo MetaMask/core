@@ -1,5 +1,5 @@
 import type { Patch } from 'immer';
-import { Json } from '@metamask/types';
+import { Json } from '@metamask/utils';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
