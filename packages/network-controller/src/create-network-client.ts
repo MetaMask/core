@@ -36,53 +36,60 @@ export enum NetworkClientType {
 }
 
 /**
- * A configuration object that can be used to create a provider engine for a
- * custom network.
+ * A configuration object that can be used to create a provider for a custom
+ * network.
  */
-type CustomNetworkConfiguration = {
+type CustomNetworkClientConfiguration = {
   chainId: Hex;
   rpcUrl: string;
   type: NetworkClientType.Custom;
 };
 
 /**
- * A configuration object that can be used to create a provider engine for an
- * Infura network.
+ * A configuration object that can be used to create a provider for an Infura
+ * network.
  */
-type InfuraNetworkConfiguration = {
+type InfuraNetworkClientConfiguration = {
   network: InfuraNetworkType;
   infuraProjectId: string;
   type: NetworkClientType.Infura;
 };
 
 /**
+ * A configuration object that can be used to create a provider for any network.
+ */
+export type NetworkClientConfiguration =
+  | CustomNetworkClientConfiguration
+  | InfuraNetworkClientConfiguration;
+
+/**
  * Create a JSON RPC network client for a specific network.
  *
- * @param networkConfig - The network configuration.
+ * @param networkClientConfig - The network configuration.
  * @returns The network client.
  */
 export function createNetworkClient(
-  networkConfig: CustomNetworkConfiguration | InfuraNetworkConfiguration,
+  networkClientConfig: NetworkClientConfiguration,
 ): { provider: Provider; blockTracker: BlockTracker } {
   const rpcApiMiddleware =
-    networkConfig.type === NetworkClientType.Infura
+    networkClientConfig.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-          network: networkConfig.network,
-          projectId: networkConfig.infuraProjectId,
+          network: networkClientConfig.network,
+          projectId: networkClientConfig.infuraProjectId,
           maxAttempts: 5,
           source: 'metamask',
         })
       : createFetchMiddleware({
           btoa: global.btoa,
           fetch: global.fetch,
-          rpcUrl: networkConfig.rpcUrl,
+          rpcUrl: networkClientConfig.rpcUrl,
         });
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
   const blockTrackerOpts =
     // eslint-disable-next-line node/no-process-env
-    process.env.IN_TEST && networkConfig.type === 'custom'
+    process.env.IN_TEST && networkClientConfig.type === 'custom'
       ? { pollingInterval: SECOND }
       : {};
   const blockTracker = new PollingBlockTracker({
@@ -91,16 +98,16 @@ export function createNetworkClient(
   });
 
   const networkMiddleware =
-    networkConfig.type === NetworkClientType.Infura
+    networkClientConfig.type === NetworkClientType.Infura
       ? createInfuraNetworkMiddleware({
           blockTracker,
-          network: networkConfig.network,
+          network: networkClientConfig.network,
           rpcProvider,
           rpcApiMiddleware,
         })
       : createCustomNetworkMiddleware({
           blockTracker,
-          chainId: networkConfig.chainId,
+          chainId: networkClientConfig.chainId,
           rpcApiMiddleware,
         });
 
