@@ -388,18 +388,21 @@ describe('SignatureController', () => {
       messageManagerMock,
       () => signatureController.signMessage,
       () => keyringControllerMock.signMessage,
+      'eth_sign',
     ],
     [
       'signPersonalMessage',
       personalMessageManagerMock,
       () => signatureController.signPersonalMessage,
       () => keyringControllerMock.signPersonalMessage,
+      'personal_sign',
     ],
     [
       'signTypedMessage',
       typedMessageManagerMock,
       () => signatureController.signTypedMessage,
       () => keyringControllerMock.signTypedMessage,
+      'eth_signTypedData',
     ],
   ])(
     '%s',
@@ -408,6 +411,7 @@ describe('SignatureController', () => {
       messageManager,
       getSignatureControllerMethod,
       getKeyringControllerMethod,
+      rpcMethodName,
     ) => {
       let signatureControllerMethod: (...args: any[]) => Promise<string>;
       let keyringControllerMethod: jest.Mock;
@@ -426,32 +430,40 @@ describe('SignatureController', () => {
       });
 
       it('approves message and signs', async () => {
-        await (signatureController as any)[signMethodName](messageParamsMock);
+        return new Promise(async (resolve) => {
+          signatureController.hub.once(`${rpcMethodName}:signed`, (data) => {
+            expect(data).toStrictEqual(signatureMock);
+            resolve('');
+          });
 
-        const keyringControllerExtraArgs =
-          // eslint-disable-next-line jest/no-if
-          signMethodName === 'signTypedMessage'
-            ? [{ version: messageParamsMock.version }]
-            : [];
+          await (signatureController as any)[signMethodName](messageParamsMock);
 
-        expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
-        expect(keyringControllerMethod).toHaveBeenCalledWith(
-          messageParamsMock2,
-          ...keyringControllerExtraArgs,
-        );
+          const keyringControllerExtraArgs =
+            // eslint-disable-next-line jest/no-if
+            signMethodName === 'signTypedMessage'
+              ? [{ version: messageParamsMock.version }]
+              : [];
 
-        expect(messageManager.setMessageStatusSigned).toHaveBeenCalledTimes(1);
-        expect(messageManager.setMessageStatusSigned).toHaveBeenCalledWith(
-          messageParamsMock2.metamaskId,
-          signatureMock,
-        );
+          expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
+          expect(keyringControllerMethod).toHaveBeenCalledWith(
+            messageParamsMock2,
+            ...keyringControllerExtraArgs,
+          );
+
+          expect(messageManager.setMessageStatusSigned).toHaveBeenCalledTimes(
+            1,
+          );
+          expect(messageManager.setMessageStatusSigned).toHaveBeenCalledWith(
+            messageParamsMock2.metamaskId,
+            signatureMock,
+          );
+        });
       });
 
       it('does not set as signed, messages with deferSetAsSigned', async () => {
         messageManager.approveMessage.mockReset();
         messageManager.approveMessage.mockResolvedValueOnce(messageParamsMock3);
 
-        console.log('messageParamsMock3', messageParamsMock3);
         await (signatureController as any)[signMethodName](messageParamsMock3);
 
         const keyringControllerExtraArgs =
