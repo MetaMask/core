@@ -1,10 +1,9 @@
 /* eslint-enable @typescript-eslint/no-unused-vars */
-import { Mutable } from '@metamask/types';
 import deepFreeze from 'deep-freeze-strict';
 import { castDraft, Draft, Patch } from 'immer';
 import { nanoid } from 'nanoid';
 import { EthereumRpcError } from 'eth-rpc-errors';
-import { hasProperty, Json } from '@metamask/utils';
+import { hasProperty, Json, Mutable } from '@metamask/utils';
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
