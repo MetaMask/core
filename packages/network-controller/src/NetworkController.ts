@@ -5,7 +5,6 @@ import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { Mutex } from 'async-mutex';
 import { v4 as random } from 'uuid';
 import type { Patch } from 'immer';
 import { errorCodes } from 'eth-rpc-errors';
@@ -286,8 +285,6 @@ export class NetworkController extends BaseControllerV2<
 
   #trackMetaMetricsEvent: (event: MetaMetricsEventPayload) => void;
 
-  #mutex = new Mutex();
-
   #previousProviderConfig: ProviderConfig;
 
   #providerProxy: ProviderProxy | undefined;
@@ -487,74 +484,93 @@ export class NetworkController extends BaseControllerV2<
       return;
     }
     const isInfura = isInfuraProviderType(this.state.providerConfig.type);
-    const releaseLock = await this.#mutex.acquire();
+
+    let networkChanged = false;
+    const listener = () => {
+      networkChanged = true;
+      this.messagingSystem.unsubscribe(
+        'NetworkController:networkDidChange',
+        listener,
+      );
+    };
+    this.messagingSystem.subscribe(
+      'NetworkController:networkDidChange',
+      listener,
+    );
+
+    let updatedNetworkStatus: NetworkStatus;
+    let updatedNetworkId: NetworkId | null = null;
+    let updatedIsEIP1559Compatible = false;
 
     try {
-      let updatedNetworkStatus: NetworkStatus;
-      let updatedNetworkId: NetworkId | null = null;
-      let updatedIsEIP1559Compatible = false;
-      try {
-        const [networkId, isEIP1559Compatible] = await Promise.all([
-          this.#getNetworkId(),
-          this.#determineEIP1559Compatibility(),
-        ]);
-        if (this.state.networkId === networkId) {
-          return;
-        }
-        updatedNetworkStatus = NetworkStatus.Available;
-        updatedNetworkId = networkId;
-        updatedIsEIP1559Compatible = isEIP1559Compatible;
-      } catch (error) {
-        if (isErrorWithCode(error)) {
-          let responseBody;
-          if (
-            isInfura &&
-            hasProperty(error, 'message') &&
-            typeof error.message === 'string'
-          ) {
-            try {
-              responseBody = JSON.parse(error.message);
-            } catch {
-              // error.message must not be JSON
-            }
-          }
-
-          if (
-            isPlainObject(responseBody) &&
-            responseBody.error === INFURA_BLOCKED_KEY
-          ) {
-            updatedNetworkStatus = NetworkStatus.Blocked;
-          } else if (error.code === errorCodes.rpc.internal) {
-            updatedNetworkStatus = NetworkStatus.Unknown;
-          } else {
-            updatedNetworkStatus = NetworkStatus.Unavailable;
-          }
-        } else {
-          log('NetworkController - could not determine network status', error);
-          updatedNetworkStatus = NetworkStatus.Unknown;
-        }
+      const [networkId, isEIP1559Compatible] = await Promise.all([
+        this.#getNetworkId(),
+        this.#determineEIP1559Compatibility(),
+      ]);
+      if (this.state.networkId === networkId) {
+        return;
       }
+      updatedNetworkStatus = NetworkStatus.Available;
+      updatedNetworkId = networkId;
+      updatedIsEIP1559Compatible = isEIP1559Compatible;
+    } catch (error) {
+      if (isErrorWithCode(error)) {
+        let responseBody;
+        if (
+          isInfura &&
+          hasProperty(error, 'message') &&
+          typeof error.message === 'string'
+        ) {
+          try {
+            responseBody = JSON.parse(error.message);
+          } catch {
+            // error.message must not be JSON
+          }
+        }
 
-      this.update((state) => {
-        state.networkId = updatedNetworkId;
-        state.networkStatus = updatedNetworkStatus;
-        state.networkDetails.EIPS[1559] = updatedIsEIP1559Compatible;
-      });
-
-      if (isInfura) {
-        if (updatedNetworkStatus === NetworkStatus.Available) {
-          this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
-        } else if (updatedNetworkStatus === NetworkStatus.Blocked) {
-          this.messagingSystem.publish('NetworkController:infuraIsBlocked');
+        if (
+          isPlainObject(responseBody) &&
+          responseBody.error === INFURA_BLOCKED_KEY
+        ) {
+          updatedNetworkStatus = NetworkStatus.Blocked;
+        } else if (error.code === errorCodes.rpc.internal) {
+          updatedNetworkStatus = NetworkStatus.Unknown;
+        } else {
+          updatedNetworkStatus = NetworkStatus.Unavailable;
         }
       } else {
-        // Always publish infuraIsUnblocked regardless of network status to
-        // prevent consumers from being stuck in a blocked state if they were
-        // previously connected to an Infura network that was blocked
-        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+        log('NetworkController - could not determine network status', error);
+        updatedNetworkStatus = NetworkStatus.Unknown;
       }
-    } finally {
-      releaseLock();
+    }
+
+    if (networkChanged) {
+      // If the network has changed, then `lookupNetwork` either has been or is
+      // in the process of being called, so we don't need to go further.
+      return;
+    }
+    this.messagingSystem.unsubscribe(
+      'NetworkController:networkDidChange',
+      listener,
+    );
+
+    this.update((state) => {
+      state.networkId = updatedNetworkId;
+      state.networkStatus = updatedNetworkStatus;
+      state.networkDetails.EIPS[1559] = updatedIsEIP1559Compatible;
+    });
+
+    if (isInfura) {
+      if (updatedNetworkStatus === NetworkStatus.Available) {
+        this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
+      } else if (updatedNetworkStatus === NetworkStatus.Blocked) {
+        this.messagingSystem.publish('NetworkController:infuraIsBlocked');
+      }
+    } else {
+      // Always publish infuraIsUnblocked regardless of network status to
+      // prevent consumers from being stuck in a blocked state if they were
+      // previously connected to an Infura network that was blocked
+      this.messagingSystem.publish('NetworkController:infuraIsUnblocked');
     }
   }
 
