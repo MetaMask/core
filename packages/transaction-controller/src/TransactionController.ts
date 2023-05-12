@@ -378,6 +378,7 @@ export class TransactionController extends BaseController<
       status: TransactionStatus.confirmed,
       time,
       transaction: {
+        // TODO: Change base to 16 once chainIds are consistently hex-formatted (#1367)
         chainId: parseInt(currentChainId, undefined),
         from,
         gas,
