@@ -26,11 +26,13 @@ describe('NftDetectionController', () => {
   beforeEach(async () => {
     preferences = new PreferencesController();
     assetsContract = new AssetsContractController({
+      chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: networkStateChangeNoop,
     });
 
     nftController = new NftController({
+      chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: networkStateChangeNoop,
       getERC721AssetName:
@@ -47,6 +49,7 @@ describe('NftDetectionController', () => {
     });
 
     nftDetection = new NftDetectionController({
+      chainId: ChainId.mainnet,
       onNftsStateChange: (listener) => nftController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: networkStateChangeNoop,
@@ -55,7 +58,7 @@ describe('NftDetectionController', () => {
       getNftState: () => nftController.state,
     });
 
-    nftController.configure({ chainId: '1', selectedAddress: '0x1' });
+    nftController.configure({ selectedAddress: '0x1' });
     preferences.setOpenSeaEnabled(true);
     preferences.setUseNftDetection(true);
 
@@ -212,6 +215,7 @@ describe('NftDetectionController', () => {
       );
       const nftsDetectionController = new NftDetectionController(
         {
+          chainId: ChainId.mainnet,
           onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
@@ -247,6 +251,7 @@ describe('NftDetectionController', () => {
       );
       new NftDetectionController(
         {
+          chainId: ChainId.goerli,
           onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),

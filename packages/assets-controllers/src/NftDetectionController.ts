@@ -122,7 +122,7 @@ export interface ApiNftCreator {
  */
 export interface NftDetectionConfig extends BaseConfig {
   interval: number;
-  chainId: `0x${string}` | `${number}` | number;
+  chainId: string;
   selectedAddress: string;
 }
 
@@ -204,6 +204,7 @@ export class NftDetectionController extends BaseController<
    * Creates an NftDetectionController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.onNftsStateChange - Allows subscribing to assets controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
@@ -215,12 +216,14 @@ export class NftDetectionController extends BaseController<
    */
   constructor(
     {
+      chainId: initialChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
       getOpenSeaApiKey,
       addNft,
       getNftState,
     }: {
+      chainId: string;
       onNftsStateChange: (listener: (nftsState: NftState) => void) => void;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -238,7 +241,7 @@ export class NftDetectionController extends BaseController<
     super(config, state);
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
-      chainId: '1',
+      chainId: initialChainId,
       selectedAddress: '',
       disabled: true,
     };
@@ -266,7 +269,7 @@ export class NftDetectionController extends BaseController<
 
     onNetworkStateChange(({ providerConfig }) => {
       this.configure({
-        chainId: providerConfig.chainId as NftDetectionConfig['chainId'],
+        chainId: providerConfig.chainId,
       });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;

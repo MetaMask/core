@@ -10,8 +10,7 @@ import { fromWei, toWei } from 'ethjs-unit';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 import type { Hex } from '@metamask/utils';
-import { hasProperty, isStrictHexString } from '@metamask/utils';
-import type { Json } from './types';
+import { hasProperty, isStrictHexString, Json } from '@metamask/utils';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');

@@ -160,6 +160,7 @@ export class TokensController extends BaseController<
    * Creates a TokensController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.config - Initial options used to configure this controller.
@@ -167,12 +168,14 @@ export class TokensController extends BaseController<
    * @param options.messenger - The controller messenger.
    */
   constructor({
+    chainId: initialChainId,
     onPreferencesStateChange,
     onNetworkStateChange,
     config,
     state,
     messenger,
   }: {
+    chainId: string;
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
@@ -187,7 +190,7 @@ export class TokensController extends BaseController<
 
     this.defaultConfig = {
       selectedAddress: '',
-      chainId: '',
+      chainId: initialChainId,
       provider: undefined,
       ...config,
     };

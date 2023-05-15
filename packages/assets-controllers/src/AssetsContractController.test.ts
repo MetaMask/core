@@ -1,5 +1,6 @@
 import HttpProvider from 'ethjs-provider-http';
 import {
+  ChainId,
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
@@ -45,6 +46,7 @@ const setupControllers = () => {
   });
   const preferences = new PreferencesController();
   const assetsContract = new AssetsContractController({
+    chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       messenger.subscribe('NetworkController:stateChange', listener),

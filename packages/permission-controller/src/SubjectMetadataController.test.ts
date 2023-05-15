@@ -1,4 +1,4 @@
-import { Json } from '@metamask/controller-utils';
+import { Json } from '@metamask/utils';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { HasPermissions } from './PermissionController';
 import {
