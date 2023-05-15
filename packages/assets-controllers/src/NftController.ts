@@ -153,7 +153,6 @@ export interface NftMetadata {
   lastSale?: ApiNftLastSale;
   transactionId?: string;
   isCurrentlyOwned?: boolean;
-  isWatched?: boolean;
 }
 
 interface AccountParams {
@@ -1051,12 +1050,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
     }
 
     try {
-      const isOwned = await this.isNftOwner(
-        interactingAddress ?? selectedAddress,
-        address,
-        tokenId,
-      );
-
       await this.addNft(
         address,
         tokenId,
@@ -1065,8 +1058,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           description: description ?? null,
           image: image ?? null,
           standard: standard ?? null,
-          isCurrentlyOwned: isOwned,
-          isWatched: !isOwned, // if the user is not the owner, we are watching it
+          isCurrentlyOwned: true,
           tokenUri,
         },
         // this argument was previously used for ensuring that detected NFTs were
@@ -1120,7 +1112,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       interactingAddress: interactingAddress || selectedAddress,
     };
 
-    const { address, tokenId } = asset;
+    const { address: contractAddress, tokenId } = asset;
 
     // Validate parameters
     if (!type) {
@@ -1133,13 +1125,13 @@ export class NftController extends BaseController<NftConfig, NftState> {
       );
     }
 
-    if (!address || !tokenId) {
+    if (!contractAddress || !tokenId) {
       throw ethErrors.rpc.invalidParams(
         'Both address and tokenId are required',
       );
     }
 
-    if (!isAddress(address)) {
+    if (!isAddress(contractAddress)) {
       throw ethErrors.rpc.invalidParams('Invalid address');
     }
 
@@ -1154,8 +1146,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           asset: { address: suggestedAddress, tokenId: suggestedTokenId },
         }) => {
           return (
-            suggestedAddress === asset.address &&
-            suggestedTokenId === asset.tokenId
+            suggestedAddress === contractAddress && suggestedTokenId === tokenId
           );
         },
       )
@@ -1168,8 +1159,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
       this.state.allNfts?.[selectedAddress]?.[chainId].find(
         ({ address: watchedAssetAddress, tokenId: watchedAssetTokenId }) => {
           return (
-            watchedAssetAddress === asset.address &&
-            watchedAssetTokenId === asset.tokenId
+            watchedAssetAddress === contractAddress &&
+            watchedAssetTokenId === tokenId
           );
         },
       )
@@ -1196,6 +1187,27 @@ export class NftController extends BaseController<NftConfig, NftState> {
     if (nftMetaData?.standard === 'ERC20') {
       throw new Error(
         'Suggested asset does not match a supported token standard for this controller',
+      );
+    }
+
+    let isOwner;
+    try {
+      // TODO fold ownership check into getTokenStandardAndDetails call
+      isOwner = await this.isNftOwner(
+        interactingAddress || selectedAddress,
+        contractAddress,
+        tokenId,
+      );
+    } catch (error) {
+      this.failSuggestedNft(suggestedNftMeta, error);
+      throw ethErrors.rpc.internal(
+        `Failed to fetch NFT owner: ${error}. Make sure the NFT is on the currently selected network.`,
+      );
+    }
+
+    if (!isOwner) {
+      throw ethErrors.rpc.internal(
+        'Suggested NFT is not owned by the selected account',
       );
     }
 

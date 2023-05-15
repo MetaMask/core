@@ -104,6 +104,7 @@ jest.mock('uuid', () => {
  * @param options.getERC721OwnerOfStub - Stub for the "getERC721OwnerOf" method.
  * @param options.getERC721AssetNameStub - Stub for the "getERC721AssetName" method.
  * @param options.getERC721AssetSymbolStub - Stub for the "getERC721AssetSymbol" method.
+ * @param options.getERC1155BalanceOfStub - Stub for the "getERC1155BalanceOf" method.
  * @returns A collection of test controllers and stubs.
  */
 function setupController({
@@ -112,6 +113,7 @@ function setupController({
   getERC721OwnerOfStub,
   getERC721AssetNameStub,
   getERC721AssetSymbolStub,
+  getERC1155BalanceOfStub,
 }: {
   includeOnNftAdded?: boolean;
   getTokenStandardAndDetailsStub?: (
@@ -132,6 +134,11 @@ function setupController({
   ) => Promise<string>;
   getERC721AssetNameStub?: (tokenAddress: string) => Promise<string>;
   getERC721AssetSymbolStub?: (tokenAddress: string) => Promise<string>;
+  getERC1155BalanceOfStub?: (
+    tokenAddress: string,
+    tokenId: string,
+    userAddress: string,
+  ) => Promise<BN>;
 } = {}) {
   const preferences = new PreferencesController();
   const onNetworkStateChangeListeners: ((state: NetworkState) => void)[] = [];
@@ -162,6 +169,7 @@ function setupController({
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
   });
+
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
 
   const nftController = new NftController({
@@ -180,6 +188,7 @@ function setupController({
       getERC721OwnerOfStub ??
       assetsContract.getERC721OwnerOf.bind(assetsContract),
     getERC1155BalanceOf:
+      getERC1155BalanceOfStub ??
       assetsContract.getERC1155BalanceOf.bind(assetsContract),
     getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(assetsContract),
     getTokenStandardAndDetails:
@@ -370,6 +379,46 @@ describe('NftController', () => {
       await expect(result).rejects.toThrow('Invalid address');
     });
 
+    it('should error if the user does not own the suggested ERC721 NFT', async function () {
+      const { nftController, messenger } = setupController({
+        getTokenStandardAndDetailsStub: jest.fn().mockImplementation(() => ({
+          standard: ERC721,
+          tokenUri: 'testERC721TokenUri',
+          name: 'testERC721Name',
+        })),
+        getERC721OwnerOfStub: jest
+          .fn()
+          .mockImplementation(() => '0x12345abcefg'),
+      });
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await expect(() =>
+        nftController.watchNft(ERC721_NFT, ERC721),
+      ).rejects.toThrow('Suggested NFT is not owned by the selected account');
+      expect(nftController.state.suggestedNfts).toStrictEqual([]);
+      expect(callActionSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it('should error if the user does not own the suggested ERC1155 NFT', async function () {
+      const { nftController, messenger } = setupController({
+        getTokenStandardAndDetailsStub: jest.fn().mockImplementation(() => ({
+          standard: ERC1155,
+          tokenUri: 'testERC1155TokenUri',
+          name: 'testERC1155Name',
+        })),
+        getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(0)),
+      });
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await expect(() =>
+        nftController.watchNft(ERC1155_NFT, ERC1155),
+      ).rejects.toThrow('Suggested NFT is not owned by the selected account');
+      expect(nftController.state.suggestedNfts).toStrictEqual([]);
+      expect(callActionSpy).toHaveBeenCalledTimes(0);
+    });
+
     it('should handle ERC721 type and add to suggestedNfts', async function () {
       const { nftController, messenger } = setupController({
         getTokenStandardAndDetailsStub: jest.fn().mockImplementation(() => ({
@@ -377,7 +426,9 @@ describe('NftController', () => {
           tokenUri: 'testERC721TokenUri',
           name: 'testERC721Name',
         })),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
+
       const requestId = 'approval-request-id-1';
 
       const clock = sinon.useFakeTimers(1);
@@ -428,6 +479,7 @@ describe('NftController', () => {
           tokenUri: 'testERC1155TokenUri',
           name: 'testERC1155Name',
         })),
+        getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
       });
       const requestId = 'approval-request-id-1';
 
@@ -535,7 +587,6 @@ describe('NftController', () => {
             favorite: false,
             image: null,
             isCurrentlyOwned: true,
-            isWatched: false,
           },
         ]);
         expect(callActionSpy).toHaveBeenCalledTimes(2);
@@ -574,7 +625,9 @@ describe('NftController', () => {
           .mockImplementation(() => ERC721_DETAILS),
         getERC721AssetNameStub: jest.fn().mockImplementation(() => 'test name'),
         getERC721AssetSymbolStub: jest.fn().mockImplementation(() => 'TEST'),
-        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+        getERC721OwnerOfStub: jest
+          .fn()
+          .mockImplementation(() => interactingAddress),
       });
 
       changeNetwork(SEPOLIA);
@@ -600,8 +653,7 @@ describe('NftController', () => {
           description: null,
           favorite: false,
           image: null,
-          isCurrentlyOwned: false,
-          isWatched: true,
+          isCurrentlyOwned: true,
         },
       ]);
       expect(callActionSpy).toHaveBeenCalledTimes(2);
@@ -765,6 +817,7 @@ describe('NftController', () => {
         getTokenStandardAndDetailsStub: jest
           .fn()
           .mockImplementation(() => ERC721_DETAILS),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
 
       changeNetwork(SEPOLIA);
@@ -861,6 +914,9 @@ describe('NftController', () => {
             getTokenStandardAndDetailsStub: jest
               .fn()
               .mockImplementation(() => ERC721_DETAILS),
+            getERC721OwnerOfStub: jest
+              .fn()
+              .mockImplementation(() => OWNER_ADDRESS),
           });
 
         let calledOnce = false;
