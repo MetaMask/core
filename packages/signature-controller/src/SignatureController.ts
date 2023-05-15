@@ -492,7 +492,7 @@ export class SignatureController extends BaseControllerV2<
       const cleanMessageParams = await messageManager.approveMessage(msgParams);
       const signature = await getSignature(cleanMessageParams);
 
-      this.hub.emit(`${methodName}:signed`, signature);
+      this.hub.emit(`${methodName}:signed`, { signature, messageId });
 
       if (!cleanMessageParams.deferSetAsSigned) {
         messageManager.setMessageStatusSigned(messageId, signature);
