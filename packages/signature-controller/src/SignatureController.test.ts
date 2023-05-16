@@ -491,32 +491,6 @@ describe('SignatureController', () => {
         ).toStrictEqual(stateMock);
       });
 
-      it('accepts approval', async () => {
-        await signatureControllerMethod(messageParamsMock);
-
-        expect(messengerMock.call).toHaveBeenCalledTimes(1);
-        expect(messengerMock.call).toHaveBeenCalledWith(
-          'ApprovalController:acceptRequest',
-          messageParamsMock.metamaskId,
-        );
-      });
-
-      it('rejects approval on error', async () => {
-        keyringControllerMethod.mockReset();
-        keyringControllerMethod.mockRejectedValue(new Error('Test Error'));
-
-        await expect(
-          signatureControllerMethod(messageParamsMock),
-        ).rejects.toThrow('Test Error');
-
-        expect(messengerMock.call).toHaveBeenCalledTimes(1);
-        expect(messengerMock.call).toHaveBeenCalledWith(
-          'ApprovalController:rejectRequest',
-          messageParamsMock.metamaskId,
-          'Cancel',
-        );
-      });
-
       if (signMethodName === 'signTypedMessage') {
         it('parses JSON string in data if not V1', async () => {
           const jsonData = { test: 'value' };
@@ -646,17 +620,6 @@ describe('SignatureController', () => {
       expect(messageManager.rejectMessage).toHaveBeenCalledTimes(1);
       expect(messageManager.rejectMessage).toHaveBeenCalledWith(
         messageParamsMock.metamaskId,
-      );
-    });
-
-    it('rejects approval using approval controller', async () => {
-      cancelMethod(messageIdMock);
-
-      expect(messengerMock.call).toHaveBeenCalledTimes(1);
-      expect(messengerMock.call).toHaveBeenCalledWith(
-        'ApprovalController:rejectRequest',
-        messageParamsMock.metamaskId,
-        'Cancel',
       );
     });
   });

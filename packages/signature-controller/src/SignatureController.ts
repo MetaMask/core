@@ -25,11 +25,7 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Patch } from 'immer';
-import {
-  AcceptRequest,
-  AddApprovalRequest,
-  RejectRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 
 const controllerName = 'SignatureController';
@@ -69,7 +65,7 @@ type SignatureControllerState = {
   unapprovedTypedMessagesCount: number;
 };
 
-type AllowedActions = AddApprovalRequest | AcceptRequest | RejectRequest;
+type AllowedActions = AddApprovalRequest;
 
 export type GetSignatureState = {
   type: `${typeof controllerName}:getState`;
@@ -499,8 +495,6 @@ export class SignatureController extends BaseControllerV2<
         messageManager.setMessageStatusSigned(messageId, signature);
       }
 
-      this.#acceptApproval(messageId);
-
       return this.#getAllState();
     } catch (error: any) {
       console.info(`MetaMaskController - ${methodName} failed.`, error);
@@ -520,7 +514,6 @@ export class SignatureController extends BaseControllerV2<
   ) {
     if (messageManager instanceof TypedMessageManager) {
       messageManager.setMessageStatusErrored(messageId, error);
-      this.#rejectApproval(messageId);
     } else {
       this.#cancelAbstractMessage(messageManager, messageId);
     }
@@ -541,7 +534,6 @@ export class SignatureController extends BaseControllerV2<
     }
 
     messageManager.rejectMessage(messageId);
-    this.#rejectApproval(messageId);
 
     return this.#getAllState();
   }
@@ -658,18 +650,6 @@ export class SignatureController extends BaseControllerV2<
       .catch(() => {
         // Intentionally ignored as promise not currently used
       });
-  }
-
-  #acceptApproval(messageId: string) {
-    this.messagingSystem.call('ApprovalController:acceptRequest', messageId);
-  }
-
-  #rejectApproval(messageId: string) {
-    this.messagingSystem.call(
-      'ApprovalController:rejectRequest',
-      messageId,
-      'Cancel',
-    );
   }
 
   #removeJsonData(
