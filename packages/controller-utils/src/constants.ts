@@ -100,6 +100,7 @@ export enum ApprovalType {
   Transaction = 'transaction',
   WalletRequestPermissions = 'wallet_requestPermissions',
   WatchAsset = 'wallet_watchAsset',
+  WatchNFT = 'wallet_watchAsset_NFT',
   SnapDialogAlert = 'snap_dialog:alert',
   SnapDialogConfirmation = 'snap_dialog:confirmation',
   SnapDialogPrompt = 'snap_dialog:prompt',
