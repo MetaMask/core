@@ -14,13 +14,16 @@ import * as uuid from 'uuid';
 import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
+import { ControllerMessenger } from '@metamask/base-controller';
 import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
-  KeyringConfig,
   KeyringController,
-  KeyringMemState,
   KeyringObject,
+  KeyringControllerEvents,
+  KeyringControllerMessenger,
+  KeyringControllerOptions,
+  KeyringState,
   KeyringTypes,
 } from './KeyringController';
 
@@ -252,10 +255,12 @@ describe('KeyringController', () => {
             await withController(
               { cacheEncryptionKey },
               async ({ controller, initialState, preferences, encryptor }) => {
-                const cleanKeyringController = new KeyringController(
+                const cleanKeyringController = new KeyringController({
                   preferences,
-                  { cacheEncryptionKey, encryptor },
-                );
+                  cacheEncryptionKey,
+                  encryptor,
+                  messenger: buildKeyringControllerMessenger(),
+                });
                 const initialSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
@@ -1106,20 +1111,14 @@ describe('KeyringController', () => {
   });
 
   describe('subscribe and unsubscribe', () => {
-    it('should subscribe and unsubscribe', async () => {
-      await withController(async ({ controller }) => {
+    it('should fire stateChange event', async () => {
+      await withController(async ({ controller, messenger }) => {
         const listener = sinon.stub();
-        controller.subscribe(listener);
-        await controller.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [privateKey],
-        );
+        messenger.subscribe('KeyringController:stateChange', listener);
+
+        await controller.fullUpdate();
+
         expect(listener.called).toBe(true);
-        controller.unsubscribe(listener);
-        await controller.removeAccount(
-          '0x51253087e6f8358b5f10c0a94315d69db3357859',
-        );
-        expect(listener.calledTwice).toBe(false);
       });
     });
   });
@@ -1657,6 +1656,7 @@ type WithControllerCallback<ReturnValue> = ({
   preferences,
   initialState,
   encryptor,
+  messenger,
 }: {
   controller: KeyringController;
   preferences: {
@@ -1667,14 +1667,39 @@ type WithControllerCallback<ReturnValue> = ({
     setSelectedAddress: sinon.SinonStub;
   };
   encryptor: MockEncryptor;
-  initialState: KeyringMemState;
+  initialState: KeyringState;
+  messenger: KeyringControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions = Partial<KeyringConfig>;
+type WithControllerOptions = Partial<KeyringControllerOptions>;
 
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
   | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+/**
+ * Build a controller messenger that includes all events used by the keyring
+ * controller.
+ *
+ * @returns The controller messenger.
+ */
+function buildMessenger() {
+  return new ControllerMessenger<never, KeyringControllerEvents>();
+}
+
+/**
+ * Build a restricted controller messenger for the keyring controller.
+ *
+ * @param messenger - A controller messenger.
+ * @returns The keyring controller restricted messenger.
+ */
+function buildKeyringControllerMessenger(messenger = buildMessenger()) {
+  return messenger.getRestricted({
+    name: 'KeyringController',
+    allowedActions: [],
+    allowedEvents: ['KeyringController:stateChange'],
+  });
+}
 
 /**
  * Builds a controller based on the given options and creates a new vault
@@ -1698,9 +1723,12 @@ async function withController<ReturnValue>(
     updateIdentities: sinon.stub(),
     setSelectedAddress: sinon.stub(),
   };
-  const controller = new KeyringController(preferences, {
+  const messenger = buildKeyringControllerMessenger();
+  const controller = new KeyringController({
+    preferences,
     encryptor,
     cacheEncryptionKey: false,
+    messenger,
     ...rest,
   });
   const initialState = await controller.createNewVaultAndKeychain(password);
@@ -1709,5 +1737,6 @@ async function withController<ReturnValue>(
     preferences,
     encryptor,
     initialState,
+    messenger,
   });
 }

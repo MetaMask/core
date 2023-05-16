@@ -1725,6 +1725,7 @@ __metadata:
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
     ethereumjs-wallet: ^1.0.1
+    immer: ^10.0.2
     jest: ^27.5.1
     sinon: ^9.2.4
     ts-jest: ^27.1.4
@@ -5816,6 +5817,13 @@ __metadata:
   version: 3.2.3
   resolution: "immediate@npm:3.2.3"
   checksum: 9867dc70794f3aa246a90afe8a0166607590b687e8c572839ff2342292ac2da4b1cdfd396d38f7b9e72625d817d601e73c33c2874e9c0b8e0f1d6658b3c03496
+  languageName: node
+  linkType: hard
+
+"immer@npm:^10.0.2":
+  version: 10.0.2
+  resolution: "immer@npm:10.0.2"
+  checksum: 525a3b14210d02ae420c3b9f6ca14f7e9bcf625611d1356e773e7739f14c7c8de50dac442e6c7de3a6e24a782f7b792b6b8666bc0b3f00269d21a95f8f68ca84
   languageName: node
   linkType: hard
 

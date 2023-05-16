@@ -22,16 +22,17 @@ import {
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
 import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-  Listener,
+  BaseControllerV2,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
+import type { Patch } from 'immer';
+
+const name = 'KeyringController';
 
 /**
  * Available keyring types
@@ -61,40 +62,54 @@ export interface KeyringObject {
  *
  * Keyring controller state
  * @property vault - Encrypted string representing keyring data
- * @property keyrings - Group of accounts
- */
-export interface KeyringState extends BaseState {
-  vault?: string;
-  keyrings: Keyring[];
-}
-
-/**
- * @type KeyringMemState
- *
- * Keyring mem controller state
  * @property isUnlocked - Whether vault is unlocked
  * @property keyringTypes - Account types
  * @property keyrings - Group of accounts
  */
-export interface KeyringMemState extends BaseState {
+export type KeyringState = {
+  vault?: string;
   isUnlocked: boolean;
   keyringTypes: string[];
   keyrings: Keyring[];
   encryptionKey?: string;
   encryptionSalt?: string;
-}
+};
+
+export type KeyringControllerStateChangeEvent = {
+  type: `KeyringController:stateChange`;
+  payload: [KeyringState, Patch[]];
+};
+
+export type KeyringControllerEvents = KeyringControllerStateChangeEvent;
+
+export type KeyringControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  never,
+  KeyringControllerEvents,
+  string,
+  string
+>;
 
 /**
- * @type KeyringConfig
+ * @type KeyringControllerOptions
  *
  * Keyring controller configuration
  * @property encryptor - Keyring encryptor
  */
-export interface KeyringConfig extends BaseConfig {
+export type KeyringControllerOptions = {
+  preferences: {
+    removeIdentity: PreferencesController['removeIdentity'];
+    syncIdentities: PreferencesController['syncIdentities'];
+    updateIdentities: PreferencesController['updateIdentities'];
+    setSelectedAddress: PreferencesController['setSelectedAddress'];
+    setAccountLabel?: PreferencesController['setAccountLabel'];
+  };
+  messenger: KeyringControllerMessenger;
   encryptor?: any;
   keyringBuilders?: any[];
   cacheEncryptionKey?: boolean;
-}
+  state?: Partial<KeyringState>;
+};
 
 /**
  * @type Keyring
@@ -104,11 +119,11 @@ export interface KeyringConfig extends BaseConfig {
  * @property accounts - Associated accounts
  * @property index - Associated index
  */
-export interface Keyring {
+export type Keyring = {
   accounts: string[];
   type: string;
   index?: number;
-}
+};
 
 /**
  * A strategy for importing an account
@@ -129,6 +144,12 @@ export enum SignTypedDataVersion {
   V4 = 'V4',
 }
 
+const defaultState: KeyringState = {
+  isUnlocked: false,
+  keyringTypes: [],
+  keyrings: [],
+};
+
 /**
  * Controller responsible for establishing and managing user identity.
  *
@@ -138,16 +159,12 @@ export enum SignTypedDataVersion {
  * with the internal keyring controller and handling certain complex operations that involve the
  * keyrings.
  */
-export class KeyringController extends BaseController<
-  KeyringConfig,
-  KeyringState
+export class KeyringController extends BaseControllerV2<
+  typeof name,
+  KeyringState,
+  KeyringControllerMessenger
 > {
   private mutex = new Mutex();
-
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'KeyringController';
 
   private removeIdentity: PreferencesController['removeIdentity'];
 
@@ -165,49 +182,62 @@ export class KeyringController extends BaseController<
    * Creates a KeyringController instance.
    *
    * @param options - The controller options.
-   * @param options.removeIdentity - Remove the identity with the given address.
-   * @param options.syncIdentities - Sync identities with the given list of addresses.
-   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
-   * @param options.setSelectedAddress - Set the selected address.
-   * @param options.setAccountLabel - Set a new name for account.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param options.preferences - The preferences controller.
+   * @param options.preferences.removeIdentity - Remove the identity with the given address.
+   * @param options.preferences.syncIdentities - Sync identities with the given list of addresses.
+   * @param options.preferences.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
+   * @param options.preferences.setSelectedAddress - Set the selected address.
+   * @param options.preferences.setAccountLabel - Set a new name for account.
+   * @param options.encryptor - The encryptor for encrypting/decrypting keyrings.
+   * @param options.keyringBuilders - The keyring builders for initializing the keyring controller.
+   * @param options.cacheEncryptionKey - Whether to cache the encryption key in memory.
+   * @param options.state - Initial state to set on this controller.
+   * @param options.messenger - A restricted controller messenger.
    */
-  constructor(
-    {
+  constructor({
+    preferences: {
       removeIdentity,
       syncIdentities,
       updateIdentities,
       setSelectedAddress,
       setAccountLabel,
-    }: {
-      removeIdentity: PreferencesController['removeIdentity'];
-      syncIdentities: PreferencesController['syncIdentities'];
-      updateIdentities: PreferencesController['updateIdentities'];
-      setSelectedAddress: PreferencesController['setSelectedAddress'];
-      setAccountLabel?: PreferencesController['setAccountLabel'];
     },
-    config?: Partial<KeyringConfig>,
-    state?: Partial<KeyringState>,
-  ) {
-    super(config, state);
+    encryptor,
+    keyringBuilders,
+    cacheEncryptionKey,
+    state,
+    messenger,
+  }: KeyringControllerOptions) {
+    super({
+      name,
+      metadata: {
+        vault: { persist: true, anonymous: false },
+        isUnlocked: { persist: false, anonymous: false },
+        keyringTypes: { persist: false, anonymous: false },
+        keyrings: { persist: false, anonymous: false },
+      },
+      messenger,
+      state: {
+        ...defaultState,
+        ...state,
+      },
+    });
+
     this.#keyring = new EthKeyringController(
-      Object.assign({ initState: state }, config),
+      Object.assign(
+        { initState: state },
+        { encryptor, keyringBuilders, cacheEncryptionKey },
+      ),
     );
     this.#keyring.store.subscribe(() => {
       this.update({ vault: this.#keyring.store.getState().vault });
     });
 
-    this.defaultState = {
-      ...this.#keyring.store.getState(),
-      keyrings: [],
-    };
     this.removeIdentity = removeIdentity;
     this.syncIdentities = syncIdentities;
     this.updateIdentities = updateIdentities;
     this.setSelectedAddress = setSelectedAddress;
     this.setAccountLabel = setAccountLabel;
-    this.initialize();
     this.fullUpdate();
   }
 
@@ -220,7 +250,7 @@ export class KeyringController extends BaseController<
    * address.
    */
   async addNewAccount(accountCount?: number): Promise<{
-    keyringState: KeyringMemState;
+    keyringState: KeyringState;
     addedAccountAddress: string;
   }> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
@@ -262,7 +292,7 @@ export class KeyringController extends BaseController<
    *
    * @returns Promise resolving to current state when the account is added.
    */
-  async addNewAccountWithoutUpdate(): Promise<KeyringMemState> {
+  async addNewAccountWithoutUpdate(): Promise<KeyringState> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
@@ -418,7 +448,7 @@ export class KeyringController extends BaseController<
     strategy: AccountImportStrategy,
     args: any[],
   ): Promise<{
-    keyringState: KeyringMemState;
+    keyringState: KeyringState;
     importedAccountAddress: string;
   }> {
     let privateKey;
@@ -479,7 +509,7 @@ export class KeyringController extends BaseController<
    * @param address - Address of the account to remove.
    * @returns Promise resolving current state when this account removal completes.
    */
-  async removeAccount(address: string): Promise<KeyringMemState> {
+  async removeAccount(address: string): Promise<KeyringState> {
     this.removeIdentity(address);
     await this.#keyring.removeAccount(address);
     return this.fullUpdate();
@@ -490,7 +520,7 @@ export class KeyringController extends BaseController<
    *
    * @returns Promise resolving to current state.
    */
-  setLocked(): Promise<KeyringMemState> {
+  setLocked(): Promise<KeyringState> {
     return this.#keyring.setLocked();
   }
 
@@ -606,7 +636,7 @@ export class KeyringController extends BaseController<
   async submitEncryptionKey(
     encryptionKey: string,
     encryptionSalt: string,
-  ): Promise<KeyringMemState> {
+  ): Promise<KeyringState> {
     return this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
   }
 
@@ -617,30 +647,11 @@ export class KeyringController extends BaseController<
    * @param password - Password to unlock the keychain.
    * @returns Promise resolving to the current state.
    */
-  async submitPassword(password: string): Promise<KeyringMemState> {
+  async submitPassword(password: string): Promise<KeyringState> {
     await this.#keyring.submitPassword(password);
     const accounts = await this.#keyring.getAccounts();
     await this.syncIdentities(accounts);
     return this.fullUpdate();
-  }
-
-  /**
-   * Adds new listener to be notified of state changes.
-   *
-   * @param listener - Callback triggered when state changes.
-   */
-  override subscribe(listener: Listener<KeyringState>) {
-    this.#keyring.store.subscribe(listener);
-  }
-
-  /**
-   * Removes existing listener from receiving state changes.
-   *
-   * @param listener - Callback to remove.
-   * @returns True if a listener is found and unsubscribed.
-   */
-  override unsubscribe(listener: Listener<KeyringState>) {
-    return this.#keyring.store.unsubscribe(listener);
   }
 
   /**
@@ -711,7 +722,7 @@ export class KeyringController extends BaseController<
    *
    * @returns The current state.
    */
-  async fullUpdate(): Promise<KeyringMemState> {
+  async fullUpdate(): Promise<KeyringState> {
     const keyrings: Keyring[] = await Promise.all<Keyring>(
       this.#keyring.keyrings.map(
         async (keyring: KeyringObject, index: number): Promise<Keyring> => {
@@ -727,7 +738,10 @@ export class KeyringController extends BaseController<
         },
       ),
     );
-    this.update({ keyrings: [...keyrings] });
+    this.update((state) => {
+      state.vault = this.#keyring.vault;
+      state.keyrings = [...keyrings];
+    });
     return this.#keyring.fullUpdate();
   }
 
