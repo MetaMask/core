@@ -82,7 +82,7 @@ export type PermissionConstraint = {
  *
  * See the README for details.
  *
- * @template Name - The name of the permission that the target corresponbds to.
+ * @template Name - The name of the permission that the target corresponds to.
  * @template AllowedCaveat - A union of the allowed {@link Caveat} types
  * for the permission.
  */
