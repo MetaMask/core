@@ -36,7 +36,10 @@ const setupControllers = () => {
   const messenger: NetworkControllerMessenger =
     new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
+      allowedEvents: [
+        'NetworkController:stateChange',
+        'NetworkController:networkDidChange',
+      ],
       allowedActions: [],
     });
   const network = new NetworkController({
