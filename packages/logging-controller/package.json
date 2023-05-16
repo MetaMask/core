@@ -1,6 +1,6 @@
 {
   "name": "@metamask/logging-controller",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Manages a list of logs for signature requests",
   "keywords": [
     "MetaMask",
