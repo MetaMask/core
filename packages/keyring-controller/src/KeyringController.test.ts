@@ -706,177 +706,189 @@ describe('KeyringController', () => {
 
   describe('signTypedMessage', () => {
     it('should throw when given invalid version', async () => {
-      await withController(async ({ controller, initialState }) => {
-        const typedMsgParams = [
-          {
-            name: 'Message',
-            type: 'string',
-            value: 'Hi, Alice!',
-          },
-          {
-            name: 'A number',
-            type: 'uint32',
-            value: '1337',
-          },
-        ];
-        const account = initialState.keyrings[0].accounts[0];
-        await expect(
-          controller.signTypedMessage(
-            { data: typedMsgParams, from: account },
-            'junk' as SignTypedDataVersion,
-          ),
-        ).rejects.toThrow(
-          "Keyring Controller signTypedMessage: Error: Unexpected signTypedMessage version: 'junk'",
-        );
-      });
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
+        async ({ controller, initialState }) => {
+          const typedMsgParams = [
+            {
+              name: 'Message',
+              type: 'string',
+              value: 'Hi, Alice!',
+            },
+            {
+              name: 'A number',
+              type: 'uint32',
+              value: '1337',
+            },
+          ];
+          const account = initialState.keyrings[0].accounts[0];
+          await expect(
+            controller.signTypedMessage(
+              { data: typedMsgParams, from: account },
+              'junk' as SignTypedDataVersion,
+            ),
+          ).rejects.toThrow(
+            "Keyring Controller signTypedMessage: Error: Unexpected signTypedMessage version: 'junk'",
+          );
+        },
+      );
     });
 
     it('should sign typed message V1', async () => {
-      await withController(async ({ controller, initialState }) => {
-        const typedMsgParams = [
-          {
-            name: 'Message',
-            type: 'string',
-            value: 'Hi, Alice!',
-          },
-          {
-            name: 'A number',
-            type: 'uint32',
-            value: '1337',
-          },
-        ];
-        const account = initialState.keyrings[0].accounts[0];
-        const signature = await controller.signTypedMessage(
-          { data: typedMsgParams, from: account },
-          SignTypedDataVersion.V1,
-        );
-        const recovered = recoverTypedSignature({
-          data: typedMsgParams,
-          signature,
-          version: SignTypedDataVersion.V1,
-        });
-        expect(account).toBe(recovered);
-      });
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
+        async ({ controller, initialState }) => {
+          const typedMsgParams = [
+            {
+              name: 'Message',
+              type: 'string',
+              value: 'Hi, Alice!',
+            },
+            {
+              name: 'A number',
+              type: 'uint32',
+              value: '1337',
+            },
+          ];
+          const account = initialState.keyrings[0].accounts[0];
+          const signature = await controller.signTypedMessage(
+            { data: typedMsgParams, from: account },
+            SignTypedDataVersion.V1,
+          );
+          const recovered = recoverTypedSignature({
+            data: typedMsgParams,
+            signature,
+            version: SignTypedDataVersion.V1,
+          });
+          expect(account).toBe(recovered);
+        },
+      );
     });
 
     it('should sign typed message V3', async () => {
-      await withController(async ({ controller, initialState }) => {
-        const msgParams = {
-          domain: {
-            chainId: 1,
-            name: 'Ether Mail',
-            verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
-            version: '1',
-          },
-          message: {
-            contents: 'Hello, Bob!',
-            from: {
-              name: 'Cow',
-              wallet: '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
+        async ({ controller, initialState }) => {
+          const msgParams = {
+            domain: {
+              chainId: 1,
+              name: 'Ether Mail',
+              verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+              version: '1',
             },
-            to: {
-              name: 'Bob',
-              wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+            message: {
+              contents: 'Hello, Bob!',
+              from: {
+                name: 'Cow',
+                wallet: '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+              },
+              to: {
+                name: 'Bob',
+                wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+              },
             },
-          },
-          primaryType: 'Mail' as const,
-          types: {
-            EIP712Domain: [
-              { name: 'name', type: 'string' },
-              { name: 'version', type: 'string' },
-              { name: 'chainId', type: 'uint256' },
-              { name: 'verifyingContract', type: 'address' },
-            ],
-            Mail: [
-              { name: 'from', type: 'Person' },
-              { name: 'to', type: 'Person' },
-              { name: 'contents', type: 'string' },
-            ],
-            Person: [
-              { name: 'name', type: 'string' },
-              { name: 'wallet', type: 'address' },
-            ],
-          },
-        };
-        const account = initialState.keyrings[0].accounts[0];
-        const signature = await controller.signTypedMessage(
-          { data: JSON.stringify(msgParams), from: account },
-          SignTypedDataVersion.V3,
-        );
-        const recovered = recoverTypedSignature({
-          data: msgParams,
-          signature,
-          version: SignTypedDataVersion.V3,
-        });
-        expect(account).toBe(recovered);
-      });
+            primaryType: 'Mail' as const,
+            types: {
+              EIP712Domain: [
+                { name: 'name', type: 'string' },
+                { name: 'version', type: 'string' },
+                { name: 'chainId', type: 'uint256' },
+                { name: 'verifyingContract', type: 'address' },
+              ],
+              Mail: [
+                { name: 'from', type: 'Person' },
+                { name: 'to', type: 'Person' },
+                { name: 'contents', type: 'string' },
+              ],
+              Person: [
+                { name: 'name', type: 'string' },
+                { name: 'wallet', type: 'address' },
+              ],
+            },
+          };
+          const account = initialState.keyrings[0].accounts[0];
+          const signature = await controller.signTypedMessage(
+            { data: JSON.stringify(msgParams), from: account },
+            SignTypedDataVersion.V3,
+          );
+          const recovered = recoverTypedSignature({
+            data: msgParams,
+            signature,
+            version: SignTypedDataVersion.V3,
+          });
+          expect(account).toBe(recovered);
+        },
+      );
     });
 
     it('should sign typed message V4', async () => {
-      await withController(async ({ controller, initialState }) => {
-        const msgParams = {
-          domain: {
-            chainId: 1,
-            name: 'Ether Mail',
-            verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
-            version: '1',
-          },
-          message: {
-            contents: 'Hello, Bob!',
-            from: {
-              name: 'Cow',
-              wallets: [
-                '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
-                '0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF',
-              ],
+      await withController(
+        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
+        async ({ controller, initialState }) => {
+          const msgParams = {
+            domain: {
+              chainId: 1,
+              name: 'Ether Mail',
+              verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+              version: '1',
             },
-            to: [
-              {
-                name: 'Bob',
+            message: {
+              contents: 'Hello, Bob!',
+              from: {
+                name: 'Cow',
                 wallets: [
-                  '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-                  '0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57',
-                  '0xB0B0b0b0b0b0B000000000000000000000000000',
+                  '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+                  '0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF',
                 ],
               },
-            ],
-          },
-          primaryType: 'Mail' as const,
-          types: {
-            EIP712Domain: [
-              { name: 'name', type: 'string' },
-              { name: 'version', type: 'string' },
-              { name: 'chainId', type: 'uint256' },
-              { name: 'verifyingContract', type: 'address' },
-            ],
-            Group: [
-              { name: 'name', type: 'string' },
-              { name: 'members', type: 'Person[]' },
-            ],
-            Mail: [
-              { name: 'from', type: 'Person' },
-              { name: 'to', type: 'Person[]' },
-              { name: 'contents', type: 'string' },
-            ],
-            Person: [
-              { name: 'name', type: 'string' },
-              { name: 'wallets', type: 'address[]' },
-            ],
-          },
-        };
+              to: [
+                {
+                  name: 'Bob',
+                  wallets: [
+                    '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+                    '0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57',
+                    '0xB0B0b0b0b0b0B000000000000000000000000000',
+                  ],
+                },
+              ],
+            },
+            primaryType: 'Mail' as const,
+            types: {
+              EIP712Domain: [
+                { name: 'name', type: 'string' },
+                { name: 'version', type: 'string' },
+                { name: 'chainId', type: 'uint256' },
+                { name: 'verifyingContract', type: 'address' },
+              ],
+              Group: [
+                { name: 'name', type: 'string' },
+                { name: 'members', type: 'Person[]' },
+              ],
+              Mail: [
+                { name: 'from', type: 'Person' },
+                { name: 'to', type: 'Person[]' },
+                { name: 'contents', type: 'string' },
+              ],
+              Person: [
+                { name: 'name', type: 'string' },
+                { name: 'wallets', type: 'address[]' },
+              ],
+            },
+          };
 
-        const account = initialState.keyrings[0].accounts[0];
-        const signature = await controller.signTypedMessage(
-          { data: JSON.stringify(msgParams), from: account },
-          SignTypedDataVersion.V4,
-        );
-        const recovered = recoverTypedSignature({
-          data: msgParams,
-          signature,
-          version: SignTypedDataVersion.V4,
-        });
-        expect(account).toBe(recovered);
-      });
+          const account = initialState.keyrings[0].accounts[0];
+          const signature = await controller.signTypedMessage(
+            { data: JSON.stringify(msgParams), from: account },
+            SignTypedDataVersion.V4,
+          );
+          const recovered = recoverTypedSignature({
+            data: msgParams,
+            signature,
+            version: SignTypedDataVersion.V4,
+          });
+          expect(account).toBe(recovered);
+        },
+      );
     });
 
     it('should fail when sign typed message format is wrong', async () => {
@@ -1148,7 +1160,7 @@ describe('KeyringController', () => {
 
     beforeEach(async () => {
       signProcessKeyringController = await withController(
-        {},
+        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
         ({ controller }) => controller,
       );
       const qrkeyring = await signProcessKeyringController.getOrAddQRKeyring();
@@ -1568,6 +1580,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller,
   preferences,
   initialState,
+  encryptor,
 }: {
   controller: KeyringController;
   preferences: {
@@ -1610,10 +1623,14 @@ async function withController<ReturnValue>(
   };
   const controller = new KeyringController(preferences, {
     encryptor,
-    keyringBuilders: [keyringBuilderFactory(QRKeyring)],
     cacheEncryptionKey: false,
     ...rest,
   });
   const initialState = await controller.createNewVaultAndKeychain(password);
-  return await fn({ controller, preferences, encryptor, initialState });
+  return await fn({
+    controller,
+    preferences,
+    encryptor,
+    initialState,
+  });
 }
