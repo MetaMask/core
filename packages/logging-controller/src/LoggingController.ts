@@ -1,92 +1,169 @@
 import {
-  BaseController,
-  BaseConfig,
-  BaseState,
+  BaseControllerV2,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { v1 as random } from 'uuid';
 
+/**
+ * Defines the types of logs that may be added to this controller's state.
+ * Currently only one special case is defined, EthSignLog, for all signing
+ * requests. However, future special cases can be added that have stricter
+ * data types and may make indexing those types of events easier.
+ */
 export enum LogType {
-  eth_sign_proposed = 'eth_sign_proposed',
-  eth_sign_signed = 'eth_sign_signed',
-  eth_sign_rejected = 'eth_sign_rejected',
-  personal_sign_proposed = 'personal_sign_proposed',
-  personal_sign_signed = 'personal_sign_signed',
-  personal_sign_rejected = 'personal_sign_rejected',
-  eth_signTypedData_proposed = 'eth_signTypedData_proposed',
-  eth_signTypedData_signed = 'eth_signTypedData_signed',
-  eth_signTypedData_rejected = 'eth_signTypedData_rejected',
-  eth_signTypedData_v3_proposed = 'eth_signTypedData_v3',
-  eth_signTypedData_v3_signed = 'eth_signTypedData_v3',
-  eth_signTypedData_v3_rejected = 'eth_signTypedData_v3',
-  eth_signTypedData_v4_proposed = 'eth_signTypedData_v4_proposed',
-  eth_signTypedData_v4_signed = 'eth_signTypedData_v4_signed',
-  eth_signTypedData_v4_rejected = 'eth_signTypedData_v4_rejected',
+  EthSignLog = 'EthSignLog',
+  GenericLog = 'GenericLog',
 }
 
 /**
- * @type Log
- *
- * Log representation
- * @property id - Generated UUID associated with this log
- * @property timestamp - Timestamp associated with this log
- * @property type - Type of signature request
- * @property data - Additional data about signature request
+ * First special case of logging scenarios involves signing requests. In this
+ * case the data provided must include the method for the signature request as
+ * well as the signingData. This is intended to be used to troubleshoot and
+ * investigate FLI at the user's request.
  */
-export interface Log {
+export type EthSignLog = {
+  type: LogType.EthSignLog;
+  data: {
+    signingMethod:
+      | 'eth_sign'
+      | 'personal_sign'
+      | 'eth_signTypedData'
+      | 'eth_signTypedData_v3'
+      | 'eth_signTypedData_v4';
+    stage: 'proposed' | 'signed' | 'rejected';
+    signingData?: any;
+  };
+};
+
+/**
+ * The controller can handle any kind of log statement that may benefit users
+ * and MetaMask support agents helping those users. These logs are typed as
+ * generic.
+ */
+export type GenericLog = {
+  type: LogType.GenericLog;
+  data: any;
+};
+
+/**
+ * Union of all possible log data structures.
+ */
+export type Log = EthSignLog | GenericLog;
+
+/**
+ * LogEntry is the entry that will be added to the logging controller state.
+ * It consists of a entry key that must be on of the Log union types, and an
+ * additional id and timestamp.
+ */
+export type LogEntry = {
   id: string;
   timestamp: number;
-  type: LogType;
-  data?: any;
-}
+  log: Log;
+};
 
 /**
- * @type LogsState
- *
  * Logging controller state
- * @property logs - Array of Logs
+ *
+ * @property logs - An object of logs indexed by their ids
  */
-export interface LogsState extends BaseState {
-  logs: Log[];
-}
+export type LoggingControllerState = {
+  logs: {
+    [id: string]: LogEntry;
+  };
+};
+
+const name = 'LoggingController';
+
+export type AddLog = {
+  type: `${typeof name}:add`;
+  handler: LoggingController['addLog'];
+};
+
+export type LoggingControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  AddLog,
+  never,
+  never,
+  never
+>;
+
+const metadata = {
+  logs: { persist: true, anonymous: false },
+};
+
+const defaultState = {
+  logs: {},
+};
 
 /**
  * Controller that manages a list of logs for signature requests.
  */
-export class LoggingController extends BaseController<BaseConfig, LogsState> {
+export class LoggingController extends BaseControllerV2<
+  typeof name,
+  LoggingControllerState,
+  LoggingControllerMessenger
+> {
   /**
-   * Creates an LoggingController instance.
+   * Creates a LoggingController instance.
    *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param options - Constructor options
+   * @param options.messenger - An instance of the ControllerMessenger
+   * @param options.state - Initial state to set on this controller.
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<LogsState>) {
-    super(config, state);
+  constructor({
+    messenger,
+    state,
+  }: {
+    messenger: LoggingControllerMessenger;
+    state?: Partial<LoggingControllerState>;
+  }) {
+    super({
+      name,
+      metadata,
+      messenger,
+      state: {
+        ...defaultState,
+        ...state,
+      },
+    });
 
-    this.defaultState = { logs: [] };
+    this.messagingSystem.registerActionHandler(
+      `${name}:add` as const,
+      (log: Log) => this.addLog(log),
+    );
+  }
 
-    this.initialize();
+  /**
+   * Recursive method to ensure no collisions of ids.
+   *
+   * We may want to end up using a hashing mechanism to make ids deterministic
+   * by the *data* passed in, and then make each key an array of logs that
+   * match that id.
+   *
+   * @returns unique id
+   */
+  generateId(): string {
+    const id = random();
+    if (this.state.logs[id]) {
+      return this.generateId();
+    }
+    return id;
   }
 
   /**
    * Add log to the state.
    *
-   * @param data - Data from signature reqest that is being added to list.
-   * @param type - Type of signature request.
+   * @param log - Log to add to the controller
    */
-  addLog(data: any, type: LogType) {
-    const newLog: Log = {
-      data,
-      id: random(),
+  addLog(log: Log) {
+    const newLog: LogEntry = {
+      id: this.generateId(),
       timestamp: Date.now(),
-      type,
+      log,
     };
 
-    this.state.logs.forEach(async (log) => {
-      if (log.id !== newLog.id) {
-        this.update({
-          logs: [...this.state.logs, newLog],
-        });
-      }
+    this.update((state) => {
+      state.logs[newLog.id] = newLog;
     });
   }
 
@@ -94,7 +171,9 @@ export class LoggingController extends BaseController<BaseConfig, LogsState> {
    * Removes all log entries.
    */
   clear() {
-    this.update({ logs: [] });
+    this.update((state) => {
+      state.logs = {};
+    });
   }
 }
 
