@@ -31,7 +31,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^2.0.0",
     "@metamask/controller-utils": "^3.3.0",
-    "@metamask/network-controller": "^7.0.0",
+    "@metamask/network-controller": "^8.0.0",
     "@types/lodash": "^4.14.176",
     "bignumber.js": "^9.0.1",
     "fast-json-patch": "^3.1.0",
