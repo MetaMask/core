@@ -13,7 +13,7 @@ import {
   ERC1155,
   OPENSEA_API_URL,
   ERC721,
-  NetworksChainId,
+  ChainId,
   NetworkType,
 } from '@metamask/controller-utils';
 import { Network } from '@ethersproject/providers';
@@ -89,6 +89,7 @@ function setupController({
   };
 
   const assetsContract = new AssetsContractController({
+    chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
@@ -96,6 +97,7 @@ function setupController({
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
 
   const nftController = new NftController({
+    chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
@@ -799,15 +801,11 @@ describe('NftController', () => {
       changeNetwork(SEPOLIA);
 
       expect(
-        nftController.state.allNfts[selectedAddress]?.[
-          NetworksChainId[GOERLI.type]
-        ],
+        nftController.state.allNfts[selectedAddress]?.[ChainId[GOERLI.type]],
       ).toBeUndefined();
 
       expect(
-        nftController.state.allNfts[selectedAddress][
-          NetworksChainId[SEPOLIA.type]
-        ][0],
+        nftController.state.allNfts[selectedAddress][ChainId[SEPOLIA.type]][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',

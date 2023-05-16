@@ -12,6 +12,7 @@ import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import * as uuid from 'uuid';
 import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
+import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
@@ -36,6 +37,11 @@ const input =
   '"n":131072,"r":8,"p":1},"mac":"8bd084028ecb331275a76583d41fe0e1212825a6d155e904d1baf448d33e7150"}}';
 const seedWords =
   'puzzle seed penalty soldier say clay field arctic metal hen cage runway';
+const uint8ArraySeed = new Uint8Array(
+  new Uint16Array(
+    seedWords.split(' ').map((word) => wordlist.indexOf(word)),
+  ).buffer,
+);
 const privateKey =
   '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';
 const password = 'password123';
@@ -56,12 +62,13 @@ describe('KeyringController', () => {
     keyringTypes: string[];
     keyrings: Keyring[];
   };
+  const encryptor = new MockEncryptor();
   const additionalKeyrings = [QRKeyring];
   const additionalKeyringBuilders = additionalKeyrings.map((keyringType) =>
     keyringBuilderFactory(keyringType),
   );
   const baseConfig: Partial<KeyringConfig> = {
-    encryptor: new MockEncryptor(),
+    encryptor,
     keyringBuilders: additionalKeyringBuilders,
   };
 
@@ -184,7 +191,7 @@ describe('KeyringController', () => {
     it('should create new vault and restore', async () => {
       const currentState = await keyringController.createNewVaultAndRestore(
         password,
-        seedWords,
+        uint8ArraySeed,
       );
       expect(initialState).not.toBe(currentState);
     });
@@ -203,13 +210,17 @@ describe('KeyringController', () => {
 
     it('should throw error if creating new vault and restore without password', async () => {
       await expect(
-        keyringController.createNewVaultAndRestore('', seedWords),
+        keyringController.createNewVaultAndRestore('', uint8ArraySeed),
       ).rejects.toThrow('Invalid password');
     });
 
     it('should throw error if creating new vault and restoring without seed phrase', async () => {
       await expect(
-        keyringController.createNewVaultAndRestore(password, ''),
+        keyringController.createNewVaultAndRestore(
+          password,
+          // @ts-expect-error invalid seed phrase
+          '',
+        ),
       ).rejects.toThrow(
         'Eth-Hd-Keyring: Deserialize method cannot be called with an opts value for numberOfAccounts and no menmonic',
       );
@@ -269,34 +280,58 @@ describe('KeyringController', () => {
   });
 
   describe('exportSeedPhrase', () => {
-    it('should export seed phrase', () => {
-      const seed = keyringController.exportSeedPhrase(password);
-      expect(seed).not.toBe('');
-      expect(() => keyringController.exportSeedPhrase('')).toThrow(
-        'Invalid password',
-      );
+    describe('when correct password is provided', () => {
+      it('should export seed phrase', async () => {
+        const seed = await keyringController.exportSeedPhrase(password);
+        expect(seed).not.toBe('');
+      });
+    });
+
+    describe('when wrong password is provided', () => {
+      it('should export seed phrase', async () => {
+        sinon.stub(encryptor, 'decrypt').throws(new Error('Invalid password'));
+        await expect(keyringController.exportSeedPhrase('')).rejects.toThrow(
+          'Invalid password',
+        );
+      });
     });
   });
 
   describe('exportAccount', () => {
-    it('should export account', async () => {
-      const account = initialState.keyrings[0].accounts[0];
-      const newPrivateKey = await keyringController.exportAccount(
-        password,
-        account,
-      );
-      expect(newPrivateKey).not.toBe('');
-      expect(() => keyringController.exportAccount('', account)).toThrow(
-        'Invalid password',
-      );
+    describe('when correct password is provided', () => {
+      describe('when correct account is provided', () => {
+        it('should export account', async () => {
+          const account = initialState.keyrings[0].accounts[0];
+          const newPrivateKey = await keyringController.exportAccount(
+            password,
+            account,
+          );
+          expect(newPrivateKey).not.toBe('');
+        });
+      });
 
-      expect(() =>
-        keyringController.exportAccount('JUNK_VALUE', account),
-      ).toThrow('Invalid password');
+      describe('when wrong account is provided', () => {
+        it('should throw error', async () => {
+          await expect(
+            keyringController.exportAccount(password, ''),
+          ).rejects.toThrow(/^No keyring found for the requested account./u);
+        });
+      });
+    });
 
-      await expect(
-        keyringController.exportAccount(password, ''),
-      ).rejects.toThrow(/^No keyring found for the requested account./u);
+    describe('when wrong password is provided', () => {
+      it('should throw error', async () => {
+        const account = initialState.keyrings[0].accounts[0];
+        sinon.stub(encryptor, 'decrypt').rejects(new Error('Invalid password'));
+
+        await expect(
+          keyringController.exportAccount('', account),
+        ).rejects.toThrow('Invalid password');
+
+        await expect(
+          keyringController.exportAccount('JUNK_VALUE', account),
+        ).rejects.toThrow('Invalid password');
+      });
     });
   });
 
@@ -877,15 +912,32 @@ describe('KeyringController', () => {
       const seedPhrase = await keyringController.verifySeedPhrase();
       expect(seedPhrase).toBeDefined();
     });
+
+    it('should return current seedphrase as Uint8Array', async () => {
+      const seedPhrase = await keyringController.verifySeedPhrase();
+      expect(seedPhrase).toBeInstanceOf(Uint8Array);
+    });
   });
 
-  describe('validatePassword', () => {
-    it('should validate password as true if it matches with input', () => {
-      expect(keyringController.validatePassword(password)).toBe(true);
+  describe('verifyPassword', () => {
+    describe('when correct password is provided', () => {
+      it('should not throw any error', async () => {
+        expect(async () => {
+          await keyringController.verifyPassword(password);
+        }).not.toThrow();
+      });
     });
 
-    it('should validate password as false if it does not match with input', () => {
-      expect(keyringController.validatePassword('12341234')).toBe(false);
+    describe('when wrong password is provided', () => {
+      it('should throw an error', async () => {
+        sinon
+          .stub(encryptor, 'decrypt')
+          .rejects(new Error('Incorrect password'));
+
+        await expect(
+          keyringController.verifyPassword('12341234'),
+        ).rejects.toThrow('Incorrect password');
+      });
     });
   });
 

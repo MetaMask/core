@@ -1,4 +1,4 @@
-import { Json } from '@metamask/types';
+import { Json } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '@metamask/controller-utils';
 import { ActionConstraint, EventConstraint } from '@metamask/base-controller';

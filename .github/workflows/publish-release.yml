@@ -52,6 +52,7 @@ jobs:
         uses: MetaMask/action-npm-publish@v3
         with:
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          target-name: metamask-npm-publishers
         env:
           SKIP_PREPACK: true
 

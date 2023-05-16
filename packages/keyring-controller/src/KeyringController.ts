@@ -272,11 +272,11 @@ export class KeyringController extends BaseController<
    * using the given seed phrase.
    *
    * @param password - Password to unlock keychain.
-   * @param seed - A BIP39-compliant seed phrase,
+   * @param seed - A BIP39-compliant seed phrase as Uint8Array,
    * either as a string or an array of UTF-8 bytes that represent the string.
    * @returns Promise resolving to the restored keychain object.
    */
-  async createNewVaultAndRestore(password: string, seed: string | number[]) {
+  async createNewVaultAndRestore(password: string, seed: Uint8Array) {
     const releaseLock = await this.mutex.acquire();
     if (!password || !password.length) {
       throw new Error('Invalid password');
@@ -322,13 +322,13 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Method to validate a password against the password from the keyring.
+   * Method to verify a given password validity. Throws an
+   * error if the password is invalid.
    *
    * @param password - Password of the keyring.
-   * @returns Boolean indicating if input password is valid
    */
-  validatePassword(password: string): boolean {
-    return this.#keyring.password === password;
+  async verifyPassword(password: string) {
+    await this.#keyring.verifyPassword(password);
   }
 
   /**
@@ -346,11 +346,9 @@ export class KeyringController extends BaseController<
    * @param password - Password of the keyring.
    * @returns Promise resolving to the seed phrase.
    */
-  exportSeedPhrase(password: string) {
-    if (this.validatePassword(password)) {
-      return this.#keyring.keyrings[0].mnemonic;
-    }
-    throw new Error('Invalid password');
+  async exportSeedPhrase(password: string) {
+    await this.verifyPassword(password);
+    return this.#keyring.keyrings[0].mnemonic;
   }
 
   /**
@@ -360,11 +358,9 @@ export class KeyringController extends BaseController<
    * @param address - Address to export.
    * @returns Promise resolving to the private key for an address.
    */
-  exportAccount(password: string, address: string): Promise<string> {
-    if (this.validatePassword(password)) {
-      return this.#keyring.exportAccount(address);
-    }
-    throw new Error('Invalid password');
+  async exportAccount(password: string, address: string): Promise<string> {
+    await this.verifyPassword(password);
+    return this.#keyring.exportAccount(address);
   }
 
   /**
@@ -621,16 +617,16 @@ export class KeyringController extends BaseController<
   /**
    * Verifies the that the seed phrase restores the current keychain's accounts.
    *
-   * @returns Whether the verification succeeds.
+   * @returns Promise resolving to the seed phrase as Uint8Array.
    */
-  async verifySeedPhrase(): Promise<string> {
+  async verifySeedPhrase(): Promise<Uint8Array> {
     const primaryKeyring = this.#keyring.getKeyringsByType(KeyringTypes.hd)[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found.');
     }
 
-    const seedWords = (await primaryKeyring.serialize()).mnemonic;
+    const seedWords = primaryKeyring.mnemonic;
     const accounts = await primaryKeyring.getAccounts();
     /* istanbul ignore if */
     if (accounts.length === 0) {

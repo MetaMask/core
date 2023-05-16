@@ -1,5 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
+import { NetworkType, toChecksumHexAddress } from '@metamask/controller-utils';
 import * as providersModule from '@ethersproject/providers';
 import { EnsController } from './EnsController';
 
@@ -113,9 +113,10 @@ describe('EnsController', () => {
       provider: getProvider(),
       onNetworkStateChange: (listener) => {
         listener({
-          network: '1',
+          networkId: '1',
           providerConfig: {
             chainId: '1',
+            type: NetworkType.mainnet,
           },
         });
       },
@@ -436,9 +437,10 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
-            network: 'loading',
+            networkId: null,
             providerConfig: {
               chainId: '1',
+              type: NetworkType.mainnet,
             },
           });
         },
@@ -453,9 +455,10 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
-            network: '1544',
+            networkId: '1544',
             providerConfig: {
               chainId: '1',
+              type: NetworkType.mainnet,
             },
           });
         },
@@ -477,9 +480,10 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
-            network: '1',
+            networkId: '1',
             providerConfig: {
               chainId: '1',
+              type: NetworkType.mainnet,
             },
           });
         },
@@ -503,9 +507,10 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
-            network: '1',
+            networkId: '1',
             providerConfig: {
               chainId: '1',
+              type: NetworkType.mainnet,
             },
           });
         },
@@ -524,9 +529,10 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
-            network: '1',
+            networkId: '1',
             providerConfig: {
               chainId: '1',
+              type: NetworkType.mainnet,
             },
           });
         },
@@ -548,9 +554,10 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
-            network: '1',
+            networkId: '1',
             providerConfig: {
               chainId: '1',
+              type: NetworkType.mainnet,
             },
           });
         },
@@ -572,9 +579,10 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
-            network: '1',
+            networkId: '1',
             providerConfig: {
               chainId: '1',
+              type: NetworkType.mainnet,
             },
           });
         },
@@ -598,9 +606,10 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
-            network: '1',
+            networkId: '1',
             providerConfig: {
               chainId: '1',
+              type: NetworkType.mainnet,
             },
           });
         },
@@ -623,9 +632,10 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
-            network: '1',
+            networkId: '1',
             providerConfig: {
               chainId: '1',
+              type: NetworkType.mainnet,
             },
           });
         },

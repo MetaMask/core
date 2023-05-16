@@ -30,6 +30,8 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<string, string> = {
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
   [SupportedTokenDetectionNetworks.avax]:
     '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
+  [SupportedTokenDetectionNetworks.aurora]:
+    '0x1286415D333855237f89Df27D388127181448538',
 };
 
 export const MISSING_PROVIDER_ERROR =
@@ -81,6 +83,7 @@ export class AssetsContractController extends BaseController<
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param config - Initial options used to configure this controller.
@@ -88,9 +91,11 @@ export class AssetsContractController extends BaseController<
    */
   constructor(
     {
+      chainId: initialChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
     }: {
+      chainId: string;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -105,7 +110,7 @@ export class AssetsContractController extends BaseController<
     this.defaultConfig = {
       provider: undefined,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: initialChainId,
     };
     this.initialize();
 

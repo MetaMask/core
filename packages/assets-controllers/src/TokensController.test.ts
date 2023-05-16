@@ -1,16 +1,12 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
   ApprovalType,
-  NetworksChainId,
+  ChainId,
   NetworkType,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
@@ -46,10 +42,7 @@ const GOERLI = { chainId: '5', type: NetworkType.goerli };
 
 const controllerName = 'TokensController' as const;
 
-type ApprovalActions =
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest;
+type ApprovalActions = AddApprovalRequest;
 
 describe('TokensController', () => {
   let tokensController: TokensController;
@@ -60,11 +53,7 @@ describe('TokensController', () => {
     never
   >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
     name: controllerName,
-    allowedActions: [
-      'ApprovalController:addRequest',
-      'ApprovalController:acceptRequest',
-      'ApprovalController:rejectRequest',
-    ],
+    allowedActions: ['ApprovalController:addRequest'],
   }) as TokensControllerMessenger;
 
   let onNetworkStateChangeListener: (state: NetworkState) => void;
@@ -79,11 +68,11 @@ describe('TokensController', () => {
     const defaultSelectedAddress = '0x1';
     preferences = new PreferencesController();
     tokensController = new TokensController({
+      chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         (onNetworkStateChangeListener = listener),
       config: {
-        chainId: NetworksChainId.mainnet,
         selectedAddress: defaultSelectedAddress,
       },
       messenger,
@@ -672,7 +661,7 @@ describe('TokensController', () => {
       const error = 'An error occured';
       const fullErrorMessage = `TokenService Error: ${error}`;
       nock(TOKEN_END_POINT_API)
-        .get(`/token/${NetworksChainId.mainnet}?address=${dummyTokenAddress}`)
+        .get(`/token/${ChainId.mainnet}?address=${dummyTokenAddress}`)
         .reply(200, { error })
         .persist();
 
@@ -831,28 +820,26 @@ describe('TokensController', () => {
     it('should nest newTokens under chain ID and selected address when provided with newTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
         newTokens: dummyTokens,
       });
       expect(
-        processedTokens.newAllTokens[NetworksChainId.mainnet][
-          dummySelectedAddress
-        ],
+        processedTokens.newAllTokens[ChainId.mainnet][dummySelectedAddress],
       ).toStrictEqual(dummyTokens);
     });
 
     it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
         newDetectedTokens: dummyTokens,
       });
       expect(
-        processedTokens.newAllDetectedTokens[NetworksChainId.mainnet][
+        processedTokens.newAllDetectedTokens[ChainId.mainnet][
           dummySelectedAddress
         ],
       ).toStrictEqual(dummyTokens);
@@ -861,14 +848,14 @@ describe('TokensController', () => {
     it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       const dummyIgnoredTokens = [dummyTokens[0].address];
       const processedTokens = tokensController._getNewAllTokensState({
         newIgnoredTokens: dummyIgnoredTokens,
       });
       expect(
-        processedTokens.newAllIgnoredTokens[NetworksChainId.mainnet][
+        processedTokens.newAllIgnoredTokens[ChainId.mainnet][
           dummySelectedAddress
         ],
       ).toStrictEqual(dummyIgnoredTokens);
@@ -1098,7 +1085,7 @@ describe('TokensController', () => {
             image: 'image',
           },
         ]);
-        expect(callActionSpy).toHaveBeenCalledTimes(2);
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
         expect(callActionSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
@@ -1117,10 +1104,6 @@ describe('TokensController', () => {
             },
           },
           true,
-        );
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:acceptRequest',
-          expect.any(String),
         );
 
         generateRandomIdStub.restore();
@@ -1142,14 +1125,10 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.tokens).toStrictEqual([]);
       expect(
-        tokensController.state.allTokens[NetworksChainId.mainnet][
-          interactingAddress
-        ],
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
       ).toHaveLength(1);
       expect(
-        tokensController.state.allTokens[NetworksChainId.mainnet][
-          interactingAddress
-        ],
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
       ).toStrictEqual([
         {
           isERC721: false,
@@ -1158,7 +1137,7 @@ describe('TokensController', () => {
           image: 'image',
         },
       ]);
-      expect(callActionSpy).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
@@ -1177,10 +1156,6 @@ describe('TokensController', () => {
           },
         },
         true,
-      );
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:acceptRequest',
-        expect.any(String),
       );
 
       generateRandomIdStub.restore();
@@ -1234,7 +1209,7 @@ describe('TokensController', () => {
         await expect(result).rejects.toThrow(
           'User rejected to watch the asset.',
         );
-        expect(callActionSpy).toHaveBeenCalledTimes(2);
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
         expect(callActionSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
@@ -1254,11 +1229,6 @@ describe('TokensController', () => {
           },
           true,
         );
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:rejectRequest',
-          expect.any(String),
-          expect.any(Error),
-        );
       },
     );
 
@@ -1276,7 +1246,7 @@ describe('TokensController', () => {
       const res = await result;
       expect(tokensController.state.suggestedAssets).toHaveLength(0);
       expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
-      expect(callActionSpy).toHaveBeenCalledTimes(2);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
@@ -1295,10 +1265,6 @@ describe('TokensController', () => {
           },
         },
         true,
-      );
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:acceptRequest',
-        expect.any(String),
       );
     });
 
@@ -1342,7 +1308,7 @@ describe('TokensController', () => {
         await expect(result).rejects.toThrow(
           'Asset of type ERC721 not supported',
         );
-        expect(callActionSpy).toHaveBeenCalledTimes(2);
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
         expect(callActionSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
@@ -1361,11 +1327,6 @@ describe('TokensController', () => {
             },
           },
           true,
-        );
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:rejectRequest',
-          expect.any(String),
-          expect.any(Error),
         );
       },
     );
@@ -1504,28 +1465,26 @@ describe('TokensController', () => {
     it('should clear nest allTokens under chain ID and selected address when an added token is ignored', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
       tokensController.ignoreTokens(['0x01']);
       expect(
-        tokensController.state.allTokens[NetworksChainId.mainnet][
-          selectedAddress
-        ],
+        tokensController.state.allTokens[ChainId.mainnet][selectedAddress],
       ).toStrictEqual([]);
     });
 
     it('should clear nest allIgnoredTokens under chain ID and selected address when an ignored token is re-added', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
       tokensController.ignoreTokens([tokenAddress]);
       await tokensController.addTokens(dummyTokens);
 
       expect(
-        tokensController.state.allIgnoredTokens[NetworksChainId.mainnet][
+        tokensController.state.allIgnoredTokens[ChainId.mainnet][
           selectedAddress
         ],
       ).toStrictEqual([]);
@@ -1534,13 +1493,13 @@ describe('TokensController', () => {
     it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       await tokensController.addDetectedTokens(dummyTokens);
       await tokensController.addTokens(dummyTokens);
 
       expect(
-        tokensController.state.allDetectedTokens[NetworksChainId.mainnet][
+        tokensController.state.allDetectedTokens[ChainId.mainnet][
           selectedAddress
         ],
       ).toStrictEqual([]);

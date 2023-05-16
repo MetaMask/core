@@ -7,8 +7,8 @@ import {
   RejectRequest as RejectApprovalRequest,
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { hasProperty } from '@metamask/utils';
-import { Json, isPlainObject } from '@metamask/controller-utils';
+import { hasProperty, Json } from '@metamask/utils';
+import { isPlainObject } from '@metamask/controller-utils';
 import { GetSubjectMetadata, SubjectType } from './SubjectMetadataController';
 import * as errors from './errors';
 import { EndowmentGetterParams } from './Permission';

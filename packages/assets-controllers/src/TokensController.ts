@@ -1,9 +1,5 @@
 import { EventEmitter } from 'events';
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
@@ -20,7 +16,6 @@ import {
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { NetworkState } from '@metamask/network-controller';
 import {
-  NetworkType,
   toChecksumHexAddress,
   ERC721_INTERFACE_ID,
   ORIGIN_METAMASK,
@@ -42,11 +37,9 @@ import {
  * @type TokensConfig
  *
  * Tokens controller configuration
- * @property networkType - Network ID as per net_version
  * @property selectedAddress - Vault selected address
  */
 export interface TokensConfig extends BaseConfig {
-  networkType: NetworkType;
   selectedAddress: string;
   chainId: string;
   provider: any;
@@ -74,7 +67,7 @@ export type SuggestedAssetMetaBase = {
   time: number;
   type: string;
   asset: Token;
-  interactingAddress?: string;
+  interactingAddress: string;
 };
 
 /**
@@ -131,10 +124,7 @@ const controllerName = 'TokensController';
 /**
  * The external actions available to the {@link TokensController}.
  */
-type AllowedActions =
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest;
+type AllowedActions = AddApprovalRequest;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -218,6 +208,7 @@ export class TokensController extends BaseController<
    * Creates a TokensController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.config - Initial options used to configure this controller.
@@ -225,12 +216,14 @@ export class TokensController extends BaseController<
    * @param options.messenger - The controller messenger.
    */
   constructor({
+    chainId: initialChainId,
     onPreferencesStateChange,
     onNetworkStateChange,
     config,
     state,
     messenger,
   }: {
+    chainId: string;
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
@@ -244,9 +237,8 @@ export class TokensController extends BaseController<
     super(config, state);
 
     this.defaultConfig = {
-      networkType: NetworkType.mainnet,
       selectedAddress: '',
-      chainId: '',
+      chainId: initialChainId,
       provider: undefined,
       ...config,
     };
@@ -670,12 +662,10 @@ export class TokensController extends BaseController<
   ): Promise<AssetSuggestionResult> {
     const { selectedAddress } = this.config;
 
-    const suggestedAssetMeta: SuggestedAssetMeta & {
-      interactingAddress: string;
-    } = {
+    const suggestedAssetMeta: SuggestedAssetMeta = {
       asset,
       id: this._generateRandomId(),
-      status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
+      status: SuggestedAssetStatus.pending,
       time: Date.now(),
       type,
       interactingAddress: interactingAddress || selectedAddress,
@@ -748,8 +738,6 @@ export class TokensController extends BaseController<
             suggestedAssetMeta?.interactingAddress || selectedAddress,
           );
 
-          this._acceptApproval(suggestedAssetID);
-
           const acceptedSuggestedAssetMeta = {
             ...suggestedAssetMeta,
             status: SuggestedAssetStatus.accepted,
@@ -766,8 +754,6 @@ export class TokensController extends BaseController<
       }
     } catch (error) {
       this.failSuggestedAsset(suggestedAssetMeta, error);
-
-      this._rejectApproval(suggestedAssetID);
     }
 
     const newSuggestedAssets = suggestedAssets.filter(
@@ -803,8 +789,6 @@ export class TokensController extends BaseController<
       ({ id }) => id !== suggestedAssetID,
     );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
-
-    this._rejectApproval(suggestedAssetID);
   }
 
   /**
@@ -905,11 +889,7 @@ export class TokensController extends BaseController<
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });
   }
 
-  _requestApproval(
-    suggestedAssetMeta: SuggestedAssetMeta & {
-      interactingAddress: string;
-    },
-  ) {
+  _requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
     this.messagingSystem
       .call(
         'ApprovalController:addRequest',
@@ -933,32 +913,6 @@ export class TokensController extends BaseController<
       .catch(() => {
         // Intentionally ignored as promise not currently used
       });
-  }
-
-  _acceptApproval(approvalRequestId: string) {
-    try {
-      this.messagingSystem.call(
-        'ApprovalController:acceptRequest',
-        approvalRequestId,
-      );
-    } catch (error) {
-      console.error('Failed to accept token watch approval request', error);
-    }
-  }
-
-  _rejectApproval(approvalRequestId: string) {
-    try {
-      this.messagingSystem.call(
-        'ApprovalController:rejectRequest',
-        approvalRequestId,
-        new Error('Rejected'),
-      );
-    } catch (messageCallError) {
-      console.error(
-        'Failed to reject token watch approval request',
-        messageCallError,
-      );
-    }
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/message-manager",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "MetaMask",
@@ -31,6 +31,7 @@
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/utils": "^5.0.2",
     "@types/uuid": "^8.3.0",
     "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^7.0.10",

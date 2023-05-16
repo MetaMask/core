@@ -19,7 +19,6 @@ import {
   ERC1155,
   OPENSEA_API_URL,
   OPENSEA_PROXY_URL,
-  NetworkType,
 } from '@metamask/controller-utils';
 import type {
   ApiNft,
@@ -131,11 +130,9 @@ interface AccountParams {
  * @type NftConfig
  *
  * NFT controller configuration
- * @property networkType - Network ID as per net_version
  * @property selectedAddress - Vault selected address
  */
 export interface NftConfig extends BaseConfig {
-  networkType: NetworkType;
   selectedAddress: string;
   chainId: string;
   ipfsGateway: string;
@@ -860,6 +857,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * Creates an NftController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getERC721AssetName - Gets the name of the asset at the given address.
@@ -875,6 +873,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    */
   constructor(
     {
+      chainId: initialChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
       getERC721AssetName,
@@ -885,6 +884,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       getERC1155TokenURI,
       onNftAdded,
     }: {
+      chainId: string;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -910,9 +910,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
   ) {
     super(config, state);
     this.defaultConfig = {
-      networkType: NetworkType.mainnet,
       selectedAddress: '',
-      chainId: '',
+      chainId: initialChainId,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       openSeaEnabled: false,
       useIPFSSubdomains: true,
