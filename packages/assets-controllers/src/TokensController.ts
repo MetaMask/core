@@ -20,6 +20,7 @@ import {
   ERC721_INTERFACE_ID,
   ORIGIN_METAMASK,
   ApprovalType,
+  ERC20,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
 import { TokenListToken } from './TokenListController';
@@ -611,7 +612,7 @@ export class TokensController extends BaseController<
     type: string,
     interactingAddress?: string,
   ): Promise<void> {
-    if (type !== 'ERC20') {
+    if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
     }
 

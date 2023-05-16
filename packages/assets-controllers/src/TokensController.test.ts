@@ -7,6 +7,7 @@ import { PreferencesController } from '@metamask/preferences-controller';
 import {
   ApprovalType,
   ChainId,
+  ERC20,
   NetworkType,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
@@ -868,7 +869,7 @@ describe('TokensController', () => {
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
-      type = 'ERC20';
+      type = ERC20;
       asset = {
         address: '0x000000000000000000000000000000000000dEaD',
         decimals: 12,
