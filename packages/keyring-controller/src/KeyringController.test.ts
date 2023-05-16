@@ -1601,12 +1601,13 @@ type WithControllerArgs<ReturnValue> =
   | [WithControllerOptions, WithControllerCallback<ReturnValue>];
 
 /**
- * Builds a controller based on the given options, and calls the given function
- * with that controller.
+ * Builds a controller based on the given options and creates a new vault
+ * and keychain, then calls the given function with that controller.
  *
  * @param args - Either a function, or an options bag + a function. The options
  * bag is equivalent to the options that KeyringController takes;
- * the function will be called with the built controller.
+ * the function will be called with the built controller, along with its
+ * preferences, encryptor and initial state.
  * @returns Whatever the callback returns.
  */
 async function withController<ReturnValue>(
