@@ -1360,12 +1360,7 @@ export class PermissionController<
               break;
 
             case CaveatMutatorOperation.deleteCaveat:
-              this.deleteCaveat(
-                permission,
-                targetCaveatType,
-                subject.origin,
-                permission.parentCapability,
-              );
+              this.deleteCaveat(permission, targetCaveatType, subject.origin);
               break;
 
             case CaveatMutatorOperation.revokePermission:
@@ -1422,7 +1417,7 @@ export class PermissionController<
         throw new CaveatDoesNotExistError(origin, target, caveatType);
       }
 
-      this.deleteCaveat(permission, caveatType, origin, target);
+      this.deleteCaveat(permission, caveatType, origin);
     });
   }
 
@@ -1437,23 +1432,21 @@ export class PermissionController<
    * @param permission - The permission whose caveat to delete.
    * @param caveatType - The type of the caveat to delete.
    * @param origin - The origin the permission subject.
-   * @param target - The name of the permission target.
    */
   private deleteCaveat<
-    TargetName extends ExtractPermission<
-      ControllerPermissionSpecification,
-      ControllerCaveatSpecification
-    >['parentCapability'],
     CaveatType extends ExtractCaveats<ControllerCaveatSpecification>['type'],
   >(
     permission: Draft<PermissionConstraint>,
     caveatType: CaveatType,
     origin: OriginString,
-    target: TargetName,
   ): void {
     /* istanbul ignore if: not possible in our usage */
     if (!permission.caveats) {
-      throw new CaveatDoesNotExistError(origin, target, caveatType);
+      throw new CaveatDoesNotExistError(
+        origin,
+        permission.parentCapability,
+        caveatType,
+      );
     }
 
     const caveatIndex = permission.caveats.findIndex(
@@ -1461,7 +1454,11 @@ export class PermissionController<
     );
 
     if (caveatIndex === -1) {
-      throw new CaveatDoesNotExistError(origin, target, caveatType);
+      throw new CaveatDoesNotExistError(
+        origin,
+        permission.parentCapability,
+        caveatType,
+      );
     }
 
     if (permission.caveats.length === 1) {
