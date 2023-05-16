@@ -390,6 +390,16 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Returns all keyrings of the given type.
+   *
+   * @param type - Keyring type name.
+   * @returns An array of keyrings of the given type.
+   */
+  getKeyringsByType(type: KeyringTypes | string): Keyring[] {
+    return this.#keyring.getKeyringsByType(type);
+  }
+
+  /**
    * Imports an account with the specified import strategy.
    *
    * @param strategy - Import strategy name.
