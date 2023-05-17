@@ -40,6 +40,7 @@ const typedMessage = [
   },
 ];
 const messageId = '1';
+const messageId2 = '2';
 const from = '0x0123';
 const messageTime = Date.now();
 const messageStatus = 'unapproved';
@@ -96,10 +97,20 @@ describe('AbstractTestManager', () => {
       time: messageTime,
       type: messageType,
     };
+    const message2 = {
+      id: messageId2,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    };
 
-    await controller.addMessage(message);
+    await controller.addMessage(message2);
     const messages = controller.getAllMessages();
-    expect(messages).toStrictEqual([message]);
+    expect(messages).toStrictEqual([message, message2]);
   });
 
   it('adds a valid message with provider security response', async () => {
