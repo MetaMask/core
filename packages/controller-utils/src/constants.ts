@@ -99,8 +99,8 @@ export enum ApprovalType {
   SwitchEthereumChain = 'wallet_switchEthereumChain',
   Transaction = 'transaction',
   WalletRequestPermissions = 'wallet_requestPermissions',
-  WatchAsset = 'wallet_watchAsset',
-  WatchNFT = 'wallet_watchAsset_NFT',
+  WatchAsset = 'wallet_watchAsset', // TODO change this to wallet_watchToken
+  WatchNFT = 'wallet_watchNFT',
   SnapDialogAlert = 'snap_dialog:alert',
   SnapDialogConfirmation = 'snap_dialog:confirmation',
   SnapDialogPrompt = 'snap_dialog:prompt',

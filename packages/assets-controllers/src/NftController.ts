@@ -69,6 +69,7 @@ type SuggestedNftMeta = {
 export interface Nft extends NftMetadata {
   tokenId: string;
   address: string;
+  isCurrentlyOwned?: boolean;
 }
 
 /**
@@ -122,7 +123,6 @@ export interface NftMetadata {
   description: string | null;
   image: string | null;
   standard: string | null;
-  tokenUri?: string;
   favorite?: boolean;
   numberOfSales?: number;
   backgroundColor?: string;
@@ -135,7 +135,6 @@ export interface NftMetadata {
   creator?: ApiNftCreator;
   lastSale?: ApiNftLastSale;
   transactionId?: string;
-  isCurrentlyOwned?: boolean;
 }
 
 interface AccountParams {
@@ -1110,7 +1109,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     await this._requestApproval(suggestedNftMeta);
 
     const { address, tokenId } = asset;
-    const { name, standard, tokenUri, description, image } = nftMetadata;
+    const { name, standard, description, image } = nftMetadata;
 
     await this.addNft(
       address,
@@ -1120,8 +1119,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: description ?? null,
         image: image ?? null,
         standard: standard ?? null,
-        tokenUri,
-        isCurrentlyOwned: true,
       },
       // this argument was previously used for ensuring that detected NFTs were
       // added to the correct account/chainId combination. Now that we are

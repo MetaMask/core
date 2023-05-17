@@ -2,11 +2,7 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { NftController, NftControllerMessenger } from './NftController';
 
@@ -15,10 +11,7 @@ import { NftDetectionController } from './NftDetectionController';
 
 const DEFAULT_INTERVAL = 180000;
 
-type ApprovalActions =
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest;
+type ApprovalActions = AddApprovalRequest;
 
 const controllerName = 'NftController' as const;
 
@@ -42,11 +35,7 @@ describe('NftDetectionController', () => {
     never
   >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
     name: controllerName,
-    allowedActions: [
-      'ApprovalController:addRequest',
-      'ApprovalController:acceptRequest',
-      'ApprovalController:rejectRequest',
-    ],
+    allowedActions: ['ApprovalController:addRequest'],
   }) as NftControllerMessenger;
 
   beforeEach(async () => {

@@ -23,11 +23,7 @@ import {
   ApprovalType,
   ERC20,
 } from '@metamask/controller-utils';
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import { Network } from '@ethersproject/providers';
 import { AssetsContractController } from './AssetsContractController';
 import { NftController, NftControllerMessenger } from './NftController';
@@ -62,10 +58,7 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
 const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
 const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
 
-type ApprovalActions =
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest;
+type ApprovalActions = AddApprovalRequest;
 
 const controllerName = 'NftController' as const;
 
@@ -155,11 +148,7 @@ function setupController({
     never
   >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
     name: controllerName,
-    allowedActions: [
-      'ApprovalController:addRequest',
-      'ApprovalController:acceptRequest',
-      'ApprovalController:rejectRequest',
-    ],
+    allowedActions: ['ApprovalController:addRequest'],
   }) as NftControllerMessenger;
 
   const assetsContract = new AssetsContractController({
