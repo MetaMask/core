@@ -71,8 +71,6 @@ describe('NftDetectionController', () => {
         assetsContract.getERC1155BalanceOf.bind(assetsContract),
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
-      getTokenStandardAndDetails:
-        assetsContract.getTokenStandardAndDetails.bind(assetsContract),
       onNftAdded: jest.fn(),
       messenger,
     });

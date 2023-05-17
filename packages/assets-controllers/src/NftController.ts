@@ -1026,15 +1026,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     // Check if the suggested NFT is already pending
     // if (
-    //   this.state.suggestedNfts.find(
-    //     ({
-    //       asset: { address: suggestedAddress, tokenId: suggestedTokenId },
-    //     }) => {
-    //       return (
-    //         suggestedAddress === contractAddress && suggestedTokenId === tokenId
-    //       );
-    //     },
-    //   )
+    // TODO: check if the suggested NFT is already pending in approval controller state
     // ) {
     //   throw ethErrors.rpc.internal('Suggested NFT already pending');
     // }
@@ -1064,19 +1056,13 @@ export class NftController extends BaseController<NftConfig, NftState> {
       );
     }
 
-    if (nftMetadata?.standard === 'ERC20') {
-      throw new Error(
-        'Suggested asset does not match a supported token standard for this controller',
-      );
-    }
-
     let isOwner;
     try {
       // TODO fold ownership check into getNftInformation call
       isOwner = await this.isNftOwner(accountAddress, contractAddress, tokenId);
     } catch (error) {
       throw ethErrors.rpc.internal(
-        `Failed to fetch NFT owner: ${error}. Make sure the NFT is on the currently selected network.`,
+        `Failed to fetch NFT owner: ${error} Make sure the NFT is on the currently selected network.`,
       );
     }
 
