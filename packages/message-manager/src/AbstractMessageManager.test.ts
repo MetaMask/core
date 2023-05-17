@@ -108,6 +108,7 @@ describe('AbstractTestManager', () => {
       type: messageType,
     };
 
+    await controller.addMessage(message);
     await controller.addMessage(message2);
     const messages = controller.getAllMessages();
     expect(messages).toStrictEqual([message, message2]);
