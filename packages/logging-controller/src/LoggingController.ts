@@ -143,9 +143,9 @@ export class LoggingController extends BaseControllerV2<
    * @returns unique id
    */
   generateId(): string {
-    const id = random();
-    if (this.state.logs[id]) {
-      return this.generateId();
+    let id = random();
+    while (id in this.state.logs) {
+      id = random();
     }
     return id;
   }
