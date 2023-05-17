@@ -289,7 +289,7 @@ describe('NetworkController', () => {
                       method: 'eth_chainId',
                     },
                     response: {
-                      result: '0x1337',
+                      result: toHex(1337),
                     },
                   },
                 ]);
@@ -314,7 +314,7 @@ describe('NetworkController', () => {
                   method: 'eth_chainId',
                   params: [],
                 });
-                expect(chainIdResult.result).toBe('0x1337');
+                expect(chainIdResult.result).toBe(toHex(1337));
               },
             );
           });
@@ -354,7 +354,7 @@ describe('NetworkController', () => {
                     method: 'eth_chainId',
                   },
                   response: {
-                    result: '0x1337',
+                    result: toHex(1337),
                   },
                 },
               ]);
@@ -379,7 +379,7 @@ describe('NetworkController', () => {
                 method: 'eth_chainId',
                 params: [],
               });
-              expect(chainIdResult.result).toBe('0x1337');
+              expect(chainIdResult.result).toBe(toHex(1337));
             },
           );
         });
@@ -494,7 +494,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: '0x1337',
+                        chainId: toHex(1337),
                         ticker: 'ABC',
                       },
                     },
@@ -560,7 +560,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: '0x1337',
+                      chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -590,7 +590,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: '0x1337',
+                        chainId: toHex(1337),
                         ticker: 'ABC',
                       },
                     },
@@ -662,7 +662,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: '0x1337',
+                      chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -698,7 +698,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: '0x1337',
+                        chainId: toHex(1337),
                         ticker: 'ABC',
                       },
                     },
@@ -782,7 +782,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: '0x1337',
+                      chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -820,7 +820,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: '0x1337',
+                        chainId: toHex(1337),
                         ticker: 'ABC',
                       },
                     },
@@ -892,7 +892,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: '0x1337',
+                      chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -939,7 +939,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: '0x1337',
+                        chainId: toHex(1337),
                         ticker: 'ABC',
                       },
                     },
@@ -1005,7 +1005,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: '0x1337',
+                      chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -1035,7 +1035,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: '0x1337',
+                        chainId: toHex(1337),
                         ticker: 'ABC',
                       },
                     },
@@ -1107,7 +1107,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: '0x1337',
+                      chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -1143,7 +1143,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: '0x1337',
+                        chainId: toHex(1337),
                         ticker: 'ABC',
                       },
                     },
@@ -1227,7 +1227,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: '0x1337',
+                      chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -1265,7 +1265,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: '0x1337',
+                        chainId: toHex(1337),
                         ticker: 'ABC',
                       },
                     },
@@ -1337,7 +1337,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: '0x1337',
+                      chainId: toHex(1337),
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -1395,7 +1395,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -1452,7 +1452,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -1485,7 +1485,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -1548,7 +1548,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -1587,7 +1587,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -1662,7 +1662,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -1703,7 +1703,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -1766,7 +1766,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -1811,7 +1811,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -1868,7 +1868,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -1901,7 +1901,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -1964,7 +1964,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -2003,7 +2003,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -2078,7 +2078,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -2119,7 +2119,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -2182,7 +2182,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -3451,7 +3451,7 @@ describe('NetworkController', () => {
         await expect(async () =>
           controller.upsertNetworkConfiguration(
             {
-              chainId: '0x9999',
+              chainId: toHex(9999),
               nickname: 'RPC',
               rpcPrefs: { blockExplorerUrl: 'test-block-explorer.com' },
               ticker: 'RPC',
@@ -3513,14 +3513,14 @@ describe('NetworkController', () => {
             providerConfig: {
               type: NetworkType.rpc,
               rpcUrl: 'https://mock-rpc-url',
-              chainId: '0x111',
+              chainId: toHex(111),
               ticker: 'TEST',
               id: 'testNetworkConfigurationId',
             },
             networkConfigurations: {
               testNetworkConfigurationId: {
                 rpcUrl: 'https://mock-rpc-url',
-                chainId: '0x111',
+                chainId: toHex(111),
                 ticker: 'TEST',
                 id: 'testNetworkConfigurationId',
                 nickname: undefined,
@@ -3533,7 +3533,7 @@ describe('NetworkController', () => {
         async ({ controller }) => {
           const newNetworkConfiguration = {
             rpcUrl: 'https://new-chain-rpc-url',
-            chainId: '0x222',
+            chainId: toHex(222),
             ticker: 'NEW',
             nickname: 'new-chain',
             rpcPrefs: { blockExplorerUrl: 'https://block-explorer' },
@@ -3738,7 +3738,7 @@ describe('NetworkController', () => {
                 ticker: 'ticker-2',
                 nickname: 'nickname-2',
                 rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-                chainId: '0x9999',
+                chainId: toHex(9999),
                 id: 'networkConfigurationId2',
               },
             },
@@ -3775,7 +3775,7 @@ describe('NetworkController', () => {
               ticker: 'ticker-2',
               nickname: 'nickname-2',
               rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-              chainId: '0x9999',
+              chainId: toHex(9999),
               id: 'networkConfigurationId2',
             },
           ]);
@@ -3835,7 +3835,7 @@ describe('NetworkController', () => {
             providerConfig: {
               type: NetworkType.rpc,
               rpcUrl: 'https://mock-rpc-url',
-              chainId: '0x111',
+              chainId: toHex(111),
               ticker: 'TEST',
               id: 'testNetworkConfigurationId',
               nickname: undefined,
@@ -3844,7 +3844,7 @@ describe('NetworkController', () => {
             networkConfigurations: {
               testNetworkConfigurationId: {
                 rpcUrl: 'https://mock-rpc-url',
-                chainId: '0x111',
+                chainId: toHex(111),
                 ticker: 'TEST',
                 id: 'testNetworkConfigurationId',
                 nickname: undefined,
@@ -3891,7 +3891,7 @@ describe('NetworkController', () => {
             providerConfig: {
               type: NetworkType.rpc,
               rpcUrl: 'https://mock-rpc-url',
-              chainId: '0x111',
+              chainId: toHex(111),
               ticker: 'TEST',
               id: 'testNetworkConfigurationId',
               nickname: undefined,
@@ -3900,7 +3900,7 @@ describe('NetworkController', () => {
             networkConfigurations: {
               testNetworkConfigurationId: {
                 rpcUrl: 'https://mock-rpc-url',
-                chainId: '0x111',
+                chainId: toHex(111),
                 ticker: 'TEST',
                 id: 'testNetworkConfigurationId',
                 nickname: undefined,
@@ -3929,7 +3929,7 @@ describe('NetworkController', () => {
           ).toStrictEqual([
             {
               rpcUrl: 'https://mock-rpc-url',
-              chainId: '0x111',
+              chainId: toHex(111),
               ticker: 'TEST',
               id: 'testNetworkConfigurationId',
               nickname: undefined,
@@ -3969,7 +3969,7 @@ describe('NetworkController', () => {
                 ticker: 'old_rpc_ticker',
                 nickname: 'old_rpc_nickname',
                 rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-                chainId: '0x1337',
+                chainId: toHex(1337),
                 id: testNetworkConfigurationId,
               },
             },
@@ -3994,7 +3994,7 @@ describe('NetworkController', () => {
                 ticker: 'old_rpc_ticker',
                 nickname: 'old_rpc_nickname',
                 rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-                chainId: '0x1337',
+                chainId: toHex(1337),
                 id: testNetworkConfigurationId,
               },
             },
@@ -4027,7 +4027,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                     nickname: 'test network',
                     rpcPrefs: {
@@ -4069,7 +4069,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                     nickname: 'test network',
                     rpcPrefs: {
@@ -4111,7 +4111,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                     nickname: 'test network',
                     rpcPrefs: {
@@ -4131,7 +4131,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -4146,7 +4146,7 @@ describe('NetworkController', () => {
                 type: 'rpc',
                 id: 'testNetworkConfiguration',
                 rpcUrl: 'https://mock-rpc-url',
-                chainId: '0x1337',
+                chainId: toHex(1337),
                 ticker: 'TEST',
                 nickname: 'test network',
                 rpcPrefs: {
@@ -4176,7 +4176,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                   },
                 },
@@ -4208,7 +4208,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -4251,7 +4251,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                   },
                 },
@@ -4279,7 +4279,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -4328,7 +4328,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                   },
                 },
@@ -4356,7 +4356,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -4396,7 +4396,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                   },
                 },
@@ -4412,7 +4412,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -4446,7 +4446,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                   },
                 },
@@ -4472,7 +4472,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -4513,7 +4513,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                   },
                 },
@@ -4546,7 +4546,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -4582,7 +4582,7 @@ describe('NetworkController', () => {
                   testNetworkConfiguration: {
                     id: 'testNetworkConfiguration',
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: '0x1337',
+                    chainId: toHex(1337),
                     ticker: 'TEST',
                   },
                 },
@@ -4619,7 +4619,7 @@ describe('NetworkController', () => {
               mockCreateNetworkClient()
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  chainId: toHex(1337),
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[0])
@@ -5567,7 +5567,7 @@ function refreshNetworkTests({
                 method: 'eth_chainId',
               },
               response: {
-                result: '0x1337',
+                result: toHex(1337),
               },
             },
           ]);
@@ -5592,7 +5592,7 @@ function refreshNetworkTests({
             method: 'eth_chainId',
             params: [],
           });
-          expect(chainIdResult.result).toBe('0x1337');
+          expect(chainIdResult.result).toBe(toHex(1337));
         },
       );
     });
