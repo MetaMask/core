@@ -76,7 +76,7 @@ const name = 'LoggingController';
 
 export type AddLog = {
   type: `${typeof name}:add`;
-  handler: LoggingController['addLog'];
+  handler: LoggingController['add'];
 };
 
 export type LoggingControllerMessenger = RestrictedControllerMessenger<
@@ -129,12 +129,12 @@ export class LoggingController extends BaseControllerV2<
 
     this.messagingSystem.registerActionHandler(
       `${name}:add` as const,
-      (log: Log) => this.addLog(log),
+      (log: Log) => this.add(log),
     );
   }
 
   /**
-   * Recursive method to ensure no collisions of ids.
+   * Method to generate a randomId and ensures no collision with existing ids.
    *
    * We may want to end up using a hashing mechanism to make ids deterministic
    * by the *data* passed in, and then make each key an array of logs that
@@ -142,7 +142,7 @@ export class LoggingController extends BaseControllerV2<
    *
    * @returns unique id
    */
-  generateId(): string {
+  #generateId(): string {
     let id = random();
     while (id in this.state.logs) {
       id = random();
@@ -155,9 +155,9 @@ export class LoggingController extends BaseControllerV2<
    *
    * @param log - Log to add to the controller
    */
-  addLog(log: Log) {
+  add(log: Log) {
     const newLog: LogEntry = {
-      id: this.generateId(),
+      id: this.#generateId(),
       timestamp: Date.now(),
       log,
     };

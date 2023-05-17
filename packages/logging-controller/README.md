@@ -1,6 +1,6 @@
 # `@metamask/logging-controller`
 
-Stores logs about signature request.
+Stores logs in state meant to assist debugging user issues. Logs stored in this fashion can only be retrieved via the state log download feature exposed by the clients, and thus must be initiated by the user.
 
 ## Installation
 
