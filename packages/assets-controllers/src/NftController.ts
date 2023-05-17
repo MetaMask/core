@@ -990,7 +990,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     });
   }
 
-  async validateWatchNft(
+  async validateWatchNftAndFetchMetadata(
     asset: NftAsset,
     type: 'ERC721' | 'ERC1155',
     accountAddress: string,
@@ -1094,7 +1094,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     const { selectedAddress, chainId } = this.config;
     const accountAddress = interactingAddress || selectedAddress;
 
-    const nftMetadata = await this.validateWatchNft(
+    const nftMetadata = await this.validateWatchNftAndFetchMetadata(
       asset,
       type,
       accountAddress,
@@ -1507,6 +1507,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           asset: {
             address: suggestedNftMeta.asset.address,
             tokenId: suggestedNftMeta.asset.tokenId,
+            name: suggestedNftMeta.asset.name,
             description: suggestedNftMeta.asset.description,
             image: suggestedNftMeta.asset.image,
             standard: suggestedNftMeta.asset.standard,
