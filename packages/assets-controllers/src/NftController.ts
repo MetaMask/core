@@ -151,9 +151,9 @@ export interface NftConfig extends BaseConfig {
  */
 export interface NftState extends BaseState {
   allNftContracts: {
-    [key: string]: { [key: string]: NftContract[] };
+    [key: string]: { [chainId: Hex]: NftContract[] };
   };
-  allNfts: { [key: string]: { [key: string]: Nft[] } };
+  allNfts: { [key: string]: { [chainId: Hex]: Nft[] } };
   ignoredNfts: Nft[];
 }
 

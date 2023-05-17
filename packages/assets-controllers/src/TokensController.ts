@@ -111,9 +111,9 @@ export interface TokensState extends BaseState {
   tokens: Token[];
   ignoredTokens: string[];
   detectedTokens: Token[];
-  allTokens: { [key: string]: { [key: string]: Token[] } };
-  allIgnoredTokens: { [key: string]: { [key: string]: string[] } };
-  allDetectedTokens: { [key: string]: { [key: string]: Token[] } };
+  allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
+  allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   suggestedAssets: SuggestedAssetMeta[];
 }
 
