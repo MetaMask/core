@@ -25,7 +25,6 @@ jest.mock('@metamask/controller-utils', () => {
 
 const messageIdMock = '123';
 const messageIdMock2 = '456';
-const messageIdMock3 = '789';
 const versionMock = '1';
 const signatureMock = '0xAABBCC';
 const stateMock = { test: 123 };
@@ -43,15 +42,6 @@ const messageParamsMock2 = {
   origin: 'http://test4.com',
   data: '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA',
   metamaskId: messageIdMock,
-};
-
-const messageParamsMock3 = {
-  from: '0x125',
-  origin: 'http://test5.com',
-  data: '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
-  metamaskId: messageIdMock3,
-  deferSetAsSigned: true,
-  version: 'V1',
 };
 
 const messageMock = {
@@ -430,41 +420,7 @@ describe('SignatureController', () => {
       });
 
       it('approves message and signs', async () => {
-        await new Promise(async (resolve) => {
-          signatureController.hub.once(`${rpcMethodName}:signed`, (data) => {
-            expect(data.signature).toStrictEqual(signatureMock);
-            resolve('');
-          });
-
-          await (signatureController as any)[signMethodName](messageParamsMock);
-
-          const keyringControllerExtraArgs =
-            // eslint-disable-next-line jest/no-if
-            signMethodName === 'signTypedMessage'
-              ? [{ version: messageParamsMock.version }]
-              : [];
-
-          expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
-          expect(keyringControllerMethod).toHaveBeenCalledWith(
-            messageParamsMock2,
-            ...keyringControllerExtraArgs,
-          );
-
-          expect(messageManager.setMessageStatusSigned).toHaveBeenCalledTimes(
-            1,
-          );
-          expect(messageManager.setMessageStatusSigned).toHaveBeenCalledWith(
-            messageParamsMock2.metamaskId,
-            signatureMock,
-          );
-        });
-      });
-
-      it('does not set as signed, messages with deferSetAsSigned', async () => {
-        messageManager.approveMessage.mockReset();
-        messageManager.approveMessage.mockResolvedValueOnce(messageParamsMock3);
-
-        await (signatureController as any)[signMethodName](messageParamsMock3);
+        await (signatureController as any)[signMethodName](messageParamsMock);
 
         const keyringControllerExtraArgs =
           // eslint-disable-next-line jest/no-if
@@ -474,7 +430,54 @@ describe('SignatureController', () => {
 
         expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
         expect(keyringControllerMethod).toHaveBeenCalledWith(
-          messageParamsMock3,
+          messageParamsMock2,
+          ...keyringControllerExtraArgs,
+        );
+
+        expect(messageManager.setMessageStatusSigned).toHaveBeenCalledTimes(1);
+        expect(messageManager.setMessageStatusSigned).toHaveBeenCalledWith(
+          messageParamsMock2.metamaskId,
+          signatureMock,
+        );
+      });
+
+      it('emits an event when the message is signed by the keyring', async () => {
+        const eventListener = jest.fn();
+
+        signatureController.hub.once(`${rpcMethodName}:signed`, eventListener);
+
+        await (signatureController as any)[signMethodName](messageParamsMock);
+
+        expect(eventListener).toHaveBeenCalledWith({
+          messageId: messageIdMock,
+          signature: signatureMock,
+        });
+      });
+
+      it('does not set as signed, messages with deferSetAsSigned', async () => {
+        const deferredMessageParams = {
+          ...messageParamsMock,
+          deferSetAsSigned: true,
+        };
+
+        messageManager.approveMessage.mockReset();
+        messageManager.approveMessage.mockResolvedValueOnce(
+          deferredMessageParams,
+        );
+
+        await (signatureController as any)[signMethodName](
+          deferredMessageParams,
+        );
+
+        const keyringControllerExtraArgs =
+          // eslint-disable-next-line jest/no-if
+          signMethodName === 'signTypedMessage'
+            ? [{ version: messageParamsMock.version }]
+            : [];
+
+        expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
+        expect(keyringControllerMethod).toHaveBeenCalledWith(
+          deferredMessageParams,
           ...keyringControllerExtraArgs,
         );
 
