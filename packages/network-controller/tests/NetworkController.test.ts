@@ -811,7 +811,6 @@ describe('NetworkController', () => {
               );
             });
 
-            // This will change when the mutex is removed
             it('emits infuraIsUnblocked, not infuraIsBlocked, assuming that the first network was blocked', async () => {
               await withController(
                 {
