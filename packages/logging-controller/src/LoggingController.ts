@@ -176,5 +176,3 @@ export class LoggingController extends BaseControllerV2<
     });
   }
 }
-
-export default LoggingController;
