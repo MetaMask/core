@@ -34,7 +34,7 @@ export interface AbstractMessage {
   type: string;
   rawSig?: string;
   securityProviderResponse?: Record<string, Json>;
-  metadata?: Record<string, string>;
+  metadata?: Json;
 }
 
 /**
@@ -351,7 +351,7 @@ export abstract class AbstractMessageManager<
    * @param metadata - The data with which to replace the metadata property in the message
    */
 
-  setMetadata(messageId: string, metadata: Record<string, string>) {
+  setMetadata(messageId: string, metadata: Json) {
     const message = this.getMessage(messageId);
     if (!message) {
       throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
