@@ -40,6 +40,7 @@ const typedMessage = [
   },
 ];
 const messageId = '1';
+const messageId2 = '2';
 const from = '0x0123';
 const messageTime = Date.now();
 const messageStatus = 'unapproved';
@@ -82,6 +83,35 @@ describe('AbstractTestManager', () => {
     expect(message.time).toBe(messageTime);
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
+  });
+
+  it('should get all messages', async () => {
+    const controller = new AbstractTestManager();
+    const message = {
+      id: messageId,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    };
+    const message2 = {
+      id: messageId2,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    };
+
+    await controller.addMessage(message);
+    await controller.addMessage(message2);
+    const messages = controller.getAllMessages();
+    expect(messages).toStrictEqual([message, message2]);
   });
 
   it('adds a valid message with provider security response', async () => {
@@ -329,6 +359,34 @@ describe('AbstractTestManager', () => {
 
       expect(controller.hub.emit).toHaveBeenNthCalledWith(1, 'updateBadge');
       expect(messageAfter?.status).toStrictEqual('newstatus');
+    });
+  });
+
+  describe('setMetadata', () => {
+    it('should set the given message metadata', async () => {
+      const controller = new AbstractTestManager();
+      await controller.addMessage({
+        id: messageId,
+        messageParams: { from: '0x1234', data: 'test' },
+        status: 'status',
+        time: 10,
+        type: 'type',
+      });
+
+      const messageBefore = controller.getMessage(messageId);
+      expect(messageBefore?.metadata).toBeUndefined();
+
+      controller.setMetadata(messageId, { foo: 'bar' });
+      const messageAfter = controller.getMessage(messageId);
+      expect(messageAfter?.metadata).toStrictEqual({ foo: 'bar' });
+    });
+
+    it('should throw an error if message is not found', () => {
+      const controller = new AbstractTestManager();
+
+      expect(() => controller.setMetadata(messageId, { foo: 'bar' })).toThrow(
+        'AbstractMessageManager: Message not found for id: 1.',
+      );
     });
   });
 });

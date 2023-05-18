@@ -378,18 +378,21 @@ describe('SignatureController', () => {
       messageManagerMock,
       () => signatureController.signMessage,
       () => keyringControllerMock.signMessage,
+      'eth_sign',
     ],
     [
       'signPersonalMessage',
       personalMessageManagerMock,
       () => signatureController.signPersonalMessage,
       () => keyringControllerMock.signPersonalMessage,
+      'personal_sign',
     ],
     [
       'signTypedMessage',
       typedMessageManagerMock,
       () => signatureController.signTypedMessage,
       () => keyringControllerMock.signTypedMessage,
+      'eth_signTypedData',
     ],
   ])(
     '%s',
@@ -398,6 +401,7 @@ describe('SignatureController', () => {
       messageManager,
       getSignatureControllerMethod,
       getKeyringControllerMethod,
+      rpcMethodName,
     ) => {
       let signatureControllerMethod: (...args: any[]) => Promise<string>;
       let keyringControllerMethod: jest.Mock;
@@ -435,6 +439,49 @@ describe('SignatureController', () => {
           messageParamsMock2.metamaskId,
           signatureMock,
         );
+      });
+
+      it('emits an event when the message is signed by the keyring', async () => {
+        const eventListener = jest.fn();
+
+        signatureController.hub.once(`${rpcMethodName}:signed`, eventListener);
+
+        await (signatureController as any)[signMethodName](messageParamsMock);
+
+        expect(eventListener).toHaveBeenCalledWith({
+          messageId: messageIdMock,
+          signature: signatureMock,
+        });
+      });
+
+      it('does not set as signed, messages with deferSetAsSigned', async () => {
+        const deferredMessageParams = {
+          ...messageParamsMock,
+          deferSetAsSigned: true,
+        };
+
+        messageManager.approveMessage.mockReset();
+        messageManager.approveMessage.mockResolvedValueOnce(
+          deferredMessageParams,
+        );
+
+        await (signatureController as any)[signMethodName](
+          deferredMessageParams,
+        );
+
+        const keyringControllerExtraArgs =
+          // eslint-disable-next-line jest/no-if
+          signMethodName === 'signTypedMessage'
+            ? [{ version: messageParamsMock.version }]
+            : [];
+
+        expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
+        expect(keyringControllerMethod).toHaveBeenCalledWith(
+          deferredMessageParams,
+          ...keyringControllerExtraArgs,
+        );
+
+        expect(messageManager.setMessageStatusSigned).not.toHaveBeenCalled();
       });
 
       it('returns current state', async () => {

@@ -25,6 +25,7 @@ export interface OriginalRequest {
  * A 'Message' which always has a signing type
  * @property rawSig - Raw data of the signature request
  * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
+ * @property metadata - Additional data for the message, for example external identifiers
  */
 export interface AbstractMessage {
   id: string;
@@ -33,6 +34,7 @@ export interface AbstractMessage {
   type: string;
   rawSig?: string;
   securityProviderResponse?: Record<string, Json>;
+  metadata?: Json;
 }
 
 /**
@@ -41,10 +43,12 @@ export interface AbstractMessage {
  * Represents the parameters to pass to the signing method once the signature request is approved.
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
+ * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
 export interface AbstractMessageParams {
   from: string;
   origin?: string;
+  deferSetAsSigned?: boolean;
 }
 
 /**
@@ -258,6 +262,15 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Returns all the messages.
+   *
+   * @returns An array of messages.
+   */
+  getAllMessages() {
+    return this.messages;
+  }
+
+  /**
    * Approves a Message. Sets the message status via a call to this.setMessageStatusApproved,
    * and returns a promise with any the message params modified for proper signing.
    *
@@ -328,6 +341,22 @@ export abstract class AbstractMessageManager<
       return;
     }
     message.rawSig = result;
+    this.updateMessage(message, false);
+  }
+
+  /**
+   * Sets the messsage metadata
+   *
+   * @param messageId - The id of the Message to update
+   * @param metadata - The data with which to replace the metadata property in the message
+   */
+
+  setMetadata(messageId: string, metadata: Json) {
+    const message = this.getMessage(messageId);
+    if (!message) {
+      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
+    }
+    message.metadata = metadata;
     this.updateMessage(message, false);
   }
 

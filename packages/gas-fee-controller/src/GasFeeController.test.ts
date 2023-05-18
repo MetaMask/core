@@ -4,6 +4,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkController,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
@@ -40,7 +41,9 @@ const name = 'GasFeeController';
 
 type MainControllerMessenger = ControllerMessenger<
   GetGasFeeState | NetworkControllerGetStateAction,
-  GasFeeStateChange | NetworkControllerStateChangeEvent
+  | GasFeeStateChange
+  | NetworkControllerStateChangeEvent
+  | NetworkControllerNetworkDidChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -59,7 +62,10 @@ const setupNetworkController = async ({
   const restrictedMessenger = unrestrictedMessenger.getRestricted({
     name: 'NetworkController',
     allowedActions: ['NetworkController:getState'],
-    allowedEvents: ['NetworkController:stateChange'],
+    allowedEvents: [
+      'NetworkController:stateChange',
+      'NetworkController:networkDidChange',
+    ],
   });
 
   const networkController = new NetworkController({

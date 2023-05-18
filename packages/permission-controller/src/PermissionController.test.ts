@@ -191,20 +191,15 @@ const PermissionKeys = {
     'wallet_noopWithPermittedAndFailureSideEffects2',
   wallet_noopWithPermittedSideEffects: 'wallet_noopWithPermittedSideEffects',
   wallet_noopWithValidator: 'wallet_noopWithValidator',
+  wallet_noopWithRequiredCaveat: 'wallet_noopWithRequiredCaveat',
   wallet_noopWithFactory: 'wallet_noopWithFactory',
-  'wallet_getSecret_*': 'wallet_getSecret_*',
   snap_foo: 'snap_foo',
-  endowmentPermission1: 'endowmentPermission1',
-  endowmentPermission2: 'endowmentPermission2',
+  endowmentAnySubject: 'endowmentAnySubject',
+  endowmentSnapsOnly: 'endowmentSnapsOnly',
 } as const;
 
-// wallet_getSecret_*
-// We only define types for permissions with factories.
-// Other permission types are extracted from the permission specifications in
-// the permission controller.
-
-type SecretNamespacedPermission = ValidPermission<
-  typeof PermissionKeys['wallet_getSecret_*'],
+type NoopWithRequiredCaveat = ValidPermission<
+  typeof PermissionKeys['wallet_noopWithRequiredCaveat'],
   NoopCaveat
 >;
 
@@ -214,8 +209,7 @@ type NoopWithFactoryPermission = ValidPermission<
 >;
 
 /**
- * Permission name (as opposed to keys) constants and getters. Since one of the
- * permissions are namespaced, it's a getter function.
+ * Permission name (as opposed to keys) constants and getters.
  */
 const PermissionNames = {
   wallet_doubleNumber: PermissionKeys.wallet_doubleNumber,
@@ -229,11 +223,11 @@ const PermissionNames = {
     PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
   wallet_noopWithPermittedSideEffects:
     PermissionKeys.wallet_noopWithPermittedSideEffects,
+  wallet_noopWithRequiredCaveat: PermissionKeys.wallet_noopWithRequiredCaveat,
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
   snap_foo: PermissionKeys.snap_foo,
-  endowmentPermission1: PermissionKeys.endowmentPermission1,
-  endowmentPermission2: PermissionKeys.endowmentPermission2,
-  wallet_getSecret_: (str: string) => `wallet_getSecret_${str}` as const,
+  endowmentAnySubject: PermissionKeys.endowmentAnySubject,
+  endowmentSnapsOnly: PermissionKeys.endowmentSnapsOnly,
 } as const;
 
 /**
@@ -246,7 +240,7 @@ function getDefaultPermissionSpecifications() {
   return {
     [PermissionKeys.wallet_getSecretArray]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_getSecretArray,
+      targetName: PermissionKeys.wallet_getSecretArray,
       allowedCaveats: [
         CaveatTypes.filterArrayResponse,
         CaveatTypes.reverseArrayResponse,
@@ -257,7 +251,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_getSecretObject]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_getSecretObject,
+      targetName: PermissionKeys.wallet_getSecretObject,
       allowedCaveats: [
         CaveatTypes.filterObjectResponse,
         CaveatTypes.noopCaveat,
@@ -275,32 +269,9 @@ function getDefaultPermissionSpecifications() {
         );
       },
     },
-    [PermissionKeys['wallet_getSecret_*']]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys['wallet_getSecret_*'],
-      allowedCaveats: [CaveatTypes.noopCaveat],
-      methodImplementation: (args: RestrictedMethodOptions<void>) => {
-        return `Hello, secret friend "${args.method.replace(
-          'wallet_getSecret_',
-          '',
-        )}"!`;
-      },
-      factory: (options: PermissionOptions<SecretNamespacedPermission>) =>
-        constructPermission<SecretNamespacedPermission>({
-          ...options,
-          caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
-        }),
-      validator: (permission: PermissionConstraint) => {
-        assert.deepStrictEqual(
-          permission.caveats,
-          [{ type: CaveatTypes.noopCaveat, value: null }],
-          'getSecret_* permission validation failed',
-        );
-      },
-    },
     [PermissionKeys.wallet_doubleNumber]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_doubleNumber,
+      targetName: PermissionKeys.wallet_doubleNumber,
       allowedCaveats: null,
       methodImplementation: ({ params }: RestrictedMethodOptions<[number]>) => {
         if (!Array.isArray(params)) {
@@ -313,7 +284,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_noop]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noop,
+      targetName: PermissionKeys.wallet_noop,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
@@ -321,7 +292,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
+      targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
@@ -333,7 +304,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
+      targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
@@ -345,7 +316,7 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithPermittedSideEffects,
+      targetName: PermissionKeys.wallet_noopWithPermittedSideEffects,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
@@ -357,7 +328,7 @@ function getDefaultPermissionSpecifications() {
     // This one exists to check some permission validator logic
     [PermissionKeys.wallet_noopWithValidator]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithValidator,
+      targetName: PermissionKeys.wallet_noopWithValidator,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
@@ -372,11 +343,45 @@ function getDefaultPermissionSpecifications() {
         }
       },
     },
+    [PermissionKeys.wallet_noopWithRequiredCaveat]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.wallet_noopWithRequiredCaveat,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      allowedCaveats: [CaveatTypes.noopCaveat],
+      factory: (
+        options: PermissionOptions<NoopWithRequiredCaveat>,
+        _requestData?: Record<string, unknown>,
+      ) => {
+        return constructPermission<NoopWithRequiredCaveat>({
+          ...options,
+          caveats: [
+            {
+              type: CaveatTypes.noopCaveat,
+              value: null,
+            },
+          ],
+        });
+      },
+      validator: (permission: PermissionConstraint) => {
+        if (
+          permission.caveats?.length !== 1 ||
+          !permission.caveats?.some(
+            ({ type }) => type === CaveatTypes.noopCaveat,
+          )
+        ) {
+          throw new Error(
+            'noopWithRequiredCaveat permission validation failed',
+          );
+        }
+      },
+    },
     // This one exists just to check that permission factories can use the
     // requestData of approved permission requests
     [PermissionKeys.wallet_noopWithFactory]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.wallet_noopWithFactory,
+      targetName: PermissionKeys.wallet_noopWithFactory,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
@@ -402,22 +407,22 @@ function getDefaultPermissionSpecifications() {
     },
     [PermissionKeys.snap_foo]: {
       permissionType: PermissionType.RestrictedMethod,
-      targetKey: PermissionKeys.snap_foo,
+      targetName: PermissionKeys.snap_foo,
       allowedCaveats: null,
       methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
       subjectTypes: [SubjectType.Snap],
     },
-    [PermissionKeys.endowmentPermission1]: {
+    [PermissionKeys.endowmentAnySubject]: {
       permissionType: PermissionType.Endowment,
-      targetKey: PermissionKeys.endowmentPermission1,
+      targetName: PermissionKeys.endowmentAnySubject,
       endowmentGetter: (_options: EndowmentGetterParams) => ['endowment1'],
       allowedCaveats: null,
     },
-    [PermissionKeys.endowmentPermission2]: {
+    [PermissionKeys.endowmentSnapsOnly]: {
       permissionType: PermissionType.Endowment,
-      targetKey: PermissionKeys.endowmentPermission2,
+      targetName: PermissionKeys.endowmentSnapsOnly,
       endowmentGetter: (_options: EndowmentGetterParams) => ['endowment2'],
       allowedCaveats: [CaveatTypes.endowmentCaveat],
       subjectTypes: [SubjectType.Snap],
@@ -637,29 +642,29 @@ describe('PermissionController', () => {
       });
     });
 
-    it('throws if a permission specification targetKey is invalid', () => {
-      ['', 'foo_', 'foo*'].forEach((invalidTargetKey) => {
-        expect(
-          () =>
-            new PermissionController<
-              DefaultPermissionSpecifications,
-              DefaultCaveatSpecifications
-            >(
-              getPermissionControllerOptions({
-                permissionSpecifications: {
-                  ...getDefaultPermissionSpecifications(),
-                  [invalidTargetKey]: {
-                    permissionType: PermissionType.Endowment,
-                    targetKey: invalidTargetKey,
-                  },
+    it('throws if a permission specification targetName is invalid', () => {
+      const invalidTargetName = '';
+
+      expect(
+        () =>
+          new PermissionController<
+            DefaultPermissionSpecifications,
+            DefaultCaveatSpecifications
+          >(
+            getPermissionControllerOptions({
+              permissionSpecifications: {
+                ...getDefaultPermissionSpecifications(),
+                [invalidTargetName]: {
+                  permissionType: PermissionType.Endowment,
+                  targetName: invalidTargetName,
                 },
-              }),
-            ),
-        ).toThrow(`Invalid permission target key: "${invalidTargetKey}"`);
-      });
+              },
+            }),
+          ),
+      ).toThrow(`Invalid permission target name: "${invalidTargetName}"`);
     });
 
-    it('throws if a permission specification map key does not match its "targetKey" value', () => {
+    it('throws if a permission specification map key does not match its "targetName" value', () => {
       expect(
         () =>
           new PermissionController<
@@ -671,13 +676,13 @@ describe('PermissionController', () => {
                 ...getDefaultPermissionSpecifications(),
                 foo: {
                   permissionType: PermissionType.Endowment,
-                  targetKey: 'bar',
+                  targetName: 'bar',
                 },
               },
             }),
           ),
       ).toThrow(
-        `Invalid permission specification: key "foo" must match specification.target value "bar".`,
+        `Invalid permission specification: target name "foo" must match specification.targetName value "bar".`,
       );
     });
 
@@ -713,7 +718,7 @@ describe('PermissionController', () => {
                 ...getDefaultPermissionSpecifications(),
                 foo: {
                   permissionType: PermissionType.Endowment,
-                  targetKey: 'foo',
+                  targetName: 'foo',
                   allowedCaveats: [defaultCaveats.reverseArrayResponse.type],
                 },
               },
@@ -737,7 +742,7 @@ describe('PermissionController', () => {
                 ...getDefaultPermissionSpecifications(),
                 foo: {
                   permissionType: PermissionType.RestrictedMethod,
-                  targetKey: 'foo',
+                  targetName: 'foo',
                   allowedCaveats: [defaultCaveats.endowmentCaveat.type],
                 },
               },
@@ -777,25 +782,11 @@ describe('PermissionController', () => {
       ).toStrictEqual(['a', 'b', 'c']);
     });
 
-    it('gets the implementation of a namespaced restricted method', async () => {
-      const controller = getDefaultPermissionController();
-      const method = controller.getRestrictedMethod(
-        PermissionNames.wallet_getSecret_('foo'),
-      );
-
-      expect(
-        await method({
-          method: 'wallet_getSecret_foo',
-          context: { origin: 'github.com' },
-        }),
-      ).toStrictEqual('Hello, secret friend "foo"!');
-    });
-
     it('throws an error if the requested permission target is not a restricted method', () => {
       const controller = getDefaultPermissionController();
       expect(() =>
-        controller.getRestrictedMethod(PermissionNames.endowmentPermission1),
-      ).toThrow(errors.methodNotFound(PermissionNames.endowmentPermission1));
+        controller.getRestrictedMethod(PermissionNames.endowmentAnySubject),
+      ).toThrow(errors.methodNotFound(PermissionNames.endowmentAnySubject));
     });
 
     it('throws an error if the method does not exist', () => {
@@ -907,31 +898,6 @@ describe('PermissionController', () => {
         ),
       ).toStrictEqual(false);
     });
-
-    it('correctly indicates whether an origin has a namespaced permission', () => {
-      const controller = getDefaultPermissionController();
-
-      controller.grantPermissions({
-        subject: { origin: 'metamask.io' },
-        approvedPermissions: {
-          wallet_getSecret_kabob: {},
-        },
-      });
-
-      expect(
-        controller.hasPermission(
-          'metamask.io',
-          PermissionNames.wallet_getSecret_('kabob'),
-        ),
-      ).toStrictEqual(true);
-
-      expect(
-        controller.hasPermission(
-          'metamask.io',
-          PermissionNames.wallet_getSecret_('falafel'),
-        ),
-      ).toStrictEqual(false);
-    });
   });
 
   describe('hasPermissions', () => {
@@ -955,7 +921,7 @@ describe('PermissionController', () => {
         subject: { origin: 'foo' },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
-          [PermissionNames.wallet_getSecret_('bar')]: {},
+          [PermissionNames.wallet_doubleNumber]: {},
         },
       });
 
@@ -1027,39 +993,6 @@ describe('PermissionController', () => {
       });
     });
 
-    it('revokes a namespaced permission', () => {
-      const controller = getDefaultPermissionControllerWithState();
-      expect(controller.state).toStrictEqual(getExistingPermissionState());
-      const origin = 'metamask.io';
-
-      controller.grantPermissions({
-        subject: { origin },
-        approvedPermissions: {
-          [PermissionNames.wallet_getSecret_('foo')]: {},
-        },
-      });
-
-      controller.revokePermission(
-        origin,
-        PermissionNames.wallet_getSecret_('foo'),
-      );
-
-      expect(controller.state).toStrictEqual({
-        subjects: {
-          [origin]: {
-            origin,
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
-                parentCapability: PermissionNames.wallet_getSecretArray,
-                caveats: null,
-                invoker: origin,
-              }),
-            },
-          },
-        },
-      });
-    });
-
     it('throws an error if the specified subject has no permissions', () => {
       const controller = getDefaultPermissionController();
       expect(() =>
@@ -1114,7 +1047,6 @@ describe('PermissionController', () => {
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
           [PermissionNames.wallet_getSecretObject]: {},
-          [PermissionNames.wallet_getSecret_('foo')]: {},
         },
       });
 
@@ -1122,7 +1054,7 @@ describe('PermissionController', () => {
         subject: { origin: origin3 },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
-          [PermissionNames.wallet_getSecret_('foo')]: {},
+          [PermissionNames.endowmentAnySubject]: {},
         },
       });
 
@@ -1131,21 +1063,16 @@ describe('PermissionController', () => {
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
           [PermissionNames.wallet_getSecretObject]: {},
-          [PermissionNames.wallet_getSecret_('bar')]: {},
         },
       });
 
       controller.revokePermissions({
         [origin0]: [PermissionNames.wallet_getSecretArray],
-        [origin2]: [
-          PermissionNames.wallet_getSecretArray,
-          PermissionNames.wallet_getSecret_('foo'),
-        ],
+        [origin2]: [PermissionNames.wallet_getSecretArray],
         [origin3]: [PermissionNames.wallet_getSecretArray],
         [origin4]: [
           PermissionNames.wallet_getSecretArray,
           PermissionNames.wallet_getSecretObject,
-          PermissionNames.wallet_getSecret_('bar'),
         ],
       });
 
@@ -1174,9 +1101,9 @@ describe('PermissionController', () => {
           [origin3]: {
             origin: origin3,
             permissions: {
-              [PermissionNames.wallet_getSecret_('foo')]: getPermissionMatcher({
-                parentCapability: PermissionNames.wallet_getSecret_('foo'),
-                caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
+              [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
+                parentCapability: PermissionNames.endowmentAnySubject,
+                caveats: null,
                 invoker: origin3,
               }),
             },
@@ -1245,7 +1172,6 @@ describe('PermissionController', () => {
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
           [PermissionNames.wallet_getSecretObject]: {},
-          [PermissionNames.wallet_getSecret_('foo')]: {},
         },
       });
 
@@ -1253,7 +1179,7 @@ describe('PermissionController', () => {
         subject: { origin: origin3 },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
-          [PermissionNames.wallet_getSecret_('foo')]: {},
+          [PermissionNames.endowmentAnySubject]: {},
         },
       });
 
@@ -1262,7 +1188,6 @@ describe('PermissionController', () => {
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {},
           [PermissionNames.wallet_getSecretObject]: {},
-          [PermissionNames.wallet_getSecret_('bar')]: {},
         },
       });
 
@@ -1290,19 +1215,14 @@ describe('PermissionController', () => {
                 caveats: null,
                 invoker: origin2,
               }),
-              [PermissionNames.wallet_getSecret_('foo')]: getPermissionMatcher({
-                parentCapability: PermissionNames.wallet_getSecret_('foo'),
-                caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
-                invoker: origin2,
-              }),
             },
           },
           [origin3]: {
             origin: origin3,
             permissions: {
-              [PermissionNames.wallet_getSecret_('foo')]: getPermissionMatcher({
-                parentCapability: PermissionNames.wallet_getSecret_('foo'),
-                caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
+              [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
+                parentCapability: PermissionNames.endowmentAnySubject,
+                caveats: null,
                 invoker: origin3,
               }),
             },
@@ -1313,11 +1233,6 @@ describe('PermissionController', () => {
               [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_getSecretObject,
                 caveats: null,
-                invoker: origin4,
-              }),
-              [PermissionNames.wallet_getSecret_('bar')]: getPermissionMatcher({
-                parentCapability: PermissionNames.wallet_getSecret_('bar'),
-                caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
                 invoker: origin4,
               }),
             },
@@ -1341,7 +1256,6 @@ describe('PermissionController', () => {
               { type: CaveatTypes.filterObjectResponse, value: ['kaplar'] },
             ],
           },
-          [PermissionNames.wallet_getSecret_('foo')]: {},
         },
       });
 
@@ -1358,14 +1272,6 @@ describe('PermissionController', () => {
           origin,
           PermissionNames.wallet_getSecretObject,
           CaveatTypes.filterObjectResponse,
-        ),
-      ).toStrictEqual(true);
-
-      expect(
-        controller.hasCaveat(
-          origin,
-          PermissionNames.wallet_getSecret_('foo'),
-          CaveatTypes.noopCaveat,
         ),
       ).toStrictEqual(true);
     });
@@ -1401,7 +1307,6 @@ describe('PermissionController', () => {
               { type: CaveatTypes.filterObjectResponse, value: ['kaplar'] },
             ],
           },
-          [PermissionNames.wallet_getSecret_('foo')]: {},
         },
       });
 
@@ -1423,14 +1328,6 @@ describe('PermissionController', () => {
         type: CaveatTypes.filterObjectResponse,
         value: ['kaplar'],
       });
-
-      expect(
-        controller.getCaveat(
-          origin,
-          PermissionNames.wallet_getSecret_('foo'),
-          CaveatTypes.noopCaveat,
-        ),
-      ).toStrictEqual({ type: CaveatTypes.noopCaveat, value: null });
     });
 
     it('throws an error if no corresponding permission exists', () => {
@@ -1738,7 +1635,7 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
-          [PermissionNames.wallet_getSecret_('foo')]: {
+          [PermissionNames.wallet_getSecretObject]: {
             caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
           },
         },
@@ -1747,7 +1644,7 @@ describe('PermissionController', () => {
       expect(() =>
         controller.updateCaveat(
           origin,
-          PermissionNames.wallet_getSecret_('foo'),
+          PermissionNames.wallet_getSecretObject,
           CaveatTypes.noopCaveat,
           'bar' as any,
         ),
@@ -1938,7 +1835,7 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
-          [PermissionNames.wallet_getSecret_('foo')]: {
+          [PermissionNames.wallet_noopWithRequiredCaveat]: {
             caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
           },
         },
@@ -1947,10 +1844,12 @@ describe('PermissionController', () => {
       expect(() =>
         controller.removeCaveat(
           origin,
-          PermissionNames.wallet_getSecret_('foo'),
+          PermissionNames.wallet_noopWithRequiredCaveat,
           CaveatTypes.noopCaveat,
         ),
-      ).toThrow(new Error('getSecret_* permission validation failed'));
+      ).toThrow(
+        new Error('noopWithRequiredCaveat permission validation failed'),
+      );
     });
   });
 
@@ -1993,7 +1892,7 @@ describe('PermissionController', () => {
               { type: CaveatTypes.noopCaveat, value: null },
             ],
           },
-          [PermissionNames.wallet_getSecret_('foo')]: {
+          [PermissionNames.wallet_noopWithRequiredCaveat]: {
             caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
           },
           [PermissionNames.wallet_doubleNumber]: {},
@@ -2006,7 +1905,7 @@ describe('PermissionController', () => {
           [PermissionNames.wallet_getSecretObject]: {
             caveats: [{ type: CaveatTypes.filterObjectResponse, value: ['c'] }],
           },
-          [PermissionNames.wallet_getSecret_('bar')]: {
+          [PermissionNames.wallet_noopWithRequiredCaveat]: {
             caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
           },
         },
@@ -2055,11 +1954,13 @@ describe('PermissionController', () => {
                 ],
                 invoker: MultiCaveatOrigins.b,
               }),
-              [PermissionNames.wallet_getSecret_('foo')]: getPermissionMatcher({
-                parentCapability: PermissionNames.wallet_getSecret_('foo'),
-                caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
-                invoker: MultiCaveatOrigins.b,
-              }),
+              [PermissionNames.wallet_noopWithRequiredCaveat]:
+                getPermissionMatcher({
+                  parentCapability:
+                    PermissionNames.wallet_noopWithRequiredCaveat,
+                  caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
+                  invoker: MultiCaveatOrigins.b,
+                }),
               [PermissionNames.wallet_doubleNumber]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_doubleNumber,
                 caveats: null,
@@ -2079,11 +1980,13 @@ describe('PermissionController', () => {
                 ],
                 invoker: MultiCaveatOrigins.c,
               }),
-              [PermissionNames.wallet_getSecret_('bar')]: getPermissionMatcher({
-                parentCapability: PermissionNames.wallet_getSecret_('bar'),
-                caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
-                invoker: MultiCaveatOrigins.c,
-              }),
+              [PermissionNames.wallet_noopWithRequiredCaveat]:
+                getPermissionMatcher({
+                  parentCapability:
+                    PermissionNames.wallet_noopWithRequiredCaveat,
+                  caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
+                  invoker: MultiCaveatOrigins.c,
+                }),
               ...overrides[MultiCaveatOrigins.c],
             },
           },
@@ -2303,7 +2206,7 @@ describe('PermissionController', () => {
         controller.updatePermissionsByCaveat(CaveatTypes.noopCaveat, () => {
           return { operation: CaveatMutatorOperation.deleteCaveat };
         }),
-      ).toThrow('getSecret_* permission validation failed');
+      ).toThrow('noopWithRequiredCaveat permission validation failed');
     });
 
     it('throws if mutator returns unrecognized operation', () => {
@@ -2377,32 +2280,6 @@ describe('PermissionController', () => {
       });
     });
 
-    it('grants new permissions (namespaced, with factory and validator)', () => {
-      const controller = getDefaultPermissionController();
-      const origin = 'metamask.io';
-
-      controller.grantPermissions({
-        subject: { origin },
-        approvedPermissions: {
-          wallet_getSecret_kabob: {},
-        },
-      });
-
-      expect(controller.state).toStrictEqual({
-        subjects: {
-          [origin]: {
-            origin,
-            permissions: {
-              wallet_getSecret_kabob: getPermissionMatcher({
-                parentCapability: 'wallet_getSecret_kabob',
-                caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
-              }),
-            },
-          },
-        },
-      });
-    });
-
     it('grants new permissions (multiple origins)', () => {
       const controller = getDefaultPermissionController();
       const origin1 = 'metamask.io';
@@ -2411,7 +2288,7 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: origin1 },
         approvedPermissions: {
-          wallet_getSecret_kabob: {},
+          wallet_getSecretObject: {},
         },
       });
 
@@ -2427,9 +2304,9 @@ describe('PermissionController', () => {
           [origin1]: {
             origin: origin1,
             permissions: {
-              wallet_getSecret_kabob: getPermissionMatcher({
-                parentCapability: 'wallet_getSecret_kabob',
-                caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
+              wallet_getSecretObject: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretObject',
+                caveats: null,
                 invoker: origin1,
               }),
             },
@@ -2470,7 +2347,7 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
-          [PermissionNames.endowmentPermission2]: {
+          [PermissionNames.endowmentSnapsOnly]: {
             caveats: [
               {
                 type: CaveatTypes.endowmentCaveat,
@@ -2488,9 +2365,9 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
-              [PermissionNames.endowmentPermission2]: getPermissionMatcher({
+              [PermissionNames.endowmentSnapsOnly]: getPermissionMatcher({
                 invoker: origin,
-                parentCapability: PermissionNames.endowmentPermission2,
+                parentCapability: PermissionNames.endowmentSnapsOnly,
                 caveats: [
                   {
                     type: CaveatTypes.endowmentCaveat,
@@ -2896,7 +2773,7 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
-            [PermissionNames.wallet_getSecret_('foo')]: {
+            [PermissionNames.wallet_getSecretObject]: {
               caveats: [
                 {
                   type: CaveatTypes.noopCaveat,
@@ -3463,7 +3340,6 @@ describe('PermissionController', () => {
                 { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
               ],
             },
-            [PermissionNames.wallet_getSecret_('foo')]: {},
           },
         ),
       ).toMatchObject([
@@ -3478,11 +3354,6 @@ describe('PermissionController', () => {
             caveats: [
               { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
             ],
-            invoker: origin,
-          }),
-          [PermissionNames.wallet_getSecret_('foo')]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecret_('foo'),
-            caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
             invoker: origin,
           }),
         },
@@ -3504,7 +3375,6 @@ describe('PermissionController', () => {
                   { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
                 ],
               },
-              [PermissionNames.wallet_getSecret_('foo')]: {},
             },
           },
           type: MethodNames.requestPermissions,
@@ -3524,10 +3394,10 @@ describe('PermissionController', () => {
           const [, { requestData }] = args;
           return {
             metadata: { ...requestData.metadata },
-            // wallet_getSecret_foo is added to the request
+            // endowmentAnySubject is added to the request
             permissions: {
               ...requestData.permissions,
-              [PermissionNames.wallet_getSecret_('foo')]: {},
+              [PermissionNames.endowmentAnySubject]: {},
             },
           };
         });
@@ -3559,9 +3429,9 @@ describe('PermissionController', () => {
             ],
             invoker: origin,
           }),
-          [PermissionNames.wallet_getSecret_('foo')]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecret_('foo'),
-            caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
+          [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
+            parentCapability: PermissionNames.endowmentAnySubject,
+            caveats: null,
             invoker: origin,
           }),
         },
@@ -3620,7 +3490,7 @@ describe('PermissionController', () => {
                 { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
               ],
             },
-            [PermissionNames.wallet_getSecret_('foo')]: {},
+            [PermissionNames.endowmentAnySubject]: {},
           },
         ),
       ).toMatchObject([
@@ -3632,9 +3502,9 @@ describe('PermissionController', () => {
             ],
             invoker: origin,
           }),
-          [PermissionNames.wallet_getSecret_('foo')]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecret_('foo'),
-            caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
+          [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
+            parentCapability: PermissionNames.endowmentAnySubject,
+            caveats: null,
             invoker: origin,
           }),
         },
@@ -3656,7 +3526,7 @@ describe('PermissionController', () => {
                   { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
                 ],
               },
-              [PermissionNames.wallet_getSecret_('foo')]: {},
+              [PermissionNames.endowmentAnySubject]: {},
             },
           },
           type: MethodNames.requestPermissions,
@@ -3698,7 +3568,7 @@ describe('PermissionController', () => {
                 { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
               ],
             },
-            [PermissionNames.wallet_getSecret_('foo')]: {},
+            [PermissionNames.endowmentAnySubject]: {},
           },
         ),
       ).toMatchObject([
@@ -3715,9 +3585,9 @@ describe('PermissionController', () => {
             ],
             invoker: origin,
           }),
-          [PermissionNames.wallet_getSecret_('foo')]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecret_('foo'),
-            caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
+          [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
+            parentCapability: PermissionNames.endowmentAnySubject,
+            caveats: null,
             invoker: origin,
           }),
         },
@@ -3739,7 +3609,7 @@ describe('PermissionController', () => {
                   { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
                 ],
               },
-              [PermissionNames.wallet_getSecret_('foo')]: {},
+              [PermissionNames.endowmentAnySubject]: {},
             },
           },
           type: MethodNames.requestPermissions,
@@ -4629,14 +4499,14 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
-          [PermissionNames.endowmentPermission1]: {},
+          [PermissionNames.endowmentAnySubject]: {},
         },
       });
 
       expect(
         await controller.getEndowments(
           origin,
-          PermissionNames.endowmentPermission1,
+          PermissionNames.endowmentAnySubject,
         ),
       ).toStrictEqual(['endowment1']);
     });
@@ -4670,10 +4540,10 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
 
       await expect(
-        controller.getEndowments(origin, PermissionNames.endowmentPermission1),
+        controller.getEndowments(origin, PermissionNames.endowmentAnySubject),
       ).rejects.toThrow(
         errors.unauthorized({
-          data: { origin, targetName: PermissionNames.endowmentPermission1 },
+          data: { origin, targetName: PermissionNames.endowmentAnySubject },
         }),
       );
     });
@@ -4717,25 +4587,6 @@ describe('PermissionController', () => {
           [10],
         ),
       ).toStrictEqual(20);
-    });
-
-    it('executes a namespaced restricted method', async () => {
-      const controller = getDefaultPermissionController();
-      const origin = 'metamask.io';
-
-      controller.grantPermissions({
-        subject: { origin },
-        approvedPermissions: {
-          [PermissionNames.wallet_getSecret_('foo')]: {},
-        },
-      });
-
-      expect(
-        await controller.executeRestrictedMethod(
-          origin,
-          PermissionNames.wallet_getSecret_('foo'),
-        ),
-      ).toStrictEqual('Hello, secret friend "foo"!');
     });
 
     it('executes a restricted method with a caveat', async () => {
@@ -4885,13 +4736,13 @@ describe('PermissionController', () => {
         messenger.call(
           'PermissionController:getEndowments',
           'foo',
-          PermissionNames.endowmentPermission1,
+          PermissionNames.endowmentAnySubject,
         ),
       ).rejects.toThrow(
         errors.unauthorized({
           data: {
             origin: 'foo',
-            targetName: PermissionNames.endowmentPermission1,
+            targetName: PermissionNames.endowmentAnySubject,
           },
         }),
       );
@@ -4899,7 +4750,7 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
-          [PermissionNames.endowmentPermission1]: {},
+          [PermissionNames.endowmentAnySubject]: {},
         },
       });
 
@@ -4907,7 +4758,7 @@ describe('PermissionController', () => {
         await messenger.call(
           'PermissionController:getEndowments',
           'foo',
-          PermissionNames.endowmentPermission1,
+          PermissionNames.endowmentAnySubject,
         ),
       ).toStrictEqual(['endowment1']);
 
@@ -4915,7 +4766,7 @@ describe('PermissionController', () => {
         await messenger.call(
           'PermissionController:getEndowments',
           'foo',
-          PermissionNames.endowmentPermission1,
+          PermissionNames.endowmentAnySubject,
           { arbitrary: 'requestData' },
         ),
       ).toStrictEqual(['endowment1']);
@@ -4924,21 +4775,21 @@ describe('PermissionController', () => {
       expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
         1,
         'foo',
-        PermissionNames.endowmentPermission1,
+        PermissionNames.endowmentAnySubject,
         undefined,
       );
 
       expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
         2,
         'foo',
-        PermissionNames.endowmentPermission1,
+        PermissionNames.endowmentAnySubject,
         undefined,
       );
 
       expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
         3,
         'foo',
-        PermissionNames.endowmentPermission1,
+        PermissionNames.endowmentAnySubject,
         { arbitrary: 'requestData' },
       );
     });
