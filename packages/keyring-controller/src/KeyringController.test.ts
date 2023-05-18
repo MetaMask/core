@@ -23,7 +23,7 @@ import {
   KeyringControllerEvents,
   KeyringControllerMessenger,
   KeyringControllerConfig,
-  KeyringState,
+  KeyringControllerState,
   KeyringTypes,
 } from './KeyringController';
 
@@ -1666,7 +1666,7 @@ type WithControllerCallback<ReturnValue> = ({
     setSelectedAddress: sinon.SinonStub;
   };
   encryptor: MockEncryptor;
-  initialState: KeyringState;
+  initialState: KeyringControllerState;
   messenger: KeyringControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 

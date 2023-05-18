@@ -58,7 +58,7 @@ export interface KeyringObject {
 }
 
 /**
- * @type KeyringState
+ * @type KeyringControllerState
  *
  * Keyring controller state
  * @property vault - Encrypted string representing keyring data
@@ -68,7 +68,7 @@ export interface KeyringObject {
  * @property encryptionKey - Keyring encryption key
  * @property encryptionSalt - Keyring encryption salt
  */
-export type KeyringState = {
+export type KeyringControllerState = {
   vault?: string;
   isUnlocked: boolean;
   keyringTypes: string[];
@@ -77,16 +77,23 @@ export type KeyringState = {
   encryptionSalt?: string;
 };
 
-export type KeyringControllerStateChangeEvent = {
-  type: `KeyringController:stateChange`;
-  payload: [KeyringState, Patch[]];
+export type KeyringControllerGetStateAction = {
+  type: `${typeof name}:getState`;
+  handler: () => KeyringControllerState;
 };
+
+export type KeyringControllerStateChangeEvent = {
+  type: `${typeof name}:stateChange`;
+  payload: [KeyringControllerState, Patch[]];
+};
+
+export type KeyringControllerActions = KeyringControllerGetStateAction;
 
 export type KeyringControllerEvents = KeyringControllerStateChangeEvent;
 
 export type KeyringControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  never,
+  KeyringControllerActions,
   KeyringControllerEvents,
   string,
   string
@@ -137,7 +144,7 @@ export enum SignTypedDataVersion {
   V4 = 'V4',
 }
 
-const defaultState: KeyringState = {
+const defaultState: KeyringControllerState = {
   isUnlocked: false,
   keyringTypes: [],
   keyrings: [],
@@ -154,7 +161,7 @@ const defaultState: KeyringState = {
  */
 export class KeyringController extends BaseControllerV2<
   typeof name,
-  KeyringState,
+  KeyringControllerState,
   KeyringControllerMessenger
 > {
   private mutex = new Mutex();
@@ -200,7 +207,7 @@ export class KeyringController extends BaseControllerV2<
     },
     messenger: KeyringControllerMessenger,
     config?: KeyringControllerConfig,
-    state?: Partial<KeyringState>,
+    state?: Partial<KeyringControllerState>,
   ) {
     super({
       name,
@@ -241,7 +248,7 @@ export class KeyringController extends BaseControllerV2<
    * address.
    */
   async addNewAccount(accountCount?: number): Promise<{
-    keyringState: KeyringState;
+    keyringState: KeyringControllerState;
     addedAccountAddress: string;
   }> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
@@ -283,7 +290,7 @@ export class KeyringController extends BaseControllerV2<
    *
    * @returns Promise resolving to current state when the account is added.
    */
-  async addNewAccountWithoutUpdate(): Promise<KeyringState> {
+  async addNewAccountWithoutUpdate(): Promise<KeyringControllerState> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
@@ -439,7 +446,7 @@ export class KeyringController extends BaseControllerV2<
     strategy: AccountImportStrategy,
     args: any[],
   ): Promise<{
-    keyringState: KeyringState;
+    keyringState: KeyringControllerState;
     importedAccountAddress: string;
   }> {
     let privateKey;
@@ -500,7 +507,7 @@ export class KeyringController extends BaseControllerV2<
    * @param address - Address of the account to remove.
    * @returns Promise resolving current state when this account removal completes.
    */
-  async removeAccount(address: string): Promise<KeyringState> {
+  async removeAccount(address: string): Promise<KeyringControllerState> {
     this.removeIdentity(address);
     await this.#keyring.removeAccount(address);
     return this.fullUpdate();
@@ -511,7 +518,7 @@ export class KeyringController extends BaseControllerV2<
    *
    * @returns Promise resolving to current state.
    */
-  setLocked(): Promise<KeyringState> {
+  setLocked(): Promise<KeyringControllerState> {
     return this.#keyring.setLocked();
   }
 
@@ -627,7 +634,7 @@ export class KeyringController extends BaseControllerV2<
   async submitEncryptionKey(
     encryptionKey: string,
     encryptionSalt: string,
-  ): Promise<KeyringState> {
+  ): Promise<KeyringControllerState> {
     return this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
   }
 
@@ -638,7 +645,7 @@ export class KeyringController extends BaseControllerV2<
    * @param password - Password to unlock the keychain.
    * @returns Promise resolving to the current state.
    */
-  async submitPassword(password: string): Promise<KeyringState> {
+  async submitPassword(password: string): Promise<KeyringControllerState> {
     await this.#keyring.submitPassword(password);
     const accounts = await this.#keyring.getAccounts();
     await this.syncIdentities(accounts);
@@ -713,7 +720,7 @@ export class KeyringController extends BaseControllerV2<
    *
    * @returns The current state.
    */
-  async fullUpdate(): Promise<KeyringState> {
+  async fullUpdate(): Promise<KeyringControllerState> {
     const keyrings: Keyring[] = await Promise.all<Keyring>(
       this.#keyring.keyrings.map(
         async (keyring: KeyringObject, index: number): Promise<Keyring> => {
@@ -730,7 +737,6 @@ export class KeyringController extends BaseControllerV2<
       ),
     );
     this.update((state) => {
-      state.vault = this.#keyring.vault;
       state.keyrings = [...keyrings];
     });
     return this.#keyring.fullUpdate();
