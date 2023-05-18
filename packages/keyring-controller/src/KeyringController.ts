@@ -65,6 +65,8 @@ export interface KeyringObject {
  * @property isUnlocked - Whether vault is unlocked
  * @property keyringTypes - Account types
  * @property keyrings - Group of accounts
+ * @property encryptionKey - Keyring encryption key
+ * @property encryptionSalt - Keyring encryption salt
  */
 export type KeyringState = {
   vault?: string;
@@ -91,24 +93,15 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
 >;
 
 /**
- * @type KeyringControllerOptions
+ * @type KeyringControllerConfig
  *
  * Keyring controller configuration
  * @property encryptor - Keyring encryptor
  */
-export type KeyringControllerOptions = {
-  preferences: {
-    removeIdentity: PreferencesController['removeIdentity'];
-    syncIdentities: PreferencesController['syncIdentities'];
-    updateIdentities: PreferencesController['updateIdentities'];
-    setSelectedAddress: PreferencesController['setSelectedAddress'];
-    setAccountLabel?: PreferencesController['setAccountLabel'];
-  };
-  messenger: KeyringControllerMessenger;
+export type KeyringControllerConfig = {
   encryptor?: any;
   keyringBuilders?: any[];
   cacheEncryptionKey?: boolean;
-  state?: Partial<KeyringState>;
 };
 
 /**
@@ -182,32 +175,33 @@ export class KeyringController extends BaseControllerV2<
    * Creates a KeyringController instance.
    *
    * @param options - The controller options.
-   * @param options.preferences - The preferences controller.
-   * @param options.preferences.removeIdentity - Remove the identity with the given address.
-   * @param options.preferences.syncIdentities - Sync identities with the given list of addresses.
-   * @param options.preferences.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
-   * @param options.preferences.setSelectedAddress - Set the selected address.
-   * @param options.preferences.setAccountLabel - Set a new name for account.
-   * @param options.encryptor - The encryptor for encrypting/decrypting keyrings.
-   * @param options.keyringBuilders - The keyring builders for initializing the keyring controller.
-   * @param options.cacheEncryptionKey - Whether to cache the encryption key in memory.
-   * @param options.state - Initial state to set on this controller.
-   * @param options.messenger - A restricted controller messenger.
+   * @param options.removeIdentity - Remove the identity with the given address.
+   * @param options.syncIdentities - Sync identities with the given list of addresses.
+   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
+   * @param options.setSelectedAddress - Set the selected address.
+   * @param options.setAccountLabel - Set a new name for account.
+   * @param messenger - A restricted controller messenger.
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
-  constructor({
-    preferences: {
+  constructor(
+    {
       removeIdentity,
       syncIdentities,
       updateIdentities,
       setSelectedAddress,
       setAccountLabel,
+    }: {
+      removeIdentity: PreferencesController['removeIdentity'];
+      syncIdentities: PreferencesController['syncIdentities'];
+      updateIdentities: PreferencesController['updateIdentities'];
+      setSelectedAddress: PreferencesController['setSelectedAddress'];
+      setAccountLabel?: PreferencesController['setAccountLabel'];
     },
-    encryptor,
-    keyringBuilders,
-    cacheEncryptionKey,
-    state,
-    messenger,
-  }: KeyringControllerOptions) {
+    messenger: KeyringControllerMessenger,
+    config?: KeyringControllerConfig,
+    state?: Partial<KeyringState>,
+  ) {
     super({
       name,
       metadata: {
@@ -224,10 +218,7 @@ export class KeyringController extends BaseControllerV2<
     });
 
     this.#keyring = new EthKeyringController(
-      Object.assign(
-        { initState: state },
-        { encryptor, keyringBuilders, cacheEncryptionKey },
-      ),
+      Object.assign({ initState: state }, config),
     );
     this.#keyring.store.subscribe(() => {
       this.update({ vault: this.#keyring.store.getState().vault });

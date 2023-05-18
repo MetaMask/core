@@ -22,7 +22,7 @@ import {
   KeyringObject,
   KeyringControllerEvents,
   KeyringControllerMessenger,
-  KeyringControllerOptions,
+  KeyringControllerConfig,
   KeyringState,
   KeyringTypes,
 } from './KeyringController';
@@ -255,12 +255,11 @@ describe('KeyringController', () => {
             await withController(
               { cacheEncryptionKey },
               async ({ controller, initialState, preferences, encryptor }) => {
-                const cleanKeyringController = new KeyringController({
+                const cleanKeyringController = new KeyringController(
                   preferences,
-                  cacheEncryptionKey,
-                  encryptor,
-                  messenger: buildKeyringControllerMessenger(),
-                });
+                  buildKeyringControllerMessenger(),
+                  { cacheEncryptionKey, encryptor },
+                );
                 const initialSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
@@ -1671,7 +1670,7 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: KeyringControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions = Partial<KeyringControllerOptions>;
+type WithControllerOptions = Partial<KeyringControllerConfig>;
 
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
@@ -1724,11 +1723,9 @@ async function withController<ReturnValue>(
     setSelectedAddress: sinon.stub(),
   };
   const messenger = buildKeyringControllerMessenger();
-  const controller = new KeyringController({
-    preferences,
+  const controller = new KeyringController(preferences, messenger, {
     encryptor,
     cacheEncryptionKey: false,
-    messenger,
     ...rest,
   });
   const initialState = await controller.createNewVaultAndKeychain(password);
