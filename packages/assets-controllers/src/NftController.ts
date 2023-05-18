@@ -1032,7 +1032,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     // Check if the suggested NFT is already being watched by the selected account
     if (
-      this.state.allNfts?.[accountAddress]?.[chainId].find(
+      this.state.allNfts?.[accountAddress]?.[chainId]?.find(
         ({ address: watchedAssetAddress, tokenId: watchedAssetTokenId }) => {
           return (
             watchedAssetAddress === contractAddress &&
