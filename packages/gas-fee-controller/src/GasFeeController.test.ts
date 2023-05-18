@@ -833,7 +833,7 @@ describe('GasFeeController', () => {
         expect(estimateData).toMatchObject(mockDetermineGasFeeCalculations);
       });
 
-      it('should call determineGasFeeCalculations correctly for mainnet', async () => {
+      it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
           EIP1559APIEndpoint: 'http://eip-1559.endpoint/<chain_id>',
