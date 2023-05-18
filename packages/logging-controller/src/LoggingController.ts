@@ -15,6 +15,20 @@ export enum LogType {
   GenericLog = 'GenericLog',
 }
 
+export enum SigningMethod {
+  EthSign = 'eth_sign',
+  PersonalSign = 'personal_sign',
+  EthSignTypedData = 'eth_signTypedData',
+  EthSignTypedDataV3 = 'eth_signTypedData_v3',
+  EthSignTypedDataV4 = 'eth_signTypedData_v4',
+}
+
+export enum SigningStage {
+  Proposed = 'proposed',
+  Rejected = 'rejected',
+  Signed = 'signed',
+}
+
 /**
  * First special case of logging scenarios involves signing requests. In this
  * case the data provided must include the method for the signature request as
@@ -24,13 +38,8 @@ export enum LogType {
 export type EthSignLog = {
   type: LogType.EthSignLog;
   data: {
-    signingMethod:
-      | 'eth_sign'
-      | 'personal_sign'
-      | 'eth_signTypedData'
-      | 'eth_signTypedData_v3'
-      | 'eth_signTypedData_v4';
-    stage: 'proposed' | 'signed' | 'rejected';
+    signingMethod: SigningMethod;
+    stage: SigningStage;
     signingData?: any;
   };
 };
@@ -74,14 +83,23 @@ export type LoggingControllerState = {
 
 const name = 'LoggingController';
 
+/**
+ * An action to add log messages to the controller state.
+ */
 export type AddLog = {
   type: `${typeof name}:add`;
   handler: LoggingController['add'];
 };
 
+/**
+ * Currently only an alias, but the idea here is if future actions are needed
+ * this can transition easily into a union type.
+ */
+export type LoggingControllerActions = AddLog;
+
 export type LoggingControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  AddLog,
+  LoggingControllerActions,
   never,
   never,
   never
