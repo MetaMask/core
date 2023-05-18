@@ -80,6 +80,8 @@ export interface KeyringMemState extends BaseState {
   isUnlocked: boolean;
   keyringTypes: string[];
   keyrings: Keyring[];
+  encryptionKey?: string;
+  encryptionSalt?: string;
 }
 
 /**
@@ -91,6 +93,7 @@ export interface KeyringMemState extends BaseState {
 export interface KeyringConfig extends BaseConfig {
   encryptor?: any;
   keyringBuilders?: any[];
+  cacheEncryptionKey?: boolean;
 }
 
 /**
@@ -312,7 +315,7 @@ export class KeyringController extends BaseController<
       } else {
         vault = await this.#keyring.createNewVaultAndKeychain(password);
         this.updateIdentities(await this.getAccounts());
-        this.fullUpdate();
+        await this.fullUpdate();
       }
 
       return vault;
@@ -563,7 +566,23 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Attempts to decrypt the current vault and load its keyrings.
+   * Attempts to decrypt the current vault and load its keyrings,
+   * using the given encryption key and salt.
+   *
+   * @param encryptionKey - Key to unlock the keychain.
+   * @param encryptionSalt - Salt to unlock the keychain.
+   * @returns Promise resolving to the current state.
+   */
+  async submitEncryptionKey(
+    encryptionKey: string,
+    encryptionSalt: string,
+  ): Promise<KeyringMemState> {
+    return this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
+  }
+
+  /**
+   * Attempts to decrypt the current vault and load its keyrings,
+   * using the given password.
    *
    * @param password - Password to unlock the keychain.
    * @returns Promise resolving to the current state.
