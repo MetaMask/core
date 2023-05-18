@@ -1,4 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import * as uuid from 'uuid';
 import {
   LoggingController,
   LoggingControllerActions,
@@ -6,6 +7,14 @@ import {
   SigningMethod,
   SigningStage,
 } from './LoggingController';
+
+jest.mock('uuid', () => {
+  const actual = jest.requireActual('uuid');
+  return {
+    ...actual,
+    v1: jest.fn(() => actual.v1()),
+  };
+});
 
 const name = 'LoggingController';
 
@@ -33,6 +42,9 @@ function getRestrictedMessenger(
 }
 
 describe('LoggingController', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
   it('action: LoggingController:add with generic log', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
@@ -91,6 +103,56 @@ describe('LoggingController', () => {
         },
       }),
     });
+  });
+
+  it('action: LoggingController:add prevents possible collision of ids', async () => {
+    const unrestricted = getUnrestrictedMessenger();
+    const messenger = getRestrictedMessenger(unrestricted);
+
+    const controller = new LoggingController({
+      messenger,
+    });
+
+    expect(
+      await unrestricted.call('LoggingController:add', {
+        type: LogType.GenericLog,
+        data: `Generic log`,
+      }),
+    ).toBeUndefined();
+
+    const { id } = Object.values(controller.state.logs)[0];
+
+    if (jest.isMockFunction(uuid.v1)) {
+      uuid.v1.mockImplementationOnce(() => id);
+    }
+
+    expect(
+      await unrestricted.call('LoggingController:add', {
+        type: LogType.GenericLog,
+        data: `Generic log 2`,
+      }),
+    ).toBeUndefined();
+    const logs = Object.values(controller.state.logs);
+    expect(logs).toHaveLength(2);
+    expect(logs).toContainEqual({
+      timestamp: expect.any(Number),
+      id,
+      log: expect.objectContaining({
+        type: LogType.GenericLog,
+        data: 'Generic log',
+      }),
+    });
+
+    expect(logs).toContainEqual({
+      timestamp: expect.any(Number),
+      id: expect.any(String),
+      log: expect.objectContaining({
+        type: LogType.GenericLog,
+        data: 'Generic log 2',
+      }),
+    });
+
+    expect(uuid.v1).toHaveBeenCalledTimes(3);
   });
 
   it('internal method: clear', async () => {
