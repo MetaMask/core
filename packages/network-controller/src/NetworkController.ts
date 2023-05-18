@@ -507,9 +507,6 @@ export class NetworkController extends BaseControllerV2<
         this.#getNetworkId(),
         this.#determineEIP1559Compatibility(),
       ]);
-      if (this.state.networkId === networkId) {
-        return;
-      }
       updatedNetworkStatus = NetworkStatus.Available;
       updatedNetworkId = networkId;
       updatedIsEIP1559Compatible = isEIP1559Compatible;
