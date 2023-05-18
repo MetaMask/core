@@ -37,11 +37,13 @@ import type {
 import type { AssetsContractController } from './AssetsContractController';
 import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
 
+type NFTStandardType = 'ERC721' | 'ERC1155';
+
 type SuggestedNftMeta = {
   asset: { address: string; tokenId: string } & NftMetadata;
   id: string;
   time: number;
-  type: 'ERC721' | 'ERC1155';
+  type: NFTStandardType;
   interactingAddress: string;
 };
 
@@ -991,7 +993,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
   async validateWatchNftAndFetchMetadata(
     asset: NftAsset,
-    type: 'ERC721' | 'ERC1155',
+    type: NFTStandardType,
     accountAddress: string,
   ) {
     const { chainId } = this.config;
@@ -1003,7 +1005,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       throw ethErrors.rpc.invalidParams('Asset type is required');
     }
 
-    if (type !== 'ERC721' && type !== 'ERC1155') {
+    if (type !== ERC721 && type !== ERC1155) {
       throw ethErrors.rpc.invalidParams(
         `Non NFT asset type ${type} not supported by watchNft`,
       );
@@ -1087,7 +1089,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    */
   async watchNft(
     asset: NftAsset,
-    type: 'ERC721' | 'ERC1155',
+    type: NFTStandardType,
     interactingAddress?: string,
   ) {
     const { selectedAddress, chainId } = this.config;
