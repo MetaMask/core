@@ -429,7 +429,7 @@ describe('NftController', () => {
         {
           id: requestId,
           origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchNFT,
+          type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,
             interactingAddress: OWNER_ADDRESS,
@@ -482,7 +482,7 @@ describe('NftController', () => {
         {
           id: requestId,
           origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchNFT,
+          type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,
             interactingAddress: OWNER_ADDRESS,
@@ -543,7 +543,7 @@ describe('NftController', () => {
         {
           id: requestId,
           origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchNFT,
+          type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,
             interactingAddress: OWNER_ADDRESS,
@@ -607,7 +607,7 @@ describe('NftController', () => {
         {
           id: requestId,
           origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchNFT,
+          type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,
             interactingAddress: OWNER_ADDRESS,

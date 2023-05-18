@@ -1497,7 +1497,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       {
         id: suggestedNftMeta.id,
         origin: ORIGIN_METAMASK,
-        type: ApprovalType.WatchNFT,
+        type: ApprovalType.WatchAsset,
         requestData: {
           id: suggestedNftMeta.id,
           interactingAddress: suggestedNftMeta.interactingAddress,
