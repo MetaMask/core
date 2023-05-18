@@ -94,7 +94,7 @@ export function validateTypedSignMessageDataV1(
  */
 export function validateTypedSignMessageDataV3V4(
   messageData: TypedMessageParams,
-  currentChainId?: Hex,
+  currentChainId: Hex | undefined,
 ) {
   validateAddress(messageData.from, 'from');
 
