@@ -13,9 +13,10 @@ describe('util', () => {
   });
 
   it('isSafeChainId', () => {
-    expect(util.isSafeChainId(MAX_SAFE_CHAIN_ID + 1)).toBe(false);
-    expect(util.isSafeChainId(MAX_SAFE_CHAIN_ID)).toBe(true);
-    expect(util.isSafeChainId(0)).toBe(false);
+    expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID + 1))).toBe(false);
+    expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID))).toBe(true);
+    expect(util.isSafeChainId(util.toHex(0))).toBe(false);
+    expect(util.isSafeChainId('0xinvalid')).toBe(false);
     // @ts-expect-error - ensure that string args return false.
     expect(util.isSafeChainId('test')).toBe(false);
   });

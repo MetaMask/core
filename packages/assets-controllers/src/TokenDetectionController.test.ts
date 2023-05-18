@@ -7,7 +7,12 @@ import {
   NetworkState,
   ProviderConfig,
 } from '@metamask/network-controller';
-import { ChainId, NetworkType } from '@metamask/controller-utils';
+import {
+  ChainId,
+  NetworkType,
+  convertHexToDecimal,
+  toHex,
+} from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
@@ -143,11 +148,19 @@ describe('TokenDetectionController', () => {
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${ChainId.mainnet}`)
+      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleTokenList)
-      .get(`/token/${ChainId.mainnet}?address=${tokenAFromList.address}`)
+      .get(
+        `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
+          tokenAFromList.address
+        }`,
+      )
       .reply(200, tokenAFromList)
-      .get(`/token/${ChainId.mainnet}?address=${tokenBFromList.address}`)
+      .get(
+        `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
+          tokenBFromList.address
+        }`,
+      )
       .reply(200, tokenBFromList)
       .persist();
 
@@ -158,7 +171,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     tokensController = new TokensController({
-      chainId: '1',
+      chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         onNetworkStateChangeListeners.push(listener),
@@ -449,7 +462,7 @@ describe('TokenDetectionController', () => {
     tokenDetection.stop();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkStateChangeListener!({
-      providerConfig: { chainId: polygonDecimalChainId },
+      providerConfig: { chainId: toHex(polygonDecimalChainId) },
     });
 
     expect(getBalancesInSingleCallMock.called).toBe(false);

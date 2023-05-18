@@ -15,6 +15,7 @@ import {
   ERC721,
   ChainId,
   NetworkType,
+  toHex,
 } from '@metamask/controller-utils';
 import { Network } from '@ethersproject/providers';
 import { AssetsContractController } from './AssetsContractController';
@@ -47,8 +48,8 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
   true,
 );
 
-const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
-const GOERLI = { chainId: '5', type: NetworkType.goerli };
+const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
+const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
 
 // Mock out detectNetwork function for cleaner tests, Ethers calls this a bunch of times because the Web3Provider is paranoid.
 jest.mock('@ethersproject/providers', () => {
@@ -284,7 +285,7 @@ describe('NftController', () => {
           favorite: false,
         },
         // this object in the third argument slot is only defined when the NFT is added via detection
-        { userAddress: detectedUserAddress, chainId: '0x2' },
+        { userAddress: detectedUserAddress, chainId: toHex(2) },
       );
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({

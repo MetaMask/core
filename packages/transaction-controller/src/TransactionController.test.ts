@@ -2,7 +2,7 @@ import * as sinon from 'sinon';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
-import { ChainId, NetworkType } from '@metamask/controller-utils';
+import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
 import type {
   BlockTrackerProxy,
   NetworkState,
@@ -219,7 +219,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
     networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType.rpc,
-      chainId: '11297108109',
+      chainId: toHex(11297108109),
     },
     networkConfigurations: {},
   },
@@ -888,7 +888,7 @@ describe('TransactionController', () => {
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
-        chainId: '5',
+        chainId: toHex(5),
         status: TransactionStatus.submitted,
         transactionHash: '1337',
       } as any);
@@ -984,7 +984,7 @@ describe('TransactionController', () => {
       from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
       networkID: '5',
-      chainId: '5',
+      chainId: toHex(5),
       status: TransactionStatus.confirmed,
       transactionHash: '1337',
       verifiedOnBlockchain: false,

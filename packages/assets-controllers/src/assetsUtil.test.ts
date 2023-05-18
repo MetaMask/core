@@ -1,4 +1,9 @@
-import { GANACHE_CHAIN_ID, ChainId } from '@metamask/controller-utils';
+import {
+  GANACHE_CHAIN_ID,
+  ChainId,
+  convertHexToDecimal,
+  toHex,
+} from '@metamask/controller-utils';
 import * as assetsUtil from './assetsUtil';
 import { Nft, NftMetadata } from './NftController';
 
@@ -112,23 +117,15 @@ describe('assetsUtil', () => {
       expect(formattedAggregatorNames).toStrictEqual(expectedValue);
     });
 
-    it('should format icon url with Codefi proxy correctly when passed chainId as a decimal string', () => {
+    it('should format icon url with Codefi proxy correctly', () => {
       const linkTokenAddress = '0x514910771af9ca656af840dff83e8264ecf986ca';
       const formattedIconUrl = assetsUtil.formatIconUrlWithProxy({
         chainId: ChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${ChainId.mainnet}/${linkTokenAddress}.png`;
-      expect(formattedIconUrl).toStrictEqual(expectedValue);
-    });
-
-    it('should format icon url with Codefi proxy correctly when passed chainId as a hexadecimal string', () => {
-      const linkTokenAddress = '0x514910771af9ca656af840dff83e8264ecf986ca';
-      const formattedIconUrl = assetsUtil.formatIconUrlWithProxy({
-        chainId: `0x${Number(ChainId.mainnet).toString(16)}`,
-        tokenAddress: linkTokenAddress,
-      });
-      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${ChainId.mainnet}/${linkTokenAddress}.png`;
+      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${convertHexToDecimal(
+        ChainId.mainnet,
+      )}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
   });
@@ -273,21 +270,19 @@ describe('assetsUtil', () => {
     });
 
     it('returns false for testnets such as Goerli', () => {
-      expect(assetsUtil.isTokenDetectionSupportedForNetwork('5')).toBe(false);
+      expect(assetsUtil.isTokenDetectionSupportedForNetwork(toHex(5))).toBe(
+        false,
+      );
     });
   });
 
   describe('isTokenListSupportedForNetwork', () => {
-    it('returns true for Mainnet when chainId is passed as a decimal string', () => {
+    it('returns true for Mainnet', () => {
       expect(
         assetsUtil.isTokenListSupportedForNetwork(
           assetsUtil.SupportedTokenDetectionNetworks.mainnet,
         ),
       ).toBe(true);
-    });
-
-    it('returns true for Mainnet when chainId is passed as a hexadecimal string', () => {
-      expect(assetsUtil.isTokenListSupportedForNetwork('0x1')).toBe(true);
     });
 
     it('returns true for ganache local network', () => {

@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -85,7 +86,7 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
-type getCurrentChainId = () => string;
+type getCurrentChainId = () => Hex;
 
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.

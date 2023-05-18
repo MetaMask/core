@@ -1,12 +1,12 @@
 import type { Patch } from 'immer';
 import EthQuery from 'eth-query';
 import { v1 as random } from 'uuid';
-import { isHexString } from 'ethereumjs-util';
+import type { Hex } from '@metamask/utils';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { safelyExecute } from '@metamask/controller-utils';
+import { convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
@@ -223,8 +223,6 @@ const defaultState: GasFeeState = {
   gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
 };
 
-export type ChainID = `0x${string}` | `${number}` | number;
-
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
@@ -300,7 +298,7 @@ export class GasFeeController extends BaseControllerV2<
     getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
-    getChainId?: () => `0x${string}` | `${number}` | number;
+    getChainId?: () => Hex;
     getProvider: () => ProviderProxy;
     onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
@@ -392,16 +390,7 @@ export class GasFeeController extends BaseControllerV2<
     const isLegacyGasAPICompatible =
       this.getCurrentNetworkLegacyGasAPICompatibility();
 
-    let chainId: number;
-    if (typeof this.currentChainId === 'string') {
-      if (isHexString(this.currentChainId)) {
-        chainId = parseInt(this.currentChainId, 16);
-      } else {
-        chainId = parseInt(this.currentChainId, 10);
-      }
-    } else {
-      chainId = this.currentChainId;
-    }
+    const decimalChainId = convertHexToDecimal(this.currentChainId);
 
     try {
       isEIP1559Compatible = await this.getEIP1559Compatibility();
@@ -416,13 +405,13 @@ export class GasFeeController extends BaseControllerV2<
       fetchGasEstimates,
       fetchGasEstimatesUrl: this.EIP1559APIEndpoint.replace(
         '<chain_id>',
-        `${chainId}`,
+        `${decimalChainId}`,
       ),
       fetchGasEstimatesViaEthFeeHistory,
       fetchLegacyGasPriceEstimates,
       fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
         '<chain_id>',
-        `${chainId}`,
+        `${decimalChainId}`,
       ),
       fetchEthGasPriceEstimate,
       calculateTimeEstimate,

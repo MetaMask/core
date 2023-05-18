@@ -1,5 +1,6 @@
 import * as sinon from 'sinon';
 import { BN } from 'ethereumjs-util';
+import { toHex } from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkControllerMessenger,
@@ -142,7 +143,7 @@ describe('TokenBalancesController', () => {
   it('should update all balances', async () => {
     const { messenger, preferences } = setupControllers();
     const assets = new TokensController({
-      chainId: '1',
+      chainId: toHex(1),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
@@ -179,7 +180,7 @@ describe('TokenBalancesController', () => {
   it('should handle `getERC20BalanceOf` error case', async () => {
     const { messenger, preferences } = setupControllers();
     const assets = new TokensController({
-      chainId: '1',
+      chainId: toHex(1),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
@@ -228,13 +229,13 @@ describe('TokenBalancesController', () => {
   it('should subscribe to new sibling assets controllers', async () => {
     const { messenger, preferences } = setupControllers();
     const assetsContract = new AssetsContractController({
-      chainId: '1',
+      chainId: toHex(1),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
     });
     const tokensController = new TokensController({
-      chainId: '1',
+      chainId: toHex(1),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),

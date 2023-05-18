@@ -1,7 +1,9 @@
+import type { Hex } from '@metamask/utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
+  toHex,
 } from '@metamask/controller-utils';
 import {
   BaseController,
@@ -43,7 +45,7 @@ export enum AddressType {
 export interface AddressBookEntry {
   address: string;
   name: string;
-  chainId: string;
+  chainId: Hex;
   memo: string;
   isEns: boolean;
   addressType?: AddressType;
@@ -56,7 +58,7 @@ export interface AddressBookEntry {
  * @property addressBook - Array of contact entry objects
  */
 export interface AddressBookState extends BaseState {
-  addressBook: { [chainId: string]: { [address: string]: AddressBookEntry } };
+  addressBook: { [chainId: Hex]: { [address: string]: AddressBookEntry } };
 }
 
 /**
@@ -99,7 +101,7 @@ export class AddressBookController extends BaseController<
    * @param address - Recipient address to delete.
    * @returns Whether the entry was deleted.
    */
-  delete(chainId: string, address: string) {
+  delete(chainId: Hex, address: string) {
     address = toChecksumHexAddress(address);
     if (
       !isValidHexAddress(address) ||
@@ -133,7 +135,7 @@ export class AddressBookController extends BaseController<
   set(
     address: string,
     name: string,
-    chainId = '1',
+    chainId = toHex(1),
     memo = '',
     addressType?: AddressType,
   ) {

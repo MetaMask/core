@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { Mutex } from 'async-mutex';
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -123,7 +124,7 @@ export interface NftMetadata {
 
 interface AccountParams {
   userAddress: string;
-  chainId: string;
+  chainId: Hex;
 }
 
 /**
@@ -134,7 +135,7 @@ interface AccountParams {
  */
 export interface NftConfig extends BaseConfig {
   selectedAddress: string;
-  chainId: string;
+  chainId: Hex;
   ipfsGateway: string;
   openSeaEnabled: boolean;
   useIPFSSubdomains: boolean;
@@ -150,9 +151,9 @@ export interface NftConfig extends BaseConfig {
  */
 export interface NftState extends BaseState {
   allNftContracts: {
-    [key: string]: { [key: string]: NftContract[] };
+    [key: string]: { [chainId: Hex]: NftContract[] };
   };
-  allNfts: { [key: string]: { [key: string]: Nft[] } };
+  allNfts: { [key: string]: { [chainId: Hex]: Nft[] } };
   ignoredNfts: Nft[];
 }
 
@@ -203,7 +204,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
   private updateNestedNftState(
     newCollection: Nft[] | NftContract[],
     baseStateKey: 'allNfts' | 'allNftContracts',
-    { userAddress, chainId }: AccountParams | undefined = {
+    { userAddress, chainId } = {
       userAddress: this.config.selectedAddress,
       chainId: this.config.chainId,
     },
@@ -884,7 +885,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       getERC1155TokenURI,
       onNftAdded,
     }: {
-      chainId: string;
+      chainId: Hex;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -1105,7 +1106,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
   async checkAndUpdateSingleNftOwnershipStatus(
     nft: Nft,
     batch: boolean,
-    { userAddress, chainId }: AccountParams | undefined = {
+    { userAddress, chainId } = {
       userAddress: this.config.selectedAddress,
       chainId: this.config.chainId,
     },
@@ -1211,7 +1212,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     address: string,
     tokenId: string,
     selectedAddress: string,
-    chainId: string,
+    chainId: Hex,
   ): { nft: Nft; index: number } | null {
     const { allNfts } = this.state;
     const nfts = allNfts[selectedAddress]?.[chainId] || [];
@@ -1241,7 +1242,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     nft: Nft,
     updates: Partial<Nft>,
     selectedAddress: string,
-    chainId: string,
+    chainId: Hex,
   ) {
     const { allNfts } = this.state;
     const nfts = allNfts[selectedAddress]?.[chainId] || [];
@@ -1281,7 +1282,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
   resetNftTransactionStatusByTransactionId(
     transactionId: string,
     selectedAddress: string,
-    chainId: string,
+    chainId: Hex,
   ): boolean {
     const { allNfts } = this.state;
     const nfts = allNfts[selectedAddress]?.[chainId] || [];
