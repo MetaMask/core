@@ -5682,55 +5682,60 @@ function lookupNetworkTests({
   operation: (controller: NetworkController) => Promise<void>;
 }) {
   describe('if the network ID and network details requests resolve successfully', () => {
-    describe('if the current network is different from the network in state', () => {
-      it('updates the network in state to match', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  response: { result: '12345' },
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
+    const validNetworkIds = [12345, '12345', toHex(12345)];
+    for (const networkId of validNetworkIds) {
+      describe(`with a network id of '${networkId}'`, () => {
+        describe('if the current network is different from the network in state', () => {
+          it('updates the network in state to match', async () => {
+            await withController(
+              {
+                state: initialState,
+              },
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    {
+                      request: { method: 'net_version' },
+                      response: { result: networkId },
+                    },
+                  ],
+                  stubLookupNetworkWhileSetting: true,
+                });
 
-            await operation(controller);
+                await operation(controller);
 
-            expect(controller.state.networkId).toBe('12345');
-          },
-        );
+                expect(controller.state.networkId).toBe('12345');
+              },
+            );
+          });
+        });
+
+        describe('if the version of the current network is the same as that in state', () => {
+          it('does not change network ID in state', async () => {
+            await withController(
+              {
+                state: initialState,
+              },
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    {
+                      request: { method: 'net_version' },
+                      response: { result: networkId },
+                    },
+                  ],
+                  stubLookupNetworkWhileSetting: true,
+                });
+
+                await operation(controller);
+
+                await expect(controller.state.networkId).toBe('12345');
+              },
+            );
+          });
+        });
       });
-    });
-
-    describe('if the version of the current network is the same as that in state', () => {
-      it('does not change network ID in state', async () => {
-        await withController(
-          {
-            state: initialState,
-          },
-          async ({ controller }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  response: { result: '12345' },
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-
-            await operation(controller);
-
-            await expect(controller.state.networkId).toBe('12345');
-          },
-        );
-      });
-    });
+    }
 
     describe('if the network details of the current network are different from the network details in state', () => {
       it('updates the network in state to match', async () => {
