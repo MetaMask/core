@@ -1053,6 +1053,41 @@ describe('TokensController', () => {
 
       generateRandomIdStub.mockRestore();
     });
+
+    it('throws and token is not added if pending approval fails', async function () {
+      const generateRandomIdStub = jest
+        .spyOn(tokensController, '_generateRandomId')
+        .mockReturnValue(requestId);
+
+      const errorMessage = 'Mock Error Message';
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockRejectedValue(new Error(errorMessage));
+
+      await expect(tokensController.watchAsset(asset, type)).rejects.toThrow(
+        errorMessage,
+      );
+
+      expect(tokensController.state.tokens).toHaveLength(0);
+      expect(tokensController.state.tokens).toStrictEqual([]);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: '0x1',
+            asset,
+          },
+        },
+        true,
+      );
+
+      generateRandomIdStub.mockRestore();
+    });
   });
 
   describe('onPreferencesStateChange', function () {
