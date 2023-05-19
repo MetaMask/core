@@ -222,7 +222,6 @@ export class KeyringController extends BaseControllerV2<
     this.#keyring = new EthKeyringController(
       Object.assign({ initState: state }, config),
     );
-    this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
 
     this.removeIdentity = removeIdentity;
@@ -704,13 +703,11 @@ export class KeyringController extends BaseControllerV2<
   }
 
   /**
-   * Sync controller state with current keyring
-   * store and memStore state.
+   * Sync controller state with current keyring memStore state.
    *
    */
   #fullUpdate() {
     this.update(() => ({
-      ...this.#keyring.store.getState(),
       ...this.#keyring.memStore.getState(),
     }));
   }
