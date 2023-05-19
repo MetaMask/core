@@ -330,6 +330,15 @@ describe('KeyringController', () => {
         expect(controller.state.isUnlocked).toBe(false);
       });
     });
+
+    it('should emit KeyringController:lock event', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const listener = sinon.spy();
+        messenger.subscribe('KeyringController:lock', listener);
+        await controller.setLocked();
+        expect(listener.called).toBe(true);
+      });
+    });
   });
 
   describe('exportSeedPhrase', () => {
@@ -1075,6 +1084,18 @@ describe('KeyringController', () => {
           );
         });
 
+        it('should emit KeyringController:unlock event', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller, messenger }) => {
+              const listener = sinon.spy();
+              messenger.subscribe('KeyringController:unlock', listener);
+              await controller.submitPassword(password);
+              expect(listener.called).toBe(true);
+            },
+          );
+        });
+
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
             withController({ cacheEncryptionKey }, async ({ controller }) => {
@@ -1099,28 +1120,6 @@ describe('KeyringController', () => {
           expect(recoveredState).toStrictEqual(initialState);
         },
       );
-    });
-  });
-
-  describe('onLock', () => {
-    it('should receive lock event', async () => {
-      await withController(async ({ controller }) => {
-        const listenerLock = sinon.stub();
-        controller.onLock(listenerLock);
-        await controller.setLocked();
-        expect(listenerLock.called).toBe(true);
-      });
-    });
-  });
-
-  describe('onUnlock', () => {
-    it('should receive unlock event', async () => {
-      await withController(async ({ controller }) => {
-        const listenerUnlock = sinon.stub();
-        controller.onUnlock(listenerUnlock);
-        await controller.submitPassword(password);
-        expect(listenerUnlock.called).toBe(true);
-      });
     });
   });
 
@@ -1676,7 +1675,11 @@ function buildKeyringControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'KeyringController',
     allowedActions: [],
-    allowedEvents: ['KeyringController:stateChange'],
+    allowedEvents: [
+      'KeyringController:stateChange',
+      'KeyringController:lock',
+      'KeyringController:unlock',
+    ],
   });
 }
 

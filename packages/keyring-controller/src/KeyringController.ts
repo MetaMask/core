@@ -84,9 +84,22 @@ export type KeyringControllerStateChangeEvent = {
   payload: [KeyringControllerState, Patch[]];
 };
 
+export type KeyringControllerLockEvent = {
+  type: `${typeof name}:lock`;
+  payload: [];
+};
+
+export type KeyringControllerUnlockEvent = {
+  type: `${typeof name}:unlock`;
+  payload: [];
+};
+
 export type KeyringControllerActions = KeyringControllerGetStateAction;
 
-export type KeyringControllerEvents = KeyringControllerStateChangeEvent;
+export type KeyringControllerEvents =
+  | KeyringControllerStateChangeEvent
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent;
 
 export type KeyringControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -223,6 +236,8 @@ export class KeyringController extends BaseControllerV2<
       Object.assign({ initState: state }, config),
     );
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
+    this.#keyring.on('lock', this.#handleLock.bind(this));
+    this.#keyring.on('unlock', this.#handleUnlock.bind(this));
 
     this.removeIdentity = removeIdentity;
     this.syncIdentities = syncIdentities;
@@ -640,26 +655,6 @@ export class KeyringController extends BaseControllerV2<
   }
 
   /**
-   * Adds new listener to be notified when the wallet is locked.
-   *
-   * @param listener - Callback triggered when wallet is locked.
-   * @returns EventEmitter if listener added.
-   */
-  onLock(listener: () => void) {
-    return this.#keyring.on('lock', listener);
-  }
-
-  /**
-   * Adds new listener to be notified when the wallet is unlocked.
-   *
-   * @param listener - Callback triggered when wallet is unlocked.
-   * @returns EventEmitter if listener added.
-   */
-  onUnlock(listener: () => void) {
-    return this.#keyring.on('unlock', listener);
-  }
-
-  /**
    * Verifies the that the seed phrase restores the current keychain's accounts.
    *
    * @returns Promise resolving to the seed phrase as Uint8Array.
@@ -700,16 +695,6 @@ export class KeyringController extends BaseControllerV2<
     });
 
     return seedWords;
-  }
-
-  /**
-   * Sync controller state with current keyring memStore state.
-   *
-   */
-  #fullUpdate() {
-    this.update(() => ({
-      ...this.#keyring.memStore.getState(),
-    }));
   }
 
   // QR Hardware related methods
@@ -834,6 +819,35 @@ export class KeyringController extends BaseControllerV2<
       this.setSelectedAddress(account);
     });
     await this.#keyring.persistAllKeyrings();
+  }
+
+  /**
+   * Sync controller state with current keyring memStore state.
+   *
+   * @fires KeyringController:stateChange
+   */
+  #fullUpdate() {
+    this.update(() => ({
+      ...this.#keyring.memStore.getState(),
+    }));
+  }
+
+  /**
+   * Handle keyring lock event.
+   *
+   * @fires KeyringController:lock
+   */
+  #handleLock() {
+    this.messagingSystem.publish(`${name}:lock`);
+  }
+
+  /**
+   * Handle keyring unlock event.
+   *
+   * @fires KeyringController:unlock
+   */
+  #handleUnlock() {
+    this.messagingSystem.publish(`${name}:unlock`);
   }
 }
 
