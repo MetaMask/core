@@ -765,9 +765,9 @@ export class TransactionController extends BaseController<
       ]);
       transactionMeta.transactionHash = transactionHash;
       transactionMeta.status = TransactionStatus.submitted;
-      this.acceptApproval(transactionMeta);
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+      this.acceptApproval(transactionMeta);
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
       this.rejectApproval(transactionMeta);
@@ -1577,8 +1577,8 @@ export class TransactionController extends BaseController<
     const type = ApprovalType.Transaction;
     const requestData = { txId: txMeta.id };
 
-    this.messagingSystem
-      .call(
+    try {
+      await this.messagingSystem.call(
         'ApprovalController:addRequest',
         {
           id,
@@ -1587,10 +1587,10 @@ export class TransactionController extends BaseController<
           requestData,
         },
         shouldShowRequest,
-      )
-      .catch(() => {
-        // Intentionally ignored as promise not currently used
-      });
+      );
+    } catch (error) {
+      console.info('Failed to request transaction approval', error);
+    }
   }
 
   private acceptApproval(txMeta: TransactionMeta) {

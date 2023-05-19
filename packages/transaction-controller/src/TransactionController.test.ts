@@ -1076,6 +1076,40 @@ describe('TransactionController', () => {
     },
   );
 
+  it('fails to request transaction approval when messaging system throws', async () => {
+    jest.spyOn(messengerMock, 'call').mockImplementation(() => {
+      throw new Error('Messenger mocked call fails');
+    });
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        provider: MOCK_NETWORK.provider,
+        blockTracker: MOCK_NETWORK.blockTracker,
+        messenger: messengerMock,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      gas: '0x0',
+      gasPrice: '0x0',
+      to: from,
+      value: '0x0',
+    });
+    controller.hub.once(
+      `${controller.state.transactions[0].id}:finished`,
+      () => {
+        const { transaction, status } = controller.state.transactions[0];
+        expect(transaction.from).toBe(from);
+        expect(status).toBe(TransactionStatus.submitted);
+      },
+    );
+  });
+
   it('should query transaction statuses', async () => {
     await new Promise((resolve) => {
       const controller = new TransactionController(
