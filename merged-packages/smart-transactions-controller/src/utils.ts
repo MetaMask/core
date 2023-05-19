@@ -104,10 +104,10 @@ export const calculateStatus = (stxStatus: SmartTransactionsStatus) => {
     path (the key and if a nested object then each key will be separated with a `/`)
     value
   with the first entry having the note and a timestamp when the change took place
-  @param {Object} previousState - the previous state of the object
-  @param {Object} newState - the update object
-  @param {string} [note] - a optional note for the state change
-  @returns {Array}
+  @param previousState - the previous state of the object
+  @param newState - the update object
+  @param [note] - a optional note for the state change
+  @returns
 */
 export function generateHistoryEntry(
   previousState: any,
@@ -128,7 +128,7 @@ export function generateHistoryEntry(
 
 /**
   Recovers previous txMeta state obj
-  @returns {Object}
+  @returns
 */
 export function replayHistory(_shortHistory: any) {
   const shortHistory = _.cloneDeep(_shortHistory);
@@ -139,8 +139,8 @@ export function replayHistory(_shortHistory: any) {
 
 /**
  * Snapshot {@code txMeta}
- * @param {Object} txMeta - the tx metadata object
- * @returns {Object} a deep clone without history
+ * @param txMeta - the tx metadata object
+ * @returns a deep clone without history
  */
 export function snapshotFromTxMeta(txMeta: any) {
   const shallow = { ...txMeta };
@@ -150,8 +150,8 @@ export function snapshotFromTxMeta(txMeta: any) {
 
 /**
  * Returns processing time for an STX in seconds.
- * @param {number} smartTransactionSubmittedtime
- * @returns {number} Processing time in seconds.
+ * @param smartTransactionSubmittedtime
+ * @returns Processing time in seconds.
  */
 export const getStxProcessingTime = (
   smartTransactionSubmittedtime: number | undefined,

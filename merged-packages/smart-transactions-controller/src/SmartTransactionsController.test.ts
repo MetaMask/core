@@ -458,7 +458,8 @@ describe('SmartTransactionsController', () => {
     it('submits a smart transaction with signed transactions', async () => {
       const signedTransaction = createSignedTransaction();
       const signedCanceledTransaction = createSignedCanceledTransaction();
-      const submitTransactionsApiResponse = createSubmitTransactionsApiResponse(); // It has uuid.
+      const submitTransactionsApiResponse =
+        createSubmitTransactionsApiResponse(); // It has uuid.
       nock(API_BASE_URL)
         .post(`/networks/${ethereumChainIdDec}/submitTransactions`)
         .reply(200, submitTransactionsApiResponse);
@@ -472,7 +473,7 @@ describe('SmartTransactionsController', () => {
       expect(
         smartTransactionsController.state.smartTransactionsState
           .smartTransactions[CHAIN_IDS.ETHEREUM][0].uuid,
-      ).toStrictEqual('dP23W7c2kt4FK9TmXOkz1UM2F20');
+      ).toBe('dP23W7c2kt4FK9TmXOkz1UM2F20');
     });
   });
 
@@ -484,7 +485,8 @@ describe('SmartTransactionsController', () => {
 
     it('fetches a pending status for a single smart transaction via batchStatus API', async () => {
       const uuids = ['uuid1'];
-      const pendingBatchStatusApiResponse = createPendingBatchStatusApiResponse();
+      const pendingBatchStatusApiResponse =
+        createPendingBatchStatusApiResponse();
       nock(API_BASE_URL)
         .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
         .reply(200, pendingBatchStatusApiResponse);
@@ -508,12 +510,14 @@ describe('SmartTransactionsController', () => {
 
     it('fetches a success status for a single smart transaction via batchStatus API', async () => {
       const uuids = ['uuid2'];
-      const successBatchStatusApiResponse = createSuccessBatchStatusApiResponse();
+      const successBatchStatusApiResponse =
+        createSuccessBatchStatusApiResponse();
       smartTransactionsController.update({
         smartTransactionsState: {
           ...smartTransactionsController.state.smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: createStateAfterPending() as SmartTransaction[],
+            [CHAIN_IDS.ETHEREUM]:
+              createStateAfterPending() as SmartTransaction[],
           },
         },
       });
@@ -585,7 +589,7 @@ describe('SmartTransactionsController', () => {
       expect(
         smartTransactionsController.state.smartTransactionsState
           .smartTransactions[CHAIN_IDS.ETHEREUM][0].status,
-      ).toStrictEqual('test');
+      ).toBe('test');
     });
 
     it('confirms a smart transaction that has status success', async () => {
@@ -662,7 +666,7 @@ describe('SmartTransactionsController', () => {
   describe('setStatusRefreshInterval', () => {
     it('sets refresh interval if different', () => {
       smartTransactionsController.setStatusRefreshInterval(100);
-      expect(smartTransactionsController.config.interval).toStrictEqual(100);
+      expect(smartTransactionsController.config.interval).toBe(100);
     });
 
     it('does not set refresh interval if they are the same', () => {
@@ -713,9 +717,8 @@ describe('SmartTransactionsController', () => {
 
   describe('isNewSmartTransaction', () => {
     it('returns true if it is a new STX', () => {
-      const actual = smartTransactionsController.isNewSmartTransaction(
-        'newUuid',
-      );
+      const actual =
+        smartTransactionsController.isNewSmartTransaction('newUuid');
       expect(actual).toBe(true);
     });
 
@@ -724,7 +727,8 @@ describe('SmartTransactionsController', () => {
         smartTransactionsState: {
           ...smartTransactionsController.state.smartTransactionsState,
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: createStateAfterPending() as SmartTransaction[],
+            [CHAIN_IDS.ETHEREUM]:
+              createStateAfterPending() as SmartTransaction[],
           },
         },
       });

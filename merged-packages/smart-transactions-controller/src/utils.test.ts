@@ -194,7 +194,7 @@ describe('src/utils.js', () => {
       const processingTime = utils.getStxProcessingTime(
         Date.now() - THREE_SECONDS_AGO,
       );
-      expect(processingTime).toStrictEqual(3);
+      expect(processingTime).toBe(3);
     });
   });
 
@@ -242,7 +242,7 @@ describe('src/utils.js', () => {
   describe('incrementNonceInHex', () => {
     it('returns "0x57" if we pass "0x56"', () => {
       const incrementedNonce = utils.incrementNonceInHex('0x56');
-      expect(incrementedNonce).toStrictEqual('0x57');
+      expect(incrementedNonce).toBe('0x57');
     });
   });
 

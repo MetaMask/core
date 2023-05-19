@@ -39,14 +39,14 @@ import { CHAIN_IDS } from './constants';
 const SECOND = 1000;
 export const DEFAULT_INTERVAL = SECOND * 5;
 
-export interface SmartTransactionsControllerConfig extends BaseConfig {
+export type SmartTransactionsControllerConfig = BaseConfig & {
   interval: number;
   clientId: string;
   chainId: string;
   supportedChainIds: string[];
-}
+};
 
-export interface SmartTransactionsControllerState extends BaseState {
+export type SmartTransactionsControllerState = BaseState & {
   smartTransactionsState: {
     smartTransactions: Record<string, SmartTransaction[]>;
     userOptIn: boolean | undefined;
@@ -56,7 +56,7 @@ export interface SmartTransactionsControllerState extends BaseState {
       tradeTxFees: IndividualTxFees | undefined;
     };
   };
-}
+};
 
 export default class SmartTransactionsController extends BaseController<
   SmartTransactionsControllerConfig,
@@ -353,12 +353,12 @@ export default class SmartTransactionsController extends BaseController<
   async confirmSmartTransaction(smartTransaction: SmartTransaction) {
     const txHash = smartTransaction.statusMetadata?.minedHash;
     try {
-      const transactionReceipt = await this.ethersProvider.getTransactionReceipt(
-        txHash,
-      );
+      const transactionReceipt =
+        await this.ethersProvider.getTransactionReceipt(txHash);
       const transaction = await this.ethersProvider.getTransaction(txHash);
       const maxFeePerGas = transaction.maxFeePerGas?.toHexString();
-      const maxPriorityFeePerGas = transaction.maxPriorityFeePerGas?.toHexString();
+      const maxPriorityFeePerGas =
+        transaction.maxPriorityFeePerGas?.toHexString();
       if (transactionReceipt?.blockNumber) {
         const blockData = await this.ethersProvider.getBlock(
           transactionReceipt?.blockNumber,
@@ -487,9 +487,8 @@ export default class SmartTransactionsController extends BaseController<
     const transactions = [];
     let unsignedTradeTransactionWithNonce;
     if (approvalTx) {
-      const unsignedApprovalTransactionWithNonce = await this.addNonceToTransaction(
-        approvalTx,
-      );
+      const unsignedApprovalTransactionWithNonce =
+        await this.addNonceToTransaction(approvalTx);
       transactions.push(unsignedApprovalTransactionWithNonce);
       unsignedTradeTransactionWithNonce = {
         ...tradeTx,

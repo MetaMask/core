@@ -59,7 +59,7 @@ export const cancellationReasonToStatusMap = {
     SmartTransactionStatuses.CANCELLED_PREVIOUS_TX_CANCELLED,
 };
 
-export interface SmartTransactionsStatus {
+export type SmartTransactionsStatus = {
   error?: string;
   cancellationFeeWei: number;
   cancellationReason?: SmartTransactionCancellationReason;
@@ -67,9 +67,9 @@ export interface SmartTransactionsStatus {
   minedHash: string | undefined;
   minedTx: SmartTransactionMinedTx;
   isSettled: boolean;
-}
+};
 
-export interface SmartTransaction {
+export type SmartTransaction = {
   uuid: string;
   chainId?: string;
   destinationTokenAddress?: string;
@@ -90,25 +90,25 @@ export interface SmartTransaction {
   type?: string;
   confirmed?: boolean;
   cancellable?: boolean;
-}
+};
 
-export interface Fee {
+export type Fee = {
   maxFeePerGas: number;
   maxPriorityFeePerGas: number;
-}
+};
 
-export interface IndividualTxFees {
+export type IndividualTxFees = {
   fees: Fee[];
   cancelFees: Fee[];
   feeEstimate: number;
   gasLimit: number;
   gasUsed: number;
-}
+};
 
-export interface Fees {
+export type Fees = {
   approvalTxFees: IndividualTxFees | undefined;
   tradeTxFees: IndividualTxFees | undefined;
-}
+};
 
 // TODO
 export type UnsignedTransaction = any;
