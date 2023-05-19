@@ -6,10 +6,7 @@ import {
   stripHexPrefix,
   getBinarySize,
 } from 'ethereumjs-util';
-import {
-  isValidHexAddress,
-  toChecksumHexAddress,
-} from '@metamask/controller-utils';
+import { isValidHexAddress } from '@metamask/controller-utils';
 import {
   normalize as normalizeAddress,
   signTypedData,
@@ -117,12 +114,10 @@ export type KeyringControllerConfig = {
  * Keyring object to return in fullUpdate
  * @property type - Keyring type
  * @property accounts - Associated accounts
- * @property index - Associated index
  */
 export type Keyring = {
   accounts: string[];
   type: string;
-  index?: number;
 };
 
 /**
@@ -212,7 +207,7 @@ export class KeyringController extends BaseControllerV2<
     super({
       name,
       metadata: {
-        vault: { persist: true, anonymous: false },
+        vault: { persist: false, anonymous: false },
         isUnlocked: { persist: false, anonymous: false },
         keyringTypes: { persist: false, anonymous: false },
         keyrings: { persist: false, anonymous: false },
@@ -227,16 +222,14 @@ export class KeyringController extends BaseControllerV2<
     this.#keyring = new EthKeyringController(
       Object.assign({ initState: state }, config),
     );
-    this.#keyring.store.subscribe(() => {
-      this.update({ vault: this.#keyring.store.getState().vault });
-    });
+    this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
+    this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
 
     this.removeIdentity = removeIdentity;
     this.syncIdentities = syncIdentities;
     this.updateIdentities = updateIdentities;
     this.setSelectedAddress = setSelectedAddress;
     this.setAccountLabel = setAccountLabel;
-    this.fullUpdate();
   }
 
   /**
@@ -265,7 +258,7 @@ export class KeyringController extends BaseControllerV2<
       // we return the account already existing at index `accountCount`
       const primaryKeyringAccounts = await primaryKeyring.getAccounts();
       return {
-        keyringState: await this.fullUpdate(),
+        keyringState: this.state,
         addedAccountAddress: primaryKeyringAccounts[accountCount],
       };
     }
@@ -280,7 +273,7 @@ export class KeyringController extends BaseControllerV2<
       (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
     );
     return {
-      keyringState: await this.fullUpdate(),
+      keyringState: this.state,
       addedAccountAddress,
     };
   }
@@ -298,7 +291,7 @@ export class KeyringController extends BaseControllerV2<
     }
     await this.#keyring.addNewAccount(primaryKeyring);
     await this.verifySeedPhrase();
-    return this.fullUpdate();
+    return this.state;
   }
 
   /**
@@ -310,7 +303,10 @@ export class KeyringController extends BaseControllerV2<
    * either as a string or an array of UTF-8 bytes that represent the string.
    * @returns Promise resolving to the restored keychain object.
    */
-  async createNewVaultAndRestore(password: string, seed: Uint8Array) {
+  async createNewVaultAndRestore(
+    password: string,
+    seed: Uint8Array,
+  ): Promise<KeyringControllerState> {
     const releaseLock = await this.mutex.acquire();
     if (!password || !password.length) {
       throw new Error('Invalid password');
@@ -318,13 +314,9 @@ export class KeyringController extends BaseControllerV2<
 
     try {
       this.updateIdentities([]);
-      const vault = await this.#keyring.createNewVaultAndRestore(
-        password,
-        seed,
-      );
+      await this.#keyring.createNewVaultAndRestore(password, seed);
       this.updateIdentities(await this.#keyring.getAccounts());
-      this.fullUpdate();
-      return vault;
+      return this.state;
     } finally {
       releaseLock();
     }
@@ -339,17 +331,12 @@ export class KeyringController extends BaseControllerV2<
   async createNewVaultAndKeychain(password: string) {
     const releaseLock = await this.mutex.acquire();
     try {
-      let vault;
       const accounts = await this.getAccounts();
-      if (accounts.length > 0) {
-        vault = await this.fullUpdate();
-      } else {
-        vault = await this.#keyring.createNewVaultAndKeychain(password);
+      if (!accounts.length) {
+        await this.#keyring.createNewVaultAndKeychain(password);
         this.updateIdentities(await this.getAccounts());
-        await this.fullUpdate();
       }
-
-      return vault;
+      return this.state;
     } finally {
       releaseLock();
     }
@@ -496,7 +483,7 @@ export class KeyringController extends BaseControllerV2<
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
     return {
-      keyringState: await this.fullUpdate(),
+      keyringState: this.state,
       importedAccountAddress: accounts[0],
     };
   }
@@ -510,7 +497,7 @@ export class KeyringController extends BaseControllerV2<
   async removeAccount(address: string): Promise<KeyringControllerState> {
     this.removeIdentity(address);
     await this.#keyring.removeAccount(address);
-    return this.fullUpdate();
+    return this.state;
   }
 
   /**
@@ -518,7 +505,7 @@ export class KeyringController extends BaseControllerV2<
    *
    * @returns Promise resolving to current state.
    */
-  setLocked(): Promise<KeyringControllerState> {
+  setLocked(): Promise<Omit<KeyringControllerState, 'vault'>> {
     return this.#keyring.setLocked();
   }
 
@@ -635,7 +622,8 @@ export class KeyringController extends BaseControllerV2<
     encryptionKey: string,
     encryptionSalt: string,
   ): Promise<KeyringControllerState> {
-    return this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
+    await this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
+    return this.state;
   }
 
   /**
@@ -649,7 +637,7 @@ export class KeyringController extends BaseControllerV2<
     await this.#keyring.submitPassword(password);
     const accounts = await this.#keyring.getAccounts();
     await this.syncIdentities(accounts);
-    return this.fullUpdate();
+    return this.state;
   }
 
   /**
@@ -716,30 +704,15 @@ export class KeyringController extends BaseControllerV2<
   }
 
   /**
-   * Update keyrings in state and calls KeyringController fullUpdate method returning current state.
+   * Sync controller state with current keyring
+   * store and memStore state.
    *
-   * @returns The current state.
    */
-  async fullUpdate(): Promise<KeyringControllerState> {
-    const keyrings: Keyring[] = await Promise.all<Keyring>(
-      this.#keyring.keyrings.map(
-        async (keyring: KeyringObject, index: number): Promise<Keyring> => {
-          const keyringAccounts = await keyring.getAccounts();
-          const accounts = Array.isArray(keyringAccounts)
-            ? keyringAccounts.map((address) => toChecksumHexAddress(address))
-            : /* istanbul ignore next */ [];
-          return {
-            accounts,
-            index,
-            type: keyring.type,
-          };
-        },
-      ),
-    );
-    this.update((state) => {
-      state.keyrings = [...keyrings];
-    });
-    return this.#keyring.fullUpdate();
+  #fullUpdate() {
+    this.update(() => ({
+      ...this.#keyring.store.getState(),
+      ...this.#keyring.memStore.getState(),
+    }));
   }
 
   // QR Hardware related methods
@@ -750,9 +723,7 @@ export class KeyringController extends BaseControllerV2<
    * @returns The added keyring
    */
   private async addQRKeyring(): Promise<QRKeyring> {
-    const keyring = await this.#keyring.addNewKeyring(KeyringTypes.qr);
-    await this.fullUpdate();
-    return keyring;
+    return this.#keyring.addNewKeyring(KeyringTypes.qr);
   }
 
   /**
@@ -767,8 +738,8 @@ export class KeyringController extends BaseControllerV2<
 
   async restoreQRKeyring(serialized: any): Promise<void> {
     (await this.getOrAddQRKeyring()).deserialize(serialized);
+    await this.#keyring.persistAllKeyrings();
     this.updateIdentities(await this.#keyring.getAccounts());
-    await this.fullUpdate();
   }
 
   async resetQRKeyringState(): Promise<void> {
@@ -852,7 +823,6 @@ export class KeyringController extends BaseControllerV2<
       }
     });
     await this.#keyring.persistAllKeyrings();
-    await this.fullUpdate();
   }
 
   async getAccountKeyringType(account: string): Promise<KeyringTypes> {
@@ -867,7 +837,6 @@ export class KeyringController extends BaseControllerV2<
       this.setSelectedAddress(account);
     });
     await this.#keyring.persistAllKeyrings();
-    await this.fullUpdate();
   }
 }
 

@@ -286,7 +286,6 @@ describe('KeyringController', () => {
               expect(controller.state.keyrings).not.toStrictEqual([]);
               const keyring = controller.state.keyrings[0];
               expect(keyring.accounts).not.toStrictEqual([]);
-              expect(keyring.index).toStrictEqual(0);
               expect(keyring.type).toStrictEqual('HD Key Tree');
               expect(controller.state.vault).toBeDefined();
             });
@@ -1106,19 +1105,6 @@ describe('KeyringController', () => {
           expect(recoveredState).toStrictEqual(initialState);
         },
       );
-    });
-  });
-
-  describe('subscribe and unsubscribe', () => {
-    it('should fire stateChange event', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const listener = sinon.stub();
-        messenger.subscribe('KeyringController:stateChange', listener);
-
-        await controller.fullUpdate();
-
-        expect(listener.called).toBe(true);
-      });
     });
   });
 
