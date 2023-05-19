@@ -1568,10 +1568,14 @@ export class TransactionController extends BaseController<
     return remoteGasUsed !== localGasUsed;
   }
 
-  private requestApproval(txMeta: TransactionMeta) {
+  private async requestApproval(
+    txMeta: TransactionMeta,
+    { shouldShowRequest } = { shouldShowRequest: true },
+  ) {
     const id = this.getApprovalId(txMeta);
     const { origin } = txMeta;
     const type = ApprovalType.Transaction;
+    const requestData = { txId: txMeta.id };
 
     this.messagingSystem
       .call(
@@ -1580,15 +1584,9 @@ export class TransactionController extends BaseController<
           id,
           origin: origin || ORIGIN_METAMASK,
           type,
-          requestData: {
-            id: txMeta.id,
-            origin: origin || ORIGIN_METAMASK,
-            transaction: {
-              ...txMeta.transaction,
-            },
-          },
+          requestData,
         },
-        true,
+        shouldShowRequest,
       )
       .catch(() => {
         // Intentionally ignored as promise not currently used
@@ -1601,7 +1599,7 @@ export class TransactionController extends BaseController<
     try {
       this.messagingSystem.call('ApprovalController:acceptRequest', id);
     } catch (error) {
-      console.error('Failed to accept transaction approval request', error);
+      console.info('Failed to accept transaction approval request', error);
     }
   }
 
@@ -1615,7 +1613,7 @@ export class TransactionController extends BaseController<
         new Error('Rejected'),
       );
     } catch (error) {
-      console.error('Failed to reject transaction approval request', error);
+      console.info('Failed to reject transaction approval request', error);
     }
   }
 
