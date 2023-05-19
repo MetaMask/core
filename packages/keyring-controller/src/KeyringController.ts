@@ -357,7 +357,7 @@ export class KeyringController extends BaseControllerV2<
    * @returns Boolean returning true if the vault is unlocked.
    */
   isUnlocked(): boolean {
-    return this.#keyring.memStore.getState().isUnlocked;
+    return this.state.isUnlocked;
   }
 
   /**
