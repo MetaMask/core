@@ -10,6 +10,7 @@ import type { Patch } from 'immer';
 import { errorCodes } from 'eth-rpc-errors';
 import {
   BUILT_IN_NETWORKS,
+  convertHexToDecimal,
   NetworksTicker,
   ChainId,
   InfuraNetworkType,
@@ -21,6 +22,7 @@ import {
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
+  isStrictHexString,
 } from '@metamask/utils';
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
@@ -90,15 +92,22 @@ export type NetworkConfiguration = {
 };
 
 /**
- * Asserts that the given value is a network ID, i.e., that it is a decimal
- * number represented as a string.
+ * Convert the given value into a valid network ID. The ID is accepted
+ * as either a number, a decimal string, or a 0x-prefixed hex string.
  *
- * @param value - The value to check.
+ * @param value - The network ID to convert, in an unknown format.
+ * @returns A valid network ID (as a decimal string)
+ * @throws If the given value cannot be safely parsed.
  */
-function assertNetworkId(value: string): asserts value is NetworkId {
-  if (!/^\d+$/u.test(value) || Number.isNaN(Number(value))) {
-    throw new Error('value is not a number');
+function convertNetworkId(value: unknown): NetworkId {
+  if (typeof value === 'number' && !Number.isNaN(value)) {
+    return `${value}`;
+  } else if (isStrictHexString(value)) {
+    return `${convertHexToDecimal(value)}`;
+  } else if (typeof value === 'string' && /^\d+$/u.test(value)) {
+    return value as NetworkId;
   }
+  throw new Error(`Cannot parse as a valid network ID: '${value}'`);
 }
 
 /**
@@ -463,8 +472,7 @@ export class NetworkController extends BaseControllerV2<
       );
     });
 
-    assertNetworkId(possibleNetworkId);
-    return possibleNetworkId;
+    return convertNetworkId(possibleNetworkId);
   }
 
   /**
