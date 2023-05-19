@@ -22,7 +22,11 @@ import {
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import type { Hex } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { InfuraNetworkType, ChainId } from '@metamask/controller-utils';
+import {
+  InfuraNetworkType,
+  ChainId,
+  NetworkId,
+} from '@metamask/controller-utils';
 import type { BlockTracker, Provider } from './types';
 
 const SECOND = 1000;
@@ -157,16 +161,14 @@ function createNetworkAndChainIdMiddleware({
 }: {
   network: InfuraNetworkType;
 }) {
-  const chainId = ChainId[network];
-
   return createScaffoldMiddleware({
-    eth_chainId: `0x${parseInt(chainId, 10).toString(16)}`,
-    net_version: chainId,
+    eth_chainId: ChainId[network],
+    net_version: NetworkId[network],
   });
 }
 
 const createChainIdMiddleware = (
-  chainId: string,
+  chainId: Hex,
 ): JsonRpcMiddleware<unknown, unknown> => {
   return (req, res, next, end) => {
     if (req.method === 'eth_chainId') {
@@ -192,7 +194,7 @@ function createCustomNetworkMiddleware({
   rpcApiMiddleware,
 }: {
   blockTracker: PollingBlockTracker;
-  chainId: string;
+  chainId: Hex;
   rpcApiMiddleware: any;
 }) {
   // eslint-disable-next-line node/no-process-env

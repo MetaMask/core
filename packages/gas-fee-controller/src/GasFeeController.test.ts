@@ -1,14 +1,16 @@
 import nock from 'nock';
 import * as sinon from 'sinon';
+import type { Hex } from '@metamask/utils';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkController,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
 import EthQuery from 'eth-query';
-import { NetworkType } from '@metamask/controller-utils';
+import { NetworkType, toHex } from '@metamask/controller-utils';
 import {
   GAS_ESTIMATE_TYPES,
   GasFeeController,
@@ -40,7 +42,9 @@ const name = 'GasFeeController';
 
 type MainControllerMessenger = ControllerMessenger<
   GetGasFeeState | NetworkControllerGetStateAction,
-  GasFeeStateChange | NetworkControllerStateChangeEvent
+  | GasFeeStateChange
+  | NetworkControllerStateChangeEvent
+  | NetworkControllerNetworkDidChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -59,7 +63,10 @@ const setupNetworkController = async ({
   const restrictedMessenger = unrestrictedMessenger.getRestricted({
     name: 'NetworkController',
     allowedActions: ['NetworkController:getState'],
-    allowedEvents: ['NetworkController:stateChange'],
+    allowedEvents: [
+      'NetworkController:stateChange',
+      'NetworkController:networkDidChange',
+    ],
   });
 
   const networkController = new NetworkController({
@@ -223,7 +230,7 @@ describe('GasFeeController', () => {
     networkControllerState = {},
     interval,
   }: {
-    getChainId?: jest.Mock<`0x${string}` | `${number}` | number>;
+    getChainId?: jest.Mock<Hex>;
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
     legacyAPIEndpoint?: string;
@@ -308,7 +315,7 @@ describe('GasFeeController', () => {
             networkControllerState: {
               providerConfig: {
                 type: NetworkType.rpc,
-                chainId: '1337',
+                chainId: toHex(1337),
                 rpcUrl: 'http://some/url',
               },
             },
@@ -363,7 +370,7 @@ describe('GasFeeController', () => {
             networkControllerState: {
               providerConfig: {
                 type: NetworkType.rpc,
-                chainId: '1337',
+                chainId: toHex(1337),
                 rpcUrl: 'http://some/url',
               },
             },
@@ -673,7 +680,7 @@ describe('GasFeeController', () => {
           networkControllerState: {
             providerConfig: {
               type: NetworkType.rpc,
-              chainId: '1337',
+              chainId: toHex(1337),
               rpcUrl: 'http://some/url',
             },
           },
@@ -784,7 +791,7 @@ describe('GasFeeController', () => {
           networkControllerState: {
             providerConfig: {
               type: NetworkType.rpc,
-              chainId: '1337',
+              chainId: toHex(1337),
               rpcUrl: 'http://some/url',
             },
           },
@@ -826,43 +833,11 @@ describe('GasFeeController', () => {
         expect(estimateData).toMatchObject(mockDetermineGasFeeCalculations);
       });
 
-      it('should call determineGasFeeCalculations correctly when getChainId returns a number input', async () => {
-        await setupGasFeeController({
-          ...defaultConstructorOptions,
-          EIP1559APIEndpoint: 'http://eip-1559.endpoint/<chain_id>',
-          getChainId: jest.fn().mockReturnValue(1),
-        });
-
-        await gasFeeController._fetchGasFeeEstimateData();
-
-        expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
-          expect.objectContaining({
-            fetchGasEstimatesUrl: 'http://eip-1559.endpoint/1',
-          }),
-        );
-      });
-
-      it('should call determineGasFeeCalculations correctly when getChainId returns a hexstring input', async () => {
+      it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
           EIP1559APIEndpoint: 'http://eip-1559.endpoint/<chain_id>',
           getChainId: jest.fn().mockReturnValue('0x1'),
-        });
-
-        await gasFeeController._fetchGasFeeEstimateData();
-
-        expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
-          expect.objectContaining({
-            fetchGasEstimatesUrl: 'http://eip-1559.endpoint/1',
-          }),
-        );
-      });
-
-      it('should call determineGasFeeCalculations correctly when getChainId returns a numeric string input', async () => {
-        await setupGasFeeController({
-          ...defaultConstructorOptions,
-          EIP1559APIEndpoint: 'http://eip-1559.endpoint/<chain_id>',
-          getChainId: jest.fn().mockReturnValue('1'),
         });
 
         await gasFeeController._fetchGasFeeEstimateData();

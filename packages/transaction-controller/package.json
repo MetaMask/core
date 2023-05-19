@@ -34,6 +34,7 @@
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/network-controller": "workspace:^",
+    "@metamask/utils": "^5.0.2",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-method-registry": "1.1.0",

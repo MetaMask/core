@@ -1,7 +1,7 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { OPENSEA_PROXY_URL, ChainId } from '@metamask/controller-utils';
+import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
 import { NftController } from './NftController';
 import { AssetsContractController } from './AssetsContractController';
 import { NftDetectionController } from './NftDetectionController';
@@ -201,7 +201,7 @@ describe('NftDetectionController', () => {
     preferences.setUseNftDetection(false);
     expect(nftDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
-      chainId: '1',
+      chainId: toHex(1),
       selectedAddress: '',
       disabled: true,
     });

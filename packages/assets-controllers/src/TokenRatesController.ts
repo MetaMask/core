@@ -1,3 +1,4 @@
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -8,6 +9,7 @@ import {
   handleFetch,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
+  toHex,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
@@ -68,7 +70,7 @@ export interface Token {
 export interface TokenRatesConfig extends BaseConfig {
   interval: number;
   nativeCurrency: string;
-  chainId: string;
+  chainId: Hex;
   tokens: Token[];
   threshold: number;
 }
@@ -119,7 +121,7 @@ const CoinGeckoApi = {
  * @returns The CoinGecko slug for the given chain ID, or `null` if the slug was not found.
  */
 function findChainSlug(
-  chainId: string,
+  chainId: Hex,
   data: CoinGeckoPlatform[] | null,
 ): string | null {
   if (!data) {
@@ -128,7 +130,7 @@ function findChainSlug(
   const chain =
     data.find(
       ({ chain_identifier }) =>
-        chain_identifier !== null && String(chain_identifier) === chainId,
+        chain_identifier !== null && toHex(chain_identifier) === chainId,
     ) ?? null;
   return chain?.id || null;
 }
@@ -178,7 +180,7 @@ export class TokenRatesController extends BaseController<
       onCurrencyRateStateChange,
       onNetworkStateChange,
     }: {
-      chainId: string;
+      chainId: Hex;
       onTokensStateChange: (
         listener: (tokensState: TokensState) => void,
       ) => void;
@@ -247,7 +249,7 @@ export class TokenRatesController extends BaseController<
    *
    * @param _chainId - The current chain ID.
    */
-  set chainId(_chainId: string) {
+  set chainId(_chainId: Hex) {
     !this.disabled && safelyExecute(() => this.updateExchangeRates());
   }
 

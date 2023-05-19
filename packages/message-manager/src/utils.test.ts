@@ -1,3 +1,4 @@
+import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import * as util from './utils';
 
 describe('utils', () => {
@@ -119,7 +120,7 @@ describe('utils', () => {
   describe('validateTypedSignMessageDataV3V4', () => {
     const dataTyped =
       '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":1,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
-    const mockedCurrentChainId = '1';
+    const mockedCurrentChainId = toHex(1);
     it('should throw if no from address', () => {
       expect(() =>
         util.validateTypedSignMessageDataV3V4(
@@ -212,15 +213,18 @@ describe('utils', () => {
             data: dataTyped.replace(`"chainId":1`, `"chainId":"0x1"`),
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           } as any,
+          // @ts-expect-error Intentionally invalid
           unexpectedChainId,
         ),
       ).toThrow(
-        `Cannot sign messages for chainId "${mockedCurrentChainId}", because MetaMask is switching networks.`,
+        `Cannot sign messages for chainId "${convertHexToDecimal(
+          mockedCurrentChainId,
+        )}", because MetaMask is switching networks.`,
       );
     });
 
     it('should throw if current chain id is not matched with provided in message data', () => {
-      const chainId = '2';
+      const chainId = toHex(2);
       expect(() =>
         util.validateTypedSignMessageDataV3V4(
           {
@@ -230,7 +234,9 @@ describe('utils', () => {
           chainId,
         ),
       ).toThrow(
-        `Provided chainId "${mockedCurrentChainId}" must match the active chainId "${chainId}"`,
+        `Provided chainId "${convertHexToDecimal(
+          mockedCurrentChainId,
+        )}" must match the active chainId "${convertHexToDecimal(chainId)}"`,
       );
     });
 

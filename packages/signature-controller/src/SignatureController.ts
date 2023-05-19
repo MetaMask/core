@@ -1,4 +1,5 @@
 import EventEmitter from 'events';
+import type { Hex } from '@metamask/utils';
 import {
   MessageManager,
   MessageParams,
@@ -112,7 +113,7 @@ export type SignatureControllerOptions = {
     requestData: any,
     methodName: string,
   ) => Promise<any>;
-  getCurrentChainId: () => string;
+  getCurrentChainId: () => Hex;
 };
 
 /**
@@ -492,7 +493,11 @@ export class SignatureController extends BaseControllerV2<
       const cleanMessageParams = await messageManager.approveMessage(msgParams);
       const signature = await getSignature(cleanMessageParams);
 
-      messageManager.setMessageStatusSigned(messageId, signature);
+      this.hub.emit(`${methodName}:signed`, { signature, messageId });
+
+      if (!cleanMessageParams.deferSetAsSigned) {
+        messageManager.setMessageStatusSigned(messageId, signature);
+      }
 
       this.#acceptApproval(messageId);
 

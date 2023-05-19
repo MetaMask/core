@@ -1,3 +1,4 @@
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -30,7 +31,7 @@ const DEFAULT_INTERVAL = 180000;
 export interface TokenDetectionConfig extends BaseConfig {
   interval: number;
   selectedAddress: string;
-  chainId: string;
+  chainId: Hex;
   isDetectionEnabledFromPreferences: boolean;
   isDetectionEnabledForNetwork: boolean;
 }

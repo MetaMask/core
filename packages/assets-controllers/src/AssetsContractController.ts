@@ -2,6 +2,7 @@ import { BN } from 'ethereumjs-util';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -21,7 +22,7 @@ import { ERC20Standard } from './Standards/ERC20Standard';
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<string, string> = {
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
   [SupportedTokenDetectionNetworks.mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
   [SupportedTokenDetectionNetworks.bsc]:
@@ -46,7 +47,7 @@ export const MISSING_PROVIDER_ERROR =
 export interface AssetsContractConfig extends BaseConfig {
   provider: any;
   ipfsGateway: string;
-  chainId: string;
+  chainId: Hex;
 }
 
 /**
@@ -95,7 +96,7 @@ export class AssetsContractController extends BaseController<
       onPreferencesStateChange,
       onNetworkStateChange,
     }: {
-      chainId: string;
+      chainId: Hex;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;

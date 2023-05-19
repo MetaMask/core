@@ -1,6 +1,7 @@
 import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
 import { validate } from 'jsonschema';
+import type { Hex } from '@metamask/utils';
 import { isValidHexAddress } from '@metamask/controller-utils';
 import { MessageParams } from './MessageManager';
 import { PersonalMessageParams } from './PersonalMessageManager';
@@ -93,7 +94,7 @@ export function validateTypedSignMessageDataV1(
  */
 export function validateTypedSignMessageDataV3V4(
   messageData: TypedMessageParams,
-  currentChainId: string | undefined,
+  currentChainId: Hex | undefined,
 ) {
   validateAddress(messageData.from, 'from');
 
