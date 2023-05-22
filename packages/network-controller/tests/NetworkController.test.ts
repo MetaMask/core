@@ -91,13 +91,6 @@ const POST_1559_BLOCK: Block = {
 const BLOCK: Block = POST_1559_BLOCK;
 
 /**
- * A response object for a request that has been geoblocked by Infura.
- */
-const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
-  JSON.stringify({ error: 'countryBlocked' }),
-);
-
-/**
  * The networks that NetworkController recognizes as built-in Infura networks,
  * along with information we expect to be true for those networks.
  */
@@ -143,6 +136,13 @@ const SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE = {
 const SUCCESSFUL_NET_VERSION_RESPONSE = {
   result: '42',
 };
+
+/**
+ * A response object for a request that has been geoblocked by Infura.
+ */
+const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
+  JSON.stringify({ error: 'countryBlocked' }),
+);
 
 //                                                                                     setProviderType            setActiveNetwork
 //                                                                                            └───────────┬────────────┘
