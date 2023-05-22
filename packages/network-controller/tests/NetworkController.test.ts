@@ -65,6 +65,7 @@ const originalSetTimeout = global.setTimeout;
 const originalClearTimeout = global.clearTimeout;
 
 const createNetworkClientMock = jest.mocked(createNetworkClient);
+const uuidV4Mock = jest.mocked(v4);
 
 /**
  * A dummy block that matches the pre-EIP-1559 format (i.e. it doesn't have the
@@ -3325,9 +3326,7 @@ describe('NetworkController', () => {
 
   describe('upsertNetworkConfiguration', () => {
     it('adds the given network configuration when its rpcURL does not match an existing configuration', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(
-        () => 'network-configuration-id-1',
-      );
+      uuidV4Mock.mockImplementationOnce(() => 'network-configuration-id-1');
 
       await withController(async ({ controller }) => {
         const rpcUrlNetwork = {
@@ -3510,7 +3509,7 @@ describe('NetworkController', () => {
     });
 
     it('throws if referrer and source arguments are not passed', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       const trackEventSpy = jest.fn();
       await withController(
         {
@@ -3555,7 +3554,7 @@ describe('NetworkController', () => {
     });
 
     it('should add the given network if all required properties are present but nither rpcPrefs nor nickname properties are passed', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       await withController(
         {
           state: {
@@ -3591,7 +3590,7 @@ describe('NetworkController', () => {
     });
 
     it('adds new networkConfiguration to networkController store, but only adds valid properties (rpcUrl, chainId, ticker, nickname, rpcPrefs) and fills any missing properties from this list as undefined', async function () {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       await withController(
         {
           state: {
@@ -3631,7 +3630,7 @@ describe('NetworkController', () => {
     });
 
     it('should add the given network configuration if its rpcURL does not match an existing configuration without changing or overwriting other configurations', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId2');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId2');
       await withController(
         {
           state: {
@@ -3789,7 +3788,7 @@ describe('NetworkController', () => {
     });
 
     it('should add the given network and not set it to active if the setActive option is not passed (or a falsy value is passed)', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       const originalProvider = {
         type: 'rpc' as NetworkType,
         rpcUrl: 'https://mock-rpc-url',
@@ -3833,7 +3832,7 @@ describe('NetworkController', () => {
     });
 
     it('should add the given network and set it to active if the setActive option is passed as true', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       await withController(
         {
           state: {
@@ -3888,7 +3887,7 @@ describe('NetworkController', () => {
     });
 
     it('adds new networkConfiguration to networkController store and calls to the metametrics event tracking with the correct values', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       const trackEventSpy = jest.fn();
       await withController(
         {
