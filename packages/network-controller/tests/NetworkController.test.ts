@@ -79,7 +79,7 @@ const PRE_1559_BLOCK: Block = {
  * A dummy block that matches the pre-EIP-1559 format (i.e. it has the
  * `baseFeePerGas` property).
  */
-const POST_1559_BLOCK = {
+const POST_1559_BLOCK: Block = {
   ...PRE_1559_BLOCK,
   baseFeePerGas: '0x63c498a46',
 };
