@@ -229,6 +229,34 @@ describe('NetworkController', () => {
     });
   });
 
+  describe('destroy', () => {
+    it('does not throw if called before the provider is initialized', async () => {
+      await withController(async ({ controller }) => {
+        expect(await controller.destroy()).toBeUndefined();
+      });
+    });
+
+    it('stops the block tracker for the currently selected network as long as the provider has been initialized', async () => {
+      await withController(async ({ controller }) => {
+        const fakeProvider = buildFakeProvider();
+        const fakeNetworkClient = buildFakeClient(fakeProvider);
+        mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+        await controller.initializeProvider();
+        const { blockTracker } = controller.getProviderAndBlockTracker();
+        assert(blockTracker, 'Block tracker is somehow unset');
+        // The block tracker starts running after a listener is attached
+        blockTracker.addListener('latest', () => {
+          // do nothing
+        });
+        expect(blockTracker.isRunning()).toBe(true);
+
+        await controller.destroy();
+
+        expect(blockTracker.isRunning()).toBe(false);
+      });
+    });
+  });
+
   describe('initializeProvider', () => {
     [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
       (networkType) => {
@@ -5165,37 +5193,6 @@ describe('NetworkController', () => {
             });
           },
         );
-      });
-    });
-  });
-
-  describe('destroy', () => {
-    describe('if the blockTracker is defined', () => {
-      it('should stop the blockTracker', async () => {
-        await withController({}, async ({ controller }) => {
-          const fakeProvider = buildFakeProvider();
-          const fakeNetworkClient = buildFakeClient(fakeProvider);
-          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-          await controller.initializeProvider();
-          const destroySpy = jest.spyOn(
-            fakeNetworkClient.blockTracker,
-            'destroy',
-          );
-
-          await controller.destroy();
-
-          expect(destroySpy).toHaveBeenCalled();
-        });
-      });
-    });
-
-    describe('if the blockTracker is undefined', () => {
-      it('should not throw errors', async () => {
-        await withController({}, async ({ controller }) => {
-          const { blockTracker } = controller.getProviderAndBlockTracker();
-          expect(blockTracker).toBeUndefined();
-          expect(async () => await controller.destroy()).not.toThrow();
-        });
       });
     });
   });
