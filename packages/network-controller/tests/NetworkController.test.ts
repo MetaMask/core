@@ -96,21 +96,18 @@ const BLOCK: Block = POST_1559_BLOCK;
  */
 const INFURA_NETWORKS = [
   {
-    nickname: 'Mainnet',
     networkType: NetworkType.mainnet,
     chainId: toHex(1),
     ticker: 'ETH',
     blockExplorerUrl: 'https://etherscan.io',
   },
   {
-    nickname: 'Goerli',
     networkType: NetworkType.goerli,
     chainId: toHex(5),
     ticker: 'GoerliETH',
     blockExplorerUrl: 'https://goerli.etherscan.io',
   },
   {
-    nickname: 'Sepolia',
     networkType: NetworkType.sepolia,
     chainId: toHex(11155111),
     ticker: 'SepoliaETH',
