@@ -146,25 +146,6 @@ const GENERIC_JSON_RPC_ERROR = ethErrors.rpc.internal(
   JSON.stringify({ error: 'oops' }),
 );
 
-//                                                                                     setProviderType            setActiveNetwork
-//                                                                                            └───────────┬────────────┘
-// initializeProvider                                                                               refreshNetwork
-//       │ │ └────────────────────────────────────────────┬──────────────────────────────────────────────┘ │
-//       │ │                                     configureProvider                                         │
-//       │ │                  ┌─────────────────────────┘ │                                                |
-//       │ │          setupInfuraProvider        setupStandardProvider                                     │
-//       │ │                  └─────────────┬─────────────┘                                                │
-//       │ │                          updateProvider                                                       │
-//       │ └───────────────┬───────────────┘ └───────────────────────────────┐                             │
-//       │          registerProvider                                  this.provider = ...                  │
-//       │                 ⋮                                                                               │
-//       │   this.provider.on('error', ...)                                                                │
-//       │                 │                                                                               │
-//       │            verifyNetwork                                                                        │
-//       │                 └─────────────────────────────┐                                                 │
-//       └───────────────────────────────────────────────┼─────────────────────────────────────────────────┘
-//                                                 lookupNetwork
-
 describe('NetworkController', () => {
   beforeEach(() => {
     // Disable all requests, even those to localhost
