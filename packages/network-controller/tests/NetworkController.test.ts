@@ -6920,8 +6920,8 @@ type WithControllerArgs<ReturnValue> =
  *
  * @param args - Either a function, or an options bag + a function. The options
  * bag is equivalent to the options that NetworkController takes (although
- * `messenger` is filled in if not given); the function will be called with the
- * built controller.
+ * `messenger` and `infuraProjectId` are  filled in if not given); the function
+ * will be called with the built controller.
  * @returns Whatever the callback returns.
  */
 async function withController<ReturnValue>(
