@@ -4,6 +4,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import * as ethQueryModule from 'eth-query';
 import { Patch } from 'immer';
 import { v4 } from 'uuid';
+import nock from 'nock';
 import { ethErrors } from 'eth-rpc-errors';
 import {
   BUILT_IN_NETWORKS,
@@ -191,11 +192,15 @@ const SUCCESSFUL_NET_VERSION_RESPONSE = {
 
 describe('NetworkController', () => {
   beforeEach(() => {
+    // Disable all requests, even those to localhost
+    nock.disableNetConnect();
     jest.resetAllMocks();
     jest.useFakeTimers();
   });
 
   afterEach(() => {
+    nock.enableNetConnect('localhost');
+    nock.cleanAll();
     jest.useRealTimers();
     resetAllWhenMocks();
   });
