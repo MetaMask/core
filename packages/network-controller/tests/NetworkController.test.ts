@@ -101,7 +101,6 @@ const INFURA_NETWORKS = [
     chainId: toHex(1),
     ticker: 'ETH',
     blockExplorerUrl: 'https://etherscan.io',
-    networkVersion: '1',
   },
   {
     nickname: 'Goerli',
@@ -109,7 +108,6 @@ const INFURA_NETWORKS = [
     chainId: toHex(5),
     ticker: 'GoerliETH',
     blockExplorerUrl: 'https://goerli.etherscan.io',
-    networkVersion: '5',
   },
   {
     nickname: 'Sepolia',
@@ -117,7 +115,6 @@ const INFURA_NETWORKS = [
     chainId: toHex(11155111),
     ticker: 'SepoliaETH',
     blockExplorerUrl: 'https://sepolia.etherscan.io',
-    networkVersion: '11155111',
   },
 ];
 
