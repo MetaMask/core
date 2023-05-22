@@ -138,6 +138,14 @@ const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
   JSON.stringify({ error: 'countryBlocked' }),
 );
 
+/**
+ * A response object for a unsuccessful request to any RPC method. It is assumed
+ * that the error here is insignificant to the test.
+ */
+const GENERIC_JSON_RPC_ERROR = ethErrors.rpc.internal(
+  JSON.stringify({ error: 'oops' }),
+);
+
 //                                                                                     setProviderType            setActiveNetwork
 //                                                                                            └───────────┬────────────┘
 // initializeProvider                                                                               refreshNetwork
@@ -516,7 +524,7 @@ describe('NetworkController', () => {
                         request: {
                           method: 'net_version',
                         },
-                        error: ethErrors.rpc.internal('some error'),
+                        error: GENERIC_JSON_RPC_ERROR,
                       },
                     ]),
                   ];
@@ -961,7 +969,7 @@ describe('NetworkController', () => {
                         request: {
                           method: 'net_version',
                         },
-                        error: ethErrors.rpc.internal('some error'),
+                        error: GENERIC_JSON_RPC_ERROR,
                       },
                     ]),
                   ];
@@ -1414,7 +1422,7 @@ describe('NetworkController', () => {
                     request: {
                       method: 'net_version',
                     },
-                    error: ethErrors.rpc.internal('some error'),
+                    error: GENERIC_JSON_RPC_ERROR,
                   },
                 ]),
               ];
@@ -1830,7 +1838,7 @@ describe('NetworkController', () => {
                     request: {
                       method: 'net_version',
                     },
-                    error: ethErrors.rpc.internal('some error'),
+                    error: GENERIC_JSON_RPC_ERROR,
                   },
                 ]),
               ];
@@ -6190,7 +6198,7 @@ function lookupNetworkTests({
             stubs: [
               {
                 request: { method: 'net_version' },
-                error: ethErrors.rpc.internal('some error'),
+                error: GENERIC_JSON_RPC_ERROR,
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6214,7 +6222,7 @@ function lookupNetworkTests({
               stubs: [
                 {
                   request: { method: 'net_version' },
-                  error: ethErrors.rpc.internal('some error'),
+                  error: GENERIC_JSON_RPC_ERROR,
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6243,7 +6251,7 @@ function lookupNetworkTests({
               stubs: [
                 {
                   request: { method: 'net_version' },
-                  error: ethErrors.rpc.internal('some error'),
+                  error: GENERIC_JSON_RPC_ERROR,
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6274,7 +6282,7 @@ function lookupNetworkTests({
             stubs: [
               {
                 request: { method: 'net_version' },
-                error: ethErrors.rpc.internal('some error'),
+                error: GENERIC_JSON_RPC_ERROR,
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6741,7 +6749,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.internal('some error'),
+                error: GENERIC_JSON_RPC_ERROR,
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6768,7 +6776,7 @@ function lookupNetworkTests({
                     method: 'eth_getBlockByNumber',
                     params: ['latest', false],
                   },
-                  error: ethErrors.rpc.internal('some error'),
+                  error: GENERIC_JSON_RPC_ERROR,
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6800,7 +6808,7 @@ function lookupNetworkTests({
                     method: 'eth_getBlockByNumber',
                     params: ['latest', false],
                   },
-                  error: ethErrors.rpc.internal('some error'),
+                  error: GENERIC_JSON_RPC_ERROR,
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6834,7 +6842,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.internal('some error'),
+                error: GENERIC_JSON_RPC_ERROR,
               },
             ],
             stubLookupNetworkWhileSetting: true,
