@@ -146,9 +146,7 @@ export class RateLimitController<
   ): Promise<ReturnType<RateLimitedApis[ApiType]['method']>> {
     if (this.isRateLimited(type, origin)) {
       throw ethErrors.rpc.limitExceeded({
-        message: `"${
-          type as string
-        }" is currently rate-limited. Please try again later.`,
+        message: `"${type.toString()}" is currently rate-limited. Please try again later.`,
       });
     }
     this.recordRequest(type, origin);
