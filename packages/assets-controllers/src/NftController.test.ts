@@ -660,7 +660,7 @@ describe('NftController', () => {
 
       const result = nftController.watchNft(ERC721_NFT, ERC721);
       await expect(result).rejects.toThrow(
-        'Failed to fetch NFT owner: Error: Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect. Make sure the NFT is on the currently selected network.',
+        'Failed to fetch NFT data: Error: Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect. Make sure the NFT is on the currently selected network.',
       );
     });
 
@@ -677,7 +677,7 @@ describe('NftController', () => {
 
       const result = nftController.watchNft(ERC721_NFT, ERC721);
       await expect(result).rejects.toThrow(
-        `Failed to fetch NFT owner: Error: Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect. Make sure the NFT is on the currently selected network.`,
+        `Failed to fetch NFT data: Error: Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect. Make sure the NFT is on the currently selected network.`,
       );
     });
   });

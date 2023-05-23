@@ -1012,9 +1012,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     }
 
     if (!contractAddress || !tokenId) {
-      throw rpcErrors.invalidParams(
-        'Both address and tokenId are required',
-      );
+      throw rpcErrors.invalidParams('Both address and tokenId are required');
     }
 
     if (!isAddress(contractAddress)) {
@@ -1048,22 +1046,14 @@ export class NftController extends BaseController<NftConfig, NftState> {
       );
     }
 
+    let isOwner;
     let nftMetadata;
     try {
       nftMetadata = await this.getNftInformation(asset.address, asset.tokenId);
-    } catch (error) {
-      throw rpcErrors.internal(
-        `Failed to fetch NFT metadata: ${error}. Make sure the NFT is on the currently selected network.`,
-      );
-    }
-
-    let isOwner;
-    try {
-      // TODO fold ownership check into getNftInformation call
       isOwner = await this.isNftOwner(accountAddress, contractAddress, tokenId);
     } catch (error) {
-      throw rpcErrors.internal(
-        `Failed to fetch NFT owner: ${error} Make sure the NFT is on the currently selected network.`,
+      throw rpcErrors.resourceUnavailable(
+        `Failed to fetch NFT data: ${error} Make sure the NFT is on the currently selected network.`,
       );
     }
 

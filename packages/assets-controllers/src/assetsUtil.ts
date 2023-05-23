@@ -1,4 +1,4 @@
-import { rpcErrors } from '@metamask/rpc-errors'
+import { rpcErrors } from '@metamask/rpc-errors';
 import { CID } from 'multiformats/cid';
 import type { Hex } from '@metamask/utils';
 import {
