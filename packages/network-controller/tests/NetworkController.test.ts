@@ -5733,6 +5733,58 @@ function lookupNetworkTests({
               },
             );
           });
+
+          it('updates the network details', async () => {
+            await withController(
+              {
+                state: initialState,
+              },
+              async ({ controller }) => {
+                await setFakeProvider(controller, {
+                  stubs: [
+                    // Called during provider initialization
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: { result: networkId },
+                    },
+                    {
+                      request: {
+                        method: 'eth_getBlockByNumber',
+                      },
+                      response: {
+                        result: PRE_1559_BLOCK,
+                      },
+                    },
+                    // Called via `lookupNetwork` directly
+                    {
+                      request: {
+                        method: 'net_version',
+                      },
+                      response: { result: networkId },
+                    },
+                    {
+                      request: {
+                        method: 'eth_getBlockByNumber',
+                      },
+                      response: {
+                        result: POST_1559_BLOCK,
+                      },
+                    },
+                  ],
+                });
+
+                await operation(controller);
+
+                await expect(controller.state.networkDetails).toStrictEqual({
+                  EIPS: {
+                    1559: true,
+                  },
+                });
+              },
+            );
+          });
         });
       });
     }
