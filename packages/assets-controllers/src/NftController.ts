@@ -4,7 +4,7 @@ import { isAddress } from '@ethersproject/address';
 import { Mutex } from 'async-mutex';
 import type { Hex } from '@metamask/utils';
 import { v4 as random } from 'uuid';
-import { ethErrors } from 'eth-rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
 import {
   BaseController,
   BaseConfig,
@@ -1002,34 +1002,34 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     // Validate parameters
     if (!type) {
-      throw ethErrors.rpc.invalidParams('Asset type is required');
+      throw rpcErrors.invalidParams('Asset type is required');
     }
 
     if (type !== ERC721 && type !== ERC1155) {
-      throw ethErrors.rpc.invalidParams(
+      throw rpcErrors.invalidParams(
         `Non NFT asset type ${type} not supported by watchNft`,
       );
     }
 
     if (!contractAddress || !tokenId) {
-      throw ethErrors.rpc.invalidParams(
+      throw rpcErrors.invalidParams(
         'Both address and tokenId are required',
       );
     }
 
     if (!isAddress(contractAddress)) {
-      throw ethErrors.rpc.invalidParams('Invalid address');
+      throw rpcErrors.invalidParams('Invalid address');
     }
 
     if (!/^\d+$/u.test(tokenId)) {
-      throw ethErrors.rpc.invalidParams('Invalid tokenId');
+      throw rpcErrors.invalidParams('Invalid tokenId');
     }
 
     // Check if the suggested NFT is already pending
     // if (
     // TODO: check if the suggested NFT is already pending in approval controller state
     // ) {
-    //   throw ethErrors.rpc.internal('Suggested NFT already pending');
+    //   throw rpcErrors.internal('Suggested NFT already pending');
     // }
 
     // Check if the suggested NFT is already being watched by the selected account
@@ -1043,7 +1043,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         },
       )
     ) {
-      throw ethErrors.rpc.internal(
+      throw rpcErrors.internal(
         'Suggested NFT is already watched by the selected account',
       );
     }
@@ -1052,7 +1052,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     try {
       nftMetadata = await this.getNftInformation(asset.address, asset.tokenId);
     } catch (error) {
-      throw ethErrors.rpc.internal(
+      throw rpcErrors.internal(
         `Failed to fetch NFT metadata: ${error}. Make sure the NFT is on the currently selected network.`,
       );
     }
@@ -1062,13 +1062,13 @@ export class NftController extends BaseController<NftConfig, NftState> {
       // TODO fold ownership check into getNftInformation call
       isOwner = await this.isNftOwner(accountAddress, contractAddress, tokenId);
     } catch (error) {
-      throw ethErrors.rpc.internal(
+      throw rpcErrors.internal(
         `Failed to fetch NFT owner: ${error} Make sure the NFT is on the currently selected network.`,
       );
     }
 
     if (!isOwner) {
-      throw ethErrors.rpc.internal(
+      throw rpcErrors.internal(
         'Suggested NFT is not owned by the selected account',
       );
     }
