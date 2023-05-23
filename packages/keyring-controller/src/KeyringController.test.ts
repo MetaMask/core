@@ -170,11 +170,14 @@ describe('KeyringController', () => {
           await withController(
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
+              const initialVault = controller.state.vault;
               const currentState = await controller.createNewVaultAndRestore(
                 password,
                 uint8ArraySeed,
               );
               expect(initialState).not.toBe(currentState);
+              expect(controller.state.vault).toBeDefined();
+              expect(controller.state.vault).toStrictEqual(initialVault);
             },
           );
         });
@@ -267,6 +270,7 @@ describe('KeyringController', () => {
                 expect(
                   isValidHexAddress(currentState.keyrings[0].accounts[0]),
                 ).toBe(true);
+                expect(controller.state.vault).toBeDefined();
               },
             );
           });
@@ -278,6 +282,7 @@ describe('KeyringController', () => {
               expect(keyring.accounts).not.toStrictEqual([]);
               expect(keyring.index).toStrictEqual(0);
               expect(keyring.type).toStrictEqual('HD Key Tree');
+              expect(controller.state.vault).toBeDefined();
             });
           });
         });
@@ -290,6 +295,7 @@ describe('KeyringController', () => {
                 const initialSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
+                const initialVault = controller.state.vault;
                 const currentState = await controller.createNewVaultAndKeychain(
                   password,
                 );
@@ -300,6 +306,7 @@ describe('KeyringController', () => {
                 expect(initialState).toBe(currentState);
                 expect(currentSeedWord).toBeDefined();
                 expect(initialSeedWord).toBe(currentSeedWord);
+                expect(initialVault).toStrictEqual(controller.state.vault);
               },
             );
           });

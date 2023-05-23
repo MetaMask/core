@@ -677,7 +677,8 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Update keyrings in state and calls KeyringController fullUpdate method returning current state.
+   * Update keyrings and vault in state and calls KeyringController
+   * fullUpdate method returning current state.
    *
    * @returns The current state.
    */
@@ -697,7 +698,10 @@ export class KeyringController extends BaseController<
         },
       ),
     );
-    this.update({ keyrings: [...keyrings] });
+    this.update({
+      keyrings: [...keyrings],
+      vault: this.#keyring.store.getState().vault,
+    });
     return this.#keyring.fullUpdate();
   }
 
