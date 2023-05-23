@@ -1,6 +1,6 @@
 {
   "name": "@metamask/rate-limit-controller",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "Contains logic for rate-limiting API endpoints by requesting origin",
   "keywords": [
     "MetaMask",

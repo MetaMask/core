@@ -6,6 +6,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+### Uncategorized
+- Add submitEncryptionKey method ([#1342](https://github.com/MetaMask/core/pull/1342))
+- `createNewVaultAndRestore` handles seed as Uint8Array ([#1349](https://github.com/MetaMask/core/pull/1349))
+- Add verifyPassword and remove validatePassword ([#1348](https://github.com/MetaMask/core/pull/1348))
+- KeyringController.verifySeedPhrase should return a Uint8Array ([#1338](https://github.com/MetaMask/core/pull/1338))
+- Skip vault creation if one already exists ([#1324](https://github.com/MetaMask/core/pull/1324))
+- `importAccountWithStrategy` shouldn't select address ([#1309](https://github.com/MetaMask/core/pull/1309))
+- keyring-controller: validate from-address in signTypedMessage ([#1293](https://github.com/MetaMask/core/pull/1293))
+- Make addNewAccount idempotent ([#1298](https://github.com/MetaMask/core/pull/1298))
+- Check imported prv key length ([#1297](https://github.com/MetaMask/core/pull/1297))
+- Change importAccountWithStrategy return ([#1295](https://github.com/MetaMask/core/pull/1295))
+- addNewAccount doesn't select new account ([#1296](https://github.com/MetaMask/core/pull/1296))
+- Change addNewAccount return object ([#1294](https://github.com/MetaMask/core/pull/1294))
+- Bump @metamask/eth-keyring-controller from 10.0.0 to 10.0.1 ([#1280](https://github.com/MetaMask/core/pull/1280))
+- Bump @metamask/eth-sig-util from 5.0.2 to 5.0.3 ([#1278](https://github.com/MetaMask/core/pull/1278))
+- Change tests structure in core KeyringController ([#1267](https://github.com/MetaMask/core/pull/1267))
+- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core/pull/1198))
+- Stub PreferencesController in KeyringController tests ([#1194](https://github.com/MetaMask/core/pull/1194))
+- add rollbackToPreviousProvider method ([#1132](https://github.com/MetaMask/core/pull/1132))
+
 ## [4.0.0]
 ### Removed
 - **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
@@ -37,7 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@4.0.0...@metamask/keyring-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@3.0.0...@metamask/keyring-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@2.0.0...@metamask/keyring-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@1.0.1...@metamask/keyring-controller@2.0.0

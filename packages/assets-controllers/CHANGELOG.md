@@ -6,6 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+### Uncategorized
+- Tokens controller approve reject refactor full ([#1268](https://github.com/MetaMask/core/pull/1268))
+- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
+- lookupNetwork: Drop mutex; bail on network change ([#1375](https://github.com/MetaMask/core/pull/1375))
+- Initialize asset controllers with the current network ([#1361](https://github.com/MetaMask/core/pull/1361))
+- Tokens controller approve reject refactor ([#1261](https://github.com/MetaMask/core/pull/1261))
+- Support NFT detection on custom Mainnet RPC endpoints ([#1360](https://github.com/MetaMask/core/pull/1360))
+- Remove unused `networkType` configuration ([#1359](https://github.com/MetaMask/core/pull/1359))
+- Replace `NetworksChainId` constant with `ChainId` ([#1354](https://github.com/MetaMask/core/pull/1354))
+- Enable token detection for the Aurora network ([#1327](https://github.com/MetaMask/core/pull/1327))
+- NetworkController: Remove providerConfigChange event ([#1329](https://github.com/MetaMask/core/pull/1329))
+- NetworkController: Use the same middleware stack as the extension ([#1116](https://github.com/MetaMask/core/pull/1116))
+- Remove built-in localhost network ([#1313](https://github.com/MetaMask/core/pull/1313))
+- Rename `rpcTarget` to `rpcUrl` ([#1292](https://github.com/MetaMask/core/pull/1292))
+- Bump @metamask/abi-utils from 1.1.0 to 1.2.0 ([#1287](https://github.com/MetaMask/core/pull/1287))
+- Require Infura project ID ([#1276](https://github.com/MetaMask/core/pull/1276))
+- Add eth-query types ([#1266](https://github.com/MetaMask/core/pull/1266))
+- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Bump @metamask/utils from 5.0.1 to 5.0.2 ([#1271](https://github.com/MetaMask/core/pull/1271))
+
 ## [7.0.0]
 ### Changed
 - **BREAKING**: peerDeps: @metamask/network-controller@6.0.0->8.0.0 ([#1196](https://github.com/MetaMask/core/pull/1196))
@@ -96,7 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@7.0.0...@metamask/assets-controllers@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@6.0.0...@metamask/assets-controllers@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@5.1.0...@metamask/assets-controllers@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@5.0.1...@metamask/assets-controllers@5.1.0

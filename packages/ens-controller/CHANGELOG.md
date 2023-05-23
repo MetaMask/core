@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+### Uncategorized
+- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
+- Fix ENS controller network change handler ([#1362](https://github.com/MetaMask/core/pull/1362))
+- Remove duplicate `hasProperty` function ([#1275](https://github.com/MetaMask/core/pull/1275))
+- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Bump @metamask/utils from 5.0.1 to 5.0.2 ([#1271](https://github.com/MetaMask/core/pull/1271))
+
 ## [3.1.0]
 ### Changed
 - Add support for reverse ENS address resolution ([#1170](https://github.com/MetaMask/core/pull/1170))
@@ -38,7 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.1.0...@metamask/ens-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.0.0...@metamask/ens-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@2.0.0...@metamask/ens-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@1.0.2...@metamask/ens-controller@2.0.0

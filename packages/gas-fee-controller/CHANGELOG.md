@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+### Uncategorized
+- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
+- lookupNetwork: Drop mutex; bail on network change ([#1375](https://github.com/MetaMask/core/pull/1375))
+- NetworkController: Remove providerConfigChange event ([#1329](https://github.com/MetaMask/core/pull/1329))
+- NetworkController: Use the same middleware stack as the extension ([#1116](https://github.com/MetaMask/core/pull/1116))
+- Rename `rpcTarget` to `rpcUrl` ([#1292](https://github.com/MetaMask/core/pull/1292))
+- Fix GasFeeController to assign `ethQuery` initially ([#1284](https://github.com/MetaMask/core/pull/1284))
+- Add eth-query types ([#1266](https://github.com/MetaMask/core/pull/1266))
+- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+
 ## [5.0.0]
 ### Changed
 - **BREAKING**: peerDeps: @metamask/network-controller@6.0.0->8.0.0 ([#1196](https://github.com/MetaMask/core/pull/1196))
@@ -46,7 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@5.0.0...@metamask/gas-fee-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.1...@metamask/gas-fee-controller@5.0.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.0...@metamask/gas-fee-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@3.0.0...@metamask/gas-fee-controller@4.0.0

@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+### Uncategorized
+- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
+- Replace duplicate `Json` type ([#1370](https://github.com/MetaMask/core/pull/1370))
+- Replace `NetworksChainId` constant with `ChainId` ([#1354](https://github.com/MetaMask/core/pull/1354))
+- Enable token detection for the Aurora network ([#1327](https://github.com/MetaMask/core/pull/1327))
+- Remove built-in localhost network ([#1313](https://github.com/MetaMask/core/pull/1313))
+- docs: update controller-utils/isValidHexAddress to match reality ([#1308](https://github.com/MetaMask/core/pull/1308))
+- Add handling of Infura "blocked" status ([#1264](https://github.com/MetaMask/core/pull/1264))
+- Add eth-query types ([#1266](https://github.com/MetaMask/core/pull/1266))
+- Remove duplicate `hasProperty` function ([#1275](https://github.com/MetaMask/core/pull/1275))
+- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Bump @metamask/utils from 5.0.1 to 5.0.2 ([#1271](https://github.com/MetaMask/core/pull/1271))
+
 ## [3.4.0]
 ### Added
 - add WalletConnect in approval type ([#1240](https://github.com/MetaMask/core/pull/1240))
@@ -86,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.4.0...@metamask/controller-utils@4.0.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.3.0...@metamask/controller-utils@3.4.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.2.0...@metamask/controller-utils@3.3.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.1.0...@metamask/controller-utils@3.2.0

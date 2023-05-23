@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+### Uncategorized
+- Add messenger to transaction controller ([#1241](https://github.com/MetaMask/core/pull/1241))
+- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
+- Replace hard-coded `chainId` on incoming token transactions ([#1366](https://github.com/MetaMask/core/pull/1366))
+- Replace `NetworksChainId` constant with `ChainId` ([#1354](https://github.com/MetaMask/core/pull/1354))
+- Widen format of networkDetails ([#1326](https://github.com/MetaMask/core/pull/1326))
+- Refine NetworkController BlockTracker type ([#1303](https://github.com/MetaMask/core/pull/1303))
+- Add eth-query types ([#1266](https://github.com/MetaMask/core/pull/1266))
+- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+
 ## [5.0.0]
 ### Changed
 - **BREAKING**: peerDeps: @metamask/network-controller@6.0.0->8.0.0 ([#1196](https://github.com/MetaMask/core/pull/1196))
@@ -48,7 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@5.0.0...@metamask/transaction-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.0.1...@metamask/transaction-controller@5.0.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.0.0...@metamask/transaction-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@3.0.0...@metamask/transaction-controller@4.0.0

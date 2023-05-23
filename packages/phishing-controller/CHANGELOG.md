@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+### Uncategorized
+- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core/pull/1198))
+
 ## [4.0.0]
 ### Changed
 - **BREAKING:** Switch to new phishing configuration API that returns a diff since the last update ([#1123](https://github.com/MetaMask/core/pull/1123))
@@ -66,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@4.0.0...@metamask/phishing-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@3.0.0...@metamask/phishing-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@2.0.0...@metamask/phishing-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.2...@metamask/phishing-controller@2.0.0

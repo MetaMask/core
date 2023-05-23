@@ -6,6 +6,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+### Uncategorized
+- Update network details even when ID matches ([#1379](https://github.com/MetaMask/core/pull/1379))
+- Support hex and number `net_version` responses ([#1380](https://github.com/MetaMask/core/pull/1380))
+- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
+- lookupNetwork: Drop mutex; bail on network change ([#1375](https://github.com/MetaMask/core/pull/1375))
+- Consolidate state changes in lookupNetwork ([#1356](https://github.com/MetaMask/core/pull/1356))
+- Replace `NetworksChainId` constant with `ChainId` ([#1354](https://github.com/MetaMask/core/pull/1354))
+- Use `toBeFulfilled` matcher for more tests ([#1347](https://github.com/MetaMask/core/pull/1347))
+- Add network change events ([#1336](https://github.com/MetaMask/core/pull/1336))
+- Improve `buildProviderConfig` helper function ([#1346](https://github.com/MetaMask/core/pull/1346))
+- Refactor refresh network tests ([#1335](https://github.com/MetaMask/core/pull/1335))
+- Refactor test helper `operation` property name ([#1345](https://github.com/MetaMask/core/pull/1345))
+- Refactor `waitForPublishedEvents` helper function ([#1343](https://github.com/MetaMask/core/pull/1343))
+- Refactor `lookupNetwork` test cases ([#1318](https://github.com/MetaMask/core/pull/1318))
+- Refactor `lookupNetworkTests` helper function ([#1334](https://github.com/MetaMask/core/pull/1334))
+- Move lookup network tests to helper function ([#1320](https://github.com/MetaMask/core/pull/1320))
+- NetworkController: Match `rollbackToPreviousProvider` to extension ([#1223](https://github.com/MetaMask/core/pull/1223))
+- NetworkController: Remove providerConfigChange event ([#1329](https://github.com/MetaMask/core/pull/1329))
+- Add `destroy` method ([#1330](https://github.com/MetaMask/core/pull/1330))
+- Widen format of networkDetails ([#1326](https://github.com/MetaMask/core/pull/1326))
+- Refactor `lookupNetwork` tests ([#1319](https://github.com/MetaMask/core/pull/1319))
+- Refactor `waitForStateChanges` test helper ([#1322](https://github.com/MetaMask/core/pull/1322))
+- Add `describe` block per network client type ([#1321](https://github.com/MetaMask/core/pull/1321))
+- NetworkController: Use the same middleware stack as the extension ([#1116](https://github.com/MetaMask/core/pull/1116))
+- Simplify the `setFakeProvider` test helper ([#1317](https://github.com/MetaMask/core/pull/1317))
+- Add validation when setting up custom provider ([#1316](https://github.com/MetaMask/core/pull/1316))
+- Remove built-in localhost network ([#1313](https://github.com/MetaMask/core/pull/1313))
+- Add comments to network client test functions ([#1310](https://github.com/MetaMask/core/pull/1310))
+- Use package import over relative import in test ([#1311](https://github.com/MetaMask/core/pull/1311))
+- NetworkController: Fix chain IDs in tests ([#1307](https://github.com/MetaMask/core/pull/1307))
+- NetworkController: Normalize INFURA_NETWORKS array ([#1306](https://github.com/MetaMask/core/pull/1306))
+- Refine NetworkController BlockTracker type ([#1303](https://github.com/MetaMask/core/pull/1303))
+- Improve types used for network client test helpers ([#1305](https://github.com/MetaMask/core/pull/1305))
+- Remove unnecessary mock from provider API test helper ([#1304](https://github.com/MetaMask/core/pull/1304))
+- Remove unused network client configuration ([#1299](https://github.com/MetaMask/core/pull/1299))
+- Remove warning in NetworkController unit tests ([#1300](https://github.com/MetaMask/core/pull/1300))
+- Remove unnecessary ESLint ignore comments ([#1302](https://github.com/MetaMask/core/pull/1302))
+- Add beforeCompleting option to FakeProviderStub ([#1301](https://github.com/MetaMask/core/pull/1301))
+- Rename `rpcTarget` to `rpcUrl` ([#1292](https://github.com/MetaMask/core/pull/1292))
+- Simplify network controller unit test setup ([#1290](https://github.com/MetaMask/core/pull/1290))
+- Remove redundant test suite ([#1291](https://github.com/MetaMask/core/pull/1291))
+- Extract network client construction from NetworkController ([#1285](https://github.com/MetaMask/core/pull/1285))
+- Fix GasFeeController to assign `ethQuery` initially ([#1284](https://github.com/MetaMask/core/pull/1284))
+- Add handling of Infura "blocked" status ([#1264](https://github.com/MetaMask/core/pull/1264))
+- Correctly lint test helpers ([#1281](https://github.com/MetaMask/core/pull/1281))
+- Refactor `lookupNetwork` unit tests ([#1265](https://github.com/MetaMask/core/pull/1265))
+- Require Infura project ID ([#1276](https://github.com/MetaMask/core/pull/1276))
+- Add eth-query types ([#1266](https://github.com/MetaMask/core/pull/1266))
+- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Bump @metamask/utils from 5.0.1 to 5.0.2 ([#1271](https://github.com/MetaMask/core/pull/1271))
+
 ## [8.0.0]
 ### Added
 - Implement `resetConnection` method ([#1131](https://github.com/MetaMask/core/pull/1131), [#1235](https://github.com/MetaMask/core/pull/1235), [#1239](https://github.com/MetaMask/core/pull/1239))
@@ -102,7 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@8.0.0...@metamask/network-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@7.0.0...@metamask/network-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@6.0.0...@metamask/network-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@5.0.0...@metamask/network-controller@6.0.0
