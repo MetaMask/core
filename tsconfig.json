@@ -60,6 +60,9 @@
     },
     {
       "path": "./packages/transaction-controller"
+    },
+    {
+      "path": "./packages/mmi-controller"
     }
   ],
   "files": [],

@@ -25,6 +25,7 @@ This repository houses the following packages:
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
+- [`@metamask/mmi-controller`](packages/mmi-controller)
 
 Or, in graph form [^fn1]:
 
