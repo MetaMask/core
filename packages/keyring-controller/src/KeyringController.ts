@@ -395,7 +395,7 @@ export class KeyringController extends BaseController<
    * @param type - Keyring type name.
    * @returns An array of keyrings of the given type.
    */
-  getKeyringsByType(type: KeyringTypes | string): Keyring[] {
+  getKeyringsByType(type: KeyringTypes | string): unknown[] {
     return this.#keyring.getKeyringsByType(type);
   }
 

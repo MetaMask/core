@@ -449,9 +449,14 @@ describe('KeyringController', () => {
     describe('when existing type is provided', () => {
       it('should return keyrings of the right type', async () => {
         await withController(async ({ controller }) => {
-          const keyrings = controller.getKeyringsByType(KeyringTypes.hd);
+          const keyrings = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as KeyringObject[];
           expect(keyrings).toHaveLength(1);
           expect(keyrings[0].type).toBe(KeyringTypes.hd);
+          expect(keyrings[0].getAccounts()).toStrictEqual(
+            controller.state.keyrings[0].accounts.map(normalize),
+          );
         });
       });
     });
