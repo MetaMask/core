@@ -17,6 +17,7 @@ import {
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from '@metamask/message-manager';
+import { v1 as random } from 'uuid';
 import { ethErrors } from 'eth-rpc-errors';
 import { bufferToHex } from 'ethereumjs-util';
 
@@ -289,7 +290,18 @@ export class SignatureController extends BaseControllerV2<
       );
     }
 
-    return this.#messageManager.addUnapprovedMessageAsync(msgParams, req);
+    await this.#requestApproval({
+      metamaskId: random(),
+      ...msgParams
+    }, ApprovalType.EthSign);
+    await this.#signAbstractMessage(
+      this.#messageManager,
+      ApprovalType.EthSign,
+      msgParams,
+      async (cleanMsgParams) =>
+        await this.#keyringController.signMessage(cleanMsgParams),
+    ); 
+    return 'UNSIGNED_MESSAGE_PLACEHOLDER';
   }
 
   /**
@@ -547,17 +559,17 @@ export class SignatureController extends BaseControllerV2<
     approvalType: ApprovalType,
     eventName: string,
   ) {
-    messageManager.hub.on('updateBadge', () => {
-      this.hub.emit('updateBadge');
-    });
+    // messageManager.hub.on('updateBadge', () => {
+    //   this.hub.emit('updateBadge');
+    // });
 
-    messageManager.hub.on(
-      'unapprovedMessage',
-      (msgParams: AbstractMessageParamsMetamask) => {
-        this.hub.emit(eventName, msgParams);
-        this.#requestApproval(msgParams, approvalType);
-      },
-    );
+    // messageManager.hub.on(
+    //   'unapprovedMessage',
+    //   (msgParams: AbstractMessageParamsMetamask) => {
+    //     this.hub.emit(eventName, msgParams);
+    //     this.#requestApproval(msgParams, approvalType);
+    //   },
+    // );
   }
 
   #subscribeToMessageState<
@@ -629,14 +641,14 @@ export class SignatureController extends BaseControllerV2<
     }[messageId];
   }
 
-  #requestApproval(
+  async #requestApproval(
     msgParams: AbstractMessageParamsMetamask,
     type: ApprovalType,
   ) {
     const id = msgParams.metamaskId as string;
     const origin = msgParams.origin || ORIGIN_METAMASK;
 
-    this.messagingSystem
+    return this.messagingSystem
       .call(
         'ApprovalController:addRequest',
         {
@@ -645,7 +657,7 @@ export class SignatureController extends BaseControllerV2<
           type,
           requestData: msgParams as Required<AbstractMessageParamsMetamask>,
         },
-        true,
+        true
       )
       .catch(() => {
         // Intentionally ignored as promise not currently used
