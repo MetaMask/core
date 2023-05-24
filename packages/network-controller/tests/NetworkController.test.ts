@@ -4,6 +4,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import * as ethQueryModule from 'eth-query';
 import { Patch } from 'immer';
 import { v4 } from 'uuid';
+import nock from 'nock';
 import { ethErrors } from 'eth-rpc-errors';
 import {
   BUILT_IN_NETWORKS,
@@ -64,48 +65,21 @@ const originalSetTimeout = global.setTimeout;
 const originalClearTimeout = global.clearTimeout;
 
 const createNetworkClientMock = jest.mocked(createNetworkClient);
+const uuidV4Mock = jest.mocked(v4);
 
 /**
  * A dummy block that matches the pre-EIP-1559 format (i.e. it doesn't have the
  * `baseFeePerGas` property).
  */
-const PRE_1559_BLOCK = {
-  difficulty: '0x0',
-  extraData: '0x',
-  gasLimit: '0x1c9c380',
-  gasUsed: '0x598c9b',
-  hash: '0xfb2086eb924ffce4061f94c3b65f303e0351f8e7deff185fe1f5e9001ff96f63',
-  logsBloom:
-    '0x7034820113921800018e8070900006316040002225c04a0624110010841018a2109040401004112a4c120f00220a2119020000714b143a04004106120130a8450080433129401068ed22000a54a48221a1020202524204045421b883882530009a1800b08a1309408008828403010d530440001a40003c0006240291008c0404c211610c690b00f1985e000009c02503240040010989c01cf2806840043815498e90012103e06084051542c0094002494008044c24a0a13281e0009601481073010800130402464202212202a8088210442a8ec81b080430075629e60a00a082005a3988400940a4009012a204011a0018a00903222a60420428888144210802',
-  miner: '0xffee087852cb4898e6c3532e776e68bc68b1143b',
-  mixHash: '0xb17ba50cd7261e77a213fb75704dcfd8a28fbcd78d100691a112b7cc2893efa2',
-  nonce: '0x0000000000000000',
-  number: '0x2', // number set to "2" to simplify tests
-  parentHash:
-    '0x31406d1bf1a2ca12371ce5b3ecb20568d6a8b9bf05b49b71b93ba33f317d5a82',
-  receiptsRoot:
-    '0x5ba97ece1afbac2a8fe0344f9022fe808342179b26ea3ecc2e0b8c4b46b7f8cd',
-  sha3Uncles:
-    '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347',
-  size: '0x70f4',
-  stateRoot:
-    '0x36bfb7ca106d41c4458292669126e091011031c5af612dee1c2e6424ef92b080',
-  timestamp: '0x639b6d9b',
-  totalDifficulty: '0xc70d815d562d3cfa955',
-  transactions: [
-    // reduced to a single transaction to make fixture less verbose
-    '0x2761e939dc822f64141bd00bc7ef8cee16201af10e862469212396664cee81ce',
-  ],
-  transactionsRoot:
-    '0x98bbdfbe1074bc3aa72a77a281f16d6ba7e723d68f15937d80954fb34d323369',
-  uncles: [],
+const PRE_1559_BLOCK: Block = {
+  number: '0x42',
 };
 
 /**
  * A dummy block that matches the pre-EIP-1559 format (i.e. it has the
  * `baseFeePerGas` property).
  */
-const POST_1559_BLOCK = {
+const POST_1559_BLOCK: Block = {
   ...PRE_1559_BLOCK,
   baseFeePerGas: '0x63c498a46',
 };
@@ -117,40 +91,27 @@ const POST_1559_BLOCK = {
 const BLOCK: Block = POST_1559_BLOCK;
 
 /**
- * A response object for a request that has been geoblocked by Infura.
- */
-const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
-  JSON.stringify({ error: 'countryBlocked' }),
-);
-
-/**
  * The networks that NetworkController recognizes as built-in Infura networks,
  * along with information we expect to be true for those networks.
  */
 const INFURA_NETWORKS = [
   {
-    nickname: 'Mainnet',
     networkType: NetworkType.mainnet,
     chainId: toHex(1),
     ticker: 'ETH',
     blockExplorerUrl: 'https://etherscan.io',
-    networkVersion: '1',
   },
   {
-    nickname: 'Goerli',
     networkType: NetworkType.goerli,
     chainId: toHex(5),
     ticker: 'GoerliETH',
     blockExplorerUrl: 'https://goerli.etherscan.io',
-    networkVersion: '5',
   },
   {
-    nickname: 'Sepolia',
     networkType: NetworkType.sepolia,
     chainId: toHex(11155111),
     ticker: 'SepoliaETH',
     blockExplorerUrl: 'https://sepolia.etherscan.io',
-    networkVersion: '11155111',
   },
 ];
 
@@ -170,32 +131,32 @@ const SUCCESSFUL_NET_VERSION_RESPONSE = {
   result: '42',
 };
 
-//                                                                                     setProviderType            setActiveNetwork
-//                                                                                            └───────────┬────────────┘
-// initializeProvider                                                                               refreshNetwork
-//       │ │ └────────────────────────────────────────────┬──────────────────────────────────────────────┘ │
-//       │ │                                     configureProvider                                         │
-//       │ │                  ┌─────────────────────────┘ │                                                |
-//       │ │          setupInfuraProvider        setupStandardProvider                                     │
-//       │ │                  └─────────────┬─────────────┘                                                │
-//       │ │                          updateProvider                                                       │
-//       │ └───────────────┬───────────────┘ └───────────────────────────────┐                             │
-//       │          registerProvider                                  this.provider = ...                  │
-//       │                 ⋮                                                                               │
-//       │   this.provider.on('error', ...)                                                                │
-//       │                 │                                                                               │
-//       │            verifyNetwork                                                                        │
-//       │                 └─────────────────────────────┐                                                 │
-//       └───────────────────────────────────────────────┼─────────────────────────────────────────────────┘
-//                                                 lookupNetwork
+/**
+ * A response object for a request that has been geoblocked by Infura.
+ */
+const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
+  JSON.stringify({ error: 'countryBlocked' }),
+);
+
+/**
+ * A response object for a unsuccessful request to any RPC method. It is assumed
+ * that the error here is insignificant to the test.
+ */
+const GENERIC_JSON_RPC_ERROR = ethErrors.rpc.internal(
+  JSON.stringify({ error: 'oops' }),
+);
 
 describe('NetworkController', () => {
   beforeEach(() => {
+    // Disable all requests, even those to localhost
+    nock.disableNetConnect();
     jest.resetAllMocks();
     jest.useFakeTimers();
   });
 
   afterEach(() => {
+    nock.enableNetConnect('localhost');
+    nock.cleanAll();
     jest.useRealTimers();
     resetAllWhenMocks();
   });
@@ -544,7 +505,7 @@ describe('NetworkController', () => {
                         request: {
                           method: 'net_version',
                         },
-                        error: ethErrors.rpc.internal('some error'),
+                        error: GENERIC_JSON_RPC_ERROR,
                       },
                     ]),
                   ];
@@ -989,7 +950,7 @@ describe('NetworkController', () => {
                         request: {
                           method: 'net_version',
                         },
-                        error: ethErrors.rpc.internal('some error'),
+                        error: GENERIC_JSON_RPC_ERROR,
                       },
                     ]),
                   ];
@@ -1442,7 +1403,7 @@ describe('NetworkController', () => {
                     request: {
                       method: 'net_version',
                     },
-                    error: ethErrors.rpc.internal('some error'),
+                    error: GENERIC_JSON_RPC_ERROR,
                   },
                 ]),
               ];
@@ -1858,7 +1819,7 @@ describe('NetworkController', () => {
                     request: {
                       method: 'net_version',
                     },
-                    error: ethErrors.rpc.internal('some error'),
+                    error: GENERIC_JSON_RPC_ERROR,
                   },
                 ]),
               ];
@@ -3320,9 +3281,7 @@ describe('NetworkController', () => {
 
   describe('upsertNetworkConfiguration', () => {
     it('adds the given network configuration when its rpcURL does not match an existing configuration', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(
-        () => 'network-configuration-id-1',
-      );
+      uuidV4Mock.mockImplementationOnce(() => 'network-configuration-id-1');
 
       await withController(async ({ controller }) => {
         const rpcUrlNetwork = {
@@ -3505,7 +3464,7 @@ describe('NetworkController', () => {
     });
 
     it('throws if referrer and source arguments are not passed', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       const trackEventSpy = jest.fn();
       await withController(
         {
@@ -3550,7 +3509,7 @@ describe('NetworkController', () => {
     });
 
     it('should add the given network if all required properties are present but nither rpcPrefs nor nickname properties are passed', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       await withController(
         {
           state: {
@@ -3586,7 +3545,7 @@ describe('NetworkController', () => {
     });
 
     it('adds new networkConfiguration to networkController store, but only adds valid properties (rpcUrl, chainId, ticker, nickname, rpcPrefs) and fills any missing properties from this list as undefined', async function () {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       await withController(
         {
           state: {
@@ -3626,7 +3585,7 @@ describe('NetworkController', () => {
     });
 
     it('should add the given network configuration if its rpcURL does not match an existing configuration without changing or overwriting other configurations', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId2');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId2');
       await withController(
         {
           state: {
@@ -3784,7 +3743,7 @@ describe('NetworkController', () => {
     });
 
     it('should add the given network and not set it to active if the setActive option is not passed (or a falsy value is passed)', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       const originalProvider = {
         type: 'rpc' as NetworkType,
         rpcUrl: 'https://mock-rpc-url',
@@ -3828,7 +3787,7 @@ describe('NetworkController', () => {
     });
 
     it('should add the given network and set it to active if the setActive option is passed as true', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       await withController(
         {
           state: {
@@ -3883,7 +3842,7 @@ describe('NetworkController', () => {
     });
 
     it('adds new networkConfiguration to networkController store and calls to the metametrics event tracking with the correct values', async () => {
-      (v4 as jest.Mock).mockImplementationOnce(() => 'networkConfigurationId');
+      uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       const trackEventSpy = jest.fn();
       await withController(
         {
@@ -6220,7 +6179,7 @@ function lookupNetworkTests({
             stubs: [
               {
                 request: { method: 'net_version' },
-                error: ethErrors.rpc.internal('some error'),
+                error: GENERIC_JSON_RPC_ERROR,
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6244,7 +6203,7 @@ function lookupNetworkTests({
               stubs: [
                 {
                   request: { method: 'net_version' },
-                  error: ethErrors.rpc.internal('some error'),
+                  error: GENERIC_JSON_RPC_ERROR,
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6273,7 +6232,7 @@ function lookupNetworkTests({
               stubs: [
                 {
                   request: { method: 'net_version' },
-                  error: ethErrors.rpc.internal('some error'),
+                  error: GENERIC_JSON_RPC_ERROR,
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6304,7 +6263,7 @@ function lookupNetworkTests({
             stubs: [
               {
                 request: { method: 'net_version' },
-                error: ethErrors.rpc.internal('some error'),
+                error: GENERIC_JSON_RPC_ERROR,
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6771,7 +6730,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.internal('some error'),
+                error: GENERIC_JSON_RPC_ERROR,
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6798,7 +6757,7 @@ function lookupNetworkTests({
                     method: 'eth_getBlockByNumber',
                     params: ['latest', false],
                   },
-                  error: ethErrors.rpc.internal('some error'),
+                  error: GENERIC_JSON_RPC_ERROR,
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6830,7 +6789,7 @@ function lookupNetworkTests({
                     method: 'eth_getBlockByNumber',
                     params: ['latest', false],
                   },
-                  error: ethErrors.rpc.internal('some error'),
+                  error: GENERIC_JSON_RPC_ERROR,
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6864,7 +6823,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.internal('some error'),
+                error: GENERIC_JSON_RPC_ERROR,
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6944,8 +6903,8 @@ type WithControllerArgs<ReturnValue> =
  *
  * @param args - Either a function, or an options bag + a function. The options
  * bag is equivalent to the options that NetworkController takes (although
- * `messenger` is filled in if not given); the function will be called with the
- * built controller.
+ * `messenger` and `infuraProjectId` are  filled in if not given); the function
+ * will be called with the built controller.
  * @returns Whatever the callback returns.
  */
 async function withController<ReturnValue>(
