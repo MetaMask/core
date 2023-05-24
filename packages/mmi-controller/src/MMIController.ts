@@ -21,54 +21,11 @@ import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { TransactionMeta } from '@metamask/transaction-controller';
 
-import { FINALIZED_TRANSACTION_STATUSES } from './transaction';
-
-export const CHAIN_IDS = {
-  MAINNET: '0x1',
-  GOERLI: '0x5',
-  LOCALHOST: '0x539',
-  BSC: '0x38',
-  BSC_TESTNET: '0x61',
-  OPTIMISM: '0xa',
-  OPTIMISM_TESTNET: '0x1a4',
-  POLYGON: '0x89',
-  POLYGON_TESTNET: '0x13881',
-  AVALANCHE: '0xa86a',
-  AVALANCHE_TESTNET: '0xa869',
-  FANTOM: '0xfa',
-  FANTOM_TESTNET: '0xfa2',
-  CELO: '0xa4ec',
-  ARBITRUM: '0xa4b1',
-  HARMONY: '0x63564c40',
-  PALM: '0x2a15c308d',
-  SEPOLIA: '0xaa36a7',
-  LINEA_TESTNET: '0xe704',
-  AURORA: '0x4e454152',
-  MOONBEAM: '0x504',
-  MOONBEAM_TESTNET: '0x507',
-  MOONRIVER: '0x505',
-} as const;
+import { CHAIN_IDS, FINALIZED_TRANSACTION_STATUSES } from './transaction';
+import { MMIControllerOptions } from './MMIControllerOptions';
 
 const BUILD_QUOTE_ROUTE = '/swaps/build-quote';
 const CONNECT_HARDWARE_ROUTE = '/new-account/connect';
-
-export type MMIControllerOptions = {
-  keyringController: any;
-  txController: any;
-  securityProviderRequest: any;
-  appStateController: any;
-  addKeyringIfNotExists: any;
-  getState: any;
-  getPendingNonce: any;
-  accountTracker: any;
-  metaMetricsController: any;
-  transactionUpdateController: TransactionUpdateController;
-  networkController: any;
-  platform: any;
-  extension: any;
-  captureException?: (error: Error) => void;
-  request?: (request: { method: string, params?: Array<any> }) => Promise<any>
-}
 
 export default class MMIController extends EventEmitter {
 
@@ -143,7 +100,7 @@ export default class MMIController extends EventEmitter {
         this.transactionUpdateController.subscribeToEvents();
       });
     }
-  } // End of constructor
+  }
 
   async persistKeyringsAfterRefreshTokenChange() {
     this.keyringController.persistAllKeyrings();
@@ -382,7 +339,6 @@ export default class MMIController extends EventEmitter {
       }
     }
 
-    // FIXME: status maps are not a thing anymore
     this.custodyController.storeCustodyStatusMap(
       custodian.name,
       keyring.getStatusMap(),
@@ -604,7 +560,7 @@ export default class MMIController extends EventEmitter {
     keyring: any;
   }}) {
     const { token, apiUrl } = req.params;
-    const custodyType = 'Custody - JSONRPC'; // Only JSONRPC is supported for now
+    const custodyType = 'Custody - JSONRPC'; // Only JSONRPC is supported
 
     // This can only work if the extension is unlocked
     await this.appStateController.getUnlockPromise(true);
@@ -660,6 +616,7 @@ export default class MMIController extends EventEmitter {
     if (selectedChainId !== chainId && chainId === 1) {
       this.networkController.setProviderType('mainnet');
     } else if (selectedChainId !== chainId) {
+      // @Shane T this doesn't exist here in core
       const network = this.preferencesController
         .getFrequentRpcListDetail()
         .find((item) => parseInt(item.chainId, 16) === chainId);
@@ -670,6 +627,7 @@ export default class MMIController extends EventEmitter {
         network.nickname,
       );
     }
+    // @Shane T this doesn't exist here in core
     getPermissionBackgroundApiMethods(
       this.permissionController,
     ).addPermittedAccount(origin, address);
