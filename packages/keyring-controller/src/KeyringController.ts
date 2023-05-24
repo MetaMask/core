@@ -680,8 +680,7 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Update keyrings and vault in state and calls KeyringController
-   * fullUpdate method returning current state.
+   * Update keyrings in state and calls KeyringController fullUpdate method returning current state.
    *
    * @returns The current state.
    */
