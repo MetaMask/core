@@ -30,6 +30,7 @@ const CONNECT_HARDWARE_ROUTE = '/new-account/connect';
 export default class MMIController extends EventEmitter {
 
   public mmiConfigurationController: MmiConfigurationController;
+  // @Shane T, what shoould we do with all these types
   public keyringController: any;
   public txController: any;
   public securityProviderRequest: any;
@@ -38,6 +39,10 @@ export default class MMIController extends EventEmitter {
   public getState: any;
   public getPendingNonce: any;
   public accountTracker: any;
+  public metaMetricsController: any;
+  public networkController: any;
+  public platform: any;
+  public extension: any;
   public preferencesController: PreferencesController
   public transactionUpdateController: TransactionUpdateController;
   public custodyController: CustodyController;
@@ -45,11 +50,6 @@ export default class MMIController extends EventEmitter {
 
   public typedMessageManager: TypedMessageManager;
   public personalMessageManager: PersonalMessageManager;
-
-  public metaMetricsController: any;
-  public networkController: any;
-  public platform: any;
-  public extension: any;
 
   constructor(
     opts: MMIControllerOptions,
@@ -71,7 +71,6 @@ export default class MMIController extends EventEmitter {
     this.personalMessageManager = personalMessageManager;
     
     this.preferencesController = preferencesController;
-
     this.appStateController = opts.appStateController;
     
     this.transactionUpdateController = opts.transactionUpdateController;
