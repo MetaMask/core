@@ -991,11 +991,15 @@ export class NftController extends BaseController<NftConfig, NftState> {
     });
   }
 
-  async validateWatchNftAndFetchMetadata(
+  async validateWatchNft(
     asset: NftAsset,
     type: NFTStandardType,
     accountAddress: string,
-  ) {
+  ): Promise<{
+    nftAlreadyWatchedError: boolean;
+    ownerFetchError: boolean;
+    wrongOwnerError: boolean;
+  }> {
     const { chainId } = this.config;
 
     const { address: contractAddress, tokenId } = asset;
@@ -1030,6 +1034,11 @@ export class NftController extends BaseController<NftConfig, NftState> {
     //   throw rpcErrors.internal('Suggested NFT already pending');
     // }
 
+    const errors = {
+      nftAlreadyWatchedError: false,
+      ownerFetchError: false,
+      wrongOwnerError: false,
+    };
     // Check if the suggested NFT is already being watched by the selected account
     if (
       this.state.allNfts?.[accountAddress]?.[chainId]?.find(
@@ -1041,29 +1050,24 @@ export class NftController extends BaseController<NftConfig, NftState> {
         },
       )
     ) {
-      throw rpcErrors.internal(
-        'Suggested NFT is already watched by the selected account',
-      );
+      errors.nftAlreadyWatchedError = true;
+      return errors;
     }
 
-    let isOwner;
-    let nftMetadata;
     try {
-      nftMetadata = await this.getNftInformation(asset.address, asset.tokenId);
-      isOwner = await this.isNftOwner(accountAddress, contractAddress, tokenId);
-    } catch (error) {
-      throw rpcErrors.resourceUnavailable(
-        `Failed to fetch NFT data: ${error} Make sure the NFT is on the currently selected network.`,
+      const isOwner = await this.isNftOwner(
+        accountAddress,
+        contractAddress,
+        tokenId,
       );
+      if (!isOwner) {
+        errors.wrongOwnerError = true;
+      }
+    } catch {
+      errors.ownerFetchError = true;
     }
 
-    if (!isOwner) {
-      throw rpcErrors.internal(
-        'Suggested NFT is not owned by the selected account',
-      );
-    }
-
-    return nftMetadata;
+    return errors;
   }
 
   /**
@@ -1085,10 +1089,11 @@ export class NftController extends BaseController<NftConfig, NftState> {
     const { selectedAddress, chainId } = this.config;
     const accountAddress = interactingAddress || selectedAddress;
 
-    const nftMetadata = await this.validateWatchNftAndFetchMetadata(
-      asset,
-      type,
-      accountAddress,
+    const errors = await this.validateWatchNft(asset, type, accountAddress);
+
+    const nftMetadata = await this.getNftInformation(
+      asset.address,
+      asset.tokenId,
     );
 
     const suggestedNftMeta: SuggestedNftMeta = {
@@ -1098,7 +1103,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       time: Date.now(),
       interactingAddress: accountAddress,
     };
-    await this._requestApproval(suggestedNftMeta);
+    await this._requestApproval({ suggestedNftMeta, errors });
 
     const { address, tokenId } = asset;
     const { name, standard, description, image } = nftMetadata;
@@ -1483,7 +1488,17 @@ export class NftController extends BaseController<NftConfig, NftState> {
     return true;
   }
 
-  async _requestApproval(suggestedNftMeta: SuggestedNftMeta) {
+  async _requestApproval({
+    suggestedNftMeta,
+    errors,
+  }: {
+    suggestedNftMeta: SuggestedNftMeta;
+    errors: {
+      nftAlreadyWatchedError: boolean;
+      ownerFetchError: boolean;
+      wrongOwnerError: boolean;
+    };
+  }) {
     return this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
@@ -1493,6 +1508,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         requestData: {
           id: suggestedNftMeta.id,
           interactingAddress: suggestedNftMeta.interactingAddress,
+          errors,
           asset: {
             address: suggestedNftMeta.asset.address,
             tokenId: suggestedNftMeta.asset.tokenId,
