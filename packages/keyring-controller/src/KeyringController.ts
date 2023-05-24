@@ -757,6 +757,15 @@ export class KeyringController extends BaseController<
     (await this.getOrAddQRKeyring()).cancelSignRequest();
   }
 
+  /**
+   * Cancels qr keyring sync.
+   *
+   */
+  async cancelQRSync(): Promise<void> {
+    // eslint-disable-next-line node/no-sync
+    (await this.getOrAddQRKeyring()).cancelSync();
+  }
+
   async connectQRHardware(
     page: number,
   ): Promise<{ balance: string; address: string; index: number }[]> {

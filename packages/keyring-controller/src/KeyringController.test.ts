@@ -1573,6 +1573,20 @@ describe('KeyringController', () => {
         expect(cancelSignRequestStub.called).toBe(true);
       });
     });
+
+    describe('cancelQRSync', () => {
+      it("should call qr keyring's method", async () => {
+        await setupQRKeyring();
+        const qrKeyring =
+          await signProcessKeyringController.getOrAddQRKeyring();
+
+        const cancelSyncRequestStub = sinon.stub(qrKeyring, 'cancelSync');
+        cancelSyncRequestStub.resolves();
+        // eslint-disable-next-line node/no-sync
+        await signProcessKeyringController.cancelQRSync();
+        expect(cancelSyncRequestStub.called).toBe(true);
+      });
+    });
   });
 });
 
