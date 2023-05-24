@@ -1986,6 +1986,7 @@ __metadata:
     ethereumjs-util: ^7.0.10
     immer: ^9.0.6
     jest: ^27.5.1
+    lodash.clonedeep: ^4.5.0
     ts-jest: ^27.1.4
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
@@ -7132,6 +7133,13 @@ __metadata:
   dependencies:
     p-locate: ^4.1.0
   checksum: 83e51725e67517287d73e1ded92b28602e3ae5580b301fe54bfb76c0c723e3f285b19252e375712316774cf52006cb236aed5704692c32db0d5d089b69696e30
+  languageName: node
+  linkType: hard
+
+"lodash.clonedeep@npm:^4.5.0":
+  version: 4.5.0
+  resolution: "lodash.clonedeep@npm:4.5.0"
+  checksum: 92c46f094b064e876a23c97f57f81fbffd5d760bf2d8a1c61d85db6d1e488c66b0384c943abee4f6af7debf5ad4e4282e74ff83177c9e63d8ff081a4837c3489
   languageName: node
   linkType: hard
 
