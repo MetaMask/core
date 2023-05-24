@@ -7,15 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.0.0]
-### Uncategorized
-- Add messenger to transaction controller ([#1241](https://github.com/MetaMask/core/pull/1241))
-- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
-- Replace hard-coded `chainId` on incoming token transactions ([#1366](https://github.com/MetaMask/core/pull/1366))
-- Replace `NetworksChainId` constant with `ChainId` ([#1354](https://github.com/MetaMask/core/pull/1354))
-- Widen format of networkDetails ([#1326](https://github.com/MetaMask/core/pull/1326))
-- Refine NetworkController BlockTracker type ([#1303](https://github.com/MetaMask/core/pull/1303))
-- Add eth-query types ([#1266](https://github.com/MetaMask/core/pull/1266))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** Update `@metamask/network-controller` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
+  - This affects the `getNetworkState` and `onNetworkStateChange` constructor parameters
+- **BREAKING:** Change format of chain ID in state to `Hex` ([#1367](https://github.com/MetaMask/core/pull/1367))
+  - The `chainId` property of the `Transaction` type has been changed from `number` to `Hex`
+  - The `chainId` property of the `TransactionMeta` type has been changed from a decimal `string` to `Hex`, and the `transaction` property has been updated along with the `Transaction` type (as described above).
+  - The state property `transactions` is an array of `TransactionMeta` objects, so it has changed according to the description above.
+    - This requires a state migration: each entry should have the `chainId` property converted from a decimal `string` to `Hex`, and the `transaction.chainId` property changed from `number` to `Hex`.
+  - The `addTransaction` and `estimateGas` methods now expect the first parameter (`transaction`) to use type `Hex` for the `chainId` property.
+  - The `updateTransaction` method now expects the `transactionMeta` parameter to use type `Hex` for the `chainId` property (and for the nested `transaction.chainId` property)
+- **BREAKING:** Add `messenger` as required constructor parameter ([#1241](https://github.com/MetaMask/core/pull/1241))
+- Add `@metamask/utils` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
+
+### Fixed
+- Fix inaccurate hard-coded `chainId` on incoming token transactions ([#1366](https://github.com/MetaMask/core/pull/1366))
 
 ## [5.0.0]
 ### Changed

@@ -7,10 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
-### Uncategorized
-- Remove duplicate `hasProperty` function ([#1275](https://github.com/MetaMask/core/pull/1275))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
-- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core/pull/1198))
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Add `@metamask/utils` dependency ([#1275](https://github.com/MetaMask/core/pull/1275))
 
 ## [2.0.0]
 ### Removed

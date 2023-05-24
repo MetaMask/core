@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
-### Uncategorized
-- BREAKING: Allow `RateLimitController` to define a rate-limit per method ([#1355](https://github.com/MetaMask/core/pull/1355))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+### Changed
+- **BREAKING:** Allow `RateLimitController` to define a rate-limit per method ([#1355](https://github.com/MetaMask/core/pull/1355))
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
 
 ## [2.0.1]
 ### Changed

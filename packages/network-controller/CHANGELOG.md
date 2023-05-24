@@ -7,56 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [9.0.0]
-### Uncategorized
-- Update network details even when ID matches ([#1379](https://github.com/MetaMask/core/pull/1379))
-- Support hex and number `net_version` responses ([#1380](https://github.com/MetaMask/core/pull/1380))
-- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
-- lookupNetwork: Drop mutex; bail on network change ([#1375](https://github.com/MetaMask/core/pull/1375))
-- Consolidate state changes in lookupNetwork ([#1356](https://github.com/MetaMask/core/pull/1356))
-- Replace `NetworksChainId` constant with `ChainId` ([#1354](https://github.com/MetaMask/core/pull/1354))
-- Use `toBeFulfilled` matcher for more tests ([#1347](https://github.com/MetaMask/core/pull/1347))
-- Add network change events ([#1336](https://github.com/MetaMask/core/pull/1336))
-- Improve `buildProviderConfig` helper function ([#1346](https://github.com/MetaMask/core/pull/1346))
-- Refactor refresh network tests ([#1335](https://github.com/MetaMask/core/pull/1335))
-- Refactor test helper `operation` property name ([#1345](https://github.com/MetaMask/core/pull/1345))
-- Refactor `waitForPublishedEvents` helper function ([#1343](https://github.com/MetaMask/core/pull/1343))
-- Refactor `lookupNetwork` test cases ([#1318](https://github.com/MetaMask/core/pull/1318))
-- Refactor `lookupNetworkTests` helper function ([#1334](https://github.com/MetaMask/core/pull/1334))
-- Move lookup network tests to helper function ([#1320](https://github.com/MetaMask/core/pull/1320))
-- NetworkController: Match `rollbackToPreviousProvider` to extension ([#1223](https://github.com/MetaMask/core/pull/1223))
-- NetworkController: Remove providerConfigChange event ([#1329](https://github.com/MetaMask/core/pull/1329))
+### Added
+- The events `networkWillChange` and `networkDidChange` are emitted during `setProviderType`, `setActiveNetwork`, `resetConnection`, and `rollbackToPreviousProvider` ([#1336](https://github.com/MetaMask/core/pull/1336))
+  - The `networkWillChange` event is emitted before the network is switched (before the network status is cleared),
+  - The `networkDidChange` event is emitted after the new provider is setup (but before it has finished initializing).
 - Add `destroy` method ([#1330](https://github.com/MetaMask/core/pull/1330))
-- Widen format of networkDetails ([#1326](https://github.com/MetaMask/core/pull/1326))
-- Refactor `lookupNetwork` tests ([#1319](https://github.com/MetaMask/core/pull/1319))
-- Refactor `waitForStateChanges` test helper ([#1322](https://github.com/MetaMask/core/pull/1322))
-- Add `describe` block per network client type ([#1321](https://github.com/MetaMask/core/pull/1321))
-- NetworkController: Use the same middleware stack as the extension ([#1116](https://github.com/MetaMask/core/pull/1116))
-- Simplify the `setFakeProvider` test helper ([#1317](https://github.com/MetaMask/core/pull/1317))
-- Add validation when setting up custom provider ([#1316](https://github.com/MetaMask/core/pull/1316))
-- Remove built-in localhost network ([#1313](https://github.com/MetaMask/core/pull/1313))
-- Add comments to network client test functions ([#1310](https://github.com/MetaMask/core/pull/1310))
-- Use package import over relative import in test ([#1311](https://github.com/MetaMask/core/pull/1311))
-- NetworkController: Fix chain IDs in tests ([#1307](https://github.com/MetaMask/core/pull/1307))
-- NetworkController: Normalize INFURA_NETWORKS array ([#1306](https://github.com/MetaMask/core/pull/1306))
-- Refine NetworkController BlockTracker type ([#1303](https://github.com/MetaMask/core/pull/1303))
-- Improve types used for network client test helpers ([#1305](https://github.com/MetaMask/core/pull/1305))
-- Remove unnecessary mock from provider API test helper ([#1304](https://github.com/MetaMask/core/pull/1304))
-- Remove unused network client configuration ([#1299](https://github.com/MetaMask/core/pull/1299))
-- Remove warning in NetworkController unit tests ([#1300](https://github.com/MetaMask/core/pull/1300))
-- Remove unnecessary ESLint ignore comments ([#1302](https://github.com/MetaMask/core/pull/1302))
-- Add beforeCompleting option to FakeProviderStub ([#1301](https://github.com/MetaMask/core/pull/1301))
-- Rename `rpcTarget` to `rpcUrl` ([#1292](https://github.com/MetaMask/core/pull/1292))
-- Simplify network controller unit test setup ([#1290](https://github.com/MetaMask/core/pull/1290))
-- Remove redundant test suite ([#1291](https://github.com/MetaMask/core/pull/1291))
-- Extract network client construction from NetworkController ([#1285](https://github.com/MetaMask/core/pull/1285))
-- Fix GasFeeController to assign `ethQuery` initially ([#1284](https://github.com/MetaMask/core/pull/1284))
-- Add handling of Infura "blocked" status ([#1264](https://github.com/MetaMask/core/pull/1264))
-- Correctly lint test helpers ([#1281](https://github.com/MetaMask/core/pull/1281))
-- Refactor `lookupNetwork` unit tests ([#1265](https://github.com/MetaMask/core/pull/1265))
-- Require Infura project ID ([#1276](https://github.com/MetaMask/core/pull/1276))
-- Add eth-query types ([#1266](https://github.com/MetaMask/core/pull/1266))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Add events `infuraIsBlocked` and `infuraIsUnblocked` ([#1264](https://github.com/MetaMask/core/pull/1264))
+
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** The `providerConfig` type and state property have changed. The `chainId` property is now `Hex` rather than a decimal `string` ([#1367](https://github.com/MetaMask/core/pull/1367))
+  - This requires a state migration
+  - This affects the return value of the `NetworkController:getProviderConfig` and `NetworkController:getState` actions.
+- **BREAKING:** The `NetworkConfiguration` type and the `networkConfigurations` state property have changed. The `chainId` property on each configuration is now `Hex` rather than a decimal `string`. ([#1367](https://github.com/MetaMask/core/pull/1367))
+  - This requires a state migration
+  - This change affects the `upsertNetworkConfiguration` method, which takes a network configuration as the first parameter
+  - This affects the return value of the `NetworkController:getState` action
+- Allow overlapping `lookupNetwork` calls ([#1375](https://github.com/MetaMask/core/pull/1375))
+  - `lookupNetwork` no longer uses a mutex, meaning that a lookup can be initiated before the previous one has finished. This allows for faster network switching
+  - When there is an overlap in `lookupNetwork` calls, the older one is aborted before events are emitted and before state changes
+- **BREAKING:** The `NetworkController:getState` ([#1329](https://github.com/MetaMask/core/pull/1329))
+- **BREAKING:** Change `networkDetails` format ([#1326](https://github.com/MetaMask/core/pull/1326))
+  - Previously `networkDetails` was `{ isEIP1559Compatible: boolean }`, now it is `{ EIPS: { [eipNumber: number]: boolean } }`
+- **BREAKING:** [`@metamask/network-controller`] Update NetworkController to use a simpler middleware stack derived from pieces of `eth-json-rpc-middleware` instead of `web3-provider-engine` ([#1116](https://github.com/MetaMask/core/pull/1116))
+  - A call to `eth_chainId` on a custom network will now return the `chainId` in the provider config rather than the chain ID returned by the network.
+  - A call to `eth_chainId` on a built-in Infura network will now return a hard-coded chain ID rather than the chain ID returned by the network.
+  - A call to `net_version` on a built-in Infura network will now return a hard-coded network ID rather than the network ID returned by the network.
+  - Previously , RPC requests with an object as the first parameter (e.g. `eth_call`) were "sanitized" (i.e. unknown properties were removed from this first parameter, and any hex strings were normalized). This no longer happens. Instead these requests will pass through to the network unchanged.
+  - A call to `eth_getBalance`, `eth_getBlockByNumber`, `eth_getCode`, `eth_getTransactionCount`, or `eth_call` will now be intercepted such that a block tag parameter of `"latest"` will be replaced with the latest known block number before being passed to the network.
+    - This substitution makes it more likely that we can return a cached response to the request.
+  - Previously, a `eth_getTransactionCount` request with a block tag of `"pending"` would be intercepted and given a result from our nonce cache (if the cache was populated for the given address). This nonce cache was updated upon each call to `eth_sendRawTransaction` based on the nonce of the transaction being sent. The whole nonce cache was also cleared upon a call to `evm_revert`. This no longer happens, and these RPC methods will be passed to the network unchanged.
+    - If you were using this to get a suggested next nonce, you can instead use the `nonceTracker` that `@metamask/transaction-controller` exposes
+  - A call to `web3_clientVersion` is no longer intercepted to return a static result of `"ProviderEngine/v<version>/javascript"`
+  - A call to `net_listening` is no longer intercepted to return a static result of `true`
+  - A call to `eth_hashrate` is no longer intercepted to return a static result of `"0x00"`
+  - A call to `eth_mining` is no longer intercepted to return a static result of `false`
+  - Previously, `eth_subscribe` and `eth_unsubscribe` would never hit the network; instead, the behavior was polyfilled by polling the network for new blocks. Additionally, the `newPendingTransactions` parameter for `eth_subscribe` was unsupported. This polyfill is no longer present, and `eth_subscribe` and `eth_unsubscribe` are passed through to the network unchanged.
+    - Consumers wishing to recreate the prior behavior and use the block tracker to power subscriptions may employ the middleware provided by the `eth-json-rpc-filters` package.
+  - Previously, `eth_newFilter`, `eth_newBlockFilter`, `eth_newPendingTransactionFilter`, `eth_uninstallFilter`, `eth_getFilterChanges`, and `eth_getFilterLogs` would never hit the network; instead, the behavior was polyfilled by polling the network for new blocks and recording updates for registered filters. This polyfill is no longer present, and these RPC methods are passed through to the network unchanged.
+    - Consumers wishing to recreate the prior behavior and use the block tracker to power filters may employ the middleware provided by the `eth-json-rpc-filters` package.
+  - Interfacing with a network that exposes a websocket is no longer supported.
+- **BREAKING:** The methods `initializeProvider`, `setActiveNetwork`, and `resetConnection` will now throw if the provider config is of type `rpc` but is missing an RPC URL or a chain ID. ([#1316](https://github.com/MetaMask/core/pull/1316))
+  - Previously the chain ID was not required to setup the provider.
+  - Previously if the RPC URL was omitted, no error would be thrown but the provider would not be setup.
+- **BREAKING:** The method `setProviderType` will now throw when passed the type `rpc`. ([#1316](https://github.com/MetaMask/core/pull/1316))
+  - Previously no error would be thrown but the provider would not be setup.
+- **BREAKING:** The built-in "localhost" network has been removed ([#1313](https://github.com/MetaMask/core/pull/1313))
+- **BREAKING**: Update type of `blockTracker` property exposed by `getProviderAndBlockTracker` from `any` to `SwappableProxy<PollingBlockTracker>` ([#1303](https://github.com/MetaMask/core/pull/1303))
+- **BREAKING:** Rename provider configuration property `rpcTarget` to `rpcUrl` ([#1292](https://github.com/MetaMask/core/pull/1292))
+- **BREAKING:** The network status will now be "blocked" rather than "unavailable" when the user is blocked by Infura ([#1264](https://github.com/MetaMask/core/pull/1264))
+- **BREAKING:** The `infuraProjectId` constructor parameter is now required ([#1276](https://github.com/MetaMask/core/pull/1276))
+- **BREAKING:** The exported `Provider` type has been updated to better reflect the provider type returned by the network controller ([#1266](https://github.com/MetaMask/core/pull/1266))
+  - Previously this was set to `any`. Now it returns a type that _mostly_ matches the provider returned (some semi-internal properties are omitted)
+  - This affects the exported `ProviderProxy` type as well, which wraps the `Provider` type
+- Support hex and number `net_version` responses ([#1380](https://github.com/MetaMask/core/pull/1380))
 - Bump @metamask/utils from 5.0.1 to 5.0.2 ([#1271](https://github.com/MetaMask/core/pull/1271))
+- Bump dependency `eth-json-rpc-infura` (now `@metamask/eth-json-rpc-infura`) from ^7.0.0 to ^8.0.0. ([#1116](https://github.com/MetaMask/core/pull/1116))
+- Add dependency `eth-json-rpc-middleware` ^11.0.0 ([#1116](https://github.com/MetaMask/core/pull/1116))
+- Add dependency `eth-json-rpc-provider` ^1.0.0 ([#1116](https://github.com/MetaMask/core/pull/1116))
+- Add dependency `eth-block-tracker` ^7.0.0 ([#1116](https://github.com/MetaMask/core/pull/1116))
+- Add dependency `json-rpc-engine` ^6.1.0 ([#1116](https://github.com/MetaMask/core/pull/1116))
+
+### Removed
+- **BREAKING:** Remove `providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
+  - Consumers are encouraged to subscribe to `NetworkController:stateChange` with a selector function that returns `providerConfig` if they want to perform an action when `providerConfig` changes.
+
+### Fixed
+- Update network details in `lookupNetwork` even when network ID is unchanged ([#1379](https://github.com/MetaMask/core/pull/1379))
+- Fix error when `rollbackToPreviousProvider` is called when the previous network is a custom network with a missing or invalid `id` ([#1223](https://github.com/MetaMask/core/pull/1223))
+  - In that situation, `rollbackToPreviousProvider` used to throw an error. Now it correctly rolls back instead.
 
 ## [8.0.0]
 ### Added

@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
-### Uncategorized
-- Replace duplicate `Json` type ([#1370](https://github.com/MetaMask/core/pull/1370))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Replace `@metamask/controller-utils` dependency with `@metamask/utils` ([#1370](https://github.com/MetaMask/core/pull/1370))
 
 ## [2.1.1]
 ### Changed

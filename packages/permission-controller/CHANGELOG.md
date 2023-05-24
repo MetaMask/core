@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.0]
-### Uncategorized
-- BREAKING: Remove namespaced permissions ([#1337](https://github.com/MetaMask/core/pull/1337))
-- Remove `@metamask/types` ([#1372](https://github.com/MetaMask/core/pull/1372))
-- Replace duplicate `Json` type ([#1370](https://github.com/MetaMask/core/pull/1370))
-- Remove duplicate `hasProperty` function ([#1275](https://github.com/MetaMask/core/pull/1275))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING**: Remove namespaced permissions ([#1337](https://github.com/MetaMask/core/pull/1337))
+  - Namespaced permissions are no longer supported. Consumers should replace namespaced permissions with equivalent caveat-based implementations.
+- **BREAKING**: Remove `targetKey` concept ([#1337](https://github.com/MetaMask/core/pull/1337))
+  - The target key/name distinction only existed to support namespaced permissions, which are removed as of this release. Henceforth, permissions only have "names".
+  - The `targetKey` property of permission specifications has been renamed to `targetName`.
+- The export `permissionRpcMethods` has a slightly different type; the second generic type variable of the `getPermissions` handler is now `undefined` rather than `void` ([#1372](https://github.com/MetaMask/core/pull/1372))
+- Add `@metamask/utils` dependency ([#1275](https://github.com/MetaMask/core/pull/1275))
+- Remove `@metamask/types` dependency ([#1372](https://github.com/MetaMask/core/pull/1372))
 
 ## [3.2.0]
 ### Added

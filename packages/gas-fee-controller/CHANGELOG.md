@@ -7,15 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.0.0]
-### Uncategorized
-- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
-- lookupNetwork: Drop mutex; bail on network change ([#1375](https://github.com/MetaMask/core/pull/1375))
-- NetworkController: Remove providerConfigChange event ([#1329](https://github.com/MetaMask/core/pull/1329))
-- NetworkController: Use the same middleware stack as the extension ([#1116](https://github.com/MetaMask/core/pull/1116))
-- Rename `rpcTarget` to `rpcUrl` ([#1292](https://github.com/MetaMask/core/pull/1292))
-- Fix GasFeeController to assign `ethQuery` initially ([#1284](https://github.com/MetaMask/core/pull/1284))
-- Add eth-query types ([#1266](https://github.com/MetaMask/core/pull/1266))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** Update `@metamask/network-controller` peerDependency ([#1367](https://github.com/MetaMask/core/pull/1367))
+- **BREAKING:** The `getChainId` constructor parameter now expects a `Hex` return type rather than a decimal string ([#1367](https://github.com/MetaMask/core/pull/1367))
+- Add `@metamask/utils` dependency
+- **BREAKING:** The gas fee controller messenger now requires the `NetworkController:stateChange` event instead of the `NetworkController:providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
 
 ## [5.0.0]
 ### Changed

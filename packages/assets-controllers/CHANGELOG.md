@@ -7,25 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [8.0.0]
-### Uncategorized
-- Tokens controller approve reject refactor full ([#1268](https://github.com/MetaMask/core/pull/1268))
-- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
-- lookupNetwork: Drop mutex; bail on network change ([#1375](https://github.com/MetaMask/core/pull/1375))
-- Initialize asset controllers with the current network ([#1361](https://github.com/MetaMask/core/pull/1361))
-- Tokens controller approve reject refactor ([#1261](https://github.com/MetaMask/core/pull/1261))
-- Support NFT detection on custom Mainnet RPC endpoints ([#1360](https://github.com/MetaMask/core/pull/1360))
-- Remove unused `networkType` configuration ([#1359](https://github.com/MetaMask/core/pull/1359))
-- Replace `NetworksChainId` constant with `ChainId` ([#1354](https://github.com/MetaMask/core/pull/1354))
+### Added
+- Support NFT detection on Ethereum Mainnet custom RPC endpoints ([#1360](https://github.com/MetaMask/core/pull/1360))
 - Enable token detection for the Aurora network ([#1327](https://github.com/MetaMask/core/pull/1327))
-- NetworkController: Remove providerConfigChange event ([#1329](https://github.com/MetaMask/core/pull/1329))
-- NetworkController: Use the same middleware stack as the extension ([#1116](https://github.com/MetaMask/core/pull/1116))
-- Remove built-in localhost network ([#1313](https://github.com/MetaMask/core/pull/1313))
-- Rename `rpcTarget` to `rpcUrl` ([#1292](https://github.com/MetaMask/core/pull/1292))
+
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** Update `@metamask/network-controller` peerDependency ([#1367](https://github.com/MetaMask/core/pull/1367))
+- **BREAKING:** Change format of chain ID in state to 0x-prefixed hex string ([#1367](https://github.com/MetaMask/core/pull/1367))
+  - The functions `isTokenDetectionSupportedForNetwork` and `formatIconUrlWithProxy` now expect a chain ID as type `Hex` rather than as a decimal `string`
+  - The assets contract controller now expects the `chainId` configuration entry and constructor parameter as type `Hex` rather than decimal `string`
+  - The NFT controller now expects the `chainId` configuration entry and constructor parameter as type `Hex` rather than decimal `string`
+  - The NFT controller methods `addNft`, `checkAndUpdateSingleNftOwnershipStatus`, `findNftByAddressAndTokenId`, `updateNft`, and `resetNftTransactionStatusByTransactionId` now expect the chain ID to be type `Hex` rather than a decimal `string`
+  - The NFT controller state properties `allNftContracts` and `allNfts` are now keyed by address and `Hex` chain ID, rather than by address and decimal `string` chain ID
+    - This requires a state migration
+  - The NFT detection controller now expects the `chainId` configuration entry and constructor parameter as type `Hex` rather than decimal `string`
+  - The token detection controller now expects the `chainId` configuration entry as type `Hex` rather than decimal `string`
+  - The token list controller now expects the `chainId` constructor parameter as type `Hex` rather than decimal `string`
+  - The token list controller state property `tokensChainsCache` is now keyed by `Hex` chain ID rather than by decimal `string` chain ID.
+    - This requires a state migration
+  - The token rates controller now expects the `chainId` configuration entry and constructor parameter as type `Hex` rather than decimal `string`
+  - The token rates controller `chainId` setter now expects the chain ID as `Hex` rather than as a decimal string
+  - The tokens controller now expects the `chainId` configuration entry and constructor parameter as type `Hex` rather than decimal `string`
+  - The tokens controller `addDetectedTokens` method now accepts the `chainId` property of the `detectionDetails` parameter to be of type `Hex` rather than decimal `string`.
+  - The tokens controller state properties `allTokens`, `allIgnoredTokens`, and `allDetectedTokens` are now keyed by chain ID in `Hex` format rather than decimal `string`.
+    - This requires a state migration
+- **BREAKING**: Use approval controller for suggested assets ([#1261](https://github.com/MetaMask/core/pull/1261), [#1268](https://github.com/MetaMask/core/pull/1268))
+  - The methods `acceptWatchAsset` and `rejectWatchAsset` have been removed. Instead the approval controller should be used to accept and reject suggested assets.
+  - The `suggestedAssets` state has been removed, which means that suggested assets are no longer persisted in state
+  - The return type for `watchAsset` has changed. It now returns a Promise that settles after the request has been confirmed or rejected.
+- **BREAKING:** Initialize controllers with the current network ([#1361](https://github.com/MetaMask/core/pull/1361))
+  - The following controllers now have a new `chainId` required constructor parameter:
+    * `AssetsContractController`
+    * `NftController`
+    * `NftDetectionController`
+    * `TokenRatesController`
+    * `TokensController`
+- **BREAKING:** The token list controller requires the `NetworkController:stateChange` event instead of the `NetworkController:providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
+- **BREAKING:** The token list controller `onNetworkStateChange` option now has a more restrictive type ([#1329](https://github.com/MetaMask/core/pull/1329))
+  - The event handler parameter type has been changed from `NetworkState | ProviderConfig` to `NetworkState`
+- **BREAKING:** Update `provider` type ([#1266](https://github.com/MetaMask/core/pull/1266))
+  - The `provider` setter and the `provider` config entry now use our `Provider` type from `eth-query` rather than `any`
 - Bump @metamask/abi-utils from 1.1.0 to 1.2.0 ([#1287](https://github.com/MetaMask/core/pull/1287))
-- Require Infura project ID ([#1276](https://github.com/MetaMask/core/pull/1276))
-- Add eth-query types ([#1266](https://github.com/MetaMask/core/pull/1266))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
 - Bump @metamask/utils from 5.0.1 to 5.0.2 ([#1271](https://github.com/MetaMask/core/pull/1271))
+
+### Removed
+- **BREAKING:** Remove the `networkType` configuration option from the NFT detection controller, NFT controller, and tokens controller ([#1360](https://github.com/MetaMask/core/pull/1360), [#1359](https://github.com/MetaMask/core/pull/1359))
 
 ## [7.0.0]
 ### Changed

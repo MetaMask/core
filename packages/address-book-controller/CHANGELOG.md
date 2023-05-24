@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
-### Uncategorized
-- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
-- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core/pull/1198))
+### Changed
+- **BREAKING:**: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** The `addressBook` state property is now keyed by `Hex` chain ID rather than `string`, and the `chainId` property of each address book entry is also `Hex` rather than `string`.
+  - This requires a state migration ([#1367](https://github.com/MetaMask/core/pull/1367))
+- **BREAKING:** The methods `delete` and `set` now except the chain ID as `Hex` rather than as a decimal string ([#1367](https://github.com/MetaMask/core/pull/1367))
+- Add `@metamask/utils` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
 
 ## [2.0.0]
 ### Removed

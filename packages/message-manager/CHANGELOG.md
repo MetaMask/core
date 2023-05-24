@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.0.0]
-### Uncategorized
-- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
-- Support MMI use cases in signing typed messages ([#1364](https://github.com/MetaMask/core/pull/1364))
-- Replace duplicate `Json` type ([#1370](https://github.com/MetaMask/core/pull/1370))
-- [MMI] add setMsgInProgress method to AbstractMessageManager ([#1339](https://github.com/MetaMask/core/pull/1339))
+### Added
+- Add `getAllMessages` and `setMetadata` methods to message managers ([#1364](https://github.com/MetaMask/core/pull/1364))
+  - A new optional `metadata` property has been added to the message type as well
+- Add support for deferred signing ([#1364](https://github.com/MetaMask/core/pull/1364))
+  - If the parameter `deferSetAsSigned` is set, the message won't be set as signed when the keyring is asked to sign it
+- Emit the event `${methodName}:signed` when the keying is asked to sign a message ([#1364](https://github.com/MetaMask/core/pull/1364))
+- Add methods to set a message status to `inProgress` ([#1339](https://github.com/MetaMask/core/pull/1339))
+  - The method `setMessageStatusInProgress` has been added to the message managers, and the methods `setTypedMessageInProgress` and `setPersonalMessageInProgress` have been added to the signature controller
+
+### Changed
+- **BREAKING:** The `getCurrentChainId` constructor parameter for each message manager now expects a `Hex` return type rather than a decimal string ([#1367](https://github.com/MetaMask/core/pull/1367))
+  - Note that while every message manager class accepts this as a constructor parameter, it's only used by the `TypedMessageManager` at the moment
+- Add `@metamask/utils` dependency ([#1370](https://github.com/MetaMask/core/pull/1370))
 
 ## [5.0.0]
 ### Fixed

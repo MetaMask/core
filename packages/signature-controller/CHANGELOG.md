@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
-### Uncategorized
-- Update chain ID format ([#1367](https://github.com/MetaMask/core/pull/1367))
+### Changed
+- **BREAKING:** The constructor option `getCurrentChainId` now expects a `Hex` return value rather than `string` ([#1367](https://github.com/MetaMask/core/pull/1367))
+- Add `@metamask/utils` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
 - Support MMI use cases in signing typed messages ([#1364](https://github.com/MetaMask/core/pull/1364))
 - [MMI] add setMsgInProgress method to AbstractMessageManager ([#1339](https://github.com/MetaMask/core/pull/1339))
 

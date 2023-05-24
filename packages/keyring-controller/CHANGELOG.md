@@ -7,26 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [5.0.0]
-### Uncategorized
-- Add submitEncryptionKey method ([#1342](https://github.com/MetaMask/core/pull/1342))
-- `createNewVaultAndRestore` handles seed as Uint8Array ([#1349](https://github.com/MetaMask/core/pull/1349))
-- Add verifyPassword and remove validatePassword ([#1348](https://github.com/MetaMask/core/pull/1348))
-- KeyringController.verifySeedPhrase should return a Uint8Array ([#1338](https://github.com/MetaMask/core/pull/1338))
-- Skip vault creation if one already exists ([#1324](https://github.com/MetaMask/core/pull/1324))
-- `importAccountWithStrategy` shouldn't select address ([#1309](https://github.com/MetaMask/core/pull/1309))
-- keyring-controller: validate from-address in signTypedMessage ([#1293](https://github.com/MetaMask/core/pull/1293))
-- Make addNewAccount idempotent ([#1298](https://github.com/MetaMask/core/pull/1298))
-- Check imported prv key length ([#1297](https://github.com/MetaMask/core/pull/1297))
-- Change importAccountWithStrategy return ([#1295](https://github.com/MetaMask/core/pull/1295))
-- addNewAccount doesn't select new account ([#1296](https://github.com/MetaMask/core/pull/1296))
-- Change addNewAccount return object ([#1294](https://github.com/MetaMask/core/pull/1294))
+### Added
+- Add support for encryption keys ([#1342](https://github.com/MetaMask/core/pull/1342))
+  - The configuration option `cacheEncryptionKey` has been added, along with two new state properties (`encryptionKey` and `encryptionSalt`) and a new method (`submitEncryptionKey`)
+  - All new state and config entries are optional, so this will have no effect if you're not using this feature.
+- Make `addNewAccount` idempotent ([#1298](https://github.com/MetaMask/core/pull/1298))
+  - The `addNewAccount` method now takes an optional `accountCount` parameter. If provided, we ensure that this can be called repeatedly with the same result.
+- Add `getKeyringForAccount` method ([#1386](https://github.com/MetaMask/core/pull/1386))
+
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** Change return type of `createNewVaultAndRestore` from `string | number[]` to `Uint8Array` ([#1349](https://github.com/MetaMask/core/pull/1349))
+- **BREAKING:** Change return type of `verifySeedPhrase` from `string` to  `Uint8Array` ([#1338](https://github.com/MetaMask/core/pull/1338))
+- **BREAKING:** Replace `validatePassword` with `verifyPassword` ([#1348](https://github.com/MetaMask/core/pull/1348))
+  - `verifyPassword` is asynchronous, unlike `validatePassword` which was not.
+  - `verifyPassword` does not return a boolean to indicate whether the password is valid. Instead an error is thrown when it's invalid.
+- **BREAKING:** `createNewVaultAndKeychain` will now skip vault creation if one already exists, rather than replacing it ([#1324](https://github.com/MetaMask/core/pull/1324))
+  - If you do want to replace a vault if one exists, you will have to remove it first before this is called.
+- **BREAKING:** `importAccountWithStrategy` and `addNewAccount` no longer update the selected address ([#1296](https://github.com/MetaMask/core/pull/1296), [#1309](https://github.com/MetaMask/core/pull/1309))
+  - If you want the newly imported account to be selected, you will have to do that manually after this is called.
+- **BREAKING:** Change `importAccountWithStrategy` return type ([#1295](https://github.com/MetaMask/core/pull/1295))
+  - `importAccountWithStrategy` now returns an object with `keyringState` and `importedAccountAddress`, rather than just the keyring state.
+- **BREAKING:** Change `addNewAccount` return type ([#1294](https://github.com/MetaMask/core/pull/1294))
+  - `addNewAccount` now returns an object with `keyringState` and `addedAccountAddress`, rather than just the keyring state.
 - Bump @metamask/eth-keyring-controller from 10.0.0 to 10.0.1 ([#1280](https://github.com/MetaMask/core/pull/1280))
 - Bump @metamask/eth-sig-util from 5.0.2 to 5.0.3 ([#1278](https://github.com/MetaMask/core/pull/1278))
-- Change tests structure in core KeyringController ([#1267](https://github.com/MetaMask/core/pull/1267))
-- BREAKING: Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
-- Bump Jest to v27 ([#1198](https://github.com/MetaMask/core/pull/1198))
-- Stub PreferencesController in KeyringController tests ([#1194](https://github.com/MetaMask/core/pull/1194))
-- add rollbackToPreviousProvider method ([#1132](https://github.com/MetaMask/core/pull/1132))
+
+### Fixed
+- Improve validation of `from` address in `signTypedMessage` ([#1293](https://github.com/MetaMask/core/pull/1293))
+- Improve private key validation in `importAccountWithStrategy` ([#1297](https://github.com/MetaMask/core/pull/1297))
+  - A more helpful error is now thrown when the given private key has the wrong length
 
 ## [4.0.0]
 ### Removed
