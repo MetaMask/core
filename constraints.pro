@@ -117,6 +117,20 @@ repo_name(RepoUrl, RepoName) :-
   RepoNameLength is End - Start,
   sub_atom(RepoUrl, PrefixLength, RepoNameLength, SuffixLength, RepoName).
 
+% True if DependencyIdent starts with '@metamask' and ends with '-controller'
+is_controller(DependencyIdent) :-
+  Prefix = '@metamask/',
+  atom_length(Prefix, PrefixLength),
+  Suffix = '-controller',
+  atom_length(Suffix, SuffixLength),
+  atom_length(DependencyIdent, DependencyIdentLength),
+  sub_atom(DependencyIdent, 0, PrefixLength, After, Prefix),
+  sub_atom(DependencyIdent, Before, SuffixLength, 0, Suffix),
+  Start is DependencyIdentLength - After + 1,
+  End is Before + 1,
+  RepoNameLength is End - Start,
+  sub_atom(DependencyIdent, PrefixLength, RepoNameLength, SuffixLength, RepoName).
+
 %===============================================================================
 % Constraints
 %===============================================================================
@@ -275,6 +289,16 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   DependencyType == 'devDependencies'.
+
+% If a controller dependency (other than `base-controller` and
+% `eth-keyring-controller`) is listed under "dependencies", it should also be
+% listed under "peerDependencies". Each controller is a singleton, so we need
+% to ensure the versions used match expectations.
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
+  DependencyIdent \= '@metamask/base-controller',
+  DependencyIdent \= '@metamask/eth-keyring-controller',
+  is_controller(DependencyIdent).
 
 % All packages must specify a minimum Node version of 16.
 gen_enforced_field(WorkspaceCwd, 'engines.node', '>=16.0.0').

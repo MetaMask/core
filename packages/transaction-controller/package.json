@@ -60,6 +60,10 @@
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
   },
+  "peerDependencies": {
+    "@metamask/approval-controller": "workspace:^",
+    "@metamask/network-controller": "workspace:^"
+  },
   "engines": {
     "node": ">=16.0.0"
   },
