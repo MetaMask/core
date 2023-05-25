@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The `NetworkController:getState` ([#1329](https://github.com/MetaMask/core/pull/1329))
 - **BREAKING:** Change `networkDetails` format ([#1326](https://github.com/MetaMask/core/pull/1326))
   - Previously `networkDetails` was `{ isEIP1559Compatible: boolean }`, now it is `{ EIPS: { [eipNumber: number]: boolean } }`
-- **BREAKING:** [`@metamask/network-controller`] Update NetworkController to use a simpler middleware stack derived from pieces of `eth-json-rpc-middleware` instead of `web3-provider-engine` ([#1116](https://github.com/MetaMask/core/pull/1116))
+- **BREAKING:** Update NetworkController to use a simpler middleware stack derived from pieces of `eth-json-rpc-middleware` instead of `web3-provider-engine` ([#1116](https://github.com/MetaMask/core/pull/1116))
   - A call to `eth_chainId` on a custom network will now return the `chainId` in the provider config rather than the chain ID returned by the network.
   - A call to `eth_chainId` on a built-in Infura network will now return a hard-coded chain ID rather than the chain ID returned by the network.
   - A call to `net_version` on a built-in Infura network will now return a hard-coded network ID rather than the network ID returned by the network.
