@@ -194,6 +194,9 @@ export class KeyringController extends BaseController<
     this.#keyring = new EthKeyringController(
       Object.assign({ initState: state }, config),
     );
+    this.#keyring.store.subscribe(() => {
+      this.update({ vault: this.#keyring.store.getState().vault });
+    });
 
     this.defaultState = {
       ...this.#keyring.store.getState(),
