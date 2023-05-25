@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.0.0]
+### Added
+- Update transaction controller to automatically initiate, finalize, and cancel approval requests as transactions move through states ([#1241](https://github.com/MetaMask/core/pull/1241))
+  - The `ApprovalController:addRequest` action will be called when a new transaction is initiated
+  - The `ApprovalController:rejectRequest` action will be called if a transaction fails
+  - The `ApprovalController:acceptRequest` action will be called when a transaction is approved 
+
 ### Changed
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
 - **BREAKING:** Update `@metamask/network-controller` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
