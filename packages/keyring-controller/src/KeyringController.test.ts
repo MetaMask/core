@@ -445,6 +445,32 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('getKeyringsByType', () => {
+    describe('when existing type is provided', () => {
+      it('should return keyrings of the right type', async () => {
+        await withController(async ({ controller }) => {
+          const keyrings = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as KeyringObject[];
+          expect(keyrings).toHaveLength(1);
+          expect(keyrings[0].type).toBe(KeyringTypes.hd);
+          expect(keyrings[0].getAccounts()).toStrictEqual(
+            controller.state.keyrings[0].accounts.map(normalize),
+          );
+        });
+      });
+    });
+
+    describe('when non existing type is provided', () => {
+      it('should return an empty array', async () => {
+        await withController(async ({ controller }) => {
+          const keyrings = controller.getKeyringsByType('fake');
+          expect(keyrings).toHaveLength(0);
+        });
+      });
+    });
+  });
+
   describe('importAccountWithStrategy', () => {
     describe('using strategy privateKey', () => {
       describe('when correct key is provided', () => {
