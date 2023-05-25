@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * `NftDetectionController`
     * `TokenRatesController`
     * `TokensController`
-- **BREAKING:** The token list controller requires the `NetworkController:stateChange` event instead of the `NetworkController:providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
+- **BREAKING:** The token list controller messenger requires the `NetworkController:stateChange` event instead of the `NetworkController:providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
 - **BREAKING:** The token list controller `onNetworkStateChange` option now has a more restrictive type ([#1329](https://github.com/MetaMask/core/pull/1329))
   - The event handler parameter type has been changed from `NetworkState | ProviderConfig` to `NetworkState`
 - **BREAKING:** Update `provider` type ([#1266](https://github.com/MetaMask/core/pull/1266))
