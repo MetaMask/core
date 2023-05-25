@@ -367,32 +367,114 @@ describe('NftController', () => {
       await expect(result).rejects.toThrow('Invalid address');
     });
 
-    it('should error if the user does not own the suggested ERC721 NFT', async function () {
+    it('should send a wrongOwnerError with the approvalController requestData if the user does not own the suggested ERC721 NFT', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC721Image',
+            name: 'testERC721Name',
+            description: 'testERC721Description',
+          }),
+        );
       const { nftController, messenger } = setupController({
-        getERC721OwnerOfStub: jest
+        getERC721TokenURIStub: jest
           .fn()
-          .mockImplementation(() => '0x12345abcefg'),
+          .mockImplementation(() => 'https://testtokenuri.com'),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => '0x123'),
       });
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const requestId = 'approval-request-id-1';
 
-      await expect(() =>
-        nftController.watchNft(ERC721_NFT, ERC721),
-      ).rejects.toThrow('Suggested NFT is not owned by the selected account');
-      expect(callActionSpy).toHaveBeenCalledTimes(0);
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      await nftController.watchNft(ERC721_NFT, ERC721);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC721_NFT,
+              description: 'testERC721Description',
+              image: 'testERC721Image',
+              name: 'testERC721Name',
+              standard: ERC721,
+            },
+            errors: {
+              nftAlreadyWatchedError: false,
+              ownerFetchError: false,
+              wrongOwnerError: true, // This is the error we are testing
+            },
+          },
+        },
+        true,
+      );
+      clock.restore();
     });
 
-    it('should error if the user does not own the suggested ERC1155 NFT', async function () {
+    it('should send a wrongOwnerError with the approvalController requestData if the user does not own the suggested ERC1155 NFT', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC1155Image',
+            name: 'testERC1155Name',
+            description: 'testERC1155Description',
+          }),
+        );
       const { nftController, messenger } = setupController({
+        getERC1155TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'https://testtokenuri.com'),
         getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(0)),
       });
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const requestId = 'approval-request-id-1';
 
-      await expect(() =>
-        nftController.watchNft(ERC1155_NFT, ERC1155),
-      ).rejects.toThrow('Suggested NFT is not owned by the selected account');
-      expect(callActionSpy).toHaveBeenCalledTimes(0);
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      await nftController.watchNft(ERC1155_NFT, ERC1155);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC1155_NFT,
+              description: 'testERC1155Description',
+              image: 'testERC1155Image',
+              name: 'testERC1155Name',
+              standard: ERC1155,
+            },
+            errors: {
+              nftAlreadyWatchedError: false,
+              ownerFetchError: false,
+              wrongOwnerError: true, // This is the error we are testing
+            },
+          },
+        },
+        true,
+      );
+      clock.restore();
     });
 
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled', async function () {
@@ -439,6 +521,11 @@ describe('NftController', () => {
               image: 'testERC721Image',
               name: 'testERC721Name',
               standard: ERC721,
+            },
+            errors: {
+              nftAlreadyWatchedError: false,
+              ownerFetchError: false,
+              wrongOwnerError: false,
             },
           },
         },
@@ -492,6 +579,11 @@ describe('NftController', () => {
               image: 'testERC1155Image',
               name: 'testERC1155Name',
               standard: ERC1155,
+            },
+            errors: {
+              nftAlreadyWatchedError: false,
+              ownerFetchError: false,
+              wrongOwnerError: false,
             },
           },
         },
@@ -553,6 +645,11 @@ describe('NftController', () => {
               image: 'image (directly from opensea)',
               name: 'name (directly from opensea)',
               standard: ERC721,
+            },
+            errors: {
+              nftAlreadyWatchedError: false,
+              ownerFetchError: false,
+              wrongOwnerError: false,
             },
           },
         },
@@ -618,6 +715,11 @@ describe('NftController', () => {
               name: 'name (directly from opensea)',
               standard: ERC1155,
             },
+            errors: {
+              nftAlreadyWatchedError: false,
+              ownerFetchError: false,
+              wrongOwnerError: false,
+            },
           },
         },
         true,
@@ -626,7 +728,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should throw an error when NFT is suggested that is already watched by the account prompted to add it', async function () {
+    it('should send an nftAlreadyWatched error with the ApprovalController requestData when NFT is suggested that is already watched by the account prompted to add it', async function () {
       const { nftController, messenger, changeNetwork } = setupController();
 
       changeNetwork(SEPOLIA);
@@ -635,21 +737,44 @@ describe('NftController', () => {
       await nftController.addNft(ERC721_NFT.address, ERC721_NFT.tokenId);
 
       const requestId = 'approval-request-id-1';
-      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
 
-      const result = nftController.watchNft(ERC721_NFT, ERC721);
-      // then attempt to watch it
-      await expect(result).rejects.toThrow(
-        'Suggested NFT is already watched by the selected account',
+      await nftController.watchNft(ERC721_NFT, ERC721);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC721_NFT,
+              description: null,
+              image: null,
+              name: null,
+              standard: null,
+            },
+            errors: {
+              nftAlreadyWatchedError: true,
+              ownerFetchError: false,
+              wrongOwnerError: false,
+            },
+          },
+        },
+        true,
       );
-
-      expect(callActionSpy).toHaveBeenCalledTimes(0);
+      clock.restore();
     });
 
-    it('should throw an error when calls to `ownerOf` and `balanceOf` revert', async function () {
-      const { nftController, changeNetwork } = setupController();
+    it('should send an ownerFetchError error with the ApprovalController requestData when calls to `ownerOf` and `balanceOf` revert', async function () {
+      const { nftController, messenger, changeNetwork } = setupController();
       // getERC721OwnerOf not mocked
       // getERC1155BalanceOf not mocked
 
@@ -657,27 +782,38 @@ describe('NftController', () => {
 
       const requestId = 'approval-request-id-1';
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
 
-      const result = nftController.watchNft(ERC721_NFT, ERC721);
-      await expect(result).rejects.toThrow(
-        'Failed to fetch NFT data: Error: Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect. Make sure the NFT is on the currently selected network.',
-      );
-    });
+      await nftController.watchNft(ERC721_NFT, ERC721);
+      // await expect(result).rejects.toThrow(
+      //   'Failed to fetch NFT data: Error: Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect. Make sure the NFT is on the currently selected network.',
+      // );
 
-    it('should throw an error when nftmetadata checks fail against suggested NFT data fails', async function () {
-      const testError = new Error('test error');
-      sinon.useFakeTimers(1);
-      const { nftController, changeNetwork } = setupController({
-        getERC721TokenURIStub: jest.fn().mockRejectedValue(testError),
-      });
-      changeNetwork(SEPOLIA);
-
-      const requestId = 'approval-request-id-1';
-      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const result = nftController.watchNft(ERC721_NFT, ERC721);
-      await expect(result).rejects.toThrow(
-        `Failed to fetch NFT data: Error: Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect. Make sure the NFT is on the currently selected network.`,
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC721_NFT,
+              description: null,
+              image: null,
+              name: null,
+              standard: null,
+            },
+            errors: {
+              nftAlreadyWatchedError: false,
+              ownerFetchError: true,
+              wrongOwnerError: false,
+            },
+          },
+        },
+        true,
       );
     });
   });
