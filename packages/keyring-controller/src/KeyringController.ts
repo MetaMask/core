@@ -382,6 +382,9 @@ export class KeyringController extends BaseController<
    * Returns the currently initialized keyring that manages
    * the specified `address` if one exists.
    *
+   * @deprecated Use of this method is discouraged as actions executed directly on
+   * keyrings are not being reflected in the KeyringController state and not
+   * persisted in the vault.
    * @param account - An account address.
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
@@ -392,6 +395,9 @@ export class KeyringController extends BaseController<
   /**
    * Returns all keyrings of the given type.
    *
+   * @deprecated Use of this method is discouraged as actions executed directly on
+   * keyrings are not being reflected in the KeyringController state and not
+   * persisted in the vault.
    * @param type - Keyring type name.
    * @returns An array of keyrings of the given type.
    */
