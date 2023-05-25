@@ -1574,7 +1574,7 @@ describe('KeyringController', () => {
       });
     });
 
-    describe('cancelQRSync', () => {
+    describe('cancelQRSynchronization', () => {
       it("should call qr keyring's method", async () => {
         await setupQRKeyring();
         const qrKeyring =
@@ -1582,8 +1582,7 @@ describe('KeyringController', () => {
 
         const cancelSyncRequestStub = sinon.stub(qrKeyring, 'cancelSync');
         cancelSyncRequestStub.resolves();
-        // eslint-disable-next-line node/no-sync
-        await signProcessKeyringController.cancelQRSync();
+        await signProcessKeyringController.cancelQRSynchronization();
         expect(cancelSyncRequestStub.called).toBe(true);
       });
     });
