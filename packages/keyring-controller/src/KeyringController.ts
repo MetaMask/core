@@ -236,6 +236,7 @@ export class KeyringController extends BaseControllerV2<
       Object.assign({ initState: state }, config),
     );
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
+    this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.on('lock', this.#handleLock.bind(this));
     this.#keyring.on('unlock', this.#handleUnlock.bind(this));
 
@@ -822,12 +823,14 @@ export class KeyringController extends BaseControllerV2<
   }
 
   /**
-   * Sync controller state with current keyring memStore state.
+   * Sync controller state with current keyring store
+   * and memStore states.
    *
    * @fires KeyringController:stateChange
    */
   #fullUpdate() {
     this.update(() => ({
+      ...this.#keyring.store.getState(),
       ...this.#keyring.memStore.getState(),
     }));
   }
