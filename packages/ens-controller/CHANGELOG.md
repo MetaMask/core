@@ -9,12 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0]
 ### Changed
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
-- **BREAKING:** Update `@metamask/network-controller` peerDependency ([#1367](https://github.com/MetaMask/core/pull/1367))
+- **BREAKING:** Add `@metamask/network-controller` as a dependency and peer dependency ([#1367](https://github.com/MetaMask/core/pull/1367), [#1362](https://github.com/MetaMask/core/pull/1362))
 - **BREAKING:** The `ensEntries` state property is now keyed by `Hex` chain ID rather than `string`, and the `chainId` property of each ENS entry is also `Hex` rather than `string`. ([#1367](https://github.com/MetaMask/core/pull/1367))
   - This requires a state migration
 - **BREAKING:** The methods `get`, `set`, and `delete` have been updated to accept and return chain IDs as 0x-prefixed hex strings, rather than decimal strings. ([#1367](https://github.com/MetaMask/core/pull/1367))
 - Bump @metamask/utils from 5.0.1 to 5.0.2 ([#1271](https://github.com/MetaMask/core/pull/1271))
-- Add network controller as dependency and peer dependency ([#1362](https://github.com/MetaMask/core/pull/1362))
 
 ### Fixed
 - Fix ENS controller failure to initialize after switching networks ([#1362](https://github.com/MetaMask/core/pull/1362))
