@@ -11,10 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `getAllMessages` and `setMetadata` methods to message managers ([#1364](https://github.com/MetaMask/core/pull/1364))
   - A new optional `metadata` property has been added to the message type as well
 - Add support for deferred signing ([#1364](https://github.com/MetaMask/core/pull/1364))
-  - If the parameter `deferSetAsSigned` is set, the message won't be set as signed when the keyring is asked to sign it
-- Emit the event `${methodName}:signed` when the keying is asked to sign a message ([#1364](https://github.com/MetaMask/core/pull/1364))
-- Add methods to set a message status to `inProgress` ([#1339](https://github.com/MetaMask/core/pull/1339))
-  - The method `setMessageStatusInProgress` has been added to the message managers, and the methods `setTypedMessageInProgress` and `setPersonalMessageInProgress` have been added to the signature controller
+  - `deferSetAsSigned` has been added as a message parameter. This is used to tell the signature controller to not mark this message as signed when the keyring is asked to sign it.
+- Add the `setMessageStatusInProgress` method to set a message status to `inProgress` ([#1339](https://github.com/MetaMask/core/pull/1339))
 
 ### Changed
 - **BREAKING:** The `getCurrentChainId` constructor parameter for each message manager now expects a `Hex` return type rather than a decimal string ([#1367](https://github.com/MetaMask/core/pull/1367))

@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
+### Added
+- Add support for deferred signing ([#1364](https://github.com/MetaMask/core/pull/1364))
+  - If the parameter `deferSetAsSigned` is set, the message won't be set as signed when the keyring is asked to sign it
+- Emit the event `${methodName}:signed` when the keying is asked to sign a message ([#1364](https://github.com/MetaMask/core/pull/1364))
+- Add methods  `setTypedMessageInProgress` and `setPersonalMessageInProgress` to set a message status to `inProgress` ([#1339](https://github.com/MetaMask/core/pull/1339))
+
 ### Changed
 - **BREAKING:** The constructor option `getCurrentChainId` now expects a `Hex` return value rather than `string` ([#1367](https://github.com/MetaMask/core/pull/1367))
 - Add `@metamask/utils` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
-- Support MMI use cases in signing typed messages ([#1364](https://github.com/MetaMask/core/pull/1364))
-- [MMI] add setMsgInProgress method to AbstractMessageManager ([#1339](https://github.com/MetaMask/core/pull/1339))
 
 ## [2.0.0]
 ### Added
