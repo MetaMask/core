@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
-- **BREAKING:** The `isSafeChainId` parameter `chainId` is now type `Hex` rather than `number` ([#1367](https://github.com/MetaMask/core/pull/1367))
+- **BREAKING:** The `isSafeChainId` chain ID parameter is now type `Hex` rather than `number` ([#1367](https://github.com/MetaMask/core/pull/1367))
 - **BREAKING:** The `ChainId` enum and the `GANACHE_CHAIN_ID` constant are now formatted as 0x-prefixed hex strings rather than as decimal strings. ([#1367](https://github.com/MetaMask/core/pull/1367))
 - The `query` function has improved type checks for the `ethQuery` argument ([#1266](https://github.com/MetaMask/core/pull/1266))
   - This type change could be breaking, but only if you were passing in an invalid `ethQuery` parameter. In that circumstance this would have thrown an error at runtime anyway. Effectively this should be non-breaking for any usage that isn't already broken.
