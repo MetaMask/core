@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0]
 ### Changed
 - **BREAKING:** Allow `RateLimitController` to define a rate-limit per method ([#1355](https://github.com/MetaMask/core/pull/1355))
+  - The constructor `implementations` option now maps API names to objects with a `method` property, rather than mapping to a function. This object may also have `rateLimitCount` and `rateLimitTimeout` properties, allowing custom rate limits for that method.
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
 
 ## [2.0.1]
