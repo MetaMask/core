@@ -379,6 +379,17 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Returns the currently initialized keyring that manages
+   * the specified `address` if one exists.
+   *
+   * @param account - An account address.
+   * @returns Promise resolving to keyring of the `account` if one exists.
+   */
+  async getKeyringForAccount(account: string): Promise<unknown> {
+    return this.#keyring.getKeyringForAccount(account);
+  }
+
+  /**
    * Imports an account with the specified import strategy.
    *
    * @param strategy - Import strategy name.

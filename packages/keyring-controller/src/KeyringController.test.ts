@@ -1,5 +1,6 @@
 import { bufferToHex } from 'ethereumjs-util';
 import {
+  normalize,
   recoverPersonalSignature,
   recoverTypedSignature,
   SignTypedDataVersion,
@@ -19,6 +20,7 @@ import {
   KeyringConfig,
   KeyringController,
   KeyringMemState,
+  KeyringObject,
   KeyringTypes,
 } from './KeyringController';
 
@@ -411,6 +413,34 @@ describe('KeyringController', () => {
         const initialAccount = initialState.keyrings[0].accounts;
         const accounts = await controller.getAccounts();
         expect(accounts).toStrictEqual(initialAccount);
+      });
+    });
+  });
+
+  describe('getKeyringForAccount', () => {
+    describe('when existing account is provided', () => {
+      it('should get correct keyring', async () => {
+        await withController(async ({ controller }) => {
+          const normalizedInitialAccounts =
+            controller.state.keyrings[0].accounts.map(normalize);
+          const keyring = (await controller.getKeyringForAccount(
+            normalizedInitialAccounts[0],
+          )) as KeyringObject;
+          expect(keyring.type).toBe('HD Key Tree');
+          expect(keyring.getAccounts()).toStrictEqual(
+            normalizedInitialAccounts,
+          );
+        });
+      });
+    });
+
+    describe('when non-existing account is provided', () => {
+      it('should throw error', async () => {
+        await withController(async ({ controller }) => {
+          await expect(controller.getKeyringForAccount('0x0')).rejects.toThrow(
+            'No keyring found for the requested account. Error info: There are keyrings, but none match the address',
+          );
+        });
       });
     });
   });
