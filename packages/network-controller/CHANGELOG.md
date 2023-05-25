@@ -52,7 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Previously if the RPC URL was omitted, no error would be thrown but the provider would not be setup.
 - **BREAKING:** The method `setProviderType` will now throw when passed the type `rpc`. ([#1316](https://github.com/MetaMask/core/pull/1316))
   - Previously no error would be thrown but the provider would not be setup.
-- **BREAKING:** The built-in "localhost" network has been removed ([#1313](https://github.com/MetaMask/core/pull/1313))
 - **BREAKING**: Update type of `blockTracker` property exposed by `getProviderAndBlockTracker` from `any` to `SwappableProxy<PollingBlockTracker>` ([#1303](https://github.com/MetaMask/core/pull/1303))
 - **BREAKING:** Rename provider configuration property `rpcTarget` to `rpcUrl` ([#1292](https://github.com/MetaMask/core/pull/1292))
 - **BREAKING:** The network status will now be "blocked" rather than "unavailable" when the user is blocked by Infura ([#1264](https://github.com/MetaMask/core/pull/1264))
@@ -71,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - **BREAKING:** Remove `providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
   - Consumers are encouraged to subscribe to `NetworkController:stateChange` with a selector function that returns `providerConfig` if they want to perform an action when `providerConfig` changes.
+- **BREAKING:** The built-in "localhost" network has been removed ([#1313](https://github.com/MetaMask/core/pull/1313))
 
 ### Fixed
 - Update network details in `lookupNetwork` even when network ID is unchanged ([#1379](https://github.com/MetaMask/core/pull/1379))
