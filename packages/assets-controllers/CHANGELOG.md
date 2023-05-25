@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The tokens controller state properties `allTokens`, `allIgnoredTokens`, and `allDetectedTokens` are now keyed by chain ID in `Hex` format rather than decimal `string`.
     - This requires a state migration
 - **BREAKING**: Use approval controller for suggested assets ([#1261](https://github.com/MetaMask/core/pull/1261), [#1268](https://github.com/MetaMask/core/pull/1268))
-  - The methods `acceptWatchAsset` and `rejectWatchAsset` have been removed. Instead the approval controller should be used to accept and reject suggested assets.
+  - The actions `ApprovalController:acceptRequest` and `ApprovalController:rejectRequest` are no longer required by the token controller messenger.
   - The `suggestedAssets` state has been removed, which means that suggested assets are no longer persisted in state
   - The return type for `watchAsset` has changed. It now returns a Promise that settles after the request has been confirmed or rejected.
 - **BREAKING:** Initialize controllers with the current network ([#1361](https://github.com/MetaMask/core/pull/1361))
@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - **BREAKING:** Remove the `networkType` configuration option from the NFT detection controller, NFT controller, and tokens controller ([#1360](https://github.com/MetaMask/core/pull/1360), [#1359](https://github.com/MetaMask/core/pull/1359))
+- **BREAKING:** Remove the `SuggestedAssetMeta` type from the token controller ([#1268](https://github.com/MetaMask/core/pull/1268))
 
 ## [7.0.0]
 ### Changed
