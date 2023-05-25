@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `networkDidChange` event is emitted after the new provider is setup (but before it has finished initializing).
 - Add `destroy` method ([#1330](https://github.com/MetaMask/core/pull/1330))
 - Add events `infuraIsBlocked` and `infuraIsUnblocked` ([#1264](https://github.com/MetaMask/core/pull/1264))
+- Add `NetworkController:getState` action constant ([#1329](https://github.com/MetaMask/core/pull/1329))
 
 ### Changed
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
@@ -26,7 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow overlapping `lookupNetwork` calls ([#1375](https://github.com/MetaMask/core/pull/1375))
   - `lookupNetwork` no longer uses a mutex, meaning that a lookup can be initiated before the previous one has finished. This allows for faster network switching
   - When there is an overlap in `lookupNetwork` calls, the older one is aborted before events are emitted and before state changes
-- **BREAKING:** The `NetworkController:getState` ([#1329](https://github.com/MetaMask/core/pull/1329))
 - **BREAKING:** Change `networkDetails` format ([#1326](https://github.com/MetaMask/core/pull/1326))
   - Previously `networkDetails` was `{ isEIP1559Compatible: boolean }`, now it is `{ EIPS: { [eipNumber: number]: boolean } }`
 - **BREAKING:** Update NetworkController to use a simpler middleware stack derived from pieces of `eth-json-rpc-middleware` instead of `web3-provider-engine` ([#1116](https://github.com/MetaMask/core/pull/1116))
