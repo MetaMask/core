@@ -4,3 +4,5 @@
 *                                    @MetaMask/devs
 
 /packages/permission-controller      @MetaMask/snaps-devs
+/packages/notification-controller    @MetaMask/snaps-devs
+/packages/rate-limit-controller      @MetaMask/snaps-devs
