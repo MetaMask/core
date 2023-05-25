@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve validation of `from` address in `signTypedMessage` ([#1293](https://github.com/MetaMask/core/pull/1293))
 - Improve private key validation in `importAccountWithStrategy` ([#1297](https://github.com/MetaMask/core/pull/1297))
   - A more helpful error is now thrown when the given private key has the wrong length
-- Keep `vault` state in sync with the internal `EthKeyingController` vault state ([#1384](https://github.com/MetaMask/core/pull/1384))
+- Keep `vault` state in sync with the internal `EthKeyringController` vault state ([#1384](https://github.com/MetaMask/core/pull/1384))
   - Previously the `vault` state would never be updated after construction, becoming stale as account changes were made
   - The old behavior was especially confusing because the `subscribe` method is overridden to return state change events from the internal `EthKeyingController` state, resulting in state change events being out of sync with controller state. They should be the same now.
 
