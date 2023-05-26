@@ -128,8 +128,8 @@ is_controller(DependencyIdent) :-
   sub_atom(DependencyIdent, Before, SuffixLength, 0, Suffix),
   Start is DependencyIdentLength - After + 1,
   End is Before + 1,
-  RepoNameLength is End - Start,
-  sub_atom(DependencyIdent, PrefixLength, RepoNameLength, SuffixLength, RepoName).
+  ControllerNameLength is End - Start,
+  sub_atom(DependencyIdent, PrefixLength, ControllerNameLength, SuffixLength, _).
 
 %===============================================================================
 % Constraints
