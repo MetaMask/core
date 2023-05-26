@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The export `permissionRpcMethods` has a slightly different type; the second generic type variable of the `getPermissions` handler is now `undefined` rather than `void` ([#1372](https://github.com/MetaMask/core/pull/1372))
 - Add `@metamask/utils` dependency ([#1275](https://github.com/MetaMask/core/pull/1275))
 - Remove `@metamask/types` dependency ([#1372](https://github.com/MetaMask/core/pull/1372))
+- Change type of constructor parameter `unrestrictedMethods` to be readonly ([#1395](https://github.com/MetaMask/core/pull/1395))
 
 ### Removed
 - **BREAKING**: Remove namespaced permissions ([#1337](https://github.com/MetaMask/core/pull/1337))
