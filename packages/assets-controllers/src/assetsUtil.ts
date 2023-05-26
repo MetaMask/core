@@ -1,4 +1,4 @@
-import { ethErrors } from 'eth-rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
 import { CID } from 'multiformats/cid';
 import type { Hex } from '@metamask/utils';
 import {
@@ -110,29 +110,29 @@ export const formatIconUrlWithProxy = ({
 export function validateTokenToWatch(token: Token) {
   const { address, symbol, decimals } = token;
   if (!address || !symbol || typeof decimals === 'undefined') {
-    throw ethErrors.rpc.invalidParams(
+    throw rpcErrors.invalidParams(
       `Must specify address, symbol, and decimals.`,
     );
   }
 
   if (typeof symbol !== 'string') {
-    throw ethErrors.rpc.invalidParams(`Invalid symbol: not a string.`);
+    throw rpcErrors.invalidParams(`Invalid symbol: not a string.`);
   }
 
   if (symbol.length > 11) {
-    throw ethErrors.rpc.invalidParams(
+    throw rpcErrors.invalidParams(
       `Invalid symbol "${symbol}": longer than 11 characters.`,
     );
   }
   const numDecimals = parseInt(decimals as unknown as string, 10);
   if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
-    throw ethErrors.rpc.invalidParams(
+    throw rpcErrors.invalidParams(
       `Invalid decimals "${decimals}": must be 0 <= 36.`,
     );
   }
 
   if (!isValidHexAddress(address)) {
-    throw ethErrors.rpc.invalidParams(`Invalid address "${address}".`);
+    throw rpcErrors.invalidParams(`Invalid address "${address}".`);
   }
 }
 
