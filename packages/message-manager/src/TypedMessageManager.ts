@@ -82,61 +82,6 @@ export class TypedMessageManager extends AbstractMessageManager<
 
   /**
    * Creates a new TypedMessage with an 'unapproved' status using the passed messageParams.
-   * this.addMessage is called to add the new TypedMessage to this.messages, and to save the unapproved TypedMessages.
-   *
-   * @param messageParams - The params for the eth_signTypedData call to be made after the message is approved.
-   * @param version - Compatibility version EIP712.
-   * @param req - The original request object possibly containing the origin.
-   * @returns Promise resolving to the raw data of the signature request.
-   */
-  async addUnapprovedMessageAsync(
-    messageParams: TypedMessageParams,
-    version: string,
-    req?: OriginalRequest,
-  ): Promise<string> {
-    if (version === 'V1') {
-      validateTypedSignMessageDataV1(messageParams);
-    }
-
-    if (version === 'V3' || version === 'V4') {
-      const currentChainId = this.getCurrentChainId?.();
-      validateTypedSignMessageDataV3V4(messageParams, currentChainId);
-    }
-    const messageId = await this.addUnapprovedMessage(
-      messageParams,
-      version,
-      req,
-    );
-    return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: TypedMessage) => {
-        switch (data.status) {
-          case 'signed':
-            return resolve(data.rawSig as string);
-          case 'rejected':
-            return reject(
-              new Error(
-                'MetaMask Typed Message Signature: User denied message signature.',
-              ),
-            );
-          case 'errored':
-            return reject(
-              new Error(`MetaMask Typed Message Signature: ${data.error}`),
-            );
-          default:
-            return reject(
-              new Error(
-                `MetaMask Typed Message Signature: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
-      });
-    });
-  }
-
-  /**
-   * Creates a new TypedMessage with an 'unapproved' status using the passed messageParams.
    * this.addMessage is called to add the new TypedMessage to this.messages, and to save the
    * unapproved TypedMessages.
    *
@@ -151,6 +96,15 @@ export class TypedMessageManager extends AbstractMessageManager<
     version: string,
     req?: OriginalRequest,
   ): Promise<string> {
+    if (version === 'V1') {
+      validateTypedSignMessageDataV1(messageParams);
+    }
+
+    if (version === 'V3' || version === 'V4') {
+      const currentChainId = this.getCurrentChainId?.();
+      validateTypedSignMessageDataV3V4(messageParams, currentChainId);
+    }
+
     const messageId = random();
     const messageParamsMetamask = {
       ...messageParams,
