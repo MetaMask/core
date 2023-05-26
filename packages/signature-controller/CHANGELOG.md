@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **BREAKING:** The constructor option `getCurrentChainId` now expects a `Hex` return value rather than `string` ([#1367](https://github.com/MetaMask/core/pull/1367))
+- **BREAKING:** Update `@metamask/approval-controller` dependency and add it as a peer dependency ([#1393](https://github.com/MetaMask/core/pull/1393))
 - Add `@metamask/utils` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
 
 ## [2.0.0]
