@@ -1,5 +1,4 @@
 import { errorCodes, EthereumRpcError } from 'eth-rpc-errors';
-import * as sinon from 'sinon';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ApprovalController,
@@ -38,26 +37,18 @@ function getRestrictedMessenger() {
 }
 
 describe('approval controller', () => {
-  beforeEach(() => {
-    sinon.useFakeTimers(1);
-  });
+  let approvalController: ApprovalController;
+  let showApprovalRequest: jest.Mock;
 
-  afterEach(() => {
-    sinon.restore();
+  beforeEach(() => {
+    showApprovalRequest = jest.fn();
+    approvalController = new ApprovalController({
+      messenger: getRestrictedMessenger(),
+      showApprovalRequest,
+    });
   });
 
   describe('add', () => {
-    let approvalController: ApprovalController;
-    let showApprovalRequest: sinon.SinonSpy;
-
-    beforeEach(() => {
-      showApprovalRequest = sinon.spy();
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest,
-      });
-    });
-
     it('validates input', () => {
       expect(() =>
         approvalController.add({ id: null, origin: 'bar.baz' } as any),
@@ -124,7 +115,7 @@ describe('approval controller', () => {
           origin: 'bar.baz',
           requestData: null,
           requestState: null,
-          time: 1,
+          time: expect.any(Number),
           type: TYPE,
         },
       });
@@ -260,12 +251,6 @@ describe('approval controller', () => {
   // otherwise tested by 'add' above
   describe('addAndShowApprovalRequest', () => {
     it('addAndShowApprovalRequest', () => {
-      const showApprovalSpy = sinon.spy();
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: showApprovalSpy,
-      });
-
       const result = approvalController.addAndShowApprovalRequest({
         id: 'foo',
         origin: 'bar.baz',
@@ -273,16 +258,12 @@ describe('approval controller', () => {
         requestData: { foo: 'bar' },
       });
       expect(result instanceof Promise).toStrictEqual(true);
-      expect(showApprovalSpy.calledOnce).toStrictEqual(true);
+      expect(showApprovalRequest).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('get', () => {
     it('gets entry', () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
       expect(approvalController.get('foo')).toStrictEqual({
         id: 'foo',
@@ -290,16 +271,11 @@ describe('approval controller', () => {
         requestData: null,
         requestState: null,
         type: 'myType',
-        time: 1,
+        time: expect.any(Number),
       });
     });
 
     it('returns undefined for non-existing entry', () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
 
       expect(approvalController.get('fizz')).toBeUndefined();
@@ -311,15 +287,9 @@ describe('approval controller', () => {
   });
 
   describe('getApprovalCount', () => {
-    let approvalController: ApprovalController;
     let addWithCatch: (args: any) => void;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-
       addWithCatch = (args: any) =>
         approvalController.add(args).catch(() => undefined);
     });
@@ -441,7 +411,7 @@ describe('approval controller', () => {
     it('gets the count when specifying origin and type with type excluded from rate limiting', () => {
       approvalController = new ApprovalController({
         messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
+        showApprovalRequest,
         typesExcludedFromRateLimiting: [TYPE],
       });
 
@@ -456,10 +426,6 @@ describe('approval controller', () => {
 
   describe('getTotalApprovalCount', () => {
     it('gets the total approval count', () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
       expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
 
       const addWithCatch = (args: any) =>
@@ -482,9 +448,9 @@ describe('approval controller', () => {
     });
 
     it('gets the total approval count with type excluded from rate limiting', () => {
-      const approvalController = new ApprovalController({
+      approvalController = new ApprovalController({
         messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
+        showApprovalRequest,
         typesExcludedFromRateLimiting: ['type0'],
       });
       expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
@@ -507,15 +473,6 @@ describe('approval controller', () => {
   });
 
   describe('has', () => {
-    let approvalController: ApprovalController;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-    });
-
     it('validates input', () => {
       expect(() => approvalController.has()).toThrow(
         getInvalidHasParamsError(),
@@ -606,17 +563,12 @@ describe('approval controller', () => {
   });
 
   describe('resolve', () => {
-    let approvalController: ApprovalController;
     let numDeletions: number;
-    let deleteSpy: sinon.SinonSpy;
+    let deleteSpy: jest.SpyInstance;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
       // TODO: Stop using private methods in tests
-      deleteSpy = sinon.spy(approvalController as any, '_delete');
+      deleteSpy = jest.spyOn(approvalController as any, '_delete');
       numDeletions = 0;
     });
 
@@ -632,7 +584,7 @@ describe('approval controller', () => {
 
       const result = await approvalPromise;
       expect(result).toStrictEqual('success');
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
 
     it('resolves multiple approval promises out of order', async () => {
@@ -658,29 +610,24 @@ describe('approval controller', () => {
 
       result = await approvalPromise1;
       expect(result).toStrictEqual('success1');
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
 
     it('throws on unknown id', () => {
       expect(() => approvalController.accept('foo')).toThrow(
         getIdNotFoundError('foo'),
       );
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
   });
 
   describe('reject', () => {
-    let approvalController: ApprovalController;
     let numDeletions: number;
-    let deleteSpy: sinon.SinonSpy;
+    let deleteSpy: jest.SpyInstance;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
       // TODO: Stop using private methods in tests
-      deleteSpy = sinon.spy(approvalController as any, '_delete');
+      deleteSpy = jest.spyOn(approvalController as any, '_delete');
       numDeletions = 0;
     });
 
@@ -693,7 +640,7 @@ describe('approval controller', () => {
       });
       approvalController.reject('foo', new Error('failure'));
       await expect(approvalPromise).rejects.toThrow('failure');
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
 
     it('rejects multiple approval promises out of order', async () => {
@@ -714,24 +661,19 @@ describe('approval controller', () => {
       approvalController.reject('foo1', new Error('failure1'));
       await expect(rejectionPromise2).rejects.toThrow('failure2');
       await expect(rejectionPromise1).rejects.toThrow('failure1');
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
 
     it('throws on unknown id', () => {
       expect(() => approvalController.reject('foo', new Error('bar'))).toThrow(
         getIdNotFoundError('foo'),
       );
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
+      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
   });
 
   describe('accept and reject', () => {
     it('accepts and rejects multiple approval promises out of order', async () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-
       const promise1 = approvalController.add({
         id: 'foo1',
         origin: 'bar.baz',
@@ -781,15 +723,6 @@ describe('approval controller', () => {
   });
 
   describe('clear', () => {
-    let approvalController: ApprovalController;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-    });
-
     it('does nothing if state is already empty', () => {
       expect(() =>
         approvalController.clear(new EthereumRpcError(1, 'clear')),
@@ -797,7 +730,7 @@ describe('approval controller', () => {
     });
 
     it('deletes existing entries', async () => {
-      const rejectSpy = sinon.spy(approvalController, 'reject');
+      const rejectSpy = jest.spyOn(approvalController, 'reject');
 
       approvalController
         .add({ id: 'foo2', origin: 'bar.baz', type: 'myType' })
@@ -812,7 +745,7 @@ describe('approval controller', () => {
       expect(
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
       ).toStrictEqual({});
-      expect(rejectSpy.callCount).toStrictEqual(2);
+      expect(rejectSpy).toHaveBeenCalledTimes(2);
     });
 
     it('rejects existing entries with a caller-specified error', async () => {
@@ -830,15 +763,6 @@ describe('approval controller', () => {
   });
 
   describe('updateRequestState', () => {
-    let approvalController: ApprovalController;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-    });
-
     it('updates the request state of a given approval request', () => {
       approvalController
         .add({
@@ -873,15 +797,6 @@ describe('approval controller', () => {
   // they are heavily dependent upon it.
   // TODO: Stop using private methods in tests
   describe('_delete', () => {
-    let approvalController: ApprovalController;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-    });
-
     it('deletes entry', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
 
@@ -919,13 +834,12 @@ describe('approval controller', () => {
         ApprovalControllerActions,
         ApprovalControllerEvents
       >();
-      const showApprovalSpy = sinon.spy();
 
-      const approvalController = new ApprovalController({
+      approvalController = new ApprovalController({
         messenger: messenger.getRestricted({
           name: controllerName,
         }) as ApprovalControllerMessenger,
-        showApprovalRequest: showApprovalSpy,
+        showApprovalRequest,
       });
 
       messenger.call(
@@ -933,7 +847,7 @@ describe('approval controller', () => {
         { id: 'foo', origin: 'bar.baz', type: TYPE },
         true,
       );
-      expect(showApprovalSpy.calledOnce).toStrictEqual(true);
+      expect(showApprovalRequest).toHaveBeenCalledTimes(1);
       expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
     });
 
@@ -942,13 +856,12 @@ describe('approval controller', () => {
         ApprovalControllerActions,
         ApprovalControllerEvents
       >();
-      const showApprovalSpy = sinon.spy();
 
-      const approvalController = new ApprovalController({
+      approvalController = new ApprovalController({
         messenger: messenger.getRestricted({
           name: controllerName,
         }) as ApprovalControllerMessenger,
-        showApprovalRequest: showApprovalSpy,
+        showApprovalRequest,
       });
 
       messenger.call(
@@ -956,7 +869,7 @@ describe('approval controller', () => {
         { id: 'foo', origin: 'bar.baz', type: TYPE },
         false,
       );
-      expect(showApprovalSpy.notCalled).toStrictEqual(true);
+      expect(showApprovalRequest).toHaveBeenCalledTimes(0);
       expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
     });
 
@@ -966,11 +879,11 @@ describe('approval controller', () => {
         ApprovalControllerEvents
       >();
 
-      const approvalController = new ApprovalController({
+      approvalController = new ApprovalController({
         messenger: messenger.getRestricted({
           name: controllerName,
         }) as ApprovalControllerMessenger,
-        showApprovalRequest: sinon.spy(),
+        showApprovalRequest,
       });
 
       approvalController.add({
@@ -992,17 +905,6 @@ describe('approval controller', () => {
   });
 
   describe('startFlow', () => {
-    let approvalController: ApprovalController;
-    let showApprovalRequest: jest.Mock;
-
-    beforeEach(() => {
-      showApprovalRequest = jest.fn();
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest,
-      });
-    });
-
     it.each([
       ['no options passed', undefined],
       ['partial options passed', {}],
@@ -1028,17 +930,6 @@ describe('approval controller', () => {
   });
 
   describe('endFlow', () => {
-    let approvalController: ApprovalController;
-    let showApprovalRequest: jest.Mock;
-
-    beforeEach(() => {
-      showApprovalRequest = jest.fn();
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest,
-      });
-    });
-
     it('fails to end flow if no flow exists', () => {
       expect(() => approvalController.endFlow('id')).toThrow(
         NoApprovalFlowsError,
