@@ -19,7 +19,6 @@ import {
   ChainId,
   NetworkType,
   toHex,
-  ORIGIN_METAMASK,
   ApprovalType,
   ERC20,
 } from '@metamask/controller-utils';
@@ -363,7 +362,11 @@ describe('NftController', () => {
         address: '0x123',
         tokenId: ERC721_NFT_ID,
       };
-      const result = nftController.watchNft(assetWithInvalidAddress, ERC721, 'https://testdapp.com');
+      const result = nftController.watchNft(
+        assetWithInvalidAddress,
+        ERC721,
+        'https://testdapp.com',
+      );
       await expect(result).rejects.toThrow('Invalid address');
     });
 
@@ -392,13 +395,13 @@ describe('NftController', () => {
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
-      await nftController.watchNft(ERC721_NFT, ERC721,'https://testdapp.com');
+      await nftController.watchNft(ERC721_NFT, ERC721, 'https://testdapp.com');
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
           id: requestId,
-          origin:'https://testdapp.com',
+          origin: 'https://testdapp.com',
           type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,
@@ -447,7 +450,11 @@ describe('NftController', () => {
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
-      await nftController.watchNft(ERC1155_NFT, ERC1155,'https://testdapp.com');
+      await nftController.watchNft(
+        ERC1155_NFT,
+        ERC1155,
+        'https://testdapp.com',
+      );
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -504,7 +511,7 @@ describe('NftController', () => {
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
 
-      await nftController.watchNft(ERC721_NFT, ERC721,'https://testdapp.com');
+      await nftController.watchNft(ERC721_NFT, ERC721, 'https://testdapp.com');
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -562,7 +569,11 @@ describe('NftController', () => {
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
 
-      await nftController.watchNft(ERC1155_NFT, ERC1155, 'https://etherscan.io/');
+      await nftController.watchNft(
+        ERC1155_NFT,
+        ERC1155,
+        'https://etherscan.io/',
+      );
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
@@ -697,13 +708,17 @@ describe('NftController', () => {
 
       const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
 
-      await nftController.watchNft(ALT_ERC1155_NFT, ERC1155, 'https://etherscan.io');
+      await nftController.watchNft(
+        ALT_ERC1155_NFT,
+        ERC1155,
+        'https://etherscan.io',
+      );
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
           id: requestId,
-          origin: "https://etherscan.io",
+          origin: 'https://etherscan.io',
           type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,
@@ -749,7 +764,7 @@ describe('NftController', () => {
         'ApprovalController:addRequest',
         {
           id: requestId,
-          origin: "https://etherscan.io",
+          origin: 'https://etherscan.io',
           type: ApprovalType.WatchAsset,
           requestData: {
             id: requestId,

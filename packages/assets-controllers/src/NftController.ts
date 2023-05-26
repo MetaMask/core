@@ -25,7 +25,6 @@ import {
   ERC1155,
   OPENSEA_API_URL,
   OPENSEA_PROXY_URL,
-  ORIGIN_METAMASK,
   ApprovalType,
 } from '@metamask/controller-utils';
 import type {
@@ -1082,11 +1081,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param origin - Domain origin to register the asset from.
    * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
    */
-  async watchNft(
-    asset: NftAsset,
-    type: NFTStandardType,
-    origin: string,
-  ) {
+  async watchNft(asset: NftAsset, type: NFTStandardType, origin: string) {
     const { selectedAddress } = this.config;
 
     const errors = await this.validateWatchNft(asset, type, selectedAddress);
@@ -1109,16 +1104,12 @@ export class NftController extends BaseController<NftConfig, NftState> {
     const { address, tokenId } = asset;
     const { name, standard, description, image } = nftMetadata;
 
-    await this.addNft(
-      address,
-      tokenId,
-      {
-        name: name ?? null,
-        description: description ?? null,
-        image: image ?? null,
-        standard: standard ?? null,
-      },
-    );
+    await this.addNft(address, tokenId, {
+      name: name ?? null,
+      description: description ?? null,
+      image: image ?? null,
+      standard: standard ?? null,
+    });
   }
 
   /**
