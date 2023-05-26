@@ -60,10 +60,6 @@ type Block = {
   baseFeePerGas?: string;
 };
 
-// Store these up front so we can use them even when faking timers
-const originalSetTimeout = global.setTimeout;
-const originalClearTimeout = global.clearTimeout;
-
 const createNetworkClientMock = jest.mocked(createNetworkClient);
 const uuidV4Mock = jest.mocked(v4);
 
@@ -151,13 +147,11 @@ describe('NetworkController', () => {
     // Disable all requests, even those to localhost
     nock.disableNetConnect();
     jest.resetAllMocks();
-    jest.useFakeTimers();
   });
 
   afterEach(() => {
     nock.enableNetConnect('localhost');
     nock.cleanAll();
-    jest.useRealTimers();
     resetAllWhenMocks();
   });
 
@@ -7317,7 +7311,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
        */
       function stopTimer() {
         if (timer) {
-          originalClearTimeout(timer);
+          clearTimeout(timer);
         }
       }
 
@@ -7326,7 +7320,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
        */
       function resetTimer() {
         stopTimer();
-        timer = originalSetTimeout(() => {
+        timer = setTimeout(() => {
           end();
         }, timeBeforeAssumingNoMoreEvents);
       }
