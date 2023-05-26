@@ -38,12 +38,16 @@ const messageIdMock = '123';
 const messageIdMock2 = '456';
 const versionMock = 'V1';
 
-const messageParamsMock = {
+const messageParamsWithoutIdMock = {
   from: '0x123',
   origin: 'http://test.com',
   data: '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
-  metamaskId: messageIdMock,
   version: 'V1',
+};
+
+const messageParamsMock = {
+  ...messageParamsWithoutIdMock,
+  metamaskId: messageIdMock,
 };
 
 const messageParamsMock2 = {
@@ -83,6 +87,7 @@ const createMessengerMock = () =>
   } as any as jest.Mocked<SignatureControllerMessenger>);
 
 const addUnapprovedMessageMock = jest.fn();
+const approveMessageMock = jest.fn();
 
 const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
   const messageManagerMock = Object.create(prototype);
@@ -91,7 +96,7 @@ const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
     getUnapprovedMessages: jest.fn(),
     getUnapprovedMessagesCount: jest.fn(),
     addUnapprovedMessage: addUnapprovedMessageMock,
-    approveMessage: jest.fn(),
+    approveMessage: approveMessageMock,
     setMessageStatusSigned: jest.fn(),
     setMessageStatusErrored: jest.fn(),
     setMessageStatusInProgress: jest.fn(),
@@ -144,6 +149,7 @@ describe('SignatureController', () => {
     jest.spyOn(console, 'info').mockImplementation(() => undefined);
 
     addUnapprovedMessageMock.mockResolvedValue(messageIdMock);
+    approveMessageMock.mockResolvedValue(messageParamsWithoutIdMock);
     messageManagerConstructorMock.mockReturnValue(messageManagerMock);
     personalMessageManagerConstructorMock.mockReturnValue(
       personalMessageManagerMock,
@@ -513,6 +519,7 @@ describe('SignatureController', () => {
       typedMessageManagerMock.approveMessage.mockReset();
       typedMessageManagerMock.approveMessage.mockResolvedValueOnce({
         ...messageParamsMock2,
+        deferSetAsSigned: false,
         data: JSON.stringify(jsonData),
       });
 
@@ -524,7 +531,7 @@ describe('SignatureController', () => {
 
       expect(keyringControllerMock.signTypedMessage).toHaveBeenCalledTimes(1);
       expect(keyringControllerMock.signTypedMessage).toHaveBeenCalledWith(
-        { ...messageParamsMock2, data: jsonData },
+        { ...messageParamsMock2, data: jsonData, deferSetAsSigned: false },
         { version: 'V2' },
       );
       expect(1).toBe(1);
