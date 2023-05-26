@@ -515,6 +515,13 @@ export class ApprovalController extends BaseControllerV2<
     });
   }
 
+  /**
+   * Starts a new approval flow.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval flow.
+   * @returns The object containing the approval flow id.
+   */
   startFlow(opts: ApprovalFlowOptions = {}): ApprovalFlowStartResult {
     const id = opts.id ?? nanoid();
     const finalOptions = { id };
@@ -528,6 +535,11 @@ export class ApprovalController extends BaseControllerV2<
     return { id };
   }
 
+  /**
+   * Ends the current approval flow.
+   *
+   * @param flowId - The id of the approval flow to end.
+   */
   endFlow(flowId: string) {
     if (!this.state.approvalFlows.length) {
       throw new NoApprovalFlowsError();
