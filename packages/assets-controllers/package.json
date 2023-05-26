@@ -70,7 +70,8 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "workspace:^",
-    "@metamask/network-controller": "workspace:^"
+    "@metamask/network-controller": "workspace:^",
+    "@metamask/preferences-controller": "workspace:^"
   },
   "engines": {
     "node": ">=16.0.0"
