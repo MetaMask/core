@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Replace `@metamask/controller-utils` dependency with `@metamask/utils` ([#1370](https://github.com/MetaMask/core/pull/1370))
+
 ## [2.1.1]
 ### Changed
 - deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
@@ -39,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.1...@metamask/approval-controller@3.0.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.0...@metamask/approval-controller@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.0.0...@metamask/approval-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@1.1.0...@metamask/approval-controller@2.0.0
