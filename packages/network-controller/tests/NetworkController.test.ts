@@ -2282,7 +2282,12 @@ describe('NetworkController', () => {
   });
 
   describe('setProviderType', () => {
-    for (const { networkType } of INFURA_NETWORKS) {
+    for (const {
+      networkType,
+      chainId,
+      ticker,
+      blockExplorerUrl,
+    } of INFURA_NETWORKS) {
       describe(`given a network type of "${networkType}"`, () => {
         refreshNetworkTests({
           expectedProviderConfig: buildProviderConfig({
@@ -2292,6 +2297,42 @@ describe('NetworkController', () => {
             await controller.setProviderType(networkType);
           },
         });
+      });
+
+      it(`overwrites the provider configuration using a predetermined chainId, ticker, and blockExplorerUrl for "${networkType}", clearing id, rpcUrl, and nickname`, async () => {
+        await withController(
+          {
+            state: {
+              providerConfig: {
+                type: 'rpc',
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: '0x1337',
+                nickname: 'test-chain',
+                ticker: 'TEST',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer.com',
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider();
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            await controller.setProviderType(networkType);
+
+            expect(controller.state.providerConfig).toStrictEqual({
+              type: networkType,
+              rpcUrl: undefined,
+              chainId,
+              ticker,
+              nickname: undefined,
+              rpcPrefs: { blockExplorerUrl },
+              id: undefined,
+            });
+          },
+        );
       });
     }
 
@@ -2507,6 +2548,52 @@ describe('NetworkController', () => {
           },
         );
       });
+    });
+
+    it('overwrites the provider configuration given a networkConfigurationId that matches a configured networkConfiguration', async () => {
+      await withController(
+        {
+          state: {
+            networkConfigurations: {
+              testNetworkConfiguration: {
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: toHex(111),
+                ticker: 'TEST',
+                nickname: 'something existing',
+                id: 'testNetworkConfigurationId',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer-2.com',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient()
+            .calledWith({
+              rpcUrl: 'https://mock-rpc-url',
+              chainId: toHex(111),
+              type: NetworkClientType.Custom,
+            })
+            .mockReturnValue(fakeNetworkClient);
+
+          await controller.setActiveNetwork('testNetworkConfiguration');
+
+          expect(controller.state.providerConfig).toStrictEqual({
+            type: 'rpc',
+            rpcUrl: 'https://mock-rpc-url',
+            chainId: toHex(111),
+            ticker: 'TEST',
+            nickname: 'something existing',
+            id: 'testNetworkConfigurationId',
+            rpcPrefs: {
+              blockExplorerUrl: 'https://test-block-explorer-2.com',
+            },
+          });
+        },
+      );
     });
   });
 
