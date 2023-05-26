@@ -45,6 +45,7 @@ type SuggestedNftMeta = {
   time: number;
   type: NFTStandardType;
   interactingAddress: string;
+  origin: string;
 };
 
 /**
@@ -1078,18 +1079,17 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param asset.address - The address of the asset contract.
    * @param asset.tokenId - The ID of the asset.
    * @param type - The asset type.
-   * @param interactingAddress - The address of the account that is requesting to watch the asset.
+   * @param origin - Domain origin to register the asset from.
    * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
    */
   async watchNft(
     asset: NftAsset,
     type: NFTStandardType,
-    interactingAddress?: string,
+    origin: string,
   ) {
-    const { selectedAddress, chainId } = this.config;
-    const accountAddress = interactingAddress || selectedAddress;
+    const { selectedAddress } = this.config;
 
-    const errors = await this.validateWatchNft(asset, type, accountAddress);
+    const errors = await this.validateWatchNft(asset, type, selectedAddress);
 
     const nftMetadata = await this.getNftInformation(
       asset.address,
@@ -1101,7 +1101,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
       type,
       id: random(),
       time: Date.now(),
-      interactingAddress: accountAddress,
+      interactingAddress: selectedAddress,
+      origin,
     };
     await this._requestApproval({ suggestedNftMeta, errors });
 
@@ -1117,11 +1118,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
         image: image ?? null,
         standard: standard ?? null,
       },
-      // this argument was previously used for ensuring that detected NFTs were
-      // added to the correct account/chainId combination. Now that we are
-      // since suggestedNfts include an interactingAddress, we use this 'detection'
-      // bucket with this value.
-      { userAddress: interactingAddress ?? selectedAddress, chainId },
     );
   }
 
@@ -1503,7 +1499,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       'ApprovalController:addRequest',
       {
         id: suggestedNftMeta.id,
-        origin: ORIGIN_METAMASK,
+        origin: suggestedNftMeta.origin,
         type: ApprovalType.WatchAsset,
         requestData: {
           id: suggestedNftMeta.id,
