@@ -162,6 +162,24 @@ describe('NetworkController', () => {
   });
 
   describe('constructor', () => {
+    const invalidInfuraProjectIds = [undefined, null, {}, 1];
+    invalidInfuraProjectIds.forEach((invalidProjectId) => {
+      it(`throws given an invalid Infura ID of "${inspect(
+        invalidProjectId,
+      )}"`, () => {
+        const messenger = buildMessenger();
+        const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+        expect(
+          () =>
+            new NetworkController({
+              messenger: restrictedMessenger,
+              // @ts-expect-error We are intentionally passing bad input.
+              infuraProjectId: invalidProjectId,
+            }),
+        ).toThrow('Invalid Infura project ID');
+      });
+    });
+
     it('initializes the state with some defaults', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
@@ -203,29 +221,6 @@ describe('NetworkController', () => {
           });
         },
       );
-    });
-
-    it('throws if the infura project ID is missing', async () => {
-      expect(
-        () =>
-          // @ts-expect-error Required parameter intentionally omitted
-          new NetworkController({
-            messenger: buildNetworkControllerMessenger(),
-            trackMetaMetricsEvent: jest.fn(),
-          }),
-      ).toThrow('Invalid Infura project ID');
-    });
-
-    it('throws if the infura project ID is not a string', async () => {
-      expect(
-        () =>
-          new NetworkController({
-            messenger: buildNetworkControllerMessenger(),
-            trackMetaMetricsEvent: jest.fn(),
-            // @ts-expect-error Required parameter intentionally omitted
-            infuraProjectId: 10,
-          }),
-      ).toThrow('Invalid Infura project ID');
     });
   });
 
