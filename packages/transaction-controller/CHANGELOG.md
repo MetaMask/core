@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `updateTransaction` method now expects the `transactionMeta` parameter to use type `Hex` for the `chainId` property (and for the nested `transaction.chainId` property)
 - **BREAKING:** Add `messenger` as required constructor parameter ([#1241](https://github.com/MetaMask/core/pull/1241))
 - Add `@metamask/utils` dependency ([#1367](https://github.com/MetaMask/core/pull/1367))
+- Add `@metamask/approval-controller` dependency ([#1241](https://github.com/MetaMask/core/pull/1241))
 
 ### Fixed
 - Fix inaccurate hard-coded `chainId` on incoming token transactions ([#1366](https://github.com/MetaMask/core/pull/1366))
