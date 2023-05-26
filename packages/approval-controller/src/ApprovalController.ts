@@ -6,11 +6,15 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Json } from '@metamask/utils';
-import { ApprovalRequestNotFoundError } from './errors';
+import {
+  ApprovalRequestNotFoundError,
+  ApprovalRequestNoResultSupportError,
+} from './errors';
 
 const controllerName = 'ApprovalController';
 
-type ApprovalPromiseResolve = (value?: unknown) => void;
+type ApprovalPromiseResolve = (value?: unknown | AddResult) => void;
+
 type ApprovalPromiseReject = (error?: unknown) => void;
 
 type ApprovalRequestData = Record<string, Json> | null;
@@ -53,6 +57,11 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
    * Additional mutable state associated with the request
    */
   requestState: ApprovalRequestState;
+
+  /**
+   * Whether the request expects a result object to be returned instead of just the approval value.
+   */
+  expectsResult: boolean;
 };
 
 type ShowApprovalRequest = () => void | Promise<void>;
@@ -93,6 +102,7 @@ type AddApprovalOptions = {
   type: string;
   requestData?: Record<string, Json>;
   requestState?: Record<string, Json>;
+  expectsResult?: boolean;
 };
 
 export type AddApprovalRequest = {
@@ -126,6 +136,24 @@ type UpdateRequestStateOptions = {
 export type UpdateRequestState = {
   type: `${typeof controllerName}:updateRequestState`;
   handler: ApprovalController['updateRequestState'];
+};
+
+export type AcceptOptions = {
+  waitForResult?: boolean;
+};
+
+export type AcceptResult = {
+  value: unknown;
+};
+
+export type AcceptResultCallbacks = {
+  success: (value?: unknown) => void;
+  error: (error: Error) => void;
+};
+
+export type AddResult = {
+  value: unknown;
+  resultCallbacks?: AcceptResultCallbacks;
 };
 
 export type ApprovalControllerActions =
@@ -254,7 +282,8 @@ export class ApprovalController extends BaseControllerV2<
 
   /**
    * Adds an approval request per the given arguments, calls the show approval
-   * request function, and returns the associated approval promise.
+   * request function, and returns the associated approval promise resolving to
+   * an AddResult object.
    *
    * There can only be one approval per origin and type. An error is thrown if
    * attempting to add an invalid or duplicate request.
@@ -267,8 +296,32 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.requestData - Additional data associated with the request,
    * @param opts.requestState - Additional state associated with the request,
    * if any.
-   * @returns The approval promise.
+   * @returns The approval promise resolving to an AddResult object.
    */
+  addAndShowApprovalRequest(
+    opts: AddApprovalOptions & { expectsResult: true },
+  ): Promise<AddResult>;
+
+  /**
+   * Adds an approval request per the given arguments, calls the show approval
+   * request function, and returns the associated approval promise resolving
+   * to a value provided during acceptance.
+   *
+   * There can only be one approval per origin and type. An error is thrown if
+   * attempting to add an invalid or duplicate request.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval request. A random id will be
+   * generated if none is provided.
+   * @param opts.origin - The origin of the approval request.
+   * @param opts.type - The type associated with the approval request.
+   * @param opts.requestData - Additional data associated with the request,
+   * @param opts.requestState - Additional state associated with the request,
+   * if any.
+   * @returns The approval promise resolving to a value provided during acceptance.
+   */
+  addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown>;
+
   addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
     const promise = this._add(
       opts.origin,
@@ -276,6 +329,7 @@ export class ApprovalController extends BaseControllerV2<
       opts.id,
       opts.requestData,
       opts.requestState,
+      opts.expectsResult,
     );
     this._showApprovalRequest();
     return promise;
@@ -283,7 +337,7 @@ export class ApprovalController extends BaseControllerV2<
 
   /**
    * Adds an approval request per the given arguments and returns the approval
-   * promise.
+   * promise resolving to an AddResult object.
    *
    * There can only be one approval per origin and type. An error is thrown if
    * attempting to add an invalid or duplicate request.
@@ -295,15 +349,36 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.type - The type associated with the approval request.
    * @param opts.requestData - Additional data associated with the request,
    * if any.
-   * @returns The approval promise.
+   * @returns The approval promise resolving to an AddResult object.
    */
-  add(opts: AddApprovalOptions): Promise<unknown> {
+  add(opts: AddApprovalOptions & { expectsResult: true }): Promise<AddResult>;
+
+  /**
+   * Adds an approval request per the given arguments and returns the approval
+   * promise resolving to a value provided during acceptance.
+   *
+   * There can only be one approval per origin and type. An error is thrown if
+   * attempting to add an invalid or duplicate request.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval request. A random id will be
+   * generated if none is provided.
+   * @param opts.origin - The origin of the approval request.
+   * @param opts.type - The type associated with the approval request.
+   * @param opts.requestData - Additional data associated with the request,
+   * if any.
+   * @returns The approval promise resolving to a value provided during acceptance.
+   */
+  add(opts: AddApprovalOptions): Promise<unknown>;
+
+  add(opts: AddApprovalOptions): Promise<unknown | AddResult> {
     return this._add(
       opts.origin,
       opts.type,
       opts.id,
       opts.requestData,
       opts.requestState,
+      opts.expectsResult,
     );
   }
 
@@ -427,9 +502,42 @@ export class ApprovalController extends BaseControllerV2<
    *
    * @param id - The id of the approval request.
    * @param value - The value to resolve the approval promise with.
+   * @param options - Options bag.
+   * @returns A promise that either resolves once a result is provided by
+   * the creator of the approval request, or immediately if `options.waitForResult`
+   * is `false` or `undefined`.
    */
-  accept(id: string, value?: unknown): void {
-    this._deleteApprovalAndGetCallbacks(id).resolve(value);
+  accept(
+    id: string,
+    value?: unknown,
+    options?: AcceptOptions,
+  ): Promise<AcceptResult> {
+    const approval = this.get(id) as ApprovalRequest<any>;
+    const requestPromise = this._deleteApprovalAndGetCallbacks(id);
+
+    return new Promise((resolve, reject) => {
+      const resultCallbacks: AcceptResultCallbacks = {
+        success: (acceptValue?: unknown) => resolve({ value: acceptValue }),
+        error: reject,
+      };
+
+      if (options?.waitForResult && !approval.expectsResult) {
+        reject(new ApprovalRequestNoResultSupportError(id));
+        return;
+      }
+
+      const resultValue = options?.waitForResult ? resultCallbacks : undefined;
+
+      const resolveValue = approval.expectsResult
+        ? { value, resultCallbacks: resultValue }
+        : value;
+
+      requestPromise.resolve(resolveValue);
+
+      if (!options?.waitForResult) {
+        resolve({ value: undefined });
+      }
+    });
   }
 
   /**
@@ -484,6 +592,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param id - The id of the approval request.
    * @param requestData - The request data associated with the approval request.
    * @param requestState - The request state associated with the approval request.
+   * @param expectsResult - Whether the approval request expects a result object to be returned.
    * @returns The approval promise.
    */
   private _add(
@@ -492,7 +601,8 @@ export class ApprovalController extends BaseControllerV2<
     id: string = nanoid(),
     requestData?: Record<string, Json>,
     requestState?: Record<string, Json>,
-  ): Promise<unknown> {
+    expectsResult?: boolean,
+  ): Promise<unknown | AddResult> {
     this._validateAddParams(id, origin, type, requestData, requestState);
 
     if (
@@ -508,7 +618,15 @@ export class ApprovalController extends BaseControllerV2<
     return new Promise((resolve, reject) => {
       this._approvals.set(id, { resolve, reject });
       this._addPendingApprovalOrigin(origin, type);
-      this._addToStore(id, origin, type, requestData, requestState);
+
+      this._addToStore(
+        id,
+        origin,
+        type,
+        requestData,
+        requestState,
+        expectsResult,
+      );
     });
   }
 
@@ -582,6 +700,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
    * @param requestState - The request state associated with the approval request.
+   * @param expectsResult - Whether the request expects a result object to be returned.
    */
   private _addToStore(
     id: string,
@@ -589,6 +708,7 @@ export class ApprovalController extends BaseControllerV2<
     type: string,
     requestData?: Record<string, Json>,
     requestState?: Record<string, Json>,
+    expectsResult?: boolean,
   ): void {
     const approval: ApprovalRequest<Record<string, Json> | null> = {
       id,
@@ -597,6 +717,7 @@ export class ApprovalController extends BaseControllerV2<
       time: Date.now(),
       requestData: requestData || null,
       requestState: requestState || null,
+      expectsResult: expectsResult || false,
     };
 
     this.update((draftState) => {
