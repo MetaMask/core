@@ -6,9 +6,12 @@ import {
   ApprovalControllerActions,
   ApprovalControllerEvents,
   ApprovalControllerMessenger,
+  ApprovalFlowOptions,
 } from './ApprovalController';
+import { EndInvalidFlowError, NoApprovalFlowsError } from './errors';
 
-const STORE_KEY = 'pendingApprovals';
+const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
+const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
 
 const TYPE = 'TYPE';
 
@@ -113,7 +116,9 @@ describe('approval controller', () => {
         approvalController.has({ origin: 'bar.baz', type: TYPE }),
       ).toStrictEqual(true);
 
-      expect(approvalController.state[STORE_KEY]).toStrictEqual({
+      expect(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      ).toStrictEqual({
         foo: {
           id: 'foo',
           origin: 'bar.baz',
@@ -134,7 +139,9 @@ describe('approval controller', () => {
         }),
       ).not.toThrow();
 
-      const id = Object.keys(approvalController.state[STORE_KEY])[0];
+      const id = Object.keys(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      )[0];
       expect(id && typeof id === 'string').toStrictEqual(true);
     });
 
@@ -151,9 +158,9 @@ describe('approval controller', () => {
       expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
       expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
       expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
-      expect(approvalController.state[STORE_KEY].foo.requestData).toStrictEqual(
-        { foo: 'bar' },
-      );
+      expect(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY].foo.requestData,
+      ).toStrictEqual({ foo: 'bar' });
     });
 
     it('adds correctly specified entry with request state', () => {
@@ -170,7 +177,7 @@ describe('approval controller', () => {
       expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
       expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
       expect(
-        approvalController.state[STORE_KEY].foo.requestState,
+        approvalController.state[PENDING_APPROVALS_STORE_KEY].foo.requestState,
       ).toStrictEqual({ foo: 'bar' });
     });
 
@@ -802,7 +809,9 @@ describe('approval controller', () => {
 
       approvalController.clear(new EthereumRpcError(1, 'clear'));
 
-      expect(approvalController.state[STORE_KEY]).toStrictEqual({});
+      expect(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      ).toStrictEqual({});
       expect(rejectSpy.callCount).toStrictEqual(2);
     });
 
@@ -882,7 +891,7 @@ describe('approval controller', () => {
         !approvalController.has({ id: 'foo' }) &&
           !approvalController.has({ type: 'type' }) &&
           !approvalController.has({ origin: 'bar.baz' }) &&
-          !approvalController.state[STORE_KEY].foo,
+          !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
       ).toStrictEqual(true);
     });
 
@@ -979,6 +988,79 @@ describe('approval controller', () => {
       expect(approvalController.get('foo')?.requestState).toStrictEqual({
         foo: 'foobar',
       });
+    });
+  });
+
+  describe('startFlow', () => {
+    let approvalController: ApprovalController;
+    let showApprovalRequest: jest.Mock;
+
+    beforeEach(() => {
+      showApprovalRequest = jest.fn();
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest,
+      });
+    });
+
+    it.each([
+      ['no options passed', undefined],
+      ['partial options passed', {}],
+      ['options passed', { id: 'id' }],
+    ])(
+      'adds flow to state and calls showApprovalRequest with %s',
+      (_, approvalFlowOptions?: ApprovalFlowOptions) => {
+        const result = approvalController.startFlow(approvalFlowOptions);
+
+        const expectedFlow = {
+          id: approvalFlowOptions?.id ?? expect.any(String),
+        };
+        expect(result).toStrictEqual(expectedFlow);
+        expect(showApprovalRequest).toHaveBeenCalledTimes(1);
+        expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+          1,
+        );
+        expect(
+          approvalController.state[APPROVAL_FLOWS_STORE_KEY][0],
+        ).toStrictEqual(expectedFlow);
+      },
+    );
+  });
+
+  describe('endFlow', () => {
+    let approvalController: ApprovalController;
+    let showApprovalRequest: jest.Mock;
+
+    beforeEach(() => {
+      showApprovalRequest = jest.fn();
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest,
+      });
+    });
+
+    it('fails to end flow if no flow exists', () => {
+      expect(() => approvalController.endFlow('id')).toThrow(
+        NoApprovalFlowsError,
+      );
+    });
+
+    it('fails to end flow if id does not correspond the current flow', () => {
+      approvalController.startFlow({ id: 'id' });
+
+      expect(() => approvalController.endFlow('wrong-id')).toThrow(
+        EndInvalidFlowError,
+      );
+    });
+
+    it('ends flow if id corresponds with the current flow', () => {
+      approvalController.startFlow({ id: 'id' });
+
+      approvalController.endFlow('id');
+
+      expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+        0,
+      );
     });
   });
 });
