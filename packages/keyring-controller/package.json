@@ -56,6 +56,9 @@
     "typescript": "~4.6.3",
     "uuid": "^8.3.2"
   },
+  "peerDependencies": {
+    "@metamask/preferences-controller": "workspace:^"
+  },
   "engines": {
     "node": ">=16.0.0"
   },

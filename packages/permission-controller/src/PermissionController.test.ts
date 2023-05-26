@@ -490,7 +490,7 @@ function getPermissionControllerMessenger(
  * @returns The unrestricted methods array
  */
 function getDefaultUnrestrictedMethods() {
-  return ['wallet_unrestrictedMethod'];
+  return Object.freeze(['wallet_unrestrictedMethod']);
 }
 
 /**
