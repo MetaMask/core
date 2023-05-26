@@ -1638,7 +1638,7 @@ describe('KeyringController', () => {
     });
 
     describe('cancelQRSynchronization', () => {
-      it("should call qr keyring's method", async () => {
+      it('should call `cancelSync` on the QR keyring', async () => {
         await setupQRKeyring();
         const qrKeyring =
           await signProcessKeyringController.getOrAddQRKeyring();
