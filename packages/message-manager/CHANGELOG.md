@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+### Added
+- Add `getAllMessages` and `setMetadata` methods to message managers ([#1364](https://github.com/MetaMask/core/pull/1364))
+  - A new optional `metadata` property has been added to the message type as well
+- Add support for deferred signing ([#1364](https://github.com/MetaMask/core/pull/1364))
+  - `deferSetAsSigned` has been added as a message parameter. This is used to tell the signature controller to not mark this message as signed when the keyring is asked to sign it.
+- Add the `setMessageStatusInProgress` method to set a message status to `inProgress` ([#1339](https://github.com/MetaMask/core/pull/1339))
+
+### Changed
+- **BREAKING:** The `getCurrentChainId` constructor parameter for each message manager now expects a `Hex` return type rather than a decimal string ([#1367](https://github.com/MetaMask/core/pull/1367))
+  - Note that while every message manager class accepts this as a constructor parameter, it's only used by the `TypedMessageManager` at the moment
+- Add `@metamask/utils` dependency ([#1370](https://github.com/MetaMask/core/pull/1370))
+
 ## [5.0.0]
 ### Fixed
 - **BREAKING:** Add chain validation to `eth_signTypedData_v4` signature requests ([#1331](https://github.com/MetaMask/core/pull/1331))
@@ -60,7 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@5.0.0...@metamask/message-manager@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@4.0.0...@metamask/message-manager@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@3.1.1...@metamask/message-manager@4.0.0
 [3.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@3.1.0...@metamask/message-manager@3.1.1

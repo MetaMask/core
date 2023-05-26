@@ -476,7 +476,7 @@ export type PermissionControllerOptions<
   messenger: PermissionControllerMessenger;
   caveatSpecifications: CaveatSpecificationMap<ControllerCaveatSpecification>;
   permissionSpecifications: PermissionSpecificationMap<ControllerPermissionSpecification>;
-  unrestrictedMethods: string[];
+  unrestrictedMethods: readonly string[];
   state?: Partial<
     PermissionControllerState<
       ExtractPermission<

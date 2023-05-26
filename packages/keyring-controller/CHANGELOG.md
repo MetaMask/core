@@ -6,6 +6,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+### Added
+- Add support for encryption keys ([#1342](https://github.com/MetaMask/core/pull/1342))
+  - The configuration option `cacheEncryptionKey` has been added, along with two new state properties (`encryptionKey` and `encryptionSalt`) and a new method (`submitEncryptionKey`)
+  - All new state and config entries are optional, so this will have no effect if you're not using this feature.
+- Make `addNewAccount` idempotent ([#1298](https://github.com/MetaMask/core/pull/1298))
+  - The `addNewAccount` method now takes an optional `accountCount` parameter. If provided, we ensure that this can be called repeatedly with the same result.
+- Add deprecated `getKeyringForAccount` and `getKeyringsByType` methods ([#1376](https://github.com/MetaMask/core/pull/1376), [#1386](https://github.com/MetaMask/core/pull/1386))
+
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** Change return type of `createNewVaultAndRestore` from `string | number[]` to `Uint8Array` ([#1349](https://github.com/MetaMask/core/pull/1349))
+- **BREAKING:** Change return type of `verifySeedPhrase` from `string` to  `Uint8Array` ([#1338](https://github.com/MetaMask/core/pull/1338))
+- **BREAKING:** Replace `validatePassword` with `verifyPassword` ([#1348](https://github.com/MetaMask/core/pull/1348))
+  - `verifyPassword` is asynchronous, unlike `validatePassword` which was not.
+  - `verifyPassword` does not return a boolean to indicate whether the password is valid. Instead an error is thrown when it's invalid.
+- **BREAKING:** `createNewVaultAndKeychain` will now skip vault creation if one already exists, rather than replacing it ([#1324](https://github.com/MetaMask/core/pull/1324))
+  - If you do want to replace a vault if one exists, you will have to remove it first before this is called.
+- **BREAKING:** `importAccountWithStrategy` and `addNewAccount` no longer update the selected address ([#1296](https://github.com/MetaMask/core/pull/1296), [#1309](https://github.com/MetaMask/core/pull/1309))
+  - If you want the newly imported account to be selected, you will have to do that manually after this is called.
+- **BREAKING:** Change `importAccountWithStrategy` return type ([#1295](https://github.com/MetaMask/core/pull/1295))
+  - `importAccountWithStrategy` now returns an object with `keyringState` and `importedAccountAddress`, rather than just the keyring state.
+- **BREAKING:** Change `addNewAccount` return type ([#1294](https://github.com/MetaMask/core/pull/1294))
+  - `addNewAccount` now returns an object with `keyringState` and `addedAccountAddress`, rather than just the keyring state.
+- **BREAKING:** Add `@metamask/preferences-controller` peer dependency ([#1393](https://github.com/MetaMask/core/pull/1393))
+- Bump @metamask/eth-keyring-controller from 10.0.0 to 10.0.1 ([#1280](https://github.com/MetaMask/core/pull/1280))
+- Bump @metamask/eth-sig-util from 5.0.2 to 5.0.3 ([#1278](https://github.com/MetaMask/core/pull/1278))
+- Update `@metamask/preferences-controller` dependency
+
+### Fixed
+- Improve validation of `from` address in `signTypedMessage` ([#1293](https://github.com/MetaMask/core/pull/1293))
+- Improve private key validation in `importAccountWithStrategy` ([#1297](https://github.com/MetaMask/core/pull/1297))
+  - A more helpful error is now thrown when the given private key has the wrong length
+- Keep `vault` state in sync with the internal `EthKeyringController` vault state ([#1384](https://github.com/MetaMask/core/pull/1384))
+  - Previously the `vault` state would never be updated after construction, becoming stale as account changes were made
+  - The old behavior was especially confusing because the `subscribe` method is overridden to return state change events from the internal `EthKeyingController` state, resulting in state change events being out of sync with controller state. They should be the same now.
+
 ## [4.0.0]
 ### Removed
 - **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
@@ -37,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@4.0.0...@metamask/keyring-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@3.0.0...@metamask/keyring-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@2.0.0...@metamask/keyring-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@1.0.1...@metamask/keyring-controller@2.0.0
