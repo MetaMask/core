@@ -522,7 +522,7 @@ export class SignatureController extends BaseControllerV2<
     const messageId = msgParams.metamaskId as string;
 
     try {
-      const cleanMessageParams = await messageManager.approveMessage(msgParams)
+      const cleanMessageParams = await messageManager.approveMessage(msgParams);
       const signature = await getSignature(cleanMessageParams);
 
       this.hub.emit(`${methodName}:signed`, { signature, messageId });
