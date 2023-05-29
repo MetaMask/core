@@ -220,8 +220,8 @@ export class KeyringController extends BaseControllerV2<
     super({
       name,
       metadata: {
-        vault: { persist: false, anonymous: false },
-        isUnlocked: { persist: false, anonymous: false },
+        vault: { persist: true, anonymous: false },
+        isUnlocked: { persist: false, anonymous: true },
         keyringTypes: { persist: false, anonymous: false },
         keyrings: { persist: false, anonymous: false },
       },
