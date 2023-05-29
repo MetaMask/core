@@ -109,16 +109,17 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
   string
 >;
 
-/**
- * @type KeyringControllerConfig
- *
- * Keyring controller configuration
- * @property encryptor - Keyring encryptor
- */
-export type KeyringControllerConfig = {
+export type KeyringControllerOptions = {
+  removeIdentity: PreferencesController['removeIdentity'];
+  syncIdentities: PreferencesController['syncIdentities'];
+  updateIdentities: PreferencesController['updateIdentities'];
+  setSelectedAddress: PreferencesController['setSelectedAddress'];
+  setAccountLabel?: PreferencesController['setAccountLabel'];
   encryptor?: any;
   keyringBuilders?: any[];
   cacheEncryptionKey?: boolean;
+  messenger: KeyringControllerMessenger;
+  state?: Partial<KeyringControllerState>;
 };
 
 /**
@@ -189,34 +190,30 @@ export class KeyringController extends BaseControllerV2<
   /**
    * Creates a KeyringController instance.
    *
-   * @param options - The controller options.
-   * @param options.removeIdentity - Remove the identity with the given address.
-   * @param options.syncIdentities - Sync identities with the given list of addresses.
-   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
-   * @param options.setSelectedAddress - Set the selected address.
-   * @param options.setAccountLabel - Set a new name for account.
-   * @param messenger - A restricted controller messenger.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param opts - Initial options used to configure this controller
+   * @param opts.removeIdentity - Remove the identity with the given address.
+   * @param opts.syncIdentities - Sync identities with the given list of addresses.
+   * @param opts.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
+   * @param opts.setSelectedAddress - Set the selected address.
+   * @param opts.setAccountLabel - Set a new name for account.
+   * @param opts.encryptor - An optional object for defining encryption schemes.
+   * @param opts.keyringBuilders - Set a new name for account.
+   * @param opts.cacheEncryptionKey - Whether to cache or not encryption key.
+   * @param opts.messenger - A restricted controller messenger.
+   * @param opts.state - Initial state to set on this controller.
    */
-  constructor(
-    {
-      removeIdentity,
-      syncIdentities,
-      updateIdentities,
-      setSelectedAddress,
-      setAccountLabel,
-    }: {
-      removeIdentity: PreferencesController['removeIdentity'];
-      syncIdentities: PreferencesController['syncIdentities'];
-      updateIdentities: PreferencesController['updateIdentities'];
-      setSelectedAddress: PreferencesController['setSelectedAddress'];
-      setAccountLabel?: PreferencesController['setAccountLabel'];
-    },
-    messenger: KeyringControllerMessenger,
-    config?: KeyringControllerConfig,
-    state?: Partial<KeyringControllerState>,
-  ) {
+  constructor({
+    removeIdentity,
+    syncIdentities,
+    updateIdentities,
+    setSelectedAddress,
+    setAccountLabel,
+    encryptor,
+    keyringBuilders,
+    cacheEncryptionKey,
+    messenger,
+    state,
+  }: KeyringControllerOptions) {
     super({
       name,
       metadata: {
@@ -233,7 +230,10 @@ export class KeyringController extends BaseControllerV2<
     });
 
     this.#keyring = new EthKeyringController(
-      Object.assign({ initState: state }, config),
+      Object.assign(
+        { initState: state },
+        { encryptor, keyringBuilders, cacheEncryptionKey },
+      ),
     );
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.store.subscribe(this.#fullUpdate.bind(this));

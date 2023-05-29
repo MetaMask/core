@@ -22,9 +22,9 @@ import {
   KeyringObject,
   KeyringControllerEvents,
   KeyringControllerMessenger,
-  KeyringControllerConfig,
   KeyringControllerState,
   KeyringTypes,
+  KeyringControllerOptions,
 } from './KeyringController';
 
 jest.mock('uuid', () => {
@@ -248,11 +248,12 @@ describe('KeyringController', () => {
             await withController(
               { cacheEncryptionKey },
               async ({ controller, initialState, preferences, encryptor }) => {
-                const cleanKeyringController = new KeyringController(
-                  preferences,
-                  buildKeyringControllerMessenger(),
-                  { cacheEncryptionKey, encryptor },
-                );
+                const cleanKeyringController = new KeyringController({
+                  ...preferences,
+                  messenger: buildKeyringControllerMessenger(),
+                  cacheEncryptionKey,
+                  encryptor,
+                });
                 const initialSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
@@ -1649,7 +1650,7 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: KeyringControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions = Partial<KeyringControllerConfig>;
+type WithControllerOptions = Partial<KeyringControllerOptions>;
 
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
@@ -1706,9 +1707,11 @@ async function withController<ReturnValue>(
     setSelectedAddress: sinon.stub(),
   };
   const messenger = buildKeyringControllerMessenger();
-  const controller = new KeyringController(preferences, messenger, {
+  const controller = new KeyringController({
     encryptor,
     cacheEncryptionKey: false,
+    messenger,
+    ...preferences,
     ...rest,
   });
   const initialState = await controller.createNewVaultAndKeychain(password);
