@@ -269,6 +269,14 @@ describe('assetsUtil', () => {
       ).toBe(true);
     });
 
+    it('returns true for the Europa Liquidity Hub | SKALE network', () => {
+      expect(
+        assetsUtil.isTokenDetectionSupportedForNetwork(
+          assetsUtil.SupportedTokenDetectionNetworks.europa_skale,
+        ),
+      ).toBe(true);
+    });
+
     it('returns false for testnets such as Goerli', () => {
       expect(assetsUtil.isTokenDetectionSupportedForNetwork(toHex(5))).toBe(
         false,
