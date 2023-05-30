@@ -24,7 +24,7 @@ jest.mock('@metamask/controller-utils', () => {
   return { ...actual, detectSIWE: jest.fn() };
 });
 
-class NoErrorThrownError extends Error { }
+class NoErrorThrownError extends Error {}
 const getError = async <TError>(call: () => unknown): Promise<TError> => {
   try {
     await call();
@@ -80,11 +80,11 @@ const requestMock = {
 } as OriginalRequest;
 
 const createMessengerMock = () =>
-({
-  registerActionHandler: jest.fn(),
-  publish: jest.fn(),
-  call: jest.fn(),
-} as any as jest.Mocked<SignatureControllerMessenger>);
+  ({
+    registerActionHandler: jest.fn(),
+    publish: jest.fn(),
+    call: jest.fn(),
+  } as any as jest.Mocked<SignatureControllerMessenger>);
 
 const addUnapprovedMessageMock = jest.fn();
 const approveMessageMock = jest.fn();
