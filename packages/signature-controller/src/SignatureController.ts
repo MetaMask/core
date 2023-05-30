@@ -276,14 +276,6 @@ export class SignatureController extends BaseControllerV2<
     this.#clearUnapproved(this.#typedMessageManager);
   }
 
-  setTypedMessageInProgress(messageId: string) {
-    this.#typedMessageManager.setMessageStatusInProgress(messageId);
-  }
-
-  setPersonalMessageInProgress(messageId: string) {
-    this.#personalMessageManager.setMessageStatusInProgress(messageId);
-  }
-
   /**
    * Called when a Dapp uses the eth_sign method, to request user approval.
    * eth_sign is a pure signature of arbitrary data. It is on a deprecation
@@ -419,6 +411,14 @@ export class SignatureController extends BaseControllerV2<
     );
   }
 
+  setTypedMessageInProgress(messageId: string) {
+    this.#typedMessageManager.setMessageStatusInProgress(messageId);
+  }
+
+  setPersonalMessageInProgress(messageId: string) {
+    this.#personalMessageManager.setMessageStatusInProgress(messageId);
+  }
+
   /**
    * Signifies user intent to complete an eth_sign method.
    *
@@ -534,24 +534,7 @@ export class SignatureController extends BaseControllerV2<
       return signature;
     } catch (error: any) {
       console.info(`MetaMaskController - ${methodName} failed.`, error);
-      this.#errorMessage(messageManager, messageId, error.message);
       throw error;
-    }
-  }
-
-  #errorMessage<
-    M extends AbstractMessage,
-    P extends AbstractMessageParams,
-    PM extends AbstractMessageParamsMetamask,
-  >(
-    messageManager: AbstractMessageManager<M, P, PM>,
-    messageId: string,
-    error: string,
-  ) {
-    if (messageManager instanceof TypedMessageManager) {
-      messageManager.setMessageStatusErrored(messageId, error);
-    } else {
-      this.#cancelAbstractMessage(messageManager, messageId);
     }
   }
 

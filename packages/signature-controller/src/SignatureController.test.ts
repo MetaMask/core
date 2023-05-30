@@ -24,7 +24,7 @@ jest.mock('@metamask/controller-utils', () => {
   return { ...actual, detectSIWE: jest.fn() };
 });
 
-class NoErrorThrownError extends Error {}
+class NoErrorThrownError extends Error { }
 const getError = async <TError>(call: () => unknown): Promise<TError> => {
   try {
     await call();
@@ -80,11 +80,11 @@ const requestMock = {
 } as OriginalRequest;
 
 const createMessengerMock = () =>
-  ({
-    registerActionHandler: jest.fn(),
-    publish: jest.fn(),
-    call: jest.fn(),
-  } as any as jest.Mocked<SignatureControllerMessenger>);
+({
+  registerActionHandler: jest.fn(),
+  publish: jest.fn(),
+  call: jest.fn(),
+} as any as jest.Mocked<SignatureControllerMessenger>);
 
 const addUnapprovedMessageMock = jest.fn();
 const approveMessageMock = jest.fn();
@@ -307,30 +307,6 @@ describe('SignatureController', () => {
 
       expect(typedMessageManagerMock.update).toHaveBeenCalledTimes(1);
       expect(typedMessageManagerMock.update).toHaveBeenCalledWith(defaultState);
-    });
-  });
-
-  describe('setPersonalMessageInProgress', () => {
-    it('calls the message manager', async () => {
-      signatureController.setPersonalMessageInProgress(
-        messageParamsMock.metamaskId,
-      );
-
-      expect(
-        personalMessageManagerMock.setMessageStatusInProgress,
-      ).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('setTypedMessageInProgress', () => {
-    it('calls the message manager', async () => {
-      signatureController.setTypedMessageInProgress(
-        messageParamsMock.metamaskId,
-      );
-
-      expect(
-        typedMessageManagerMock.setMessageStatusInProgress,
-      ).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -567,12 +543,30 @@ describe('SignatureController', () => {
           ),
       );
       expect(error.message).toBe(keyringErrorMessageMock);
+    });
+  });
+
+  describe('setPersonalMessageInProgress', () => {
+    it('calls the message manager', async () => {
+      signatureController.setPersonalMessageInProgress(
+        messageParamsMock.metamaskId,
+      );
+
       expect(
-        typedMessageManagerMock.setMessageStatusErrored,
+        personalMessageManagerMock.setMessageStatusInProgress,
       ).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('setTypedMessageInProgress', () => {
+    it('calls the message manager', async () => {
+      signatureController.setTypedMessageInProgress(
+        messageParamsMock.metamaskId,
+      );
+
       expect(
-        typedMessageManagerMock.setMessageStatusErrored,
-      ).toHaveBeenCalledWith(messageIdMock, keyringErrorMessageMock);
+        typedMessageManagerMock.setMessageStatusInProgress,
+      ).toHaveBeenCalledTimes(1);
     });
   });
 
