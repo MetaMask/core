@@ -182,17 +182,22 @@ describe('NetworkController', () => {
 
     it('initializes the state with some defaults', async () => {
       await withController(({ controller }) => {
-        expect(controller.state).toStrictEqual({
-          networkConfigurations: {},
-          networkId: null,
-          networkStatus: NetworkStatus.Unknown,
-          providerConfig: { type: NetworkType.mainnet, chainId: toHex(1) },
-          networkDetails: {
-            EIPS: {
-              1559: false,
+        expect(controller.state).toMatchInlineSnapshot(`
+          Object {
+            "networkConfigurations": Object {},
+            "networkDetails": Object {
+              "EIPS": Object {
+                "1559": false,
+              },
             },
-          },
-        });
+            "networkId": null,
+            "networkStatus": "unknown",
+            "providerConfig": Object {
+              "chainId": "0x1",
+              "type": "mainnet",
+            },
+          }
+        `);
       });
     });
 
@@ -200,6 +205,12 @@ describe('NetworkController', () => {
       await withController(
         {
           state: {
+            providerConfig: {
+              type: 'rpc',
+              rpcUrl: 'http://example-custom-rpc.metamask.io',
+              chainId: '0x9999' as const,
+              nickname: 'Test initial state',
+            },
             networkDetails: {
               EIPS: {
                 1559: true,
@@ -208,17 +219,24 @@ describe('NetworkController', () => {
           },
         },
         ({ controller }) => {
-          expect(controller.state).toStrictEqual({
-            networkConfigurations: {},
-            networkId: null,
-            networkStatus: NetworkStatus.Unknown,
-            providerConfig: { type: NetworkType.mainnet, chainId: toHex(1) },
-            networkDetails: {
-              EIPS: {
-                1559: true,
+          expect(controller.state).toMatchInlineSnapshot(`
+            Object {
+              "networkConfigurations": Object {},
+              "networkDetails": Object {
+                "EIPS": Object {
+                  "1559": true,
+                },
               },
-            },
-          });
+              "networkId": null,
+              "networkStatus": "unknown",
+              "providerConfig": Object {
+                "chainId": "0x9999",
+                "nickname": "Test initial state",
+                "rpcUrl": "http://example-custom-rpc.metamask.io",
+                "type": "rpc",
+              },
+            }
+          `);
         },
       );
     });
