@@ -221,6 +221,8 @@ export class KeyringController extends BaseControllerV2<
         isUnlocked: { persist: false, anonymous: true },
         keyringTypes: { persist: false, anonymous: false },
         keyrings: { persist: false, anonymous: false },
+        encryptionKey: { persist: false, anonymous: false },
+        encryptionSalt: { persist: false, anonymous: false },
       },
       messenger,
       state: {
