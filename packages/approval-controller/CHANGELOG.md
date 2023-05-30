@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.1.0]
-### Uncategorized
-- Support optional result indication when accepting an approval request ([#1396](https://github.com/MetaMask/core/pull/1396))
+### Added
+- Optional feedback when accepting an approval request ([#1396](https://github.com/MetaMask/core/pull/1396))
 
 ## [3.0.0]
 ### Changed
