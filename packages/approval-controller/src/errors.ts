@@ -4,6 +4,14 @@ export class ApprovalRequestNotFoundError extends Error {
   }
 }
 
+export class ApprovalRequestNoResultSupportError extends Error {
+  constructor(id: string) {
+    super(
+      `Approval acceptance requested result but request with id '${id}' does not support it.`,
+    );
+  }
+}
+
 export class NoApprovalFlowsError extends Error {
   constructor() {
     super(`No approval flows found.`);

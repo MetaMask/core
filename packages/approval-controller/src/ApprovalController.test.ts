@@ -7,12 +7,21 @@ import {
   ApprovalControllerMessenger,
   ApprovalFlowOptions,
 } from './ApprovalController';
-import { EndInvalidFlowError, NoApprovalFlowsError } from './errors';
+import {
+  ApprovalRequestNoResultSupportError,
+  EndInvalidFlowError,
+  NoApprovalFlowsError,
+} from './errors';
 
 const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
 
 const TYPE = 'TYPE';
+const ID_MOCK = 'TestId';
+const ORIGIN_MOCK = 'TestOrigin';
+const VALUE_MOCK = 'TestValue';
+const RESULT_MOCK = 'TestResult';
+const ERROR_MOCK = new Error('TestError');
 
 const controllerName = 'ApprovalController';
 
@@ -99,10 +108,16 @@ describe('approval controller', () => {
 
     it('adds correctly specified entry', () => {
       expect(() =>
-        approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: TYPE,
+          expectsResult: true,
+        }),
       ).not.toThrow();
 
       expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
+
       expect(
         approvalController.has({ origin: 'bar.baz', type: TYPE }),
       ).toStrictEqual(true);
@@ -117,6 +132,7 @@ describe('approval controller', () => {
           requestState: null,
           time: expect.any(Number),
           type: TYPE,
+          expectsResult: true,
         },
       });
     });
@@ -264,7 +280,13 @@ describe('approval controller', () => {
 
   describe('get', () => {
     it('gets entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+      approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+        expectsResult: true,
+      });
+
       expect(approvalController.get('foo')).toStrictEqual({
         id: 'foo',
         origin: 'bar.baz',
@@ -272,6 +294,7 @@ describe('approval controller', () => {
         requestState: null,
         type: 'myType',
         time: expect.any(Number),
+        expectsResult: true,
       });
     });
 
@@ -669,6 +692,80 @@ describe('approval controller', () => {
         getIdNotFoundError('foo'),
       );
       expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
+    });
+  });
+
+  describe('accept', () => {
+    it('resolves accept promise when success callback is called', async () => {
+      const approvalPromise = approvalController.add({
+        id: ID_MOCK,
+        origin: ORIGIN_MOCK,
+        type: TYPE,
+        expectsResult: true,
+      });
+
+      const resultPromise = approvalController.accept(ID_MOCK, VALUE_MOCK, {
+        waitForResult: true,
+      });
+
+      const { resultCallbacks, value } = await approvalPromise;
+
+      expect(value).toBe(VALUE_MOCK);
+
+      resultCallbacks?.success(RESULT_MOCK);
+
+      expect(await resultPromise).toStrictEqual({ value: RESULT_MOCK });
+    });
+
+    it('rejects accept promise when error callback is called', async () => {
+      const approvalPromise = approvalController.add({
+        id: ID_MOCK,
+        origin: ORIGIN_MOCK,
+        type: TYPE,
+        expectsResult: true,
+      });
+
+      const resultPromise = approvalController.accept(ID_MOCK, VALUE_MOCK, {
+        waitForResult: true,
+      });
+
+      const { resultCallbacks, value } = await approvalPromise;
+
+      expect(value).toBe(VALUE_MOCK);
+
+      resultCallbacks?.error(ERROR_MOCK);
+
+      await expect(resultPromise).rejects.toThrow(ERROR_MOCK);
+    });
+
+    it('resolves request promise with empty result callbacks if accept does not wait for result', async () => {
+      const approvalPromise = approvalController.add({
+        id: ID_MOCK,
+        origin: ORIGIN_MOCK,
+        type: TYPE,
+        expectsResult: true,
+      });
+
+      approvalController.accept(ID_MOCK, VALUE_MOCK);
+
+      expect(await approvalPromise).toStrictEqual({
+        resultCallbacks: undefined,
+        value: VALUE_MOCK,
+      });
+    });
+
+    it('throws if accept wants to wait but request does not expect result', async () => {
+      approvalController.add({
+        id: ID_MOCK,
+        origin: ORIGIN_MOCK,
+        type: TYPE,
+      });
+
+      await expect(
+        approvalController.accept(ID_MOCK, VALUE_MOCK, {
+          waitForResult: true,
+        }),
+      ).rejects.toThrow(new ApprovalRequestNoResultSupportError(ID_MOCK));
     });
   });
 
