@@ -600,8 +600,8 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Adds a new suggestedAsset to state. Parameters will be validated according to
-   * asset type being watched. A `<suggestedAssetMeta.id>:pending` hub event will be emitted once added.
+   * Adds a new suggestedAsset to the list of watched assets.
+   * Parameters will be validated according to the asset type being watched.
    *
    * @param asset - The asset to be watched. For now only ERC20 tokens are accepted.
    * @param type - The asset type.
