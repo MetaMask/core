@@ -539,7 +539,8 @@ export class ApprovalController extends BaseControllerV2<
     value?: unknown,
     options?: AcceptOptions,
   ): Promise<AcceptResult> {
-    const approval = this.get(id) as ApprovalRequest<any>;
+    // Safe to cast as the delete method below will throw if the ID is not found
+    const approval = this.get(id) as ApprovalRequest<ApprovalRequestData>;
     const requestPromise = this._deleteApprovalAndGetCallbacks(id);
 
     return new Promise((resolve, reject) => {
