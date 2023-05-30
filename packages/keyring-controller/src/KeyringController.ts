@@ -194,6 +194,9 @@ export class KeyringController extends BaseController<
     this.#keyring = new EthKeyringController(
       Object.assign({ initState: state }, config),
     );
+    this.#keyring.store.subscribe(() => {
+      this.update({ vault: this.#keyring.store.getState().vault });
+    });
 
     this.defaultState = {
       ...this.#keyring.store.getState(),
@@ -379,11 +382,27 @@ export class KeyringController extends BaseController<
    * Returns the currently initialized keyring that manages
    * the specified `address` if one exists.
    *
+   * @deprecated Use of this method is discouraged as actions executed directly on
+   * keyrings are not being reflected in the KeyringController state and not
+   * persisted in the vault.
    * @param account - An account address.
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
   async getKeyringForAccount(account: string): Promise<unknown> {
     return this.#keyring.getKeyringForAccount(account);
+  }
+
+  /**
+   * Returns all keyrings of the given type.
+   *
+   * @deprecated Use of this method is discouraged as actions executed directly on
+   * keyrings are not being reflected in the KeyringController state and not
+   * persisted in the vault.
+   * @param type - Keyring type name.
+   * @returns An array of keyrings of the given type.
+   */
+  getKeyringsByType(type: KeyringTypes | string): unknown[] {
+    return this.#keyring.getKeyringsByType(type);
   }
 
   /**
