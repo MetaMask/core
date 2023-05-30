@@ -1636,6 +1636,19 @@ describe('KeyringController', () => {
         expect(cancelSignRequestStub.called).toBe(true);
       });
     });
+
+    describe('cancelQRSynchronization', () => {
+      it('should call `cancelSync` on the QR keyring', async () => {
+        await setupQRKeyring();
+        const qrKeyring =
+          await signProcessKeyringController.getOrAddQRKeyring();
+
+        const cancelSyncRequestStub = sinon.stub(qrKeyring, 'cancelSync');
+        cancelSyncRequestStub.resolves();
+        await signProcessKeyringController.cancelQRSynchronization();
+        expect(cancelSyncRequestStub.called).toBe(true);
+      });
+    });
   });
 });
 
