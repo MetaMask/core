@@ -11,6 +11,7 @@ import {
   assertIsPendingJsonRpcResponse,
   getJsonRpcIdValidator,
   getJsonSize,
+  getSafeJson,
   isJsonRpcError,
   isJsonRpcFailure,
   isJsonRpcNotification,
@@ -53,6 +54,39 @@ describe('json', () => {
       expect(error.message).toBe(
         'Expected the value to satisfy a union of `literal | boolean | finite number | string | array | record`, but received: undefined',
       );
+    });
+  });
+
+  describe('getSafeJson', () => {
+    it('should return sanitized JSON', () => {
+      type TestSubjectType = {
+        a: { value: string };
+        jailbreak?: number;
+      };
+      // Make sure that getters cannot have side effect
+      const testSubject: TestSubjectType = { a: { value: 'a' } };
+      let counter = 0;
+      Object.defineProperty(testSubject, 'jailbreak', {
+        enumerable: true,
+        get() {
+          counter += 1;
+          return counter;
+        },
+        set(value) {
+          return (counter = value);
+        },
+      });
+      const result = getSafeJson<TestSubjectType>(testSubject);
+
+      // Check that the counter is not increasing
+      expect(result.jailbreak).toStrictEqual(result.jailbreak);
+      // Check that it's a value, not a getter explicitly
+      const descriptor = Object.getOwnPropertyDescriptor(result, 'jailbreak');
+      expect(descriptor?.value).toBe(result.jailbreak);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(descriptor?.get).toBeUndefined();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(descriptor?.set).toBeUndefined();
     });
   });
 

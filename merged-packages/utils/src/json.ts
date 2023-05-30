@@ -1,6 +1,9 @@
 import {
+  any,
   array,
   boolean,
+  coerce,
+  create,
   define,
   Infer,
   integer,
@@ -67,52 +70,9 @@ export const UnsafeJsonStruct: Struct<Json> = union([
  * This struct sanitizes the value before validating it, so that it is safe to
  * use with untrusted input.
  */
-export const JsonStruct = define<Json>('Json', (value, context) => {
-  /**
-   * Helper function that runs the given struct validator and returns the
-   * validation errors, if any. If the value is valid, it returns `true`.
-   *
-   * @param innerValue - The value to validate.
-   * @param struct - The struct to use for validation.
-   * @returns The validation errors, or `true` if the value is valid.
-   */
-  function checkStruct<Type>(innerValue: unknown, struct: Struct<Type>) {
-    const iterator = struct.validator(innerValue, context);
-    const errors = [...iterator];
-
-    if (errors.length > 0) {
-      return errors;
-    }
-
-    return true;
-  }
-
-  try {
-    // The plain value must be a valid JSON value, but it may be altered in the
-    // process of JSON serialization, so we need to validate it again after
-    // serialization. This has the added benefit that the returned error messages
-    // will be more helpful, as they will point to the exact location of the
-    // invalid value.
-    //
-    // This seems overcomplicated, but without checking the plain value first,
-    // there are some cases where the validation passes, even though the value is
-    // not valid JSON. For example, `undefined` is not valid JSON, but serializing
-    // it will remove it from the object, so the validation will pass.
-    const unsafeResult = checkStruct(value, UnsafeJsonStruct);
-    if (unsafeResult !== true) {
-      return unsafeResult;
-    }
-
-    // JavaScript engines are highly optimized for this specific use case of
-    // JSON parsing and stringifying, so there should be no performance impact.
-    return checkStruct(JSON.parse(JSON.stringify(value)), UnsafeJsonStruct);
-  } catch (error) {
-    if (error instanceof RangeError) {
-      return 'Circular reference detected';
-    }
-
-    return false;
-  }
+export const JsonStruct = coerce(UnsafeJsonStruct, any(), (value) => {
+  assertStruct(value, UnsafeJsonStruct);
+  return JSON.parse(JSON.stringify(value));
 });
 
 /**
@@ -123,7 +83,28 @@ export const JsonStruct = define<Json>('Json', (value, context) => {
  * @returns Whether the value is a valid {@link Json} value.
  */
 export function isValidJson(value: unknown): value is Json {
-  return is(value, JsonStruct);
+  try {
+    getSafeJson(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate and return sanitized JSON.
+ *
+ * Note:
+ * This function uses sanitized JsonStruct for validation
+ * that applies stringify and then parse of a value provided
+ * to ensure that there are no getters which can have side effects
+ * that can cause security issues.
+ *
+ * @param value - JSON structure to be processed.
+ * @returns Sanitized JSON structure.
+ */
+export function getSafeJson<Type extends Json = Json>(value: unknown): Type {
+  return create(value, JsonStruct) as Type;
 }
 
 /**
