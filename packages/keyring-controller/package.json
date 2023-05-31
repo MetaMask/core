@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -32,8 +32,8 @@
     "@keystonehq/metamask-airgapped-keyring": "^0.6.1",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
-    "@metamask/eth-keyring-controller": "^10.0.0",
-    "@metamask/eth-sig-util": "^5.0.2",
+    "@metamask/eth-keyring-controller": "^10.0.1",
+    "@metamask/eth-sig-util": "^5.0.3",
     "@metamask/message-manager": "workspace:^",
     "@metamask/preferences-controller": "workspace:^",
     "async-mutex": "^0.2.6",
@@ -45,6 +45,7 @@
     "@ethereumjs/tx": "^3.5.2",
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
     "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/scure-bip39": "^2.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -55,8 +56,11 @@
     "typescript": "~4.6.3",
     "uuid": "^8.3.2"
   },
+  "peerDependencies": {
+    "@metamask/preferences-controller": "workspace:^"
+  },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "publishConfig": {
     "access": "public",

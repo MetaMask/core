@@ -1,3 +1,4 @@
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -8,9 +9,9 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   OPENSEA_PROXY_URL,
   OPENSEA_API_URL,
-  NetworkType,
   fetchWithErrorHandling,
   toChecksumHexAddress,
+  ChainId,
 } from '@metamask/controller-utils';
 import type { NftController, NftState, NftMetadata } from './NftController';
 
@@ -122,8 +123,7 @@ export interface ApiNftCreator {
  */
 export interface NftDetectionConfig extends BaseConfig {
   interval: number;
-  networkType: NetworkType;
-  chainId: `0x${string}` | `${number}` | number;
+  chainId: Hex;
   selectedAddress: string;
 }
 
@@ -205,6 +205,7 @@ export class NftDetectionController extends BaseController<
    * Creates an NftDetectionController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.onNftsStateChange - Allows subscribing to assets controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
@@ -216,12 +217,14 @@ export class NftDetectionController extends BaseController<
    */
   constructor(
     {
+      chainId: initialChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
       getOpenSeaApiKey,
       addNft,
       getNftState,
     }: {
+      chainId: Hex;
       onNftsStateChange: (listener: (nftsState: NftState) => void) => void;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -239,8 +242,7 @@ export class NftDetectionController extends BaseController<
     super(config, state);
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
-      networkType: NetworkType.mainnet,
-      chainId: '1',
+      chainId: initialChainId,
       selectedAddress: '',
       disabled: true,
     };
@@ -268,8 +270,7 @@ export class NftDetectionController extends BaseController<
 
     onNetworkStateChange(({ providerConfig }) => {
       this.configure({
-        networkType: providerConfig.type,
-        chainId: providerConfig.chainId as NftDetectionConfig['chainId'],
+        chainId: providerConfig.chainId,
       });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
@@ -319,7 +320,7 @@ export class NftDetectionController extends BaseController<
    *
    * @returns Whether current network is mainnet.
    */
-  isMainnet = (): boolean => this.config.networkType === NetworkType.mainnet;
+  isMainnet = (): boolean => this.config.chainId === ChainId.mainnet;
 
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
@@ -395,7 +396,7 @@ export class NftDetectionController extends BaseController<
 
         await this.addNft(address, token_id, nftMetadata, {
           userAddress: selectedAddress,
-          chainId: chainId as string,
+          chainId,
         });
       }
     });

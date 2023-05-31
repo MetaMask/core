@@ -1,5 +1,6 @@
 import { query, fromHex } from '@metamask/controller-utils';
-import { EthBlock, EthQuery } from './types';
+import type EthQuery from 'eth-query';
+import { EthBlock } from './types';
 
 /**
  * Returns information about the latest completed block.

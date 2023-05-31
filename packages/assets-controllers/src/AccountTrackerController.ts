@@ -1,10 +1,12 @@
 import EthQuery from 'eth-query';
+import type { Provider } from 'eth-query';
 import { Mutex } from 'async-mutex';
 import {
   BaseConfig,
   BaseController,
   BaseState,
 } from '@metamask/base-controller';
+import { assert } from '@metamask/utils';
 import { PreferencesState } from '@metamask/preferences-controller';
 import {
   BNToHex,
@@ -30,7 +32,7 @@ export interface AccountInformation {
  */
 export interface AccountTrackerConfig extends BaseConfig {
   interval: number;
-  provider?: any;
+  provider?: Provider;
 }
 
 /**
@@ -50,7 +52,7 @@ export class AccountTrackerController extends BaseController<
   AccountTrackerConfig,
   AccountTrackerState
 > {
-  private ethQuery: any;
+  private ethQuery?: EthQuery;
 
   private mutex = new Mutex();
 
@@ -137,7 +139,7 @@ export class AccountTrackerController extends BaseController<
    *
    * @param provider - Provider used to create a new underlying EthQuery instance.
    */
-  set provider(provider: any) {
+  set provider(provider: Provider) {
     this.ethQuery = new EthQuery(provider);
   }
 
@@ -182,8 +184,11 @@ export class AccountTrackerController extends BaseController<
     }
 
     for (const address in accounts) {
-      const balance = await this.getBalanceFromChain(address);
-      accounts[address] = { balance: BNToHex(balance) };
+      await safelyExecuteWithTimeout(async () => {
+        assert(this.ethQuery, 'Provider not set.');
+        const balance = await query(this.ethQuery, 'getBalance', [address]);
+        accounts[address] = { balance: BNToHex(balance) };
+      });
     }
 
     this.update({ accounts });
@@ -218,6 +223,7 @@ export class AccountTrackerController extends BaseController<
     return await Promise.all(
       addresses.map((address): Promise<[string, string] | undefined> => {
         return safelyExecuteWithTimeout(async () => {
+          assert(this.ethQuery, 'Provider not set.');
           const balance = await query(this.ethQuery, 'getBalance', [address]);
           return [address, balance];
         });

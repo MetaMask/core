@@ -7,15 +7,15 @@ import {
   ExternalProvider,
   JsonRpcFetchFunc,
 } from '@ethersproject/providers';
-import { createProjectLogger } from '@metamask/utils';
+import { Hex, createProjectLogger, hasProperty } from '@metamask/utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
   NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
-  hasProperty,
 } from '@metamask/controller-utils';
+import type { NetworkState } from '@metamask/network-controller';
 import { toASCII } from 'punycode/';
 import ensNetworkMap from 'ethereum-ens-network-map';
 
@@ -47,7 +47,7 @@ const name = 'EnsController';
  * @property address - Hex address with the ENS name, or null
  */
 export type EnsEntry = {
-  chainId: string;
+  chainId: Hex;
   ensName: string;
   address: string | null;
 };
@@ -60,7 +60,7 @@ export type EnsEntry = {
  */
 export type EnsControllerState = {
   ensEntries: {
-    [chainId: string]: {
+    [chainId: Hex]: {
       [ensName: string]: EnsEntry;
     };
   };
@@ -119,12 +119,9 @@ export class EnsController extends BaseControllerV2<
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
     onNetworkStateChange?: (
-      listener: (networkState: {
-        network: string;
-        providerConfig: {
-          chainId: string;
-        };
-      }) => void,
+      listener: (
+        networkState: Pick<NetworkState, 'networkId' | 'providerConfig'>,
+      ) => void,
     ) => void;
   }) {
     super({
@@ -140,8 +137,7 @@ export class EnsController extends BaseControllerV2<
     if (provider && onNetworkStateChange) {
       onNetworkStateChange((networkState) => {
         this.resetState();
-        const currentNetwork =
-          networkState.network === 'loading' ? null : networkState.network;
+        const currentNetwork = networkState.networkId;
         if (
           isKnownNetworkId(currentNetwork) &&
           this.#getNetworkEnsSupport(currentNetwork)
@@ -183,7 +179,7 @@ export class EnsController extends BaseControllerV2<
    * @param ensName - Name of the ENS entry to delete.
    * @returns Boolean indicating if the entry was deleted.
    */
-  delete(chainId: string, ensName: string): boolean {
+  delete(chainId: Hex, ensName: string): boolean {
     const normalizedEnsName = normalizeEnsName(ensName);
     if (
       !normalizedEnsName ||
@@ -210,7 +206,7 @@ export class EnsController extends BaseControllerV2<
    * @param ensName - Name of the ENS entry to retrieve.
    * @returns The EnsEntry or null if it does not exist.
    */
-  get(chainId: string, ensName: string): EnsEntry | null {
+  get(chainId: Hex, ensName: string): EnsEntry | null {
     const normalizedEnsName = normalizeEnsName(ensName);
 
     // TODO Explicitly handle the case where `normalizedEnsName` is `null`
@@ -230,7 +226,7 @@ export class EnsController extends BaseControllerV2<
    * @param address - Associated address (or null) to add or update.
    * @returns Boolean indicating if the entry was set.
    */
-  set(chainId: string, ensName: string, address: string | null): boolean {
+  set(chainId: Hex, ensName: string, address: string | null): boolean {
     if (
       !Number.isInteger(Number.parseInt(chainId, 10)) ||
       !ensName ||

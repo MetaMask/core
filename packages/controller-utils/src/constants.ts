@@ -1,16 +1,12 @@
-import {
-  NetworkType,
-  NetworksTicker,
-  NetworksChainId,
-  NetworkId,
-} from './types';
+import { NetworkType, NetworksTicker, ChainId, NetworkId } from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
 export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
 
 // NETWORKS ID
-export const GANACHE_CHAIN_ID = '1337';
+// `toHex` not invoked to avoid cyclic dependency
+export const GANACHE_CHAIN_ID = '0x539'; // toHex(1337)
 /**
  * The largest possible chain ID we can handle.
  * Explanation: https://gist.github.com/rekmarks/a47bd5f2525936c4b8eee31a16345553
@@ -52,30 +48,25 @@ export const TESTNET_TICKER_SYMBOLS = {
  */
 export const BUILT_IN_NETWORKS = {
   [NetworkType.goerli]: {
-    chainId: NetworksChainId.goerli,
+    chainId: ChainId.goerli,
     ticker: NetworksTicker.goerli,
     rpcPrefs: {
       blockExplorerUrl: `https://${NetworkType.goerli}.etherscan.io`,
     },
   },
   [NetworkType.sepolia]: {
-    chainId: NetworksChainId.sepolia,
+    chainId: ChainId.sepolia,
     ticker: NetworksTicker.sepolia,
     rpcPrefs: {
       blockExplorerUrl: `https://${NetworkType.sepolia}.etherscan.io`,
     },
   },
   [NetworkType.mainnet]: {
-    chainId: NetworksChainId.mainnet,
+    chainId: ChainId.mainnet,
     ticker: NetworksTicker.mainnet,
     rpcPrefs: {
       blockExplorerUrl: 'https://etherscan.io',
     },
-  },
-  [NetworkType.localhost]: {
-    chainId: NetworksChainId.localhost,
-    blockExplorerUrl: undefined,
-    rpcPrefs: undefined,
   },
   [NetworkType.rpc]: {
     chainId: undefined,

@@ -1,10 +1,11 @@
 import { EventEmitter } from 'events';
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import { Json } from '@metamask/controller-utils';
+import { Json } from '@metamask/utils';
 
 /**
  * @type OriginalRequest
@@ -25,6 +26,7 @@ export interface OriginalRequest {
  * A 'Message' which always has a signing type
  * @property rawSig - Raw data of the signature request
  * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
+ * @property metadata - Additional data for the message, for example external identifiers
  */
 export interface AbstractMessage {
   id: string;
@@ -32,7 +34,8 @@ export interface AbstractMessage {
   status: string;
   type: string;
   rawSig?: string;
-  securityProviderResponse?: Map<string, Json>;
+  securityProviderResponse?: Record<string, Json>;
+  metadata?: Json;
 }
 
 /**
@@ -41,10 +44,12 @@ export interface AbstractMessage {
  * Represents the parameters to pass to the signing method once the signature request is approved.
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
+ * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
 export interface AbstractMessageParams {
   from: string;
   origin?: string;
+  deferSetAsSigned?: boolean;
 }
 
 /**
@@ -81,6 +86,8 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
+type getCurrentChainId = () => Hex;
+
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
@@ -90,6 +97,8 @@ export abstract class AbstractMessageManager<
   PM extends AbstractMessageParamsMetamask,
 > extends BaseController<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
+
+  protected getCurrentChainId: getCurrentChainId | undefined;
 
   private securityProviderRequest: SecurityProviderRequest | undefined;
 
@@ -186,12 +195,14 @@ export abstract class AbstractMessageManager<
    * @param state - Initial state to set on this controller.
    * @param securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    * @param additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
+   * @param getCurrentChainId - Optional function to get the current chainId.
    */
   constructor(
     config?: Partial<BaseConfig>,
     state?: Partial<MessageManagerState<M>>,
     securityProviderRequest?: SecurityProviderRequest,
     additionalFinishStatuses?: string[],
+    getCurrentChainId?: getCurrentChainId,
   ) {
     super(config, state);
     this.defaultState = {
@@ -201,6 +212,7 @@ export abstract class AbstractMessageManager<
     this.messages = [];
     this.securityProviderRequest = securityProviderRequest;
     this.additionalFinishStatuses = additionalFinishStatuses ?? [];
+    this.getCurrentChainId = getCurrentChainId;
     this.initialize();
   }
 
@@ -251,6 +263,15 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Returns all the messages.
+   *
+   * @returns An array of messages.
+   */
+  getAllMessages() {
+    return this.messages;
+  }
+
+  /**
    * Approves a Message. Sets the message status via a call to this.setMessageStatusApproved,
    * and returns a promise with any the message params modified for proper signing.
    *
@@ -272,6 +293,16 @@ export abstract class AbstractMessageManager<
    */
   setMessageStatusApproved(messageId: string) {
     this.setMessageStatus(messageId, 'approved');
+  }
+
+  /**
+   * Sets message status to inProgress in order to allow users to use extension
+   * while waiting for a custodian signature.
+   *
+   * @param messageId - The id of the message to set to inProgress
+   */
+  setMessageStatusInProgress(messageId: string) {
+    this.setMessageStatus(messageId, 'inProgress');
   }
 
   /**
@@ -311,6 +342,22 @@ export abstract class AbstractMessageManager<
       return;
     }
     message.rawSig = result;
+    this.updateMessage(message, false);
+  }
+
+  /**
+   * Sets the messsage metadata
+   *
+   * @param messageId - The id of the Message to update
+   * @param metadata - The data with which to replace the metadata property in the message
+   */
+
+  setMetadata(messageId: string, metadata: Json) {
+    const message = this.getMessage(messageId);
+    if (!message) {
+      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
+    }
+    message.metadata = metadata;
     this.updateMessage(message, false);
   }
 

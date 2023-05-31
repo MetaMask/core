@@ -6,6 +6,7 @@ import {
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
+import { toHex } from '@metamask/controller-utils';
 import { TokenRatesController } from './TokenRatesController';
 import {
   TokensController,
@@ -118,6 +119,7 @@ describe('TokenRatesController', () => {
 
   it('should set default state', () => {
     const controller = new TokenRatesController({
+      chainId: toHex(1),
       onTokensStateChange: sinon.stub(),
       onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
@@ -129,6 +131,7 @@ describe('TokenRatesController', () => {
 
   it('should initialize with the default config', () => {
     const controller = new TokenRatesController({
+      chainId: toHex(1),
       onTokensStateChange: sinon.stub(),
       onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
@@ -137,7 +140,7 @@ describe('TokenRatesController', () => {
       disabled: false,
       interval: 180000,
       nativeCurrency: 'eth',
-      chainId: '',
+      chainId: toHex(1),
       tokens: [],
       threshold: 21600000,
     });
@@ -145,6 +148,7 @@ describe('TokenRatesController', () => {
 
   it('should throw when tokens property is accessed', () => {
     const controller = new TokenRatesController({
+      chainId: toHex(1),
       onTokensStateChange: sinon.stub(),
       onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
@@ -160,6 +164,7 @@ describe('TokenRatesController', () => {
     const times = 5;
     new TokenRatesController(
       {
+        chainId: toHex(1),
         onTokensStateChange: jest.fn(),
         onCurrencyRateStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
@@ -182,6 +187,7 @@ describe('TokenRatesController', () => {
   it('should not update rates if disabled', async () => {
     const controller = new TokenRatesController(
       {
+        chainId: toHex(1),
         onTokensStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
@@ -200,6 +206,7 @@ describe('TokenRatesController', () => {
     const mock = sinon.stub(global, 'clearTimeout');
     const controller = new TokenRatesController(
       {
+        chainId: toHex(1),
         onTokensStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
@@ -216,9 +223,14 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
-    new NetworkController({ messenger, trackMetaMetricsEvent: jest.fn() });
+    new NetworkController({
+      infuraProjectId: 'infura-project-id',
+      messenger,
+      trackMetaMetricsEvent: jest.fn(),
+    });
     const preferences = new PreferencesController();
     const tokensController = new TokensController({
+      chainId: toHex(1),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
@@ -226,12 +238,13 @@ describe('TokenRatesController', () => {
     });
     const controller = new TokenRatesController(
       {
+        chainId: toHex(1),
         onTokensStateChange: (listener) => tokensController.subscribe(listener),
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: (listener) =>
           messenger.subscribe('NetworkController:stateChange', listener),
       },
-      { interval: 10, chainId: '1' },
+      { interval: 10 },
     );
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     expect(controller.state.contractExchangeRates).toStrictEqual({});
@@ -253,6 +266,7 @@ describe('TokenRatesController', () => {
   it('should handle balance not found in API', async () => {
     const controller = new TokenRatesController(
       {
+        chainId: toHex(1),
         onTokensStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
@@ -281,6 +295,7 @@ describe('TokenRatesController', () => {
     const onNetworkStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
+        chainId: toHex(1),
         onTokensStateChange,
         onCurrencyRateStateChange,
         onNetworkStateChange,
@@ -307,6 +322,7 @@ describe('TokenRatesController', () => {
     const onNetworkStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
+        chainId: toHex(1),
         onTokensStateChange,
         onCurrencyRateStateChange,
         onNetworkStateChange,
@@ -356,13 +372,14 @@ describe('TokenRatesController', () => {
     const onNetworkStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
+        chainId: toHex(137),
         onTokensStateChange,
         onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange,
       },
       { interval: 10 },
     );
-    await controller.configure({ chainId: '137', nativeCurrency: 'MATIC' });
+    await controller.configure({ nativeCurrency: 'MATIC' });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await tokenStateChangeListener!({
@@ -418,6 +435,7 @@ describe('TokenRatesController', () => {
 
     const controller = new TokenRatesController(
       {
+        chainId: toHex(1),
         onTokensStateChange,
         onNetworkStateChange,
         onCurrencyRateStateChange: sinon.stub(),
@@ -425,7 +443,7 @@ describe('TokenRatesController', () => {
       { interval: 10 },
     );
 
-    await controller.configure({ chainId: '1', nativeCurrency: 'ETH' });
+    await controller.configure({ nativeCurrency: 'ETH' });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await tokenStateChangeListener!({
@@ -457,7 +475,7 @@ describe('TokenRatesController', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkChangeListener!({
-      providerConfig: { chainId: '4' },
+      providerConfig: { chainId: toHex(4) },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -490,11 +508,12 @@ describe('TokenRatesController', () => {
 
     const controller = new TokenRatesController(
       {
+        chainId: toHex(1),
         onTokensStateChange,
         onNetworkStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
       },
-      { interval: 10, chainId: '1', nativeCurrency: 'ETH' },
+      { interval: 10, nativeCurrency: 'ETH' },
     );
 
     expect(controller.state.contractExchangeRates).toStrictEqual({});

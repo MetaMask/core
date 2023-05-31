@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "48.0.0",
+  "version": "54.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -33,13 +33,14 @@
     "pre-push": "yarn lint"
   },
   "dependencies": {
-    "@lavamoat/allow-scripts": "^2.0.2",
+    "@lavamoat/allow-scripts": "^2.3.1",
     "@metamask/create-release-branch": "^1.0.1",
     "@metamask/eslint-config": "^9.0.0",
     "@metamask/eslint-config-jest": "^9.0.0",
     "@metamask/eslint-config-nodejs": "^9.0.0",
     "@metamask/eslint-config-typescript": "^9.0.1",
-    "@types/node": "^14.14.31",
+    "@metamask/eth-json-rpc-provider": "^1.0.0",
+    "@types/node": "^16.18.24",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "eslint": "^7.24.0",
@@ -50,8 +51,10 @@
     "eslint-plugin-jsdoc": "^36.1.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^3.4.1",
+    "eth-block-tracker": "^7.0.1",
     "execa": "^5.0.0",
     "isomorphic-fetch": "^3.0.0",
+    "json-rpc-engine": "^6.1.0",
     "prettier": "^2.6.2",
     "prettier-plugin-packagejson": "^2.2.17",
     "rimraf": "^3.0.2",
@@ -63,7 +66,7 @@
   },
   "packageManager": "yarn@3.3.0",
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "lavamoat": {
     "allowScripts": {

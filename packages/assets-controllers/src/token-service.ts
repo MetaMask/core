@@ -1,4 +1,5 @@
-import { timeoutFetch } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
+import { convertHexToDecimal, timeoutFetch } from '@metamask/controller-utils';
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
 export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
@@ -11,8 +12,8 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @param chainId - The chain ID of the network the tokens requested are on.
  * @returns The tokens URL.
  */
-function getTokensURL(chainId: string) {
-  return `${TOKEN_END_POINT_API}/tokens/${chainId}`;
+function getTokensURL(chainId: Hex) {
+  return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(chainId)}`;
 }
 
 /**
@@ -22,8 +23,10 @@ function getTokensURL(chainId: string) {
  * @param tokenAddress - The token address.
  * @returns The token metadata URL.
  */
-function getTokenMetadataURL(chainId: string, tokenAddress: string) {
-  return `${TOKEN_END_POINT_API}/token/${chainId}?address=${tokenAddress}`;
+function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
+  return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
+    chainId,
+  )}?address=${tokenAddress}`;
 }
 
 const tenSecondsInMilliseconds = 10_000;
@@ -43,7 +46,7 @@ const defaultTimeout = tenSecondsInMilliseconds;
  * @returns The token list, or `undefined` if the request was cancelled.
  */
 export async function fetchTokenList(
-  chainId: string,
+  chainId: Hex,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<unknown> {
@@ -67,7 +70,7 @@ export async function fetchTokenList(
  * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
 export async function fetchTokenMetadata<T>(
-  chainId: string,
+  chainId: Hex,
   tokenAddress: string,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
