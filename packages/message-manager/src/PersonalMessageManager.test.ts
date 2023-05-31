@@ -19,12 +19,14 @@ const siweMockFound = {
   },
 } as SIWEMessage;
 
-const validAddressMock = '0x3244e191f1b4903970224322180f1fbbc415696b';
-
 describe('PersonalMessageManager', () => {
   let controller: PersonalMessageManager;
 
   const detectSIWEMock = detectSIWE as jest.MockedFunction<typeof detectSIWE>;
+  const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+  const dataMock = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
+  const messageIdMock = 'message-id-mocked';
+  const rawSigMock = '0xsignaturemocked';
   beforeEach(() => {
     controller = new PersonalMessageManager();
     detectSIWEMock.mockReturnValue(siweMockNotFound);
@@ -39,6 +41,76 @@ describe('PersonalMessageManager', () => {
 
   it('should set default config', () => {
     expect(controller.config).toStrictEqual({});
+  });
+
+  describe('createMessageListener', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(controller, 'addUnapprovedMessage')
+        .mockImplementation()
+        .mockResolvedValue(messageIdMock);
+    });
+
+    afterAll(() => {
+      jest.spyOn(controller, 'addUnapprovedMessage').mockClear();
+    });
+    it('signs the message when status is "signed"', async () => {
+      const promise = controller.createMessageListener({
+        data: dataMock,
+        from: fromMock,
+        metamaskId: messageIdMock,
+      });
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'signed',
+          rawSig: rawSigMock,
+        });
+      }, 100);
+
+      expect(await promise).toStrictEqual(rawSigMock);
+    });
+
+    it('rejects with an error when status is "rejected"', async () => {
+      const promise = controller.createMessageListener({
+        data: dataMock,
+        from: fromMock,
+        metamaskId: messageIdMock,
+      });
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'rejected',
+        });
+      }, 100);
+
+      await expect(() => promise).rejects.toThrow(
+        'MetaMask Personal Message Signature: User denied message signature.',
+      );
+    });
+
+    it('rejects with an error when unapproved finishes', async () => {
+      const promise = controller.createMessageListener({
+        data: dataMock,
+        from: fromMock,
+        metamaskId: messageIdMock,
+      });
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'unknown',
+        });
+      }, 100);
+
+      await expect(() => promise).rejects.toThrow(
+        `MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(
+          {
+            data: dataMock,
+            from: fromMock,
+          },
+        )}`,
+      );
+    });
   });
 
   it('should add a valid message', async () => {
@@ -75,7 +147,7 @@ describe('PersonalMessageManager', () => {
     const messageType = 'personal_sign';
     const messageParams = {
       data: '0x123',
-      from: validAddressMock,
+      from: fromMock,
     };
     const originalRequest = { origin: 'origin' };
     const messageId = await controller.addUnapprovedMessage(
@@ -95,7 +167,7 @@ describe('PersonalMessageManager', () => {
   });
 
   it('should throw when adding invalid message', async () => {
-    const from = 'invalidAddressMock';
+    const from = 'foo';
     const messageData = '0x123';
     await expect(
       controller.addUnapprovedMessage({
@@ -132,7 +204,7 @@ describe('PersonalMessageManager', () => {
   });
 
   it('should approve message', async () => {
-    const firstMessage = { from: validAddressMock, data: '0x123' };
+    const firstMessage = { from: fromMock, data: '0x123' };
     const messageId = await controller.addUnapprovedMessage(firstMessage);
     const messageParams = await controller.approveMessage({
       ...firstMessage,
@@ -147,7 +219,7 @@ describe('PersonalMessageManager', () => {
   });
 
   it('should set message status signed', async () => {
-    const firstMessage = { from: validAddressMock, data: '0x123' };
+    const firstMessage = { from: fromMock, data: '0x123' };
     const rawSig = '0x5f7a0';
     const messageId = await controller.addUnapprovedMessage(firstMessage);
 
@@ -161,7 +233,7 @@ describe('PersonalMessageManager', () => {
   });
 
   it('should reject message', async () => {
-    const firstMessage = { from: validAddressMock, data: '0x123' };
+    const firstMessage = { from: fromMock, data: '0x123' };
     const messageId = await controller.addUnapprovedMessage(firstMessage);
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
@@ -173,7 +245,7 @@ describe('PersonalMessageManager', () => {
 
   it('should add message including Ethereum sign in data', async () => {
     detectSIWEMock.mockReturnValue(siweMockFound);
-    const firstMessage = { from: validAddressMock, data: '0x123' };
+    const firstMessage = { from: fromMock, data: '0x123' };
     const messageId = await controller.addUnapprovedMessage(firstMessage);
     const message = controller.getMessage(messageId);
     if (!message) {

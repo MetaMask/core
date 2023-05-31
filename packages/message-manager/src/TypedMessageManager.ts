@@ -46,6 +46,10 @@ export interface TypedMessageParams extends AbstractMessageParams {
   data: Record<string, unknown>[] | string;
 }
 
+interface TypedMessageParamsWithId extends TypedMessageParams {
+  metamaskId: string;
+}
+
 /**
  * @type TypedMessageParamsMetamask
  *
@@ -79,6 +83,45 @@ export class TypedMessageManager extends AbstractMessageManager<
    * Name of this controller used during composition
    */
   override name = 'TypedMessageManager';
+
+  /**
+   * Creates a new TypedMessage with an 'unapproved' status using the passed messageParams.
+   * this.addMessage is called to add the new TypedMessage to this.messages, and to save the unapproved TypedMessages.
+   *
+   * @param messageParamsWithId - The params for the eth_signTypedData call to be made after the message is approved.
+   * @returns Promise resolving to the raw data of the signature request.
+   */
+  async createMessageListener(
+    messageParamsWithId: TypedMessageParamsWithId,
+  ): Promise<string> {
+    const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
+    return new Promise((resolve, reject) => {
+      this.hub.once(`${messageId}:finished`, (data: TypedMessage) => {
+        switch (data.status) {
+          case 'signed':
+            return resolve(data.rawSig as string);
+          case 'rejected':
+            return reject(
+              new Error(
+                'MetaMask Typed Message Signature: User denied message signature.',
+              ),
+            );
+          case 'errored':
+            return reject(
+              new Error(`MetaMask Typed Message Signature: ${data.error}`),
+            );
+          default:
+            return reject(
+              new Error(
+                `MetaMask Typed Message Signature: Unknown problem: ${JSON.stringify(
+                  messageParams,
+                )}`,
+              ),
+            );
+        }
+      });
+    });
+  }
 
   /**
    * Creates a new TypedMessage with an 'unapproved' status using the passed messageParams.

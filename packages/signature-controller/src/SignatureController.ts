@@ -306,15 +306,18 @@ export class SignatureController extends BaseControllerV2<
         'eth_sign requires 32 byte message hash',
       );
     }
-
     const messageId = await this.#messageManager.addUnapprovedMessage(
       messageParams,
       req,
     );
+
     const messageParamsWithId = {
       ...messageParams,
       metamaskId: messageId,
     };
+
+    const signaturePromise =
+      this.#messageManager.createMessageListener(messageParamsWithId);
 
     try {
       await this.#requestApproval(messageParamsWithId, ApprovalType.EthSign);
@@ -325,7 +328,9 @@ export class SignatureController extends BaseControllerV2<
       );
     }
 
-    return await this.#signMessage(cloneDeep(messageParamsWithId));
+    await this.#signMessage(cloneDeep(messageParamsWithId));
+
+    return signaturePromise;
   }
 
   /**
@@ -347,10 +352,14 @@ export class SignatureController extends BaseControllerV2<
       messageParams,
       req,
     );
+
     const messageParamsWithId = {
       ...messageParams,
       metamaskId: messageId,
     };
+
+    const signaturePromise =
+      this.#personalMessageManager.createMessageListener(messageParamsWithId);
 
     try {
       await this.#requestApproval(
@@ -363,8 +372,8 @@ export class SignatureController extends BaseControllerV2<
         'User rejected the request.',
       );
     }
-
-    return await this.#signPersonalMessage(cloneDeep(messageParamsWithId));
+    await this.#signPersonalMessage(cloneDeep(messageParamsWithId));
+    return signaturePromise;
   }
 
   /**
@@ -388,10 +397,14 @@ export class SignatureController extends BaseControllerV2<
       version,
       req,
     );
+
     const messageParamsWithId = {
       ...messageParams,
       metamaskId: messageId,
     };
+
+    const signaturePromise =
+      this.#typedMessageManager.createMessageListener(messageParamsWithId);
 
     try {
       await this.#requestApproval(
@@ -404,11 +417,9 @@ export class SignatureController extends BaseControllerV2<
         'User rejected the request.',
       );
     }
-    return await this.#signTypedMessage(
-      cloneDeep(messageParamsWithId),
-      version,
-      opts,
-    );
+    await this.#signTypedMessage(cloneDeep(messageParamsWithId), version, opts);
+
+    return signaturePromise;
   }
 
   setTypedMessageInProgress(messageId: string) {

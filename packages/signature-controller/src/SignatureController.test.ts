@@ -87,6 +87,7 @@ const createMessengerMock = () =>
   } as any as jest.Mocked<SignatureControllerMessenger>);
 
 const addUnapprovedMessageMock = jest.fn();
+const createMessageListenerMock = jest.fn();
 const approveMessageMock = jest.fn();
 
 const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
@@ -96,6 +97,7 @@ const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
     getUnapprovedMessages: jest.fn(),
     getUnapprovedMessagesCount: jest.fn(),
     addUnapprovedMessage: addUnapprovedMessageMock,
+    createMessageListener: createMessageListenerMock,
     approveMessage: approveMessageMock,
     setMessageStatusSigned: jest.fn(),
     setMessageStatusErrored: jest.fn(),
