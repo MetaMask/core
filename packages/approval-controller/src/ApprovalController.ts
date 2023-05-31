@@ -155,6 +155,11 @@ export type SetFlowLoadingText = {
   handler: ApprovalController['setFlowLoadingText'];
 };
 
+export type ShowSuccess = {
+  type: `${typeof controllerName}:showSuccess`;
+  handler: ApprovalController['success'];
+};
+
 type UpdateRequestStateOptions = {
   id: string;
   requestState: Record<string, Json>;
@@ -220,7 +225,8 @@ export type ApprovalControllerActions =
   | UpdateRequestState
   | StartFlow
   | EndFlow
-  | SetFlowLoadingText;
+  | SetFlowLoadingText
+  | ShowSuccess;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -251,6 +257,20 @@ export type ApprovalFlowOptions = {
 export type ApprovalFlowStartResult = {
   id: string;
 };
+
+export type UIComponent = {
+  key: string;
+  element: string;
+  props?: Record<string, unknown>;
+  children?: UIComponent | UIComponent[];
+};
+
+export type SuccessOptions = {
+  message?: string | UIComponent | UIComponent[];
+  endFlow?: boolean;
+};
+
+export type SuccessResult = Record<string, never>;
 
 /**
  * Controller for managing requests that require user approval.
@@ -357,6 +377,11 @@ export class ApprovalController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:setFlowLoadingText` as const,
       this.setFlowLoadingText.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:showSuccess` as const,
+      this.success.bind(this),
     );
   }
 
@@ -683,9 +708,9 @@ export class ApprovalController extends BaseControllerV2<
       throw new NoApprovalFlowsError();
     }
 
-    const currentFlow = this.state.approvalFlows.slice(-1)[0];
+    const currentFlow = this._getCurrentFlow();
 
-    if (flowId !== currentFlow.id) {
+    if (flowId !== currentFlow?.id) {
       throw new EndInvalidFlowError(
         flowId,
         this.state.approvalFlows.map((flow) => flow.id),
@@ -701,6 +726,23 @@ export class ApprovalController extends BaseControllerV2<
     this.update((draftState) => {
       draftState.approvalFlowLoadingText = loadingText;
     });
+  }
+
+  async success(opts: SuccessOptions = {}): Promise<SuccessResult> {
+    await this.addAndShowApprovalRequest({
+      origin: 'metamask',
+      type: 'success',
+      requestData: opts as any,
+    });
+
+    if (opts.endFlow) {
+      const currentFlow = this._getCurrentFlow();
+
+      // Safe to cast as method will immediately throw if no flows exist
+      this.endFlow(currentFlow?.id as string);
+    }
+
+    return {};
   }
 
   /**
@@ -898,6 +940,14 @@ export class ApprovalController extends BaseControllerV2<
 
     this._delete(id);
     return callbacks;
+  }
+
+  private _getCurrentFlow(): ApprovalFlowState | undefined {
+    const flows = this.state.approvalFlows;
+
+    if (!flows.length) return undefined;
+
+    return flows.slice(-1)[0];
   }
 }
 export default ApprovalController;
