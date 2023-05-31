@@ -9,6 +9,8 @@ import { Json } from '@metamask/utils';
 import {
   ApprovalRequestNotFoundError,
   ApprovalRequestNoResultSupportError,
+  EndInvalidFlowError,
+  NoApprovalFlowsError,
 } from './errors';
 
 const controllerName = 'ApprovalController';
@@ -66,14 +68,22 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
 
 type ShowApprovalRequest = () => void | Promise<void>;
 
+export type ApprovalFlowState = {
+  id: string;
+};
+
 export type ApprovalControllerState = {
   pendingApprovals: Record<string, ApprovalRequest<Record<string, Json>>>;
   pendingApprovalCount: number;
+  approvalFlows: ApprovalFlowState[];
+  approvalFlowLoadingText: string | null;
 };
 
 const stateMetadata = {
   pendingApprovals: { persist: false, anonymous: true },
   pendingApprovalCount: { persist: false, anonymous: false },
+  approvalFlows: { persist: false, anonymous: false },
+  approvalFlowLoadingText: { persist: false, anonymous: false },
 };
 
 const getAlreadyPendingMessage = (origin: string, type: string) =>
@@ -83,6 +93,8 @@ const getDefaultState = (): ApprovalControllerState => {
   return {
     pendingApprovals: {},
     pendingApprovalCount: 0,
+    approvalFlows: [],
+    approvalFlowLoadingText: null,
   };
 };
 
@@ -126,6 +138,21 @@ export type AcceptRequest = {
 export type RejectRequest = {
   type: `${typeof controllerName}:rejectRequest`;
   handler: ApprovalController['reject'];
+};
+
+export type StartFlow = {
+  type: `${typeof controllerName}:startFlow`;
+  handler: ApprovalController['startFlow'];
+};
+
+export type EndFlow = {
+  type: `${typeof controllerName}:endFlow`;
+  handler: ApprovalController['endFlow'];
+};
+
+export type SetFlowLoadingText = {
+  type: `${typeof controllerName}:setFlowLoadingText`;
+  handler: ApprovalController['setFlowLoadingText'];
 };
 
 type UpdateRequestStateOptions = {
@@ -190,7 +217,10 @@ export type ApprovalControllerActions =
   | HasApprovalRequest
   | AcceptRequest
   | RejectRequest
-  | UpdateRequestState;
+  | UpdateRequestState
+  | StartFlow
+  | EndFlow
+  | SetFlowLoadingText;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -212,6 +242,14 @@ type ApprovalControllerOptions = {
   showApprovalRequest: ShowApprovalRequest;
   state?: Partial<ApprovalControllerState>;
   typesExcludedFromRateLimiting?: string[];
+};
+
+export type ApprovalFlowOptions = {
+  id?: string;
+};
+
+export type ApprovalFlowStartResult = {
+  id: string;
 };
 
 /**
@@ -304,6 +342,21 @@ export class ApprovalController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:updateRequestState` as const,
       this.updateRequestState.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:startFlow` as const,
+      this.startFlow.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:endFlow` as const,
+      this.endFlow.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setFlowLoadingText` as const,
+      this.setFlowLoadingText.bind(this),
     );
   }
 
@@ -609,6 +662,44 @@ export class ApprovalController extends BaseControllerV2<
       // Typecast: ts(2589)
       draftState.pendingApprovals[opts.id].requestState =
         opts.requestState as any;
+    });
+  }
+
+  startFlow(opts: ApprovalFlowOptions = {}): ApprovalFlowStartResult {
+    const id = opts.id ?? nanoid();
+    const finalOptions = { id };
+
+    this.update((draftState) => {
+      draftState.approvalFlows.push(finalOptions);
+    });
+
+    this._showApprovalRequest();
+
+    return { id };
+  }
+
+  endFlow(flowId: string) {
+    if (!this.state.approvalFlows.length) {
+      throw new NoApprovalFlowsError();
+    }
+
+    const currentFlow = this.state.approvalFlows.slice(-1)[0];
+
+    if (flowId !== currentFlow.id) {
+      throw new EndInvalidFlowError(
+        flowId,
+        this.state.approvalFlows.map((flow) => flow.id),
+      );
+    }
+
+    this.update((draftState) => {
+      draftState.approvalFlows.pop();
+    });
+  }
+
+  setFlowLoadingText(loadingText: string | null) {
+    this.update((draftState) => {
+      draftState.approvalFlowLoadingText = loadingText;
     });
   }
 
