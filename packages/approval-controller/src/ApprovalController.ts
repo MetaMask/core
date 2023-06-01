@@ -160,6 +160,11 @@ export type ShowSuccess = {
   handler: ApprovalController['success'];
 };
 
+export type ShowError = {
+  type: `${typeof controllerName}:showError`;
+  handler: ApprovalController['error'];
+};
+
 type UpdateRequestStateOptions = {
   id: string;
   requestState: Record<string, Json>;
@@ -226,7 +231,8 @@ export type ApprovalControllerActions =
   | StartFlow
   | EndFlow
   | SetFlowLoadingText
-  | ShowSuccess;
+  | ShowSuccess
+  | ShowError;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -262,15 +268,22 @@ export type UIComponent = {
   key: string;
   element: string;
   props?: Record<string, unknown>;
-  children?: UIComponent | UIComponent[];
+  children?: string | UIComponent | (string | UIComponent)[];
 };
 
 export type SuccessOptions = {
-  message?: string | UIComponent | UIComponent[];
+  message?: string | UIComponent | (string | UIComponent)[];
   endFlow?: boolean;
 };
 
+export type ErrorOptions = {
+  error?: Error | string | UIComponent | (string | UIComponent)[];
+  endFlow?: boolean;
+};
+
+// Future-proofing to support additional properties
 export type SuccessResult = Record<string, never>;
+export type ErrorResult = Record<string, never>;
 
 /**
  * Controller for managing requests that require user approval.
@@ -382,6 +395,11 @@ export class ApprovalController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:showSuccess` as const,
       this.success.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:showError` as const,
+      this.error.bind(this),
     );
   }
 
@@ -729,19 +747,12 @@ export class ApprovalController extends BaseControllerV2<
   }
 
   async success(opts: SuccessOptions = {}): Promise<SuccessResult> {
-    await this.addAndShowApprovalRequest({
-      origin: 'metamask',
-      type: 'success',
-      requestData: opts as any,
-    });
+    await this._result('success', opts);
+    return {};
+  }
 
-    if (opts.endFlow) {
-      const currentFlow = this._getCurrentFlow();
-
-      // Safe to cast as method will immediately throw if no flows exist
-      this.endFlow(currentFlow?.id as string);
-    }
-
+  async error(opts: ErrorOptions = {}): Promise<ErrorResult> {
+    await this._result('error', opts);
     return {};
   }
 
@@ -940,6 +951,25 @@ export class ApprovalController extends BaseControllerV2<
 
     this._delete(id);
     return callbacks;
+  }
+
+  private async _result<T extends { endFlow?: boolean }>(
+    type: string,
+    opts: T,
+  ) {
+    await this.addAndShowApprovalRequest({
+      // Don't want to add dependency on controller-utils in POC
+      origin: 'metamask',
+      type,
+      requestData: opts as any,
+    });
+
+    if (opts.endFlow) {
+      const currentFlow = this._getCurrentFlow();
+
+      // Safe to cast as method will immediately throw if no flows exist
+      this.endFlow(currentFlow?.id as string);
+    }
   }
 
   private _getCurrentFlow(): ApprovalFlowState | undefined {
