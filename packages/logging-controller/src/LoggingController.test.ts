@@ -3,10 +3,9 @@ import * as uuid from 'uuid';
 import {
   LoggingController,
   LoggingControllerActions,
-  LogType,
-  SigningMethod,
-  SigningStage,
 } from './LoggingController';
+import { LogType } from './logTypes';
+import { SigningMethod, SigningStage } from './logTypes/EthSignLog';
 
 jest.mock('uuid', () => {
   const actual = jest.requireActual('uuid');

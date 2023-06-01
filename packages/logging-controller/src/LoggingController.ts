@@ -3,61 +3,7 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { v1 as random } from 'uuid';
-
-/**
- * Defines the types of logs that may be added to this controller's state.
- * Currently only one special case is defined, EthSignLog, for all signing
- * requests. However, future special cases can be added that have stricter
- * data types and may make indexing those types of events easier.
- */
-export enum LogType {
-  EthSignLog = 'EthSignLog',
-  GenericLog = 'GenericLog',
-}
-
-export enum SigningMethod {
-  EthSign = 'eth_sign',
-  PersonalSign = 'personal_sign',
-  EthSignTypedData = 'eth_signTypedData',
-  EthSignTypedDataV3 = 'eth_signTypedData_v3',
-  EthSignTypedDataV4 = 'eth_signTypedData_v4',
-}
-
-export enum SigningStage {
-  Proposed = 'proposed',
-  Rejected = 'rejected',
-  Signed = 'signed',
-}
-
-/**
- * First special case of logging scenarios involves signing requests. In this
- * case the data provided must include the method for the signature request as
- * well as the signingData. This is intended to be used to troubleshoot and
- * investigate FLI at the user's request.
- */
-export type EthSignLog = {
-  type: LogType.EthSignLog;
-  data: {
-    signingMethod: SigningMethod;
-    stage: SigningStage;
-    signingData?: any;
-  };
-};
-
-/**
- * The controller can handle any kind of log statement that may benefit users
- * and MetaMask support agents helping those users. These logs are typed as
- * generic.
- */
-export type GenericLog = {
-  type: LogType.GenericLog;
-  data: any;
-};
-
-/**
- * Union of all possible log data structures.
- */
-export type Log = EthSignLog | GenericLog;
+import { Log } from './logTypes';
 
 /**
  * LogEntry is the entry that will be added to the logging controller state.
