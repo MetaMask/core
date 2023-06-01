@@ -74,6 +74,11 @@ export type KeyringControllerState = {
   encryptionSalt?: string;
 };
 
+export type KeyringControllerMemState = Omit<
+  KeyringControllerState,
+  'vault' | 'encryptionKey' | 'encryptionSalt'
+>;
+
 export type KeyringControllerGetStateAction = {
   type: `${typeof name}:getState`;
   handler: () => KeyringControllerState;
@@ -258,7 +263,7 @@ export class KeyringController extends BaseControllerV2<
    * address.
    */
   async addNewAccount(accountCount?: number): Promise<{
-    keyringState: KeyringControllerState;
+    keyringState: KeyringControllerMemState;
     addedAccountAddress: string;
   }> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
@@ -290,7 +295,7 @@ export class KeyringController extends BaseControllerV2<
       (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
     );
     return {
-      keyringState: this.state,
+      keyringState: this.#getMemState(),
       addedAccountAddress,
     };
   }
@@ -300,7 +305,7 @@ export class KeyringController extends BaseControllerV2<
    *
    * @returns Promise resolving to current state when the account is added.
    */
-  async addNewAccountWithoutUpdate(): Promise<KeyringControllerState> {
+  async addNewAccountWithoutUpdate(): Promise<KeyringControllerMemState> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
@@ -308,7 +313,7 @@ export class KeyringController extends BaseControllerV2<
     }
     await this.#keyring.addNewAccount(primaryKeyring);
     await this.verifySeedPhrase();
-    return this.state;
+    return this.#getMemState();
   }
 
   /**
@@ -323,7 +328,7 @@ export class KeyringController extends BaseControllerV2<
   async createNewVaultAndRestore(
     password: string,
     seed: Uint8Array,
-  ): Promise<KeyringControllerState> {
+  ): Promise<KeyringControllerMemState> {
     const releaseLock = await this.mutex.acquire();
     if (!password || !password.length) {
       throw new Error('Invalid password');
@@ -333,7 +338,7 @@ export class KeyringController extends BaseControllerV2<
       this.updateIdentities([]);
       await this.#keyring.createNewVaultAndRestore(password, seed);
       this.updateIdentities(await this.#keyring.getAccounts());
-      return this.state;
+      return this.#getMemState();
     } finally {
       releaseLock();
     }
@@ -353,7 +358,7 @@ export class KeyringController extends BaseControllerV2<
         await this.#keyring.createNewVaultAndKeychain(password);
         this.updateIdentities(await this.getAccounts());
       }
-      return this.state;
+      return this.#getMemState();
     } finally {
       releaseLock();
     }
@@ -450,7 +455,7 @@ export class KeyringController extends BaseControllerV2<
     strategy: AccountImportStrategy,
     args: any[],
   ): Promise<{
-    keyringState: KeyringControllerState;
+    keyringState: KeyringControllerMemState;
     importedAccountAddress: string;
   }> {
     let privateKey;
@@ -500,7 +505,7 @@ export class KeyringController extends BaseControllerV2<
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
     return {
-      keyringState: this.state,
+      keyringState: this.#getMemState(),
       importedAccountAddress: accounts[0],
     };
   }
@@ -511,10 +516,10 @@ export class KeyringController extends BaseControllerV2<
    * @param address - Address of the account to remove.
    * @returns Promise resolving current state when this account removal completes.
    */
-  async removeAccount(address: string): Promise<KeyringControllerState> {
+  async removeAccount(address: string): Promise<KeyringControllerMemState> {
     this.removeIdentity(address);
     await this.#keyring.removeAccount(address);
-    return this.state;
+    return this.#getMemState();
   }
 
   /**
@@ -522,7 +527,7 @@ export class KeyringController extends BaseControllerV2<
    *
    * @returns Promise resolving to current state.
    */
-  setLocked(): Promise<Omit<KeyringControllerState, 'vault'>> {
+  setLocked(): Promise<KeyringControllerMemState> {
     return this.#keyring.setLocked();
   }
 
@@ -638,9 +643,9 @@ export class KeyringController extends BaseControllerV2<
   async submitEncryptionKey(
     encryptionKey: string,
     encryptionSalt: string,
-  ): Promise<KeyringControllerState> {
+  ): Promise<KeyringControllerMemState> {
     await this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
-    return this.state;
+    return this.#getMemState();
   }
 
   /**
@@ -650,11 +655,11 @@ export class KeyringController extends BaseControllerV2<
    * @param password - Password to unlock the keychain.
    * @returns Promise resolving to the current state.
    */
-  async submitPassword(password: string): Promise<KeyringControllerState> {
+  async submitPassword(password: string): Promise<KeyringControllerMemState> {
     await this.#keyring.submitPassword(password);
     const accounts = await this.#keyring.getAccounts();
     await this.syncIdentities(accounts);
-    return this.state;
+    return this.#getMemState();
   }
 
   /**
@@ -853,6 +858,14 @@ export class KeyringController extends BaseControllerV2<
    */
   #handleUnlock() {
     this.messagingSystem.publish(`${name}:unlock`);
+  }
+
+  #getMemState(): KeyringControllerMemState {
+    return {
+      isUnlocked: this.state.isUnlocked,
+      keyrings: this.state.keyrings,
+      keyringTypes: this.state.keyringTypes,
+    };
   }
 }
 

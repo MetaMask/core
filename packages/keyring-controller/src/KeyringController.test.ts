@@ -1079,8 +1079,8 @@ describe('KeyringController', () => {
           await withController(
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
-              const recoveredState = await controller.submitPassword(password);
-              expect(recoveredState).toStrictEqual(initialState);
+              await controller.submitPassword(password);
+              expect(controller.state).toStrictEqual(initialState);
             },
           );
         });
@@ -1114,11 +1114,11 @@ describe('KeyringController', () => {
       await withController(
         { cacheEncryptionKey: true },
         async ({ controller, initialState }) => {
-          const recoveredState = await controller.submitEncryptionKey(
+          await controller.submitEncryptionKey(
             mockKey.toString('hex'),
             initialState.encryptionSalt as string,
           );
-          expect(recoveredState).toStrictEqual(initialState);
+          expect(controller.state).toStrictEqual(initialState);
         },
       );
     });
@@ -1714,12 +1714,12 @@ async function withController<ReturnValue>(
     ...preferences,
     ...rest,
   });
-  const initialState = await controller.createNewVaultAndKeychain(password);
+  await controller.createNewVaultAndKeychain(password);
   return await fn({
     controller,
     preferences,
     encryptor,
-    initialState,
+    initialState: controller.state,
     messenger,
   });
 }
