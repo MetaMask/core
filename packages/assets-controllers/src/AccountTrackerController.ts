@@ -167,28 +167,18 @@ export class AccountTrackerController extends BaseController<
    * Refreshes the balances of the accounts depending on the multi-account setting.
    * If multi-account is disabled, only updates the selected account balance.
    * If multi-account is enabled, updates balances for all accounts.
-   *
-   * @async
    */
   refresh = async () => {
     this.syncAccounts();
     const accounts = { ...this.state.accounts };
     const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
 
-    if (!isMultiAccountBalancesEnabled) {
-      const selectedAddress = this.getSelectedAddress();
-      const balance = await this.getBalanceFromChain(selectedAddress);
-      accounts[selectedAddress] = { balance: BNToHex(balance) };
-      this.update({ accounts });
-      return;
-    }
+    const accountsToUpdate = isMultiAccountBalancesEnabled
+      ? Object.keys(accounts)
+      : [this.getSelectedAddress()];
 
-    for (const address in accounts) {
-      await safelyExecuteWithTimeout(async () => {
-        assert(this.ethQuery, 'Provider not set.');
-        const balance = await query(this.ethQuery, 'getBalance', [address]);
-        accounts[address] = { balance: BNToHex(balance) };
-      });
+    for (const address of accountsToUpdate) {
+        accounts[address] = { balance: BNToHex(await this.getBalanceFromChain(address)) };
     }
 
     this.update({ accounts });
@@ -197,18 +187,14 @@ export class AccountTrackerController extends BaseController<
   /**
    * Fetches the balance of a given address from the blockchain.
    *
-   * @async
    * @param address - The account address to fetch the balance for.
    * @returns A promise that resolves to the balance in a hex string format.
    */
-  async getBalanceFromChain(address: string): Promise<string | undefined> {
-    let balance;
-
-    await safelyExecuteWithTimeout(async () => {
-      balance = await query(this.ethQuery, 'getBalance', [address]);
+  private async getBalanceFromChain(address: string): Promise<string | undefined> {
+    return await safelyExecuteWithTimeout(async () => {
+      assert(this.ethQuery, 'Provider not set.');
+      return await query(this.ethQuery, 'getBalance', [address]);
     });
-
-    return balance;
   }
 
   /**
