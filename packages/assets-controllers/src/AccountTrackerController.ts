@@ -178,7 +178,9 @@ export class AccountTrackerController extends BaseController<
       : [this.getSelectedAddress()];
 
     for (const address of accountsToUpdate) {
-        accounts[address] = { balance: BNToHex(await this.getBalanceFromChain(address)) };
+      accounts[address] = {
+        balance: BNToHex(await this.getBalanceFromChain(address)),
+      };
     }
 
     this.update({ accounts });
@@ -190,7 +192,9 @@ export class AccountTrackerController extends BaseController<
    * @param address - The account address to fetch the balance for.
    * @returns A promise that resolves to the balance in a hex string format.
    */
-  private async getBalanceFromChain(address: string): Promise<string | undefined> {
+  private async getBalanceFromChain(
+    address: string,
+  ): Promise<string | undefined> {
     return await safelyExecuteWithTimeout(async () => {
       assert(this.ethQuery, 'Provider not set.');
       return await query(this.ethQuery, 'getBalance', [address]);
