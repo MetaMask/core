@@ -507,7 +507,7 @@ export class NetworkController extends BaseControllerV2<
 
     let updatedNetworkStatus: NetworkStatus;
     let updatedNetworkId: NetworkId | null = null;
-    let updatedIsEIP1559Compatible = false;
+    let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
       const [networkId, isEIP1559Compatible] = await Promise.all([
@@ -561,7 +561,11 @@ export class NetworkController extends BaseControllerV2<
     this.update((state) => {
       state.networkId = updatedNetworkId;
       state.networkStatus = updatedNetworkStatus;
-      state.networkDetails.EIPS[1559] = updatedIsEIP1559Compatible;
+      if (updatedIsEIP1559Compatible === undefined) {
+        delete state.networkDetails.EIPS[1559];
+      } else {
+        state.networkDetails.EIPS[1559] = updatedIsEIP1559Compatible;
+      }
     });
 
     if (isInfura) {
