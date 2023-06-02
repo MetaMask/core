@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Update `getEIP1559Compatibility` to return `false` instead of `true` if the provider has not been initialized yet ([#1404](https://github.com/MetaMask/core/pull/1404))
 - Update `getEIP1559Compatibility` to not hit the current network if it is known that it does not support EIP-1559 ([#1404](https://github.com/MetaMask/core/pull/1404))
 - Update `networkDetails` initial state from `{ EIPS: { 1559: false } }` to `{ EIPS: {} }` ([#1404](https://github.com/MetaMask/core/pull/1404))
-- Reset network details when lookupNetwork request fails ([#1403](https://github.com/MetaMask/core.git/pull/1403))
+Update lookupNetwork to unset `networkDetails.EIPS[1559]` in state instead of setting it `false` if either of its requests for the network ID or network details fails ([#1403](https://github.com/MetaMask/core/pull/1403))
 - Remove fake timers from NetworkController tests ([#1399](https://github.com/MetaMask/core.git/pull/1399))
 - Use Jest snapshots for testing initial NetworkController state ([#1397](https://github.com/MetaMask/core.git/pull/1397))
 
