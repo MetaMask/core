@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add ERC721 & ERC1155 `wallet_watchAsset` support ([#1173](https://github.com/MetaMask/core.git/pull/1173))
 
 ### Changed
-- fix method description ([#1401](https://github.com/MetaMask/core.git/pull/1401))
+- Add dependency on `@ethersproject/address` ([#1173](https://github.com/MetaMask/core.git/pull/1173))
+- Replace `eth-rpc-errors` with `@metamask/rpc-errors` ([#1173](https://github.com/MetaMask/core.git/pull/1173))
 
 ## [8.0.0]
 ### Added
