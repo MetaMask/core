@@ -180,14 +180,14 @@ Update lookupNetwork to unset `networkDetails.EIPS[1559]` in state instead of se
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@10.0.0...HEAD
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@9.0.0...@metamask/network-controller@10.0.0
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@8.0.0...@metamask/network-controller@9.0.0
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@7.0.0...@metamask/network-controller@8.0.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@6.0.0...@metamask/network-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@5.0.0...@metamask/network-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@4.0.0...@metamask/network-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@3.0.0...@metamask/network-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/network-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@9.0.0...@metamask/network-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@8.0.0...@metamask/network-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@7.0.0...@metamask/network-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@6.0.0...@metamask/network-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@5.0.0...@metamask/network-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@4.0.0...@metamask/network-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@3.0.0...@metamask/network-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/network-controller@1.0.0
