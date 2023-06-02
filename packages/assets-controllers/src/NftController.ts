@@ -1021,13 +1021,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
       throw rpcErrors.invalidParams('Invalid tokenId');
     }
 
-    // TODO: check if the suggested NFT is already pending in approval controller state
-    // if (
-    //   this.approvalController.state.pendingApproval.find(({requestData: {asset: {address, tokenId}}}) => contractAddress === contractAddress && tokenId === tokenId)
-    // ) {
-    //   throw rpcErrors.internal('Suggested NFT already pending');
-    // }
-
     // Check if the user owns the suggested NFT
     try {
       const isOwner = await this.isNftOwner(
@@ -1042,7 +1035,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       }
     } catch (error: any) {
       // error thrown here: "Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question."
-      throw rpcErrors.resourceUnavailable(`${error.message}`);
+      throw rpcErrors.resourceUnavailable(error.message);
     }
   }
 
