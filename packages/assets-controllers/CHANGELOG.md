@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [9.0.0]
-### Uncategorized
-- BREAKING: Add multi account balances fetch flag support ([#1146](https://github.com/MetaMask/core.git/pull/1146))
-- fix method description ([#1401](https://github.com/MetaMask/core.git/pull/1401))
+### Added
+- **BREAKING**: Add multi account balances fetch flag support ([#1146](https://github.com/MetaMask/core.git/pull/1146))
 - Add ERC721 & ERC1155 `wallet_watchAsset` support ([#1173](https://github.com/MetaMask/core.git/pull/1173))
+
+### Changed
+- fix method description ([#1401](https://github.com/MetaMask/core.git/pull/1401))
 
 ## [8.0.0]
 ### Added

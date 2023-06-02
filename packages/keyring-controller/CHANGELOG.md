@@ -6,8 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [6.0.0]
-### Uncategorized
+## [5.1.0]
+### Added
 - Add cancelQRSynchronization method ([#1387](https://github.com/MetaMask/core.git/pull/1387))
 
 ## [5.0.0]

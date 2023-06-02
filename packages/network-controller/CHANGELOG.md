@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [10.0.0]
-### Uncategorized
+### Changed
 - Update getEIP1559Compatibility to match extension ([#1404](https://github.com/MetaMask/core.git/pull/1404))
 - Reset network details when lookupNetwork request fails ([#1403](https://github.com/MetaMask/core.git/pull/1403))
 - Remove fake timers from NetworkController tests ([#1399](https://github.com/MetaMask/core.git/pull/1399))
