@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `@metamask/utils` dependency
 - **BREAKING:** The gas fee controller messenger now requires the `NetworkController:stateChange` event instead of the `NetworkController:providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
   - This does not apply if `onNetworkStateChange` and `getChainId` are provided to the constructor
-- **BREAKING:** The constructor parameter `onNetworkStateChange` now expects event hanlders to be passed the full network state ([#1329](https://github.com/MetaMask/core/pull/1329))
+- **BREAKING:** The constructor parameter `onNetworkStateChange` now expects event handlers to be passed the full network state ([#1329](https://github.com/MetaMask/core/pull/1329))
   - The type of the `onNetworkStateChange` parameter already expected the state to be provided, but it wasn't used before now
 - **BREAKING:** Update `@metamask/network-controller` dependency and peer dependency
 
