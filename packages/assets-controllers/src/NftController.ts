@@ -995,13 +995,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     asset: NftAsset,
     type: NFTStandardType,
     accountAddress: string,
-  ): Promise<{
-    nftAlreadyWatchedError: boolean;
-    ownerFetchError: boolean;
-    wrongOwnerError: boolean;
-  }> {
-    const { chainId } = this.config;
-
+  ) {
     const { address: contractAddress, tokenId } = asset;
 
     // Validate parameters
@@ -1027,33 +1021,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       throw rpcErrors.invalidParams('Invalid tokenId');
     }
 
-    // Check if the suggested NFT is already pending
-    // if (
-    // TODO: check if the suggested NFT is already pending in approval controller state
-    // ) {
-    //   throw rpcErrors.internal('Suggested NFT already pending');
-    // }
-
-    const errors = {
-      nftAlreadyWatchedError: false,
-      ownerFetchError: false,
-      wrongOwnerError: false,
-    };
-    // Check if the suggested NFT is already being watched by the selected account
-    if (
-      this.state.allNfts?.[accountAddress]?.[chainId]?.find(
-        ({ address: watchedAssetAddress, tokenId: watchedAssetTokenId }) => {
-          return (
-            watchedAssetAddress === contractAddress &&
-            watchedAssetTokenId === tokenId
-          );
-        },
-      )
-    ) {
-      errors.nftAlreadyWatchedError = true;
-      return errors;
-    }
-
+    // Check if the user owns the suggested NFT
     try {
       const isOwner = await this.isNftOwner(
         accountAddress,
@@ -1061,13 +1029,14 @@ export class NftController extends BaseController<NftConfig, NftState> {
         tokenId,
       );
       if (!isOwner) {
-        errors.wrongOwnerError = true;
+        throw rpcErrors.invalidInput(
+          'Suggested NFT is not owned by the selected account',
+        );
       }
-    } catch {
-      errors.ownerFetchError = true;
+    } catch (error: any) {
+      // error thrown here: "Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question."
+      throw rpcErrors.resourceUnavailable(error.message);
     }
-
-    return errors;
   }
 
   /**
@@ -1084,7 +1053,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
   async watchNft(asset: NftAsset, type: NFTStandardType, origin: string) {
     const { selectedAddress } = this.config;
 
-    const errors = await this.validateWatchNft(asset, type, selectedAddress);
+    await this.validateWatchNft(asset, type, selectedAddress);
 
     const nftMetadata = await this.getNftInformation(
       asset.address,
@@ -1099,7 +1068,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       interactingAddress: selectedAddress,
       origin,
     };
-    await this._requestApproval({ suggestedNftMeta, errors });
+    await this._requestApproval(suggestedNftMeta);
 
     const { address, tokenId } = asset;
     const { name, standard, description, image } = nftMetadata;
@@ -1157,7 +1126,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     }
 
     throw new Error(
-      'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect.',
+      `Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question.`,
     );
   }
 
@@ -1475,17 +1444,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     return true;
   }
 
-  async _requestApproval({
-    suggestedNftMeta,
-    errors,
-  }: {
-    suggestedNftMeta: SuggestedNftMeta;
-    errors: {
-      nftAlreadyWatchedError: boolean;
-      ownerFetchError: boolean;
-      wrongOwnerError: boolean;
-    };
-  }) {
+  async _requestApproval(suggestedNftMeta: SuggestedNftMeta) {
     return this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
@@ -1495,7 +1454,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
         requestData: {
           id: suggestedNftMeta.id,
           interactingAddress: suggestedNftMeta.interactingAddress,
-          errors,
           asset: {
             address: suggestedNftMeta.asset.address,
             tokenId: suggestedNftMeta.asset.tokenId,
