@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.0.0]
 ### Added
-- **BREAKING**: Add multi account balances fetch flag support ([#1146](https://github.com/MetaMask/core.git/pull/1146))
+- **BREAKING**: Add required options `getSelectedAddress` and `getMultiAccountBalancesEnabled` to AccountTrackerController constructor and make use of them when refreshing account balances ([#1146](https://github.com/MetaMask/core/pull/1146))
+  - Previously, the controller would refresh all account balances, but these options can be used to only refresh the currently selected account
 - Add ERC721 & ERC1155 `wallet_watchAsset` support ([#1173](https://github.com/MetaMask/core.git/pull/1173))
 
 ### Changed
