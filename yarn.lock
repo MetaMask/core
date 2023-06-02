@@ -1737,6 +1737,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/logging-controller@workspace:packages/logging-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/logging-controller@workspace:packages/logging-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^3.1.0
+    "@metamask/base-controller": "workspace:^"
+    "@metamask/controller-utils": "workspace:^"
+    "@types/jest": ^27.4.1
+    deepmerge: ^4.2.2
+    jest: ^27.5.1
+    ts-jest: ^27.1.4
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
+    typescript: ~4.6.3
+    uuid: ^8.3.2
+  languageName: unknown
+  linkType: soft
+
 "@metamask/message-manager@workspace:^, @metamask/message-manager@workspace:packages/message-manager":
   version: 0.0.0-use.local
   resolution: "@metamask/message-manager@workspace:packages/message-manager"
