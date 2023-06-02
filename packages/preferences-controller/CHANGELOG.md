@@ -6,9 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [5.0.0]
+## [4.1.0]
 ### Added
-- **BREAKING**: Add multi account balances fetch flag support ([#1146](https://github.com/MetaMask/core.git/pull/1146))
+- Add `isMultiAccountBalancesEnabled` to state (default: true) along with a `setIsMultiAccountBalancesEnabled` method to set it
 
 ## [4.0.0]
 ### Changed
