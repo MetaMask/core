@@ -257,9 +257,7 @@ export const defaultState: NetworkState = {
     chainId: ChainId.mainnet,
   },
   networkDetails: {
-    EIPS: {
-      1559: false,
-    },
+    EIPS: {},
   },
   networkConfigurations: {},
 };
@@ -666,18 +664,20 @@ export class NetworkController extends BaseControllerV2<
    * and false otherwise.
    */
   async getEIP1559Compatibility() {
-    const { networkDetails = { EIPS: {} } } = this.state;
+    const { EIPS } = this.state.networkDetails;
 
-    if (networkDetails.EIPS[1559] || !this.#ethQuery) {
-      return true;
+    if (EIPS[1559] !== undefined) {
+      return EIPS[1559];
+    }
+
+    if (!this.#ethQuery) {
+      return false;
     }
 
     const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
-    if (networkDetails.EIPS[1559] !== isEIP1559Compatible) {
-      this.update((state) => {
-        state.networkDetails.EIPS[1559] = isEIP1559Compatible;
-      });
-    }
+    this.update((state) => {
+      state.networkDetails.EIPS[1559] = isEIP1559Compatible;
+    });
     return isEIP1559Compatible;
   }
 
