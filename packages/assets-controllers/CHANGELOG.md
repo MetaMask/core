@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **BREAKING**: Add required options `getSelectedAddress` and `getMultiAccountBalancesEnabled` to AccountTrackerController constructor and make use of them when refreshing account balances ([#1146](https://github.com/MetaMask/core/pull/1146))
   - Previously, the controller would refresh all account balances, but these options can be used to only refresh the currently selected account
-- Add ERC721 & ERC1155 `wallet_watchAsset` support ([#1173](https://github.com/MetaMask/core.git/pull/1173))
+- Add `watchNft` and `validateWatchNft` methods to NftController, which can be used to watch an ERC-721 or ERC-1155 token ([#1173](https://github.com/MetaMask/core.git/pull/1173))
 
 ### Changed
 - Add dependency on `@ethersproject/address` ([#1173](https://github.com/MetaMask/core.git/pull/1173))
