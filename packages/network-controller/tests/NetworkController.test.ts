@@ -2787,7 +2787,7 @@ describe('NetworkController', () => {
             });
           });
 
-          it('returns true', async () => {
+          it('returns false', async () => {
             await withController(async ({ controller }) => {
               setFakeProvider(controller, {
                 stubs: [
@@ -2798,6 +2798,55 @@ describe('NetworkController', () => {
                     },
                     response: {
                       result: PRE_1559_BLOCK,
+                    },
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              const isEIP1559Compatible =
+                await controller.getEIP1559Compatibility();
+
+              expect(isEIP1559Compatible).toBe(false);
+            });
+          });
+        });
+
+        describe('if the request for the latest block responds with null', () => {
+          it('sets the "1559" property to false', async () => {
+            await withController(async ({ controller }) => {
+              setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: null,
+                    },
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              await controller.getEIP1559Compatibility();
+
+              expect(controller.state.networkDetails.EIPS[1559]).toBe(false);
+            });
+          });
+
+          it('returns false', async () => {
+            await withController(async ({ controller }) => {
+              setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: null,
                     },
                   },
                 ],
