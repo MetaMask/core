@@ -271,14 +271,17 @@ export type UIComponent = {
   children?: string | UIComponent | (string | UIComponent)[];
 };
 
-export type SuccessOptions = {
-  message?: string | UIComponent | (string | UIComponent)[];
-  endFlow?: boolean;
+export type ResultOptions = {
+  endFlow?: string;
+  header?: (string | UIComponent)[];
 };
 
-export type ErrorOptions = {
-  error?: Error | string | UIComponent | (string | UIComponent)[];
-  endFlow?: boolean;
+export type SuccessOptions = ResultOptions & {
+  message?: string | UIComponent | (string | UIComponent)[];
+};
+
+export type ErrorOptions = ResultOptions & {
+  error?: string | UIComponent | (string | UIComponent)[];
 };
 
 // Future-proofing to support additional properties
@@ -953,22 +956,24 @@ export class ApprovalController extends BaseControllerV2<
     return callbacks;
   }
 
-  private async _result<T extends { endFlow?: boolean }>(
-    type: string,
-    opts: T,
-  ) {
-    await this.addAndShowApprovalRequest({
-      // Don't want to add dependency on controller-utils in POC
-      origin: 'metamask',
-      type,
-      requestData: opts as any,
-    });
-
-    if (opts.endFlow) {
-      const currentFlow = this._getCurrentFlow();
-
-      // Safe to cast as method will immediately throw if no flows exist
-      this.endFlow(currentFlow?.id as string);
+  private async _result(type: string, opts: ResultOptions) {
+    try {
+      await this.addAndShowApprovalRequest({
+        // Don't want to add dependency on controller-utils in POC
+        origin: 'metamask',
+        type,
+        requestData: opts as any,
+      });
+    } catch (error) {
+      console.info('Failed to display result page', error);
+    } finally {
+      if (opts.endFlow) {
+        try {
+          this.endFlow(opts.endFlow);
+        } catch (error) {
+          console.info('Failed to end flow', error);
+        }
+      }
     }
   }
 
