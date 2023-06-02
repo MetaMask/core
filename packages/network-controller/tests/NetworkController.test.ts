@@ -2450,6 +2450,38 @@ describe('NetworkController', () => {
       },
     });
 
+    describe('if the given ID does not match a network configuration in networkConfigurations', () => {
+      it('throws', async () => {
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                testNetworkConfigurationId: {
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: toHex(111),
+                  ticker: 'TEST',
+                  id: 'testNetworkConfigurationId',
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider();
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            await expect(() =>
+              controller.setActiveNetwork('invalidNetworkConfigurationId'),
+            ).rejects.toThrow(
+              new Error(
+                'networkConfigurationId invalidNetworkConfigurationId does not match a configured networkConfiguration',
+              ),
+            );
+          },
+        );
+      });
+    });
+
     describe('if the network config does not contain an RPC URL', () => {
       it('throws', async () => {
         await withController(
