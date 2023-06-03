@@ -1,3 +1,4 @@
+import { strict as assert } from 'assert';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import EthQuery from 'eth-query';
@@ -586,6 +587,15 @@ export class NetworkController extends BaseControllerV2<
    * @param type - Human readable network name.
    */
   async setProviderType(type: InfuraNetworkType) {
+    assert.notStrictEqual(
+      type,
+      NetworkType.rpc,
+      `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
+    );
+    assert.ok(
+      isInfuraProviderType(type),
+      `Unknown Infura provider type "${type}".`,
+    );
     this.#previousProviderConfig = this.state.providerConfig;
 
     // If testnet the ticker symbol should use a testnet prefix
