@@ -63,7 +63,7 @@ describe('TypedMessageManager', () => {
     expect(message.type).toBe(messageType);
   });
 
-  describe('createMessageListener', () => {
+  describe('waitForFinishStatus', () => {
     beforeEach(() => {
       jest
         .spyOn(controller, 'addUnapprovedMessage')
@@ -76,7 +76,7 @@ describe('TypedMessageManager', () => {
     });
 
     it('signs the message when status is "signed"', async () => {
-      const promise = controller.createMessageListener({
+      const promise = controller.waitForFinishStatus({
         data: typedMessage,
         from: fromMock,
         metamaskId: messageIdMock,
@@ -93,7 +93,7 @@ describe('TypedMessageManager', () => {
     });
 
     it('rejects with an error when status is "rejected"', async () => {
-      const promise = controller.createMessageListener({
+      const promise = controller.waitForFinishStatus({
         data: typedMessage,
         from: fromMock,
         metamaskId: messageIdMock,
@@ -111,7 +111,7 @@ describe('TypedMessageManager', () => {
     });
 
     it('rejects with an error when status is "errored"', async () => {
-      const promise = controller.createMessageListener({
+      const promise = controller.waitForFinishStatus({
         data: typedMessage,
         from: fromMock,
         metamaskId: messageIdMock,
@@ -130,7 +130,7 @@ describe('TypedMessageManager', () => {
     });
 
     it('rejects with an error when unapproved finishes', async () => {
-      const promise = controller.createMessageListener({
+      const promise = controller.waitForFinishStatus({
         data: typedMessage,
         from: fromMock,
         metamaskId: messageIdMock,

@@ -46,10 +46,6 @@ export interface TypedMessageParams extends AbstractMessageParams {
   data: Record<string, unknown>[] | string;
 }
 
-interface TypedMessageParamsWithId extends TypedMessageParams {
-  metamaskId: string;
-}
-
 /**
  * @type TypedMessageParamsMetamask
  *
@@ -91,8 +87,8 @@ export class TypedMessageManager extends AbstractMessageManager<
    * @param messageParamsWithId - The params for the eth_signTypedData call to be made after the message is approved.
    * @returns Promise resolving to the raw data of the signature request.
    */
-  async createMessageListener(
-    messageParamsWithId: TypedMessageParamsWithId,
+  async waitForFinishStatus(
+    messageParamsWithId: TypedMessageParamsMetamask,
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {

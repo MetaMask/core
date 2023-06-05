@@ -52,10 +52,6 @@ export interface PersonalMessageParamsMetamask
   data: string;
 }
 
-interface PersonalMessageParamsWithId extends PersonalMessageParams {
-  metamaskId: string;
-}
-
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
@@ -76,8 +72,8 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @param messageParamsWithId - The params for the personal_sign call to be made after the message is approved.
    * @returns Promise resolving to the raw data of the signature request.
    */
-  async createMessageListener(
-    messageParamsWithId: PersonalMessageParamsWithId,
+  async waitForFinishStatus(
+    messageParamsWithId: PersonalMessageParamsMetamask,
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {

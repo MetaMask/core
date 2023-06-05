@@ -35,10 +35,6 @@ export interface MessageParams extends AbstractMessageParams {
   data: string;
 }
 
-interface MessageParamsWithId extends MessageParams {
-  metamaskId: string;
-}
-
 /**
  * @type MessageParamsMetamask
  *
@@ -73,8 +69,8 @@ export class MessageManager extends AbstractMessageManager<
    * @param messageParamsWithId - The params for the eth_sign call to be made after the message is approved.
    * @returns Promise resolving to the raw data of the signature request.
    */
-  async createMessageListener(
-    messageParamsWithId: MessageParamsWithId,
+  async waitForFinishStatus(
+    messageParamsWithId: MessageParamsMetamask,
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {
