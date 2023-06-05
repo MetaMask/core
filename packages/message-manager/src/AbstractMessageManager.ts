@@ -382,10 +382,10 @@ export abstract class AbstractMessageManager<
 
   /**
    * Creates a promise which will resolve or reject when the message process is finished.
-   * 
+   *
    * @param messageParamsWithId - The params for the personal_sign call to be made after the message is approved.
-   * @param messageId - The id of the Message to reject.
-   * @param hasErrorState - Whether the message has an error state.   
+   * @param messageName - The name of the message
+   * @param hasErrorState - Whether the message has an error state.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async waitForFinishStatus(
@@ -411,6 +411,7 @@ export abstract class AbstractMessageManager<
                 new Error(`MetaMask ${messageName} Signature: ${data.error}`),
               );
             }
+          // eslint-disable-next-line no-fallthrough
           default:
             return reject(
               new Error(

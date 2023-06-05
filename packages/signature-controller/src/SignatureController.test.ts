@@ -491,6 +491,29 @@ describe('SignatureController', () => {
       );
     });
 
+    it('does not set as signed, messages with deferSetAsSigned', async () => {
+      const deferredMessageParams = {
+        ...messageParamsMock,
+        deferSetAsSigned: true,
+      };
+      messengerMock.call.mockResolvedValueOnce(null);
+      typedMessageManagerMock.approveMessage.mockReset();
+      typedMessageManagerMock.approveMessage.mockResolvedValueOnce(
+        deferredMessageParams,
+      );
+
+      await signatureController.newUnsignedTypedMessage(
+        messageParamsMock,
+        requestMock,
+        versionMock,
+        { parseJsonData: false },
+      );
+
+      expect(
+        typedMessageManagerMock.setMessageStatusSigned,
+      ).not.toHaveBeenCalled();
+    });
+
     it('parses JSON string in data if not V1', async () => {
       const jsonData = { test: 'value' };
 
@@ -512,7 +535,6 @@ describe('SignatureController', () => {
         { ...messageParamsMock2, data: jsonData, deferSetAsSigned: false },
         { version: 'V2' },
       );
-      expect(1).toBe(1);
     });
 
     it('throws if approval rejected', async () => {

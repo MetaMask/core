@@ -7,9 +7,6 @@ import {
   AbstractMessageManager,
   SecurityProviderRequest,
 } from './AbstractMessageManager';
-// import Events from 'events';
-
-// jest.mock('events');
 
 class AbstractTestManager extends AbstractMessageManager<
   TypedMessage,
@@ -401,10 +398,11 @@ describe('AbstractTestManager', () => {
   describe('waitForFinishStatus', () => {
     it('signs the message when status is "signed"', async () => {
       const controller = new AbstractTestManager();
-      const promise = controller.waitForFinishStatus({
-        from: fromMock,
-        metamaskId: messageIdMock,
-      },
+      const promise = controller.waitForFinishStatus(
+        {
+          from: fromMock,
+          metamaskId: messageIdMock,
+        },
         'AbstractTestManager',
       );
 
@@ -420,10 +418,11 @@ describe('AbstractTestManager', () => {
 
     it('rejects with an error when status is "rejected"', async () => {
       const controller = new AbstractTestManager();
-      const promise = controller.waitForFinishStatus({
-        from: fromMock,
-        metamaskId: messageIdMock,
-      },
+      const promise = controller.waitForFinishStatus(
+        {
+          from: fromMock,
+          metamaskId: messageIdMock,
+        },
         'AbstractTestManager',
       );
 
@@ -438,12 +437,13 @@ describe('AbstractTestManager', () => {
       );
     });
 
-    it('rejects with an error when finishes', async () => {
+    it('rejects with an error when finishes with unknown status', async () => {
       const controller = new AbstractTestManager();
-      const promise = controller.waitForFinishStatus({
-        from: fromMock,
-        metamaskId: messageIdMock,
-      },
+      const promise = controller.waitForFinishStatus(
+        {
+          from: fromMock,
+          metamaskId: messageIdMock,
+        },
         'AbstractTestManager',
         false,
       );
@@ -455,18 +455,21 @@ describe('AbstractTestManager', () => {
       }, 100);
 
       await expect(() => promise).rejects.toThrow(
-        `MetaMask AbstractTestManager Signature: Unknown problem: ${JSON.stringify({
-          from: fromMock,
-        })}`,
+        `MetaMask AbstractTestManager Signature: Unknown problem: ${JSON.stringify(
+          {
+            from: fromMock,
+          },
+        )}`,
       );
     });
 
-    it('rejects with an error when finishes', async () => {
+    it('rejects with an error when finishes with errored status', async () => {
       const controller = new AbstractTestManager();
-      const promise = controller.waitForFinishStatus({
-        from: fromMock,
-        metamaskId: messageIdMock,
-      },
+      const promise = controller.waitForFinishStatus(
+        {
+          from: fromMock,
+          metamaskId: messageIdMock,
+        },
         'AbstractTestManager',
         true,
       );
@@ -474,7 +477,7 @@ describe('AbstractTestManager', () => {
       setTimeout(() => {
         controller.hub.emit(`${messageIdMock}:finished`, {
           status: 'errored',
-          error: 'error message'
+          error: 'error message',
         });
       }, 100);
 
@@ -483,5 +486,4 @@ describe('AbstractTestManager', () => {
       );
     });
   });
-
 });

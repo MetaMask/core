@@ -316,8 +316,10 @@ export class SignatureController extends BaseControllerV2<
       metamaskId: messageId,
     };
 
-    const signaturePromise =
-      this.#messageManager.waitForFinishStatus(messageParamsWithId);
+    const signaturePromise = this.#messageManager.waitForFinishStatus(
+      messageParamsWithId,
+      'Message',
+    );
 
     try {
       await this.#requestApproval(messageParamsWithId, ApprovalType.EthSign);
@@ -358,8 +360,10 @@ export class SignatureController extends BaseControllerV2<
       metamaskId: messageId,
     };
 
-    const signaturePromise =
-      this.#personalMessageManager.waitForFinishStatus(messageParamsWithId);
+    const signaturePromise = this.#personalMessageManager.waitForFinishStatus(
+      messageParamsWithId,
+      'Personal Message',
+    );
 
     try {
       await this.#requestApproval(
@@ -403,8 +407,11 @@ export class SignatureController extends BaseControllerV2<
       metamaskId: messageId,
     };
 
-    const signaturePromise =
-      this.#typedMessageManager.waitForFinishStatus(messageParamsWithId);
+    const signaturePromise = this.#typedMessageManager.waitForFinishStatus(
+      messageParamsWithId,
+      'Typed Message',
+      true,
+    );
 
     try {
       await this.#requestApproval(
