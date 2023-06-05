@@ -317,7 +317,7 @@ export class SignatureController extends BaseControllerV2<
     };
 
     const signaturePromise =
-      this.#messageManager.createMessageListener(messageParamsWithId);
+      this.#messageManager.waitForFinishStatus(messageParamsWithId);
 
     try {
       await this.#requestApproval(messageParamsWithId, ApprovalType.EthSign);
@@ -359,7 +359,7 @@ export class SignatureController extends BaseControllerV2<
     };
 
     const signaturePromise =
-      this.#personalMessageManager.createMessageListener(messageParamsWithId);
+      this.#personalMessageManager.waitForFinishStatus(messageParamsWithId);
 
     try {
       await this.#requestApproval(
@@ -404,7 +404,7 @@ export class SignatureController extends BaseControllerV2<
     };
 
     const signaturePromise =
-      this.#typedMessageManager.createMessageListener(messageParamsWithId);
+      this.#typedMessageManager.waitForFinishStatus(messageParamsWithId);
 
     try {
       await this.#requestApproval(
