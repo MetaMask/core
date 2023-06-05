@@ -280,7 +280,7 @@ export class KeyringController extends BaseControllerV2<
       // we return the account already existing at index `accountCount`
       const primaryKeyringAccounts = await primaryKeyring.getAccounts();
       return {
-        keyringState: this.state,
+        keyringState: this.#getMemState(),
         addedAccountAddress: primaryKeyringAccounts[accountCount],
       };
     }
