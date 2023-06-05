@@ -67,41 +67,6 @@ export class PersonalMessageManager extends AbstractMessageManager<
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
-   * this.addMessage is called to add the new Message to this.messages, and to save the unapproved Messages.
-   *
-   * @param messageParamsWithId - The params for the personal_sign call to be made after the message is approved.
-   * @returns Promise resolving to the raw data of the signature request.
-   */
-  async waitForFinishStatus(
-    messageParamsWithId: PersonalMessageParamsMetamask,
-  ): Promise<string> {
-    const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
-    return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: PersonalMessage) => {
-        switch (data.status) {
-          case 'signed':
-            return resolve(data.rawSig as string);
-          case 'rejected':
-            return reject(
-              new Error(
-                'MetaMask Personal Message Signature: User denied message signature.',
-              ),
-            );
-          default:
-            return reject(
-              new Error(
-                `MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
-      });
-    });
-  }
-
-  /**
-   * Creates a new Message with an 'unapproved' status using the passed messageParams.
    * this.addMessage is called to add the new Message to this.messages, and to save the
    * unapproved Messages.
    *

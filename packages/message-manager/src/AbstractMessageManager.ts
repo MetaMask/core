@@ -36,6 +36,7 @@ export interface AbstractMessage {
   rawSig?: string;
   securityProviderResponse?: Record<string, Json>;
   metadata?: Json;
+  error?: string;
 }
 
 /**
@@ -377,6 +378,50 @@ export abstract class AbstractMessageManager<
    */
   rejectMessage(messageId: string) {
     this.setMessageStatus(messageId, 'rejected');
+  }
+
+  /**
+   * Creates a promise which will resolve or reject when the message process is finished.
+   * 
+   * @param messageParamsWithId - The params for the personal_sign call to be made after the message is approved.
+   * @param messageId - The id of the Message to reject.
+   * @param hasErrorState - Whether the message has an error state.   
+   * @returns Promise resolving to the raw data of the signature request.
+   */
+  async waitForFinishStatus(
+    messageParamsWithId: AbstractMessageParamsMetamask,
+    messageName: string,
+    hasErrorState = false,
+  ): Promise<string> {
+    const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
+    return new Promise((resolve, reject) => {
+      this.hub.once(`${messageId}:finished`, (data: AbstractMessage) => {
+        switch (data.status) {
+          case 'signed':
+            return resolve(data.rawSig as string);
+          case 'rejected':
+            return reject(
+              new Error(
+                `MetaMask ${messageName} Signature: User denied message signature.`,
+              ),
+            );
+          case 'errored':
+            if (hasErrorState) {
+              return reject(
+                new Error(`MetaMask ${messageName} Signature: ${data.error}`),
+              );
+            }
+          default:
+            return reject(
+              new Error(
+                `MetaMask ${messageName} Signature: Unknown problem: ${JSON.stringify(
+                  messageParams,
+                )}`,
+              ),
+            );
+        }
+      });
+    });
   }
 }
 

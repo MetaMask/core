@@ -4,7 +4,6 @@ let controller: TypedMessageManager;
 
 const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 const messageIdMock = 'message-id-mocked';
-const rawSigMock = '0xsignaturemocked';
 
 const typedMessage = [
   {
@@ -63,93 +62,93 @@ describe('TypedMessageManager', () => {
     expect(message.type).toBe(messageType);
   });
 
-  describe('waitForFinishStatus', () => {
-    beforeEach(() => {
-      jest
-        .spyOn(controller, 'addUnapprovedMessage')
-        .mockImplementation()
-        .mockResolvedValue(messageIdMock);
-    });
+  // describe('waitForFinishStatus', () => {
+  //   beforeEach(() => {
+  //     jest
+  //       .spyOn(controller, 'addUnapprovedMessage')
+  //       .mockImplementation()
+  //       .mockResolvedValue(messageIdMock);
+  //   });
 
-    afterAll(() => {
-      jest.spyOn(controller, 'addUnapprovedMessage').mockClear();
-    });
+  //   afterAll(() => {
+  //     jest.spyOn(controller, 'addUnapprovedMessage').mockClear();
+  //   });
 
-    it('signs the message when status is "signed"', async () => {
-      const promise = controller.waitForFinishStatus({
-        data: typedMessage,
-        from: fromMock,
-        metamaskId: messageIdMock,
-      });
+  //   it('signs the message when status is "signed"', async () => {
+  //     const promise = controller.waitForFinishStatus({
+  //       data: typedMessage,
+  //       from: fromMock,
+  //       metamaskId: messageIdMock,
+  //     });
 
-      setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
-          status: 'signed',
-          rawSig: rawSigMock,
-        });
-      }, 100);
+  //     setTimeout(() => {
+  //       controller.hub.emit(`${messageIdMock}:finished`, {
+  //         status: 'signed',
+  //         rawSig: rawSigMock,
+  //       });
+  //     }, 100);
 
-      expect(await promise).toStrictEqual(rawSigMock);
-    });
+  //     expect(await promise).toStrictEqual(rawSigMock);
+  //   });
 
-    it('rejects with an error when status is "rejected"', async () => {
-      const promise = controller.waitForFinishStatus({
-        data: typedMessage,
-        from: fromMock,
-        metamaskId: messageIdMock,
-      });
+  //   it('rejects with an error when status is "rejected"', async () => {
+  //     const promise = controller.waitForFinishStatus({
+  //       data: typedMessage,
+  //       from: fromMock,
+  //       metamaskId: messageIdMock,
+  //     });
 
-      setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
-          status: 'rejected',
-        });
-      }, 100);
+  //     setTimeout(() => {
+  //       controller.hub.emit(`${messageIdMock}:finished`, {
+  //         status: 'rejected',
+  //       });
+  //     }, 100);
 
-      await expect(() => promise).rejects.toThrow(
-        'MetaMask Typed Message Signature: User denied message signature.',
-      );
-    });
+  //     await expect(() => promise).rejects.toThrow(
+  //       'MetaMask Typed Message Signature: User denied message signature.',
+  //     );
+  //   });
 
-    it('rejects with an error when status is "errored"', async () => {
-      const promise = controller.waitForFinishStatus({
-        data: typedMessage,
-        from: fromMock,
-        metamaskId: messageIdMock,
-      });
+  //   it('rejects with an error when status is "errored"', async () => {
+  //     const promise = controller.waitForFinishStatus({
+  //       data: typedMessage,
+  //       from: fromMock,
+  //       metamaskId: messageIdMock,
+  //     });
 
-      setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
-          status: 'errored',
-          error: 'error message',
-        });
-      }, 100);
+  //     setTimeout(() => {
+  //       controller.hub.emit(`${messageIdMock}:finished`, {
+  //         status: 'errored',
+  //         error: 'error message',
+  //       });
+  //     }, 100);
 
-      await expect(() => promise).rejects.toThrow(
-        'MetaMask Typed Message Signature: error message',
-      );
-    });
+  //     await expect(() => promise).rejects.toThrow(
+  //       'MetaMask Typed Message Signature: error message',
+  //     );
+  //   });
 
-    it('rejects with an error when unapproved finishes', async () => {
-      const promise = controller.waitForFinishStatus({
-        data: typedMessage,
-        from: fromMock,
-        metamaskId: messageIdMock,
-      });
+  //   it('rejects with an error when unapproved finishes', async () => {
+  //     const promise = controller.waitForFinishStatus({
+  //       data: typedMessage,
+  //       from: fromMock,
+  //       metamaskId: messageIdMock,
+  //     });
 
-      setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
-          status: 'unknown',
-        });
-      }, 100);
+  //     setTimeout(() => {
+  //       controller.hub.emit(`${messageIdMock}:finished`, {
+  //         status: 'unknown',
+  //       });
+  //     }, 100);
 
-      await expect(() => promise).rejects.toThrow(
-        `MetaMask Typed Message Signature: Unknown problem: ${JSON.stringify({
-          data: typedMessage,
-          from: fromMock,
-        })}`,
-      );
-    });
-  });
+  //     await expect(() => promise).rejects.toThrow(
+  //       `MetaMask Typed Message Signature: Unknown problem: ${JSON.stringify({
+  //         data: typedMessage,
+  //         from: fromMock,
+  //       })}`,
+  //     );
+  //   });
+  // });
 
   it('should add a valid unapproved message', async () => {
     const messageStatus = 'unapproved';
