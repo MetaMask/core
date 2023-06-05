@@ -15,6 +15,7 @@ describe('PreferencesController', () => {
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
+      isMultiAccountBalancesEnabled: true,
     });
   });
 
@@ -184,5 +185,11 @@ describe('PreferencesController', () => {
     expect(
       controller.state.disabledRpcMethodPreferences.eth_sign,
     ).toStrictEqual(true);
+  });
+
+  it('should set isMultiAccountBalancesEnabled', () => {
+    const controller = new PreferencesController();
+    controller.setIsMultiAccountBalancesEnabled(true);
+    expect(controller.state.isMultiAccountBalancesEnabled).toStrictEqual(true);
   });
 });

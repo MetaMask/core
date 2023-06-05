@@ -60,10 +60,6 @@ type Block = {
   baseFeePerGas?: string;
 };
 
-// Store these up front so we can use them even when faking timers
-const originalSetTimeout = global.setTimeout;
-const originalClearTimeout = global.clearTimeout;
-
 const createNetworkClientMock = jest.mocked(createNetworkClient);
 const uuidV4Mock = jest.mocked(v4);
 
@@ -151,13 +147,11 @@ describe('NetworkController', () => {
     // Disable all requests, even those to localhost
     nock.disableNetConnect();
     jest.resetAllMocks();
-    jest.useFakeTimers();
   });
 
   afterEach(() => {
     nock.enableNetConnect('localhost');
     nock.cleanAll();
-    jest.useRealTimers();
     resetAllWhenMocks();
   });
 
@@ -186,9 +180,7 @@ describe('NetworkController', () => {
           Object {
             "networkConfigurations": Object {},
             "networkDetails": Object {
-              "EIPS": Object {
-                "1559": false,
-              },
+              "EIPS": Object {},
             },
             "networkId": null,
             "networkStatus": "unknown",
@@ -2458,6 +2450,38 @@ describe('NetworkController', () => {
       },
     });
 
+    describe('if the given ID does not match a network configuration in networkConfigurations', () => {
+      it('throws', async () => {
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                testNetworkConfigurationId: {
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: toHex(111),
+                  ticker: 'TEST',
+                  id: 'testNetworkConfigurationId',
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider();
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            await expect(() =>
+              controller.setActiveNetwork('invalidNetworkConfigurationId'),
+            ).rejects.toThrow(
+              new Error(
+                'networkConfigurationId invalidNetworkConfigurationId does not match a configured networkConfiguration',
+              ),
+            );
+          },
+        );
+      });
+    });
+
     describe('if the network config does not contain an RPC URL', () => {
       it('throws', async () => {
         await withController(
@@ -2616,727 +2640,33 @@ describe('NetworkController', () => {
   });
 
   describe('getEIP1559Compatibility', () => {
-    describe('if the state does not have a "networkDetails" property', () => {
-      describe('if no error is thrown while fetching the latest block', () => {
-        describe('if the block has a "baseFeePerGas" property', () => {
-          it('updates EIPS[1559] in state to true', async () => {
-            await withController(
-              {
-                state: {
-                  // no "networkDetails" property
-                },
-              },
-              async ({ controller, messenger }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          baseFeePerGas: '0x100',
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                await waitForStateChanges({
-                  messenger,
-                  propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  operation: async () => {
-                    await controller.getEIP1559Compatibility();
-                  },
-                });
-
-                expect(controller.state.networkDetails.EIPS['1559']).toBe(true);
-              },
-            );
+    describe('if no provider has been set yet', () => {
+      it('does not make any state changes', async () => {
+        await withController(async ({ controller, messenger }) => {
+          const promiseForNoStateChanges = waitForStateChanges({
+            messenger,
+            count: 0,
+            operation: async () => {
+              await controller.getEIP1559Compatibility();
+            },
           });
 
-          it('returns a promise that resolves to true', async () => {
-            await withController(
-              {
-                state: {
-                  // no "networkDetails" property
-                },
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          baseFeePerGas: '0x100',
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                const isEIP1559Compatible =
-                  await controller.getEIP1559Compatibility();
-
-                expect(isEIP1559Compatible).toBe(true);
-              },
-            );
-          });
-        });
-
-        describe('if the block does not have a "baseFeePerGas" property', () => {
-          it('does not change networkDetails.EIPS in state', async () => {
-            await withController(
-              {
-                state: {
-                  // no "networkDetails" property
-                },
-              },
-              async ({ controller, messenger }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          // no "baseFeePerGas" property
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-                const promiseForIsEIP1559CompatibleChanges =
-                  waitForStateChanges({
-                    messenger,
-                    propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  });
-
-                await controller.getEIP1559Compatibility();
-
-                await expect(
-                  promiseForIsEIP1559CompatibleChanges,
-                ).toNeverResolve();
-              },
-            );
-          });
-
-          it('returns a promise that resolves to false', async () => {
-            await withController(
-              {
-                state: {
-                  // no "networkDetails" property
-                },
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          // no "baseFeePerGas" property
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                const isEIP1559Compatible =
-                  await controller.getEIP1559Compatibility();
-
-                expect(isEIP1559Compatible).toBe(false);
-              },
-            );
-          });
+          expect(Boolean(promiseForNoStateChanges)).toBe(true);
         });
       });
 
-      describe('if an error is thrown while fetching the latest block', () => {
-        it('does not change networkDetails.EIPS in state', async () => {
-          await withController(
-            {
-              state: {
-                // no "networkDetails" property
-              },
-            },
-            async ({ controller, messenger }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      error: 'oops',
-                    },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
-                messenger,
-                propertyPath: ['networkDetails', 'EIPS', '1559'],
-              });
+      it('returns false', async () => {
+        await withController(async ({ controller }) => {
+          const isEIP1559Compatible =
+            await controller.getEIP1559Compatibility();
 
-              try {
-                await controller.getEIP1559Compatibility();
-              } catch (error) {
-                // catch the rejection (it is tested below)
-              }
-
-              await expect(
-                promiseForIsEIP1559CompatibleChanges,
-              ).toNeverResolve();
-            },
-          );
-        });
-
-        it('returns a promise that rejects with the error', async () => {
-          await withController(
-            {
-              state: {
-                // no "networkDetails" property
-              },
-            },
-            async ({ controller }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      error: 'oops',
-                    },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-
-              const promiseForIsEIP1559Compatible =
-                controller.getEIP1559Compatibility();
-
-              await expect(promiseForIsEIP1559Compatible).rejects.toThrow(
-                'oops',
-              );
-            },
-          );
+          expect(isEIP1559Compatible).toBe(false);
         });
       });
     });
 
-    describe('if the state has a "networkDetails" property, but it does not have an "EIPS[1559]" property', () => {
-      describe('if no error is thrown while fetching the latest block', () => {
-        describe('if the block has a "baseFeePerGas" property', () => {
-          it('updates EIPS[1559] in state to true', async () => {
-            await withController(
-              {
-                state: {
-                  networkDetails: {
-                    // no "EIPS[1559]" property
-                    EIPS: {},
-                  },
-                },
-              },
-              async ({ controller, messenger }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          baseFeePerGas: '0x100',
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                await waitForStateChanges({
-                  messenger,
-                  propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  operation: async () => {
-                    await controller.getEIP1559Compatibility();
-                  },
-                });
-
-                expect(controller.state.networkDetails.EIPS[1559]).toBe(true);
-              },
-            );
-          });
-
-          it('returns a promise that resolves to true', async () => {
-            await withController(
-              {
-                state: {
-                  networkDetails: {
-                    // no "EIPS[1559]" property
-                    EIPS: {},
-                  },
-                },
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          baseFeePerGas: '0x100',
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                const isEIP1559Compatible =
-                  await controller.getEIP1559Compatibility();
-
-                expect(isEIP1559Compatible).toBe(true);
-              },
-            );
-          });
-        });
-
-        describe('if the block does not have a "baseFeePerGas" property', () => {
-          it('updates EIPS[1559] in state to false', async () => {
-            await withController(
-              {
-                state: {
-                  networkDetails: {
-                    // no "EIPS[1559]" property
-                    EIPS: {},
-                  },
-                },
-              },
-              async ({ controller, messenger }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          // no "baseFeePerGas" property
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                await waitForStateChanges({
-                  messenger,
-                  propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  operation: async () => {
-                    await controller.getEIP1559Compatibility();
-                  },
-                });
-
-                expect(controller.state.networkDetails.EIPS[1559]).toBe(false);
-              },
-            );
-          });
-
-          it('returns a promise that resolves to false', async () => {
-            await withController(
-              {
-                state: {
-                  networkDetails: {
-                    // no "EIPS[1559]" property
-                    EIPS: {},
-                  },
-                },
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          // no "baseFeePerGas" property
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                const isEIP1559Compatible =
-                  await controller.getEIP1559Compatibility();
-
-                expect(isEIP1559Compatible).toBe(false);
-              },
-            );
-          });
-        });
-      });
-
-      describe('if an error is thrown while fetching the latest block', () => {
-        it('does not change networkDetails.EIPS in state', async () => {
-          await withController(
-            {
-              state: {
-                networkDetails: {
-                  // no "EIPS[1559]" property
-                  EIPS: {},
-                },
-              },
-            },
-            async ({ controller, messenger }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      error: 'oops',
-                    },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
-                messenger,
-                propertyPath: ['networkDetails', 'EIPS', '1559'],
-              });
-
-              try {
-                await controller.getEIP1559Compatibility();
-              } catch (error) {
-                // catch the rejection (it is tested below)
-              }
-
-              await expect(
-                promiseForIsEIP1559CompatibleChanges,
-              ).toNeverResolve();
-            },
-          );
-        });
-
-        it('returns a promise that rejects with the error', async () => {
-          await withController(
-            {
-              state: {
-                networkDetails: {
-                  // no "EIPS[1559]" property
-                  EIPS: {},
-                },
-              },
-            },
-            async ({ controller }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      error: 'oops',
-                    },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-
-              const promiseForIsEIP1559Compatible =
-                controller.getEIP1559Compatibility();
-
-              await expect(promiseForIsEIP1559Compatible).rejects.toThrow(
-                'oops',
-              );
-            },
-          );
-        });
-      });
-    });
-
-    describe('if EIPS[1559] in state is set to false', () => {
-      describe('if no error is thrown while fetching the latest block', () => {
-        describe('if the block has a "baseFeePerGas" property', () => {
-          it('updates EIPS[1559] in state to true', async () => {
-            await withController(
-              {
-                state: {
-                  networkDetails: {
-                    EIPS: {
-                      1559: false,
-                    },
-                  },
-                },
-              },
-              async ({ controller, messenger }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          baseFeePerGas: '0x100',
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                await waitForStateChanges({
-                  messenger,
-                  propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  operation: async () => {
-                    await controller.getEIP1559Compatibility();
-                  },
-                });
-
-                expect(controller.state.networkDetails.EIPS[1559]).toBe(true);
-              },
-            );
-          });
-
-          it('returns a promise that resolves to true', async () => {
-            await withController(
-              {
-                state: {
-                  networkDetails: {
-                    EIPS: {
-                      1559: false,
-                    },
-                  },
-                },
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          baseFeePerGas: '0x100',
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                const isEIP1559Compatible =
-                  await controller.getEIP1559Compatibility();
-
-                expect(isEIP1559Compatible).toBe(true);
-              },
-            );
-          });
-        });
-
-        describe('if the block does not have a "baseFeePerGas" property', () => {
-          it('does not change networkDetails.EIPS in state', async () => {
-            await withController(
-              {
-                state: {
-                  networkDetails: {
-                    EIPS: {
-                      1559: false,
-                    },
-                  },
-                },
-              },
-              async ({ controller, messenger }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          // no "baseFeePerGas" property
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-                const promiseForIsEIP1559CompatibleChanges =
-                  waitForStateChanges({
-                    messenger,
-                    propertyPath: ['networkDetails', 'EIPS', '1559'],
-                  });
-
-                await controller.getEIP1559Compatibility();
-
-                await expect(
-                  promiseForIsEIP1559CompatibleChanges,
-                ).toNeverResolve();
-              },
-            );
-          });
-
-          it('returns a promise that resolves to false', async () => {
-            await withController(
-              {
-                state: {
-                  networkDetails: {
-                    EIPS: {
-                      1559: false,
-                    },
-                  },
-                },
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          // no "baseFeePerGas" property
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                const isEIP1559Compatible =
-                  await controller.getEIP1559Compatibility();
-
-                expect(isEIP1559Compatible).toBe(false);
-              },
-            );
-          });
-        });
-      });
-
-      describe('if an error is thrown while fetching the latest block', () => {
-        it('does not change networkDetails.EIPS in state', async () => {
-          await withController(
-            {
-              state: {
-                networkDetails: {
-                  EIPS: {
-                    1559: false,
-                  },
-                },
-              },
-            },
-            async ({ controller, messenger }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      error: 'oops',
-                    },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-              const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
-                messenger,
-                propertyPath: ['networkDetails', 'EIPS', '1559'],
-              });
-
-              try {
-                await controller.getEIP1559Compatibility();
-              } catch (error) {
-                // catch the rejection (it is tested below)
-              }
-
-              await expect(
-                promiseForIsEIP1559CompatibleChanges,
-              ).toNeverResolve();
-            },
-          );
-        });
-
-        it('returns a promise that rejects with the error', async () => {
-          await withController(
-            {
-              state: {
-                networkDetails: {
-                  EIPS: {
-                    1559: false,
-                  },
-                },
-              },
-            },
-            async ({ controller }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      error: 'oops',
-                    },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-
-              const promiseForIsEIP1559Compatible =
-                controller.getEIP1559Compatibility();
-
-              await expect(promiseForIsEIP1559Compatible).rejects.toThrow(
-                'oops',
-              );
-            },
-          );
-        });
-      });
-    });
-
-    describe('if EIPS[1559] in state is set to true', () => {
-      it('does not change networkDetails.EIPS in state', async () => {
+    describe('if a provider has been set but networkDetails.EIPS in state already has a "1559" property', () => {
+      it('does not make any state changes', async () => {
         await withController(
           {
             state: {
@@ -3348,22 +2678,20 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller, messenger }) => {
-            await setFakeProvider(controller, {
-              stubLookupNetworkWhileSetting: true,
-            });
-            const promiseForIsEIP1559CompatibleChanges = waitForStateChanges({
+            const promiseForNoStateChanges = waitForStateChanges({
               messenger,
-              propertyPath: ['networkDetails', 'EIPS', '1559'],
+              count: 0,
+              operation: async () => {
+                await controller.getEIP1559Compatibility();
+              },
             });
 
-            await controller.getEIP1559Compatibility();
-
-            await expect(promiseForIsEIP1559CompatibleChanges).toNeverResolve();
+            expect(Boolean(promiseForNoStateChanges)).toBe(true);
           },
         );
       });
 
-      it('returns a promise that resolves to true', async () => {
+      it('returns the value of the "1559" property', async () => {
         await withController(
           {
             state: {
@@ -3375,15 +2703,147 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            await setFakeProvider(controller, {
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility();
+
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
+      });
+    });
+
+    describe('if a provider has been set and networkDetails.EIPS in state does not already have a "1559" property', () => {
+      describe('if the request for the latest block is successful', () => {
+        describe('if the latest block has a "baseFeePerGas" property', () => {
+          it('sets the "1559" property to true', async () => {
+            await withController(async ({ controller }) => {
+              setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: POST_1559_BLOCK,
+                    },
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              await controller.getEIP1559Compatibility();
+
+              expect(controller.state.networkDetails.EIPS[1559]).toBe(true);
+            });
+          });
+
+          it('returns true', async () => {
+            await withController(async ({ controller }) => {
+              setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: POST_1559_BLOCK,
+                    },
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              const isEIP1559Compatible =
+                await controller.getEIP1559Compatibility();
+
+              expect(isEIP1559Compatible).toBe(true);
+            });
+          });
+        });
+
+        describe('if the latest block does not have a "baseFeePerGas" property', () => {
+          it('sets the "1559" property to false', async () => {
+            await withController(async ({ controller }) => {
+              setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: PRE_1559_BLOCK,
+                    },
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              await controller.getEIP1559Compatibility();
+
+              expect(controller.state.networkDetails.EIPS[1559]).toBe(false);
+            });
+          });
+
+          it('returns true', async () => {
+            await withController(async ({ controller }) => {
+              setFakeProvider(controller, {
+                stubs: [
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                      params: ['latest', false],
+                    },
+                    response: {
+                      result: PRE_1559_BLOCK,
+                    },
+                  },
+                ],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              const isEIP1559Compatible =
+                await controller.getEIP1559Compatibility();
+
+              expect(isEIP1559Compatible).toBe(false);
+            });
+          });
+        });
+      });
+
+      describe('if the request for the latest block is unsuccessful', () => {
+        it('does not make any state changes', async () => {
+          await withController(async ({ controller, messenger }) => {
+            setFakeProvider(controller, {
+              stubs: [
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  error: GENERIC_JSON_RPC_ERROR,
+                },
+              ],
               stubLookupNetworkWhileSetting: true,
             });
 
-            const result = await controller.getEIP1559Compatibility();
+            const promiseForNoStateChanges = waitForStateChanges({
+              messenger,
+              count: 0,
+              operation: async () => {
+                try {
+                  await controller.getEIP1559Compatibility();
+                } catch (error) {
+                  // ignore error
+                }
+              },
+            });
 
-            expect(result).toBe(true);
-          },
-        );
+            expect(Boolean(promiseForNoStateChanges)).toBe(true);
+          });
+        });
       });
     });
   });
@@ -6070,6 +5530,58 @@ function lookupNetworkTests({
       );
     });
 
+    it('resets the network details in state', async () => {
+      await withController(
+        {
+          state: initialState,
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              // Called during provider initialization
+              {
+                request: { method: 'net_version' },
+                response: SUCCESSFUL_NET_VERSION_RESPONSE,
+              },
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: PRE_1559_BLOCK,
+                },
+              },
+              // Called when calling the operation directly
+              {
+                request: { method: 'net_version' },
+                error: ethErrors.rpc.limitExceeded('some error'),
+              },
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: POST_1559_BLOCK,
+                },
+              },
+            ],
+          });
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {
+              1559: false,
+            },
+          });
+
+          await operation(controller);
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {},
+          });
+        },
+      );
+    });
+
     if (expectedProviderConfig.type === NetworkType.rpc) {
       it('emits infuraIsUnblocked', async () => {
         await withController(
@@ -6328,6 +5840,58 @@ function lookupNetworkTests({
         );
       });
     }
+
+    it('resets the network details in state', async () => {
+      await withController(
+        {
+          state: initialState,
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              // Called during provider initialization
+              {
+                request: { method: 'net_version' },
+                response: SUCCESSFUL_NET_VERSION_RESPONSE,
+              },
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: PRE_1559_BLOCK,
+                },
+              },
+              // Called when calling the operation directly
+              {
+                request: { method: 'net_version' },
+                error: BLOCKED_INFURA_JSON_RPC_ERROR,
+              },
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: POST_1559_BLOCK,
+                },
+              },
+            ],
+          });
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {
+              1559: false,
+            },
+          });
+
+          await operation(controller);
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {},
+          });
+        },
+      );
+    });
   });
 
   describe('if an internal error is encountered while retrieving the version of the current network', () => {
@@ -6350,6 +5914,58 @@ function lookupNetworkTests({
           await operation(controller);
 
           expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
+        },
+      );
+    });
+
+    it('resets the network details in state', async () => {
+      await withController(
+        {
+          state: initialState,
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              // Called during provider initialization
+              {
+                request: { method: 'net_version' },
+                response: SUCCESSFUL_NET_VERSION_RESPONSE,
+              },
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: PRE_1559_BLOCK,
+                },
+              },
+              // Called when calling the operation directly
+              {
+                request: { method: 'net_version' },
+                error: GENERIC_JSON_RPC_ERROR,
+              },
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: POST_1559_BLOCK,
+                },
+              },
+            ],
+          });
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {
+              1559: false,
+            },
+          });
+
+          await operation(controller);
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {},
+          });
         },
       );
     });
@@ -6466,6 +6082,58 @@ function lookupNetworkTests({
           await operation(controller);
 
           expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
+        },
+      );
+    });
+
+    it('resets the network details in state', async () => {
+      await withController(
+        {
+          state: initialState,
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              // Called during provider initialization
+              {
+                request: { method: 'net_version' },
+                response: SUCCESSFUL_NET_VERSION_RESPONSE,
+              },
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: PRE_1559_BLOCK,
+                },
+              },
+              // Called when calling the operation directly
+              {
+                request: { method: 'net_version' },
+                response: { result: 'invalid' },
+              },
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: POST_1559_BLOCK,
+                },
+              },
+            ],
+          });
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {
+              1559: false,
+            },
+          });
+
+          await operation(controller);
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {},
+          });
         },
       );
     });
@@ -6587,6 +6255,48 @@ function lookupNetworkTests({
           expect(controller.state.networkStatus).toBe(
             NetworkStatus.Unavailable,
           );
+        },
+      );
+    });
+
+    it('resets the network details in state', async () => {
+      await withController(
+        {
+          state: initialState,
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              // Called during provider initialization
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: PRE_1559_BLOCK,
+                },
+              },
+              // Called when calling the operation directly
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                error: ethErrors.rpc.limitExceeded('some error'),
+              },
+            ],
+          });
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {
+              1559: false,
+            },
+          });
+
+          await operation(controller);
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {},
+          });
         },
       );
     });
@@ -6876,6 +6586,48 @@ function lookupNetworkTests({
         );
       });
     }
+
+    it('resets the network details in state', async () => {
+      await withController(
+        {
+          state: initialState,
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              // Called during provider initialization
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: PRE_1559_BLOCK,
+                },
+              },
+              // Called when calling the operation directly
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                error: BLOCKED_INFURA_JSON_RPC_ERROR,
+              },
+            ],
+          });
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {
+              1559: false,
+            },
+          });
+
+          await operation(controller);
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {},
+          });
+        },
+      );
+    });
   });
 
   describe('if an internal error is encountered while retrieving the network details of the current network', () => {
@@ -6901,6 +6653,48 @@ function lookupNetworkTests({
           await operation(controller);
 
           expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
+        },
+      );
+    });
+
+    it('resets the network details in state', async () => {
+      await withController(
+        {
+          state: initialState,
+        },
+        async ({ controller }) => {
+          await setFakeProvider(controller, {
+            stubs: [
+              // Called during provider initialization
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                response: {
+                  result: PRE_1559_BLOCK,
+                },
+              },
+              // Called when calling the operation directly
+              {
+                request: {
+                  method: 'eth_getBlockByNumber',
+                  params: ['latest', false],
+                },
+                error: GENERIC_JSON_RPC_ERROR,
+              },
+            ],
+          });
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {
+              1559: false,
+            },
+          });
+
+          await operation(controller);
+          expect(controller.state.networkDetails).toStrictEqual({
+            EIPS: {},
+          });
         },
       );
     });
@@ -7317,7 +7111,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
        */
       function stopTimer() {
         if (timer) {
-          originalClearTimeout(timer);
+          clearTimeout(timer);
         }
       }
 
@@ -7326,7 +7120,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
        */
       function resetTimer() {
         stopTimer();
-        timer = originalSetTimeout(() => {
+        timer = setTimeout(() => {
           end();
         }, timeBeforeAssumingNoMoreEvents);
       }
