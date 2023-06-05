@@ -3,6 +3,7 @@ import { MessageManager } from './MessageManager';
 describe('MessageManager', () => {
   let controller: MessageManager;
 
+  const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
   beforeEach(() => {
     controller = new MessageManager();
   });

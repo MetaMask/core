@@ -23,6 +23,7 @@ describe('PersonalMessageManager', () => {
   let controller: PersonalMessageManager;
 
   const detectSIWEMock = detectSIWE as jest.MockedFunction<typeof detectSIWE>;
+  const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
   beforeEach(() => {
     controller = new PersonalMessageManager();
     detectSIWEMock.mockReturnValue(siweMockNotFound);
