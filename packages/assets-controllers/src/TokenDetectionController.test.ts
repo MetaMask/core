@@ -170,6 +170,7 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         onNetworkStateChangeListeners.push(listener),
+      onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -177,7 +178,7 @@ describe('TokenDetectionController', () => {
     const tokenListSetup = setupTokenListController(controllerMessenger);
     tokenList = tokenListSetup.tokenList;
     await tokenList.start();
-    const stub = sinon.stub();
+
     getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
@@ -196,7 +197,6 @@ describe('TokenDetectionController', () => {
       getTokenListState: () => tokenList.state,
       getNetworkState: () => defaultNetworkState,
       getPreferencesState: () => preferences.state,
-      updateTokensAttribute: stub,
     });
 
     sinon
@@ -424,7 +424,6 @@ describe('TokenDetectionController', () => {
         onNetworkStateChange,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
-        updateTokensAttribute: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
         getNetworkState: () => defaultNetworkState,
@@ -469,7 +468,6 @@ describe('TokenDetectionController', () => {
         addDetectedTokens: stub,
         getTokensState: stub,
         getTokenListState: stub,
-        updateTokensAttribute: stub,
         getNetworkState: () => defaultNetworkState,
         getPreferencesState: () => preferences.state,
       },
@@ -500,7 +498,6 @@ describe('TokenDetectionController', () => {
         onNetworkStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
-        updateTokensAttribute: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
         getNetworkState: () => defaultNetworkState,
@@ -537,7 +534,6 @@ describe('TokenDetectionController', () => {
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
-        updateTokensAttribute: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
         getNetworkState: () => defaultNetworkState,

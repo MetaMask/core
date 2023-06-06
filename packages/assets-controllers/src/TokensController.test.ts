@@ -10,6 +10,8 @@ import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import {
+  NetworkControllerProviderConfigChangeEvent,
+  NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderConfig,
   defaultState as defaultNetworkState,
@@ -20,6 +22,11 @@ import {
 } from './TokensController';
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
+import {
+  TokenListController,
+  GetTokenListState,
+  TokenListStateChange,
+} from './TokenListController';
 
 jest.mock('uuid', () => {
   return {
@@ -34,6 +41,37 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
       supportsInterface: sinon.stub().returns(res),
     } as any;
   });
+};
+
+type MainControllerMessenger = ControllerMessenger<
+  GetTokenListState,
+  | TokenListStateChange
+  | NetworkControllerProviderConfigChangeEvent
+  | NetworkControllerStateChangeEvent
+>;
+const getControllerMessenger = (): MainControllerMessenger => {
+  return new ControllerMessenger();
+};
+
+const setupTokenListController = (
+  controllerMessenger: MainControllerMessenger,
+) => {
+  const tokenListMessenger = controllerMessenger.getRestricted({
+    name: 'TokenListController',
+    allowedActions: [],
+    allowedEvents: [
+      'TokenListController:stateChange',
+      'NetworkController:providerConfigChange',
+    ],
+  });
+
+  const tokenList = new TokenListController({
+    chainId: NetworksChainId.mainnet,
+    preventPollingOnNetworkRestart: false,
+    messenger: tokenListMessenger,
+  });
+
+  return { tokenList, tokenListMessenger };
 };
 
 const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
@@ -52,7 +90,7 @@ type ApprovalActions =
 describe('TokensController', () => {
   let tokensController: TokensController;
   let preferences: PreferencesController;
-
+  let tokenList: TokenListController;
   const messenger = new ControllerMessenger<
     ApprovalActions,
     never
@@ -73,13 +111,24 @@ describe('TokensController', () => {
     });
   };
 
-  beforeEach(() => {
+  let tokenListStateChangeListener: (state: any) => void;
+  const onTokenListStateChange = sinon.stub().callsFake((listener) => {
+    tokenListStateChangeListener = listener;
+  });
+
+  beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
     preferences = new PreferencesController();
+
+    const controllerMessenger = getControllerMessenger();
+    const tokenListSetup = setupTokenListController(controllerMessenger);
+    tokenList = tokenListSetup.tokenList;
+    await tokenList.start();
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         (onNetworkStateChangeListener = listener),
+      onTokenListStateChange,
       config: {
         chainId: NetworksChainId.mainnet,
         selectedAddress: defaultSelectedAddress,
@@ -1590,164 +1639,52 @@ describe('TokensController', () => {
       ).toStrictEqual([]);
     });
   });
-  describe('updateTokensAttribute', () => {
-    const tokenList = [
-      {
-        address: '0x123',
-        name: '',
-        symbol: 'ABC',
-        aggregators: [],
-        decimals: 0,
-        iconUrl: '',
-        occurrences: 1,
-      },
-      {
-        address: '0x456',
-        name: '',
-        symbol: 'DEF',
-        aggregators: [],
-        decimals: 0,
-        iconUrl: '',
-        occurrences: 1,
-      },
-      {
-        address: '0x789',
-        name: '',
-        symbol: 'GHI',
-        aggregators: [],
-        decimals: 0,
-        iconUrl: '',
-        occurrences: 1,
-      },
-    ];
 
-    it('update token name when a matching token is found in the tokenList', async () => {
-      const initialTokens = {
-        '0x123': {
-          address: '0x123',
-          name: 'Token1',
-          symbol: 'ABC',
-          aggregators: [],
-          decimals: 0,
-          iconUrl: '',
+  describe('onTokenListStateChange', () => {
+    it('onTokenListChange', async () => {
+      const stub = stubCreateEthers(tokensController, false);
+      await tokensController.addToken('0x01', 'bar', 2);
+      expect(tokensController.state.tokens[0]).toStrictEqual({
+        address: '0x01',
+        decimals: 2,
+        image:
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        symbol: 'bar',
+        isERC721: false,
+        aggregators: [],
+        name: undefined,
+      });
+
+      const sampleMainnetTokenList = {
+        '0x01': {
+          address: '0x01',
+          symbol: 'bar',
+          decimals: 2,
           occurrences: 1,
-        },
-        '0x456': {
-          address: '0x456',
-          name: 'Token2',
-          symbol: 'DEF',
-          aggregators: [],
-          decimals: 0,
-          iconUrl: '',
-          occurrences: 1,
-        },
-        '0x789': {
-          address: '0x789',
-          name: 'Token3',
-          symbol: 'GHI',
-          aggregators: [],
-          decimals: 0,
-          iconUrl: '',
-          occurrences: 1,
+          name: 'BarName',
+          iconUrl:
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          aggregators: ['Aave'],
         },
       };
 
-      const expectedTokenList = [
-        {
-          address: '0x123',
-          name: 'Token1',
-          symbol: 'ABC',
-          aggregators: [],
-          decimals: 0,
-          image: undefined,
-        },
-        {
-          address: '0x456',
-          name: 'Token2',
-          symbol: 'DEF',
-          aggregators: [],
-          decimals: 0,
-          image: undefined,
-        },
-        {
-          address: '0x789',
-          name: 'Token3',
-          symbol: 'GHI',
-          aggregators: [],
-          decimals: 0,
-          image: undefined,
-        },
-      ];
+      await tokenListStateChangeListener({ tokenList: sampleMainnetTokenList });
+      console.log(
+        'ENTER tokenscontroller state',
+        tokensController.state.tokens,
+      );
 
-      await tokensController.addTokens(tokenList);
-
-      tokensController.updateTokensAttribute(initialTokens, 'name');
-
-      expect(tokensController.state.tokens).toStrictEqual(expectedTokenList);
-    });
-    it('does not update token name when no matching token is found in the tokenList', async () => {
-      const initialTokens = {
-        '0x1': {
-          address: '0x1',
-          name: 'SameName',
-          symbol: 'ABC',
-          aggregators: [],
-          decimals: 0,
-          iconUrl: '',
-          occurrences: 1,
-        },
-        '0x2': {
-          address: '0x2',
-          name: 'SameName',
-          symbol: 'DEF',
-          aggregators: [],
-          decimals: 0,
-          iconUrl: '',
-          occurrences: 1,
-        },
-        '0x3': {
-          address: '0x3',
-          name: 'SameName',
-          symbol: 'GHI',
-          aggregators: [],
-          decimals: 0,
-          iconUrl: '',
-          occurrences: 1,
-        },
-      };
-
-      const expectedTokenList = [
-        {
-          address: '0x123',
-          name: '',
-          symbol: 'ABC',
-          aggregators: [],
-          decimals: 0,
-          image: undefined,
-        },
-        {
-          address: '0x456',
-          name: '',
-          symbol: 'DEF',
-          aggregators: [],
-          decimals: 0,
-          image: undefined,
-        },
-        {
-          address: '0x789',
-          name: '',
-          symbol: 'GHI',
-          aggregators: [],
-          decimals: 0,
-          image: undefined,
-        },
-      ];
-
-      await tokensController.addTokens(tokenList);
-
-      tokensController.updateTokensAttribute(initialTokens, 'name');
-
-      expect(tokensController.state.tokens).toStrictEqual(expectedTokenList);
+      expect(tokensController.state.tokens[0]).toStrictEqual({
+        address: '0x01',
+        decimals: 2,
+        image:
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        symbol: 'bar',
+        isERC721: false,
+        aggregators: [],
+        name: 'BarName',
+      });
+      stub.restore();
     });
   });
 });

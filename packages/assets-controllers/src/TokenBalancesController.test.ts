@@ -145,6 +145,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -182,6 +183,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
       messenger: undefined as unknown as TokensControllerMessenger,
     });
@@ -236,6 +238,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
       messenger: undefined as unknown as TokensControllerMessenger,
     });

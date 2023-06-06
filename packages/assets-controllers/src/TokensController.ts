@@ -27,7 +27,11 @@ import {
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
 import type { AssetsContractController } from './AssetsContractController';
-import { TokenListMap, TokenListToken } from './TokenListController';
+import {
+  TokenListMap,
+  TokenListState,
+  TokenListToken,
+} from './TokenListController';
 import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
@@ -224,6 +228,7 @@ export class TokensController extends BaseController<
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
    * @param options.getERC20TokenName - Gets the ERC-20 token name.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
@@ -232,6 +237,7 @@ export class TokensController extends BaseController<
   constructor({
     onPreferencesStateChange,
     onNetworkStateChange,
+    onTokenListStateChange,
     getERC20TokenName,
     config,
     state,
@@ -242,6 +248,9 @@ export class TokensController extends BaseController<
     ) => void;
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
+    ) => void;
+    onTokenListStateChange: (
+      listener: (tokenListState: TokenListState) => void,
     ) => void;
     getERC20TokenName: AssetsContractController['getERC20TokenName'];
     config?: Partial<TokensConfig>;
@@ -299,6 +308,13 @@ export class TokensController extends BaseController<
         ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
         detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
       });
+    });
+
+    onTokenListStateChange(({ tokenList }) => {
+      const { tokens } = this.state;
+      if (tokens.length && !tokens[0].name) {
+        this.updateTokensAttribute(tokenList, 'name');
+      }
     });
   }
 
@@ -637,7 +653,7 @@ export class TokensController extends BaseController<
    * @param tokenList - Represents the fetched token list from service API
    * @param tokenAttribute - Represents the token attribute that we want to update on the token list
    */
-  updateTokensAttribute(
+  private updateTokensAttribute(
     tokenList: TokenListMap,
     tokenAttribute: keyof Token & keyof TokenListToken,
   ) {
