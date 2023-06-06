@@ -2559,7 +2559,7 @@ describe('NetworkController', () => {
               // @ts-expect-error Intentionally passing invalid type
               controller.setProviderType(NetworkType.rpc),
             ).rejects.toThrow(
-              'chainId must be provided for custom RPC endpoints',
+              'NetworkController - cannot call "setProviderType" with type "rpc". Use "setActiveNetwork"',
             );
           },
         );
@@ -2611,6 +2611,19 @@ describe('NetworkController', () => {
           }
 
           expect(controller.state.networkDetails.EIPS[1559]).toBeUndefined();
+        });
+      });
+    });
+
+    describe('given an invalid Infura network name', () => {
+      it('throws', async () => {
+        await withController(async ({ controller }) => {
+          await expect(() =>
+            // @ts-expect-error Intentionally passing invalid type
+            controller.setProviderType('invalid-infura-network'),
+          ).rejects.toThrow(
+            new Error('Unknown Infura provider type "invalid-infura-network".'),
+          );
         });
       });
     });
