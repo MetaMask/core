@@ -14,14 +14,17 @@ import * as uuid from 'uuid';
 import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
+import { ControllerMessenger } from '@metamask/base-controller';
 import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
-  KeyringConfig,
   KeyringController,
-  KeyringMemState,
   KeyringObject,
+  KeyringControllerEvents,
+  KeyringControllerMessenger,
+  KeyringControllerState,
   KeyringTypes,
+  KeyringControllerOptions,
 } from './KeyringController';
 
 jest.mock('uuid', () => {
@@ -60,24 +63,21 @@ describe('KeyringController', () => {
       it('should add new account', async () => {
         await withController(
           async ({ controller, initialState, preferences }) => {
-            const {
-              keyringState: currentKeyringMemState,
-              addedAccountAddress,
-            } = await controller.addNewAccount();
+            const { addedAccountAddress } = await controller.addNewAccount();
             expect(initialState.keyrings).toHaveLength(1);
             expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-              currentKeyringMemState.keyrings[0].accounts,
+              controller.state.keyrings[0].accounts,
             );
-            expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
+            expect(controller.state.keyrings[0].accounts).toHaveLength(2);
             expect(initialState.keyrings[0].accounts).not.toContain(
               addedAccountAddress,
             );
             expect(addedAccountAddress).toBe(
-              currentKeyringMemState.keyrings[0].accounts[1],
+              controller.state.keyrings[0].accounts[1],
             );
             expect(
               preferences.updateIdentities.calledWith(
-                currentKeyringMemState.keyrings[0].accounts,
+                controller.state.keyrings[0].accounts,
               ),
             ).toBe(true);
             expect(preferences.setSelectedAddress.called).toBe(false);
@@ -90,26 +90,23 @@ describe('KeyringController', () => {
       it('should add new account if accountCount is in sequence', async () => {
         await withController(
           async ({ controller, initialState, preferences }) => {
-            const {
-              keyringState: currentKeyringMemState,
-              addedAccountAddress,
-            } = await controller.addNewAccount(
+            const { addedAccountAddress } = await controller.addNewAccount(
               initialState.keyrings[0].accounts.length,
             );
             expect(initialState.keyrings).toHaveLength(1);
             expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-              currentKeyringMemState.keyrings[0].accounts,
+              controller.state.keyrings[0].accounts,
             );
-            expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
+            expect(controller.state.keyrings[0].accounts).toHaveLength(2);
             expect(initialState.keyrings[0].accounts).not.toContain(
               addedAccountAddress,
             );
             expect(addedAccountAddress).toBe(
-              currentKeyringMemState.keyrings[0].accounts[1],
+              controller.state.keyrings[0].accounts[1],
             );
             expect(
               preferences.updateIdentities.calledWith(
-                currentKeyringMemState.keyrings[0].accounts,
+                controller.state.keyrings[0].accounts,
               ),
             ).toBe(true);
             expect(preferences.setSelectedAddress.called).toBe(false);
@@ -131,10 +128,10 @@ describe('KeyringController', () => {
           const accountCount = initialState.keyrings[0].accounts.length;
           const { addedAccountAddress: firstAccountAdded } =
             await controller.addNewAccount(accountCount);
-          const { keyringState, addedAccountAddress: secondAccountAdded } =
+          const { addedAccountAddress: secondAccountAdded } =
             await controller.addNewAccount(accountCount);
           expect(firstAccountAdded).toBe(secondAccountAdded);
-          expect(keyringState.keyrings[0].accounts).toHaveLength(
+          expect(controller.state.keyrings[0].accounts).toHaveLength(
             accountCount + 1,
           );
         });
@@ -148,13 +145,12 @@ describe('KeyringController', () => {
         async ({ controller, initialState, preferences }) => {
           const initialUpdateIdentitiesCallCount =
             preferences.updateIdentities.callCount;
-          const currentKeyringMemState =
-            await controller.addNewAccountWithoutUpdate();
+          await controller.addNewAccountWithoutUpdate();
           expect(initialState.keyrings).toHaveLength(1);
           expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-            currentKeyringMemState.keyrings[0].accounts,
+            controller.state.keyrings[0].accounts,
           );
-          expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(2);
           // we make sure that updateIdentities is not called
           // during this test
           expect(preferences.updateIdentities.callCount).toBe(
@@ -173,11 +169,11 @@ describe('KeyringController', () => {
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
               const initialVault = controller.state.vault;
-              const currentState = await controller.createNewVaultAndRestore(
+              await controller.createNewVaultAndRestore(
                 password,
                 uint8ArraySeed,
               );
-              expect(initialState).not.toBe(currentState);
+              expect(controller.state).not.toBe(initialState);
               expect(controller.state.vault).toBeDefined();
               expect(controller.state.vault).toStrictEqual(initialVault);
             },
@@ -192,11 +188,11 @@ describe('KeyringController', () => {
                 password,
               );
 
-              const currentState = await controller.createNewVaultAndRestore(
+              await controller.createNewVaultAndRestore(
                 password,
                 currentSeedWord,
               );
-              expect(initialState).toStrictEqual(currentState);
+              expect(initialState).toStrictEqual(controller.state);
             },
           );
         });
@@ -232,12 +228,12 @@ describe('KeyringController', () => {
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
             withController({ cacheEncryptionKey }, async ({ controller }) => {
-              const currentState = await controller.createNewVaultAndRestore(
+              await controller.createNewVaultAndRestore(
                 password,
                 uint8ArraySeed,
               );
-              expect(currentState.encryptionKey).toBeDefined();
-              expect(currentState.encryptionSalt).toBeDefined();
+              expect(controller.state.encryptionKey).toBeDefined();
+              expect(controller.state.encryptionSalt).toBeDefined();
             });
           });
       }),
@@ -252,25 +248,28 @@ describe('KeyringController', () => {
             await withController(
               { cacheEncryptionKey },
               async ({ controller, initialState, preferences, encryptor }) => {
-                const cleanKeyringController = new KeyringController(
-                  preferences,
-                  { cacheEncryptionKey, encryptor },
-                );
+                const cleanKeyringController = new KeyringController({
+                  ...preferences,
+                  messenger: buildKeyringControllerMessenger(),
+                  cacheEncryptionKey,
+                  encryptor,
+                });
                 const initialSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
-                const currentState =
-                  await cleanKeyringController.createNewVaultAndKeychain(
-                    password,
-                  );
+                await cleanKeyringController.createNewVaultAndKeychain(
+                  password,
+                );
                 const currentSeedWord =
                   await cleanKeyringController.exportSeedPhrase(password);
                 expect(initialSeedWord).toBeDefined();
-                expect(initialState).not.toBe(currentState);
+                expect(initialState).not.toBe(cleanKeyringController.state);
                 expect(currentSeedWord).toBeDefined();
                 expect(initialSeedWord).not.toBe(currentSeedWord);
                 expect(
-                  isValidHexAddress(currentState.keyrings[0].accounts[0]),
+                  isValidHexAddress(
+                    cleanKeyringController.state.keyrings[0].accounts[0],
+                  ),
                 ).toBe(true);
                 expect(controller.state.vault).toBeDefined();
               },
@@ -282,7 +281,6 @@ describe('KeyringController', () => {
               expect(controller.state.keyrings).not.toStrictEqual([]);
               const keyring = controller.state.keyrings[0];
               expect(keyring.accounts).not.toStrictEqual([]);
-              expect(keyring.index).toStrictEqual(0);
               expect(keyring.type).toStrictEqual('HD Key Tree');
               expect(controller.state.vault).toBeDefined();
             });
@@ -298,14 +296,12 @@ describe('KeyringController', () => {
                   password,
                 );
                 const initialVault = controller.state.vault;
-                const currentState = await controller.createNewVaultAndKeychain(
-                  password,
-                );
+                await controller.createNewVaultAndKeychain(password);
                 const currentSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
                 expect(initialSeedWord).toBeDefined();
-                expect(initialState).toBe(currentState);
+                expect(initialState).toBe(controller.state);
                 expect(currentSeedWord).toBeDefined();
                 expect(initialSeedWord).toBe(currentSeedWord);
                 expect(initialVault).toStrictEqual(controller.state.vault);
@@ -329,8 +325,19 @@ describe('KeyringController', () => {
     it('should set locked correctly', async () => {
       await withController(async ({ controller }) => {
         expect(controller.isUnlocked()).toBe(true);
+        expect(controller.state.isUnlocked).toBe(true);
         controller.setLocked();
         expect(controller.isUnlocked()).toBe(false);
+        expect(controller.state.isUnlocked).toBe(false);
+      });
+    });
+
+    it('should emit KeyringController:lock event', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const listener = sinon.spy();
+        messenger.subscribe('KeyringController:lock', listener);
+        await controller.setLocked();
+        expect(listener.called).toBe(true);
       });
     });
   });
@@ -481,7 +488,7 @@ describe('KeyringController', () => {
               accounts: [address],
               type: 'Simple Key Pair',
             };
-            const { keyringState, importedAccountAddress } =
+            const { importedAccountAddress } =
               await controller.importAccountWithStrategy(
                 AccountImportStrategy.privateKey,
                 [privateKey],
@@ -490,7 +497,7 @@ describe('KeyringController', () => {
               ...initialState,
               keyrings: [initialState.keyrings[0], newKeyring],
             };
-            expect(keyringState).toStrictEqual(modifiedState);
+            expect(controller.state).toStrictEqual(modifiedState);
             expect(importedAccountAddress).toBe(address);
           });
         });
@@ -550,7 +557,7 @@ describe('KeyringController', () => {
             const somePassword = 'holachao123';
             const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
 
-            const { keyringState, importedAccountAddress } =
+            const { importedAccountAddress } =
               await controller.importAccountWithStrategy(
                 AccountImportStrategy.json,
                 [input, somePassword],
@@ -564,7 +571,7 @@ describe('KeyringController', () => {
               ...initialState,
               keyrings: [initialState.keyrings[0], newKeyring],
             };
-            expect(keyringState).toStrictEqual(modifiedState);
+            expect(controller.state).toStrictEqual(modifiedState);
             expect(importedAccountAddress).toBe(address);
           });
         });
@@ -648,8 +655,8 @@ describe('KeyringController', () => {
     it('should remove HD Key Tree keyring from state when single account associated with it is deleted', async () => {
       await withController(async ({ controller, initialState }) => {
         const account = initialState.keyrings[0].accounts[0];
-        const finalState = await controller.removeAccount(account);
-        expect(finalState.keyrings).toHaveLength(0);
+        await controller.removeAccount(account);
+        expect(controller.state.keyrings).toHaveLength(0);
       });
     });
 
@@ -659,10 +666,10 @@ describe('KeyringController', () => {
           AccountImportStrategy.privateKey,
           [privateKey],
         );
-        const finalState = await controller.removeAccount(
+        await controller.removeAccount(
           '0x51253087e6f8358b5f10c0a94315d69db3357859',
         );
-        expect(finalState).toStrictEqual(initialState);
+        expect(controller.state).toStrictEqual(initialState);
       });
     });
 
@@ -1072,8 +1079,20 @@ describe('KeyringController', () => {
           await withController(
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
-              const recoveredState = await controller.submitPassword(password);
-              expect(recoveredState).toStrictEqual(initialState);
+              await controller.submitPassword(password);
+              expect(controller.state).toStrictEqual(initialState);
+            },
+          );
+        });
+
+        it('should emit KeyringController:unlock event', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller, messenger }) => {
+              const listener = sinon.spy();
+              messenger.subscribe('KeyringController:unlock', listener);
+              await controller.submitPassword(password);
+              expect(listener.called).toBe(true);
             },
           );
         });
@@ -1081,9 +1100,9 @@ describe('KeyringController', () => {
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
             withController({ cacheEncryptionKey }, async ({ controller }) => {
-              const recoveredState = await controller.submitPassword(password);
-              expect(recoveredState.encryptionKey).toBeDefined();
-              expect(recoveredState.encryptionSalt).toBeDefined();
+              await controller.submitPassword(password);
+              expect(controller.state.encryptionKey).toBeDefined();
+              expect(controller.state.encryptionSalt).toBeDefined();
             });
           });
       }),
@@ -1095,54 +1114,13 @@ describe('KeyringController', () => {
       await withController(
         { cacheEncryptionKey: true },
         async ({ controller, initialState }) => {
-          const recoveredState = await controller.submitEncryptionKey(
+          await controller.submitEncryptionKey(
             mockKey.toString('hex'),
             initialState.encryptionSalt as string,
           );
-          expect(recoveredState).toStrictEqual(initialState);
+          expect(controller.state).toStrictEqual(initialState);
         },
       );
-    });
-  });
-
-  describe('subscribe and unsubscribe', () => {
-    it('should subscribe and unsubscribe', async () => {
-      await withController(async ({ controller }) => {
-        const listener = sinon.stub();
-        controller.subscribe(listener);
-        await controller.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [privateKey],
-        );
-        expect(listener.called).toBe(true);
-        controller.unsubscribe(listener);
-        await controller.removeAccount(
-          '0x51253087e6f8358b5f10c0a94315d69db3357859',
-        );
-        expect(listener.calledTwice).toBe(false);
-      });
-    });
-  });
-
-  describe('onLock', () => {
-    it('should receive lock event', async () => {
-      await withController(async ({ controller }) => {
-        const listenerLock = sinon.stub();
-        controller.onLock(listenerLock);
-        await controller.setLocked();
-        expect(listenerLock.called).toBe(true);
-      });
-    });
-  });
-
-  describe('onUnlock', () => {
-    it('should receive unlock event', async () => {
-      await withController(async ({ controller }) => {
-        const listenerUnlock = sinon.stub();
-        controller.onUnlock(listenerUnlock);
-        await controller.submitPassword(password);
-        expect(listenerUnlock.called).toBe(true);
-      });
     });
   });
 
@@ -1657,6 +1635,7 @@ type WithControllerCallback<ReturnValue> = ({
   preferences,
   initialState,
   encryptor,
+  messenger,
 }: {
   controller: KeyringController;
   preferences: {
@@ -1667,14 +1646,43 @@ type WithControllerCallback<ReturnValue> = ({
     setSelectedAddress: sinon.SinonStub;
   };
   encryptor: MockEncryptor;
-  initialState: KeyringMemState;
+  initialState: KeyringControllerState;
+  messenger: KeyringControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions = Partial<KeyringConfig>;
+type WithControllerOptions = Partial<KeyringControllerOptions>;
 
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
   | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+/**
+ * Build a controller messenger that includes all events used by the keyring
+ * controller.
+ *
+ * @returns The controller messenger.
+ */
+function buildMessenger() {
+  return new ControllerMessenger<never, KeyringControllerEvents>();
+}
+
+/**
+ * Build a restricted controller messenger for the keyring controller.
+ *
+ * @param messenger - A controller messenger.
+ * @returns The keyring controller restricted messenger.
+ */
+function buildKeyringControllerMessenger(messenger = buildMessenger()) {
+  return messenger.getRestricted({
+    name: 'KeyringController',
+    allowedActions: [],
+    allowedEvents: [
+      'KeyringController:stateChange',
+      'KeyringController:lock',
+      'KeyringController:unlock',
+    ],
+  });
+}
 
 /**
  * Builds a controller based on the given options and creates a new vault
@@ -1698,16 +1706,20 @@ async function withController<ReturnValue>(
     updateIdentities: sinon.stub(),
     setSelectedAddress: sinon.stub(),
   };
-  const controller = new KeyringController(preferences, {
+  const messenger = buildKeyringControllerMessenger();
+  const controller = new KeyringController({
     encryptor,
     cacheEncryptionKey: false,
+    messenger,
+    ...preferences,
     ...rest,
   });
-  const initialState = await controller.createNewVaultAndKeychain(password);
+  await controller.createNewVaultAndKeychain(password);
   return await fn({
     controller,
     preferences,
     encryptor,
-    initialState,
+    initialState: controller.state,
+    messenger,
   });
 }
