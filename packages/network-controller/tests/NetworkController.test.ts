@@ -3058,7 +3058,7 @@ describe('NetworkController', () => {
       });
     });
 
-    it('throws if the no (or a falsy) rpcUrl is passed', async () => {
+    it('throws if no (or a falsy) rpcUrl is passed', async () => {
       await withController(async ({ controller }) => {
         await expect(() =>
           controller.upsertNetworkConfiguration(
