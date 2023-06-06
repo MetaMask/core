@@ -1,7 +1,6 @@
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import assert from 'assert';
 import { ControllerMessenger } from '@metamask/base-controller';
-import * as ethQueryModule from 'eth-query';
 import { Patch } from 'immer';
 import { v4 } from 'uuid';
 import nock from 'nock';
@@ -32,13 +31,6 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider, FakeProviderStub } from './fake-provider';
 
 jest.mock('../src/create-network-client');
-
-jest.mock('eth-query', () => {
-  return {
-    __esModule: true,
-    default: jest.requireActual('eth-query'),
-  };
-});
 
 jest.mock('uuid', () => {
   const actual = jest.requireActual('uuid');
@@ -2904,27 +2896,40 @@ describe('NetworkController', () => {
   });
 
   describe('NetworkController:getEthQuery action', () => {
-    it('returns the EthQuery object that is set after the provider is set', async () => {
-      await withController(({ controller, messenger }) => {
-        const fakeEthQuery = {
-          sendAsync: jest.fn(),
-        };
-        jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
-        setFakeProvider(controller);
+    it('returns a EthQuery object that can be used to make requests to the currently selected network', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await setFakeProvider(controller, {
+          stubs: [
+            {
+              request: {
+                method: 'test_method',
+                params: [],
+              },
+              response: {
+                result: 'test response',
+              },
+            },
+          ],
+        });
 
         const ethQuery = messenger.call('NetworkController:getEthQuery');
+        assert(ethQuery, 'ethQuery is not set');
 
-        expect(ethQuery).toBe(fakeEthQuery);
+        const promisifiedSendAsync = promisify(ethQuery.sendAsync).bind(
+          ethQuery,
+        );
+        const result = await promisifiedSendAsync({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'test_method',
+          params: [],
+        });
+        expect(result).toBe('test response');
       });
     });
 
     it('returns undefined if the provider has not been set yet', async () => {
       await withController(({ messenger }) => {
-        const fakeEthQuery = {
-          sendAsync: jest.fn(),
-        };
-        jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
-
         const ethQuery = messenger.call('NetworkController:getEthQuery');
 
         expect(ethQuery).toBeUndefined();
