@@ -634,7 +634,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     nftMetadata: NftMetadata,
     nftContract: NftContract,
     accountParams?: AccountParams,
-    source?: Source,
+    source = Source.Custom,
   ): Promise<Nft[]> {
     // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
@@ -699,7 +699,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           symbol: nftContract.symbol,
           tokenId: tokenId.toString(),
           standard: nftMetadata.standard,
-          source: source || Source.Custom,
+          source,
         });
       }
 
@@ -1182,7 +1182,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenId: string,
     nftMetadata?: NftMetadata,
     accountParams?: AccountParams,
-    source?: Source,
+    source = Source.Custom,
   ) {
     address = toChecksumHexAddress(address);
     const newNftContracts = await this.addNftContract(
