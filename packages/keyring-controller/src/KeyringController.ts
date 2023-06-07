@@ -89,6 +89,11 @@ export type KeyringControllerStateChangeEvent = {
   payload: [KeyringControllerState, Patch[]];
 };
 
+export type KeyringControllerAccountRemovedEvent = {
+  type: `${typeof name}:accountRemoved`;
+  payload: [string];
+};
+
 export type KeyringControllerLockEvent = {
   type: `${typeof name}:lock`;
   payload: [];
@@ -104,7 +109,8 @@ export type KeyringControllerActions = KeyringControllerGetStateAction;
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  | KeyringControllerAccountRemovedEvent;
 
 export type KeyringControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -514,11 +520,13 @@ export class KeyringController extends BaseControllerV2<
    * Removes an account from keyring state.
    *
    * @param address - Address of the account to remove.
+   * @fires KeyringController:accountRemoved
    * @returns Promise resolving current state when this account removal completes.
    */
   async removeAccount(address: string): Promise<KeyringControllerMemState> {
     this.removeIdentity(address);
     await this.#keyring.removeAccount(address);
+    this.messagingSystem.publish(`${name}:accountRemoved`, address);
     return this.#getMemState();
   }
 
