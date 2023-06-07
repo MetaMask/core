@@ -3327,6 +3327,30 @@ describe('NetworkController', () => {
       });
     });
 
+    it('throws if no (or a falsy) rpcUrl is passed', async () => {
+      await withController(async ({ controller }) => {
+        await expect(() =>
+          controller.upsertNetworkConfiguration(
+            /* @ts-expect-error We are intentionally passing bad input. */
+            {
+              chainId: toHex(9999),
+              nickname: 'RPC',
+              rpcPrefs: { blockExplorerUrl: 'test-block-explorer.com' },
+              ticker: 'RPC',
+            },
+            {
+              referrer: 'https://test-dapp.com',
+              source: 'dapp',
+            },
+          ),
+        ).rejects.toThrow(
+          new Error(
+            'An rpcUrl is required to add or update network configuration',
+          ),
+        );
+      });
+    });
+
     it('throws if rpcUrl passed is not a valid Url', async () => {
       await withController(async ({ controller }) => {
         await expect(async () =>
@@ -3667,7 +3691,7 @@ describe('NetworkController', () => {
     it('should add the given network and not set it to active if the setActive option is not passed (or a falsy value is passed)', async () => {
       uuidV4Mock.mockImplementationOnce(() => 'networkConfigurationId');
       const originalProvider = {
-        type: 'rpc' as NetworkType,
+        type: NetworkType.rpc,
         rpcUrl: 'https://mock-rpc-url',
         chainId: toHex(111),
         ticker: 'TEST',
