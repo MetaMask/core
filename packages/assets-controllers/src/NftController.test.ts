@@ -21,6 +21,7 @@ import {
   toHex,
   ApprovalType,
   ERC20,
+  Source,
 } from '@metamask/controller-utils';
 import { AddApprovalRequest } from '@metamask/approval-controller';
 import { Network } from '@ethersproject/providers';
@@ -734,8 +735,8 @@ describe('NftController', () => {
           standard: 'ERC721',
           favorite: false,
         },
-        // this object in the third argument slot is only defined when the NFT is added via detection
         { userAddress: detectedUserAddress, chainId: toHex(2) },
+        Source.Detected,
       );
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({
@@ -1300,6 +1301,7 @@ describe('NftController', () => {
           userAddress: selectedAddress,
           chainId,
         },
+        Source.Detected,
       );
 
       expect(
@@ -1318,6 +1320,7 @@ describe('NftController', () => {
           userAddress: selectedAddress,
           chainId,
         },
+        Source.Detected,
       );
 
       expect(

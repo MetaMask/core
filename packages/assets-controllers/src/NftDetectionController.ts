@@ -12,6 +12,7 @@ import {
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
+  Source,
 } from '@metamask/controller-utils';
 import type { NftController, NftState, NftMetadata } from './NftController';
 
@@ -394,10 +395,16 @@ export class NftDetectionController extends BaseController<
           last_sale && { lastSale: last_sale },
         );
 
-        await this.addNft(address, token_id, nftMetadata, {
-          userAddress: selectedAddress,
-          chainId,
-        });
+        await this.addNft(
+          address,
+          token_id,
+          nftMetadata,
+          {
+            userAddress: selectedAddress,
+            chainId,
+          },
+          Source.Detected,
+        );
       }
     });
     await Promise.all(addNftPromises);
