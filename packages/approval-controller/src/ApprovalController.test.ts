@@ -857,6 +857,16 @@ describe('approval controller', () => {
         new EthereumRpcError(1000, 'foo'),
       );
     });
+
+    it('does not clear approval flows', async () => {
+      approvalController.startFlow();
+
+      approvalController.clear(new EthereumRpcError(1, 'clear'));
+
+      expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+        1,
+      );
+    });
   });
 
   describe('updateRequestState', () => {

@@ -627,7 +627,10 @@ export class ApprovalController extends BaseControllerV2<
       this.reject(id, rejectionError);
     }
     this._origins.clear();
-    this.update(() => getDefaultState());
+    this.update((draftState) => {
+      draftState.pendingApprovals = {};
+      draftState.pendingApprovalCount = 0;
+    });
   }
 
   /**
