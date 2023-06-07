@@ -73,8 +73,8 @@ describe('TypedMessageManager', () => {
     const originalRequest = { origin: 'origin' };
     const messageId = await controller.addUnapprovedMessage(
       messageParams,
-      version,
       originalRequest,
+      version,
     );
     expect(messageId).not.toBeUndefined();
     const message = controller.getMessage(messageId);
@@ -98,6 +98,7 @@ describe('TypedMessageManager', () => {
           data: messageData,
           from,
         },
+        undefined,
         version,
       ),
     ).rejects.toThrow('Invalid message "data":');
@@ -114,6 +115,7 @@ describe('TypedMessageManager', () => {
           data: messageData,
           from,
         },
+        undefined,
         version,
       ),
     ).rejects.toThrow('Invalid message "data":');
@@ -131,6 +133,7 @@ describe('TypedMessageManager', () => {
           data: messageData,
           from,
         },
+        undefined,
         'V4',
       ),
     ).rejects.toThrow('Invalid message "data":');
@@ -191,6 +194,7 @@ describe('TypedMessageManager', () => {
     const version = 'V1';
     const messageId = await await controller.addUnapprovedMessage(
       firstMessage,
+      undefined,
       version,
     );
     const messageParams = await controller.approveMessage({
@@ -213,6 +217,7 @@ describe('TypedMessageManager', () => {
     const rawSig = '0x5f7a0';
     const messageId = await controller.addUnapprovedMessage(
       firstMessage,
+      undefined,
       version,
     );
     controller.setMessageStatusSigned(messageId, rawSig);
@@ -230,6 +235,7 @@ describe('TypedMessageManager', () => {
     const version = 'V1';
     const messageId = await controller.addUnapprovedMessage(
       firstMessage,
+      undefined,
       version,
     );
     controller.rejectMessage(messageId);
@@ -246,6 +252,7 @@ describe('TypedMessageManager', () => {
     const version = 'V1';
     const messageId = await controller.addUnapprovedMessage(
       firstMessage,
+      undefined,
       version,
     );
     controller.setMessageStatusErrored(messageId, 'errored');

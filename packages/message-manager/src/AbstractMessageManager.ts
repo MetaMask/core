@@ -372,6 +372,23 @@ export abstract class AbstractMessageManager<
   abstract prepMessageForSigning(messageParams: PM): Promise<P>;
 
   /**
+   * Creates a new Message with an 'unapproved' status using the passed messageParams.
+   * this.addMessage is called to add the new Message to this.messages, and to save the
+   * unapproved Messages.
+   *
+   * @param messageParams - The params for the personal_sign call to be made after the message
+   * is approved.
+   * @param req - The original request object possibly containing the origin.
+   * @param version? - The version of the JSON RPC protocol the request is using.
+   * @returns The id of the newly created message.
+   */
+  abstract addUnapprovedMessage(
+    messageParams: PM,
+    request: OriginalRequest,
+    version?: string,
+  ): Promise<string>;
+
+  /**
    * Sets a Message status to 'rejected' via a call to this.setMessageStatus.
    *
    * @param messageId - The id of the Message to reject.

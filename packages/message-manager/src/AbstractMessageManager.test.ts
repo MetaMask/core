@@ -24,6 +24,10 @@ class AbstractTestManager extends AbstractMessageManager<
   setMessageStatus(messageId: string, status: string) {
     return super.setMessageStatus(messageId, status);
   }
+
+  async addUnapprovedMessage(_messageParams: TypedMessageParamsMetamask) {
+    return Promise.resolve('mocked');
+  }
 }
 const typedMessage = [
   {

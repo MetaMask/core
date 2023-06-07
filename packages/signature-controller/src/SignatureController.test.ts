@@ -355,6 +355,7 @@ describe('SignatureController', () => {
       expect(messageManagerMock.addUnapprovedMessage).toHaveBeenCalledWith(
         messageParamsWithoutOrigin,
         requestMock,
+        undefined,
       );
 
       expect(messengerMock.call).toHaveBeenCalledTimes(1);
@@ -417,6 +418,7 @@ describe('SignatureController', () => {
       ).toHaveBeenCalledWith(
         expect.objectContaining(messageParamsMock),
         requestMock,
+        undefined,
       );
 
       expect(messengerMock.call).toHaveBeenCalledTimes(1);
@@ -474,8 +476,8 @@ describe('SignatureController', () => {
       ).toHaveBeenCalledTimes(1);
       expect(typedMessageManagerMock.addUnapprovedMessage).toHaveBeenCalledWith(
         messageParamsMock,
-        versionMock,
         requestMock,
+        versionMock,
       );
 
       expect(messengerMock.call).toHaveBeenCalledTimes(1);

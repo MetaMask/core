@@ -67,6 +67,10 @@ export interface TypedMessageParamsMetamask
   version?: string;
 }
 
+export type TypedMessageSigningOptions = {
+  parseJsonData: boolean;
+};
+
 /**
  * Controller in charge of managing - storing, adding, removing, updating - TypedMessages.
  */
@@ -87,14 +91,14 @@ export class TypedMessageManager extends AbstractMessageManager<
    *
    * @param messageParams - The params for the 'eth_signTypedData' call to be made after the message
    * is approved.
-   * @param version - Compatibility version EIP712.
    * @param req - The original request object possibly containing the origin.
+   * @param version - Compatibility version EIP712.
    * @returns The id of the newly created TypedMessage.
    */
   async addUnapprovedMessage(
     messageParams: TypedMessageParams,
-    version: string,
     req?: OriginalRequest,
+    version?: string,
   ): Promise<string> {
     if (version === 'V1') {
       validateTypedSignMessageDataV1(messageParams);

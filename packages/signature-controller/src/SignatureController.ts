@@ -11,6 +11,7 @@ import {
   TypedMessageManager,
   TypedMessageParams,
   TypedMessageParamsMetamask,
+  TypedMessageSigningOptions,
   AbstractMessageManager,
   AbstractMessage,
   MessageManagerState,
@@ -290,49 +291,30 @@ export class SignatureController extends BaseControllerV2<
     messageParams: MessageParams,
     req: OriginalRequest,
   ): Promise<string> {
-    if (!this.#isEthSignEnabled()) {
-      throw ethErrors.rpc.methodNotFound(
-        'eth_sign has been disabled. You must enable it in the advanced settings',
-      );
-    }
-
-    const data = this.#normalizeMsgData(messageParams.data);
-
-    // 64 hex + "0x" at the beginning
-    // This is needed because Ethereum's EcSign works only on 32 byte numbers
-    // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
-    if (data.length !== 66 && data.length !== 67) {
-      throw ethErrors.rpc.invalidParams(
-        'eth_sign requires 32 byte message hash',
-      );
-    }
-    const messageId = await this.#messageManager.addUnapprovedMessage(
+    return this.#newUnsignedAbstractMessage(
+      this.#messageManager,
+      ApprovalType.EthSign,
+      'Message',
+      this.#signMessage.bind(this),
       messageParams,
       req,
+      (params) => {
+        if (!this.#isEthSignEnabled()) {
+          throw ethErrors.rpc.methodNotFound(
+            'eth_sign has been disabled. You must enable it in the advanced settings',
+          );
+        }
+        const data = this.#normalizeMsgData(params.data);
+        // 64 hex + "0x" at the beginning
+        // This is needed because Ethereum's EcSign works only on 32 byte numbers
+        // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
+        if (data.length !== 66 && data.length !== 67) {
+          throw ethErrors.rpc.invalidParams(
+            'eth_sign requires 32 byte message hash',
+          );
+        }
+      },
     );
-
-    const messageParamsWithId = {
-      ...messageParams,
-      metamaskId: messageId,
-    };
-
-    const signaturePromise = this.#messageManager.waitForFinishStatus(
-      messageParamsWithId,
-      'Message',
-    );
-
-    try {
-      await this.#requestApproval(messageParamsWithId, ApprovalType.EthSign);
-    } catch (error) {
-      this.#cancelAbstractMessage(this.#messageManager, messageId);
-      throw ethErrors.provider.userRejectedRequest(
-        'User rejected the request.',
-      );
-    }
-
-    await this.#signMessage(cloneDeep(messageParamsWithId));
-
-    return signaturePromise;
   }
 
   /**
@@ -350,34 +332,14 @@ export class SignatureController extends BaseControllerV2<
     messageParams: PersonalMessageParams,
     req: OriginalRequest,
   ): Promise<string> {
-    const messageId = await this.#personalMessageManager.addUnapprovedMessage(
+    return this.#newUnsignedAbstractMessage(
+      this.#personalMessageManager,
+      ApprovalType.PersonalSign,
+      'Personal Message',
+      this.#signPersonalMessage.bind(this),
       messageParams,
       req,
     );
-
-    const messageParamsWithId = {
-      ...messageParams,
-      metamaskId: messageId,
-    };
-
-    const signaturePromise = this.#personalMessageManager.waitForFinishStatus(
-      messageParamsWithId,
-      'Personal Message',
-    );
-
-    try {
-      await this.#requestApproval(
-        messageParamsWithId,
-        ApprovalType.PersonalSign,
-      );
-    } catch (error) {
-      this.#cancelAbstractMessage(this.#personalMessageManager, messageId);
-      throw ethErrors.provider.userRejectedRequest(
-        'User rejected the request.',
-      );
-    }
-    await this.#signPersonalMessage(cloneDeep(messageParamsWithId));
-    return signaturePromise;
   }
 
   /**
@@ -386,47 +348,27 @@ export class SignatureController extends BaseControllerV2<
    * @param messageParams - The params passed to eth_signTypedData.
    * @param req - The original request, containing the origin.
    * @param version - The version indicating the format of the typed data.
-   * @param opts - An options bag.
-   * @param opts.parseJsonData - Whether to parse the JSON before signing.
+   * @param signingOpts - An options bag for signing.
+   * @param signingOpts.parseJsonData - Whether to parse the JSON before signing.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async newUnsignedTypedMessage(
     messageParams: TypedMessageParams,
     req: OriginalRequest,
     version: string,
-    opts: { parseJsonData: boolean } = { parseJsonData: true },
+    signingOpts: TypedMessageSigningOptions = { parseJsonData: true },
   ): Promise<string> {
-    const messageId = await this.#typedMessageManager.addUnapprovedMessage(
-      messageParams,
-      version,
-      req,
-    );
-
-    const messageParamsWithId = {
-      ...messageParams,
-      metamaskId: messageId,
-    };
-
-    const signaturePromise = this.#typedMessageManager.waitForFinishStatus(
-      messageParamsWithId,
+    return this.#newUnsignedAbstractMessage(
+      this.#typedMessageManager,
+      ApprovalType.EthSignTypedData,
       'Typed Message',
-      true,
+      this.#signTypedMessage.bind(this),
+      messageParams,
+      req,
+      undefined,
+      version,
+      signingOpts,
     );
-
-    try {
-      await this.#requestApproval(
-        messageParamsWithId,
-        ApprovalType.EthSignTypedData,
-      );
-    } catch (error) {
-      this.#cancelAbstractMessage(this.#typedMessageManager, messageId);
-      throw ethErrors.provider.userRejectedRequest(
-        'User rejected the request.',
-      );
-    }
-    await this.#signTypedMessage(cloneDeep(messageParamsWithId), version, opts);
-
-    return signaturePromise;
   }
 
   setTypedMessageInProgress(messageId: string) {
@@ -435,6 +377,59 @@ export class SignatureController extends BaseControllerV2<
 
   setPersonalMessageInProgress(messageId: string) {
     this.#personalMessageManager.setMessageStatusInProgress(messageId);
+  }
+
+  async #newUnsignedAbstractMessage<
+    M extends AbstractMessage,
+    P extends AbstractMessageParams,
+    PM extends AbstractMessageParamsMetamask,
+  >(
+    messageManager: AbstractMessageManager<M, P, PM>,
+    approvalType: ApprovalType,
+    messageName: string,
+    signMessage: (
+      messageParams: PM,
+      version?: string,
+      signingOpts?: TypedMessageSigningOptions,
+    ) => void,
+    messageParams: PM,
+    req: OriginalRequest,
+    validateMessage?: (params: PM) => void,
+    version?: string,
+    signingOpts?: TypedMessageSigningOptions,
+  ) {
+    if (validateMessage) {
+      validateMessage(messageParams);
+    }
+
+    const messageId = await messageManager.addUnapprovedMessage(
+      messageParams,
+      req,
+      version,
+    );
+
+    const messageParamsWithId = {
+      ...messageParams,
+      metamaskId: messageId,
+    };
+
+    const signaturePromise = messageManager.waitForFinishStatus(
+      messageParamsWithId,
+      messageName,
+      true,
+    );
+
+    try {
+      await this.#requestApproval(messageParamsWithId, approvalType);
+    } catch (error) {
+      this.#cancelAbstractMessage(messageManager, messageId);
+      throw ethErrors.provider.userRejectedRequest(
+        'User rejected the request.',
+      );
+    }
+    await signMessage(messageParamsWithId, version, signingOpts);
+
+    return signaturePromise;
   }
 
   /**
@@ -482,15 +477,15 @@ export class SignatureController extends BaseControllerV2<
    */
   async #signTypedMessage(
     msgParams: TypedMessageParamsMetamask,
-    version: string,
-    opts: { parseJsonData: boolean },
+    version?: string,
+    opts?: TypedMessageSigningOptions,
   ): Promise<any> {
     return await this.#signAbstractMessage(
       this.#typedMessageManager,
       ApprovalType.EthSignTypedData,
       msgParams,
       async (cleanMsgParams) => {
-        const finalMessageParams = opts.parseJsonData
+        const finalMessageParams = opts?.parseJsonData
           ? this.#removeJsonData(cleanMsgParams, version as string)
           : cleanMsgParams;
 
@@ -665,13 +660,17 @@ export class SignatureController extends BaseControllerV2<
     const id = msgParams.metamaskId as string;
     const origin = msgParams.origin || ORIGIN_METAMASK;
 
+    // We are explicitly cloning the message params here to prevent the mutation errors on development mode
+    // Because sending it through the messaging system will make the object read only
+    const clonedMsgParams = cloneDeep(msgParams);
+
     return this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
         id,
         origin,
         type,
-        requestData: msgParams as Required<AbstractMessageParamsMetamask>,
+        requestData: clonedMsgParams as Required<AbstractMessageParamsMetamask>,
       },
       true,
     );
