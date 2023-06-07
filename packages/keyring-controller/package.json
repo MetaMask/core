@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -38,7 +38,8 @@
     "@metamask/preferences-controller": "workspace:^",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
-    "ethereumjs-wallet": "^1.0.1"
+    "ethereumjs-wallet": "^1.0.1",
+    "immer": "^9.0.6"
   },
   "devDependencies": {
     "@ethereumjs/common": "^2.6.1",

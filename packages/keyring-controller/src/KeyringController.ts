@@ -6,10 +6,7 @@ import {
   stripHexPrefix,
   getBinarySize,
 } from 'ethereumjs-util';
-import {
-  isValidHexAddress,
-  toChecksumHexAddress,
-} from '@metamask/controller-utils';
+import { isValidHexAddress } from '@metamask/controller-utils';
 import {
   normalize as normalizeAddress,
   signTypedData,
@@ -22,16 +19,17 @@ import {
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
 import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-  Listener,
+  BaseControllerV2,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
+import type { Patch } from 'immer';
+
+const name = 'KeyringController';
 
 /**
  * Available keyring types
@@ -57,44 +55,83 @@ export interface KeyringObject {
 }
 
 /**
- * @type KeyringState
+ * @type KeyringControllerState
  *
  * Keyring controller state
  * @property vault - Encrypted string representing keyring data
- * @property keyrings - Group of accounts
- */
-export interface KeyringState extends BaseState {
-  vault?: string;
-  keyrings: Keyring[];
-}
-
-/**
- * @type KeyringMemState
- *
- * Keyring mem controller state
  * @property isUnlocked - Whether vault is unlocked
  * @property keyringTypes - Account types
  * @property keyrings - Group of accounts
+ * @property encryptionKey - Keyring encryption key
+ * @property encryptionSalt - Keyring encryption salt
  */
-export interface KeyringMemState extends BaseState {
+export type KeyringControllerState = {
+  vault?: string;
   isUnlocked: boolean;
   keyringTypes: string[];
   keyrings: Keyring[];
   encryptionKey?: string;
   encryptionSalt?: string;
-}
+};
 
-/**
- * @type KeyringConfig
- *
- * Keyring controller configuration
- * @property encryptor - Keyring encryptor
- */
-export interface KeyringConfig extends BaseConfig {
+export type KeyringControllerMemState = Omit<
+  KeyringControllerState,
+  'vault' | 'encryptionKey' | 'encryptionSalt'
+>;
+
+export type KeyringControllerGetStateAction = {
+  type: `${typeof name}:getState`;
+  handler: () => KeyringControllerState;
+};
+
+export type KeyringControllerStateChangeEvent = {
+  type: `${typeof name}:stateChange`;
+  payload: [KeyringControllerState, Patch[]];
+};
+
+export type KeyringControllerAccountRemovedEvent = {
+  type: `${typeof name}:accountRemoved`;
+  payload: [string];
+};
+
+export type KeyringControllerLockEvent = {
+  type: `${typeof name}:lock`;
+  payload: [];
+};
+
+export type KeyringControllerUnlockEvent = {
+  type: `${typeof name}:unlock`;
+  payload: [];
+};
+
+export type KeyringControllerActions = KeyringControllerGetStateAction;
+
+export type KeyringControllerEvents =
+  | KeyringControllerStateChangeEvent
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent
+  | KeyringControllerAccountRemovedEvent;
+
+export type KeyringControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  KeyringControllerActions,
+  KeyringControllerEvents,
+  string,
+  string
+>;
+
+export type KeyringControllerOptions = {
+  removeIdentity: PreferencesController['removeIdentity'];
+  syncIdentities: PreferencesController['syncIdentities'];
+  updateIdentities: PreferencesController['updateIdentities'];
+  setSelectedAddress: PreferencesController['setSelectedAddress'];
+  setAccountLabel?: PreferencesController['setAccountLabel'];
   encryptor?: any;
   keyringBuilders?: any[];
   cacheEncryptionKey?: boolean;
-}
+  messenger: KeyringControllerMessenger;
+  state?: Partial<KeyringControllerState>;
+};
 
 /**
  * @type Keyring
@@ -102,13 +139,11 @@ export interface KeyringConfig extends BaseConfig {
  * Keyring object to return in fullUpdate
  * @property type - Keyring type
  * @property accounts - Associated accounts
- * @property index - Associated index
  */
-export interface Keyring {
+export type Keyring = {
   accounts: string[];
   type: string;
-  index?: number;
-}
+};
 
 /**
  * A strategy for importing an account
@@ -129,6 +164,12 @@ export enum SignTypedDataVersion {
   V4 = 'V4',
 }
 
+const defaultState: KeyringControllerState = {
+  isUnlocked: false,
+  keyringTypes: [],
+  keyrings: [],
+};
+
 /**
  * Controller responsible for establishing and managing user identity.
  *
@@ -138,16 +179,12 @@ export enum SignTypedDataVersion {
  * with the internal keyring controller and handling certain complex operations that involve the
  * keyrings.
  */
-export class KeyringController extends BaseController<
-  KeyringConfig,
-  KeyringState
+export class KeyringController extends BaseControllerV2<
+  typeof name,
+  KeyringControllerState,
+  KeyringControllerMessenger
 > {
   private mutex = new Mutex();
-
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'KeyringController';
 
   private removeIdentity: PreferencesController['removeIdentity'];
 
@@ -164,51 +201,63 @@ export class KeyringController extends BaseController<
   /**
    * Creates a KeyringController instance.
    *
-   * @param options - The controller options.
-   * @param options.removeIdentity - Remove the identity with the given address.
-   * @param options.syncIdentities - Sync identities with the given list of addresses.
-   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
-   * @param options.setSelectedAddress - Set the selected address.
-   * @param options.setAccountLabel - Set a new name for account.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param opts - Initial options used to configure this controller
+   * @param opts.removeIdentity - Remove the identity with the given address.
+   * @param opts.syncIdentities - Sync identities with the given list of addresses.
+   * @param opts.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
+   * @param opts.setSelectedAddress - Set the selected address.
+   * @param opts.setAccountLabel - Set a new name for account.
+   * @param opts.encryptor - An optional object for defining encryption schemes.
+   * @param opts.keyringBuilders - Set a new name for account.
+   * @param opts.cacheEncryptionKey - Whether to cache or not encryption key.
+   * @param opts.messenger - A restricted controller messenger.
+   * @param opts.state - Initial state to set on this controller.
    */
-  constructor(
-    {
-      removeIdentity,
-      syncIdentities,
-      updateIdentities,
-      setSelectedAddress,
-      setAccountLabel,
-    }: {
-      removeIdentity: PreferencesController['removeIdentity'];
-      syncIdentities: PreferencesController['syncIdentities'];
-      updateIdentities: PreferencesController['updateIdentities'];
-      setSelectedAddress: PreferencesController['setSelectedAddress'];
-      setAccountLabel?: PreferencesController['setAccountLabel'];
-    },
-    config?: Partial<KeyringConfig>,
-    state?: Partial<KeyringState>,
-  ) {
-    super(config, state);
-    this.#keyring = new EthKeyringController(
-      Object.assign({ initState: state }, config),
-    );
-    this.#keyring.store.subscribe(() => {
-      this.update({ vault: this.#keyring.store.getState().vault });
+  constructor({
+    removeIdentity,
+    syncIdentities,
+    updateIdentities,
+    setSelectedAddress,
+    setAccountLabel,
+    encryptor,
+    keyringBuilders,
+    cacheEncryptionKey,
+    messenger,
+    state,
+  }: KeyringControllerOptions) {
+    super({
+      name,
+      metadata: {
+        vault: { persist: true, anonymous: false },
+        isUnlocked: { persist: false, anonymous: true },
+        keyringTypes: { persist: false, anonymous: false },
+        keyrings: { persist: false, anonymous: false },
+        encryptionKey: { persist: false, anonymous: false },
+        encryptionSalt: { persist: false, anonymous: false },
+      },
+      messenger,
+      state: {
+        ...defaultState,
+        ...state,
+      },
     });
 
-    this.defaultState = {
-      ...this.#keyring.store.getState(),
-      keyrings: [],
-    };
+    this.#keyring = new EthKeyringController(
+      Object.assign(
+        { initState: state },
+        { encryptor, keyringBuilders, cacheEncryptionKey },
+      ),
+    );
+    this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
+    this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
+    this.#keyring.on('lock', this.#handleLock.bind(this));
+    this.#keyring.on('unlock', this.#handleUnlock.bind(this));
+
     this.removeIdentity = removeIdentity;
     this.syncIdentities = syncIdentities;
     this.updateIdentities = updateIdentities;
     this.setSelectedAddress = setSelectedAddress;
     this.setAccountLabel = setAccountLabel;
-    this.initialize();
-    this.fullUpdate();
   }
 
   /**
@@ -220,7 +269,7 @@ export class KeyringController extends BaseController<
    * address.
    */
   async addNewAccount(accountCount?: number): Promise<{
-    keyringState: KeyringMemState;
+    keyringState: KeyringControllerMemState;
     addedAccountAddress: string;
   }> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
@@ -237,7 +286,7 @@ export class KeyringController extends BaseController<
       // we return the account already existing at index `accountCount`
       const primaryKeyringAccounts = await primaryKeyring.getAccounts();
       return {
-        keyringState: await this.fullUpdate(),
+        keyringState: this.#getMemState(),
         addedAccountAddress: primaryKeyringAccounts[accountCount],
       };
     }
@@ -252,7 +301,7 @@ export class KeyringController extends BaseController<
       (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
     );
     return {
-      keyringState: await this.fullUpdate(),
+      keyringState: this.#getMemState(),
       addedAccountAddress,
     };
   }
@@ -262,7 +311,7 @@ export class KeyringController extends BaseController<
    *
    * @returns Promise resolving to current state when the account is added.
    */
-  async addNewAccountWithoutUpdate(): Promise<KeyringMemState> {
+  async addNewAccountWithoutUpdate(): Promise<KeyringControllerMemState> {
     const primaryKeyring = this.#keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
@@ -270,7 +319,7 @@ export class KeyringController extends BaseController<
     }
     await this.#keyring.addNewAccount(primaryKeyring);
     await this.verifySeedPhrase();
-    return this.fullUpdate();
+    return this.#getMemState();
   }
 
   /**
@@ -282,7 +331,10 @@ export class KeyringController extends BaseController<
    * either as a string or an array of UTF-8 bytes that represent the string.
    * @returns Promise resolving to the restored keychain object.
    */
-  async createNewVaultAndRestore(password: string, seed: Uint8Array) {
+  async createNewVaultAndRestore(
+    password: string,
+    seed: Uint8Array,
+  ): Promise<KeyringControllerMemState> {
     const releaseLock = await this.mutex.acquire();
     if (!password || !password.length) {
       throw new Error('Invalid password');
@@ -290,13 +342,9 @@ export class KeyringController extends BaseController<
 
     try {
       this.updateIdentities([]);
-      const vault = await this.#keyring.createNewVaultAndRestore(
-        password,
-        seed,
-      );
+      await this.#keyring.createNewVaultAndRestore(password, seed);
       this.updateIdentities(await this.#keyring.getAccounts());
-      this.fullUpdate();
-      return vault;
+      return this.#getMemState();
     } finally {
       releaseLock();
     }
@@ -311,17 +359,12 @@ export class KeyringController extends BaseController<
   async createNewVaultAndKeychain(password: string) {
     const releaseLock = await this.mutex.acquire();
     try {
-      let vault;
       const accounts = await this.getAccounts();
-      if (accounts.length > 0) {
-        vault = await this.fullUpdate();
-      } else {
-        vault = await this.#keyring.createNewVaultAndKeychain(password);
+      if (!accounts.length) {
+        await this.#keyring.createNewVaultAndKeychain(password);
         this.updateIdentities(await this.getAccounts());
-        await this.fullUpdate();
       }
-
-      return vault;
+      return this.#getMemState();
     } finally {
       releaseLock();
     }
@@ -343,7 +386,7 @@ export class KeyringController extends BaseController<
    * @returns Boolean returning true if the vault is unlocked.
    */
   isUnlocked(): boolean {
-    return this.#keyring.memStore.getState().isUnlocked;
+    return this.state.isUnlocked;
   }
 
   /**
@@ -418,7 +461,7 @@ export class KeyringController extends BaseController<
     strategy: AccountImportStrategy,
     args: any[],
   ): Promise<{
-    keyringState: KeyringMemState;
+    keyringState: KeyringControllerMemState;
     importedAccountAddress: string;
   }> {
     let privateKey;
@@ -468,7 +511,7 @@ export class KeyringController extends BaseController<
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
     return {
-      keyringState: await this.fullUpdate(),
+      keyringState: this.#getMemState(),
       importedAccountAddress: accounts[0],
     };
   }
@@ -477,12 +520,14 @@ export class KeyringController extends BaseController<
    * Removes an account from keyring state.
    *
    * @param address - Address of the account to remove.
+   * @fires KeyringController:accountRemoved
    * @returns Promise resolving current state when this account removal completes.
    */
-  async removeAccount(address: string): Promise<KeyringMemState> {
+  async removeAccount(address: string): Promise<KeyringControllerMemState> {
     this.removeIdentity(address);
     await this.#keyring.removeAccount(address);
-    return this.fullUpdate();
+    this.messagingSystem.publish(`${name}:accountRemoved`, address);
+    return this.#getMemState();
   }
 
   /**
@@ -490,7 +535,7 @@ export class KeyringController extends BaseController<
    *
    * @returns Promise resolving to current state.
    */
-  setLocked(): Promise<KeyringMemState> {
+  setLocked(): Promise<KeyringControllerMemState> {
     return this.#keyring.setLocked();
   }
 
@@ -606,8 +651,9 @@ export class KeyringController extends BaseController<
   async submitEncryptionKey(
     encryptionKey: string,
     encryptionSalt: string,
-  ): Promise<KeyringMemState> {
-    return this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
+  ): Promise<KeyringControllerMemState> {
+    await this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
+    return this.#getMemState();
   }
 
   /**
@@ -617,50 +663,11 @@ export class KeyringController extends BaseController<
    * @param password - Password to unlock the keychain.
    * @returns Promise resolving to the current state.
    */
-  async submitPassword(password: string): Promise<KeyringMemState> {
+  async submitPassword(password: string): Promise<KeyringControllerMemState> {
     await this.#keyring.submitPassword(password);
     const accounts = await this.#keyring.getAccounts();
     await this.syncIdentities(accounts);
-    return this.fullUpdate();
-  }
-
-  /**
-   * Adds new listener to be notified of state changes.
-   *
-   * @param listener - Callback triggered when state changes.
-   */
-  override subscribe(listener: Listener<KeyringState>) {
-    this.#keyring.store.subscribe(listener);
-  }
-
-  /**
-   * Removes existing listener from receiving state changes.
-   *
-   * @param listener - Callback to remove.
-   * @returns True if a listener is found and unsubscribed.
-   */
-  override unsubscribe(listener: Listener<KeyringState>) {
-    return this.#keyring.store.unsubscribe(listener);
-  }
-
-  /**
-   * Adds new listener to be notified when the wallet is locked.
-   *
-   * @param listener - Callback triggered when wallet is locked.
-   * @returns EventEmitter if listener added.
-   */
-  onLock(listener: () => void) {
-    return this.#keyring.on('lock', listener);
-  }
-
-  /**
-   * Adds new listener to be notified when the wallet is unlocked.
-   *
-   * @param listener - Callback triggered when wallet is unlocked.
-   * @returns EventEmitter if listener added.
-   */
-  onUnlock(listener: () => void) {
-    return this.#keyring.on('unlock', listener);
+    return this.#getMemState();
   }
 
   /**
@@ -706,31 +713,6 @@ export class KeyringController extends BaseController<
     return seedWords;
   }
 
-  /**
-   * Update keyrings in state and calls KeyringController fullUpdate method returning current state.
-   *
-   * @returns The current state.
-   */
-  async fullUpdate(): Promise<KeyringMemState> {
-    const keyrings: Keyring[] = await Promise.all<Keyring>(
-      this.#keyring.keyrings.map(
-        async (keyring: KeyringObject, index: number): Promise<Keyring> => {
-          const keyringAccounts = await keyring.getAccounts();
-          const accounts = Array.isArray(keyringAccounts)
-            ? keyringAccounts.map((address) => toChecksumHexAddress(address))
-            : /* istanbul ignore next */ [];
-          return {
-            accounts,
-            index,
-            type: keyring.type,
-          };
-        },
-      ),
-    );
-    this.update({ keyrings: [...keyrings] });
-    return this.#keyring.fullUpdate();
-  }
-
   // QR Hardware related methods
 
   /**
@@ -739,9 +721,7 @@ export class KeyringController extends BaseController<
    * @returns The added keyring
    */
   private async addQRKeyring(): Promise<QRKeyring> {
-    const keyring = await this.#keyring.addNewKeyring(KeyringTypes.qr);
-    await this.fullUpdate();
-    return keyring;
+    return this.#keyring.addNewKeyring(KeyringTypes.qr);
   }
 
   /**
@@ -756,8 +736,8 @@ export class KeyringController extends BaseController<
 
   async restoreQRKeyring(serialized: any): Promise<void> {
     (await this.getOrAddQRKeyring()).deserialize(serialized);
+    await this.#keyring.persistAllKeyrings();
     this.updateIdentities(await this.#keyring.getAccounts());
-    await this.fullUpdate();
   }
 
   async resetQRKeyringState(): Promise<void> {
@@ -841,7 +821,6 @@ export class KeyringController extends BaseController<
       }
     });
     await this.#keyring.persistAllKeyrings();
-    await this.fullUpdate();
   }
 
   async getAccountKeyringType(account: string): Promise<KeyringTypes> {
@@ -856,7 +835,45 @@ export class KeyringController extends BaseController<
       this.setSelectedAddress(account);
     });
     await this.#keyring.persistAllKeyrings();
-    await this.fullUpdate();
+  }
+
+  /**
+   * Sync controller state with current keyring store
+   * and memStore states.
+   *
+   * @fires KeyringController:stateChange
+   */
+  #fullUpdate() {
+    this.update(() => ({
+      ...this.#keyring.store.getState(),
+      ...this.#keyring.memStore.getState(),
+    }));
+  }
+
+  /**
+   * Handle keyring lock event.
+   *
+   * @fires KeyringController:lock
+   */
+  #handleLock() {
+    this.messagingSystem.publish(`${name}:lock`);
+  }
+
+  /**
+   * Handle keyring unlock event.
+   *
+   * @fires KeyringController:unlock
+   */
+  #handleUnlock() {
+    this.messagingSystem.publish(`${name}:unlock`);
+  }
+
+  #getMemState(): KeyringControllerMemState {
+    return {
+      isUnlocked: this.state.isUnlocked,
+      keyrings: this.state.keyrings,
+      keyringTypes: this.state.keyringTypes,
+    };
   }
 }
 
