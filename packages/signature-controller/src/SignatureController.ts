@@ -356,7 +356,7 @@ export class SignatureController extends BaseControllerV2<
     messageParams: TypedMessageParams,
     req: OriginalRequest,
     version: string,
-    signingOpts: TypedMessageSigningOptions = { parseJsonData: true },
+    signingOpts: TypedMessageSigningOptions,
   ): Promise<string> {
     return this.#newUnsignedAbstractMessage(
       this.#typedMessageManager,
@@ -485,6 +485,9 @@ export class SignatureController extends BaseControllerV2<
       ApprovalType.EthSignTypedData,
       msgParams,
       async (cleanMsgParams) => {
+        // Options will allways be defined, but we want to satisfy the TS
+        // hence we ignore the branch here
+        /* istanbul ignore next */
         const finalMessageParams = opts?.parseJsonData
           ? this.#removeJsonData(cleanMsgParams, version as string)
           : cleanMsgParams;
