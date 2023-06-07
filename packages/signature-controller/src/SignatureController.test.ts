@@ -530,7 +530,7 @@ describe('SignatureController', () => {
         messageParamsMock,
         requestMock,
         'V2',
-        { parseJsonData: true }
+        { parseJsonData: true },
       );
 
       expect(keyringControllerMock.signTypedMessage).toHaveBeenCalledTimes(1);
