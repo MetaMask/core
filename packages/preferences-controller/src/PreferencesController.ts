@@ -294,13 +294,13 @@ export class PreferencesController extends BaseController<
     this.update({ isMultiAccountBalancesEnabled });
   }
 
-/**
- * A setter for the user have the test networks visible/hidden.
- * 
- * @param showTestNetworks - true to show test networks, false to hidden.
- */
-  setShowTestNetworks(showTestNetworks: boolean) {
-      this.update({showTestNetworks});
+  /**
+   * A setter for the user have the test networks visible/hidden.
+   *
+   * @param showTestNetworks - true to show test networks, false to hidden.
+   */
+  setShowTestNetworks(showTestNetworks: boolean) {
+    this.update({ showTestNetworks });
   }
 }
 
