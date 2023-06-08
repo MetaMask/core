@@ -371,21 +371,6 @@ describe('SignatureController', () => {
       );
     });
 
-    it('throws if approval rejected', async () => {
-      messengerMock.call.mockRejectedValueOnce({});
-
-      const error: any = await getError(
-        async () =>
-          await signatureController.newUnsignedMessage(
-            messageParamsMock,
-            requestMock,
-          ),
-      );
-
-      expect(error instanceof EthereumProviderError).toBe(true);
-      expect(error.message).toBe('User rejected the request.');
-    });
-
     it('throws if cannot get signature', async () => {
       (keyringControllerMock as any).signMessage.mockRejectedValueOnce(
         keyringErrorMock,

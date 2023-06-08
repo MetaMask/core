@@ -27,10 +27,7 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Patch } from 'immer';
-import {
-  AddApprovalRequest,
-  RejectRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 
 const controllerName = 'SignatureController';
@@ -70,7 +67,7 @@ type SignatureControllerState = {
   unapprovedTypedMessagesCount: number;
 };
 
-type AllowedActions = AddApprovalRequest | RejectRequest;
+type AllowedActions = AddApprovalRequest;
 
 export type GetSignatureState = {
   type: `${typeof controllerName}:getState`;
