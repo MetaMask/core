@@ -2,26 +2,15 @@ import * as sinon from 'sinon';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
-import {
-  ChainId,
-  NetworkType,
-  toHex,
-  ApprovalType,
-  ORIGIN_METAMASK,
-} from '@metamask/controller-utils';
+import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
 import type {
   BlockTrackerProxy,
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import { errorCodes } from 'eth-rpc-errors';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import {
@@ -29,7 +18,6 @@ import {
   TransactionStatus,
   TransactionMeta,
   TransactionControllerMessenger,
-  GasPriceValue,
 } from './TransactionController';
 import {
   ethTxsMock,
@@ -162,7 +150,56 @@ function buildMockBlockTracker(latestBlockNumber: string): BlockTrackerProxy {
   return createEventEmitterProxy<PollingBlockTracker>(fakeBlockTracker);
 }
 
-const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
+/**
+ * Create a mock controller messenger.
+ *
+ * @param opts - Options to customize the mock messenger.
+ * @param opts.approved - Whether transactions should immediately be approved or rejected.
+ * @param opts.delay - Whether to delay approval or rejection until the returned functions are called.
+ * @returns The mock controller messenger.
+ */
+function buildMockMessenger({
+  approved,
+  delay,
+}: {
+  approved?: boolean;
+  delay?: boolean;
+}): {
+  messenger: TransactionControllerMessenger;
+  approve: () => void;
+  reject: (reason: any) => void;
+} {
+  let approve, reject;
+  let promise: Promise<void>;
+
+  if (delay) {
+    promise = new Promise((res, rej) => {
+      approve = res;
+      reject = rej;
+    });
+  }
+
+  const messenger = {
+    call: jest.fn().mockImplementation(() => {
+      if (approved) {
+        return Promise.resolve(true);
+      }
+
+      if (delay) {
+        return promise;
+      }
+
+      // eslint-disable-next-line prefer-promise-reject-errors
+      return Promise.reject({
+        code: errorCodes.provider.userRejectedRequest,
+      });
+    }),
+  } as unknown as TransactionControllerMessenger;
+
+  return { messenger, approve: approve as any, reject: reject as any };
+}
+
+const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const GOERLI_PROVIDER = new HttpProvider(
   'https://goerli.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
@@ -325,49 +362,19 @@ const MOCK_FETCH_TX_HISTORY_DATA_ERROR = {
   status: '0',
 };
 
-const controllerName = 'TransactionController' as const;
-
-type ApprovalActions =
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest;
-
 describe('TransactionController', () => {
-  let callActionSpy: jest.SpyInstance;
-  const messengerMock = new ControllerMessenger<
-    ApprovalActions,
-    never
-  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
-    name: controllerName,
-    allowedActions: [
-      'ApprovalController:addRequest',
-      'ApprovalController:acceptRequest',
-      'ApprovalController:rejectRequest',
-    ],
-  }) as TransactionControllerMessenger;
-
-  const setupMessengerCallSpy = (
-    approvalControllerCallResolves: boolean,
-    calledOnce: boolean,
-  ) => {
-    return approvalControllerCallResolves
-      ? jest.spyOn(messengerMock, 'call').mockResolvedValue({})
-      : jest.spyOn(messengerMock, 'call').mockImplementation(() => {
-          if (!calledOnce) {
-            calledOnce = true;
-            return Promise.resolve({});
-          }
-
-          throw new Error();
-        });
-  };
+  let messengerMock: TransactionControllerMessenger;
+  let rejectMessengerMock: TransactionControllerMessenger;
+  let delayMessengerMock: TransactionControllerMessenger;
 
   beforeEach(() => {
     for (const key in mockFlags) {
       mockFlags[key] = null;
     }
 
-    callActionSpy = jest.spyOn(messengerMock, 'call').mockResolvedValue({});
+    messengerMock = buildMockMessenger({ approved: true }).messenger;
+    rejectMessengerMock = buildMockMessenger({ approved: false }).messenger;
+    delayMessengerMock = buildMockMessenger({ delay: true }).messenger;
   });
 
   afterEach(() => {
@@ -494,7 +501,6 @@ describe('TransactionController', () => {
       messenger: messengerMock,
     });
     mockFlags.estimateGasValue = '0x12a05f200';
-    mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
 
     const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
     const result = await controller.estimateGas({ from, to: from });
@@ -611,56 +617,37 @@ describe('TransactionController', () => {
     ).rejects.toThrow('Invalid "from" address');
   });
 
-  it.each([
-    ['resolves', true],
-    ['rejects', false],
-  ])(
-    'should add a valid transaction if user confirms a message to ApprovalController %s',
-    async (_, approvalControllerCallResolves: boolean) => {
-      const calledOnce = false;
-      callActionSpy = setupMessengerCallSpy(
-        approvalControllerCallResolves,
-        calledOnce,
-      );
-      const controller = new TransactionController({
+  it('should add a valid transaction', async () => {
+    const controller = new TransactionController(
+      {
         getNetworkState: () => MOCK_NETWORK.state,
         onNetworkStateChange: MOCK_NETWORK.subscribe,
         provider: MOCK_NETWORK.provider,
         blockTracker: MOCK_NETWORK.blockTracker,
         messenger: messengerMock,
-      });
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      await controller.addTransaction({
-        from,
-        to: from,
-      });
-      expect(controller.state.transactions[0].transaction.from).toBe(from);
-      expect(controller.state.transactions[0].networkID).toBe(
-        MOCK_NETWORK.state.networkId,
-      );
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      to: from,
+    });
+    expect(controller.state.transactions[0].transaction.from).toBe(from);
+    expect(controller.state.transactions[0].networkID).toBe(
+      MOCK_NETWORK.state.networkId,
+    );
 
-      expect(controller.state.transactions[0].chainId).toBe(
-        MOCK_NETWORK.state.providerConfig.chainId,
-      );
+    expect(controller.state.transactions[0].chainId).toBe(
+      MOCK_NETWORK.state.providerConfig.chainId,
+    );
 
-      expect(controller.state.transactions[0].status).toBe(
-        TransactionStatus.unapproved,
-      );
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin: ORIGIN_METAMASK,
-          requestData: {
-            txId: expect.any(String),
-          },
-          type: ApprovalType.Transaction,
-        },
-        true,
-      );
-    },
-  );
+    expect(controller.state.transactions[0].status).toBe(
+      TransactionStatus.unapproved,
+    );
+  });
 
   it('should add a valid transaction after a network switch', async () => {
     const getNetworkState = sinon.stub().returns(MOCK_NETWORK.state);
@@ -675,7 +662,7 @@ describe('TransactionController', () => {
       onNetworkStateChange,
       provider: GOERLI_PROVIDER,
       blockTracker: MOCK_NETWORK.blockTracker,
-      messenger: messengerMock,
+      messenger: delayMessengerMock,
     });
 
     // switch from Goerli to Mainnet
@@ -716,7 +703,7 @@ describe('TransactionController', () => {
       onNetworkStateChange,
       provider: MOCK_CUSTOM_NETWORK.provider,
       blockTracker: MOCK_CUSTOM_NETWORK.blockTracker,
-      messenger: messengerMock,
+      messenger: delayMessengerMock,
     });
 
     // switch from Goerli to Mainnet
@@ -750,14 +737,13 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_NETWORK.subscribe,
       provider: MOCK_NETWORK.provider,
       blockTracker: MOCK_NETWORK.blockTracker,
-      messenger: messengerMock,
+      messenger: rejectMessengerMock,
     });
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const { result } = await controller.addTransaction({
       from,
       to: from,
     });
-    controller.cancelTransaction('foo');
     const transactionListener = new Promise(async (resolve) => {
       controller.hub.once(
         `${controller.state.transactions[0].id}:finished`,
@@ -770,27 +756,8 @@ describe('TransactionController', () => {
         },
       );
     });
-    controller.cancelTransaction(controller.state.transactions[0].id);
     await expect(result).rejects.toThrow('User rejected the transaction');
     await transactionListener;
-    expect(callActionSpy).toHaveBeenCalledTimes(2);
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:addRequest',
-      {
-        id: expect.any(String),
-        origin: ORIGIN_METAMASK,
-        requestData: {
-          txId: expect.any(String),
-        },
-        type: ApprovalType.Transaction,
-      },
-      true,
-    );
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:rejectRequest',
-      expect.any(String),
-      new Error('Rejected'),
-    );
   });
 
   it('should wipe transactions', async () => {
@@ -799,7 +766,7 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_NETWORK.subscribe,
       provider: MOCK_NETWORK.provider,
       blockTracker: MOCK_NETWORK.blockTracker,
-      messenger: messengerMock,
+      messenger: delayMessengerMock,
     });
     controller.wipeTransactions();
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
@@ -822,7 +789,7 @@ describe('TransactionController', () => {
     });
     controller.wipeTransactions();
     controller.state.transactions.push({
-      from: MOCK_PREFERENCES.state.selectedAddress,
+      from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
       networkID: '5',
       status: TransactionStatus.submitted,
@@ -833,7 +800,6 @@ describe('TransactionController', () => {
   });
 
   it('should fail to approve an invalid transaction', async () => {
-    callActionSpy = jest.spyOn(messengerMock, 'call').mockResolvedValue({});
     const controller = new TransactionController(
       {
         getNetworkState: () => MOCK_NETWORK.state,
@@ -851,55 +817,40 @@ describe('TransactionController', () => {
     const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const { result } = await controller.addTransaction({ from, to });
-    await controller.approveTransaction(controller.state.transactions[0].id);
+    await expect(result).rejects.toThrow('foo');
     const { transaction, status } = controller.state.transactions[0];
     expect(transaction.from).toBe(from);
     expect(transaction.to).toBe(to);
     expect(status).toBe(TransactionStatus.failed);
-    await expect(result).rejects.toThrow('foo');
-    expect(callActionSpy).toHaveBeenCalledTimes(2);
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:addRequest',
-      {
-        id: expect.any(String),
-        origin: ORIGIN_METAMASK,
-        requestData: {
-          txId: expect.any(String),
-        },
-        type: ApprovalType.Transaction,
-      },
-      true,
-    );
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:rejectRequest',
-      expect.any(String),
-      new Error('Rejected'),
-    );
   });
 
   it('should have gasEstimatedError variable on transaction object if gas calculation fails', async () => {
-    const controller = new TransactionController({
-      getNetworkState: () => MOCK_MAINNET_NETWORK.state,
-      onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
-      provider: MOCK_MAINNET_NETWORK.provider,
-      blockTracker: MOCK_MAINNET_NETWORK.blockTracker,
-      messenger: messengerMock,
-    });
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+        onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+        provider: MOCK_MAINNET_NETWORK.provider,
+        blockTracker: MOCK_MAINNET_NETWORK.blockTracker,
+        messenger: delayMessengerMock,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+
     mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+
     await controller.addTransaction({
       from,
       to: from,
     });
 
-    controller.hub.once(
-      `${controller.state.transactions[0].id}:finished`,
-      () => {
-        const { transaction, status } = controller.state.transactions[0];
-        expect(transaction.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
-        expect(status).toBe(TransactionStatus.submitted);
-      },
-    );
+    const {
+      transaction: { estimateGasError },
+    } = controller.state.transactions[0];
+
+    expect(estimateGasError).toBe(ESTIMATE_GAS_ERROR);
   });
 
   it('should have gasEstimatedError variable on transaction object on custom network if gas calculation fails', async () => {
@@ -908,23 +859,22 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
       provider: MOCK_CUSTOM_NETWORK.provider,
       blockTracker: MOCK_CUSTOM_NETWORK.blockTracker,
-      messenger: messengerMock,
+      messenger: delayMessengerMock,
     });
+
     mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+
     await controller.addTransaction({
       from,
       to: from,
     });
 
-    controller.hub.once(
-      `${controller.state.transactions[0].id}:finished`,
-      () => {
-        const { transaction, status } = controller.state.transactions[0];
-        expect(transaction.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
-        expect(status).toBe(TransactionStatus.submitted);
-      },
-    );
+    const {
+      transaction: { estimateGasError },
+    } = controller.state.transactions[0];
+
+    expect(estimateGasError).toBe(ESTIMATE_GAS_ERROR);
   });
 
   it('should fail if no sign method defined', async () => {
@@ -941,30 +891,11 @@ describe('TransactionController', () => {
     const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const { result } = await controller.addTransaction({ from, to });
-    await controller.approveTransaction(controller.state.transactions[0].id);
+    await expect(result).rejects.toThrow('No sign method defined');
     const { transaction, status } = controller.state.transactions[0];
     expect(transaction.from).toBe(from);
     expect(transaction.to).toBe(to);
     expect(status).toBe(TransactionStatus.failed);
-    await expect(result).rejects.toThrow('No sign method defined');
-    expect(callActionSpy).toHaveBeenCalledTimes(2);
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:addRequest',
-      {
-        id: expect.any(String),
-        origin: ORIGIN_METAMASK,
-        requestData: {
-          txId: expect.any(String),
-        },
-        type: ApprovalType.Transaction,
-      },
-      true,
-    );
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:rejectRequest',
-      expect.any(String),
-      new Error('Rejected'),
-    );
   });
 
   it('should fail if no chainId is defined', async () => {
@@ -984,122 +915,38 @@ describe('TransactionController', () => {
     const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const { result } = await controller.addTransaction({ from, to });
-    await controller.approveTransaction(controller.state.transactions[0].id);
+    await expect(result).rejects.toThrow('No chainId defined');
     const { transaction, status } = controller.state.transactions[0];
     expect(transaction.from).toBe(from);
     expect(transaction.to).toBe(to);
     expect(status).toBe(TransactionStatus.failed);
-    await expect(result).rejects.toThrow('No chainId defined');
-    expect(callActionSpy).toHaveBeenCalledTimes(2);
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:addRequest',
-      {
-        id: expect.any(String),
-        origin: ORIGIN_METAMASK,
-        requestData: {
-          txId: expect.any(String),
-        },
-        type: ApprovalType.Transaction,
-      },
-      true,
-    );
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:rejectRequest',
-      expect.any(String),
-      new Error('Rejected'),
-    );
   });
 
-  it.each([
-    ['resolves', true],
-    ['rejects', false],
-  ])(
-    'should approve a transaction if user accepts and message to ApprovalController %s',
-    async (_, approvalControllerCallResolves: boolean) => {
-      const calledOnce = false;
-      callActionSpy = setupMessengerCallSpy(
-        approvalControllerCallResolves,
-        calledOnce,
-      );
-      await new Promise(async (resolve) => {
-        const controller = new TransactionController(
-          {
-            getNetworkState: () => MOCK_NETWORK.state,
-            onNetworkStateChange: MOCK_NETWORK.subscribe,
-            provider: MOCK_NETWORK.provider,
-            blockTracker: MOCK_NETWORK.blockTracker,
-            messenger: messengerMock,
-          },
-          {
-            sign: async (transaction: any) => transaction,
-          },
-        );
-        const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-        await controller.addTransaction({
-          from,
-          gas: '0x0',
-          gasPrice: '0x0',
-          to: from,
-          value: '0x0',
-        });
+  it('should approve a transaction', async () => {
+    const { messenger, approve } = buildMockMessenger({ delay: true });
 
-        controller.hub.once(
-          `${controller.state.transactions[0].id}:finished`,
-          () => {
-            const { transaction, status } = controller.state.transactions[0];
-            expect(transaction.from).toBe(from);
-            expect(status).toBe(TransactionStatus.submitted);
-            resolve('');
-          },
-        );
-        await controller.approveTransaction(
-          controller.state.transactions[0].id,
-        );
-        expect(callActionSpy).toHaveBeenCalledTimes(2);
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:addRequest',
-          {
-            id: expect.any(String),
-            origin: ORIGIN_METAMASK,
-            requestData: {
-              txId: expect.any(String),
-            },
-            type: ApprovalType.Transaction,
-          },
-          true,
-        );
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:acceptRequest',
-          expect.any(String),
-        );
-      });
-    },
-  );
-
-  it('fails to request transaction approval when messaging system throws', async () => {
-    jest.spyOn(messengerMock, 'call').mockImplementation(() => {
-      throw new Error('Messenger mocked call fails');
-    });
     const controller = new TransactionController(
       {
         getNetworkState: () => MOCK_NETWORK.state,
         onNetworkStateChange: MOCK_NETWORK.subscribe,
         provider: MOCK_NETWORK.provider,
         blockTracker: MOCK_NETWORK.blockTracker,
-        messenger: messengerMock,
+        messenger,
       },
       {
         sign: async (transaction: any) => transaction,
       },
     );
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    await controller.addTransaction({
+
+    const { result } = await controller.addTransaction({
       from,
       gas: '0x0',
       gasPrice: '0x0',
       to: from,
       value: '0x0',
     });
+
     controller.hub.once(
       `${controller.state.transactions[0].id}:finished`,
       () => {
@@ -1108,6 +955,9 @@ describe('TransactionController', () => {
         expect(status).toBe(TransactionStatus.submitted);
       },
     );
+
+    approve();
+    await result;
   });
 
   it('should query transaction statuses', async () => {
@@ -1125,7 +975,7 @@ describe('TransactionController', () => {
         },
       );
       controller.state.transactions.push({
-        from: MOCK_PREFERENCES.state.selectedAddress,
+        from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         chainId: toHex(5),
@@ -1163,7 +1013,7 @@ describe('TransactionController', () => {
         },
       );
       controller.state.transactions.push({
-        from: MOCK_PREFERENCES.state.selectedAddress,
+        from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1198,11 +1048,11 @@ describe('TransactionController', () => {
       },
     );
     controller.state.transactions.push({
-      from: MOCK_PREFERENCES.state.selectedAddress,
+      from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
       networkID: '5',
       status: TransactionStatus.submitted,
-      transactionHash: '1111',
+      transactionHash: '1338',
     } as any);
     await controller.queryTransactionStatuses();
     expect(controller.state.transactions[0].status).toBe(
@@ -1224,7 +1074,7 @@ describe('TransactionController', () => {
       },
     );
     controller.state.transactions.push({
-      from: MOCK_PREFERENCES.state.selectedAddress,
+      from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
       networkID: '5',
       chainId: toHex(5),
@@ -1469,68 +1319,18 @@ describe('TransactionController', () => {
     expect(registryLookup.called).toBe(false);
   });
 
-  it.each([
-    ['resolves', true],
-    ['rejects', false],
-  ])(
-    'stops a transaction if user rejects and message to ApprovalController %s',
-    async (_, approvalControllerCallResolves: boolean) => {
-      const calledOnce = false;
-      callActionSpy = setupMessengerCallSpy(
-        approvalControllerCallResolves,
-        calledOnce,
-      );
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_NETWORK.state,
-          onNetworkStateChange: MOCK_NETWORK.subscribe,
-          provider: MOCK_NETWORK.provider,
-          blockTracker: MOCK_NETWORK.blockTracker,
-          messenger: messengerMock,
-        },
-        {
-          sign: async (transaction: any) => transaction,
-        },
-      );
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const { result } = await controller.addTransaction({
-        from,
-        gas: '0x0',
-        gasPrice: '0x1',
-        to: from,
-        value: '0x0',
-      });
-      controller.stopTransaction(controller.state.transactions[0].id);
-      await expect(result).rejects.toThrow('User cancelled the transaction');
-      expect(callActionSpy).toHaveBeenCalledTimes(2);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin: ORIGIN_METAMASK,
-          requestData: {
-            txId: expect.any(String),
-          },
-          type: ApprovalType.Transaction,
-        },
-        true,
-      );
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:rejectRequest',
-        expect.any(String),
-        new Error('Rejected'),
-      );
-    },
-  );
+  it('should stop a transaction', async () => {
+    const { messenger, approve } = buildMockMessenger({
+      delay: true,
+    });
 
-  it('stops a transaction specifying gas price', async () => {
     const controller = new TransactionController(
       {
         getNetworkState: () => MOCK_NETWORK.state,
         onNetworkStateChange: MOCK_NETWORK.subscribe,
         provider: MOCK_NETWORK.provider,
         blockTracker: MOCK_NETWORK.blockTracker,
-        messenger: messengerMock,
+        messenger,
       },
       {
         sign: async (transaction: any) => transaction,
@@ -1544,27 +1344,11 @@ describe('TransactionController', () => {
       to: from,
       value: '0x0',
     });
-    const gasPrice: GasPriceValue = { gasPrice: '0x1' };
-    controller.stopTransaction(controller.state.transactions[0].id, gasPrice);
+
+    await controller.stopTransaction(controller.state.transactions[0].id);
+    approve();
+
     await expect(result).rejects.toThrow('User cancelled the transaction');
-    expect(callActionSpy).toHaveBeenCalledTimes(2);
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:addRequest',
-      {
-        id: expect.any(String),
-        origin: ORIGIN_METAMASK,
-        requestData: {
-          txId: expect.any(String),
-        },
-        type: ApprovalType.Transaction,
-      },
-      true,
-    );
-    expect(callActionSpy).toHaveBeenCalledWith(
-      'ApprovalController:rejectRequest',
-      expect.any(String),
-      new Error('Rejected'),
-    );
   });
 
   it('should fail to stop a transaction if no sign method', async () => {
@@ -1573,7 +1357,7 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_NETWORK.subscribe,
       provider: MOCK_NETWORK.provider,
       blockTracker: MOCK_NETWORK.blockTracker,
-      messenger: messengerMock,
+      messenger: delayMessengerMock,
     });
     const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
@@ -1606,12 +1390,7 @@ describe('TransactionController', () => {
         to: from,
         value: '0x0',
       });
-      const gasPrice: GasPriceValue = { gasPrice: '0x5916a6d6' };
-      await controller.approveTransaction(controller.state.transactions[0].id);
-      await controller.speedUpTransaction(
-        controller.state.transactions[0].id,
-        gasPrice,
-      );
+      await controller.speedUpTransaction(controller.state.transactions[0].id);
       expect(controller.state.transactions).toHaveLength(2);
       expect(controller.state.transactions[1].transaction.gasPrice).toBe(
         '0x5916a6d6', // 1.1 * 0x50fd51da
@@ -1621,38 +1400,35 @@ describe('TransactionController', () => {
   });
 
   it('should limit tx state to a length of 2', async () => {
-    await new Promise(async (resolve) => {
-      mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_NETWORK.state,
-          onNetworkStateChange: MOCK_NETWORK.subscribe,
-          provider: MOCK_NETWORK.provider,
-          blockTracker: MOCK_NETWORK.blockTracker,
-          messenger: messengerMock,
-        },
-        {
-          interval: 5000,
-          sign: async (transaction: any) => transaction,
-          txHistoryLimit: 2,
-        },
-      );
-      const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
-      await controller.fetchAll(from);
-      await controller.addTransaction({
-        from,
-        nonce: '55555',
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: from,
-        value: '0x0',
-      });
-      expect(controller.state.transactions).toHaveLength(2);
-      expect(controller.state.transactions[0].transaction.gasPrice).toBe(
-        '0x4a817c800',
-      );
-      resolve('');
+    mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        provider: MOCK_NETWORK.provider,
+        blockTracker: MOCK_NETWORK.blockTracker,
+        messenger: delayMessengerMock,
+      },
+      {
+        interval: 5000,
+        sign: async (transaction: any) => transaction,
+        txHistoryLimit: 2,
+      },
+    );
+    const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+    await controller.fetchAll(from);
+    await controller.addTransaction({
+      from,
+      nonce: '55555',
+      gas: '0x0',
+      gasPrice: '0x50fd51da',
+      to: from,
+      value: '0x0',
     });
+    expect(controller.state.transactions).toHaveLength(2);
+    expect(controller.state.transactions[0].transaction.gasPrice).toBe(
+      '0x4a817c800',
+    );
   });
 
   it('should allow tx state to be greater than txHistorylimit due to speed up same nonce', async () => {
@@ -1691,45 +1467,47 @@ describe('TransactionController', () => {
       .mockImplementationOnce(() => 'aaaab1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d')
       .mockImplementationOnce(() => 'bbbb1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
 
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_NETWORK.state,
-          onNetworkStateChange: MOCK_NETWORK.subscribe,
-          provider: MOCK_NETWORK.provider,
-          blockTracker: MOCK_NETWORK.blockTracker,
-          messenger: messengerMock,
-        },
-        {
-          sign: async (transaction: any) => transaction,
-        },
-      );
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      await controller.addTransaction({
-        from,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: from,
-        value: '0x0',
-      });
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        provider: MOCK_NETWORK.provider,
+        blockTracker: MOCK_NETWORK.blockTracker,
+        messenger: messengerMock,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 
-      const firstTransaction = controller.state.transactions[0];
-      await controller.approveTransaction(firstTransaction.id);
-      await controller.addTransaction({
-        from,
-        gas: '0x2',
-        gasPrice: '0x50fd51da',
-        to: from,
-        value: '0x1290',
-      });
-      expect(controller.state.transactions).toHaveLength(2);
-      const secondTransaction = controller.state.transactions[1];
-      await controller.approveTransaction(secondTransaction.id);
-
-      expect(firstTransaction.transaction.nonce).toStrictEqual('0x0');
-      expect(secondTransaction.transaction.nonce).toStrictEqual('0x1');
-      resolve('');
+    const { result: firstResult } = await controller.addTransaction({
+      from,
+      gas: '0x0',
+      gasPrice: '0x50fd51da',
+      to: from,
+      value: '0x0',
     });
+
+    await firstResult.catch(() => undefined);
+
+    const firstTransaction = controller.state.transactions[0];
+
+    const { result: secondResult } = await controller.addTransaction({
+      from,
+      gas: '0x2',
+      gasPrice: '0x50fd51da',
+      to: from,
+      value: '0x1290',
+    });
+
+    await secondResult.catch(() => undefined);
+
+    expect(controller.state.transactions).toHaveLength(2);
+    const secondTransaction = controller.state.transactions[1];
+
+    expect(firstTransaction.transaction.nonce).toStrictEqual('0x0');
+    expect(secondTransaction.transaction.nonce).toStrictEqual('0x1');
   });
 
   describe('NonceTracker integration', () => {
@@ -1786,7 +1564,6 @@ describe('TransactionController', () => {
             resolve('');
           },
         );
-        controller.approveTransaction(controller.state.transactions[0].id);
       });
     });
 
@@ -1814,7 +1591,6 @@ describe('TransactionController', () => {
         });
 
         const originalTransaction = controller.state.transactions[0];
-        await controller.approveTransaction(originalTransaction.id);
         await controller.speedUpTransaction(originalTransaction.id);
         expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
         expect(controller.state.transactions).toHaveLength(2);
