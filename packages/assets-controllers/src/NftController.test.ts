@@ -23,10 +23,14 @@ import {
   ERC20,
   Source,
 } from '@metamask/controller-utils';
-import { AddApprovalRequest } from '@metamask/approval-controller';
+import {
+  AddApprovalRequest,
+  ApprovalController,
+  ApprovalStateChange,
+} from '@metamask/approval-controller';
 import { Network } from '@ethersproject/providers';
 import { AssetsContractController } from './AssetsContractController';
-import { NftController, NftControllerMessenger } from './NftController';
+import { NftController } from './NftController';
 import { getFormattedIpfsUrl } from './assetsUtil';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
@@ -59,6 +63,7 @@ const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
 const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
 
 type ApprovalActions = AddApprovalRequest;
+type ApprovalEvents = ApprovalStateChange;
 
 const controllerName = 'NftController' as const;
 
@@ -143,13 +148,17 @@ function setupController({
     });
   };
 
-  const messenger = new ControllerMessenger<
-    ApprovalActions,
-    never
-  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
-    name: controllerName,
+  const messenger = new ControllerMessenger<ApprovalActions, ApprovalEvents>();
+
+  const approvalControllerMessenger = messenger.getRestricted({
+    name: 'ApprovalController',
     allowedActions: ['ApprovalController:addRequest'],
-  }) as NftControllerMessenger;
+  });
+
+  const approvalController = new ApprovalController({
+    messenger: approvalControllerMessenger,
+    showApprovalRequest: jest.fn(),
+  });
 
   const assetsContract = new AssetsContractController({
     chainId: ChainId.mainnet,
@@ -159,6 +168,15 @@ function setupController({
   });
 
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
+
+  const nftControllerMessenger = messenger.getRestricted<
+    typeof controllerName,
+    ApprovalActions['type'],
+    never
+  >({
+    name: controllerName,
+    allowedActions: ['ApprovalController:addRequest'],
+  });
 
   const nftController = new NftController({
     chainId: ChainId.mainnet,
@@ -184,7 +202,7 @@ function setupController({
       getERC1155TokenURIStub ??
       assetsContract.getERC1155TokenURI.bind(assetsContract),
     onNftAdded: onNftAddedSpy,
-    messenger,
+    messenger: nftControllerMessenger,
   });
 
   preferences.update({
@@ -199,6 +217,7 @@ function setupController({
     preferences,
     changeNetwork,
     messenger,
+    approvalController,
   };
 }
 
@@ -505,6 +524,101 @@ describe('NftController', () => {
         },
         true,
       );
+
+      clock.restore();
+    });
+
+    it('should add the NFT to the correct chainId/selectedAddress in state even if the user changes network and account before accepting the request', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC721Image',
+            name: 'testERC721Name',
+            description: 'testERC721Description',
+          }),
+        );
+
+      const {
+        nftController,
+        messenger,
+        approvalController,
+        preferences,
+        changeNetwork,
+      } = setupController({
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+        getERC721TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'https://testtokenuri.com'),
+        getERC721AssetNameStub: jest
+          .fn()
+          .mockImplementation(() => 'testERC721Name'),
+        getERC721AssetSymbolStub: jest
+          .fn()
+          .mockImplementation(() => 'testERC721Symbol'),
+      });
+
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const pendingRequest = new Promise<void>((resolve) => {
+        messenger.subscribe('ApprovalController:stateChange', () => {
+          resolve();
+        });
+      });
+
+      const acceptedRequest = new Promise<void>((resolve) => {
+        nftController.subscribe((state) => {
+          if (state.allNfts?.[OWNER_ADDRESS]?.[GOERLI.chainId].length) {
+            resolve();
+          }
+        });
+      });
+
+      // check that the NFT is not in state to begin with
+      expect(nftController.state.allNfts).toStrictEqual({});
+
+      // this is our account and network status when the watchNFT request is made
+      preferences.setSelectedAddress(OWNER_ADDRESS);
+      changeNetwork(GOERLI);
+
+      nftController.watchNft(ERC721_NFT, ERC721, 'https://etherscan.io');
+
+      await pendingRequest;
+
+      // change the network and selectedAddress before accepting the request
+      preferences.setSelectedAddress('0xDifferentAddress');
+      changeNetwork(SEPOLIA);
+
+      // now accept the request
+      approvalController.accept(requestId);
+      await acceptedRequest;
+
+      // check that the NFT was added to the correct chainId/selectedAddress in state
+      const {
+        state: { allNfts },
+      } = nftController;
+      expect(allNfts).toStrictEqual({
+        // this is the selectedAddress when the request was made
+        [OWNER_ADDRESS]: {
+          // this is the chainId when the request was made
+          [GOERLI.chainId]: [
+            {
+              ...ERC721_NFT,
+              favorite: false,
+              isCurrentlyOwned: true,
+              description: 'testERC721Description',
+              image: 'testERC721Image',
+              name: 'testERC721Name',
+              standard: ERC721,
+            },
+          ],
+        },
+      });
 
       clock.restore();
     });

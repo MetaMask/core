@@ -1082,7 +1082,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
       origin,
     };
     await this._requestApproval(suggestedNftMeta);
-
     const { address, tokenId } = asset;
     const { name, standard, description, image } = nftMetadata;
 
