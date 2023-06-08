@@ -193,7 +193,8 @@ describe('PreferencesController', () => {
     controller.setIsMultiAccountBalancesEnabled(true);
     expect(controller.state.isMultiAccountBalancesEnabled).toStrictEqual(true);
   });
-  it('shoudl set showTestNetworks', () => {
+
+  it('should set showTestNetworks', () => {
     const controller = new PreferencesController();
     controller.setShowTestNetworks(true);
     expect(controller.state.showTestNetworks).toStrictEqual(true);
