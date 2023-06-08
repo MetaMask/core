@@ -285,6 +285,24 @@ export class JsonRpcEngine extends SafeEventEmitter {
   ): Promise<JsonRpcResponse<Json>[] | void> {
     // The order here is important
     try {
+      // If the batch is an empty array, the response array must contain a single object
+      if (requests.length === 0) {
+        const response: JsonRpcResponse<Json>[] = [
+          {
+            id: null,
+            jsonrpc: '2.0',
+            error: new JsonRpcError(
+              errorCodes.rpc.invalidRequest,
+              'Request batch must contain plain objects. Received an empty array',
+            ),
+          },
+        ];
+        if (callback) {
+          return callback(null, response);
+        }
+        return response;
+      }
+
       // 2. Wait for all requests to finish, or throw on some kind of fatal
       // error
       const responses = (

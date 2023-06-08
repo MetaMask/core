@@ -361,6 +361,41 @@ describe('JsonRpcEngine', () => {
     });
   });
 
+  it('handle: empty batch', async () => {
+    const engine = new JsonRpcEngine();
+    const emptyBatch = [] as any;
+
+    await new Promise<void>((resolve) => {
+      engine.handle(emptyBatch, function (error, response: any) {
+        expect(error).toBeNull();
+        expect(response).toBeInstanceOf(Array);
+        expect(response).toHaveLength(1);
+        expect(
+          response[0].error.message.startsWith(
+            'Request batch must contain plain objects. Received an empty array',
+          ),
+        ).toBe(true);
+        expect(isJsonRpcSuccess(response[0])).toBe(false);
+        resolve();
+      });
+    });
+  });
+
+  it('handle: empty batch (async signature)', async () => {
+    const engine = new JsonRpcEngine();
+    const emptyBatch = [] as any;
+
+    const response: any = await engine.handle(emptyBatch);
+    expect(response).toBeInstanceOf(Array);
+    expect(response).toHaveLength(1);
+    expect(
+      response[0].error.message.startsWith(
+        'Request batch must contain plain objects. Received an empty array',
+      ),
+    ).toBe(true);
+    expect(isJsonRpcSuccess(response[0])).toBe(false);
+  });
+
   it('handle: batch payloads', async () => {
     const engine = new JsonRpcEngine();
 
