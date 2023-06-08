@@ -12,9 +12,9 @@ import {
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
-  Source,
 } from '@metamask/controller-utils';
 import type { NftController, NftState, NftMetadata } from './NftController';
+import { Source } from './constants';
 
 const DEFAULT_INTERVAL = 180000;
 

@@ -116,9 +116,3 @@ export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [NetworkId.sepolia]: NetworkType.sepolia,
   [NetworkId.mainnet]: NetworkType.mainnet,
 };
-
-export enum Source {
-  Custom = 'custom',
-  Dapp = 'dapp',
-  Detected = 'detected',
-}

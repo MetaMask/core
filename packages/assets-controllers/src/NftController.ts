@@ -26,7 +26,6 @@ import {
   OPENSEA_API_URL,
   OPENSEA_PROXY_URL,
   ApprovalType,
-  Source,
 } from '@metamask/controller-utils';
 import type {
   ApiNft,
@@ -36,6 +35,7 @@ import type {
 } from './NftDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
+import { Source } from './constants';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
 
