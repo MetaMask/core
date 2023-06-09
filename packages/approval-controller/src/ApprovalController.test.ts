@@ -5,7 +5,7 @@ import {
   ApprovalControllerActions,
   ApprovalControllerEvents,
   ApprovalControllerMessenger,
-  ApprovalFlowOptions,
+  StartFlowOptions,
 } from './ApprovalController';
 import {
   ApprovalRequestNoResultSupportError,
@@ -1018,7 +1018,7 @@ describe('approval controller', () => {
       ['options passed', { id: 'id' }],
     ])(
       'adds flow to state and calls showApprovalRequest with %s',
-      (_, approvalFlowOptions?: ApprovalFlowOptions) => {
+      (_, approvalFlowOptions?: StartFlowOptions) => {
         const result = approvalController.startFlow(approvalFlowOptions);
 
         const expectedFlow = {
@@ -1038,7 +1038,7 @@ describe('approval controller', () => {
 
   describe('endFlow', () => {
     it('fails to end flow if no flow exists', () => {
-      expect(() => approvalController.endFlow('id')).toThrow(
+      expect(() => approvalController.endFlow({ id: 'id' })).toThrow(
         NoApprovalFlowsError,
       );
     });
@@ -1046,7 +1046,7 @@ describe('approval controller', () => {
     it('fails to end flow if id does not correspond the current flow', () => {
       approvalController.startFlow({ id: 'id' });
 
-      expect(() => approvalController.endFlow('wrong-id')).toThrow(
+      expect(() => approvalController.endFlow({ id: 'wrong-id' })).toThrow(
         EndInvalidFlowError,
       );
     });
@@ -1054,7 +1054,7 @@ describe('approval controller', () => {
     it('ends flow if id corresponds with the current flow', () => {
       approvalController.startFlow({ id: 'id' });
 
-      approvalController.endFlow('id');
+      approvalController.endFlow({ id: 'id' });
 
       expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
         0,
