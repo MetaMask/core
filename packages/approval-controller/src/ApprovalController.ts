@@ -197,9 +197,11 @@ export type AddResult = {
   resultCallbacks?: AcceptResultCallbacks;
 };
 
-export type ApprovalFlowOptions = OptionalField<ApprovalFlow, 'id'>;
+export type StartFlowOptions = OptionalField<ApprovalFlow, 'id'>;
 
 export type ApprovalFlowStartResult = ApprovalFlow;
+
+export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
 
 export type StartFlow = {
   type: `${typeof controllerName}:startFlow`;
@@ -239,8 +241,8 @@ export type ApprovalControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   ApprovalControllerActions,
   ApprovalControllerEvents,
-  never,
-  never
+  string,
+  string
 >;
 
 type ApprovalControllerOptions = {
@@ -673,7 +675,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.id - The id of the approval flow.
    * @returns The object containing the approval flow id.
    */
-  startFlow(opts: ApprovalFlowOptions = {}): ApprovalFlowStartResult {
+  startFlow(opts: StartFlowOptions = {}): ApprovalFlowStartResult {
     const id = opts.id ?? nanoid();
     const finalOptions = { id };
 
@@ -689,18 +691,19 @@ export class ApprovalController extends BaseControllerV2<
   /**
    * Ends the current approval flow.
    *
-   * @param flowId - The id of the approval flow to end.
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval flow that will be finished.
    */
-  endFlow(flowId: string) {
+  endFlow({ id }: EndFlowOptions) {
     if (!this.state.approvalFlows.length) {
       throw new NoApprovalFlowsError();
     }
 
     const currentFlow = this.state.approvalFlows.slice(-1)[0];
 
-    if (flowId !== currentFlow.id) {
+    if (id !== currentFlow.id) {
       throw new EndInvalidFlowError(
-        flowId,
+        id,
         this.state.approvalFlows.map((flow) => flow.id),
       );
     }
