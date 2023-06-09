@@ -5,10 +5,12 @@ import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { Json } from '@metamask/utils';
+import { Json, OptionalField } from '@metamask/utils';
 import {
   ApprovalRequestNotFoundError,
   ApprovalRequestNoResultSupportError,
+  EndInvalidFlowError,
+  NoApprovalFlowsError,
 } from './errors';
 
 const controllerName = 'ApprovalController';
@@ -66,14 +68,22 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
 
 type ShowApprovalRequest = () => void | Promise<void>;
 
+type ApprovalFlow = {
+  id: string;
+};
+
+export type ApprovalFlowState = ApprovalFlow;
+
 export type ApprovalControllerState = {
   pendingApprovals: Record<string, ApprovalRequest<Record<string, Json>>>;
   pendingApprovalCount: number;
+  approvalFlows: ApprovalFlowState[];
 };
 
 const stateMetadata = {
   pendingApprovals: { persist: false, anonymous: true },
   pendingApprovalCount: { persist: false, anonymous: false },
+  approvalFlows: { persist: false, anonymous: false },
 };
 
 const getAlreadyPendingMessage = (origin: string, type: string) =>
@@ -83,6 +93,7 @@ const getDefaultState = (): ApprovalControllerState => {
   return {
     pendingApprovals: {},
     pendingApprovalCount: 0,
+    approvalFlows: [],
   };
 };
 
@@ -183,6 +194,22 @@ export type AddResult = {
   resultCallbacks?: AcceptResultCallbacks;
 };
 
+export type StartFlowOptions = OptionalField<ApprovalFlow, 'id'>;
+
+export type ApprovalFlowStartResult = ApprovalFlow;
+
+export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
+
+export type StartFlow = {
+  type: `${typeof controllerName}:startFlow`;
+  handler: ApprovalController['startFlow'];
+};
+
+export type EndFlow = {
+  type: `${typeof controllerName}:endFlow`;
+  handler: ApprovalController['endFlow'];
+};
+
 export type ApprovalControllerActions =
   | GetApprovalsState
   | ClearApprovalRequests
@@ -190,7 +217,9 @@ export type ApprovalControllerActions =
   | HasApprovalRequest
   | AcceptRequest
   | RejectRequest
-  | UpdateRequestState;
+  | UpdateRequestState
+  | StartFlow
+  | EndFlow;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -304,6 +333,16 @@ export class ApprovalController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:updateRequestState` as const,
       this.updateRequestState.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:startFlow` as const,
+      this.startFlow.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:endFlow` as const,
+      this.endFlow.bind(this),
     );
   }
 
@@ -590,7 +629,10 @@ export class ApprovalController extends BaseControllerV2<
       this.reject(id, rejectionError);
     }
     this._origins.clear();
-    this.update(() => getDefaultState());
+    this.update((draftState) => {
+      draftState.pendingApprovals = {};
+      draftState.pendingApprovalCount = 0;
+    });
   }
 
   /**
@@ -609,6 +651,51 @@ export class ApprovalController extends BaseControllerV2<
       // Typecast: ts(2589)
       draftState.pendingApprovals[opts.id].requestState =
         opts.requestState as any;
+    });
+  }
+
+  /**
+   * Starts a new approval flow.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval flow.
+   * @returns The object containing the approval flow id.
+   */
+  startFlow(opts: StartFlowOptions = {}): ApprovalFlowStartResult {
+    const id = opts.id ?? nanoid();
+    const finalOptions = { id };
+
+    this.update((draftState) => {
+      draftState.approvalFlows.push(finalOptions);
+    });
+
+    this._showApprovalRequest();
+
+    return { id };
+  }
+
+  /**
+   * Ends the current approval flow.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval flow that will be finished.
+   */
+  endFlow({ id }: EndFlowOptions) {
+    if (!this.state.approvalFlows.length) {
+      throw new NoApprovalFlowsError();
+    }
+
+    const currentFlow = this.state.approvalFlows.slice(-1)[0];
+
+    if (id !== currentFlow.id) {
+      throw new EndInvalidFlowError(
+        id,
+        this.state.approvalFlows.map((flow) => flow.id),
+      );
+    }
+
+    this.update((draftState) => {
+      draftState.approvalFlows.pop();
     });
   }
 
