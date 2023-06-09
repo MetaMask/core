@@ -15,6 +15,7 @@ import {
 
 const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
+const APPROVAL_FLOW_TEXT_STORE_KEY = 'approvalFlowLoadingText';
 
 const TYPE = 'TYPE';
 const ID_MOCK = 'TestId';
@@ -1059,6 +1060,23 @@ describe('approval controller', () => {
       expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
         0,
       );
+    });
+  });
+
+  describe('setFlowLoadingText', () => {
+    it('changes the loading text for the approval the flow', () => {
+      const mockLoadingText = 'Mock Loading Text';
+      approvalController.setFlowLoadingText(mockLoadingText);
+
+      expect(
+        approvalController.state[APPROVAL_FLOW_TEXT_STORE_KEY],
+      ).toStrictEqual(mockLoadingText);
+    });
+
+    it('sets the loading text back to null for the approval the flow', () => {
+      approvalController.setFlowLoadingText(null);
+
+      expect(approvalController.state[APPROVAL_FLOW_TEXT_STORE_KEY]).toBeNull();
     });
   });
 });

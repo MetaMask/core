@@ -78,12 +78,14 @@ export type ApprovalControllerState = {
   pendingApprovals: Record<string, ApprovalRequest<Record<string, Json>>>;
   pendingApprovalCount: number;
   approvalFlows: ApprovalFlowState[];
+  approvalFlowLoadingText: string | null;
 };
 
 const stateMetadata = {
   pendingApprovals: { persist: false, anonymous: true },
   pendingApprovalCount: { persist: false, anonymous: false },
   approvalFlows: { persist: false, anonymous: false },
+  approvalFlowLoadingText: { persist: false, anonymous: false },
 };
 
 const getAlreadyPendingMessage = (origin: string, type: string) =>
@@ -94,6 +96,7 @@ const getDefaultState = (): ApprovalControllerState => {
     pendingApprovals: {},
     pendingApprovalCount: 0,
     approvalFlows: [],
+    approvalFlowLoadingText: null,
   };
 };
 
@@ -208,6 +211,11 @@ export type EndFlow = {
   handler: ApprovalController['endFlow'];
 };
 
+export type SetFlowLoadingText = {
+  type: `${typeof controllerName}:setFlowLoadingText`;
+  handler: ApprovalController['setFlowLoadingText'];
+};
+
 export type ApprovalControllerActions =
   | GetApprovalsState
   | ClearApprovalRequests
@@ -217,7 +225,8 @@ export type ApprovalControllerActions =
   | RejectRequest
   | UpdateRequestState
   | StartFlow
-  | EndFlow;
+  | EndFlow
+  | SetFlowLoadingText;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -341,6 +350,11 @@ export class ApprovalController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:endFlow` as const,
       this.endFlow.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setFlowLoadingText` as const,
+      this.setFlowLoadingText.bind(this),
     );
   }
 
@@ -693,6 +707,17 @@ export class ApprovalController extends BaseControllerV2<
 
     this.update((draftState) => {
       draftState.approvalFlows.pop();
+    });
+  }
+
+  /**
+   * Sets the loading text for the approval flow.
+   *
+   * @param loadingText - The approval flow loading text that will be displayed.
+   */
+  setFlowLoadingText(loadingText: string | null) {
+    this.update((draftState) => {
+      draftState.approvalFlowLoadingText = loadingText;
     });
   }
 
