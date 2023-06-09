@@ -877,6 +877,25 @@ export class NetworkController extends BaseControllerV2<
   async destroy() {
     await this.#blockTrackerProxy?.destroy();
   }
+
+  /**
+   * Updates the controller using the given backup data.
+   *
+   * @param backup - The data that has been backed up.
+   * @param backup.networkConfigurations - Network configurations in the backup.
+   */
+  loadBackup({
+    networkConfigurations,
+  }: {
+    networkConfigurations: NetworkState['networkConfigurations'];
+  }): void {
+    this.update((state) => {
+      state.networkConfigurations = {
+        ...state.networkConfigurations,
+        ...networkConfigurations,
+      };
+    });
+  }
 }
 
 export default NetworkController;
