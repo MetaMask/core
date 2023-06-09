@@ -2885,6 +2885,9 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller, messenger }) => {
+            setFakeProvider(controller, {
+              stubLookupNetworkWhileSetting: true,
+            });
             const promiseForNoStateChanges = waitForStateChanges({
               messenger,
               count: 0,
@@ -2910,6 +2913,10 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
+            setFakeProvider(controller, {
+              stubLookupNetworkWhileSetting: true,
+            });
+
             const isEIP1559Compatible =
               await controller.getEIP1559Compatibility();
 
