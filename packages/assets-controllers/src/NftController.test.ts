@@ -22,11 +22,16 @@ import {
   ApprovalType,
   ERC20,
 } from '@metamask/controller-utils';
-import { AddApprovalRequest } from '@metamask/approval-controller';
+import {
+  AddApprovalRequest,
+  ApprovalController,
+  ApprovalStateChange,
+} from '@metamask/approval-controller';
 import { Network } from '@ethersproject/providers';
 import { AssetsContractController } from './AssetsContractController';
-import { NftController, NftControllerMessenger } from './NftController';
+import { NftController } from './NftController';
 import { getFormattedIpfsUrl } from './assetsUtil';
+import { Source } from './constants';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -58,6 +63,7 @@ const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
 const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
 
 type ApprovalActions = AddApprovalRequest;
+type ApprovalEvents = ApprovalStateChange;
 
 const controllerName = 'NftController' as const;
 
@@ -142,13 +148,17 @@ function setupController({
     });
   };
 
-  const messenger = new ControllerMessenger<
-    ApprovalActions,
-    never
-  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
-    name: controllerName,
+  const messenger = new ControllerMessenger<ApprovalActions, ApprovalEvents>();
+
+  const approvalControllerMessenger = messenger.getRestricted({
+    name: 'ApprovalController',
     allowedActions: ['ApprovalController:addRequest'],
-  }) as NftControllerMessenger;
+  });
+
+  const approvalController = new ApprovalController({
+    messenger: approvalControllerMessenger,
+    showApprovalRequest: jest.fn(),
+  });
 
   const assetsContract = new AssetsContractController({
     chainId: ChainId.mainnet,
@@ -158,6 +168,15 @@ function setupController({
   });
 
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
+
+  const nftControllerMessenger = messenger.getRestricted<
+    typeof controllerName,
+    ApprovalActions['type'],
+    never
+  >({
+    name: controllerName,
+    allowedActions: ['ApprovalController:addRequest'],
+  });
 
   const nftController = new NftController({
     chainId: ChainId.mainnet,
@@ -183,7 +202,7 @@ function setupController({
       getERC1155TokenURIStub ??
       assetsContract.getERC1155TokenURI.bind(assetsContract),
     onNftAdded: onNftAddedSpy,
-    messenger,
+    messenger: nftControllerMessenger,
   });
 
   preferences.update({
@@ -198,6 +217,7 @@ function setupController({
     preferences,
     changeNetwork,
     messenger,
+    approvalController,
   };
 }
 
@@ -508,6 +528,101 @@ describe('NftController', () => {
       clock.restore();
     });
 
+    it('should add the NFT to the correct chainId/selectedAddress in state even if the user changes network and account before accepting the request', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC721Image',
+            name: 'testERC721Name',
+            description: 'testERC721Description',
+          }),
+        );
+
+      const {
+        nftController,
+        messenger,
+        approvalController,
+        preferences,
+        changeNetwork,
+      } = setupController({
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+        getERC721TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'https://testtokenuri.com'),
+        getERC721AssetNameStub: jest
+          .fn()
+          .mockImplementation(() => 'testERC721Name'),
+        getERC721AssetSymbolStub: jest
+          .fn()
+          .mockImplementation(() => 'testERC721Symbol'),
+      });
+
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const pendingRequest = new Promise<void>((resolve) => {
+        messenger.subscribe('ApprovalController:stateChange', () => {
+          resolve();
+        });
+      });
+
+      const acceptedRequest = new Promise<void>((resolve) => {
+        nftController.subscribe((state) => {
+          if (state.allNfts?.[OWNER_ADDRESS]?.[GOERLI.chainId].length) {
+            resolve();
+          }
+        });
+      });
+
+      // check that the NFT is not in state to begin with
+      expect(nftController.state.allNfts).toStrictEqual({});
+
+      // this is our account and network status when the watchNFT request is made
+      preferences.setSelectedAddress(OWNER_ADDRESS);
+      changeNetwork(GOERLI);
+
+      nftController.watchNft(ERC721_NFT, ERC721, 'https://etherscan.io');
+
+      await pendingRequest;
+
+      // change the network and selectedAddress before accepting the request
+      preferences.setSelectedAddress('0xDifferentAddress');
+      changeNetwork(SEPOLIA);
+
+      // now accept the request
+      approvalController.accept(requestId);
+      await acceptedRequest;
+
+      // check that the NFT was added to the correct chainId/selectedAddress in state
+      const {
+        state: { allNfts },
+      } = nftController;
+      expect(allNfts).toStrictEqual({
+        // this is the selectedAddress when the request was made
+        [OWNER_ADDRESS]: {
+          // this is the chainId when the request was made
+          [GOERLI.chainId]: [
+            {
+              ...ERC721_NFT,
+              favorite: false,
+              isCurrentlyOwned: true,
+              description: 'testERC721Description',
+              image: 'testERC721Image',
+              name: 'testERC721Name',
+              standard: ERC721,
+            },
+          ],
+        },
+      });
+
+      clock.restore();
+    });
+
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled', async function () {
       nock(OPENSEA_PROXY_URL)
         .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
@@ -710,7 +825,7 @@ describe('NftController', () => {
       });
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({
-        source: 'custom',
+        source: Source.Custom,
         tokenId: '1',
         address: '0x01',
         standard: 'ERC1155',
@@ -734,8 +849,8 @@ describe('NftController', () => {
           standard: 'ERC721',
           favorite: false,
         },
-        // this object in the third argument slot is only defined when the NFT is added via detection
         { userAddress: detectedUserAddress, chainId: toHex(2) },
+        Source.Detected,
       );
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({
@@ -1268,8 +1383,134 @@ describe('NftController', () => {
       });
     });
 
-    it('should not add NFTs with no contract information when auto detecting', async () => {
-      const { nftController } = setupController();
+    it('should add an nft and nftContract to state when all contract information is falsy and the source is left empty (defaults to "custom")', async () => {
+      const { nftController, onNftAddedSpy } = setupController({
+        includeOnNftAdded: true,
+      });
+      const { selectedAddress, chainId } = nftController.config;
+      sinon.stub(nftController, 'getNftContractInformation' as any).returns({
+        asset_contract_type: null,
+        created_date: null,
+        schema_name: null,
+        symbol: null,
+        total_supply: null,
+        description: null,
+        external_link: null,
+        collection: { name: null, image_url: null },
+      });
+
+      sinon.stub(nftController, 'getNftInformation' as any).returns({
+        name: 'name',
+        image: 'url',
+        description: 'description',
+      });
+
+      await nftController.addNft('0x01234abcdefg', '1234');
+
+      expect(nftController.state.allNftContracts).toStrictEqual({
+        [selectedAddress]: {
+          [chainId]: [
+            {
+              address: '0x01234abcdefg',
+            },
+          ],
+        },
+      });
+
+      expect(nftController.state.allNfts).toStrictEqual({
+        [selectedAddress]: {
+          [chainId]: [
+            {
+              address: '0x01234abcdefg',
+              description: 'description',
+              image: 'url',
+              name: 'name',
+              tokenId: '1234',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      });
+
+      expect(onNftAddedSpy).toHaveBeenCalledWith({
+        address: '0x01234abcdefg',
+        tokenId: '1234',
+        standard: undefined,
+        symbol: undefined,
+        source: Source.Custom,
+      });
+    });
+
+    it('should add an nft and nftContract to state when all contract information is falsy and the source is "dapp"', async () => {
+      const { nftController, onNftAddedSpy } = setupController({
+        includeOnNftAdded: true,
+      });
+
+      sinon.stub(nftController, 'getNftContractInformation' as any).returns({
+        asset_contract_type: null,
+        created_date: null,
+        schema_name: null,
+        symbol: null,
+        total_supply: null,
+        description: null,
+        external_link: null,
+        collection: { name: null, image_url: null },
+      });
+
+      sinon.stub(nftController, 'getNftInformation' as any).returns({
+        name: 'name',
+        image: 'url',
+        description: 'description',
+      });
+
+      await nftController.addNft(
+        '0x01234abcdefg',
+        '1234',
+        undefined,
+        { chainId: GOERLI.chainId, userAddress: '0x123' },
+        Source.Dapp,
+      );
+
+      expect(nftController.state.allNftContracts).toStrictEqual({
+        '0x123': {
+          [GOERLI.chainId]: [
+            {
+              address: '0x01234abcdefg',
+            },
+          ],
+        },
+      });
+
+      expect(nftController.state.allNfts).toStrictEqual({
+        '0x123': {
+          [GOERLI.chainId]: [
+            {
+              address: '0x01234abcdefg',
+              description: 'description',
+              image: 'url',
+              name: 'name',
+              tokenId: '1234',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      });
+
+      expect(onNftAddedSpy).toHaveBeenCalledWith({
+        address: '0x01234abcdefg',
+        tokenId: '1234',
+        standard: undefined,
+        symbol: undefined,
+        source: Source.Dapp,
+      });
+    });
+
+    it('should add an nft and nftContract when there is valid contract information and source is "detected"', async () => {
+      const { nftController, onNftAddedSpy } = setupController({
+        includeOnNftAdded: true,
+      });
       nock(OPENSEA_PROXY_URL)
         .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
         .reply(200, {
@@ -1300,6 +1541,7 @@ describe('NftController', () => {
           userAddress: selectedAddress,
           chainId,
         },
+        Source.Detected,
       );
 
       expect(
@@ -1318,6 +1560,7 @@ describe('NftController', () => {
           userAddress: selectedAddress,
           chainId,
         },
+        Source.Detected,
       );
 
       expect(
@@ -1348,6 +1591,61 @@ describe('NftController', () => {
           totalSupply: 10,
         },
       ]);
+
+      expect(onNftAddedSpy).toHaveBeenCalledWith({
+        address: ERC721_KUDOSADDRESS,
+        tokenId: ERC721_KUDOS_TOKEN_ID,
+        standard: 'ERC721',
+        symbol: 'KDO',
+        source: Source.Detected,
+      });
+    });
+
+    it('should not add an nft and nftContract when there is not valid contract information (or an issue fetching it) and source is "detected"', async () => {
+      const { nftController, onNftAddedSpy } = setupController({
+        includeOnNftAdded: true,
+      });
+      nock(OPENSEA_PROXY_URL)
+        .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
+        .reply(200, {
+          image_original_url: 'Kudos image (from proxy API)',
+          name: 'Kudos Name',
+          description: 'Kudos Description',
+          asset_contract: {
+            schema_name: 'ERC721',
+          },
+        })
+        .get(`/asset_contract/${ERC721_KUDOSADDRESS}`)
+        .replyWithError(new Error('Failed to fetch'));
+
+      const { selectedAddress, chainId } = nftController.config;
+      await nftController.addNft(
+        '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+        '123',
+        undefined,
+        {
+          userAddress: selectedAddress,
+          chainId,
+        },
+        Source.Detected,
+      );
+
+      await nftController.addNft(
+        ERC721_KUDOSADDRESS,
+        ERC721_KUDOS_TOKEN_ID,
+        undefined,
+        {
+          userAddress: selectedAddress,
+          chainId,
+        },
+        Source.Detected,
+      );
+
+      expect(nftController.state.allNfts).toStrictEqual({});
+
+      expect(nftController.state.allNftContracts).toStrictEqual({});
+
+      expect(onNftAddedSpy).not.toHaveBeenCalled();
     });
 
     it('should not add duplicate NFTs to the ignoredNfts list', async () => {
