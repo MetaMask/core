@@ -376,8 +376,7 @@ export abstract class AbstractMessageManager<
    * this.addMessage is called to add the new Message to this.messages, and to save the
    * unapproved Messages.
    *
-   * @param messageParams - The params for the personal_sign call to be made after the message
-   * is approved.
+   * @param messageParams - Message parameters for the message to add
    * @param req - The original request object possibly containing the origin.
    * @param version? - The version of the JSON RPC protocol the request is using.
    * @returns The id of the newly created message.
@@ -402,13 +401,11 @@ export abstract class AbstractMessageManager<
    *
    * @param messageParamsWithId - The params for the personal_sign call to be made after the message is approved.
    * @param messageName - The name of the message
-   * @param hasErrorState - Whether the message has an error state.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async waitForFinishStatus(
     messageParamsWithId: AbstractMessageParamsMetamask,
     messageName: string,
-    hasErrorState = false,
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {
@@ -423,12 +420,9 @@ export abstract class AbstractMessageManager<
               ),
             );
           case 'errored':
-            if (hasErrorState) {
-              return reject(
-                new Error(`MetaMask ${messageName} Signature: ${data.error}`),
-              );
-            }
-          // eslint-disable-next-line no-fallthrough
+            return reject(
+              new Error(`MetaMask ${messageName} Signature: ${data.error}`),
+            );
           default:
             return reject(
               new Error(

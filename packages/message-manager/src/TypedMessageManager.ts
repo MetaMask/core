@@ -67,10 +67,6 @@ export interface TypedMessageParamsMetamask
   version?: string;
 }
 
-export type TypedMessageSigningOptions = {
-  parseJsonData: boolean;
-};
-
 /**
  * Controller in charge of managing - storing, adding, removing, updating - TypedMessages.
  */

@@ -11,7 +11,6 @@ import {
   TypedMessageManager,
   TypedMessageParams,
   TypedMessageParamsMetamask,
-  TypedMessageSigningOptions,
   AbstractMessageManager,
   AbstractMessage,
   MessageManagerState,
@@ -68,6 +67,10 @@ type SignatureControllerState = {
 };
 
 type AllowedActions = AddApprovalRequest;
+
+type SigningOptions = {
+  parseJsonData: boolean;
+};
 
 export type GetSignatureState = {
   type: `${typeof controllerName}:getState`;
@@ -295,22 +298,7 @@ export class SignatureController extends BaseControllerV2<
       this.#signMessage.bind(this),
       messageParams,
       req,
-      (params) => {
-        if (!this.#isEthSignEnabled()) {
-          throw ethErrors.rpc.methodNotFound(
-            'eth_sign has been disabled. You must enable it in the advanced settings',
-          );
-        }
-        const data = this.#normalizeMsgData(params.data);
-        // 64 hex + "0x" at the beginning
-        // This is needed because Ethereum's EcSign works only on 32 byte numbers
-        // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
-        if (data.length !== 66 && data.length !== 67) {
-          throw ethErrors.rpc.invalidParams(
-            'eth_sign requires 32 byte message hash',
-          );
-        }
-      },
+      this.#validateUnsignedMessage.bind(this),
     );
   }
 
@@ -353,7 +341,7 @@ export class SignatureController extends BaseControllerV2<
     messageParams: TypedMessageParams,
     req: OriginalRequest,
     version: string,
-    signingOpts: TypedMessageSigningOptions,
+    signingOpts: SigningOptions,
   ): Promise<string> {
     return this.#newUnsignedAbstractMessage(
       this.#typedMessageManager,
@@ -376,10 +364,28 @@ export class SignatureController extends BaseControllerV2<
     this.#personalMessageManager.setMessageStatusInProgress(messageId);
   }
 
+  #validateUnsignedMessage(messageParams: MessageParamsMetamask): void {
+    if (!this.#isEthSignEnabled()) {
+      throw ethErrors.rpc.methodNotFound(
+        'eth_sign has been disabled. You must enable it in the advanced settings',
+      );
+    }
+    const data = this.#normalizeMsgData(messageParams.data);
+    // 64 hex + "0x" at the beginning
+    // This is needed because Ethereum's EcSign works only on 32 byte numbers
+    // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
+    if (data.length !== 66 && data.length !== 67) {
+      throw ethErrors.rpc.invalidParams(
+        'eth_sign requires 32 byte message hash',
+      );
+    }
+  }
+
   async #newUnsignedAbstractMessage<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
+    SO extends SigningOptions,
   >(
     messageManager: AbstractMessageManager<M, P, PM>,
     approvalType: ApprovalType,
@@ -387,13 +393,13 @@ export class SignatureController extends BaseControllerV2<
     signMessage: (
       messageParams: PM,
       version?: string,
-      signingOpts?: TypedMessageSigningOptions,
+      signingOpts?: SO,
     ) => void,
     messageParams: PM,
     req: OriginalRequest,
     validateMessage?: (params: PM) => void,
     version?: string,
-    signingOpts?: TypedMessageSigningOptions,
+    signingOpts?: SO,
   ) {
     if (validateMessage) {
       validateMessage(messageParams);
@@ -413,7 +419,6 @@ export class SignatureController extends BaseControllerV2<
     const signaturePromise = messageManager.waitForFinishStatus(
       messageParamsWithId,
       messageName,
-      true,
     );
 
     try {
@@ -475,7 +480,7 @@ export class SignatureController extends BaseControllerV2<
   async #signTypedMessage(
     msgParams: TypedMessageParamsMetamask,
     version?: string,
-    opts?: TypedMessageSigningOptions,
+    opts?: SigningOptions,
   ): Promise<any> {
     return await this.#signAbstractMessage(
       this.#typedMessageManager,
@@ -547,7 +552,24 @@ export class SignatureController extends BaseControllerV2<
       return signature;
     } catch (error: any) {
       console.info(`MetaMaskController - ${methodName} failed.`, error);
+      this.#errorMessage(messageManager, messageId, error.message);
       throw error;
+    }
+  }
+
+  #errorMessage<
+    M extends AbstractMessage,
+    P extends AbstractMessageParams,
+    PM extends AbstractMessageParamsMetamask,
+  >(
+    messageManager: AbstractMessageManager<M, P, PM>,
+    messageId: string,
+    error: string,
+  ) {
+    if (messageManager instanceof TypedMessageManager) {
+      messageManager.setMessageStatusErrored(messageId, error);
+    } else {
+      this.#cancelAbstractMessage(messageManager, messageId);
     }
   }
 

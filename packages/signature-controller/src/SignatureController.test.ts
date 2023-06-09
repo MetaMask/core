@@ -384,6 +384,10 @@ describe('SignatureController', () => {
       );
 
       expect(error.message).toBe(keyringErrorMessageMock);
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
+        messageIdMock,
+      );
     });
   });
 
@@ -444,6 +448,10 @@ describe('SignatureController', () => {
           ),
       );
       expect(error.message).toBe(keyringErrorMessageMock);
+      expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
+      expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledWith(
+        messageIdMock,
+      );
     });
   });
 
@@ -557,6 +565,12 @@ describe('SignatureController', () => {
           ),
       );
       expect(error.message).toBe(keyringErrorMessageMock);
+      expect(
+        typedMessageManagerMock.setMessageStatusErrored,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        typedMessageManagerMock.setMessageStatusErrored,
+      ).toHaveBeenCalledWith(messageIdMock, keyringErrorMessageMock);
     });
   });
 

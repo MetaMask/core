@@ -449,7 +449,6 @@ describe('AbstractTestManager', () => {
           metamaskId: messageIdMock,
         },
         'AbstractTestManager',
-        false,
       );
 
       setTimeout(() => {
@@ -475,7 +474,6 @@ describe('AbstractTestManager', () => {
           metamaskId: messageIdMock,
         },
         'AbstractTestManager',
-        true,
       );
 
       setTimeout(() => {
