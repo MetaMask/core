@@ -68,7 +68,7 @@ type SignatureControllerState = {
 
 type AllowedActions = AddApprovalRequest;
 
-type SigningOptions = {
+type TypedMessageSigningOptions = {
   parseJsonData: boolean;
 };
 
@@ -341,7 +341,7 @@ export class SignatureController extends BaseControllerV2<
     messageParams: TypedMessageParams,
     req: OriginalRequest,
     version: string,
-    signingOpts: SigningOptions,
+    signingOpts: TypedMessageSigningOptions,
   ): Promise<string> {
     return this.#newUnsignedAbstractMessage(
       this.#typedMessageManager,
@@ -385,7 +385,7 @@ export class SignatureController extends BaseControllerV2<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
-    SO extends SigningOptions,
+    SO,
   >(
     messageManager: AbstractMessageManager<M, P, PM>,
     approvalType: ApprovalType,
@@ -480,7 +480,7 @@ export class SignatureController extends BaseControllerV2<
   async #signTypedMessage(
     msgParams: TypedMessageParamsMetamask,
     version?: string,
-    opts?: SigningOptions,
+    opts?: TypedMessageSigningOptions,
   ): Promise<any> {
     return await this.#signAbstractMessage(
       this.#typedMessageManager,
