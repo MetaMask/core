@@ -726,14 +726,16 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.loadingText - The loading text that will be associated to the approval flow.
    */
   setFlowLoadingText({ id, loadingText }: SetFlowLoadingTextOptions) {
-    if (!this.state.approvalFlows.find((flow) => flow.id === id)) {
+    const flowIndex = this.state.approvalFlows.findIndex(
+      (flow) => flow.id === id,
+    );
+
+    if (flowIndex === -1) {
       throw new MissingApprovalFlowError(id);
     }
 
     this.update((draftState) => {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      draftState.approvalFlows.find((flow) => flow.id === id)!.loadingText =
-        loadingText;
+      draftState.approvalFlows[flowIndex].loadingText = loadingText;
     });
   }
 
