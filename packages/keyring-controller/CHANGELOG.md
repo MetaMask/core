@@ -6,6 +6,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+### Added
+- Add `KeyringControllerMemState` type ([#1378](https://github.com/MetaMask/core/pull/1378))
+  - This is like the previous `KeyringMemState` but without `encryptionKey` or `encryptionSalt`
+- Add messenger events `KeyringController:lock` and `KeyringController:unlock`, emitted when the inner EthKeyringController is locked/unlocked ([#1378](https://github.com/MetaMask/core/pull/1378))
+  - Also add corresponding types `KeyringControllerLockEvent` and `KeyringControllerUnlockEvent`
+- Add `KeyringController:accountRemoved` event, fired whenever an account is removed through `removeAccount` ([#1416](https://github.com/MetaMask/core/pull/1416))
+
+### Changed
+- **BREAKING:** Update constructor to take a single argument, an options bag, instead of three arguments ([#1378](https://github.com/MetaMask/core/pull/1378))
+- **BREAKING:** Update controller so state is now accessible via `controller.state` instead of `controller.store.getState()` ([#1378](https://github.com/MetaMask/core/pull/1378))
+- **BREAKING:** Update KeyringController to take a required `messenger` option ([#1378](https://github.com/MetaMask/core/pull/1378))
+  - The messenger will now publish `KeyringController:stateChange` on state changes thanks to BaseControllerV2
+  - The messenger features a `KeyringController:getState` action thanks to BaseControllerV2
+  - Add types `KeyringControllerGetStateAction` and `KeyringControllerStateChangeEvent` for the above
+  - Add type `KeyringControllerMessenger`
+- **BREAKING:** Update `keyringState` property in the return value of several methods from a type of `KeyringMemState` to `KeyringControllerMemState` ([#1378](https://github.com/MetaMask/core/pull/1378))
+  - The affected methods are:
+    - `addNewAccount`
+    - `addNewAccountWithoutUpdate`
+    - `createNewVaultAndRestore`
+    - `createNewVaultAndKeychain`
+    - `importAccountWithStrategy`
+    - `removeAccount`
+    - `setLocked`
+    - `submitEncryptionKey`
+    - `submitPassword`
+  - The new type omits `vault`, `encryptionKey`, and `encryptionSalt`
+- **BREAKING:** Remove `KeyringState`, `KeyringMemState`, and `KeyringConfig` in favor of new types `KeyringControllerState`, `KeyringControllerActions`, `KeyringControllerEvents`, and `KeyringControllerOptions` ([#1378](https://github.com/MetaMask/core/pull/1378))
+  - `KeyringControllerState` is like the previous `KeyringMemState` but with an extra `vault` property
+  - `KeyringControllerOptions` incorporates the previous set of options and `KeyringConfig`
+- Add `immer` as a dependency ([#1378](https://github.com/MetaMask/core/pull/1378))
+
+### Removed
+- **BREAKING:** Remove `subscribe` and `unsubscribe` methods ([#1378](https://github.com/MetaMask/core/pull/1378))
+  - State changes can be directly subscribed to (or unsubscribed from) via the messenger if necessary
+- **BREAKING:** Remove `lock` and `unlock` methods ([#1378](https://github.com/MetaMask/core/pull/1378))
+  - `KeyringController:lock` and `KeyringController:unlock` may now be subscribed to via the messenger if necessary
+- **BREAKING:** Remove `fullUpdate` method ([#1378](https://github.com/MetaMask/core/pull/1378))
+  - There is no need to call this method anymore because the controller should always be up to date with the EthKeyringController instance
+- **BREAKING:** Remove `index` from the `Keyring` type ([#1378](https://github.com/MetaMask/core/pull/1378))
+
 ## [5.1.0]
 ### Added
 - Add `cancelQRSynchronization` method ([#1387](https://github.com/MetaMask/core.git/pull/1387))
@@ -78,7 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.1.0...@metamask/keyring-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.0.0...@metamask/keyring-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@4.0.0...@metamask/keyring-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@3.0.0...@metamask/keyring-controller@4.0.0
