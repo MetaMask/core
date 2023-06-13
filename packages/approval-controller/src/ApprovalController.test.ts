@@ -10,12 +10,12 @@ import {
 import {
   ApprovalRequestNoResultSupportError,
   EndInvalidFlowError,
+  MissingApprovalFlowError,
   NoApprovalFlowsError,
 } from './errors';
 
 const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
-const APPROVAL_FLOW_TEXT_STORE_KEY = 'approvalFlowLoadingText';
 
 const TYPE = 'TYPE';
 const ID_MOCK = 'TestId';
@@ -1016,7 +1016,7 @@ describe('approval controller', () => {
     it.each([
       ['no options passed', undefined],
       ['partial options passed', {}],
-      ['options passed', { id: 'id' }],
+      ['options passed', { id: 'id', loadingText: 'loadingText' }],
     ])(
       'adds flow to state and calls showApprovalRequest with %s',
       (_, opts?: StartFlowOptions) => {
@@ -1024,6 +1024,7 @@ describe('approval controller', () => {
 
         const expectedFlow = {
           id: opts?.id ?? expect.any(String),
+          loadingText: opts?.loadingText ?? null,
         };
         expect(result).toStrictEqual(expectedFlow);
         expect(showApprovalRequest).toHaveBeenCalledTimes(1);
@@ -1064,19 +1065,41 @@ describe('approval controller', () => {
   });
 
   describe('setFlowLoadingText', () => {
-    it('changes the loading text for the approval the flow', () => {
+    const flowId = 'flowId';
+
+    beforeEach(() => {
+      approvalController.startFlow({ id: flowId });
+    });
+
+    afterEach(() => {
+      approvalController.endFlow({ id: flowId });
+    });
+
+    it('fails to set flow loading text if the flow id does not exist', () => {
+      expect(() =>
+        approvalController.setFlowLoadingText('wrongId', null),
+      ).toThrow(MissingApprovalFlowError);
+    });
+
+    it('changes the loading text for the approval flow', () => {
       const mockLoadingText = 'Mock Loading Text';
-      approvalController.setFlowLoadingText(mockLoadingText);
+      approvalController.setFlowLoadingText(flowId, mockLoadingText);
 
       expect(
-        approvalController.state[APPROVAL_FLOW_TEXT_STORE_KEY],
+        approvalController.state[APPROVAL_FLOWS_STORE_KEY].find(
+          (flow) => flow.id === flowId,
+        )?.loadingText,
       ).toStrictEqual(mockLoadingText);
     });
 
     it('sets the loading text back to null for the approval the flow', () => {
-      approvalController.setFlowLoadingText(null);
+      approvalController.setFlowLoadingText(flowId, null);
 
-      expect(approvalController.state[APPROVAL_FLOW_TEXT_STORE_KEY]).toBeNull();
+      expect(
+        approvalController.state[APPROVAL_FLOWS_STORE_KEY].find(
+          (flow) => flow.id === flowId,
+        )?.loadingText,
+      ).toBeNull();
     });
   });
 });
