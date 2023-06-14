@@ -10,6 +10,11 @@ import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider/dist/s
 const originalSetTimeout = global.setTimeout;
 
 /**
+ * Represents the type of the `response` property in a fake provider stub.
+ */
+export type FakeProviderResponse = { result: any } | { error: string };
+
+/**
  * An object that allows specifying the behavior of a specific invocation of
  * `sendAsync`. The `method` always identifies the stub, but the behavior
  * may be specified multiple ways: `sendAsync` can either return a promise or
@@ -42,14 +47,14 @@ const originalSetTimeout = global.setTimeout;
 export type FakeProviderStub = {
   request: {
     method: string;
-    params?: unknown[];
+    params?: any[];
   };
   delay?: number;
   discardAfterMatching?: boolean;
   beforeCompleting?: () => void | Promise<void>;
 } & (
   | {
-      response: { result: any } | { error: string };
+      response: FakeProviderResponse;
     }
   | {
       error: unknown;
