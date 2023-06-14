@@ -50,10 +50,10 @@ export default function createStreamMiddleware(options: Options = {}) {
     next,
     end,
   ) => {
+    // register request on id map *before* sending it to the stream, to avoid race issues
+    idMap[req.id as unknown as string] = { req, res, next, end };
     // write req to stream
     sendToStream(req);
-    // register request on id map
-    idMap[req.id as unknown as string] = { req, res, next, end };
   };
 
   return { events, middleware, stream };
