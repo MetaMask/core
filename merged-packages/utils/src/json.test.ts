@@ -88,6 +88,13 @@ describe('json', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(descriptor?.set).toBeUndefined();
     });
+
+    it('strips __proto__ and constructor', () => {
+      const input =
+        '{ "test": { "__proto__": { "foo": "bar" } }, "test2": { "constructor": { "baz": "qux" } } }';
+      const parsed = JSON.parse(input);
+      expect(getSafeJson(parsed)).toStrictEqual({ test: {}, test2: {} });
+    });
   });
 
   describe('isValidJson', () => {

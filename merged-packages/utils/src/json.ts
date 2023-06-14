@@ -72,7 +72,15 @@ export const UnsafeJsonStruct: Struct<Json> = union([
  */
 export const JsonStruct = coerce(UnsafeJsonStruct, any(), (value) => {
   assertStruct(value, UnsafeJsonStruct);
-  return JSON.parse(JSON.stringify(value));
+  return JSON.parse(
+    JSON.stringify(value, (propKey, propValue) => {
+      // Strip __proto__ and constructor properties to prevent prototype pollution.
+      if (propKey === '__proto__' || propKey === 'constructor') {
+        return undefined;
+      }
+      return propValue;
+    }),
+  );
 });
 
 /**
