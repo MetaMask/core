@@ -3,9 +3,6 @@ import { TypedMessageManager } from './TypedMessageManager';
 let controller: TypedMessageManager;
 
 const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-const messageIdMock = 'message-id-mocked';
-const rawSigMock = '0xsignaturemocked';
-const versionMock = 'V1';
 
 const typedMessage = [
   {
@@ -64,102 +61,6 @@ describe('TypedMessageManager', () => {
     expect(message.type).toBe(messageType);
   });
 
-  describe('addUnapprovedMessageAsync', () => {
-    beforeEach(() => {
-      jest
-        .spyOn(controller, 'addUnapprovedMessage')
-        .mockImplementation()
-        .mockResolvedValue(messageIdMock);
-    });
-
-    afterAll(() => {
-      jest.spyOn(controller, 'addUnapprovedMessage').mockClear();
-    });
-
-    it('signs the message when status is "signed"', async () => {
-      const promise = controller.addUnapprovedMessageAsync(
-        {
-          data: typedMessage,
-          from: fromMock,
-        },
-        versionMock,
-      );
-
-      setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
-          status: 'signed',
-          rawSig: rawSigMock,
-        });
-      }, 100);
-
-      expect(await promise).toStrictEqual(rawSigMock);
-    });
-
-    it('rejects with an error when status is "rejected"', async () => {
-      const promise = controller.addUnapprovedMessageAsync(
-        {
-          data: typedMessage,
-          from: fromMock,
-        },
-        versionMock,
-      );
-
-      setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
-          status: 'rejected',
-        });
-      }, 100);
-
-      await expect(() => promise).rejects.toThrow(
-        'MetaMask Typed Message Signature: User denied message signature.',
-      );
-    });
-
-    it('rejects with an error when status is "errored"', async () => {
-      const promise = controller.addUnapprovedMessageAsync(
-        {
-          data: typedMessage,
-          from: fromMock,
-        },
-        versionMock,
-      );
-
-      setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
-          status: 'errored',
-          error: 'error message',
-        });
-      }, 100);
-
-      await expect(() => promise).rejects.toThrow(
-        'MetaMask Typed Message Signature: error message',
-      );
-    });
-
-    it('rejects with an error when unapproved finishes', async () => {
-      const promise = controller.addUnapprovedMessageAsync(
-        {
-          data: typedMessage,
-          from: fromMock,
-        },
-        versionMock,
-      );
-
-      setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
-          status: 'unknown',
-        });
-      }, 100);
-
-      await expect(() => promise).rejects.toThrow(
-        `MetaMask Typed Message Signature: Unknown problem: ${JSON.stringify({
-          data: typedMessage,
-          from: fromMock,
-        })}`,
-      );
-    });
-  });
-
   it('should add a valid unapproved message', async () => {
     const messageStatus = 'unapproved';
     const messageType = 'eth_signTypedData';
@@ -167,13 +68,13 @@ describe('TypedMessageManager', () => {
     const messageData = typedMessage;
     const messageParams = {
       data: messageData,
-      from: '0xfoO',
+      from: fromMock,
     };
     const originalRequest = { origin: 'origin' };
     const messageId = await controller.addUnapprovedMessage(
       messageParams,
-      version,
       originalRequest,
+      version,
     );
     expect(messageId).not.toBeUndefined();
     const message = controller.getMessage(messageId);
@@ -192,11 +93,12 @@ describe('TypedMessageManager', () => {
     const messageData = '0x879';
     const version = 'V1';
     await expect(
-      controller.addUnapprovedMessageAsync(
+      controller.addUnapprovedMessage(
         {
           data: messageData,
           from,
         },
+        undefined,
         version,
       ),
     ).rejects.toThrow('Invalid message "data":');
@@ -208,11 +110,12 @@ describe('TypedMessageManager', () => {
     const messageData = typedMessage;
     const version = 'V3';
     await expect(
-      controller.addUnapprovedMessageAsync(
+      controller.addUnapprovedMessage(
         {
           data: messageData,
           from,
         },
+        undefined,
         version,
       ),
     ).rejects.toThrow('Invalid message "data":');
@@ -225,11 +128,12 @@ describe('TypedMessageManager', () => {
       mockGetChainId,
     );
     await expect(
-      controllerWithGetCurrentChainIdCallback.addUnapprovedMessageAsync(
+      controllerWithGetCurrentChainIdCallback.addUnapprovedMessage(
         {
           data: messageData,
           from,
         },
+        undefined,
         'V4',
       ),
     ).rejects.toThrow('Invalid message "data":');
@@ -286,10 +190,11 @@ describe('TypedMessageManager', () => {
 
   it('should approve typed message', async () => {
     const messageData = typedMessage;
-    const firstMessage = { from: '0xfoO', data: messageData };
+    const firstMessage = { from: fromMock, data: messageData };
     const version = 'V1';
     const messageId = await await controller.addUnapprovedMessage(
       firstMessage,
+      undefined,
       version,
     );
     const messageParams = await controller.approveMessage({
@@ -307,11 +212,12 @@ describe('TypedMessageManager', () => {
 
   it('should set message status signed', async () => {
     const messageData = typedMessage;
-    const firstMessage = { from: '0xfoO', data: messageData };
+    const firstMessage = { from: fromMock, data: messageData };
     const version = 'V1';
     const rawSig = '0x5f7a0';
     const messageId = await controller.addUnapprovedMessage(
       firstMessage,
+      undefined,
       version,
     );
     controller.setMessageStatusSigned(messageId, rawSig);
@@ -325,10 +231,11 @@ describe('TypedMessageManager', () => {
 
   it('should reject message', async () => {
     const messageData = typedMessage;
-    const firstMessage = { from: '0xfoO', data: messageData };
+    const firstMessage = { from: fromMock, data: messageData };
     const version = 'V1';
     const messageId = await controller.addUnapprovedMessage(
       firstMessage,
+      undefined,
       version,
     );
     controller.rejectMessage(messageId);
@@ -341,10 +248,11 @@ describe('TypedMessageManager', () => {
 
   it('should set message status errored', async () => {
     const messageData = typedMessage;
-    const firstMessage = { from: '0xfoO', data: messageData };
+    const firstMessage = { from: fromMock, data: messageData };
     const version = 'V1';
     const messageId = await controller.addUnapprovedMessage(
       firstMessage,
+      undefined,
       version,
     );
     controller.setMessageStatusErrored(messageId, 'errored');
