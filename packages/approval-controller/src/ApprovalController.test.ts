@@ -1077,13 +1077,19 @@ describe('approval controller', () => {
 
     it('fails to set flow loading text if the flow id does not exist', () => {
       expect(() =>
-        approvalController.setFlowLoadingText('wrongId', null),
+        approvalController.setFlowLoadingText({
+          id: 'wrongId',
+          loadingText: null,
+        }),
       ).toThrow(MissingApprovalFlowError);
     });
 
     it('changes the loading text for the approval flow', () => {
       const mockLoadingText = 'Mock Loading Text';
-      approvalController.setFlowLoadingText(flowId, mockLoadingText);
+      approvalController.setFlowLoadingText({
+        id: flowId,
+        loadingText: mockLoadingText,
+      });
 
       expect(
         approvalController.state[APPROVAL_FLOWS_STORE_KEY].find(
@@ -1093,7 +1099,7 @@ describe('approval controller', () => {
     });
 
     it('sets the loading text back to null for the approval the flow', () => {
-      approvalController.setFlowLoadingText(flowId, null);
+      approvalController.setFlowLoadingText({ id: flowId, loadingText: null });
 
       expect(
         approvalController.state[APPROVAL_FLOWS_STORE_KEY].find(
