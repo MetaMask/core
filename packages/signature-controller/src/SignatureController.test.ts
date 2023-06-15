@@ -6,6 +6,7 @@ import {
   OriginalRequest,
 } from '@metamask/message-manager';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import { EthereumProviderError } from 'eth-rpc-errors';
 import {
   SignatureController,
   SignatureControllerMessenger,
@@ -23,18 +24,30 @@ jest.mock('@metamask/controller-utils', () => {
   return { ...actual, detectSIWE: jest.fn() };
 });
 
+class NoErrorThrownError extends Error {}
+const getError = async <TError>(call: () => unknown): Promise<TError> => {
+  try {
+    await call();
+    throw new NoErrorThrownError();
+  } catch (error: unknown) {
+    return error as TError;
+  }
+};
+
 const messageIdMock = '123';
 const messageIdMock2 = '456';
-const versionMock = '1';
-const signatureMock = '0xAABBCC';
-const stateMock = { test: 123 };
+const versionMock = 'V1';
 
-const messageParamsMock = {
+const messageParamsWithoutIdMock = {
   from: '0x123',
   origin: 'http://test.com',
   data: '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
-  metamaskId: messageIdMock,
   version: 'V1',
+};
+
+const messageParamsMock = {
+  ...messageParamsWithoutIdMock,
+  metamaskId: messageIdMock,
 };
 
 const messageParamsMock2 = {
@@ -73,14 +86,19 @@ const createMessengerMock = () =>
     call: jest.fn(),
   } as any as jest.Mocked<SignatureControllerMessenger>);
 
+const addUnapprovedMessageMock = jest.fn();
+const waitForFinishStatusMock = jest.fn();
+const approveMessageMock = jest.fn();
+
 const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
   const messageManagerMock = Object.create(prototype);
 
   return Object.assign(messageManagerMock, {
     getUnapprovedMessages: jest.fn(),
     getUnapprovedMessagesCount: jest.fn(),
-    addUnapprovedMessageAsync: jest.fn(),
-    approveMessage: jest.fn(),
+    addUnapprovedMessage: addUnapprovedMessageMock,
+    waitForFinishStatus: waitForFinishStatusMock,
+    approveMessage: approveMessageMock,
     setMessageStatusSigned: jest.fn(),
     setMessageStatusErrored: jest.fn(),
     setMessageStatusInProgress: jest.fn(),
@@ -125,11 +143,15 @@ describe('SignatureController', () => {
   const securityProviderRequestMock = jest.fn();
   const isEthSignEnabledMock = jest.fn();
   const getCurrentChainIdMock = jest.fn();
+  const keyringErrorMessageMock = 'Keyring Error';
+  const keyringErrorMock = new Error(keyringErrorMessageMock);
 
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(console, 'info').mockImplementation(() => undefined);
 
+    addUnapprovedMessageMock.mockResolvedValue(messageIdMock);
+    approveMessageMock.mockResolvedValue(messageParamsWithoutIdMock);
     messageManagerConstructorMock.mockReturnValue(messageManagerMock);
     personalMessageManagerConstructorMock.mockReturnValue(
       personalMessageManagerMock,
@@ -320,17 +342,51 @@ describe('SignatureController', () => {
     });
 
     it('adds message to message manager', async () => {
+      // Satisfy one of fallback branches
+      const { origin: _origin, ...messageParamsWithoutOrigin } =
+        messageParamsMock;
+
       await signatureController.newUnsignedMessage(
-        messageParamsMock,
+        messageParamsWithoutOrigin,
         requestMock,
       );
 
-      expect(
-        messageManagerMock.addUnapprovedMessageAsync,
-      ).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.addUnapprovedMessageAsync).toHaveBeenCalledWith(
-        messageParamsMock,
+      expect(messageManagerMock.addUnapprovedMessage).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.addUnapprovedMessage).toHaveBeenCalledWith(
+        messageParamsWithoutOrigin,
         requestMock,
+        undefined,
+      );
+
+      expect(messengerMock.call).toHaveBeenCalledTimes(1);
+      expect(messengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: messageIdMock,
+          origin: ORIGIN_METAMASK,
+          type: 'eth_sign',
+          requestData: messageParamsWithoutOrigin,
+        },
+        true,
+      );
+    });
+
+    it('throws if cannot get signature', async () => {
+      (keyringControllerMock as any).signMessage.mockRejectedValueOnce(
+        keyringErrorMock,
+      );
+      const error: any = await getError(
+        async () =>
+          await signatureController.newUnsignedMessage(
+            messageParamsMock,
+            requestMock,
+          ),
+      );
+
+      expect(error.message).toBe(keyringErrorMessageMock);
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
+        messageIdMock,
       );
     });
   });
@@ -343,321 +399,202 @@ describe('SignatureController', () => {
       );
 
       expect(
-        personalMessageManagerMock.addUnapprovedMessageAsync,
+        personalMessageManagerMock.addUnapprovedMessage,
       ).toHaveBeenCalledTimes(1);
 
       expect(
-        personalMessageManagerMock.addUnapprovedMessageAsync,
+        personalMessageManagerMock.addUnapprovedMessage,
       ).toHaveBeenCalledWith(
         expect.objectContaining(messageParamsMock),
         requestMock,
+        undefined,
+      );
+
+      expect(messengerMock.call).toHaveBeenCalledTimes(1);
+      expect(messengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: messageIdMock,
+          origin: messageParamsMock.origin,
+          type: 'personal_sign',
+          requestData: messageParamsMock,
+        },
+        true,
+      );
+    });
+
+    it('throws if approval rejected', async () => {
+      messengerMock.call.mockRejectedValueOnce({});
+      const error: any = await getError(
+        async () =>
+          await signatureController.newUnsignedPersonalMessage(
+            messageParamsMock,
+            requestMock,
+          ),
+      );
+      expect(error instanceof EthereumProviderError).toBe(true);
+      expect(error.message).toBe('User rejected the request.');
+    });
+
+    it('throws if cannot get signature', async () => {
+      (keyringControllerMock as any).signPersonalMessage.mockRejectedValueOnce(
+        keyringErrorMock,
+      );
+      const error: any = await getError(
+        async () =>
+          await signatureController.newUnsignedPersonalMessage(
+            messageParamsMock,
+            requestMock,
+          ),
+      );
+      expect(error.message).toBe(keyringErrorMessageMock);
+      expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
+      expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledWith(
+        messageIdMock,
       );
     });
   });
 
   describe('newUnsignedTypedMessage', () => {
     it('adds message to typed message manager', async () => {
-      signatureController.newUnsignedTypedMessage(
+      await signatureController.newUnsignedTypedMessage(
+        messageParamsMock,
+        requestMock,
+        versionMock,
+        { parseJsonData: true },
+      );
+
+      expect(
+        typedMessageManagerMock.addUnapprovedMessage,
+      ).toHaveBeenCalledTimes(1);
+      expect(typedMessageManagerMock.addUnapprovedMessage).toHaveBeenCalledWith(
         messageParamsMock,
         requestMock,
         versionMock,
       );
 
+      expect(messengerMock.call).toHaveBeenCalledTimes(1);
+      expect(messengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: messageIdMock,
+          origin: messageParamsMock.origin,
+          type: 'eth_signTypedData',
+          requestData: messageParamsMock,
+        },
+        true,
+      );
+    });
+
+    it('does not set as signed, messages with deferSetAsSigned', async () => {
+      const deferredMessageParams = {
+        ...messageParamsMock,
+        deferSetAsSigned: true,
+      };
+      messengerMock.call.mockResolvedValueOnce(null);
+      typedMessageManagerMock.approveMessage.mockReset();
+      typedMessageManagerMock.approveMessage.mockResolvedValueOnce(
+        deferredMessageParams,
+      );
+
+      await signatureController.newUnsignedTypedMessage(
+        messageParamsMock,
+        requestMock,
+        versionMock,
+        { parseJsonData: false },
+      );
+
       expect(
-        typedMessageManagerMock.addUnapprovedMessageAsync,
+        typedMessageManagerMock.setMessageStatusSigned,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('parses JSON string in data if not V1', async () => {
+      const jsonData = { test: 'value' };
+
+      typedMessageManagerMock.approveMessage.mockReset();
+      typedMessageManagerMock.approveMessage.mockResolvedValueOnce({
+        ...messageParamsMock2,
+        deferSetAsSigned: false,
+        data: JSON.stringify(jsonData),
+      });
+
+      await signatureController.newUnsignedTypedMessage(
+        messageParamsMock,
+        requestMock,
+        'V2',
+        { parseJsonData: true },
+      );
+
+      expect(keyringControllerMock.signTypedMessage).toHaveBeenCalledTimes(1);
+      expect(keyringControllerMock.signTypedMessage).toHaveBeenCalledWith(
+        { ...messageParamsMock2, data: jsonData, deferSetAsSigned: false },
+        { version: 'V2' },
+      );
+    });
+
+    it('throws if approval rejected', async () => {
+      messengerMock.call.mockRejectedValueOnce({});
+      const error: any = await getError(
+        async () =>
+          await signatureController.newUnsignedTypedMessage(
+            messageParamsMock,
+            requestMock,
+            versionMock,
+            { parseJsonData: true },
+          ),
+      );
+      expect(error instanceof EthereumProviderError).toBe(true);
+      expect(error.message).toBe('User rejected the request.');
+    });
+
+    it('throws if cannot get signature', async () => {
+      keyringControllerMock.signTypedMessage.mockRejectedValueOnce(
+        keyringErrorMock,
+      );
+      typedMessageManagerMock.addUnapprovedMessage.mockResolvedValue(
+        messageIdMock,
+      );
+      const error: any = await getError(
+        async () =>
+          await signatureController.newUnsignedTypedMessage(
+            messageParamsMock,
+            requestMock,
+            versionMock,
+            { parseJsonData: true },
+          ),
+      );
+      expect(error.message).toBe(keyringErrorMessageMock);
+      expect(
+        typedMessageManagerMock.setMessageStatusErrored,
       ).toHaveBeenCalledTimes(1);
       expect(
-        typedMessageManagerMock.addUnapprovedMessageAsync,
-      ).toHaveBeenCalledWith(messageParamsMock, versionMock, requestMock);
+        typedMessageManagerMock.setMessageStatusErrored,
+      ).toHaveBeenCalledWith(messageIdMock, keyringErrorMessageMock);
     });
   });
 
-  describe.each([
-    [
-      'signMessage',
-      messageManagerMock,
-      () => signatureController.signMessage,
-      () => keyringControllerMock.signMessage,
-      'eth_sign',
-    ],
-    [
-      'signPersonalMessage',
-      personalMessageManagerMock,
-      () => signatureController.signPersonalMessage,
-      () => keyringControllerMock.signPersonalMessage,
-      'personal_sign',
-    ],
-    [
-      'signTypedMessage',
-      typedMessageManagerMock,
-      () => signatureController.signTypedMessage,
-      () => keyringControllerMock.signTypedMessage,
-      'eth_signTypedData',
-    ],
-  ])(
-    '%s',
-    (
-      signMethodName,
-      messageManager,
-      getSignatureControllerMethod,
-      getKeyringControllerMethod,
-      rpcMethodName,
-    ) => {
-      let signatureControllerMethod: (...args: any[]) => Promise<string>;
-      let keyringControllerMethod: jest.Mock;
-
-      // eslint-disable-next-line jest/no-duplicate-hooks
-      beforeEach(() => {
-        messageManager.approveMessage.mockResolvedValueOnce(messageParamsMock2);
-
-        (keyringControllerMock as any)[signMethodName].mockResolvedValueOnce(
-          signatureMock,
-        );
-
-        signatureControllerMethod =
-          getSignatureControllerMethod().bind(signatureController);
-        keyringControllerMethod = getKeyringControllerMethod();
-      });
-
-      it('approves message and signs', async () => {
-        await (signatureController as any)[signMethodName](messageParamsMock);
-
-        const keyringControllerExtraArgs =
-          // eslint-disable-next-line jest/no-if
-          signMethodName === 'signTypedMessage'
-            ? [{ version: messageParamsMock.version }]
-            : [];
-
-        expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
-        expect(keyringControllerMethod).toHaveBeenCalledWith(
-          messageParamsMock2,
-          ...keyringControllerExtraArgs,
-        );
-
-        expect(messageManager.setMessageStatusSigned).toHaveBeenCalledTimes(1);
-        expect(messageManager.setMessageStatusSigned).toHaveBeenCalledWith(
-          messageParamsMock2.metamaskId,
-          signatureMock,
-        );
-      });
-
-      it('emits an event when the message is signed by the keyring', async () => {
-        const eventListener = jest.fn();
-
-        signatureController.hub.once(`${rpcMethodName}:signed`, eventListener);
-
-        await (signatureController as any)[signMethodName](messageParamsMock);
-
-        expect(eventListener).toHaveBeenCalledWith({
-          messageId: messageIdMock,
-          signature: signatureMock,
-        });
-      });
-
-      it('does not set as signed, messages with deferSetAsSigned', async () => {
-        const deferredMessageParams = {
-          ...messageParamsMock,
-          deferSetAsSigned: true,
-        };
-
-        messageManager.approveMessage.mockReset();
-        messageManager.approveMessage.mockResolvedValueOnce(
-          deferredMessageParams,
-        );
-
-        await (signatureController as any)[signMethodName](
-          deferredMessageParams,
-        );
-
-        const keyringControllerExtraArgs =
-          // eslint-disable-next-line jest/no-if
-          signMethodName === 'signTypedMessage'
-            ? [{ version: messageParamsMock.version }]
-            : [];
-
-        expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
-        expect(keyringControllerMethod).toHaveBeenCalledWith(
-          deferredMessageParams,
-          ...keyringControllerExtraArgs,
-        );
-
-        expect(messageManager.setMessageStatusSigned).not.toHaveBeenCalled();
-      });
-
-      it('returns current state', async () => {
-        getAllStateMock.mockReturnValueOnce(stateMock);
-        expect(
-          await signatureControllerMethod(messageParamsMock),
-        ).toStrictEqual(stateMock);
-      });
-
-      it('accepts approval', async () => {
-        await signatureControllerMethod(messageParamsMock);
-
-        expect(messengerMock.call).toHaveBeenCalledTimes(1);
-        expect(messengerMock.call).toHaveBeenCalledWith(
-          'ApprovalController:acceptRequest',
-          messageParamsMock.metamaskId,
-        );
-      });
-
-      it('rejects approval on error', async () => {
-        keyringControllerMethod.mockReset();
-        keyringControllerMethod.mockRejectedValue(new Error('Test Error'));
-
-        await expect(
-          signatureControllerMethod(messageParamsMock),
-        ).rejects.toThrow('Test Error');
-
-        expect(messengerMock.call).toHaveBeenCalledTimes(1);
-        expect(messengerMock.call).toHaveBeenCalledWith(
-          'ApprovalController:rejectRequest',
-          messageParamsMock.metamaskId,
-          'Cancel',
-        );
-      });
-
-      if (signMethodName === 'signTypedMessage') {
-        it('parses JSON string in data if not V1', async () => {
-          const jsonData = { test: 'value' };
-
-          messageManager.approveMessage.mockReset();
-          messageManager.approveMessage.mockResolvedValueOnce({
-            ...messageParamsMock2,
-            data: JSON.stringify(jsonData),
-          });
-
-          await signatureControllerMethod({
-            ...messageParamsMock,
-            version: 'V2',
-          });
-
-          expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
-          expect(keyringControllerMethod).toHaveBeenCalledWith(
-            { ...messageParamsMock2, data: jsonData },
-            { version: 'V2' },
-          );
-        });
-
-        it('does not parse JSON string in data if not V1 and option disabled', async () => {
-          const jsonString = JSON.stringify({ test: 'value' });
-
-          messageManager.approveMessage.mockReset();
-          messageManager.approveMessage.mockResolvedValueOnce({
-            ...messageParamsMock2,
-            data: jsonString,
-          });
-
-          await signatureControllerMethod(
-            {
-              ...messageParamsMock,
-              version: 'V2',
-            },
-            { parseJsonData: false },
-          );
-
-          expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
-          expect(keyringControllerMethod).toHaveBeenCalledWith(
-            { ...messageParamsMock2, data: jsonString },
-            { version: 'V2' },
-          );
-        });
-
-        it('supports JSON object if not V1', async () => {
-          const jsonData = [{ test: 'value' }];
-
-          const typedMessageManager =
-            messageManager as jest.Mocked<TypedMessageManager>;
-
-          typedMessageManager.approveMessage.mockReset();
-          typedMessageManager.approveMessage.mockResolvedValueOnce({
-            ...messageParamsMock2,
-            data: jsonData,
-          });
-
-          await signatureControllerMethod({
-            ...messageParamsMock,
-            version: 'V2',
-          });
-
-          expect(keyringControllerMethod).toHaveBeenCalledTimes(1);
-          expect(keyringControllerMethod).toHaveBeenCalledWith(
-            { ...messageParamsMock2, data: jsonData },
-            { version: 'V2' },
-          );
-        });
-
-        it('sets errored status on error', async () => {
-          const typedMessageManager =
-            messageManager as jest.Mocked<TypedMessageManager>;
-
-          keyringControllerMethod.mockReset();
-          keyringControllerMethod.mockRejectedValue(new Error('Test Error'));
-
-          await expect(
-            signatureControllerMethod(messageParamsMock),
-          ).rejects.toThrow('Test Error');
-
-          expect(
-            typedMessageManager.setMessageStatusErrored,
-          ).toHaveBeenCalledTimes(1);
-          expect(
-            typedMessageManager.setMessageStatusErrored,
-          ).toHaveBeenCalledWith(messageParamsMock.metamaskId, 'Test Error');
-        });
-      } else {
-        it('rejects message on error', async () => {
-          keyringControllerMethod.mockReset();
-          keyringControllerMethod.mockRejectedValue(new Error('Test Error'));
-
-          await expect(
-            signatureControllerMethod(messageParamsMock),
-          ).rejects.toThrow('Test Error');
-
-          expect(messageManager.rejectMessage).toHaveBeenCalledTimes(1);
-          expect(messageManager.rejectMessage).toHaveBeenCalledWith(
-            messageParamsMock.metamaskId,
-          );
-        });
-      }
-    },
-  );
-
-  describe.each([
-    [
-      'cancelMessage',
-      messageManagerMock,
-      (msgId: string) => signatureController.cancelMessage(msgId),
-    ],
-    [
-      'cancelPersonalMessage',
-      personalMessageManagerMock,
-      (msgId: string) => signatureController.cancelPersonalMessage(msgId),
-    ],
-    [
-      'cancelTypedMessage',
-      typedMessageManagerMock,
-      (msgId: string) => signatureController.cancelTypedMessage(msgId),
-    ],
-  ])('%s', (_cancelMethodName, messageManager, cancelMethod) => {
-    it('rejects message using message manager', async () => {
-      cancelMethod(messageIdMock);
-
-      expect(messageManager.rejectMessage).toHaveBeenCalledTimes(1);
-      expect(messageManager.rejectMessage).toHaveBeenCalledWith(
+  describe('setPersonalMessageInProgress', () => {
+    it('calls the message manager', async () => {
+      signatureController.setPersonalMessageInProgress(
         messageParamsMock.metamaskId,
       );
+
+      expect(
+        personalMessageManagerMock.setMessageStatusInProgress,
+      ).toHaveBeenCalledTimes(1);
     });
+  });
 
-    it('rejects approval using approval controller', async () => {
-      cancelMethod(messageIdMock);
-
-      expect(messengerMock.call).toHaveBeenCalledTimes(1);
-      expect(messengerMock.call).toHaveBeenCalledWith(
-        'ApprovalController:rejectRequest',
+  describe('setTypedMessageInProgress', () => {
+    it('calls the message manager', async () => {
+      signatureController.setTypedMessageInProgress(
         messageParamsMock.metamaskId,
-        'Cancel',
       );
+
+      expect(
+        typedMessageManagerMock.setMessageStatusInProgress,
+      ).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -675,60 +612,6 @@ describe('SignatureController', () => {
 
       expect(mockListener).toHaveBeenCalledTimes(1);
     });
-
-    it.each([
-      ['message manager', messageManagerMock, 'eth_sign'],
-      ['personal message manager', personalMessageManagerMock, 'personal_sign'],
-      ['typed message manager', typedMessageManagerMock, 'eth_signTypedData'],
-    ])(
-      'requires approval on unapproved message event from %s',
-      (_, messageManager, methodName) => {
-        const mockHub = messageManager.hub.on as jest.Mock;
-
-        messengerMock.call.mockResolvedValueOnce({});
-
-        mockHub.mock.calls[1][1](messageParamsMock);
-
-        expect(messengerMock.call).toHaveBeenCalledTimes(1);
-        expect(messengerMock.call).toHaveBeenCalledWith(
-          'ApprovalController:addRequest',
-          {
-            id: messageIdMock,
-            origin: messageParamsMock.origin,
-            type: methodName,
-            requestData: messageParamsMock,
-          },
-          true,
-        );
-      },
-    );
-
-    it.each([
-      ['message manager', messageManagerMock, 'eth_sign'],
-      ['personal message manager', personalMessageManagerMock, 'personal_sign'],
-      ['typed message manager', typedMessageManagerMock, 'eth_signTypedData'],
-    ])(
-      'requires approval on unapproved message event from %s with internal origin',
-      (_, messageManager, methodName) => {
-        const mockHub = messageManager.hub.on as jest.Mock;
-
-        messengerMock.call.mockResolvedValueOnce({});
-
-        mockHub.mock.calls[1][1]({ ...messageParamsMock, origin: undefined });
-
-        expect(messengerMock.call).toHaveBeenCalledTimes(1);
-        expect(messengerMock.call).toHaveBeenCalledWith(
-          'ApprovalController:addRequest',
-          {
-            id: messageIdMock,
-            origin: ORIGIN_METAMASK,
-            type: methodName,
-            requestData: { ...messageParamsMock, origin: undefined },
-          },
-          true,
-        );
-      },
-    );
 
     // eslint-disable-next-line jest/expect-expect
     it('does not throw if approval request promise throws', async () => {
@@ -785,29 +668,6 @@ describe('SignatureController', () => {
         unapprovedPersonalMsgCount: 0,
         unapprovedTypedMessagesCount: 5,
       });
-    });
-  });
-  describe('setPersonalMessageInProgress', () => {
-    it('calls the message manager', async () => {
-      signatureController.setPersonalMessageInProgress(
-        messageParamsMock.metamaskId,
-      );
-
-      expect(
-        personalMessageManagerMock.setMessageStatusInProgress,
-      ).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('setTypedMessageInProgress', () => {
-    it('calls the message manager', async () => {
-      signatureController.setTypedMessageInProgress(
-        messageParamsMock.metamaskId,
-      );
-
-      expect(
-        typedMessageManagerMock.setMessageStatusInProgress,
-      ).toHaveBeenCalledTimes(1);
     });
   });
 });

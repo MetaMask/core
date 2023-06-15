@@ -64,44 +64,6 @@ export class MessageManager extends AbstractMessageManager<
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
-   * this.addMessage is called to add the new Message to this.messages, and to save the unapproved Messages.
-   *
-   * @param messageParams - The params for the eth_sign call to be made after the message is approved.
-   * @param req - The original request object possibly containing the origin.
-   * @returns Promise resolving to the raw data of the signature request.
-   */
-  async addUnapprovedMessageAsync(
-    messageParams: MessageParams,
-    req?: OriginalRequest,
-  ): Promise<string> {
-    validateSignMessageData(messageParams);
-    const messageId = await this.addUnapprovedMessage(messageParams, req);
-    return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: Message) => {
-        switch (data.status) {
-          case 'signed':
-            return resolve(data.rawSig as string);
-          case 'rejected':
-            return reject(
-              new Error(
-                'MetaMask Message Signature: User denied message signature.',
-              ),
-            );
-          default:
-            return reject(
-              new Error(
-                `MetaMask Message Signature: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
-      });
-    });
-  }
-
-  /**
-   * Creates a new Message with an 'unapproved' status using the passed messageParams.
    * this.addMessage is called to add the new Message to this.messages, and to save the
    * unapproved Messages.
    *
@@ -114,6 +76,7 @@ export class MessageManager extends AbstractMessageManager<
     messageParams: MessageParams,
     req?: OriginalRequest,
   ): Promise<string> {
+    validateSignMessageData(messageParams);
     if (req) {
       messageParams.origin = req.origin;
     }
