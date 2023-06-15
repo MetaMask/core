@@ -8,8 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.0.0]
 ### Added
-- Add `KeyringControllerMemState` type ([#1378](https://github.com/MetaMask/core/pull/1378))
-  - This is like the previous `KeyringMemState` but without `encryptionKey` or `encryptionSalt`
 - Add messenger events `KeyringController:lock` and `KeyringController:unlock`, emitted when the inner EthKeyringController is locked/unlocked ([#1378](https://github.com/MetaMask/core/pull/1378))
   - Also add corresponding types `KeyringControllerLockEvent` and `KeyringControllerUnlockEvent`
 - Add `KeyringController:accountRemoved` event, fired whenever an account is removed through `removeAccount` ([#1416](https://github.com/MetaMask/core/pull/1416))
@@ -34,8 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `submitEncryptionKey`
     - `submitPassword`
   - The new type omits `vault`, `encryptionKey`, and `encryptionSalt`
-- **BREAKING:** Remove `KeyringState`, `KeyringMemState`, and `KeyringConfig` in favor of new types `KeyringControllerState`, `KeyringControllerActions`, `KeyringControllerEvents`, and `KeyringControllerOptions` ([#1378](https://github.com/MetaMask/core/pull/1378))
+- **BREAKING:** Remove `KeyringState`, `KeyringMemState`, and `KeyringConfig` in favor of new types `KeyringControllerState`, `KeyringControllerMemState`, `KeyringControllerActions`, `KeyringControllerEvents`, and `KeyringControllerOptions` ([#1378](https://github.com/MetaMask/core/pull/1378))
   - `KeyringControllerState` is like the previous `KeyringMemState` but with an extra `vault` property
+  - `KeyringControllerMemState` is like the previous `KeyringMemState` but without `encryptionKey` or `encryptionSalt`
   - `KeyringControllerOptions` incorporates the previous set of options and `KeyringConfig`
 - Add `immer` as a dependency ([#1378](https://github.com/MetaMask/core/pull/1378))
 
