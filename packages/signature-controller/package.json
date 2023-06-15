@@ -36,7 +36,8 @@
     "@metamask/utils": "^5.0.2",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
-    "immer": "^9.0.6"
+    "immer": "^9.0.6",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",

@@ -1,5 +1,6 @@
 import EventEmitter from 'events';
 import type { Hex } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
 import {
   MessageManager,
   MessageParams,
@@ -25,11 +26,7 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Patch } from 'immer';
-import {
-  AcceptRequest,
-  AddApprovalRequest,
-  RejectRequest,
-} from '@metamask/approval-controller';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 
 const controllerName = 'SignatureController';
@@ -69,7 +66,11 @@ type SignatureControllerState = {
   unapprovedTypedMessagesCount: number;
 };
 
-type AllowedActions = AddApprovalRequest | AcceptRequest | RejectRequest;
+type AllowedActions = AddApprovalRequest;
+
+type TypedMessageSigningOptions = {
+  parseJsonData: boolean;
+};
 
 export type GetSignatureState = {
   type: `${typeof controllerName}:getState`;
@@ -187,19 +188,13 @@ export class SignatureController extends BaseControllerV2<
       getCurrentChainId,
     );
 
-    this.#handleMessageManagerEvents(
-      this.#messageManager,
-      ApprovalType.EthSign,
-      'unapprovedMessage',
-    );
+    this.#handleMessageManagerEvents(this.#messageManager, 'unapprovedMessage');
     this.#handleMessageManagerEvents(
       this.#personalMessageManager,
-      ApprovalType.PersonalSign,
       'unapprovedPersonalMessage',
     );
     this.#handleMessageManagerEvents(
       this.#typedMessageManager,
-      ApprovalType.EthSignTypedData,
       'unapprovedTypedMessage',
     );
 
@@ -263,178 +258,6 @@ export class SignatureController extends BaseControllerV2<
   }
 
   /**
-   * Called when a Dapp uses the eth_sign method, to request user approval.
-   * eth_sign is a pure signature of arbitrary data. It is on a deprecation
-   * path, since this data can be a transaction, or can leak private key
-   * information.
-   *
-   * @param msgParams - The params passed to eth_sign.
-   * @param [req] - The original request, containing the origin.
-   * @returns Promise resolving to the raw data of the signature request.
-   */
-  async newUnsignedMessage(
-    msgParams: MessageParams,
-    req: OriginalRequest,
-  ): Promise<string> {
-    if (!this.#isEthSignEnabled()) {
-      throw ethErrors.rpc.methodNotFound(
-        'eth_sign has been disabled. You must enable it in the advanced settings',
-      );
-    }
-
-    const data = this.#normalizeMsgData(msgParams.data);
-
-    // 64 hex + "0x" at the beginning
-    // This is needed because Ethereum's EcSign works only on 32 byte numbers
-    // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
-    if (data.length !== 66 && data.length !== 67) {
-      throw ethErrors.rpc.invalidParams(
-        'eth_sign requires 32 byte message hash',
-      );
-    }
-
-    return this.#messageManager.addUnapprovedMessageAsync(msgParams, req);
-  }
-
-  /**
-   * Called when a dapp uses the personal_sign method.
-   * This is identical to the Geth eth_sign method, and may eventually replace
-   * eth_sign.
-   *
-   * We currently define our eth_sign and personal_sign mostly for legacy Dapps.
-   *
-   * @param msgParams - The params of the message to sign & return to the Dapp.
-   * @param req - The original request, containing the origin.
-   * @returns Promise resolving to the raw data of the signature request.
-   */
-  async newUnsignedPersonalMessage(
-    msgParams: PersonalMessageParams,
-    req: OriginalRequest,
-  ): Promise<string> {
-    return this.#personalMessageManager.addUnapprovedMessageAsync(
-      msgParams,
-      req,
-    );
-  }
-
-  /**
-   * Called when a dapp uses the eth_signTypedData method, per EIP 712.
-   *
-   * @param msgParams - The params passed to eth_signTypedData.
-   * @param req - The original request, containing the origin.
-   * @param version - The version indicating the format of the typed data.
-   * @returns Promise resolving to the raw data of the signature request.
-   */
-  async newUnsignedTypedMessage(
-    msgParams: TypedMessageParams,
-    req: OriginalRequest,
-    version: string,
-  ): Promise<string> {
-    return this.#typedMessageManager.addUnapprovedMessageAsync(
-      msgParams,
-      version,
-      req,
-    );
-  }
-
-  /**
-   * Signifies user intent to complete an eth_sign method.
-   *
-   * @param msgParams - The params passed to eth_call.
-   * @returns Full state update.
-   */
-  async signMessage(msgParams: MessageParamsMetamask) {
-    return await this.#signAbstractMessage(
-      this.#messageManager,
-      ApprovalType.EthSign,
-      msgParams,
-      async (cleanMsgParams) =>
-        await this.#keyringController.signMessage(cleanMsgParams),
-    );
-  }
-
-  /**
-   * Signifies a user's approval to sign a personal_sign message in queue.
-   * Triggers signing, and the callback function from newUnsignedPersonalMessage.
-   *
-   * @param msgParams - The params of the message to sign & return to the Dapp.
-   * @returns A full state update.
-   */
-  async signPersonalMessage(msgParams: PersonalMessageParamsMetamask) {
-    return await this.#signAbstractMessage(
-      this.#personalMessageManager,
-      ApprovalType.PersonalSign,
-      msgParams,
-      async (cleanMsgParams) =>
-        await this.#keyringController.signPersonalMessage(cleanMsgParams),
-    );
-  }
-
-  /**
-   * The method for a user approving a call to eth_signTypedData, per EIP 712.
-   * Triggers the callback in newUnsignedTypedMessage.
-   *
-   * @param msgParams - The params passed to eth_signTypedData.
-   * @param opts - Options bag.
-   * @param opts.parseJsonData - Whether to parse JSON data before calling the KeyringController.
-   * @returns Full state update.
-   */
-  async signTypedMessage(
-    msgParams: TypedMessageParamsMetamask,
-    opts: { parseJsonData: boolean } = { parseJsonData: true },
-  ): Promise<any> {
-    const { version } = msgParams;
-
-    return await this.#signAbstractMessage(
-      this.#typedMessageManager,
-      ApprovalType.EthSignTypedData,
-      msgParams,
-      async (cleanMsgParams) => {
-        const finalMessageParams = opts.parseJsonData
-          ? this.#removeJsonData(cleanMsgParams, version as string)
-          : cleanMsgParams;
-
-        return await this.#keyringController.signTypedMessage(
-          finalMessageParams,
-          {
-            version,
-          },
-        );
-      },
-    );
-  }
-
-  /**
-   * Used to cancel a message submitted via eth_sign.
-   *
-   * @param msgId - The id of the message to cancel.
-   * @returns A full state update.
-   */
-  cancelMessage(msgId: string): any {
-    return this.#cancelAbstractMessage(this.#messageManager, msgId);
-  }
-
-  /**
-   * Used to cancel a personal_sign type message.
-   *
-   * @param msgId - The ID of the message to cancel.
-   * @returns A full state update.
-   */
-  cancelPersonalMessage(msgId: string): any {
-    return this.#cancelAbstractMessage(this.#personalMessageManager, msgId);
-  }
-
-  /**
-   * Used to cancel a eth_signTypedData type message.
-   *
-   * @param msgId - The ID of the message to cancel.
-   * @returns A full state update.
-   */
-  cancelTypedMessage(msgId: string): any {
-    return this.#cancelAbstractMessage(this.#typedMessageManager, msgId);
-  }
-
-  /**
    * Reject all unapproved messages of any type.
    *
    * @param reason - A message to indicate why.
@@ -452,6 +275,233 @@ export class SignatureController extends BaseControllerV2<
     this.#clearUnapproved(this.#messageManager);
     this.#clearUnapproved(this.#personalMessageManager);
     this.#clearUnapproved(this.#typedMessageManager);
+  }
+
+  /**
+   * Called when a Dapp uses the eth_sign method, to request user approval.
+   * eth_sign is a pure signature of arbitrary data. It is on a deprecation
+   * path, since this data can be a transaction, or can leak private key
+   * information.
+   *
+   * @param messageParams - The params passed to eth_sign.
+   * @param [req] - The original request, containing the origin.
+   * @returns Promise resolving to the raw data of the signature request.
+   */
+  async newUnsignedMessage(
+    messageParams: MessageParams,
+    req: OriginalRequest,
+  ): Promise<string> {
+    return this.#newUnsignedAbstractMessage(
+      this.#messageManager,
+      ApprovalType.EthSign,
+      'Message',
+      this.#signMessage.bind(this),
+      messageParams,
+      req,
+      this.#validateUnsignedMessage.bind(this),
+    );
+  }
+
+  /**
+   * Called when a dapp uses the personal_sign method.
+   * This is identical to the Geth eth_sign method, and may eventually replace
+   * eth_sign.
+   *
+   * We currently define our eth_sign and personal_sign mostly for legacy Dapps.
+   *
+   * @param messageParams - The params of the message to sign & return to the Dapp.
+   * @param req - The original request, containing the origin.
+   * @returns Promise resolving to the raw data of the signature request.
+   */
+  async newUnsignedPersonalMessage(
+    messageParams: PersonalMessageParams,
+    req: OriginalRequest,
+  ): Promise<string> {
+    return this.#newUnsignedAbstractMessage(
+      this.#personalMessageManager,
+      ApprovalType.PersonalSign,
+      'Personal Message',
+      this.#signPersonalMessage.bind(this),
+      messageParams,
+      req,
+    );
+  }
+
+  /**
+   * Called when a dapp uses the eth_signTypedData method, per EIP 712.
+   *
+   * @param messageParams - The params passed to eth_signTypedData.
+   * @param req - The original request, containing the origin.
+   * @param version - The version indicating the format of the typed data.
+   * @param signingOpts - An options bag for signing.
+   * @param signingOpts.parseJsonData - Whether to parse the JSON before signing.
+   * @returns Promise resolving to the raw data of the signature request.
+   */
+  async newUnsignedTypedMessage(
+    messageParams: TypedMessageParams,
+    req: OriginalRequest,
+    version: string,
+    signingOpts: TypedMessageSigningOptions,
+  ): Promise<string> {
+    return this.#newUnsignedAbstractMessage(
+      this.#typedMessageManager,
+      ApprovalType.EthSignTypedData,
+      'Typed Message',
+      this.#signTypedMessage.bind(this),
+      messageParams,
+      req,
+      undefined,
+      version,
+      signingOpts,
+    );
+  }
+
+  setTypedMessageInProgress(messageId: string) {
+    this.#typedMessageManager.setMessageStatusInProgress(messageId);
+  }
+
+  setPersonalMessageInProgress(messageId: string) {
+    this.#personalMessageManager.setMessageStatusInProgress(messageId);
+  }
+
+  #validateUnsignedMessage(messageParams: MessageParamsMetamask): void {
+    if (!this.#isEthSignEnabled()) {
+      throw ethErrors.rpc.methodNotFound(
+        'eth_sign has been disabled. You must enable it in the advanced settings',
+      );
+    }
+    const data = this.#normalizeMsgData(messageParams.data);
+    // 64 hex + "0x" at the beginning
+    // This is needed because Ethereum's EcSign works only on 32 byte numbers
+    // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
+    if (data.length !== 66 && data.length !== 67) {
+      throw ethErrors.rpc.invalidParams(
+        'eth_sign requires 32 byte message hash',
+      );
+    }
+  }
+
+  async #newUnsignedAbstractMessage<
+    M extends AbstractMessage,
+    P extends AbstractMessageParams,
+    PM extends AbstractMessageParamsMetamask,
+    SO,
+  >(
+    messageManager: AbstractMessageManager<M, P, PM>,
+    approvalType: ApprovalType,
+    messageName: string,
+    signMessage: (
+      messageParams: PM,
+      version?: string,
+      signingOpts?: SO,
+    ) => void,
+    messageParams: PM,
+    req: OriginalRequest,
+    validateMessage?: (params: PM) => void,
+    version?: string,
+    signingOpts?: SO,
+  ) {
+    if (validateMessage) {
+      validateMessage(messageParams);
+    }
+
+    const messageId = await messageManager.addUnapprovedMessage(
+      messageParams,
+      req,
+      version,
+    );
+
+    const messageParamsWithId = {
+      ...messageParams,
+      metamaskId: messageId,
+    };
+
+    const signaturePromise = messageManager.waitForFinishStatus(
+      messageParamsWithId,
+      messageName,
+    );
+
+    try {
+      await this.#requestApproval(messageParamsWithId, approvalType);
+    } catch (error) {
+      this.#cancelAbstractMessage(messageManager, messageId);
+      throw ethErrors.provider.userRejectedRequest(
+        'User rejected the request.',
+      );
+    }
+    await signMessage(messageParamsWithId, version, signingOpts);
+
+    return signaturePromise;
+  }
+
+  /**
+   * Signifies user intent to complete an eth_sign method.
+   *
+   * @param msgParams - The params passed to eth_call.
+   * @returns Signature result from signing.
+   */
+  async #signMessage(msgParams: MessageParamsMetamask) {
+    return await this.#signAbstractMessage(
+      this.#messageManager,
+      ApprovalType.EthSign,
+      msgParams,
+      async (cleanMsgParams) =>
+        await this.#keyringController.signMessage(cleanMsgParams),
+    );
+  }
+
+  /**
+   * Signifies a user's approval to sign a personal_sign message in queue.
+   * Triggers signing, and the callback function from newUnsignedPersonalMessage.
+   *
+   * @param msgParams - The params of the message to sign & return to the Dapp.
+   * @returns Signature result from signing.
+   */
+  async #signPersonalMessage(msgParams: PersonalMessageParamsMetamask) {
+    return await this.#signAbstractMessage(
+      this.#personalMessageManager,
+      ApprovalType.PersonalSign,
+      msgParams,
+      async (cleanMsgParams) =>
+        await this.#keyringController.signPersonalMessage(cleanMsgParams),
+    );
+  }
+
+  /**
+   * The method for a user approving a call to eth_signTypedData, per EIP 712.
+   * Triggers the callback in newUnsignedTypedMessage.
+   *
+   * @param msgParams - The params passed to eth_signTypedData.
+   * @param version - The version indicating the format of the typed data.
+   * @param opts - The options for the method.
+   * @param opts.parseJsonData - Whether to parse JSON data before calling the KeyringController.
+   * @returns Signature result from signing.
+   */
+  async #signTypedMessage(
+    msgParams: TypedMessageParamsMetamask,
+    version?: string,
+    opts?: TypedMessageSigningOptions,
+  ): Promise<any> {
+    return await this.#signAbstractMessage(
+      this.#typedMessageManager,
+      ApprovalType.EthSignTypedData,
+      msgParams,
+      async (cleanMsgParams) => {
+        // Options will allways be defined, but we want to satisfy the TS
+        // hence we ignore the branch here
+        /* istanbul ignore next */
+        const finalMessageParams = opts?.parseJsonData
+          ? this.#removeJsonData(cleanMsgParams, version as string)
+          : cleanMsgParams;
+
+        return await this.#keyringController.signTypedMessage(
+          finalMessageParams,
+          {
+            version,
+          },
+        );
+      },
+    );
   }
 
   #rejectUnapproved<
@@ -499,9 +549,7 @@ export class SignatureController extends BaseControllerV2<
         messageManager.setMessageStatusSigned(messageId, signature);
       }
 
-      this.#acceptApproval(messageId);
-
-      return this.#getAllState();
+      return signature;
     } catch (error: any) {
       console.info(`MetaMaskController - ${methodName} failed.`, error);
       this.#errorMessage(messageManager, messageId, error.message);
@@ -520,7 +568,6 @@ export class SignatureController extends BaseControllerV2<
   ) {
     if (messageManager instanceof TypedMessageManager) {
       messageManager.setMessageStatusErrored(messageId, error);
-      this.#rejectApproval(messageId);
     } else {
       this.#cancelAbstractMessage(messageManager, messageId);
     }
@@ -539,22 +586,14 @@ export class SignatureController extends BaseControllerV2<
       const message = this.#getMessage(messageId);
       this.hub.emit('cancelWithReason', { message, reason });
     }
-
     messageManager.rejectMessage(messageId);
-    this.#rejectApproval(messageId);
-
-    return this.#getAllState();
   }
 
   #handleMessageManagerEvents<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
-  >(
-    messageManager: AbstractMessageManager<M, P, PM>,
-    approvalType: ApprovalType,
-    eventName: string,
-  ) {
+  >(messageManager: AbstractMessageManager<M, P, PM>, eventName: string) {
     messageManager.hub.on('updateBadge', () => {
       this.hub.emit('updateBadge');
     });
@@ -563,7 +602,6 @@ export class SignatureController extends BaseControllerV2<
       'unapprovedMessage',
       (msgParams: AbstractMessageParamsMetamask) => {
         this.hub.emit(eventName, msgParams);
-        this.#requestApproval(msgParams, approvalType);
       },
     );
   }
@@ -637,38 +675,26 @@ export class SignatureController extends BaseControllerV2<
     }[messageId];
   }
 
-  #requestApproval(
+  async #requestApproval(
     msgParams: AbstractMessageParamsMetamask,
     type: ApprovalType,
   ) {
     const id = msgParams.metamaskId as string;
     const origin = msgParams.origin || ORIGIN_METAMASK;
 
-    this.messagingSystem
-      .call(
-        'ApprovalController:addRequest',
-        {
-          id,
-          origin,
-          type,
-          requestData: msgParams as Required<AbstractMessageParamsMetamask>,
-        },
-        true,
-      )
-      .catch(() => {
-        // Intentionally ignored as promise not currently used
-      });
-  }
+    // We are explicitly cloning the message params here to prevent the mutation errors on development mode
+    // Because sending it through the messaging system will make the object read only
+    const clonedMsgParams = cloneDeep(msgParams);
 
-  #acceptApproval(messageId: string) {
-    this.messagingSystem.call('ApprovalController:acceptRequest', messageId);
-  }
-
-  #rejectApproval(messageId: string) {
-    this.messagingSystem.call(
-      'ApprovalController:rejectRequest',
-      messageId,
-      'Cancel',
+    return this.messagingSystem.call(
+      'ApprovalController:addRequest',
+      {
+        id,
+        origin,
+        type,
+        requestData: clonedMsgParams as Required<AbstractMessageParamsMetamask>,
+      },
+      true,
     );
   }
 
@@ -684,13 +710,5 @@ export class SignatureController extends BaseControllerV2<
       ...messageParams,
       data: JSON.parse(messageParams.data),
     };
-  }
-
-  setTypedMessageInProgress(messageId: string) {
-    this.#typedMessageManager.setMessageStatusInProgress(messageId);
-  }
-
-  setPersonalMessageInProgress(messageId: string) {
-    this.#personalMessageManager.setMessageStatusInProgress(messageId);
   }
 }
