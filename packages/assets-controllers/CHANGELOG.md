@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0]
+### Added
+- Add a fifth argument, `source`, to NftController's `addNft` method ([#1417](https://github.com/MetaMask/core/pull/1417))
+  - This argument can be used to specify whether the NFT was detected, added manually, or suggested by a dapp
+
+### Fixed
+- Fix `watchNft` in NftController to ensure that if the network changes before the user accepts the request, the NFT is added to the chain ID and address before the request was initiated ([#1417](https://github.com/MetaMask/core/pull/1417))
+
 ## [9.0.0]
 ### Added
 - **BREAKING**: Add required options `getSelectedAddress` and `getMultiAccountBalancesEnabled` to AccountTrackerController constructor and make use of them when refreshing account balances ([#1146](https://github.com/MetaMask/core/pull/1146))
@@ -160,7 +168,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.0.0...@metamask/assets-controllers@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@8.0.0...@metamask/assets-controllers@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@7.0.0...@metamask/assets-controllers@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@6.0.0...@metamask/assets-controllers@7.0.0
