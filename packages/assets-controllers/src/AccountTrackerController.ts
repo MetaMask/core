@@ -1,10 +1,12 @@
 import EthQuery from 'eth-query';
+import type { Provider } from 'eth-query';
 import { Mutex } from 'async-mutex';
 import {
   BaseConfig,
   BaseController,
   BaseState,
 } from '@metamask/base-controller';
+import { assert } from '@metamask/utils';
 import { PreferencesState } from '@metamask/preferences-controller';
 import {
   BNToHex,
@@ -30,7 +32,7 @@ export interface AccountInformation {
  */
 export interface AccountTrackerConfig extends BaseConfig {
   interval: number;
-  provider?: any;
+  provider?: Provider;
 }
 
 /**
@@ -50,7 +52,7 @@ export class AccountTrackerController extends BaseController<
   AccountTrackerConfig,
   AccountTrackerState
 > {
-  private ethQuery: any;
+  private ethQuery?: EthQuery;
 
   private mutex = new Mutex();
 
@@ -83,12 +85,18 @@ export class AccountTrackerController extends BaseController<
 
   private getIdentities: () => PreferencesState['identities'];
 
+  private getSelectedAddress: () => PreferencesState['selectedAddress'];
+
+  private getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
+
   /**
    * Creates an AccountTracker instance.
    *
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.getIdentities - Gets the identities from the Preferences store.
+   * @param options.getSelectedAddress - Gets the selected address from the Preferences store.
+   * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -96,11 +104,15 @@ export class AccountTrackerController extends BaseController<
     {
       onPreferencesStateChange,
       getIdentities,
+      getSelectedAddress,
+      getMultiAccountBalancesEnabled,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
       getIdentities: () => PreferencesState['identities'];
+      getSelectedAddress: () => PreferencesState['selectedAddress'];
+      getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
     },
     config?: Partial<AccountTrackerConfig>,
     state?: Partial<AccountTrackerState>,
@@ -112,6 +124,8 @@ export class AccountTrackerController extends BaseController<
     this.defaultState = { accounts: {} };
     this.initialize();
     this.getIdentities = getIdentities;
+    this.getSelectedAddress = getSelectedAddress;
+    this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
     onPreferencesStateChange(() => {
       this.refresh();
     });
@@ -125,7 +139,7 @@ export class AccountTrackerController extends BaseController<
    *
    * @param provider - Provider used to create a new underlying EthQuery instance.
    */
-  set provider(provider: any) {
+  set provider(provider: Provider) {
     this.ethQuery = new EthQuery(provider);
   }
 
@@ -150,19 +164,42 @@ export class AccountTrackerController extends BaseController<
   }
 
   /**
-   * Refreshes all accounts in the current keychain.
+   * Refreshes the balances of the accounts depending on the multi-account setting.
+   * If multi-account is disabled, only updates the selected account balance.
+   * If multi-account is enabled, updates balances for all accounts.
    */
   refresh = async () => {
     this.syncAccounts();
     const accounts = { ...this.state.accounts };
-    for (const address in accounts) {
-      await safelyExecuteWithTimeout(async () => {
-        const balance = await query(this.ethQuery, 'getBalance', [address]);
-        accounts[address] = { balance: BNToHex(balance) };
-      });
+    const isMultiAccountBalancesEnabled = this.getMultiAccountBalancesEnabled();
+
+    const accountsToUpdate = isMultiAccountBalancesEnabled
+      ? Object.keys(accounts)
+      : [this.getSelectedAddress()];
+
+    for (const address of accountsToUpdate) {
+      accounts[address] = {
+        balance: BNToHex(await this.getBalanceFromChain(address)),
+      };
     }
+
     this.update({ accounts });
   };
+
+  /**
+   * Fetches the balance of a given address from the blockchain.
+   *
+   * @param address - The account address to fetch the balance for.
+   * @returns A promise that resolves to the balance in a hex string format.
+   */
+  private async getBalanceFromChain(
+    address: string,
+  ): Promise<string | undefined> {
+    return await safelyExecuteWithTimeout(async () => {
+      assert(this.ethQuery, 'Provider not set.');
+      return await query(this.ethQuery, 'getBalance', [address]);
+    });
+  }
 
   /**
    * Sync accounts balances with some additional addresses.
@@ -176,6 +213,7 @@ export class AccountTrackerController extends BaseController<
     return await Promise.all(
       addresses.map((address): Promise<[string, string] | undefined> => {
         return safelyExecuteWithTimeout(async () => {
+          assert(this.ethQuery, 'Provider not set.');
           const balance = await query(this.ethQuery, 'getBalance', [address]);
           return [address, balance];
         });

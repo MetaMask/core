@@ -30,23 +30,6 @@ Permission system concepts correspond to components of the MetaMask stack as fol
 | Caveats           | Caveat objects                                                  |
 | Permission system | The `PermissionController` and its `json-rpc-engine` middleware |
 
-### Target Keys and Target Names
-
-When consuming or reading the `PermissionController`, you will encounter the concepts of "target keys" and "target names".
-As described in the previous section, a permission grants a subject access to a restricted resource, called a _target_, which is some string.
-Targets are referred to by consumers by their _names_, and internally (in the `PermissionController`) by their _keys_.
-This distinction exists to enable namespaced targets, specifically namespaced JSON-RPC methods.
-
-All targets have a single key.
-If a target _is not_ namespaced, the key is identical to its name.
-If a target _is_ namespaced, it may have any number of names, all of which are distinct from its key.
-Permissions are always requested and invoked by their target name(s).
-
-For example, for the non-namespaced restricted method `eth_accounts`, both the key and the name is `eth_accounts`.
-On the other hand, the namespaced restricted method `wallet_getSecret_*` has the key `wallet_getSecret_*`, and any number of names where the `*` wildcard character is substituted for some valid string per the method implementation.
-
-See [below](#construction) for a concrete example.
-
 ### Permission / Target Types
 
 In practice, targets can be different things, necessitating distinct implementations in order to enforce the logic of the permission system.
@@ -121,14 +104,14 @@ const caveatSpecifications = {
   },
 };
 
-// The property names of this object must be target keys.
+// The property names of this object must be target names.
 const permissionSpecifications = {
   // This is a plain restricted method.
   wallet_getSecretArray: {
     // Every permission must have this field.
     permissionType: PermissionType.RestrictedMethod,
     // i.e. the restricted method name
-    targetKey: 'wallet_getSecretArray',
+    targetName: 'wallet_getSecretArray',
     allowedCaveats: ['filterArrayResponse'],
     // Every restricted method must specify its implementation in its
     // specification.
@@ -139,31 +122,11 @@ const permissionSpecifications = {
     },
   },
 
-  // This is a namespaced restricted method.
-  'wallet_getSecret_*': {
-    permissionType: PermissionType.RestrictedMethod,
-    targetKey: 'wallet_getSecret_*',
-    methodImplementation: (
-      args: RestrictedMethodOptions<RestrictedMethodParameters>,
-    ) => {
-      // The "method" is the string method name that was externally requested,
-      // and the "*" in the target key for this method will be replaced with
-      // some string whose value should affect the behavior of this method.
-      //
-      // "context" contains the origin of the requester and anything attached
-      // by the host during permission request processing.
-      const { method, context } = args;
-
-      const secretName = method.replace('wallet_getSecret_', '');
-      return context.getSecret(secretName);
-    },
-  },
-
   // This is an endowment.
   secretEndowment: {
     permissionType: PermissionType.Endowment,
     // Naming conventions for endowments are yet to be established.
-    targetKey: 'endowment:globals',
+    targetName: 'endowment:globals',
     // This function will be called to retrieve the subject's endowment(s).
     // Here we imagine that these are the names of globals that will be made
     // available to a SES Compartment.

@@ -1,14 +1,14 @@
 import type { Patch } from 'immer';
-import { Json } from '@metamask/types';
+import { Json } from '@metamask/utils';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import type {
+import {
   GenericPermissionController,
-  PermissionSubjectMetadata,
   HasPermissions,
-} from '@metamask/permission-controller';
+  PermissionSubjectMetadata,
+} from './PermissionController';
 
 const controllerName = 'SubjectMetadataController';
 

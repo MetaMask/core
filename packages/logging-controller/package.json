@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/subject-metadata-controller",
-  "version": "2.0.0",
-  "description": "Caches metadata associated with permission subjects",
+  "name": "@metamask/logging-controller",
+  "version": "1.0.0",
+  "description": "Manages logging data to assist users and support staff",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/subject-metadata-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/logging-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -22,7 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/subject-metadata-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/logging-controller",
     "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
@@ -30,23 +30,21 @@
   },
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
-    "@metamask/permission-controller": "workspace:^",
-    "@metamask/types": "^1.1.0",
-    "immer": "^9.0.6"
+    "@metamask/controller-utils": "workspace:^",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
-    "@metamask/controller-utils": "workspace:^",
-    "@types/jest": "^26.0.22",
+    "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
-    "jest": "^26.4.2",
-    "ts-jest": "^26.5.2",
+    "jest": "^27.5.1",
+    "ts-jest": "^27.1.4",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "publishConfig": {
     "access": "public",

@@ -1,3 +1,4 @@
+import { toHex } from '@metamask/controller-utils';
 import { TransactionMeta, TransactionStatus } from '../TransactionController';
 
 export const ethTxsMock = (ethTxHash: string) => [
@@ -373,7 +374,7 @@ export const txsInStateMock = (
 ): TransactionMeta[] => [
   {
     id: 'token-transaction-id',
-    chainId: '1',
+    chainId: toHex(1),
     status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
@@ -391,7 +392,7 @@ export const txsInStateMock = (
   },
   {
     id: 'eth-transaction-id',
-    chainId: '1',
+    chainId: toHex(1),
     status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
@@ -415,7 +416,7 @@ export const txsInStateWithOutdatedStatusMock = (
 ): TransactionMeta[] => [
   {
     id: 'token-transaction-id',
-    chainId: '1',
+    chainId: toHex(1),
     status: TransactionStatus.rejected,
     time: 1615497996125,
     transaction: {
@@ -433,7 +434,7 @@ export const txsInStateWithOutdatedStatusMock = (
   },
   {
     id: 'eth-transaction-id',
-    chainId: '1',
+    chainId: toHex(1),
     status: TransactionStatus.rejected,
     time: 1615497996125,
     transaction: {
@@ -457,7 +458,7 @@ export const txsInStateWithOutdatedGasDataMock = (
 ): TransactionMeta[] => [
   {
     id: 'token-transaction-id',
-    chainId: '1',
+    chainId: toHex(1),
     status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
@@ -475,7 +476,7 @@ export const txsInStateWithOutdatedGasDataMock = (
   },
   {
     id: 'eth-transaction-id',
-    chainId: '1',
+    chainId: toHex(1),
     status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
@@ -499,7 +500,7 @@ export const txsInStateWithOutdatedStatusAndGasDataMock = (
 ): TransactionMeta[] => [
   {
     id: 'token-transaction-id',
-    chainId: '1',
+    chainId: toHex(1),
     status: TransactionStatus.rejected,
     time: 1615497996125,
     transaction: {
@@ -517,7 +518,7 @@ export const txsInStateWithOutdatedStatusAndGasDataMock = (
   },
   {
     id: 'eth-transaction-id',
-    chainId: '1',
+    chainId: toHex(1),
     status: TransactionStatus.rejected,
     time: 1615497996125,
     transaction: {

@@ -1,5 +1,7 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
+import { BN } from 'ethereumjs-util';
+import { v4 } from 'uuid';
 import HttpProvider from 'ethjs-provider-http';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
@@ -7,18 +9,23 @@ import {
   ProviderConfig,
   defaultState as defaultNetworkState,
 } from '@metamask/network-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
   IPFS_DEFAULT_GATEWAY_URL,
   ERC1155,
   OPENSEA_API_URL,
   ERC721,
-  NetworksChainId,
+  ChainId,
   NetworkType,
+  toHex,
+  ApprovalType,
+  ERC20,
 } from '@metamask/controller-utils';
+import { AddApprovalRequest } from '@metamask/approval-controller';
 import { Network } from '@ethersproject/providers';
 import { AssetsContractController } from './AssetsContractController';
-import { NftController } from './NftController';
+import { NftController, NftControllerMessenger } from './NftController';
 import { getFormattedIpfsUrl } from './assetsUtil';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
@@ -47,8 +54,12 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
   true,
 );
 
-const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
-const GOERLI = { chainId: '5', type: NetworkType.goerli };
+const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
+const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
+
+type ApprovalActions = AddApprovalRequest;
+
+const controllerName = 'NftController' as const;
 
 // Mock out detectNetwork function for cleaner tests, Ethers calls this a bunch of times because the Web3Provider is paranoid.
 jest.mock('@ethersproject/providers', () => {
@@ -67,16 +78,59 @@ jest.mock('@ethersproject/providers', () => {
   };
 });
 
+jest.mock('uuid', () => {
+  const actual = jest.requireActual('uuid');
+
+  return {
+    ...actual,
+    v4: jest.fn(),
+  };
+});
+
 /**
  * Setup a test controller instance.
  *
  * @param options - Controller options.
  * @param options.includeOnNftAdded - Whether to include the "onNftAdded" parameter.
+ * @param options.getERC721OwnerOfStub - Stub for the "getERC721OwnerOf" method.
+ * @param options.getERC721AssetNameStub - Stub for the "getERC721AssetName" method.
+ * @param options.getERC721AssetSymbolStub - Stub for the "getERC721AssetSymbol" method.
+ * @param options.getERC1155BalanceOfStub - Stub for the "getERC1155BalanceOf" method.
+ * @param options.getERC721TokenURIStub - Stub for the "getERC721TokenURI" method.
+ * @param options.getERC1155TokenURIStub - Stub for the "getERC1155TokenURI" method.
  * @returns A collection of test controllers and stubs.
  */
 function setupController({
   includeOnNftAdded = false,
-}: { includeOnNftAdded?: boolean } = {}) {
+  getERC721OwnerOfStub,
+  getERC721AssetNameStub,
+  getERC721AssetSymbolStub,
+  getERC721TokenURIStub,
+  getERC1155TokenURIStub,
+  getERC1155BalanceOfStub,
+}: {
+  includeOnNftAdded?: boolean;
+  getERC721OwnerOfStub?: (
+    tokenAddress: string,
+    tokenId: string,
+  ) => Promise<string>;
+  getERC721AssetNameStub?: (tokenAddress: string) => Promise<string>;
+  getERC721AssetSymbolStub?: (tokenAddress: string) => Promise<string>;
+  getERC721TokenURIStub?: (
+    tokenAddress: string,
+    tokenId: string,
+  ) => Promise<string>;
+  getERC1155TokenURIStub?: (
+    tokenAddress: string,
+    tokenId: string,
+  ) => Promise<string>;
+
+  getERC1155BalanceOfStub?: (
+    tokenAddress: string,
+    tokenId: string,
+    userAddress: string,
+  ) => Promise<BN>;
+} = {}) {
   const preferences = new PreferencesController();
   const onNetworkStateChangeListeners: ((state: NetworkState) => void)[] = [];
   const changeNetwork = (providerConfig: ProviderConfig) => {
@@ -88,26 +142,48 @@ function setupController({
     });
   };
 
+  const messenger = new ControllerMessenger<
+    ApprovalActions,
+    never
+  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
+    name: controllerName,
+    allowedActions: ['ApprovalController:addRequest'],
+  }) as NftControllerMessenger;
+
   const assetsContract = new AssetsContractController({
+    chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
   });
+
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
 
   const nftController = new NftController({
+    chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
-    getERC721AssetName: assetsContract.getERC721AssetName.bind(assetsContract),
+    getERC721AssetName:
+      getERC721AssetNameStub ??
+      assetsContract.getERC721AssetName.bind(assetsContract),
     getERC721AssetSymbol:
+      getERC721AssetSymbolStub ??
       assetsContract.getERC721AssetSymbol.bind(assetsContract),
-    getERC721TokenURI: assetsContract.getERC721TokenURI.bind(assetsContract),
-    getERC721OwnerOf: assetsContract.getERC721OwnerOf.bind(assetsContract),
+    getERC721TokenURI:
+      getERC721TokenURIStub ??
+      assetsContract.getERC721TokenURI.bind(assetsContract),
+    getERC721OwnerOf:
+      getERC721OwnerOfStub ??
+      assetsContract.getERC721OwnerOf.bind(assetsContract),
     getERC1155BalanceOf:
+      getERC1155BalanceOfStub ??
       assetsContract.getERC1155BalanceOf.bind(assetsContract),
-    getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(assetsContract),
+    getERC1155TokenURI:
+      getERC1155TokenURIStub ??
+      assetsContract.getERC1155TokenURI.bind(assetsContract),
     onNftAdded: onNftAddedSpy,
+    messenger,
   });
 
   preferences.update({
@@ -121,6 +197,7 @@ function setupController({
     onNftAddedSpy,
     preferences,
     changeNetwork,
+    messenger,
   };
 }
 
@@ -205,6 +282,382 @@ describe('NftController', () => {
     });
   });
 
+  describe('on watchNft', function () {
+    const ERC721_NFT = {
+      address: ERC721_NFT_ADDRESS,
+      tokenId: ERC721_NFT_ID,
+    };
+
+    const ERC1155_NFT = {
+      address: ERC1155_NFT_ADDRESS,
+      tokenId: ERC1155_NFT_ID,
+    };
+
+    it('should error if passed no type', async function () {
+      const { nftController } = setupController();
+      const type = undefined;
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore-next-line
+      const erc721Result = nftController.watchNft(ERC721_NFT, type);
+      await expect(erc721Result).rejects.toThrow('Asset type is required');
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore-next-line
+      const erc1155Result = nftController.watchNft(ERC1155_NFT, type);
+      await expect(erc1155Result).rejects.toThrow('Asset type is required');
+    });
+
+    it('should error if asset type is not supported', async function () {
+      const { nftController } = setupController();
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore-next-line
+      const erc721Result = nftController.watchNft(ERC721_NFT, ERC20);
+      await expect(erc721Result).rejects.toThrow(
+        `Non NFT asset type ${ERC20} not supported by watchNft`,
+      );
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore-next-line
+      const erc1155Result = nftController.watchNft(ERC1155_NFT, ERC20);
+      await expect(erc1155Result).rejects.toThrow(
+        `Non NFT asset type ${ERC20} not supported by watchNft`,
+      );
+    });
+
+    it('should error if address is not defined', async function () {
+      const { nftController } = setupController();
+      const assetWithNoAddress = {
+        address: undefined,
+        tokenId: ERC721_NFT_ID,
+      };
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore-next-line
+      const result = nftController.watchNft(assetWithNoAddress, ERC721);
+      await expect(result).rejects.toThrow(
+        'Both address and tokenId are required',
+      );
+    });
+
+    it('should error if tokenId is not defined', async function () {
+      const { nftController } = setupController();
+      const assetWithNoAddress = {
+        address: ERC721_NFT_ADDRESS,
+        tokenId: undefined,
+      };
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore-next-line
+      const result = nftController.watchNft(assetWithNoAddress, ERC721);
+      await expect(result).rejects.toThrow(
+        'Both address and tokenId are required',
+      );
+    });
+
+    it('should error if address is invalid', async function () {
+      const { nftController } = setupController();
+      const assetWithInvalidAddress = {
+        address: '0x123',
+        tokenId: ERC721_NFT_ID,
+      };
+      const result = nftController.watchNft(
+        assetWithInvalidAddress,
+        ERC721,
+        'https://test-dapp.com',
+      );
+      await expect(result).rejects.toThrow('Invalid address');
+    });
+
+    it('should error if the user does not own the suggested ERC721 NFT', async function () {
+      const { nftController, messenger } = setupController({
+        getERC721OwnerOfStub: jest
+          .fn()
+          .mockImplementation(() => '0x12345abcefg'),
+      });
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await expect(() =>
+        nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com'),
+      ).rejects.toThrow('Suggested NFT is not owned by the selected account');
+      expect(callActionSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it('should error if the user does not own the suggested ERC1155 NFT', async function () {
+      const { nftController, messenger } = setupController({
+        getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(0)),
+      });
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await expect(() =>
+        nftController.watchNft(ERC1155_NFT, ERC1155, 'https://test-dapp.com'),
+      ).rejects.toThrow('Suggested NFT is not owned by the selected account');
+      expect(callActionSpy).toHaveBeenCalledTimes(0);
+    });
+
+    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC721Image',
+            name: 'testERC721Name',
+            description: 'testERC721Description',
+          }),
+        );
+      const { nftController, messenger, preferences } = setupController({
+        getERC721TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'https://testtokenuri.com'),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+      });
+      preferences.setOpenSeaEnabled(false);
+
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://test-dapp.com',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC721_NFT,
+              description: 'testERC721Description',
+              image: 'testERC721Image',
+              name: 'testERC721Name',
+              standard: ERC721,
+            },
+          },
+        },
+        true,
+      );
+
+      clock.restore();
+    });
+
+    it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API disabled', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC1155Image',
+            name: 'testERC1155Name',
+            description: 'testERC1155Description',
+          }),
+        );
+
+      const { nftController, messenger, preferences } = setupController({
+        getERC1155TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'https://testtokenuri.com'),
+        getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
+      });
+      preferences.setOpenSeaEnabled(false);
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(
+        ERC1155_NFT,
+        ERC1155,
+        'https://etherscan.io',
+      );
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://etherscan.io',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC1155_NFT,
+              description: 'testERC1155Description',
+              image: 'testERC1155Image',
+              name: 'testERC1155Name',
+              standard: ERC1155,
+            },
+          },
+        },
+        true,
+      );
+
+      clock.restore();
+    });
+
+    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled', async function () {
+      nock(OPENSEA_PROXY_URL)
+        .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
+        .reply(200, {
+          description: 'description (from opensea)',
+          symbol: 'KDO',
+          total_supply: 10,
+          collection: {
+            name: 'name (from opensea)',
+            image_url: 'logo (from opensea)',
+          },
+        })
+        .get(`/asset/${ERC721_NFT_ADDRESS}/${ERC721_NFT_ID}`)
+        .reply(200, {
+          image_url: 'image (directly from opensea)',
+          name: 'name (directly from opensea)',
+          description: 'description (directly from opensea)',
+          asset_contract: {
+            schema_name: 'ERC721',
+          },
+        });
+
+      const { nftController, messenger, preferences } = setupController({
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+      });
+      preferences.setOpenSeaEnabled(true);
+
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://test-dapp.com',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC721_NFT,
+              description: 'description (directly from opensea)',
+              image: 'image (directly from opensea)',
+              name: 'name (directly from opensea)',
+              standard: ERC721,
+            },
+          },
+        },
+        true,
+      );
+
+      clock.restore();
+    });
+
+    it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API enabled', async function () {
+      const ALT_ERC1155_NFT = {
+        address: '0x0000000000000000000000000000000000000000',
+        tokenId: '99999',
+      };
+
+      nock(OPENSEA_PROXY_URL)
+        .get(`/asset_contract/${ALT_ERC1155_NFT.address}`)
+        .reply(200, {
+          description: 'description (from opensea)',
+          symbol: 'KDO',
+          total_supply: 10,
+          collection: {
+            name: 'name (from opensea)',
+            image_url: 'logo (from opensea)',
+          },
+        })
+        .get(`/asset/${ALT_ERC1155_NFT.address}/${ALT_ERC1155_NFT.tokenId}`)
+        .reply(200, {
+          image_url: 'image (directly from opensea)',
+          name: 'name (directly from opensea)',
+          description: 'description (directly from opensea)',
+          asset_contract: {
+            schema_name: 'ERC1155',
+          },
+        });
+      const { nftController, messenger, preferences } = setupController({
+        getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
+      });
+      preferences.setOpenSeaEnabled(true);
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(
+        ALT_ERC1155_NFT,
+        ERC1155,
+        'https://test-dapp.com',
+      );
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://test-dapp.com',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ALT_ERC1155_NFT,
+              description: 'description (directly from opensea)',
+              image: 'image (directly from opensea)',
+              name: 'name (directly from opensea)',
+              standard: ERC1155,
+            },
+          },
+        },
+        true,
+      );
+
+      clock.restore();
+    });
+
+    it('should throw an error when calls to `ownerOf` and `balanceOf` revert', async function () {
+      const { nftController, changeNetwork } = setupController();
+      // getERC721OwnerOf not mocked
+      // getERC1155BalanceOf not mocked
+
+      changeNetwork(SEPOLIA);
+
+      const requestId = 'approval-request-id-1';
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const result = nftController.watchNft(
+        ERC721_NFT,
+        ERC721,
+        'https://test-dapp.com',
+      );
+      await expect(result).rejects.toThrow(
+        "Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question.",
+      );
+    });
+  });
+
   describe('addNft', () => {
     it('should add NFT and NFT contract', async () => {
       const { nftController } = setupController();
@@ -282,7 +735,7 @@ describe('NftController', () => {
           favorite: false,
         },
         // this object in the third argument slot is only defined when the NFT is added via detection
-        { userAddress: detectedUserAddress, chainId: '0x2' },
+        { userAddress: detectedUserAddress, chainId: toHex(2) },
       );
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({
@@ -799,15 +1252,11 @@ describe('NftController', () => {
       changeNetwork(SEPOLIA);
 
       expect(
-        nftController.state.allNfts[selectedAddress]?.[
-          NetworksChainId[GOERLI.type]
-        ],
+        nftController.state.allNfts[selectedAddress]?.[ChainId[GOERLI.type]],
       ).toBeUndefined();
 
       expect(
-        nftController.state.allNfts[selectedAddress][
-          NetworksChainId[SEPOLIA.type]
-        ][0],
+        nftController.state.allNfts[selectedAddress][ChainId[SEPOLIA.type]][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -1546,7 +1995,7 @@ describe('NftController', () => {
       const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const error =
-        'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect';
+        "Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question.";
       const result = async () => {
         await nftController.isNftOwner(
           '0x0000000000000000000000000000000000000000',

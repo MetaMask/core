@@ -7,10 +7,12 @@ import Common from '@ethereumjs/common';
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
   BaseState,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import type {
   NetworkState,
@@ -26,7 +28,15 @@ import {
   query,
   NetworkType,
   RPC,
+  ApprovalType,
+  ORIGIN_METAMASK,
+  convertHexToDecimal,
 } from '@metamask/controller-utils';
+import {
+  AcceptRequest as AcceptApprovalRequest,
+  AddApprovalRequest,
+  RejectRequest as RejectApprovalRequest,
+} from '@metamask/approval-controller';
 import NonceTracker from 'nonce-tracker';
 import {
   getAndFormatTransactionsForNonceTracker,
@@ -79,7 +89,7 @@ export interface FetchAllOptions {
  * @property value - Value associated with this transaction
  */
 export interface Transaction {
-  chainId?: number;
+  chainId?: Hex;
   data?: string;
   from: string;
   gas?: string;
@@ -137,7 +147,7 @@ type TransactionMetaBase = {
   };
   id: string;
   networkID?: string;
-  chainId?: string;
+  chainId?: Hex;
   origin?: string;
   rawTransaction?: string;
   time: number;
@@ -265,13 +275,37 @@ export const CANCEL_RATE = 1.5;
 export const SPEED_UP_RATE = 1.1;
 
 /**
+ * The name of the {@link TransactionController}.
+ */
+const controllerName = 'TransactionController';
+
+/**
+ * The external actions available to the {@link TransactionController}.
+ */
+type AllowedActions =
+  | AddApprovalRequest
+  | AcceptApprovalRequest
+  | RejectApprovalRequest;
+
+/**
+ * The messenger of the {@link TransactionController}.
+ */
+export type TransactionControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AllowedActions,
+  never,
+  AllowedActions['type'],
+  never
+>;
+
+/**
  * Controller responsible for submitting and managing transactions.
  */
 export class TransactionController extends BaseController<
   TransactionConfig,
   TransactionState
 > {
-  private ethQuery: any;
+  private ethQuery: EthQuery;
 
   private nonceTracker: NonceTracker;
 
@@ -284,6 +318,8 @@ export class TransactionController extends BaseController<
   private mutex = new Mutex();
 
   private getNetworkState: () => NetworkState;
+
+  private messagingSystem: TransactionControllerMessenger;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -313,7 +349,7 @@ export class TransactionController extends BaseController<
   private normalizeTx(
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
-    currentChainId: string,
+    currentChainId: Hex,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const normalizedTransactionBase = {
@@ -355,7 +391,7 @@ export class TransactionController extends BaseController<
   private normalizeTokenTx = (
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
-    currentChainId: string,
+    currentChainId: Hex,
   ): TransactionMeta => {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const {
@@ -378,7 +414,7 @@ export class TransactionController extends BaseController<
       status: TransactionStatus.confirmed,
       time,
       transaction: {
-        chainId: 1,
+        chainId: currentChainId,
         from,
         gas,
         gasPrice,
@@ -422,6 +458,7 @@ export class TransactionController extends BaseController<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
+   * @param options.messenger - The controller messenger.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -431,11 +468,13 @@ export class TransactionController extends BaseController<
       onNetworkStateChange,
       provider,
       blockTracker,
+      messenger,
     }: {
       getNetworkState: () => NetworkState;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: ProviderProxy;
       blockTracker: BlockTrackerProxy;
+      messenger: TransactionControllerMessenger;
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
@@ -452,6 +491,7 @@ export class TransactionController extends BaseController<
     };
     this.initialize();
     this.provider = provider;
+    this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
@@ -534,14 +574,14 @@ export class TransactionController extends BaseController<
     origin?: string,
     deviceConfirmedOn?: WalletDevice,
   ): Promise<Result> {
-    const { providerConfig, network } = this.getNetworkState();
+    const { providerConfig, networkId } = this.getNetworkState();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
     const transactionMeta: TransactionMeta = {
       id: random(),
-      networkID: network,
+      networkID: networkId ?? undefined,
       chainId: providerConfig.chainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
@@ -596,6 +636,7 @@ export class TransactionController extends BaseController<
     transactions.push(transactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
     this.hub.emit(`unapprovedTransaction`, transactionMeta);
+    this.requestApproval(transactionMeta);
     return { result, transactionMeta };
   }
 
@@ -618,7 +659,7 @@ export class TransactionController extends BaseController<
 
   getCommonConfiguration(): Common {
     const {
-      network: networkId,
+      networkId,
       providerConfig: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
@@ -628,8 +669,8 @@ export class TransactionController extends BaseController<
 
     const customChainParams = {
       name,
-      chainId: parseInt(chainId, undefined),
-      networkId: parseInt(networkId, undefined),
+      chainId: parseInt(chainId, 16),
+      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
     };
 
     return Common.forCustomChain(
@@ -651,7 +692,7 @@ export class TransactionController extends BaseController<
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const { providerConfig } = this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { chainId } = providerConfig;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
@@ -665,14 +706,15 @@ export class TransactionController extends BaseController<
           transactionMeta,
           new Error('No sign method defined.'),
         );
+        this.rejectApproval(transactionMeta);
         return;
-      } else if (!currentChainId) {
+      } else if (!chainId) {
         releaseLock();
         this.failTransaction(transactionMeta, new Error('No chainId defined.'));
+        this.rejectApproval(transactionMeta);
         return;
       }
 
-      const chainId = parseInt(currentChainId, undefined);
       const { approved: status } = TransactionStatus;
       let nonceToUse = nonce;
       // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
@@ -725,8 +767,10 @@ export class TransactionController extends BaseController<
       transactionMeta.status = TransactionStatus.submitted;
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+      this.acceptApproval(transactionMeta);
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
+      this.rejectApproval(transactionMeta);
     } finally {
       // must set transaction to submitted/failed before releasing lock
       if (nonceLock) {
@@ -755,6 +799,7 @@ export class TransactionController extends BaseController<
       ({ id }) => id !== transactionID,
     );
     this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.rejectApproval(transactionMeta);
   }
 
   /**
@@ -762,7 +807,7 @@ export class TransactionController extends BaseController<
    * and emitting a `<tx.id>:finished` hub event.
    *
    * @param transactionID - The ID of the transaction to cancel.
-   * @param gasValues - The gas values to use for the cancellation transation.
+   * @param gasValues - The gas values to use for the cancellation transaction.
    */
   async stopTransaction(
     transactionID: string,
@@ -856,6 +901,7 @@ export class TransactionController extends BaseController<
     await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
     transactionMeta.status = TransactionStatus.cancelled;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+    this.rejectApproval(transactionMeta);
   }
 
   /**
@@ -1001,7 +1047,8 @@ export class TransactionController extends BaseController<
       typeof providedGasPrice === 'undefined'
         ? await query(this.ethQuery, 'gasPrice')
         : providedGasPrice;
-    const { isCustomNetwork } = this.getNetworkState();
+    const { providerConfig } = this.getNetworkState();
+    const isCustomNetwork = providerConfig.type === NetworkType.rpc;
     // 1. If gas is already defined on the transaction, use it
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
@@ -1070,7 +1117,7 @@ export class TransactionController extends BaseController<
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const { providerConfig, network: currentNetworkID } =
+    const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
     const { chainId: currentChainId } = providerConfig;
     let gotUpdates = false;
@@ -1131,7 +1178,7 @@ export class TransactionController extends BaseController<
       this.update({ transactions: [] });
       return;
     }
-    const { providerConfig, network: currentNetworkID } =
+    const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
     const { chainId: currentChainId } = providerConfig;
     const newTransactions = this.state.transactions.filter(
@@ -1162,14 +1209,17 @@ export class TransactionController extends BaseController<
     address: string,
     opt?: FetchAllOptions,
   ): Promise<string | void> {
-    const { providerConfig, network: currentNetworkID } =
+    const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
     const { chainId: currentChainId, type: networkType } = providerConfig;
     const { transactions } = this.state;
 
     const supportedNetworkIds = ['1', '5', '11155111'];
     /* istanbul ignore next */
-    if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
+    if (
+      currentNetworkID === null ||
+      supportedNetworkIds.indexOf(currentNetworkID) === -1
+    ) {
       return undefined;
     }
 
@@ -1263,9 +1313,9 @@ export class TransactionController extends BaseController<
     const txsToKeep = transactions.reverse().filter((tx) => {
       const { chainId, networkID, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${chainId ?? networkID}-${new Date(
-          time,
-        ).toDateString()}`;
+        const key = `${transaction.nonce}-${
+          chainId ? convertHexToDecimal(chainId) : networkID
+        }-${new Date(time).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (
@@ -1516,6 +1566,59 @@ export class TransactionController extends BaseController<
     localGasUsed: string | undefined,
   ): boolean {
     return remoteGasUsed !== localGasUsed;
+  }
+
+  private async requestApproval(
+    txMeta: TransactionMeta,
+    { shouldShowRequest } = { shouldShowRequest: true },
+  ) {
+    const id = this.getApprovalId(txMeta);
+    const { origin } = txMeta;
+    const type = ApprovalType.Transaction;
+    const requestData = { txId: txMeta.id };
+
+    try {
+      await this.messagingSystem.call(
+        'ApprovalController:addRequest',
+        {
+          id,
+          origin: origin || ORIGIN_METAMASK,
+          type,
+          requestData,
+        },
+        shouldShowRequest,
+      );
+    } catch (error) {
+      console.info('Failed to request transaction approval', error);
+    }
+  }
+
+  private acceptApproval(txMeta: TransactionMeta) {
+    const id = this.getApprovalId(txMeta);
+
+    try {
+      this.messagingSystem.call('ApprovalController:acceptRequest', id);
+    } catch (error) {
+      console.info('Failed to accept transaction approval request', error);
+    }
+  }
+
+  private rejectApproval(txMeta: TransactionMeta) {
+    const id = this.getApprovalId(txMeta);
+
+    try {
+      this.messagingSystem.call(
+        'ApprovalController:rejectRequest',
+        id,
+        new Error('Rejected'),
+      );
+    } catch (error) {
+      console.info('Failed to reject transaction approval request', error);
+    }
+  }
+
+  private getApprovalId(txMeta: TransactionMeta) {
+    return String(txMeta.id);
   }
 }
 

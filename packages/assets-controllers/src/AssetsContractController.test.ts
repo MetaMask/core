@@ -1,5 +1,6 @@
 import HttpProvider from 'ethjs-provider-http';
 import {
+  ChainId,
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
@@ -15,8 +16,10 @@ import {
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
 
+const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
+
 const MAINNET_PROVIDER = new HttpProvider(
-  'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
@@ -33,15 +36,20 @@ const setupControllers = () => {
   const messenger: NetworkControllerMessenger =
     new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
+      allowedEvents: [
+        'NetworkController:stateChange',
+        'NetworkController:networkDidChange',
+      ],
       allowedActions: [],
     });
   const network = new NetworkController({
+    infuraProjectId: INFURA_PROJECT_ID,
     messenger,
     trackMetaMetricsEvent: jest.fn(),
   });
   const preferences = new PreferencesController();
   const assetsContract = new AssetsContractController({
+    chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       messenger.subscribe('NetworkController:stateChange', listener),
@@ -310,7 +318,7 @@ describe('AssetsContractController', () => {
     );
     expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
 
-    await network.setProviderType(NetworkType.localhost);
+    await network.setProviderType(NetworkType.sepolia);
 
     const noBalances = await assetsContract.getBalancesInSingleCall(
       ERC20_DAI_ADDRESS,
