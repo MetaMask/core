@@ -692,8 +692,15 @@ export class TokensController extends BaseController<
 
     await this._requestApproval(suggestedAssetMeta);
 
+    let name;
+    try {
+      name = await this.getERC20TokenName(asset.address);
+    } catch (error) {
+      name = undefined;
+    }
+
     await this.addToken(asset.address, asset.symbol, asset.decimals, {
-      name: asset.name,
+      name,
       image: asset.image,
       interactingAddress: suggestedAssetMeta.interactingAddress,
     });
