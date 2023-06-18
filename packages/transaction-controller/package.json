@@ -31,6 +31,7 @@
   "dependencies": {
     "@ethereumjs/common": "^2.6.1",
     "@ethereumjs/tx": "^3.5.2",
+    "@metamask/approval-controller": "workspace:^",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/network-controller": "workspace:^",
