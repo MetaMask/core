@@ -30,8 +30,12 @@ import {
   RPC,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
-import { AddApprovalRequest } from '@metamask/approval-controller';
 import NonceTracker from 'nonce-tracker';
+import {
+  AcceptResultCallbacks,
+  AddApprovalRequest,
+  AddResult,
+} from '@metamask/approval-controller';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -1413,9 +1417,11 @@ export class TransactionController extends BaseController<
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let rejected = false;
+    let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      await this.requestApproval(transactionMeta);
+      const acceptResult = await this.requestApproval(transactionMeta);
+      resultCallbacks = acceptResult.resultCallbacks;
 
       const updatedMeta = this.getTransaction(transactionId);
 
@@ -1425,6 +1431,8 @@ export class TransactionController extends BaseController<
       if (updatedMeta && !isCompleted) {
         await this.approveTransaction(transactionId);
       }
+
+      resultCallbacks?.success();
     } catch (error: any) {
       const updatedMeta = this.getTransaction(transactionId);
 
@@ -1439,6 +1447,8 @@ export class TransactionController extends BaseController<
           this.failTransaction(updatedMeta, error);
         }
       }
+
+      resultCallbacks?.error(error);
     }
 
     if (rejected) {
@@ -1468,22 +1478,23 @@ export class TransactionController extends BaseController<
     );
   }
 
-  private async requestApproval(txMeta: TransactionMeta) {
+  private async requestApproval(txMeta: TransactionMeta): Promise<AddResult> {
     const id = this.getApprovalId(txMeta);
     const { origin } = txMeta;
     const type = 'transaction';
     const requestData = { txId: txMeta.id };
 
-    return await this.messagingSystem.call(
+    return this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
         id,
         origin: origin || 'metamask',
         type,
         requestData,
+        expectsResult: true,
       },
       true,
-    );
+    ) as Promise<AddResult>;
   }
 
   private getApprovalId(txMeta: TransactionMeta) {
