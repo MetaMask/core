@@ -11,6 +11,7 @@ import {
   ApprovalRequestNoResultSupportError,
   EndInvalidFlowError,
   NoApprovalFlowsError,
+  MissingApprovalFlowError,
 } from './errors';
 
 const controllerName = 'ApprovalController';
@@ -70,6 +71,7 @@ type ShowApprovalRequest = () => void | Promise<void>;
 
 type ApprovalFlow = {
   id: string;
+  loadingText: string | null;
 };
 
 export type ApprovalFlowState = ApprovalFlow;
@@ -194,11 +196,16 @@ export type AddResult = {
   resultCallbacks?: AcceptResultCallbacks;
 };
 
-export type StartFlowOptions = OptionalField<ApprovalFlow, 'id'>;
+export type StartFlowOptions = OptionalField<
+  ApprovalFlow,
+  'id' | 'loadingText'
+>;
 
 export type ApprovalFlowStartResult = ApprovalFlow;
 
 export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
+
+export type SetFlowLoadingTextOptions = ApprovalFlow;
 
 export type StartFlow = {
   type: `${typeof controllerName}:startFlow`;
@@ -210,6 +217,11 @@ export type EndFlow = {
   handler: ApprovalController['endFlow'];
 };
 
+export type SetFlowLoadingText = {
+  type: `${typeof controllerName}:setFlowLoadingText`;
+  handler: ApprovalController['setFlowLoadingText'];
+};
+
 export type ApprovalControllerActions =
   | GetApprovalsState
   | ClearApprovalRequests
@@ -219,7 +231,8 @@ export type ApprovalControllerActions =
   | RejectRequest
   | UpdateRequestState
   | StartFlow
-  | EndFlow;
+  | EndFlow
+  | SetFlowLoadingText;
 
 export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -343,6 +356,11 @@ export class ApprovalController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:endFlow` as const,
       this.endFlow.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setFlowLoadingText` as const,
+      this.setFlowLoadingText.bind(this),
     );
   }
 
@@ -659,19 +677,20 @@ export class ApprovalController extends BaseControllerV2<
    *
    * @param opts - Options bag.
    * @param opts.id - The id of the approval flow.
+   * @param opts.loadingText - The loading text that will be associated to the approval flow.
    * @returns The object containing the approval flow id.
    */
   startFlow(opts: StartFlowOptions = {}): ApprovalFlowStartResult {
     const id = opts.id ?? nanoid();
-    const finalOptions = { id };
+    const loadingText = opts.loadingText ?? null;
 
     this.update((draftState) => {
-      draftState.approvalFlows.push(finalOptions);
+      draftState.approvalFlows.push({ id, loadingText });
     });
 
     this._showApprovalRequest();
 
-    return { id };
+    return { id, loadingText };
   }
 
   /**
@@ -696,6 +715,27 @@ export class ApprovalController extends BaseControllerV2<
 
     this.update((draftState) => {
       draftState.approvalFlows.pop();
+    });
+  }
+
+  /**
+   * Sets the loading text for the approval flow.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The approval flow loading text that will be displayed.
+   * @param opts.loadingText - The loading text that will be associated to the approval flow.
+   */
+  setFlowLoadingText({ id, loadingText }: SetFlowLoadingTextOptions) {
+    const flowIndex = this.state.approvalFlows.findIndex(
+      (flow) => flow.id === id,
+    );
+
+    if (flowIndex === -1) {
+      throw new MissingApprovalFlowError(id);
+    }
+
+    this.update((draftState) => {
+      draftState.approvalFlows[flowIndex].loadingText = loadingText;
     });
   }
 
