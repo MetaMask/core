@@ -6,10 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.3.0]
-### Added
-- Add `setFlowLoadingText` method to ApprovalController ([#1419](https://github.com/MetaMask/core/pull/1419))
-
 ## [3.2.0]
 ### Added
 - Add `startFlow` and `endFlow` methods to ApprovalController ([#1394](https://github.com/MetaMask/core/pull/1394))
@@ -59,8 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.3.0...HEAD
-[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.2.0...@metamask/approval-controller@3.3.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.2.0...HEAD
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.1.0...@metamask/approval-controller@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.0.0...@metamask/approval-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.1...@metamask/approval-controller@3.0.0
