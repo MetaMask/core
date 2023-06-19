@@ -68,6 +68,13 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: 'https://etherscan.io',
     },
   },
+  [NetworkType['linea-goerli']]: {
+    chainId: ChainId['linea-goerli'],
+    ticker: NetworksTicker['linea-goerli'],
+    rpcPrefs: {
+      blockExplorerUrl: 'https://explorer.goerli.linea.build',
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
