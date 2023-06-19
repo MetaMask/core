@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.0.0]
-### Uncategorized
-- Await approval promise in SignatureController ([#1377](https://github.com/MetaMask/core/pull/1377))
+### Added
+- Added `waitForFinishStatus` to `AbstractMessageManager` which is waiting for the message to be proccesed and resolve. ([#1377](https://github.com/MetaMask/core/pull/1377))
+
+### Changed
+- **BREAKING:** Removed `addUnapprovedMessageAsync` methods from `PersonalMessageManager`, `TypedMessageManager` and `MessageManager` because it's not consumed by `SignatureController` anymore. ([#1377](https://github.com/MetaMask/core/pull/1377))
 
 ## [6.0.0]
 ### Added

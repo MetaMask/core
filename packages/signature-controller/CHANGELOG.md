@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.0]
-### Uncategorized
-- Await approval promise in SignatureController ([#1377](https://github.com/MetaMask/core/pull/1377))
+### Changed
+- **BREAKING:** `newUnsignedXMessage` middlewares now creates and awaits approvals itself. ([#1377](https://github.com/MetaMask/core/pull/1377))
+
+### Removed
+- **BREAKING:** Removed `cancelXMessage` and `signXMessage` from public API. ([#1377](https://github.com/MetaMask/core/pull/1377))
 
 ## [3.0.0]
 ### Added

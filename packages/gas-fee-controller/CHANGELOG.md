@@ -6,10 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [6.0.1]
-### Uncategorized
-- Update changelog for `@metamask/gas-fee-controller@6` ([#1405](https://github.com/MetaMask/core/pull/1405))
-
 ## [6.0.0]
 ### Changed
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
@@ -61,8 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.1...HEAD
-[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.0...@metamask/gas-fee-controller@6.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.0...HEAD
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@5.0.0...@metamask/gas-fee-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.1...@metamask/gas-fee-controller@5.0.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.0...@metamask/gas-fee-controller@4.0.1
