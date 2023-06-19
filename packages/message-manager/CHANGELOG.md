@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+### Uncategorized
+- Revert "Release/57.0.0 (#1430)" ([#1430](https://github.com/MetaMask/core/pull/1430))
+- Release/57.0.0 ([#1430](https://github.com/MetaMask/core/pull/1430))
+- Await approval promise in SignatureController ([#1377](https://github.com/MetaMask/core/pull/1377))
+
 ## [6.0.0]
 ### Added
 - Add `getAllMessages` and `setMetadata` methods to message managers ([#1364](https://github.com/MetaMask/core/pull/1364))
@@ -73,7 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@6.0.0...@metamask/message-manager@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@5.0.0...@metamask/message-manager@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@4.0.0...@metamask/message-manager@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@3.1.1...@metamask/message-manager@4.0.0
