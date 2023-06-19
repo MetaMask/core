@@ -1179,31 +1179,31 @@ export class TransactionController extends BaseController<
 
     const finalMeta = this.getTransaction(transactionId);
 
-    if (finalMeta?.status === TransactionStatus.submitted) {
-      resultCallbacks?.success();
-    } else if (finalMeta?.status === TransactionStatus.failed) {
-      resultCallbacks?.error(finalMeta?.error);
-    } else {
-      resultCallbacks?.error(new Error('Unknown problem'));
-    }
-
     if (finalMeta && finalMeta.status === TransactionStatus.failed) {
+      resultCallbacks?.error(finalMeta?.error);
       throw ethErrors.rpc.internal(finalMeta.error.message);
     }
 
     if (finalMeta?.status === TransactionStatus.cancelled) {
-      throw ethErrors.rpc.internal('User cancelled the transaction');
+      const error = ethErrors.rpc.internal('User cancelled the transaction');
+      resultCallbacks?.error(error);
+      throw error;
     }
 
     if (finalMeta && finalMeta.status === TransactionStatus.submitted) {
+      resultCallbacks?.success();
       return finalMeta.transactionHash as string;
     }
 
-    throw ethErrors.rpc.internal(
+    const error = ethErrors.rpc.internal(
       `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
         finalMeta || transactionId,
       )}`,
     );
+
+    resultCallbacks?.error(error);
+
+    throw error;
   }
 
   /**

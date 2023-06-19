@@ -1556,6 +1556,42 @@ describe('TransactionController', () => {
     expect(secondTransaction.transaction.nonce).toStrictEqual('0x1');
   });
 
+  it('throws unknown error if status not expected', async () => {
+    const { messenger, approve } = buildMockMessenger({
+      delay: true,
+    });
+
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        provider: MOCK_NETWORK.provider,
+        blockTracker: MOCK_NETWORK.blockTracker,
+        messenger,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+
+    (messenger.call as jest.MockedFunction<any>).mockImplementationOnce(() => {
+      controller.state.transactions[0].status = TransactionStatus.confirmed;
+      throw new Error('TestError');
+    });
+
+    const { result } = await controller.addTransaction({
+      from,
+      gas: '0x0',
+      gasPrice: '0x0',
+      to: from,
+      value: '0x0',
+    });
+
+    approve();
+    await expect(result).rejects.toThrow('Unknown problem');
+  });
+
   it('requests approval using the approval controller', async () => {
     const controller = new TransactionController(
       {
