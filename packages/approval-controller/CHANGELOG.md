@@ -7,10 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.3.0]
-### Uncategorized
-- Revert "Release/57.0.0 (#1430)" ([#1430](https://github.com/MetaMask/core/pull/1430))
-- Release/57.0.0 ([#1430](https://github.com/MetaMask/core/pull/1430))
-- approval flow loading text ([#1419](https://github.com/MetaMask/core/pull/1419))
+### Added
+- Add `setFlowLoadingText` method to ApprovalController ([#1419](https://github.com/MetaMask/core/pull/1419))
 
 ## [3.2.0]
 ### Added
