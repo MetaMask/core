@@ -313,6 +313,31 @@ describe('NftDetectionController', () => {
     ]);
   });
 
+  it('should not add nfts for which no contract information can be fetched', async () => {
+    const selectedAddress = '0x1';
+
+    nftDetection.configure({
+      chainId: ChainId.mainnet,
+      selectedAddress,
+    });
+
+    nftController.configure({
+      selectedAddress,
+    });
+
+    sinon
+      .stub(nftController, 'getNftContractInformationFromApi' as any)
+      .returns(undefined);
+
+    sinon
+      .stub(nftController, 'getNftInformationFromApi' as any)
+      .returns(undefined);
+
+    await nftDetection.detectNfts();
+
+    expect(nftController.state.allNfts).toStrictEqual({});
+  });
+
   it('should detect, add NFTs and do nor remove not detected NFTs correctly', async () => {
     const selectedAddress = '0x1';
     nftDetection.configure({

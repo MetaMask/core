@@ -1725,6 +1725,7 @@ __metadata:
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
     ethereumjs-wallet: ^1.0.1
+    immer: ^9.0.6
     jest: ^27.5.1
     sinon: ^9.2.4
     ts-jest: ^27.1.4
@@ -1734,6 +1735,24 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/preferences-controller": "workspace:^"
+  languageName: unknown
+  linkType: soft
+
+"@metamask/logging-controller@workspace:packages/logging-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/logging-controller@workspace:packages/logging-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^3.1.0
+    "@metamask/base-controller": "workspace:^"
+    "@metamask/controller-utils": "workspace:^"
+    "@types/jest": ^27.4.1
+    deepmerge: ^4.2.2
+    jest: ^27.5.1
+    ts-jest: ^27.1.4
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
+    typescript: ~4.6.3
+    uuid: ^8.3.2
   languageName: unknown
   linkType: soft
 
@@ -1967,6 +1986,7 @@ __metadata:
     ethereumjs-util: ^7.0.10
     immer: ^9.0.6
     jest: ^27.5.1
+    lodash: ^4.17.21
     ts-jest: ^27.1.4
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
@@ -2472,9 +2492,9 @@ __metadata:
   linkType: hard
 
 "@types/lodash@npm:^4.14.191":
-  version: 4.14.191
-  resolution: "@types/lodash@npm:4.14.191"
-  checksum: ba0d5434e10690869f32d5ea49095250157cae502f10d57de0a723fd72229ce6c6a4979576f0f13e0aa9fbe3ce2457bfb9fa7d4ec3d6daba56730a51906d1491
+  version: 4.14.195
+  resolution: "@types/lodash@npm:4.14.195"
+  checksum: 39b75ca635b3fa943d17d3d3aabc750babe4c8212485a4df166fe0516e39288e14b0c60afc6e21913cc0e5a84734633c71e617e2bd14eaa1cf51b8d7799c432e
   languageName: node
   linkType: hard
 

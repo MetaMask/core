@@ -1,3 +1,4 @@
+import { strict as assert } from 'assert';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import EthQuery from 'eth-query';
@@ -257,9 +258,7 @@ export const defaultState: NetworkState = {
     chainId: ChainId.mainnet,
   },
   networkDetails: {
-    EIPS: {
-      1559: false,
-    },
+    EIPS: {},
   },
   networkConfigurations: {},
 };
@@ -588,6 +587,15 @@ export class NetworkController extends BaseControllerV2<
    * @param type - Human readable network name.
    */
   async setProviderType(type: InfuraNetworkType) {
+    assert.notStrictEqual(
+      type,
+      NetworkType.rpc,
+      `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
+    );
+    assert.ok(
+      isInfuraProviderType(type),
+      `Unknown Infura provider type "${type}".`,
+    );
     this.#previousProviderConfig = this.state.providerConfig;
 
     // If testnet the ticker symbol should use a testnet prefix
@@ -666,18 +674,20 @@ export class NetworkController extends BaseControllerV2<
    * and false otherwise.
    */
   async getEIP1559Compatibility() {
-    const { networkDetails = { EIPS: {} } } = this.state;
+    const { EIPS } = this.state.networkDetails;
 
-    if (networkDetails.EIPS[1559] || !this.#ethQuery) {
-      return true;
+    if (EIPS[1559] !== undefined) {
+      return EIPS[1559];
+    }
+
+    if (!this.#ethQuery) {
+      return false;
     }
 
     const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
-    if (networkDetails.EIPS[1559] !== isEIP1559Compatible) {
-      this.update((state) => {
-        state.networkDetails.EIPS[1559] = isEIP1559Compatible;
-      });
-    }
+    this.update((state) => {
+      state.networkDetails.EIPS[1559] = isEIP1559Compatible;
+    });
     return isEIP1559Compatible;
   }
 
@@ -866,6 +876,25 @@ export class NetworkController extends BaseControllerV2<
    */
   async destroy() {
     await this.#blockTrackerProxy?.destroy();
+  }
+
+  /**
+   * Updates the controller using the given backup data.
+   *
+   * @param backup - The data that has been backed up.
+   * @param backup.networkConfigurations - Network configurations in the backup.
+   */
+  loadBackup({
+    networkConfigurations,
+  }: {
+    networkConfigurations: NetworkState['networkConfigurations'];
+  }): void {
+    this.update((state) => {
+      state.networkConfigurations = {
+        ...state.networkConfigurations,
+        ...networkConfigurations,
+      };
+    });
   }
 }
 
