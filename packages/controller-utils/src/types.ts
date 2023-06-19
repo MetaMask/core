@@ -7,6 +7,7 @@ export enum NetworkType {
   goerli = 'goerli',
   sepolia = 'sepolia',
   rpc = 'rpc',
+  'linea-goerli' = 'linea-goerli',
 }
 
 /**
@@ -25,6 +26,7 @@ export enum NetworksChainId {
   sepolia = '11155111',
   localhost = '',
   rpc = '',
+  'linea-goerli' = '',
 }
 
 export enum NetworkId {
@@ -37,6 +39,7 @@ export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
   sepolia = 'SepoliaETH',
+  'linea-goerli' = 'LineaETH',
   localhost = '',
   rpc = '',
 }
