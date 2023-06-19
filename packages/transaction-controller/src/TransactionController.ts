@@ -32,7 +32,11 @@ import {
   ORIGIN_METAMASK,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
-import { AddApprovalRequest } from '@metamask/approval-controller';
+import {
+  AcceptResultCallbacks,
+  AddApprovalRequest,
+  AddResult,
+} from '@metamask/approval-controller';
 import NonceTracker from 'nonce-tracker';
 import {
   getAndFormatTransactionsForNonceTracker,
@@ -1137,9 +1141,11 @@ export class TransactionController extends BaseController<
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let rejected = false;
+    let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      await this.requestApproval(transactionMeta);
+      const acceptResult = await this.requestApproval(transactionMeta);
+      resultCallbacks = acceptResult.resultCallbacks;
 
       const updatedMeta = this.getTransaction(transactionId);
 
@@ -1172,6 +1178,14 @@ export class TransactionController extends BaseController<
     }
 
     const finalMeta = this.getTransaction(transactionId);
+
+    if (finalMeta?.status === TransactionStatus.submitted) {
+      resultCallbacks?.success();
+    } else if (finalMeta?.status === TransactionStatus.failed) {
+      resultCallbacks?.error(finalMeta?.error);
+    } else {
+      resultCallbacks?.error(new Error('Unknown problem'));
+    }
 
     if (finalMeta && finalMeta.status === TransactionStatus.failed) {
       throw ethErrors.rpc.internal(finalMeta.error.message);
@@ -1602,22 +1616,23 @@ export class TransactionController extends BaseController<
     return remoteGasUsed !== localGasUsed;
   }
 
-  private async requestApproval(txMeta: TransactionMeta) {
+  private async requestApproval(txMeta: TransactionMeta): Promise<AddResult> {
     const id = this.getApprovalId(txMeta);
     const { origin } = txMeta;
     const type = ApprovalType.Transaction;
     const requestData = { txId: txMeta.id };
 
-    return await this.messagingSystem.call(
+    return (await this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
         id,
         origin: origin || ORIGIN_METAMASK,
         type,
         requestData,
+        expectsResult: true,
       },
       true,
-    );
+    )) as Promise<AddResult>;
   }
 
   private getTransaction(transactionID: string): TransactionMeta | undefined {
