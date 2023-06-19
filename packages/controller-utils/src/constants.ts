@@ -46,6 +46,7 @@ export const TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL: {
   mainnet: '',
   rpc: '',
   localhost: '',
+  'linea-goerli': '',
 };
 
 // APIs

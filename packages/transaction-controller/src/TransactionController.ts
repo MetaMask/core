@@ -600,7 +600,7 @@ export class TransactionController extends BaseController<
       providerConfig: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
-    if (chain !== RPC) {
+    if (chain !== RPC && chain !== 'linea-goerli') {
       return new Common({ chain, hardfork: HARDFORK });
     }
 
@@ -1393,8 +1393,6 @@ export class TransactionController extends BaseController<
       if (updatedMeta && !isCompleted) {
         await this.approveTransaction(transactionId);
       }
-
-      resultCallbacks?.success();
     } catch (error: any) {
       const updatedMeta = this.getTransaction(transactionId);
 
@@ -1409,8 +1407,6 @@ export class TransactionController extends BaseController<
           this.failTransaction(updatedMeta, error);
         }
       }
-
-      resultCallbacks?.error(error);
     }
 
     if (rejected) {
@@ -1422,22 +1418,30 @@ export class TransactionController extends BaseController<
     const finalMeta = this.getTransaction(transactionId);
 
     if (finalMeta && finalMeta.status === TransactionStatus.failed) {
+      resultCallbacks?.error(finalMeta?.error);
       throw ethErrors.rpc.internal(finalMeta.error.message);
     }
 
     if (finalMeta?.status === TransactionStatus.cancelled) {
-      throw ethErrors.rpc.internal('User cancelled the transaction');
+      const error = ethErrors.rpc.internal('User cancelled the transaction');
+      resultCallbacks?.error(error);
+      throw error;
     }
 
     if (finalMeta && finalMeta.status === TransactionStatus.submitted) {
+      resultCallbacks?.success();
       return finalMeta.transactionHash as string;
     }
 
-    throw ethErrors.rpc.internal(
+    const error = ethErrors.rpc.internal(
       `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
         finalMeta || transactionId,
       )}`,
     );
+
+    resultCallbacks?.error(error);
+
+    throw error;
   }
 
   private async requestApproval(txMeta: TransactionMeta): Promise<AddResult> {
