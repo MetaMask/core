@@ -27,3 +27,9 @@ export class EndInvalidFlowError extends Error {
     );
   }
 }
+
+export class MissingApprovalFlowError extends Error {
+  constructor(id: string) {
+    super(`No approval flows found with id '${id}'.`);
+  }
+}
