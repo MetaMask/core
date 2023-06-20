@@ -10,6 +10,7 @@ import {
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { type } from 'os';
 
 /**
  * @type TypedMessage
@@ -103,6 +104,13 @@ export class TypedMessageManager extends AbstractMessageManager<
     if (version === 'V3' || version === 'V4') {
       const currentChainId = this.getCurrentChainId?.();
       validateTypedSignMessageDataV3V4(messageParams, currentChainId);
+    }
+
+    if (
+      typeof messageParams.data !== 'string' &&
+      (version === 'V3' || version === 'V4')
+    ) {
+      messageParams.data = JSON.stringify(messageParams.data);
     }
 
     const messageId = random();
