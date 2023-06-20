@@ -99,8 +99,10 @@ export function validateTypedSignMessageDataV3V4(
   validateAddress(messageData.from, 'from');
 
   if (
-    !messageData.data || Array.isArray(messageData.data) ||
-    (typeof messageData.data !== 'object' && typeof messageData.data !== 'string')
+    !messageData.data ||
+    Array.isArray(messageData.data) ||
+    (typeof messageData.data !== 'object' &&
+      typeof messageData.data !== 'string')
   ) {
     throw new Error(
       `Invalid message "data": ${messageData.data} must be a valid string or object.`,

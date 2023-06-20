@@ -10,7 +10,6 @@ import {
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
-import { type } from 'os';
 
 /**
  * @type TypedMessage
