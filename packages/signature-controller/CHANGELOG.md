@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.1]
-### Uncategorized
+### Fixed
 - Remove optional parameter from newUnsignedTypedMessage function ([#1436](https://github.com/MetaMask/core/pull/1436))
 
 ## [4.0.0]
