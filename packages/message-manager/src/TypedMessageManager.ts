@@ -34,6 +34,13 @@ export interface TypedMessage extends AbstractMessage {
   rawSig?: string;
 }
 
+export type SignTypedDataMessageV3V4 = {
+  types: Record<string, unknown>;
+  domain: Record<string, unknown>;
+  primaryType: string;
+  message: unknown;
+};
+
 /**
  * @type TypedMessageParams
  *
@@ -44,7 +51,7 @@ export interface TypedMessage extends AbstractMessage {
  * @property origin? - Added for request origin identification
  */
 export interface TypedMessageParams extends AbstractMessageParams {
-  data: Record<string, unknown>[] | string;
+  data: Record<string, unknown>[] | string | SignTypedDataMessageV3V4;
 }
 
 /**
