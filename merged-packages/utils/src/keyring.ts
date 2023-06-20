@@ -258,4 +258,9 @@ export type Keyring<State extends Json> = {
    * BIP39-compliant mnemonic.
    */
   generateRandomMnemonic?(): void;
+
+  /**
+   * Destroy the keyring.
+   */
+  destroy?(): Promise<void>;
 };
