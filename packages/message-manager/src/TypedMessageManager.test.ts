@@ -1,6 +1,7 @@
 import { TypedMessageManager } from './TypedMessageManager';
 
 let controller: TypedMessageManager;
+let getCurrentChainIdStub = jest.fn();
 
 const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 
@@ -51,7 +52,7 @@ const typedMessageV3V4 = {
 
 describe('TypedMessageManager', () => {
   beforeEach(() => {
-    controller = new TypedMessageManager();
+    controller = new TypedMessageManager(undefined, undefined, undefined, undefined, getCurrentChainIdStub);
   });
 
   it('should set default state', () => {
@@ -94,6 +95,25 @@ describe('TypedMessageManager', () => {
     expect(message.type).toBe(messageType);
   });
 
+  it('should throw when adding a valid unapproved message when getCurrentChainId is undefined', async () => {
+    controller = new TypedMessageManager();
+    const version = 'V3';
+    const messageData = JSON.stringify(typedMessageV3V4);
+    const messageParams = {
+      data: messageData,
+      from: fromMock,
+    };
+    const originalRequest = { origin: 'origin' };
+
+    await expect(
+      controller.addUnapprovedMessage(
+        messageParams,
+        originalRequest,
+        version,
+      )
+    ).rejects.toThrow("Current chainId cannot be null or undefined.");
+  });
+
   it('should add a valid unapproved message', async () => {
     const messageStatus = 'unapproved';
     const messageType = 'eth_signTypedData';
@@ -122,9 +142,10 @@ describe('TypedMessageManager', () => {
   });
 
   it('should add a valid V3 unapproved message as a string', async () => {
+    getCurrentChainIdStub.mockImplementation(() => 1);
     const messageStatus = 'unapproved';
     const messageType = 'eth_signTypedData';
-    const version = 'version';
+    const version = 'V3';
     const messageData = JSON.stringify(typedMessageV3V4);
     const messageParams = {
       data: messageData,
@@ -149,9 +170,10 @@ describe('TypedMessageManager', () => {
   });
 
   it('should add a valid V3 unapproved message as an object', async () => {
+    getCurrentChainIdStub.mockImplementation(() => 1);
     const messageStatus = 'unapproved';
     const messageType = 'eth_signTypedData';
-    const version = 'version';
+    const version = 'V3';
     const messageData = typedMessageV3V4;
     const messageParams = {
       data: messageData,
@@ -349,4 +371,5 @@ describe('TypedMessageManager', () => {
     }
     expect(message.status).toStrictEqual('errored');
   });
+
 });
