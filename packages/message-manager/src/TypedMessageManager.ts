@@ -68,7 +68,7 @@ export interface TypedMessageParams extends AbstractMessageParams {
  */
 export interface TypedMessageParamsMetamask
   extends AbstractMessageParamsMetamask {
-  data: Record<string, unknown>[] | string;
+  data: TypedMessageParams['data'];
   metamaskId?: string;
   error?: string;
   version?: string;
