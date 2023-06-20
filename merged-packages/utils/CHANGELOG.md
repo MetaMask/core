@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0]
+### Added
+- Add optional `destroy` method to `Keyring` type ([#108](https://github.com/MetaMask/utils/pull/108))
+
 ## [6.0.1]
 ### Fixed
 - Strip `__proto__` and `constructor` JSON properties in `getSafeJson` ([#105](https://github.com/MetaMask/utils/pull/105))
@@ -154,7 +158,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v6.1.0...HEAD
+[6.1.0]: https://github.com/MetaMask/utils/compare/v6.0.1...v6.1.0
 [6.0.1]: https://github.com/MetaMask/utils/compare/v6.0.0...v6.0.1
 [6.0.0]: https://github.com/MetaMask/utils/compare/v5.0.2...v6.0.0
 [5.0.2]: https://github.com/MetaMask/utils/compare/v5.0.1...v5.0.2
