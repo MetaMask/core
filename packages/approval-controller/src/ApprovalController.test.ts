@@ -586,19 +586,8 @@ describe('approval controller', () => {
     });
   });
 
-  describe('resolve', () => {
-    let numDeletions: number;
-    let deleteSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      // TODO: Stop using private methods in tests
-      deleteSpy = jest.spyOn(approvalController as any, '_delete');
-      numDeletions = 0;
-    });
-
+  describe('accept', () => {
     it('resolves approval promise', async () => {
-      numDeletions = 1;
-
       const approvalPromise = approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
@@ -608,12 +597,9 @@ describe('approval controller', () => {
 
       const result = await approvalPromise;
       expect(result).toStrictEqual('success');
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
 
     it('resolves multiple approval promises out of order', async () => {
-      numDeletions = 2;
-
       const approvalPromise1 = approvalController.add({
         id: 'foo1',
         origin: 'bar.baz',
@@ -634,69 +620,14 @@ describe('approval controller', () => {
 
       result = await approvalPromise1;
       expect(result).toStrictEqual('success1');
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
 
     it('throws on unknown id', () => {
       expect(() => approvalController.accept('foo')).toThrow(
         getIdNotFoundError('foo'),
       );
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
-    });
-  });
-
-  describe('reject', () => {
-    let numDeletions: number;
-    let deleteSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      // TODO: Stop using private methods in tests
-      deleteSpy = jest.spyOn(approvalController as any, '_delete');
-      numDeletions = 0;
     });
 
-    it('rejects approval promise', async () => {
-      numDeletions = 1;
-      const approvalPromise = approvalController.add({
-        id: 'foo',
-        origin: 'bar.baz',
-        type: TYPE,
-      });
-      approvalController.reject('foo', new Error('failure'));
-      await expect(approvalPromise).rejects.toThrow('failure');
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
-    });
-
-    it('rejects multiple approval promises out of order', async () => {
-      numDeletions = 2;
-
-      const rejectionPromise1 = approvalController.add({
-        id: 'foo1',
-        origin: 'bar.baz',
-        type: TYPE,
-      });
-      const rejectionPromise2 = approvalController.add({
-        id: 'foo2',
-        origin: 'bar.baz',
-        type: 'myType2',
-      });
-
-      approvalController.reject('foo2', new Error('failure2'));
-      approvalController.reject('foo1', new Error('failure1'));
-      await expect(rejectionPromise2).rejects.toThrow('failure2');
-      await expect(rejectionPromise1).rejects.toThrow('failure1');
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
-    });
-
-    it('throws on unknown id', () => {
-      expect(() => approvalController.reject('foo', new Error('bar'))).toThrow(
-        getIdNotFoundError('foo'),
-      );
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
-    });
-  });
-
-  describe('accept', () => {
     it('resolves accept promise when success callback is called', async () => {
       const approvalPromise = approvalController.add({
         id: ID_MOCK,
@@ -767,6 +698,108 @@ describe('approval controller', () => {
           waitForResult: true,
         }),
       ).rejects.toThrow(new ApprovalRequestNoResultSupportError(ID_MOCK));
+    });
+
+    it('deletes entry', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+
+      approvalController.accept('foo');
+
+      expect(
+        !approvalController.has({ id: 'foo' }) &&
+          !approvalController.has({ type: 'type' }) &&
+          !approvalController.has({ origin: 'bar.baz' }) &&
+          !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
+      ).toStrictEqual(true);
+    });
+
+    it('deletes one entry out of many without side-effects', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
+      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
+
+      approvalController.accept('fizz');
+
+      expect(
+        !approvalController.has({ id: 'fizz' }) &&
+          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+      ).toStrictEqual(true);
+
+      expect(
+        approvalController.has({ id: 'foo' }) &&
+          approvalController.has({ origin: 'bar.baz' }),
+      ).toStrictEqual(true);
+    });
+  });
+
+  describe('reject', () => {
+    it('rejects approval promise', async () => {
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
+      approvalController.reject('foo', new Error('failure'));
+      await expect(approvalPromise).rejects.toThrow('failure');
+    });
+
+    it('rejects multiple approval promises out of order', async () => {
+      const rejectionPromise1 = approvalController.add({
+        id: 'foo1',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
+      const rejectionPromise2 = approvalController.add({
+        id: 'foo2',
+        origin: 'bar.baz',
+        type: 'myType2',
+      });
+
+      approvalController.reject('foo2', new Error('failure2'));
+      approvalController.reject('foo1', new Error('failure1'));
+      await expect(rejectionPromise2).rejects.toThrow('failure2');
+      await expect(rejectionPromise1).rejects.toThrow('failure1');
+    });
+
+    it('throws on unknown id', () => {
+      expect(() => approvalController.reject('foo', new Error('bar'))).toThrow(
+        getIdNotFoundError('foo'),
+      );
+    });
+
+    it('deletes entry', () => {
+      approvalController
+        .add({ id: 'foo', origin: 'bar.baz', type: 'type' })
+        .catch(() => undefined);
+
+      approvalController.reject('foo', new Error('failure'));
+
+      expect(
+        !approvalController.has({ id: 'foo' }) &&
+          !approvalController.has({ type: 'type' }) &&
+          !approvalController.has({ origin: 'bar.baz' }) &&
+          !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
+      ).toStrictEqual(true);
+    });
+
+    it('deletes one entry out of many without side-effects', () => {
+      approvalController
+        .add({ id: 'foo', origin: 'bar.baz', type: 'type1' })
+        .catch(() => undefined);
+      approvalController
+        .add({ id: 'fizz', origin: 'bar.baz', type: 'type2' })
+        .catch(() => undefined);
+
+      approvalController.reject('fizz', new Error('failure'));
+
+      expect(
+        !approvalController.has({ id: 'fizz' }) &&
+          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+      ).toStrictEqual(true);
+
+      expect(
+        approvalController.has({ id: 'foo' }) &&
+          approvalController.has({ origin: 'bar.baz' }),
+      ).toStrictEqual(true);
     });
   });
 
@@ -898,41 +931,6 @@ describe('approval controller', () => {
           requestState: { foo: 'bar' },
         }),
       ).toThrow(getIdNotFoundError('foo'));
-    });
-  });
-
-  // We test this internal function before resolve, reject, and clear because
-  // they are heavily dependent upon it.
-  // TODO: Stop using private methods in tests
-  describe('_delete', () => {
-    it('deletes entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
-
-      (approvalController as any)._delete('foo');
-
-      expect(
-        !approvalController.has({ id: 'foo' }) &&
-          !approvalController.has({ type: 'type' }) &&
-          !approvalController.has({ origin: 'bar.baz' }) &&
-          !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
-      ).toStrictEqual(true);
-    });
-
-    it('deletes one entry out of many without side-effects', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
-      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
-
-      (approvalController as any)._delete('fizz');
-
-      expect(
-        !approvalController.has({ id: 'fizz' }) &&
-          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
-      ).toStrictEqual(true);
-
-      expect(
-        approvalController.has({ id: 'foo' }) &&
-          approvalController.has({ origin: 'bar.baz' }),
-      ).toStrictEqual(true);
     });
   });
 
