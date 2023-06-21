@@ -16,6 +16,11 @@ import {
 
 // Constants
 
+// Avoiding dependency on controller-utils
+export const ORIGIN_METAMASK = 'metamask';
+export const APPROVAL_TYPE_RESULT_ERROR = 'result_error';
+export const APPROVAL_TYPE_RESULT_SUCCESS = 'result_success';
+
 const controllerName = 'ApprovalController';
 
 const stateMetadata = {
@@ -53,6 +58,18 @@ type ApprovalCallbacks = {
 type ApprovalFlow = {
   id: string;
   loadingText: string | null;
+};
+
+type ResultOptions = {
+  /**
+   * The ID of an approval flow to end after showing the result.
+   */
+  flowToEnd?: string;
+
+  /**
+   * Text or components to display in the header of the result.
+   */
+  header?: (string | ResultComponent)[];
 };
 
 // Miscellaneous Types
@@ -115,6 +132,28 @@ export type ApprovalControllerMessenger = RestrictedControllerMessenger<
 
 export type ShowApprovalRequest = () => void | Promise<void>;
 
+export type ResultComponent = {
+  /**
+   * A unique identifier for this instance of the component.
+   */
+  key: string;
+
+  /**
+   * The name of the component to render.
+   */
+  name: string;
+
+  /**
+   * Any properties required by the component.
+   */
+  properties?: Record<string, unknown>;
+
+  /**
+   * Any child components to render inside the component.
+   */
+  children?: string | ResultComponent | (string | ResultComponent)[];
+};
+
 export type ApprovalControllerOptions = {
   messenger: ApprovalControllerMessenger;
   showApprovalRequest: ShowApprovalRequest;
@@ -153,6 +192,20 @@ export type StartFlowOptions = OptionalField<
 export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
 
 export type SetFlowLoadingTextOptions = ApprovalFlow;
+
+export type SuccessOptions = ResultOptions & {
+  /**
+   * The message text or components to display in the result.
+   */
+  message?: string | ResultComponent | (string | ResultComponent)[];
+};
+
+export type ErrorOptions = ResultOptions & {
+  /**
+   * The error message or components to display in the result.
+   */
+  error?: string | ResultComponent | (string | ResultComponent)[];
+};
 
 // Result Types
 
@@ -193,6 +246,10 @@ export type AcceptResult = {
 };
 
 export type ApprovalFlowStartResult = ApprovalFlow;
+
+export type SuccessResult = Record<string, never>;
+
+export type ErrorResult = Record<string, never>;
 
 // Event Types
 
@@ -258,6 +315,16 @@ export type SetFlowLoadingText = {
   handler: ApprovalController['setFlowLoadingText'];
 };
 
+export type ShowSuccess = {
+  type: `${typeof controllerName}:showSuccess`;
+  handler: ApprovalController['success'];
+};
+
+export type ShowError = {
+  type: `${typeof controllerName}:showError`;
+  handler: ApprovalController['error'];
+};
+
 export type ApprovalControllerActions =
   | GetApprovalsState
   | ClearApprovalRequests
@@ -268,7 +335,9 @@ export type ApprovalControllerActions =
   | UpdateRequestState
   | StartFlow
   | EndFlow
-  | SetFlowLoadingText;
+  | SetFlowLoadingText
+  | ShowSuccess
+  | ShowError;
 
 /**
  * Controller for managing requests that require user approval.
@@ -375,6 +444,16 @@ export class ApprovalController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:setFlowLoadingText` as const,
       this.setFlowLoadingText.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:showSuccess` as const,
+      this.success.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:showError` as const,
+      this.error.bind(this),
     );
   }
 
@@ -753,6 +832,22 @@ export class ApprovalController extends BaseControllerV2<
     });
   }
 
+  async success(opts: SuccessOptions = {}): Promise<SuccessResult> {
+    await this.#result(APPROVAL_TYPE_RESULT_SUCCESS, opts, {
+      message: opts.message,
+      header: opts.header,
+    } as any);
+    return {};
+  }
+
+  async error(opts: ErrorOptions = {}): Promise<ErrorResult> {
+    await this.#result(APPROVAL_TYPE_RESULT_ERROR, opts, {
+      error: opts.error,
+      header: opts.header,
+    } as any);
+    return {};
+  }
+
   /**
    * Implementation of add operation.
    *
@@ -948,6 +1043,30 @@ export class ApprovalController extends BaseControllerV2<
 
     this.#delete(id);
     return callbacks;
+  }
+
+  async #result(
+    type: string,
+    opts: ResultOptions,
+    requestData: Record<string, Json>,
+  ) {
+    try {
+      await this.addAndShowApprovalRequest({
+        origin: ORIGIN_METAMASK,
+        type,
+        requestData,
+      });
+    } catch (error) {
+      console.info('Failed to display result page', error);
+    } finally {
+      if (opts.flowToEnd) {
+        try {
+          this.endFlow({ id: opts.flowToEnd });
+        } catch (error) {
+          console.info('Failed to end flow', { id: opts.flowToEnd, error });
+        }
+      }
+    }
   }
 }
 
