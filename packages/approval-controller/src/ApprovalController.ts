@@ -61,14 +61,7 @@ type ApprovalFlow = {
 };
 
 type ResultOptions = {
-  /**
-   * The ID of an approval flow to end after showing the result.
-   */
   flowToEnd?: string;
-
-  /**
-   * Text or components to display in the header of the result.
-   */
   header?: (string | ResultComponent)[];
 };
 
@@ -194,16 +187,10 @@ export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
 export type SetFlowLoadingTextOptions = ApprovalFlow;
 
 export type SuccessOptions = ResultOptions & {
-  /**
-   * The message text or components to display in the result.
-   */
   message?: string | ResultComponent | (string | ResultComponent)[];
 };
 
 export type ErrorOptions = ResultOptions & {
-  /**
-   * The error message or components to display in the result.
-   */
   error?: string | ResultComponent | (string | ResultComponent)[];
 };
 
@@ -832,6 +819,15 @@ export class ApprovalController extends BaseControllerV2<
     });
   }
 
+  /**
+   * Show a success page.
+   *
+   * @param opts - Options bag.
+   * @param opts.message - The message text or components to display in the page.
+   * @param opts.header - The text or components to display in the header of the page.
+   * @param opts.flowToEnd - The ID of the approval flow to end once the success page is approved.
+   * @returns Empty object to support future additions.
+   */
   async success(opts: SuccessOptions = {}): Promise<SuccessResult> {
     await this.#result(APPROVAL_TYPE_RESULT_SUCCESS, opts, {
       message: opts.message,
@@ -840,6 +836,15 @@ export class ApprovalController extends BaseControllerV2<
     return {};
   }
 
+  /**
+   * Show an error page.
+   *
+   * @param opts - Options bag.
+   * @param opts.message - The message text or components to display in the page.
+   * @param opts.header - The text or components to display in the header of the page.
+   * @param opts.flowToEnd - The ID of the approval flow to end once the error page is approved.
+   * @returns Empty object to support future additions.
+   */
   async error(opts: ErrorOptions = {}): Promise<ErrorResult> {
     await this.#result(APPROVAL_TYPE_RESULT_ERROR, opts, {
       error: opts.error,
