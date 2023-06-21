@@ -47,11 +47,9 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
-    "@metamask/swappable-obj-proxy": "^2.1.0",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.24",
     "deepmerge": "^4.2.2",
-    "eth-block-tracker": "^7.0.1",
     "ethjs-provider-http": "^0.1.6",
     "jest": "^27.5.1",
     "sinon": "^9.2.4",
