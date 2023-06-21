@@ -1,7 +1,7 @@
 import { TypedMessageManager } from './TypedMessageManager';
 
 let controller: TypedMessageManager;
-let getCurrentChainIdStub = jest.fn();
+const getCurrentChainIdStub = jest.fn();
 
 const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 
@@ -52,7 +52,13 @@ const typedMessageV3V4 = {
 
 describe('TypedMessageManager', () => {
   beforeEach(() => {
-    controller = new TypedMessageManager(undefined, undefined, undefined, undefined, getCurrentChainIdStub);
+    controller = new TypedMessageManager(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      getCurrentChainIdStub,
+    );
   });
 
   it('should set default state', () => {
@@ -106,12 +112,8 @@ describe('TypedMessageManager', () => {
     const originalRequest = { origin: 'origin' };
 
     await expect(
-      controller.addUnapprovedMessage(
-        messageParams,
-        originalRequest,
-        version,
-      )
-    ).rejects.toThrow("Current chainId cannot be null or undefined.");
+      controller.addUnapprovedMessage(messageParams, originalRequest, version),
+    ).rejects.toThrow('Current chainId cannot be null or undefined.');
   });
 
   it('should add a valid unapproved message', async () => {
@@ -371,5 +373,4 @@ describe('TypedMessageManager', () => {
     }
     expect(message.status).toStrictEqual('errored');
   });
-
 });
