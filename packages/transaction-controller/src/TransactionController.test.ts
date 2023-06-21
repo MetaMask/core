@@ -1,5 +1,4 @@
 import * as sinon from 'sinon';
-import { PollingBlockTracker } from 'eth-block-tracker';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 import {
@@ -9,19 +8,18 @@ import {
   ApprovalType,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
-import type {
-  BlockTrackerProxy,
-  NetworkState,
-  ProviderProxy,
-} from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
+import type {
+  BlockTracker,
+  NetworkState,
+  Provider,
+} from '@metamask/network-controller';
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
   RejectRequest as RejectApprovalRequest,
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import {
@@ -156,10 +154,10 @@ function mockFetchWithDynamicResponse(dataForUrl: any) {
  * always return.
  * @returns The mocked block tracker.
  */
-function buildMockBlockTracker(latestBlockNumber: string): BlockTrackerProxy {
+function buildMockBlockTracker(latestBlockNumber: string): BlockTracker {
   const fakeBlockTracker = new FakeBlockTracker();
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
-  return createEventEmitterProxy<PollingBlockTracker>(fakeBlockTracker);
+  return fakeBlockTracker;
 }
 
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
@@ -174,8 +172,8 @@ const PALM_PROVIDER = new HttpProvider(
 );
 
 type MockNetwork = {
-  provider: ProviderProxy;
-  blockTracker: BlockTrackerProxy;
+  provider: Provider;
+  blockTracker: BlockTracker;
   state: NetworkState;
   subscribe: (listener: (state: NetworkState) => void) => void;
 };
