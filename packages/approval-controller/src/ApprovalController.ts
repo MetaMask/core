@@ -14,7 +14,28 @@ import {
   MissingApprovalFlowError,
 } from './errors';
 
+// Constants
+
 const controllerName = 'ApprovalController';
+
+const stateMetadata = {
+  pendingApprovals: { persist: false, anonymous: true },
+  pendingApprovalCount: { persist: false, anonymous: false },
+  approvalFlows: { persist: false, anonymous: false },
+};
+
+const getAlreadyPendingMessage = (origin: string, type: string) =>
+  `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
+
+const getDefaultState = (): ApprovalControllerState => {
+  return {
+    pendingApprovals: {},
+    pendingApprovalCount: 0,
+    approvalFlows: [],
+  };
+};
+
+// Internal Types
 
 type ApprovalPromiseResolve = (value?: unknown | AddResult) => void;
 
@@ -28,6 +49,13 @@ type ApprovalCallbacks = {
   resolve: ApprovalPromiseResolve;
   reject: ApprovalPromiseReject;
 };
+
+type ApprovalFlow = {
+  id: string;
+  loadingText: string | null;
+};
+
+// Miscellaneous Types
 
 export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
   /**
@@ -67,13 +95,6 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
   expectsResult: boolean;
 };
 
-type ShowApprovalRequest = () => void | Promise<void>;
-
-type ApprovalFlow = {
-  id: string;
-  loadingText: string | null;
-};
-
 export type ApprovalFlowState = ApprovalFlow;
 
 export type ApprovalControllerState = {
@@ -82,34 +103,26 @@ export type ApprovalControllerState = {
   approvalFlows: ApprovalFlowState[];
 };
 
-const stateMetadata = {
-  pendingApprovals: { persist: false, anonymous: true },
-  pendingApprovalCount: { persist: false, anonymous: false },
-  approvalFlows: { persist: false, anonymous: false },
+export type ApprovalControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  ApprovalControllerActions,
+  ApprovalControllerEvents,
+  string,
+  string
+>;
+
+// Option Types
+
+export type ShowApprovalRequest = () => void | Promise<void>;
+
+export type ApprovalControllerOptions = {
+  messenger: ApprovalControllerMessenger;
+  showApprovalRequest: ShowApprovalRequest;
+  state?: Partial<ApprovalControllerState>;
+  typesExcludedFromRateLimiting?: string[];
 };
 
-const getAlreadyPendingMessage = (origin: string, type: string) =>
-  `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
-
-const getDefaultState = (): ApprovalControllerState => {
-  return {
-    pendingApprovals: {},
-    pendingApprovalCount: 0,
-    approvalFlows: [],
-  };
-};
-
-export type GetApprovalsState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => ApprovalControllerState;
-};
-
-export type ClearApprovalRequests = {
-  type: `${typeof controllerName}:clearRequests`;
-  handler: (error: EthereumRpcError<unknown>) => void;
-};
-
-type AddApprovalOptions = {
+export type AddApprovalOptions = {
   id?: string;
   origin: string;
   type: string;
@@ -118,37 +131,9 @@ type AddApprovalOptions = {
   expectsResult?: boolean;
 };
 
-export type AddApprovalRequest = {
-  type: `${typeof controllerName}:addRequest`;
-  handler: (
-    opts: AddApprovalOptions,
-    shouldShowRequest: boolean,
-  ) => ReturnType<ApprovalController['add']>;
-};
-
-export type HasApprovalRequest = {
-  type: `${typeof controllerName}:hasRequest`;
-  handler: ApprovalController['has'];
-};
-
-export type AcceptRequest = {
-  type: `${typeof controllerName}:acceptRequest`;
-  handler: ApprovalController['accept'];
-};
-
-export type RejectRequest = {
-  type: `${typeof controllerName}:rejectRequest`;
-  handler: ApprovalController['reject'];
-};
-
-type UpdateRequestStateOptions = {
+export type UpdateRequestStateOptions = {
   id: string;
   requestState: Record<string, Json>;
-};
-
-export type UpdateRequestState = {
-  type: `${typeof controllerName}:updateRequestState`;
-  handler: ApprovalController['updateRequestState'];
 };
 
 export type AcceptOptions = {
@@ -160,12 +145,16 @@ export type AcceptOptions = {
   waitForResult?: boolean;
 };
 
-export type AcceptResult = {
-  /**
-   * An optional value provided by the request creator when indicating a successful result.
-   */
-  value?: unknown;
-};
+export type StartFlowOptions = OptionalField<
+  ApprovalFlow,
+  'id' | 'loadingText'
+>;
+
+export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
+
+export type SetFlowLoadingTextOptions = ApprovalFlow;
+
+// Result Types
 
 export type AcceptResultCallbacks = {
   /**
@@ -196,16 +185,63 @@ export type AddResult = {
   resultCallbacks?: AcceptResultCallbacks;
 };
 
-export type StartFlowOptions = OptionalField<
-  ApprovalFlow,
-  'id' | 'loadingText'
->;
+export type AcceptResult = {
+  /**
+   * An optional value provided by the request creator when indicating a successful result.
+   */
+  value?: unknown;
+};
 
 export type ApprovalFlowStartResult = ApprovalFlow;
 
-export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
+// Event Types
 
-export type SetFlowLoadingTextOptions = ApprovalFlow;
+export type ApprovalStateChange = {
+  type: `${typeof controllerName}:stateChange`;
+  payload: [ApprovalControllerState, Patch[]];
+};
+
+export type ApprovalControllerEvents = ApprovalStateChange;
+
+// Action Types
+
+export type GetApprovalsState = {
+  type: `${typeof controllerName}:getState`;
+  handler: () => ApprovalControllerState;
+};
+
+export type ClearApprovalRequests = {
+  type: `${typeof controllerName}:clearRequests`;
+  handler: (error: EthereumRpcError<unknown>) => void;
+};
+
+export type AddApprovalRequest = {
+  type: `${typeof controllerName}:addRequest`;
+  handler: (
+    opts: AddApprovalOptions,
+    shouldShowRequest: boolean,
+  ) => ReturnType<ApprovalController['add']>;
+};
+
+export type HasApprovalRequest = {
+  type: `${typeof controllerName}:hasRequest`;
+  handler: ApprovalController['has'];
+};
+
+export type AcceptRequest = {
+  type: `${typeof controllerName}:acceptRequest`;
+  handler: ApprovalController['accept'];
+};
+
+export type RejectRequest = {
+  type: `${typeof controllerName}:rejectRequest`;
+  handler: ApprovalController['reject'];
+};
+
+export type UpdateRequestState = {
+  type: `${typeof controllerName}:updateRequestState`;
+  handler: ApprovalController['updateRequestState'];
+};
 
 export type StartFlow = {
   type: `${typeof controllerName}:startFlow`;
@@ -233,28 +269,6 @@ export type ApprovalControllerActions =
   | StartFlow
   | EndFlow
   | SetFlowLoadingText;
-
-export type ApprovalStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [ApprovalControllerState, Patch[]];
-};
-
-export type ApprovalControllerEvents = ApprovalStateChange;
-
-export type ApprovalControllerMessenger = RestrictedControllerMessenger<
-  typeof controllerName,
-  ApprovalControllerActions,
-  ApprovalControllerEvents,
-  string,
-  string
->;
-
-type ApprovalControllerOptions = {
-  messenger: ApprovalControllerMessenger;
-  showApprovalRequest: ShowApprovalRequest;
-  state?: Partial<ApprovalControllerState>;
-  typesExcludedFromRateLimiting?: string[];
-};
 
 /**
  * Controller for managing requests that require user approval.
