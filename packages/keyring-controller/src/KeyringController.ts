@@ -1,15 +1,10 @@
-import type {
+import {
   MetaMaskKeyring as QRKeyring,
-  IKeyringState as IQRKeyringState,
+  type IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import { isValidHexAddress } from '@metamask/controller-utils';
 import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
-import {
-  normalize as normalizeAddress,
-  signTypedData,
-} from '@metamask/eth-sig-util';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
@@ -24,8 +19,19 @@ import {
   stripHexPrefix,
   getBinarySize,
 } from 'ethereumjs-util';
+import { isValidHexAddress } from '@metamask/controller-utils';
+import {
+  type Hex,
+  type Keyring as KeyringObject,
+  type Json,
+} from '@metamask/utils';
+import {
+  normalize as normalizeAddress,
+  signTypedData,
+} from '@metamask/eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
+import type { TxData, TypedTransaction } from '@ethereumjs/tx';
 
 const name = 'KeyringController';
 
@@ -36,20 +42,6 @@ export enum KeyringTypes {
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
-}
-
-/**
- * @type KeyringObject
- *
- * Keyring object
- * @property type - Keyring type
- * @property accounts - Associated accounts
- * @function getAccounts - Get associated accounts
- */
-export interface KeyringObject {
-  type: string;
-  accounts: string[];
-  getAccounts(): string[];
 }
 
 /**
@@ -125,7 +117,9 @@ export type KeyringControllerOptions = {
   setSelectedAddress: PreferencesController['setSelectedAddress'];
   setAccountLabel?: PreferencesController['setAccountLabel'];
   encryptor?: any;
-  keyringBuilders?: any[];
+  keyringBuilders?:
+    | { (): KeyringObject<Json>; type: string }
+    | ConcatArray<{ (): KeyringObject<Json>; type: string }>;
   cacheEncryptionKey?: boolean;
   messenger: KeyringControllerMessenger;
   state?: Partial<KeyringControllerState>;
@@ -169,6 +163,33 @@ const defaultState: KeyringControllerState = {
 };
 
 /**
+ * Type guard for checking if a keyring has an exportable
+ * mnemonic.
+ *
+ * @param keyring - The keyring to check
+ * @returns Whether the keyring has a mnemonic
+ */
+function hasMnemonic(
+  keyring: KeyringObject<Json>,
+): keyring is KeyringObject<Json> & { mnemonic: unknown } {
+  return 'mnemonic' in keyring;
+}
+
+/**
+ * Type guard for checking if a keyring is a QRKeyring.
+ * This is needed as currently `@keystonehq/metamask-airgapped-keyring`
+ * is not compatible with the `Keyring` type from `@metamask/utils`.
+ *
+ * @param keyring - The keyring to check
+ * @returns Whether the keyring is a QRKeyring
+ */
+function isQRKeyring(
+  keyring: KeyringObject<Json> | QRKeyring,
+): keyring is QRKeyring {
+  return keyring instanceof QRKeyring;
+}
+
+/**
  * Controller responsible for establishing and managing user identity.
  *
  * This class is a wrapper around the `eth-keyring-controller` package. The
@@ -194,7 +215,7 @@ export class KeyringController extends BaseControllerV2<
 
   private readonly setAccountLabel?: PreferencesController['setAccountLabel'];
 
-  #keyring: typeof EthKeyringController;
+  #keyring: EthKeyringController;
 
   /**
    * Creates a KeyringController instance.
@@ -218,8 +239,8 @@ export class KeyringController extends BaseControllerV2<
     setSelectedAddress,
     setAccountLabel,
     encryptor,
-    keyringBuilders,
-    cacheEncryptionKey,
+    keyringBuilders = [],
+    cacheEncryptionKey = false,
     messenger,
     state,
   }: KeyringControllerOptions) {
@@ -240,12 +261,13 @@ export class KeyringController extends BaseControllerV2<
       },
     });
 
-    this.#keyring = new EthKeyringController(
-      Object.assign(
-        { initState: state },
-        { encryptor, keyringBuilders, cacheEncryptionKey },
-      ),
-    );
+    this.#keyring = new EthKeyringController({
+      // @ts-expect-error - This is a valid type
+      initState: state,
+      encryptor,
+      keyringBuilders,
+      cacheEncryptionKey,
+    });
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.on('lock', this.#handleLock.bind(this));
@@ -298,6 +320,10 @@ export class KeyringController extends BaseControllerV2<
     const addedAccountAddress = newAccounts.find(
       (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
     );
+
+    if (!addedAccountAddress) {
+      throw new Error('Could not find added account');
+    }
     return {
       keyringState: this.#getMemState(),
       addedAccountAddress,
@@ -393,8 +419,11 @@ export class KeyringController extends BaseControllerV2<
    * @param password - Password of the keyring.
    * @returns Promise resolving to the seed phrase.
    */
-  async exportSeedPhrase(password: string) {
+  async exportSeedPhrase(password: string): Promise<unknown> {
     await this.verifyPassword(password);
+    if (!hasMnemonic(this.#keyring.keyrings[0])) {
+      throw new Error(`Can't get seed phrase from HD Key Tree`);
+    }
     return this.#keyring.keyrings[0].mnemonic;
   }
 
@@ -429,7 +458,7 @@ export class KeyringController extends BaseControllerV2<
    * @param account - An account address.
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
-  async getKeyringForAccount(account: string): Promise<unknown> {
+  async getKeyringForAccount(account: string): Promise<KeyringObject<Json>> {
     return this.#keyring.getKeyringForAccount(account);
   }
 
@@ -442,7 +471,7 @@ export class KeyringController extends BaseControllerV2<
    * @param type - Keyring type name.
    * @returns An array of keyrings of the given type.
    */
-  getKeyringsByType(type: KeyringTypes | string): unknown[] {
+  getKeyringsByType(type: KeyringTypes | string): KeyringObject<Json>[] {
     return this.#keyring.getKeyringsByType(type);
   }
 
@@ -502,9 +531,9 @@ export class KeyringController extends BaseControllerV2<
       default:
         throw new Error(`Unexpected import strategy: '${strategy}'`);
     }
-    const newKeyring = await this.#keyring.addNewKeyring(KeyringTypes.simple, [
-      privateKey,
-    ]);
+    const newKeyring = await this.#keyring.addNewKeyring(KeyringTypes.simple, {
+      privateKeys: [privateKey],
+    });
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
@@ -521,7 +550,7 @@ export class KeyringController extends BaseControllerV2<
    * @fires KeyringController:accountRemoved
    * @returns Promise resolving current state when this account removal completes.
    */
-  async removeAccount(address: string): Promise<KeyringControllerMemState> {
+  async removeAccount(address: Hex): Promise<KeyringControllerMemState> {
     this.removeIdentity(address);
     await this.#keyring.removeAccount(address);
     this.messagingSystem.publish(`${name}:accountRemoved`, address);
@@ -533,8 +562,9 @@ export class KeyringController extends BaseControllerV2<
    *
    * @returns Promise resolving to current state.
    */
-  setLocked(): Promise<KeyringControllerMemState> {
-    return this.#keyring.setLocked();
+  async setLocked(): Promise<KeyringControllerMemState> {
+    await this.#keyring.setLocked();
+    return this.#getMemState();
   }
 
   /**
@@ -579,26 +609,37 @@ export class KeyringController extends BaseControllerV2<
           `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
         );
       }
-      const qrKeyring = await this.getOrAddQRKeyring();
-      const qrAccounts = await qrKeyring.getAccounts();
-      if (
-        qrAccounts.findIndex(
-          (qrAddress: string) =>
-            qrAddress.toLowerCase() === address.toLowerCase(),
-        ) !== -1
-      ) {
-        const messageParamsClone = { ...messageParams };
+
+      if ((await this.getAccountKeyringType(address)) === KeyringTypes.qr) {
+        const qrKeyring = await this.getOrAddQRKeyring();
+        const qrAccounts = await qrKeyring.getAccounts();
         if (
-          version !== SignTypedDataVersion.V1 &&
-          typeof messageParamsClone.data === 'string'
+          qrAccounts.findIndex(
+            (qrAddress: string) =>
+              qrAddress.toLowerCase() === address.toLowerCase(),
+          ) !== -1
         ) {
-          messageParamsClone.data = JSON.parse(messageParamsClone.data);
+          return this.#keyring.signTypedMessage(
+            {
+              from: messageParams.from,
+              data:
+                version !== SignTypedDataVersion.V1 &&
+                typeof messageParams.data === 'string'
+                  ? JSON.parse(messageParams.data)
+                  : messageParams.data,
+            },
+            { version },
+          );
         }
-        return this.#keyring.signTypedMessage(messageParamsClone, { version });
       }
 
-      const { password } = this.#keyring;
-      const privateKey = await this.exportAccount(password, address);
+      if (!this.#keyring.password) {
+        throw new Error('Keyring must be unlocked to sign typed message.');
+      }
+      const privateKey = await this.exportAccount(
+        this.#keyring.password,
+        address,
+      );
       const privateKeyBuffer = toBuffer(addHexPrefix(privateKey));
       switch (version) {
         case SignTypedDataVersion.V1:
@@ -634,7 +675,10 @@ export class KeyringController extends BaseControllerV2<
    * @param from - Address to sign from, should be in keychain.
    * @returns Promise resolving to a signed transaction string.
    */
-  signTransaction(transaction: unknown, from: string) {
+  signTransaction(
+    transaction: TypedTransaction,
+    from: string,
+  ): Promise<TxData> {
     return this.#keyring.signTransaction(transaction, from);
   }
 
@@ -680,7 +724,10 @@ export class KeyringController extends BaseControllerV2<
       throw new Error('No HD keyring found.');
     }
 
-    const seedWords = primaryKeyring.mnemonic;
+    if (!hasMnemonic(primaryKeyring)) {
+      throw new Error('Cannot find HD keyring seed phrase.');
+    }
+    const seedWords = primaryKeyring.mnemonic as Uint8Array;
     const accounts = await primaryKeyring.getAccounts();
     /* istanbul ignore if */
     if (accounts.length === 0) {
@@ -690,7 +737,13 @@ export class KeyringController extends BaseControllerV2<
     const hdKeyringBuilder = this.#keyring.getKeyringBuilderForType(
       KeyringTypes.hd,
     );
+    if (!hdKeyringBuilder) {
+      throw new Error('Cannot find HD keyring builder.');
+    }
+
     const hdKeyring = hdKeyringBuilder();
+    // @ts-expect-error @metamask/eth-hd-keyring correctly handles
+    // Uint8Array seed phrases in the `deserialize` method.
     hdKeyring.deserialize({
       mnemonic: seedWords,
       numberOfAccounts: accounts.length,
@@ -717,8 +770,10 @@ export class KeyringController extends BaseControllerV2<
    * Add qr hardware keyring.
    *
    * @returns The added keyring
+   * @throws If a QRKeyring builder is not provided
+   * when initializing the controller
    */
-  private async addQRKeyring(): Promise<QRKeyring> {
+  private async addQRKeyring(): Promise<KeyringObject<Json>> {
     return this.#keyring.addNewKeyring(KeyringTypes.qr);
   }
 
@@ -728,8 +783,14 @@ export class KeyringController extends BaseControllerV2<
    * @returns The added keyring
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
-    const keyring = this.#keyring.getKeyringsByType(KeyringTypes.qr)[0];
-    return keyring || (await this.addQRKeyring());
+    const keyring =
+      this.#keyring.getKeyringsByType(KeyringTypes.qr)[0] ||
+      (await this.addQRKeyring());
+
+    if (!isQRKeyring(keyring)) {
+      throw new Error('QR keyring not found');
+    }
+    return keyring;
   }
 
   async restoreQRKeyring(serialized: any): Promise<void> {
@@ -807,7 +868,9 @@ export class KeyringController extends BaseControllerV2<
 
     keyring.setAccountToUnlock(index);
     const oldAccounts = await this.#keyring.getAccounts();
-    await this.#keyring.addNewAccount(keyring);
+    await this.#keyring.addNewAccount(
+      keyring as unknown as KeyringObject<Json>,
+    );
     const newAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(newAccounts);
     newAccounts.forEach((address: string) => {
@@ -821,7 +884,7 @@ export class KeyringController extends BaseControllerV2<
     await this.#keyring.persistAllKeyrings();
   }
 
-  async getAccountKeyringType(account: string): Promise<KeyringTypes> {
+  async getAccountKeyringType(account: string): Promise<string> {
     return (await this.#keyring.getKeyringForAccount(account)).type;
   }
 
