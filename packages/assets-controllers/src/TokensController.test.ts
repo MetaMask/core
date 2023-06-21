@@ -24,7 +24,6 @@ import {
 } from './TokensController';
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
-import { TokenListController } from './TokenListController';
 
 jest.mock('uuid', () => {
   return {
