@@ -774,7 +774,11 @@ export class KeyringController extends BaseControllerV2<
    * when initializing the controller
    */
   private async addQRKeyring(): Promise<KeyringObject<Json>> {
-    return this.#keyring.addNewKeyring(KeyringTypes.qr);
+    // we need to pass an empty array of accounts as options
+    // otherwise `eth-keyring-controller` will apply `{}` as default and
+    // pass it to `QRKeyring.deserialize` method, that will cause
+    // `QRKeyring.accounts` var to be set to `undefined`.
+    return this.#keyring.addNewKeyring(KeyringTypes.qr, { accounts: [] });
   }
 
   /**
