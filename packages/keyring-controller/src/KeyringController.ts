@@ -262,7 +262,9 @@ export class KeyringController extends BaseControllerV2<
     });
 
     this.#keyring = new EthKeyringController({
-      // @ts-expect-error - This is a valid type
+      // @ts-expect-error - `eth-keyring-controller` expects a `Keyring` class
+      // but we can't use the type from `@metamask/utils` because it's not
+      // compatible with `BaseControllerV2` as it is not assignable to type `Json`
       initState: state,
       encryptor,
       keyringBuilders,
