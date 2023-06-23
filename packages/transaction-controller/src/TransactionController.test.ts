@@ -904,6 +904,39 @@ describe('TransactionController', () => {
         expect(status).toBe(TransactionStatus.submitted);
       });
 
+      it('reports success to approval acceptor', async () => {
+        const controller = newController({ approve: true });
+
+        const { result } = await controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        });
+
+        await result;
+
+        expect(resultCallbacksMock.success).toHaveBeenCalledTimes(1);
+      });
+
+      it('reports error to approval acceptor on error', async () => {
+        const controller = newController({
+          approve: true,
+          config: { sign: undefined },
+        });
+
+        const { result } = await controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        });
+
+        try {
+          await result;
+        } catch {
+          // Expected error
+        }
+
+        expect(resultCallbacksMock.error).toHaveBeenCalledTimes(1);
+      });
+
       describe('fails', () => {
         /**
          * Test template to assert adding and submitting a transaction fails.
@@ -959,6 +992,29 @@ describe('TransactionController', () => {
           });
 
           await expectTransactionToFail(controller, 'No chainId defined');
+        });
+
+        it('if unexpected status', async () => {
+          const controller = newController();
+
+          (
+            delayMessengerMock.call as jest.MockedFunction<any>
+          ).mockImplementationOnce(() => {
+            controller.state.transactions[0].status =
+              TransactionStatus.confirmed;
+
+            throw new Error('TestError');
+          });
+
+          const { result } = await controller.addTransaction({
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          });
+
+          await expect(result).rejects.toThrow('Unknown problem');
         });
       });
     });
