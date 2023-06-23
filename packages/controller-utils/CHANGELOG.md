@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.1]
-### Uncategorized
-- fix(controller-utils): Fix query function ([#1447](https://github.com/MetaMask/core/pull/1447))
+### Changed
+- Add dependencies `eth-query` and `babel-runtime` ([#1447](https://github.com/MetaMask/core/pull/1447))
+
+### Fixed
+- Fix bug where query function failed to call built-in EthQuery methods ([#1447](https://github.com/MetaMask/core/pull/1447))
 
 ## [4.0.0]
 ### Added
