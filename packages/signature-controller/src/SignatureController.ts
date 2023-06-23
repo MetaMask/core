@@ -536,15 +536,21 @@ export class SignatureController extends BaseControllerV2<
 
     try {
       const cleanMessageParams = await messageManager.approveMessage(msgParams);
-      const signature = await getSignature(cleanMessageParams);
 
-      this.hub.emit(`${methodName}:signed`, { signature, messageId });
+      try {
+        const signature = await getSignature(cleanMessageParams);
 
-      if (!cleanMessageParams.deferSetAsSigned) {
-        messageManager.setMessageStatusSigned(messageId, signature);
+        this.hub.emit(`${methodName}:signed`, { signature, messageId });
+
+        if (!cleanMessageParams.deferSetAsSigned) {
+          messageManager.setMessageStatusSigned(messageId, signature);
+        }
+
+        return signature;
+      } catch (error) {
+        this.hub.emit(`${messageId}:signError`, { error });
+        throw error;
       }
-
-      return signature;
     } catch (error: any) {
       console.info(`MetaMaskController - ${methodName} failed.`, error);
       this.#errorMessage(messageManager, messageId, error.message);

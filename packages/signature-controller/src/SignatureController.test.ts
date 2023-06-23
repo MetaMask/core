@@ -375,6 +375,9 @@ describe('SignatureController', () => {
       (keyringControllerMock as any).signMessage.mockRejectedValueOnce(
         keyringErrorMock,
       );
+      const listenerMock = jest.fn();
+      signatureController.hub.on(`${messageIdMock}:signError`, listenerMock);
+
       const error: any = await getError(
         async () =>
           await signatureController.newUnsignedMessage(
@@ -383,6 +386,10 @@ describe('SignatureController', () => {
           ),
       );
 
+      expect(listenerMock).toHaveBeenCalledTimes(1);
+      expect(listenerMock).toHaveBeenCalledWith({
+        error,
+      });
       expect(error.message).toBe(keyringErrorMessageMock);
       expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
       expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
