@@ -468,6 +468,7 @@ describe('SignatureController', () => {
         messageParamsMock,
         requestMock,
         versionMock,
+        { parseJsonData: false },
       );
 
       expect(
@@ -507,6 +508,7 @@ describe('SignatureController', () => {
         messageParamsMock,
         requestMock,
         versionMock,
+        { parseJsonData: false },
       );
 
       expect(
@@ -528,6 +530,7 @@ describe('SignatureController', () => {
         messageParamsMock,
         requestMock,
         'V2',
+        { parseJsonData: true },
       );
 
       expect(keyringControllerMock.signTypedMessage).toHaveBeenCalledTimes(1);
@@ -545,6 +548,7 @@ describe('SignatureController', () => {
             messageParamsMock,
             requestMock,
             versionMock,
+            { parseJsonData: true },
           ),
       );
       expect(error instanceof EthereumProviderError).toBe(true);
@@ -564,6 +568,7 @@ describe('SignatureController', () => {
             messageParamsMock,
             requestMock,
             versionMock,
+            { parseJsonData: true },
           ),
       );
       expect(error.message).toBe(keyringErrorMessageMock);

@@ -333,12 +333,15 @@ export class SignatureController extends BaseControllerV2<
    * @param messageParams - The params passed to eth_signTypedData.
    * @param req - The original request, containing the origin.
    * @param version - The version indicating the format of the typed data.
+   * @param signingOpts - An options bag for signing.
+   * @param signingOpts.parseJsonData - Whether to parse the JSON before signing.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async newUnsignedTypedMessage(
     messageParams: TypedMessageParams,
     req: OriginalRequest,
     version: string,
+    signingOpts: TypedMessageSigningOptions,
   ): Promise<string> {
     return this.#newUnsignedAbstractMessage(
       this.#typedMessageManager,
@@ -349,9 +352,7 @@ export class SignatureController extends BaseControllerV2<
       req,
       undefined,
       version,
-      {
-        parseJsonData: true,
-      },
+      signingOpts,
     );
   }
 
@@ -474,18 +475,16 @@ export class SignatureController extends BaseControllerV2<
    */
   async #signTypedMessage(
     msgParams: TypedMessageParamsMetamask,
-    opts?: TypedMessageSigningOptions,
+    /* istanbul ignore next */
+    opts = { parseJsonData: true },
   ): Promise<any> {
+    const { version } = msgParams;
     return await this.#signAbstractMessage(
       this.#typedMessageManager,
       ApprovalType.EthSignTypedData,
       msgParams,
       async (cleanMsgParams) => {
-        const { version } = msgParams;
-        // Options will allways be defined, but we want to satisfy the TS
-        // hence we ignore the branch here
-        /* istanbul ignore next */
-        const finalMessageParams = opts?.parseJsonData
+        const finalMessageParams = opts.parseJsonData
           ? this.#removeJsonData(cleanMsgParams, version as string)
           : cleanMsgParams;
 
