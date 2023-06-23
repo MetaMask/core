@@ -2885,6 +2885,9 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller, messenger }) => {
+            setFakeProvider(controller, {
+              stubLookupNetworkWhileSetting: true,
+            });
             const promiseForNoStateChanges = waitForStateChanges({
               messenger,
               count: 0,
@@ -2910,6 +2913,10 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
+            setFakeProvider(controller, {
+              stubLookupNetworkWhileSetting: true,
+            });
+
             const isEIP1559Compatible =
               await controller.getEIP1559Compatibility();
 
@@ -5112,6 +5119,52 @@ describe('NetworkController', () => {
           },
         );
       });
+    });
+  });
+
+  describe('loadBackup', () => {
+    it('merges the network configurations from the given backup into state', async () => {
+      await withController(
+        {
+          state: {
+            networkConfigurations: {
+              networkConfigurationId1: {
+                id: 'networkConfigurationId1',
+                rpcUrl: 'https://rpc-url1.com',
+                chainId: toHex(1),
+                ticker: 'TEST1',
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          controller.loadBackup({
+            networkConfigurations: {
+              networkConfigurationId2: {
+                id: 'networkConfigurationId2',
+                rpcUrl: 'https://rpc-url2.com',
+                chainId: toHex(2),
+                ticker: 'TEST2',
+              },
+            },
+          });
+
+          expect(controller.state.networkConfigurations).toStrictEqual({
+            networkConfigurationId1: {
+              id: 'networkConfigurationId1',
+              rpcUrl: 'https://rpc-url1.com',
+              chainId: toHex(1),
+              ticker: 'TEST1',
+            },
+            networkConfigurationId2: {
+              id: 'networkConfigurationId2',
+              rpcUrl: 'https://rpc-url2.com',
+              chainId: toHex(2),
+              ticker: 'TEST2',
+            },
+          });
+        },
+      );
     });
   });
 });
