@@ -47,5 +47,7 @@ declare module 'eth-query' {
       opts: Partial<SendAsyncPayload<Params>>,
       callback: SendAsyncCallback<Result>,
     ): void;
+
+    [method: string]: (...args: any[]) => void;
   }
 }
