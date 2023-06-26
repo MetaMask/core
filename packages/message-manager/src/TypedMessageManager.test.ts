@@ -143,7 +143,7 @@ describe('TypedMessageManager', () => {
     expect(message.type).toBe(messageType);
   });
 
-  it('should add a valid V3 unapproved message as a string', async () => {
+  it('should add a valid V3 unapproved message as a JSON-parseable string', async () => {
     getCurrentChainIdStub.mockImplementation(() => 1);
     const messageStatus = 'unapproved';
     const messageType = 'eth_signTypedData';
