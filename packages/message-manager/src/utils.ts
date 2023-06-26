@@ -105,7 +105,7 @@ export function validateTypedSignMessageDataV3V4(
       typeof messageData.data !== 'string')
   ) {
     throw new Error(
-      `Invalid message "data": ${messageData.data} must be a valid string or object.`,
+      `Invalid message "data": Must be a valid string or object.`,
     );
   }
 
