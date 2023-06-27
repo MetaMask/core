@@ -6,6 +6,7 @@ export const InfuraNetworkType = {
   goerli: 'goerli',
   sepolia: 'sepolia',
   'linea-goerli': 'linea-goerli',
+  'linea-mainnet': 'linea-mainnet',
 } as const;
 
 export type InfuraNetworkType =
@@ -40,8 +41,9 @@ export enum BuiltInNetworkName {
   Mainnet = 'mainnet',
   Goerli = 'goerli',
   Sepolia = 'sepolia',
-  Aurora = 'aurora',
   LineaGoerli = 'linea-goerli',
+  LineaMainnet = 'linea-mainnet',
+  Aurora = 'aurora',
 }
 
 /**
@@ -55,6 +57,7 @@ export const ChainId = {
   [BuiltInNetworkName.Sepolia]: '0xaa36a7', // toHex(11155111)
   [BuiltInNetworkName.Aurora]: '0x4e454152', // toHex(1313161554)
   [BuiltInNetworkName.LineaGoerli]: '0xe704', // toHex(59140)
+  [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
 } as const;
 export type ChainId = typeof ChainId[keyof typeof ChainId];
 
@@ -73,5 +76,6 @@ export enum NetworksTicker {
   goerli = 'GoerliETH',
   sepolia = 'SepoliaETH',
   'linea-goerli' = 'LineaETH',
+  'linea-mainnet' = 'ETH',
   rpc = '',
 }
