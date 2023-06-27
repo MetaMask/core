@@ -439,50 +439,57 @@ describe('util', () => {
   describe('query', () => {
     describe('when the given method exists directly on the EthQuery', () => {
       it('should call the method on the EthQuery and, if it is successful, return a promise that resolves to the result', async () => {
-        const ethQuery = {
-          getBlockByHash: (blockId: any, cb: any) => cb(null, { id: blockId }),
-        };
+        class EthQuery {
+          getBlockByHash(blockId: any, cb: any) {
+            cb(null, { id: blockId });
+          }
+        }
         // @ts-expect-error Mock eth query does not fulfill type requirements
-        const result = await util.query(ethQuery, 'getBlockByHash', ['0x1234']);
+        const result = await util.query(new EthQuery(), 'getBlockByHash', [
+          '0x1234',
+        ]);
         expect(result).toStrictEqual({ id: '0x1234' });
       });
 
       it('should call the method on the EthQuery and, if it errors, return a promise that is rejected with the error', async () => {
-        const ethQuery = {
-          getBlockByHash: (_blockId: any, cb: any) =>
-            cb(new Error('uh oh'), null),
-        };
+        class EthQuery {
+          getBlockByHash(_blockId: any, cb: any) {
+            cb(new Error('uh oh'), null);
+          }
+        }
         await expect(
           // @ts-expect-error Mock eth query does not fulfill type requirements
-          util.query(ethQuery, 'getBlockByHash', ['0x1234']),
+          util.query(new EthQuery(), 'getBlockByHash', ['0x1234']),
         ).rejects.toThrow('uh oh');
       });
     });
 
     describe('when the given method does not exist directly on the EthQuery', () => {
       it('should use sendAsync to call the RPC endpoint and, if it is successful, return a promise that resolves to the result', async () => {
-        const ethQuery = {
-          sendAsync: ({ method, params }: any, cb: any) => {
+        class EthQuery {
+          sendAsync({ method, params }: any, cb: any) {
             if (method === 'eth_getBlockByHash') {
               return cb(null, { id: params[0] });
             }
             throw new Error(`Unsupported method ${method}`);
-          },
-        };
-        const result = await util.query(ethQuery, 'eth_getBlockByHash', [
+          }
+        }
+        // @ts-expect-error Mock eth query does not fulfill type requirements
+        const result = await util.query(new EthQuery(), 'eth_getBlockByHash', [
           '0x1234',
         ]);
         expect(result).toStrictEqual({ id: '0x1234' });
       });
 
       it('should use sendAsync to call the RPC endpoint and, if it errors, return a promise that is rejected with the error', async () => {
-        const ethQuery = {
-          sendAsync: (_args: any, cb: any) => {
+        class EthQuery {
+          sendAsync(_args: any, cb: any) {
             cb(new Error('uh oh'), null);
-          },
-        };
+          }
+        }
         await expect(
-          util.query(ethQuery, 'eth_getBlockByHash', ['0x1234']),
+          // @ts-expect-error Mock eth query does not fulfill type requirements
+          util.query(new EthQuery(), 'eth_getBlockByHash', ['0x1234']),
         ).rejects.toThrow('uh oh');
       });
     });
