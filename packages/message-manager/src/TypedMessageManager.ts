@@ -33,6 +33,13 @@ export interface TypedMessage extends AbstractMessage {
   rawSig?: string;
 }
 
+export type SignTypedDataMessageV3V4 = {
+  types: Record<string, unknown>;
+  domain: Record<string, unknown>;
+  primaryType: string;
+  message: unknown;
+};
+
 /**
  * @type TypedMessageParams
  *
@@ -43,7 +50,7 @@ export interface TypedMessage extends AbstractMessage {
  * @property origin? - Added for request origin identification
  */
 export interface TypedMessageParams extends AbstractMessageParams {
-  data: Record<string, unknown>[] | string;
+  data: Record<string, unknown>[] | string | SignTypedDataMessageV3V4;
 }
 
 /**
@@ -61,7 +68,7 @@ export interface TypedMessageParams extends AbstractMessageParams {
  */
 export interface TypedMessageParamsMetamask
   extends AbstractMessageParamsMetamask {
-  data: Record<string, unknown>[] | string;
+  data: TypedMessageParams['data'];
   metamaskId?: string;
   error?: string;
   version?: string;
@@ -103,6 +110,13 @@ export class TypedMessageManager extends AbstractMessageManager<
     if (version === 'V3' || version === 'V4') {
       const currentChainId = this.getCurrentChainId?.();
       validateTypedSignMessageDataV3V4(messageParams, currentChainId);
+    }
+
+    if (
+      typeof messageParams.data !== 'string' &&
+      (version === 'V3' || version === 'V4')
+    ) {
+      messageParams.data = JSON.stringify(messageParams.data);
     }
 
     const messageId = random();
