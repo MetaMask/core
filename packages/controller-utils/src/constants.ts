@@ -45,6 +45,7 @@ export const ASSET_TYPES = {
 export const TESTNET_TICKER_SYMBOLS = {
   GOERLI: 'GoerliETH',
   SEPOLIA: 'SepoliaETH',
+  LINEA_GOERLI: 'LineaETH',
 };
 
 /**
@@ -82,6 +83,13 @@ export const BUILT_IN_NETWORKS = {
     ticker: NetworksTicker['linea-goerli'],
     rpcPrefs: {
       blockExplorerUrl: 'https://explorer.goerli.linea.build',
+    },
+  },
+  [NetworkType['linea-mainnet']]: {
+    chainId: NetworksChainId['linea-mainnet'],
+    ticker: NetworksTicker['linea-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: 'https://lineascan.build',
     },
   },
   [NetworkType.rpc]: {
