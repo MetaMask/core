@@ -8,12 +8,15 @@ const blockTrackerEvents: (string | symbol)[] = ['sync', 'latest'];
 
 interface BaseBlockTrackerArgs {
   blockResetDuration?: number;
+  usePastBlocks?: boolean;
 }
 
 export abstract class BaseBlockTracker extends SafeEventEmitter {
   protected _isRunning: boolean;
 
   private _blockResetDuration: number;
+
+  private _usePastBlocks: boolean;
 
   private _currentBlock: string | null;
 
@@ -24,6 +27,7 @@ export abstract class BaseBlockTracker extends SafeEventEmitter {
 
     // config
     this._blockResetDuration = opts.blockResetDuration || 20 * sec;
+    this._usePastBlocks = opts.usePastBlocks || false;
     // state
     this._currentBlock = null;
     this._isRunning = false;
@@ -142,10 +146,22 @@ export abstract class BaseBlockTracker extends SafeEventEmitter {
       .reduce(calculateSum);
   }
 
-  protected _newPotentialLatest(newBlock: string): void {
+  protected _shouldUseNewBlock(newBlock: string) {
     const currentBlock = this._currentBlock;
-    // only update if blok number is higher
-    if (currentBlock && hexToInt(newBlock) <= hexToInt(currentBlock)) {
+    if (!currentBlock) {
+      return true;
+    }
+    const newBlockInt = hexToInt(newBlock);
+    const currentBlockInt = hexToInt(currentBlock);
+
+    return (
+      (this._usePastBlocks && newBlockInt < currentBlockInt) ||
+      newBlockInt > currentBlockInt
+    );
+  }
+
+  protected _newPotentialLatest(newBlock: string): void {
+    if (!this._shouldUseNewBlock(newBlock)) {
       return;
     }
     this._setCurrentBlock(newBlock);
