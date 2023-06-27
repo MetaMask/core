@@ -47,6 +47,7 @@ jobs:
             ./packages/**/dist
             ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
+          fail-on-cache-miss: true
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
         uses: MetaMask/action-npm-publish@v4
@@ -70,6 +71,7 @@ jobs:
             ./packages/**/dist
             ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
+          fail-on-cache-miss: true
       - name: Publish
         uses: MetaMask/action-npm-publish@v3
         with:
