@@ -333,15 +333,12 @@ export class SignatureController extends BaseControllerV2<
    * @param messageParams - The params passed to eth_signTypedData.
    * @param req - The original request, containing the origin.
    * @param version - The version indicating the format of the typed data.
-   * @param signingOpts - An options bag for signing.
-   * @param signingOpts.parseJsonData - Whether to parse the JSON before signing.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async newUnsignedTypedMessage(
     messageParams: TypedMessageParams,
     req: OriginalRequest,
     version: string,
-    signingOpts: TypedMessageSigningOptions,
   ): Promise<string> {
     return this.#newUnsignedAbstractMessage(
       this.#typedMessageManager,
@@ -352,7 +349,9 @@ export class SignatureController extends BaseControllerV2<
       req,
       undefined,
       version,
-      signingOpts,
+      {
+        parseJsonData: true,
+      },
     );
   }
 

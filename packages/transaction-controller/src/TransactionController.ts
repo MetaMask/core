@@ -15,9 +15,9 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import type {
+  BlockTracker,
   NetworkState,
-  ProviderProxy,
-  BlockTrackerProxy,
+  Provider,
 } from '@metamask/network-controller';
 import {
   BNToHex,
@@ -308,7 +308,7 @@ export class TransactionController extends BaseController<
 
   private registry: any;
 
-  private provider: ProviderProxy;
+  private provider: Provider;
 
   private handle?: ReturnType<typeof setTimeout>;
 
@@ -469,8 +469,8 @@ export class TransactionController extends BaseController<
     }: {
       getNetworkState: () => NetworkState;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
-      provider: ProviderProxy;
-      blockTracker: BlockTrackerProxy;
+      provider: Provider;
+      blockTracker: BlockTracker;
       messenger: TransactionControllerMessenger;
     },
     config?: Partial<TransactionConfig>,
