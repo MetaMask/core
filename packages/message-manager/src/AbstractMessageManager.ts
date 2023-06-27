@@ -36,6 +36,7 @@ export interface AbstractMessage {
   rawSig?: string;
   securityProviderResponse?: Record<string, Json>;
   metadata?: Json;
+  error?: string;
 }
 
 /**
@@ -371,12 +372,68 @@ export abstract class AbstractMessageManager<
   abstract prepMessageForSigning(messageParams: PM): Promise<P>;
 
   /**
+   * Creates a new Message with an 'unapproved' status using the passed messageParams.
+   * this.addMessage is called to add the new Message to this.messages, and to save the
+   * unapproved Messages.
+   *
+   * @param messageParams - Message parameters for the message to add
+   * @param req - The original request object possibly containing the origin.
+   * @param version? - The version of the JSON RPC protocol the request is using.
+   * @returns The id of the newly created message.
+   */
+  abstract addUnapprovedMessage(
+    messageParams: PM,
+    request: OriginalRequest,
+    version?: string,
+  ): Promise<string>;
+
+  /**
    * Sets a Message status to 'rejected' via a call to this.setMessageStatus.
    *
    * @param messageId - The id of the Message to reject.
    */
   rejectMessage(messageId: string) {
     this.setMessageStatus(messageId, 'rejected');
+  }
+
+  /**
+   * Creates a promise which will resolve or reject when the message process is finished.
+   *
+   * @param messageParamsWithId - The params for the personal_sign call to be made after the message is approved.
+   * @param messageName - The name of the message
+   * @returns Promise resolving to the raw data of the signature request.
+   */
+  async waitForFinishStatus(
+    messageParamsWithId: AbstractMessageParamsMetamask,
+    messageName: string,
+  ): Promise<string> {
+    const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
+    return new Promise((resolve, reject) => {
+      this.hub.once(`${messageId}:finished`, (data: AbstractMessage) => {
+        switch (data.status) {
+          case 'signed':
+            return resolve(data.rawSig as string);
+          case 'rejected':
+            return reject(
+              new Error(
+                `MetaMask ${messageName} Signature: User denied message signature.`,
+              ),
+            );
+          case 'errored':
+            return reject(
+              new Error(`MetaMask ${messageName} Signature: ${data.error}`),
+            );
+          default:
+            return reject(
+              new Error(
+                `MetaMask ${messageName} Signature: Unknown problem: ${JSON.stringify(
+                  messageParams,
+                )}`,
+              ),
+            );
+        }
+      });
+    });
   }
 }
 

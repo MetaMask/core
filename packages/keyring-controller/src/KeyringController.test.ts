@@ -25,6 +25,7 @@ import {
   KeyringControllerState,
   KeyringTypes,
   KeyringControllerOptions,
+  KeyringControllerActions,
 } from './KeyringController';
 
 jest.mock('uuid', () => {
@@ -670,6 +671,22 @@ describe('KeyringController', () => {
           '0x51253087e6f8358b5f10c0a94315d69db3357859',
         );
         expect(controller.state).toStrictEqual(initialState);
+      });
+    });
+
+    it('should emit `accountRemoved` event', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await controller.importAccountWithStrategy(
+          AccountImportStrategy.privateKey,
+          [privateKey],
+        );
+        const listener = sinon.spy();
+        messenger.subscribe('KeyringController:accountRemoved', listener);
+
+        const removedAccount = '0x51253087e6f8358b5f10c0a94315d69db3357859';
+        await controller.removeAccount(removedAccount);
+
+        expect(listener.calledWith(removedAccount)).toBe(true);
       });
     });
 
@@ -1663,7 +1680,10 @@ type WithControllerArgs<ReturnValue> =
  * @returns The controller messenger.
  */
 function buildMessenger() {
-  return new ControllerMessenger<never, KeyringControllerEvents>();
+  return new ControllerMessenger<
+    KeyringControllerActions,
+    KeyringControllerEvents
+  >();
 }
 
 /**
@@ -1680,6 +1700,7 @@ function buildKeyringControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
+      'KeyringController:accountRemoved',
     ],
   });
 }
