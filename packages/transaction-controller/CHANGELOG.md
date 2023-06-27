@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.0.0]
-### Uncategorized
-- Await approval promise in TransactionController ([#1435](https://github.com/MetaMask/controllers.git/pull/1435))
+### Changed
+- **BREAKING**: Change the approveTransaction and cancelTransaction methods to private ([#1435](https://github.com/MetaMask/core/pull/1435))
+  - Consumers should migrate from use of these methods to use of `processApproval`. 
+- Update the TransactionController to await the approval request promise before automatically performing the relevant logic, either signing and submitting the transaction, or cancelling it ([#1435](https://github.com/MetaMask/core/pull/1435))
 
 ## [6.1.0]
 ### Changed
@@ -82,13 +84,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/transaction-controller@7.0.0...HEAD
-[7.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/transaction-controller@6.1.0...@metamask/transaction-controller@7.0.0
-[6.1.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/transaction-controller@6.0.0...@metamask/transaction-controller@6.1.0
-[6.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/transaction-controller@5.0.0...@metamask/transaction-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/transaction-controller@4.0.1...@metamask/transaction-controller@5.0.0
-[4.0.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/transaction-controller@4.0.0...@metamask/transaction-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/transaction-controller@3.0.0...@metamask/transaction-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/transaction-controller@2.0.0...@metamask/transaction-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/transaction-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@6.1.0...@metamask/transaction-controller@7.0.0
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@6.0.0...@metamask/transaction-controller@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@5.0.0...@metamask/transaction-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.0.1...@metamask/transaction-controller@5.0.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@4.0.0...@metamask/transaction-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@3.0.0...@metamask/transaction-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@2.0.0...@metamask/transaction-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/transaction-controller@1.0.0
