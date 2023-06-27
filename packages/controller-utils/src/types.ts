@@ -7,7 +7,8 @@ export type NetworkType =
   | 'goerli'
   | 'sepolia'
   | 'rpc'
-  | 'linea-goerli';
+  | 'linea-goerli'
+  | 'linea-mainnet';
 
 export enum NetworksChainId {
   mainnet = '1',
@@ -16,6 +17,7 @@ export enum NetworksChainId {
   localhost = '',
   rpc = '',
   'linea-goerli' = '',
+  'linea-mainnet' = '',
 }
 
 export type Json =
