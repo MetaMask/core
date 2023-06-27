@@ -18,6 +18,39 @@
 >
 > `workspaceName` in these commands is the `name` field within a package's `package.json`, e.g., `@metamask/address-book-controller`, not the directory where it is located, e.g., `packages/address-book-controller`.
 
+## Linting
+
+Run `yarn lint` to lint all files and show possible violations.
+
+Run `yarn lint:fix` to fix any automatically fixable violations.
+
+## Performing operations across the monorepo
+
+This repository relies on Yarn's [workspaces feature](https://yarnpkg.com/features/workspaces) to provide a way to work with packages individually and collectively. Refer to the documentation for the following Yarn commands for usage instructions:
+
+- [`yarn workspace`](https://yarnpkg.com/cli/workspace)
+- [`yarn workspaces foreach`](https://yarnpkg.com/cli/workspaces/foreach)
+
+> **Note**
+>
+> - `workspaceName` in the Yarn documentation is the `name` field within a package's `package.json`, e.g., `@metamask/address-book-controller`, not the directory where it is located, e.g., `packages/address-book-controller`.
+> - `commandName` in the Yarn documentation is any sub-command that the `yarn` executable would usually take. Pay special attention to the difference between `run` vs `exec`. If you want to run a package script, you would use `run`, e.g., `yarn workspace @metamask/address-book-controller run changelog:validate`; but if you want to run _any_ shell command, you'd use `exec`, e.g. `yarn workspace @metamask/address-book-controller exec cat package.json | jq '.version'`.
+
+## Creating pull requests
+
+When submitting a pull request for this repo, take some a bit of extra time to fill out its description. Use the provided template as a guide, paying particular attention to two sections:
+
+- **Explanation**: This section is targeted toward maintainers and is intended for you to explain the purpose and scope of your changes and share knowledge that they might not be able to see from reading the PR alone. Some questions you should seek to answer are:
+  - What is the motivator for these changes? What need are the changes satisfying? Is there a ticket you can share or can you provide some more context for people who might not be familiar with the domain?
+  - Are there any changes in particular whose purpose might not be obvious or whose implementation might be difficult to decipher? How do they work?
+  - If your primary goal was to update one package but you found you had to update another one along the way, why did you do so?
+  - If you had to upgrade a dependency, why did you do so?
+- **Changelog:** This section is targeted toward consumers — internal developers of the extension or mobile app in addition to external dapp developers — and is intended to be a list of your changes from the perspective of each package in the monorepo. Questions you should seek to answer are:
+  - Which packages are being updated?
+  - What are the _exact_ changes to the API (types, interfaces, functions, methods) that are being changed?
+  - What are the anticipated effects to whichever platform might want to make use of these changes?
+  - If there are breaking changes to the API, what do consumers need to do in order to adapt to those changes upon upgrading to them?
+
 ## Using packages in other projects during development/testing
 
 When developing changes to packages within this repository that a different project depends upon, you may wish to load those changes into the project and test them locally or in CI before publishing proper releases of those packages. To solve that problem, this repository provides a mechanism to publish "preview" versions of packages to GitHub Package Registry. These versions can then be used in the project like any other version, provided the project is configured to use that registry.
@@ -100,24 +133,6 @@ If you're a contributor and you've forked this repository, you can create previe
 5. Switch back to your project and update `package.json` by replacing the versions for all packages you've changed using the version that was output in the previous step, then run `yarn install`.
 6. If you make any new changes to your project, repeat steps 3-5 to generate and use new preview versions.
 7. As changes will have been made to this repository (due to step 4), make sure to clear out those changes after you've completed testing.
-
-## Linting
-
-Run `yarn lint` to lint all files and show possible violations.
-
-Run `yarn lint:fix` to fix any automatically fixable violations.
-
-## Performing operations across the monorepo
-
-This repository relies on Yarn's [workspaces feature](https://yarnpkg.com/features/workspaces) to provide a way to work with packages individually and collectively. Refer to the documentation for the following Yarn commands for usage instructions:
-
-- [`yarn workspace`](https://yarnpkg.com/cli/workspace)
-- [`yarn workspaces foreach`](https://yarnpkg.com/cli/workspaces/foreach)
-
-> **Note**
->
-> - `workspaceName` in the Yarn documentation is the `name` field within a package's `package.json`, e.g., `@metamask/address-book-controller`, not the directory where it is located, e.g., `packages/address-book-controller`.
-> - `commandName` in the Yarn documentation is any sub-command that the `yarn` executable would usually take. Pay special attention to the difference between `run` vs `exec`. If you want to run a package script, you would use `run`, e.g., `yarn workspace @metamask/address-book-controller run changelog:validate`; but if you want to run _any_ shell command, you'd use `exec`, e.g. `yarn workspace @metamask/address-book-controller exec cat package.json | jq '.version'`.
 
 ## Releasing
 

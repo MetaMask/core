@@ -1,4 +1,5 @@
 import { BN } from 'ethereumjs-util';
+import type EthQuery from 'eth-query';
 import {
   query,
   handleFetch,
@@ -116,7 +117,7 @@ export async function fetchLegacyGasPriceEstimates(
  * @returns A gas price estimate.
  */
 export async function fetchEthGasPriceEstimate(
-  ethQuery: any,
+  ethQuery: EthQuery,
 ): Promise<EthGasPriceEstimate> {
   const gasPrice = await query(ethQuery, 'gasPrice');
   return {

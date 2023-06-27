@@ -1,29 +1,208 @@
+/* eslint-disable jest/expect-expect */
+
 import { errorCodes, EthereumRpcError } from 'eth-rpc-errors';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
+  APPROVAL_TYPE_RESULT_ERROR,
+  APPROVAL_TYPE_RESULT_SUCCESS,
   ApprovalController,
   ApprovalControllerActions,
   ApprovalControllerEvents,
   ApprovalControllerMessenger,
+  ORIGIN_METAMASK,
   StartFlowOptions,
 } from './ApprovalController';
 import {
   ApprovalRequestNoResultSupportError,
   EndInvalidFlowError,
+  MissingApprovalFlowError,
   NoApprovalFlowsError,
 } from './errors';
 
+jest.mock('nanoid', () => ({
+  nanoid: jest.fn(() => 'TestId'),
+}));
+
 const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
-
 const TYPE = 'TYPE';
 const ID_MOCK = 'TestId';
 const ORIGIN_MOCK = 'TestOrigin';
 const VALUE_MOCK = 'TestValue';
 const RESULT_MOCK = 'TestResult';
 const ERROR_MOCK = new Error('TestError');
+const FLOW_ID_MOCK = 'TestFlowId';
+const MESSAGE_MOCK = 'TestMessage';
+const ERROR_MESSAGE_MOCK = 'TestErrorMessage';
+const RESULT_COMPONENT_MOCK = {
+  key: 'testKey',
+  name: 'TestComponentName',
+  properties: { testProp: 'testPropValue' },
+  children: ['testChild1', 'testChild2'],
+};
+const SUCCESS_OPTIONS_MOCK = {
+  message: MESSAGE_MOCK,
+  header: [RESULT_COMPONENT_MOCK],
+};
+const ERROR_OPTIONS_MOCK = {
+  error: ERROR_MESSAGE_MOCK,
+  header: [RESULT_COMPONENT_MOCK],
+};
 
 const controllerName = 'ApprovalController';
+
+/**
+ * Get an ID collision error.
+ *
+ * @param id - The ID with a collision.
+ * @returns The ID collision error.
+ */
+function getIdCollisionError(id: string) {
+  return getError(
+    `Approval request with id '${id}' already exists.`,
+    errorCodes.rpc.internal,
+  );
+}
+
+/**
+ * Get an origin type collision error.
+ *
+ * @param origin - The origin.
+ * @param type - The type.
+ * @returns An origin type collision error.
+ */
+function getOriginTypeCollisionError(origin: string, type = TYPE) {
+  const message = `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
+  return getError(message, errorCodes.rpc.resourceUnavailable);
+}
+
+/**
+ * Get an invalid ID error.
+ *
+ * @returns An invalid ID error.
+ */
+function getInvalidIdError() {
+  return getError('Must specify non-empty string id.', errorCodes.rpc.internal);
+}
+
+/**
+ * Get an "ID not found" error.
+ *
+ * @param id - The ID that was not found.
+ * @returns An "ID not found" error.
+ */
+function getIdNotFoundError(id: string) {
+  return getError(`Approval request with id '${id}' not found.`);
+}
+
+/**
+ * Get an invalid ID type error.
+ *
+ * @returns An invalid ID type error.
+ */
+function getInvalidHasIdError() {
+  return getError('May not specify non-string id.');
+}
+
+/**
+ * Get an invalid origin type error.
+ *
+ * @returns The invalid origin type error.
+ */
+function getInvalidHasOriginError() {
+  return getError('May not specify non-string origin.');
+}
+
+/**
+ * Get an invalid type error.
+ *
+ * @returns The invalid type error.
+ */
+function getInvalidHasTypeError() {
+  return getError('May not specify non-string type.');
+}
+
+/**
+ * Get an invalid origin error.
+ *
+ * @returns The invalid origin error.
+ */
+function getInvalidOriginError() {
+  return getError(
+    'Must specify non-empty string origin.',
+    errorCodes.rpc.internal,
+  );
+}
+
+/**
+ * Get an invalid request data error.
+ *
+ * @returns The invalid request data error.
+ */
+function getInvalidRequestDataError() {
+  return getError(
+    'Request data must be a plain object if specified.',
+    errorCodes.rpc.internal,
+  );
+}
+
+/**
+ * Get an invalid request state error.
+ *
+ * @returns The invalid request data error.
+ */
+function getInvalidRequestStateError() {
+  return getError(
+    'Request state must be a plain object if specified.',
+    errorCodes.rpc.internal,
+  );
+}
+
+/**
+ * Get an invalid type error.
+ *
+ * @param code - The error code.
+ * @returns The invalid type error.
+ */
+function getInvalidTypeError(code: number) {
+  return getError('Must specify non-empty string type.', code);
+}
+
+/**
+ * Get an invalid params error.
+ *
+ * @returns The invalid params error.
+ */
+function getInvalidHasParamsError() {
+  return getError('Must specify a valid combination of id, origin, and type.');
+}
+
+/**
+ * Get an invalid approval count params error.
+ *
+ * @returns The invalid approval count params error.
+ */
+function getApprovalCountParamsError() {
+  return getError('Must specify origin, type, or both.');
+}
+
+/**
+ * Get an error.
+ *
+ * @param message - The error message.
+ * @param code - The error code.
+ * @returns An Error.
+ */
+function getError(message: string, code?: number) {
+  const err: any = {
+    name: 'Error',
+    message,
+  };
+  if (code !== undefined) {
+    err.code = code;
+  }
+  return err;
+}
 
 /**
  * Constructs a restricted controller messenger.
@@ -585,19 +764,8 @@ describe('approval controller', () => {
     });
   });
 
-  describe('resolve', () => {
-    let numDeletions: number;
-    let deleteSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      // TODO: Stop using private methods in tests
-      deleteSpy = jest.spyOn(approvalController as any, '_delete');
-      numDeletions = 0;
-    });
-
+  describe('accept', () => {
     it('resolves approval promise', async () => {
-      numDeletions = 1;
-
       const approvalPromise = approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
@@ -607,12 +775,9 @@ describe('approval controller', () => {
 
       const result = await approvalPromise;
       expect(result).toStrictEqual('success');
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
 
     it('resolves multiple approval promises out of order', async () => {
-      numDeletions = 2;
-
       const approvalPromise1 = approvalController.add({
         id: 'foo1',
         origin: 'bar.baz',
@@ -633,69 +798,14 @@ describe('approval controller', () => {
 
       result = await approvalPromise1;
       expect(result).toStrictEqual('success1');
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
     });
 
     it('throws on unknown id', () => {
       expect(() => approvalController.accept('foo')).toThrow(
         getIdNotFoundError('foo'),
       );
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
-    });
-  });
-
-  describe('reject', () => {
-    let numDeletions: number;
-    let deleteSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      // TODO: Stop using private methods in tests
-      deleteSpy = jest.spyOn(approvalController as any, '_delete');
-      numDeletions = 0;
     });
 
-    it('rejects approval promise', async () => {
-      numDeletions = 1;
-      const approvalPromise = approvalController.add({
-        id: 'foo',
-        origin: 'bar.baz',
-        type: TYPE,
-      });
-      approvalController.reject('foo', new Error('failure'));
-      await expect(approvalPromise).rejects.toThrow('failure');
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
-    });
-
-    it('rejects multiple approval promises out of order', async () => {
-      numDeletions = 2;
-
-      const rejectionPromise1 = approvalController.add({
-        id: 'foo1',
-        origin: 'bar.baz',
-        type: TYPE,
-      });
-      const rejectionPromise2 = approvalController.add({
-        id: 'foo2',
-        origin: 'bar.baz',
-        type: 'myType2',
-      });
-
-      approvalController.reject('foo2', new Error('failure2'));
-      approvalController.reject('foo1', new Error('failure1'));
-      await expect(rejectionPromise2).rejects.toThrow('failure2');
-      await expect(rejectionPromise1).rejects.toThrow('failure1');
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
-    });
-
-    it('throws on unknown id', () => {
-      expect(() => approvalController.reject('foo', new Error('bar'))).toThrow(
-        getIdNotFoundError('foo'),
-      );
-      expect(deleteSpy).toHaveBeenCalledTimes(numDeletions);
-    });
-  });
-
-  describe('accept', () => {
     it('resolves accept promise when success callback is called', async () => {
       const approvalPromise = approvalController.add({
         id: ID_MOCK,
@@ -766,6 +876,108 @@ describe('approval controller', () => {
           waitForResult: true,
         }),
       ).rejects.toThrow(new ApprovalRequestNoResultSupportError(ID_MOCK));
+    });
+
+    it('deletes entry', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+
+      approvalController.accept('foo');
+
+      expect(
+        !approvalController.has({ id: 'foo' }) &&
+          !approvalController.has({ type: 'type' }) &&
+          !approvalController.has({ origin: 'bar.baz' }) &&
+          !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
+      ).toStrictEqual(true);
+    });
+
+    it('deletes one entry out of many without side-effects', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
+      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
+
+      approvalController.accept('fizz');
+
+      expect(
+        !approvalController.has({ id: 'fizz' }) &&
+          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+      ).toStrictEqual(true);
+
+      expect(
+        approvalController.has({ id: 'foo' }) &&
+          approvalController.has({ origin: 'bar.baz' }),
+      ).toStrictEqual(true);
+    });
+  });
+
+  describe('reject', () => {
+    it('rejects approval promise', async () => {
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
+      approvalController.reject('foo', new Error('failure'));
+      await expect(approvalPromise).rejects.toThrow('failure');
+    });
+
+    it('rejects multiple approval promises out of order', async () => {
+      const rejectionPromise1 = approvalController.add({
+        id: 'foo1',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
+      const rejectionPromise2 = approvalController.add({
+        id: 'foo2',
+        origin: 'bar.baz',
+        type: 'myType2',
+      });
+
+      approvalController.reject('foo2', new Error('failure2'));
+      approvalController.reject('foo1', new Error('failure1'));
+      await expect(rejectionPromise2).rejects.toThrow('failure2');
+      await expect(rejectionPromise1).rejects.toThrow('failure1');
+    });
+
+    it('throws on unknown id', () => {
+      expect(() => approvalController.reject('foo', new Error('bar'))).toThrow(
+        getIdNotFoundError('foo'),
+      );
+    });
+
+    it('deletes entry', () => {
+      approvalController
+        .add({ id: 'foo', origin: 'bar.baz', type: 'type' })
+        .catch(() => undefined);
+
+      approvalController.reject('foo', new Error('failure'));
+
+      expect(
+        !approvalController.has({ id: 'foo' }) &&
+          !approvalController.has({ type: 'type' }) &&
+          !approvalController.has({ origin: 'bar.baz' }) &&
+          !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
+      ).toStrictEqual(true);
+    });
+
+    it('deletes one entry out of many without side-effects', () => {
+      approvalController
+        .add({ id: 'foo', origin: 'bar.baz', type: 'type1' })
+        .catch(() => undefined);
+      approvalController
+        .add({ id: 'fizz', origin: 'bar.baz', type: 'type2' })
+        .catch(() => undefined);
+
+      approvalController.reject('fizz', new Error('failure'));
+
+      expect(
+        !approvalController.has({ id: 'fizz' }) &&
+          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+      ).toStrictEqual(true);
+
+      expect(
+        approvalController.has({ id: 'foo' }) &&
+          approvalController.has({ origin: 'bar.baz' }),
+      ).toStrictEqual(true);
     });
   });
 
@@ -900,41 +1112,6 @@ describe('approval controller', () => {
     });
   });
 
-  // We test this internal function before resolve, reject, and clear because
-  // they are heavily dependent upon it.
-  // TODO: Stop using private methods in tests
-  describe('_delete', () => {
-    it('deletes entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
-
-      (approvalController as any)._delete('foo');
-
-      expect(
-        !approvalController.has({ id: 'foo' }) &&
-          !approvalController.has({ type: 'type' }) &&
-          !approvalController.has({ origin: 'bar.baz' }) &&
-          !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
-      ).toStrictEqual(true);
-    });
-
-    it('deletes one entry out of many without side-effects', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
-      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
-
-      (approvalController as any)._delete('fizz');
-
-      expect(
-        !approvalController.has({ id: 'fizz' }) &&
-          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
-      ).toStrictEqual(true);
-
-      expect(
-        approvalController.has({ id: 'foo' }) &&
-          approvalController.has({ origin: 'bar.baz' }),
-      ).toStrictEqual(true);
-    });
-  });
-
   describe('actions', () => {
     it('addApprovalRequest: shouldShowRequest = true', async () => {
       const messenger = new ControllerMessenger<
@@ -1015,14 +1192,15 @@ describe('approval controller', () => {
     it.each([
       ['no options passed', undefined],
       ['partial options passed', {}],
-      ['options passed', { id: 'id' }],
+      ['options passed', { id: 'id', loadingText: 'loadingText' }],
     ])(
       'adds flow to state and calls showApprovalRequest with %s',
-      (_, approvalFlowOptions?: StartFlowOptions) => {
-        const result = approvalController.startFlow(approvalFlowOptions);
+      (_, opts?: StartFlowOptions) => {
+        const result = approvalController.startFlow(opts);
 
         const expectedFlow = {
-          id: approvalFlowOptions?.id ?? expect.any(String),
+          id: opts?.id ?? expect.any(String),
+          loadingText: opts?.loadingText ?? null,
         };
         expect(result).toStrictEqual(expectedFlow);
         expect(showApprovalRequest).toHaveBeenCalledTimes(1);
@@ -1061,159 +1239,267 @@ describe('approval controller', () => {
       );
     });
   });
+
+  describe('setFlowLoadingText', () => {
+    const flowId = 'flowId';
+
+    beforeEach(() => {
+      approvalController.startFlow({ id: flowId });
+    });
+
+    afterEach(() => {
+      approvalController.endFlow({ id: flowId });
+    });
+
+    it('fails to set flow loading text if the flow id does not exist', () => {
+      expect(() =>
+        approvalController.setFlowLoadingText({
+          id: 'wrongId',
+          loadingText: null,
+        }),
+      ).toThrow(MissingApprovalFlowError);
+    });
+
+    it('changes the loading text for the approval flow', () => {
+      const mockLoadingText = 'Mock Loading Text';
+      approvalController.setFlowLoadingText({
+        id: flowId,
+        loadingText: mockLoadingText,
+      });
+
+      expect(
+        approvalController.state[APPROVAL_FLOWS_STORE_KEY].find(
+          (flow) => flow.id === flowId,
+        )?.loadingText,
+      ).toStrictEqual(mockLoadingText);
+    });
+
+    it('sets the loading text back to null for the approval the flow', () => {
+      approvalController.setFlowLoadingText({ id: flowId, loadingText: null });
+
+      expect(
+        approvalController.state[APPROVAL_FLOWS_STORE_KEY].find(
+          (flow) => flow.id === flowId,
+        )?.loadingText,
+      ).toBeNull();
+    });
+  });
+
+  describe('result', () => {
+    /**
+     * Assert that an approval request has been added.
+     *
+     * @param expectedType - The expected approval type.
+     * @param expectedData - The expected request data.
+     */
+    function expectRequestAdded(
+      expectedType: string,
+      expectedData: Record<string, unknown>,
+    ) {
+      const requests = approvalController.state[PENDING_APPROVALS_STORE_KEY];
+      expect(Object.values(requests)).toHaveLength(1);
+
+      const request = Object.values(requests)[0];
+      expect(request.id).toStrictEqual(expect.any(String));
+      expect(request.requestData).toStrictEqual(expectedData);
+
+      expect(approvalController.has({ id: request.id })).toStrictEqual(true);
+      expect(approvalController.has({ origin: ORIGIN_METAMASK })).toStrictEqual(
+        true,
+      );
+      expect(approvalController.has({ type: expectedType })).toStrictEqual(
+        true,
+      );
+    }
+
+    /**
+     * Test template to verify that a result method ends the specified flow once approved.
+     *
+     * @param methodCallback - A callback to invoke the result method.
+     */
+    async function endsSpecifiedFlowTemplate(
+      methodCallback: (flowId: string) => Promise<any>,
+    ) {
+      approvalController.startFlow({ id: FLOW_ID_MOCK });
+
+      const promise = methodCallback(FLOW_ID_MOCK);
+
+      const resultRequestId = Object.values(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      )[0].id;
+
+      approvalController.accept(resultRequestId);
+      await promise;
+
+      expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+        0,
+      );
+    }
+
+    /**
+     * Test template to verify that a result does not throw if adding the request fails.
+     *
+     * @param methodCallback - A callback to invoke the result method.
+     */
+    async function doesNotThrowIfAddingRequestFails(
+      methodCallback: () => Promise<any>,
+    ) {
+      jest.spyOn(global.console, 'info');
+
+      methodCallback();
+
+      // Second call will fail as mocked nanoid will generate the same ID.
+      methodCallback();
+
+      expect(console.info).toHaveBeenCalledTimes(1);
+      expect(console.info).toHaveBeenCalledWith(
+        'Failed to display result page',
+        expect.objectContaining({
+          message: `Approval request with id '${ID_MOCK}' already exists.`,
+        }),
+      );
+    }
+
+    /**
+     * Test template to verify that a result method does not throw if ending the flow fails.
+     *
+     * @param methodCallback - A callback to invoke the result method.
+     */
+    async function doesNotThrowIfEndFlowFails(
+      methodCallback: () => Promise<any>,
+    ) {
+      jest.spyOn(global.console, 'info');
+
+      const promise = methodCallback();
+
+      const resultRequestId = Object.values(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      )[0].id;
+
+      approvalController.accept(resultRequestId);
+      await promise;
+
+      expect(console.info).toHaveBeenCalledTimes(1);
+      expect(console.info).toHaveBeenCalledWith('Failed to end flow', {
+        error: expect.objectContaining({ message: 'No approval flows found.' }),
+        id: FLOW_ID_MOCK,
+      });
+    }
+
+    describe('success', () => {
+      it('adds request with result success approval type', async () => {
+        approvalController.success(SUCCESS_OPTIONS_MOCK);
+        expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, SUCCESS_OPTIONS_MOCK);
+      });
+
+      it('adds request with no options', async () => {
+        approvalController.success();
+
+        expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, {
+          message: undefined,
+          header: undefined,
+        });
+      });
+
+      it('only includes relevant options in request data', async () => {
+        (approvalController as any).success({
+          ...SUCCESS_OPTIONS_MOCK,
+          extra: 'testValue',
+        });
+
+        const { requestData } = Object.values(
+          approvalController.state[PENDING_APPROVALS_STORE_KEY],
+        )[0];
+
+        expect(requestData).toStrictEqual(SUCCESS_OPTIONS_MOCK);
+      });
+
+      it('shows approval request', async () => {
+        approvalController.success(SUCCESS_OPTIONS_MOCK);
+        expect(showApprovalRequest).toHaveBeenCalledTimes(1);
+      });
+
+      it('ends specified flow', async () => {
+        await endsSpecifiedFlowTemplate((flowId) =>
+          approvalController.success({
+            ...SUCCESS_OPTIONS_MOCK,
+            flowToEnd: flowId,
+          }),
+        );
+      });
+
+      it('does not throw if adding request fails', async () => {
+        doesNotThrowIfAddingRequestFails(() =>
+          approvalController.success(SUCCESS_OPTIONS_MOCK),
+        );
+      });
+
+      it('does not throw if ending the flow fails', async () => {
+        await doesNotThrowIfEndFlowFails(() =>
+          approvalController.success({
+            ...SUCCESS_OPTIONS_MOCK,
+            flowToEnd: FLOW_ID_MOCK,
+          }),
+        );
+      });
+    });
+
+    describe('error', () => {
+      it('adds request with result error approval type', async () => {
+        approvalController.error(ERROR_OPTIONS_MOCK);
+        expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, ERROR_OPTIONS_MOCK);
+      });
+
+      it('adds request with no options', async () => {
+        approvalController.error();
+
+        expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, {
+          error: undefined,
+          header: undefined,
+        });
+      });
+
+      it('only includes relevant options in request data', async () => {
+        (approvalController as any).error({
+          ...ERROR_OPTIONS_MOCK,
+          extra: 'testValue',
+        });
+
+        const { requestData } = Object.values(
+          approvalController.state[PENDING_APPROVALS_STORE_KEY],
+        )[0];
+
+        expect(requestData).toStrictEqual(ERROR_OPTIONS_MOCK);
+      });
+
+      it('shows approval request', async () => {
+        approvalController.error(ERROR_OPTIONS_MOCK);
+        expect(showApprovalRequest).toHaveBeenCalledTimes(1);
+      });
+
+      it('ends specified flow', async () => {
+        await endsSpecifiedFlowTemplate((flowId) =>
+          approvalController.error({
+            ...ERROR_OPTIONS_MOCK,
+            flowToEnd: flowId,
+          }),
+        );
+      });
+
+      it('does not throw if adding request fails', async () => {
+        doesNotThrowIfAddingRequestFails(() =>
+          approvalController.error(ERROR_OPTIONS_MOCK),
+        );
+      });
+
+      it('does not throw if ending the flow fails', async () => {
+        await doesNotThrowIfEndFlowFails(() =>
+          approvalController.error({
+            ...ERROR_OPTIONS_MOCK,
+            flowToEnd: FLOW_ID_MOCK,
+          }),
+        );
+      });
+    });
+  });
 });
-
-// helpers
-
-/**
- * Get an ID collision error.
- *
- * @param id - The ID with a collision.
- * @returns The ID collision error.
- */
-function getIdCollisionError(id: string) {
-  return getError(
-    `Approval request with id '${id}' already exists.`,
-    errorCodes.rpc.internal,
-  );
-}
-
-/**
- * Get an origin type collision error.
- *
- * @param origin - The origin.
- * @param type - The type.
- * @returns An origin type collision error.
- */
-function getOriginTypeCollisionError(origin: string, type = TYPE) {
-  const message = `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
-  return getError(message, errorCodes.rpc.resourceUnavailable);
-}
-
-/**
- * Get an invalid ID error.
- *
- * @returns An invalid ID error.
- */
-function getInvalidIdError() {
-  return getError('Must specify non-empty string id.', errorCodes.rpc.internal);
-}
-
-/**
- * Get an "ID not found" error.
- *
- * @param id - The ID that was not found.
- * @returns An "ID not found" error.
- */
-function getIdNotFoundError(id: string) {
-  return getError(`Approval request with id '${id}' not found.`);
-}
-
-/**
- * Get an invalid ID type error.
- *
- * @returns An invalid ID type error.
- */
-function getInvalidHasIdError() {
-  return getError('May not specify non-string id.');
-}
-
-/**
- * Get an invalid origin type error.
- *
- * @returns The invalid origin type error.
- */
-function getInvalidHasOriginError() {
-  return getError('May not specify non-string origin.');
-}
-
-/**
- * Get an invalid type error.
- *
- * @returns The invalid type error.
- */
-function getInvalidHasTypeError() {
-  return getError('May not specify non-string type.');
-}
-
-/**
- * Get an invalid origin error.
- *
- * @returns The invalid origin error.
- */
-function getInvalidOriginError() {
-  return getError(
-    'Must specify non-empty string origin.',
-    errorCodes.rpc.internal,
-  );
-}
-
-/**
- * Get an invalid request data error.
- *
- * @returns The invalid request data error.
- */
-function getInvalidRequestDataError() {
-  return getError(
-    'Request data must be a plain object if specified.',
-    errorCodes.rpc.internal,
-  );
-}
-
-/**
- * Get an invalid request state error.
- *
- * @returns The invalid request data error.
- */
-function getInvalidRequestStateError() {
-  return getError(
-    'Request state must be a plain object if specified.',
-    errorCodes.rpc.internal,
-  );
-}
-
-/**
- * Get an invalid type error.
- *
- * @param code - The error code.
- * @returns The invalid type error.
- */
-function getInvalidTypeError(code: number) {
-  return getError('Must specify non-empty string type.', code);
-}
-
-/**
- * Get an invalid params error.
- *
- * @returns The invalid params error.
- */
-function getInvalidHasParamsError() {
-  return getError('Must specify a valid combination of id, origin, and type.');
-}
-
-/**
- * Get an invalid approval count params error.
- *
- * @returns The invalid approval count params error.
- */
-function getApprovalCountParamsError() {
-  return getError('Must specify origin, type, or both.');
-}
-
-/**
- * Get an error.
- *
- * @param message - The error message.
- * @param code - The error code.
- * @returns An Error.
- */
-function getError(message: string, code?: number) {
-  const err: any = {
-    name: 'Error',
-    message,
-  };
-  if (code !== undefined) {
-    err.code = code;
-  }
-  return err;
-}
