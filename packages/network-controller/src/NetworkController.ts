@@ -499,19 +499,17 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Fetches the network ID for the network, ensuring that it is a hex string.
    *
-   * @param provider - A provider, which is guaranteed to be available by the
-   * time this method is call.
    * @returns A promise that either resolves to the network ID, or rejects with
    * an error.
    * @throws If the network ID of the network is not a valid hex string.
    */
-  async #getNetworkId(
-    provider: ProxyWithAccessibleTarget<Provider>,
-  ): Promise<NetworkId> {
-    const ethQuery = new EthQuery(provider);
-
+  async #getNetworkId(): Promise<NetworkId> {
     const possibleNetworkId = await new Promise<string>((resolve, reject) => {
-      ethQuery.sendAsync(
+      if (!this.#ethQuery) {
+        throw new Error('Provider has not been initialized');
+      }
+
+      this.#ethQuery.sendAsync(
         { method: 'net_version' },
         (error: unknown, result?: unknown) => {
           if (error) {
@@ -539,9 +537,7 @@ export class NetworkController extends BaseControllerV2<
    * blocking requests, or if the network is not Infura-supported.
    */
   async lookupNetwork() {
-    const provider = this.#provider;
-
-    if (!provider) {
+    if (!this.#ethQuery) {
       return;
     }
 
@@ -566,12 +562,8 @@ export class NetworkController extends BaseControllerV2<
 
     try {
       const [networkId, isEIP1559Compatible] = await Promise.all([
-        // Pass the provider to both of these methods so that if the network is
-        // switched midway through, both responses come from the network before
-        // the switch. This behavior is simpler to reason about than the
-        // alternative and is easier to test.
-        this.#getNetworkId(provider),
-        this.#determineEIP1559Compatibility(provider),
+        this.#getNetworkId(),
+        this.#determineEIP1559Compatibility(),
       ]);
       updatedNetworkStatus = NetworkStatus.Available;
       updatedNetworkId = networkId;
@@ -714,18 +706,16 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Fetches the latest block for the network.
    *
-   * @param provider - A provider, which is guaranteed to be available by the
-   * time this method is called.
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(
-    provider: ProxyWithAccessibleTarget<Provider>,
-  ): Promise<Block> {
-    const ethQuery = new EthQuery(provider);
-
+  #getLatestBlock(): Promise<Block> {
     return new Promise((resolve, reject) => {
-      ethQuery.sendAsync(
+      if (!this.#ethQuery) {
+        throw new Error('Provider has not been initialized');
+      }
+
+      this.#ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
           if (error) {
@@ -749,19 +739,16 @@ export class NetworkController extends BaseControllerV2<
    */
   async getEIP1559Compatibility() {
     const { EIPS } = this.state.networkDetails;
-    const provider = this.#provider;
 
     if (EIPS[1559] !== undefined) {
       return EIPS[1559];
     }
 
-    if (!provider) {
+    if (!this.#ethQuery) {
       return false;
     }
 
-    const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
-      provider,
-    );
+    const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
     this.update((state) => {
       state.networkDetails.EIPS[1559] = isEIP1559Compatible;
     });
@@ -773,15 +760,11 @@ export class NetworkController extends BaseControllerV2<
    * block has a `baseFeePerGas` property, then we know that the network
    * supports EIP-1559; otherwise it doesn't.
    *
-   * @param provider - A provider, which is guaranteed to be available by the
-   * time this method is called.
    * @returns A promise that resolves to true if the network supports EIP-1559
    * and false otherwise.
    */
-  async #determineEIP1559Compatibility(
-    provider: ProxyWithAccessibleTarget<Provider>,
-  ): Promise<boolean> {
-    const latestBlock = await this.#getLatestBlock(provider);
+  async #determineEIP1559Compatibility(): Promise<boolean> {
+    const latestBlock = await this.#getLatestBlock();
     return latestBlock?.baseFeePerGas !== undefined;
   }
 
