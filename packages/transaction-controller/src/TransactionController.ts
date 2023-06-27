@@ -597,7 +597,11 @@ export class TransactionController extends BaseController<
       providerConfig: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
-    if (chain !== RPC && chain !== 'linea-goerli') {
+    if (
+      chain !== RPC &&
+      chain !== 'linea-goerli' &&
+      chain !== 'linea-mainnet'
+    ) {
       return new Common({ chain, hardfork: HARDFORK });
     }
 
@@ -1379,70 +1383,62 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
   ): Promise<string> {
     const transactionId = transactionMeta.id;
-    let rejected = false;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
       const acceptResult = await this.requestApproval(transactionMeta);
       resultCallbacks = acceptResult.resultCallbacks;
 
-      const updatedMeta = this.getTransaction(transactionId);
+      const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
-      const isCompleted =
-        updatedMeta && this.isLocalFinalState(updatedMeta.status);
-
-      if (updatedMeta && !isCompleted) {
+      if (meta && !isCompleted) {
         await this.approveTransaction(transactionId);
       }
     } catch (error: any) {
-      const updatedMeta = this.getTransaction(transactionId);
+      const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
-      const isCompleted =
-        updatedMeta && this.isLocalFinalState(updatedMeta.status);
-
-      if (updatedMeta && !isCompleted) {
+      if (meta && !isCompleted) {
         if (error.code === errorCodes.provider.userRejectedRequest) {
           this.cancelTransaction(transactionId);
-          rejected = true;
+
+          throw ethErrors.provider.userRejectedRequest(
+            'User rejected the transaction',
+          );
         } else {
-          this.failTransaction(updatedMeta, error);
+          this.failTransaction(meta, error);
         }
       }
     }
 
-    if (rejected) {
-      throw ethErrors.provider.userRejectedRequest(
-        'User rejected the transaction',
-      );
-    }
-
     const finalMeta = this.getTransaction(transactionId);
 
-    if (finalMeta && finalMeta.status === TransactionStatus.failed) {
-      resultCallbacks?.error(finalMeta?.error);
-      throw ethErrors.rpc.internal(finalMeta.error.message);
+    switch (finalMeta?.status) {
+      case TransactionStatus.failed:
+        resultCallbacks?.error(finalMeta.error);
+        throw ethErrors.rpc.internal(finalMeta.error.message);
+
+      case TransactionStatus.cancelled:
+        const cancelError = ethErrors.rpc.internal(
+          'User cancelled the transaction',
+        );
+
+        resultCallbacks?.error(cancelError);
+        throw cancelError;
+
+      case TransactionStatus.submitted:
+        resultCallbacks?.success();
+        return finalMeta.transactionHash as string;
+
+      default:
+        const internalError = ethErrors.rpc.internal(
+          `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
+            finalMeta || transactionId,
+          )}`,
+        );
+
+        resultCallbacks?.error(internalError);
+        throw internalError;
     }
-
-    if (finalMeta?.status === TransactionStatus.cancelled) {
-      const error = ethErrors.rpc.internal('User cancelled the transaction');
-      resultCallbacks?.error(error);
-      throw error;
-    }
-
-    if (finalMeta && finalMeta.status === TransactionStatus.submitted) {
-      resultCallbacks?.success();
-      return finalMeta.transactionHash as string;
-    }
-
-    const error = ethErrors.rpc.internal(
-      `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
-        finalMeta || transactionId,
-      )}`,
-    );
-
-    resultCallbacks?.error(error);
-
-    throw error;
   }
 
   private async requestApproval(txMeta: TransactionMeta): Promise<AddResult> {
@@ -1600,6 +1596,21 @@ export class TransactionController extends BaseController<
   private getTransaction(transactionID: string): TransactionMeta | undefined {
     const { transactions } = this.state;
     return transactions.find(({ id }) => id === transactionID);
+  }
+
+  private isTransactionCompleted(transactionid: string): {
+    meta?: TransactionMeta;
+    isCompleted: boolean;
+  } {
+    const transaction = this.getTransaction(transactionid);
+
+    if (!transaction) {
+      return { meta: undefined, isCompleted: false };
+    }
+
+    const isCompleted = this.isLocalFinalState(transaction.status);
+
+    return { meta: transaction, isCompleted };
   }
 }
 
