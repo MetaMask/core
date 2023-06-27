@@ -44,7 +44,6 @@ export enum BuiltInNetworkName {
   LineaGoerli = 'linea-goerli',
   LineaMainnet = 'linea-mainnet',
   Aurora = 'aurora',
-  LineaGoerli = 'linea-goerli',
 }
 
 /**
