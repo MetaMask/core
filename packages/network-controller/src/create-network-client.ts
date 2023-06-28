@@ -21,7 +21,10 @@ import {
 } from '@metamask/eth-json-rpc-provider';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import type { Hex } from '@metamask/utils';
-import { PollingBlockTracker } from 'eth-block-tracker';
+import {
+  PollingBlockTracker,
+  PollingBlockTrackerOptions,
+} from 'eth-block-tracker';
 import {
   InfuraNetworkType,
   ChainId,
@@ -47,6 +50,7 @@ type CustomNetworkConfiguration = {
   chainId: Hex;
   rpcUrl: string;
   type: NetworkClientType.Custom;
+  ignoreNonceCache?: boolean;
 };
 
 /**
@@ -84,11 +88,17 @@ export function createNetworkClient(
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
-  const blockTrackerOpts =
-    // eslint-disable-next-line node/no-process-env
-    process.env.IN_TEST && networkConfig.type === 'custom'
-      ? { pollingInterval: SECOND }
-      : {};
+  const blockTrackerOpts: PollingBlockTrackerOptions = {};
+  // eslint-disable-next-line node/no-process-env
+  if (process.env.IN_TEST && networkConfig.type === NetworkClientType.Custom) {
+    blockTrackerOpts.pollingInterval = SECOND;
+  }
+  if (
+    networkConfig.type === NetworkClientType.Custom &&
+    networkConfig.ignoreNonceCache
+  ) {
+    blockTrackerOpts.usePastBlocks = true;
+  }
   const blockTracker = new PollingBlockTracker({
     ...blockTrackerOpts,
     provider: rpcProvider,
