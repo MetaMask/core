@@ -905,8 +905,8 @@ export class NetworkController extends BaseControllerV2<
     const existingNetworkConfiguration = Object.values(
       this.state.networkConfigurations,
     ).find(
-      (networkConfiguration) =>
-        networkConfiguration.rpcUrl.toLowerCase() === rpcUrl.toLowerCase(),
+      (networkConfig) =>
+        networkConfig.rpcUrl.toLowerCase() === rpcUrl.toLowerCase(),
     );
     const upsertedNetworkConfigurationId = existingNetworkConfiguration
       ? existingNetworkConfiguration.id
