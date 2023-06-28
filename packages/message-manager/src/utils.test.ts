@@ -263,6 +263,18 @@ describe('utils', () => {
         ),
       ).not.toThrow();
     });
+
+    it('should not throw if data is correct (object format)', () => {
+      expect(() =>
+        util.validateTypedSignMessageDataV3V4(
+          {
+            data: JSON.parse(dataTyped),
+            from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          } as any,
+          mockedCurrentChainId,
+        ),
+      ).not.toThrow();
+    });
   });
 
   describe('validateEncryptionPublicKeyMessageData', () => {
