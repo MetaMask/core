@@ -3794,7 +3794,7 @@ describe('NetworkController', () => {
               state: {
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
-                    rpcUrl: 'https://test.network',
+                    rpcUrl: oldRpcUrl,
                     chainId: toHex(111),
                     nickname: 'test network',
                     ticker: 'TICKER',
@@ -3809,7 +3809,7 @@ describe('NetworkController', () => {
             async ({ controller }) => {
               await controller.upsertNetworkConfiguration(
                 {
-                  rpcUrl: 'https://test.network',
+                  rpcUrl: newRpcUrl,
                   chainId: toHex(999),
                   ticker: 'TICKER',
                   rpcPrefs: {
@@ -3824,7 +3824,7 @@ describe('NetworkController', () => {
 
               expect(controller.state.networkConfigurations).toStrictEqual({
                 'AAAA-AAAA-AAAA-AAAA': {
-                  rpcUrl: 'https://test.network',
+                  rpcUrl: newRpcUrl,
                   chainId: toHex(999),
                   ticker: 'TICKER',
                   nickname: undefined,
@@ -3844,7 +3844,7 @@ describe('NetworkController', () => {
               state: {
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
-                    rpcUrl: 'https://test.network',
+                    rpcUrl: oldRpcUrl,
                     chainId: toHex(111),
                     nickname: 'test network',
                     ticker: 'TICKER',
@@ -3859,7 +3859,7 @@ describe('NetworkController', () => {
             async ({ controller }) => {
               await controller.upsertNetworkConfiguration(
                 {
-                  rpcUrl: 'https://test.network',
+                  rpcUrl: newRpcUrl,
                   chainId: toHex(999),
                   ticker: 'TICKER',
                   nickname: 'test network',
@@ -3872,7 +3872,7 @@ describe('NetworkController', () => {
 
               expect(controller.state.networkConfigurations).toStrictEqual({
                 'AAAA-AAAA-AAAA-AAAA': {
-                  rpcUrl: 'https://test.network',
+                  rpcUrl: newRpcUrl,
                   chainId: toHex(999),
                   ticker: 'TICKER',
                   nickname: 'test network',
