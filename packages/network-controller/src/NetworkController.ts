@@ -112,7 +112,7 @@ export type NetworkConfiguration = {
  * @returns The keys of an object, typed according to the type of the object
  * itself.
  */
-function knownKeysOf<K extends string | number | symbol>(
+function knownKeysOf<K extends PropertyKey>(
   object: Partial<Record<K, any>>,
 ) {
   return Object.keys(object) as K[];
