@@ -319,26 +319,31 @@ type MetaMetricsEventPayload = {
 type NetworkConfigurationId = string;
 
 /**
- * The name of a subdivision of network clients in the client registry.
+ * The collection of auto-managed network clients that map to Infura networks.
  */
-enum AutoManagedNetworkClientCategory {
-  BuiltIn = 'builtIn',
-  Custom = 'custom',
-}
+type InfuraAutoManagedNetworkClientRegistry = Map<
+  `infura||${InfuraNetworkType}`,
+  AutoManagedNetworkClient<InfuraNetworkClientConfiguration>
+>;
 
 /**
- * The collection of auto-managed network clients that map to built-in networks
- * as well as custom networks that users have added.
+ * The collection of auto-managed network clients that map to custom networks
+ * that users have added explicitly or that have arrived via `providerConfig` in
+ * state.
+ */
+type CustomAutoManagedNetworkClientRegistry = Map<
+  `custom||${string}`,
+  AutoManagedNetworkClient<CustomNetworkClientConfiguration>
+>;
+
+/**
+ * The collection of auto-managed network clients that map to Infura networks
+ * as well as custom networks that users have added explicitly or that have
+ * arrived via `providerConfig` in state.
  */
 type AutoManagedNetworkClientRegistry = {
-  [AutoManagedNetworkClientCategory.BuiltIn]: Record<
-    string,
-    AutoManagedNetworkClient<InfuraNetworkClientConfiguration>
-  >;
-  [AutoManagedNetworkClientCategory.Custom]: Record<
-    string,
-    AutoManagedNetworkClient<CustomNetworkClientConfiguration>
-  >;
+  [NetworkClientType.Infura]: InfuraAutoManagedNetworkClientRegistry;
+  [NetworkClientType.Custom]: CustomAutoManagedNetworkClientRegistry;
 };
 
 /**
@@ -439,7 +444,7 @@ export class NetworkController extends BaseControllerV2<
 
   /**
    * Returns all of the network clients that have been created so far. This
-   * collection represents not only built-in networks but also any networks that
+   * collection represents not only Infura networks but also any networks that
    * the user has added.
    *
    * @returns The list of known network clients.
@@ -447,18 +452,14 @@ export class NetworkController extends BaseControllerV2<
   getNetworkClients(): AutoManagedNetworkClient<NetworkClientConfiguration>[] {
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
+    const infuraRegistry =
+      autoManagedNetworkClientRegistry[NetworkClientType.Infura];
+    const customRegistry =
+      autoManagedNetworkClientRegistry[NetworkClientType.Custom];
 
     return [
-      ...Object.values(
-        autoManagedNetworkClientRegistry[
-          AutoManagedNetworkClientCategory.BuiltIn
-        ],
-      ),
-      ...Object.values(
-        autoManagedNetworkClientRegistry[
-          AutoManagedNetworkClientCategory.Custom
-        ],
-      ),
+      ...Array.from(infuraRegistry.values()),
+      ...Array.from(customRegistry.values()),
     ];
   }
 
@@ -860,6 +861,8 @@ export class NetworkController extends BaseControllerV2<
     const upsertedNetworkConfigurationId = existingNetworkConfiguration
       ? existingNetworkConfiguration.id
       : random();
+    const networkClientId =
+      `custom||${upsertedNetworkConfigurationId}` as const;
 
     this.update((state) => {
       state.networkConfigurations[upsertedNetworkConfigurationId] = {
@@ -868,10 +871,10 @@ export class NetworkController extends BaseControllerV2<
       };
     });
 
-    const customAutoManagedNetworkClients =
-      autoManagedNetworkClientRegistry[AutoManagedNetworkClientCategory.Custom];
+    const customNetworkClientRegistry =
+      autoManagedNetworkClientRegistry[NetworkClientType.Custom];
     const existingAutoManagedNetworkClient =
-      customAutoManagedNetworkClients[upsertedNetworkConfigurationId];
+      customNetworkClientRegistry.get(networkClientId);
     const shouldDestroyExistingNetworkClient =
       existingAutoManagedNetworkClient &&
       existingAutoManagedNetworkClient.configuration.chainId !== chainId;
@@ -882,12 +885,14 @@ export class NetworkController extends BaseControllerV2<
       !existingAutoManagedNetworkClient ||
       shouldDestroyExistingNetworkClient
     ) {
-      customAutoManagedNetworkClients[upsertedNetworkConfigurationId] =
+      customNetworkClientRegistry.set(
+        networkClientId,
         createAutoManagedNetworkClient({
           type: NetworkClientType.Custom,
           chainId,
           rpcUrl,
-        });
+        }),
+      );
     }
 
     if (!existingNetworkConfiguration) {
@@ -931,17 +936,23 @@ export class NetworkController extends BaseControllerV2<
 
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
+    const networkClientId = `custom||${networkConfigurationId}` as const;
 
     this.update((state) => {
       delete state.networkConfigurations[networkConfigurationId];
     });
 
     const customAutoManagedNetworkClients =
-      autoManagedNetworkClientRegistry[AutoManagedNetworkClientCategory.Custom];
+      autoManagedNetworkClientRegistry[NetworkClientType.Custom];
     const existingAutoManagedNetworkClient =
-      customAutoManagedNetworkClients[networkConfigurationId];
+      customAutoManagedNetworkClients.get(networkClientId);
+    if (!existingAutoManagedNetworkClient) {
+      throw new Error(
+        `Could not find registered custom network matching ${networkClientId}`,
+      );
+    }
     existingAutoManagedNetworkClient.destroy();
-    delete customAutoManagedNetworkClients[networkConfigurationId];
+    customAutoManagedNetworkClients.delete(networkClientId);
   }
 
   /**
@@ -1004,72 +1015,64 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Constructs the registry of network clients based on the set of built-in
+   * Constructs the registry of network clients based on the set of Infura
    * networks as well as the custom networks in state.
    *
    * @returns The network clients keyed by ID.
    */
-  #createAutoManagedNetworkClientRegistry() {
-    const identifiedNetworkClientConfigurations: [
-      string,
-      NetworkClientConfiguration,
-    ][] = [
-      ...this.#buildIdentifiedBuiltInNetworkClientConfigurations(),
-      ...this.#buildIdentifiedCustomNetworkClientConfigurations(),
-      this.#buildIdentifiedNetworkClientConfigurationFromProviderConfig(),
-    ];
+  #createAutoManagedNetworkClientRegistry(): AutoManagedNetworkClientRegistry {
+    const builtInInfuraRegistry =
+      this.#buildInfuraAutoManagedNetworkClientRegistry();
+    const customRegistryFromNetworkConfigurations =
+      this.#buildCustomAutoManagedNetworkClientRegistryFromNetworkConfigurations();
+    const [providerConfigType, infuraOrCustomRegistryFromProviderConfig] =
+      this.#buildAutoManagedNetworkClientRegistryFromProviderConfig();
 
-    const registry: AutoManagedNetworkClientRegistry = {
-      [AutoManagedNetworkClientCategory.BuiltIn]: {},
-      [AutoManagedNetworkClientCategory.Custom]: {},
+    const combinedInfuraRegistry =
+      providerConfigType === NetworkClientType.Infura
+        ? new Map([
+            ...builtInInfuraRegistry,
+            ...infuraOrCustomRegistryFromProviderConfig,
+          ])
+        : builtInInfuraRegistry;
+    const combinedCustomRegistry =
+      providerConfigType === NetworkClientType.Custom
+        ? new Map([
+            ...customRegistryFromNetworkConfigurations,
+            ...infuraOrCustomRegistryFromProviderConfig,
+          ])
+        : customRegistryFromNetworkConfigurations;
+
+    return {
+      [NetworkClientType.Infura]: combinedInfuraRegistry,
+      [NetworkClientType.Custom]: combinedCustomRegistry,
     };
-
-    for (const [
-      id,
-      networkClientConfiguration,
-    ] of identifiedNetworkClientConfigurations) {
-      if (networkClientConfiguration.type === NetworkClientType.Infura) {
-        const autoManagedNetworkClient = createAutoManagedNetworkClient(
-          networkClientConfiguration,
-        );
-        registry[AutoManagedNetworkClientCategory.BuiltIn][id] =
-          autoManagedNetworkClient;
-      } else {
-        if (networkClientConfiguration.chainId === undefined) {
-          throw new Error('chainId must be provided for custom RPC endpoints');
-        }
-        if (networkClientConfiguration.rpcUrl === undefined) {
-          throw new Error('rpcUrl must be provided for custom RPC endpoints');
-        }
-        const autoManagedNetworkClient = createAutoManagedNetworkClient(
-          networkClientConfiguration,
-        );
-        registry[AutoManagedNetworkClientCategory.Custom][id] =
-          autoManagedNetworkClient;
-      }
-    }
-
-    return registry;
   }
 
   /**
-   * Constructs the list of network clients for built-in networks (that is,
-   * those that we know Infura supports).
+   * Constructs the list of network clients for Infura networks.
    *
    * @returns The network clients.
    */
-  #buildIdentifiedBuiltInNetworkClientConfigurations(): [
-    string,
-    InfuraNetworkClientConfiguration,
-  ][] {
-    return knownKeysOf(InfuraNetworkType).map((network) => {
+  #buildInfuraAutoManagedNetworkClientRegistry(): InfuraAutoManagedNetworkClientRegistry {
+    // Typecast: We go through all of the keys in InfuraNetworkType below, which
+    // are the same keys that form the IDs in the registry.
+    const registry = new Map() as InfuraAutoManagedNetworkClientRegistry;
+
+    for (const network of knownKeysOf(InfuraNetworkType)) {
+      const id = `infura||${network}` as const;
       const networkClientConfiguration: InfuraNetworkClientConfiguration = {
         type: NetworkClientType.Infura,
         network,
         infuraProjectId: this.#infuraProjectId,
       };
-      return [network, networkClientConfiguration];
-    });
+      const autoManagedNetworkClient = createAutoManagedNetworkClient(
+        networkClientConfiguration,
+      );
+      registry.set(id, autoManagedNetworkClient);
+    }
+
+    return registry;
   }
 
   /**
@@ -1078,20 +1081,34 @@ export class NetworkController extends BaseControllerV2<
    *
    * @returns The network clients.
    */
-  #buildIdentifiedCustomNetworkClientConfigurations(): [
-    string,
-    CustomNetworkClientConfiguration,
-  ][] {
-    return Object.entries(this.state.networkConfigurations).map(
-      ([id, networkConfiguration]) => {
-        const networkClientConfiguration: CustomNetworkClientConfiguration = {
-          type: NetworkClientType.Custom,
-          chainId: networkConfiguration.chainId,
-          rpcUrl: networkConfiguration.rpcUrl,
-        };
-        return [id, networkClientConfiguration];
-      },
-    );
+  #buildCustomAutoManagedNetworkClientRegistryFromNetworkConfigurations(): CustomAutoManagedNetworkClientRegistry {
+    // Typecast: We go through all of the network configurations to build the
+    // registry, using the ID of each network configuration to form the key
+    // for each entry in the map.
+    const registry = new Map() as CustomAutoManagedNetworkClientRegistry;
+
+    for (const networkConfiguration of Object.values(
+      this.state.networkConfigurations,
+    )) {
+      if (networkConfiguration.chainId === undefined) {
+        throw new Error('chainId must be provided for custom RPC endpoints');
+      }
+      if (networkConfiguration.rpcUrl === undefined) {
+        throw new Error('rpcUrl must be provided for custom RPC endpoints');
+      }
+      const id = `custom||${networkConfiguration.id}` as const;
+      const networkClientConfiguration: CustomNetworkClientConfiguration = {
+        type: NetworkClientType.Custom,
+        chainId: networkConfiguration.chainId,
+        rpcUrl: networkConfiguration.rpcUrl,
+      };
+      const autoManagedNetworkClient = createAutoManagedNetworkClient(
+        networkClientConfiguration,
+      );
+      registry.set(id, autoManagedNetworkClient);
+    }
+
+    return registry;
   }
 
   /**
@@ -1102,10 +1119,9 @@ export class NetworkController extends BaseControllerV2<
    * @throws If the provider config is of type "rpc" and lacks either a
    * `chainId` or an `rpcUrl`.
    */
-  #buildIdentifiedNetworkClientConfigurationFromProviderConfig(): [
-    string,
-    NetworkClientConfiguration,
-  ] {
+  #buildAutoManagedNetworkClientRegistryFromProviderConfig():
+    | [NetworkClientType.Custom, CustomAutoManagedNetworkClientRegistry]
+    | [NetworkClientType.Infura, InfuraAutoManagedNetworkClientRegistry] {
     const { providerConfig } = this.state;
 
     if (providerConfig.type === NetworkType.rpc) {
@@ -1116,24 +1132,37 @@ export class NetworkController extends BaseControllerV2<
         throw new Error('rpcUrl must be provided for custom RPC endpoints');
       }
       const id =
-        providerConfig.id ??
-        [providerConfig.chainId, providerConfig.rpcUrl].join('||');
+        providerConfig.id === undefined
+          ? (`custom||${providerConfig.chainId}||${providerConfig.rpcUrl}` as const)
+          : (`custom||${providerConfig.id}` as const);
       const networkClientConfiguration: CustomNetworkClientConfiguration = {
         chainId: providerConfig.chainId,
         rpcUrl: providerConfig.rpcUrl,
         type: NetworkClientType.Custom,
       };
-      return [id, networkClientConfiguration];
+      const autoManagedNetworkClient = createAutoManagedNetworkClient(
+        networkClientConfiguration,
+      );
+      return [
+        NetworkClientType.Custom,
+        new Map([[id, autoManagedNetworkClient]]),
+      ];
     }
 
     if (isInfuraProviderType(providerConfig.type)) {
-      const id = providerConfig.type;
+      const id = `infura||${providerConfig.type}` as const;
       const networkClientConfiguration: InfuraNetworkClientConfiguration = {
         network: providerConfig.type,
         infuraProjectId: this.#infuraProjectId,
         type: NetworkClientType.Infura,
       };
-      return [id, networkClientConfiguration];
+      const autoManagedNetworkClient = createAutoManagedNetworkClient(
+        networkClientConfiguration,
+      );
+      return [
+        NetworkClientType.Infura,
+        new Map([[id, autoManagedNetworkClient]]),
+      ];
     }
 
     throw new Error(`Unrecognized network type: '${providerConfig.type}'`);
@@ -1169,49 +1198,55 @@ export class NetworkController extends BaseControllerV2<
       }
     }
 
-    const networkClientType =
-      providerConfig.type === NetworkType.rpc
-        ? NetworkClientType.Custom
-        : NetworkClientType.Infura;
-    const networkClientId =
-      providerConfig.type === NetworkType.rpc
-        ? providerConfig.id ??
-          [providerConfig.chainId, providerConfig.rpcUrl].join('||')
-        : providerConfig.type;
-    const networkClientCategory =
-      networkClientType === NetworkClientType.Infura
-        ? AutoManagedNetworkClientCategory.BuiltIn
-        : AutoManagedNetworkClientCategory.Custom;
+    let networkClient: AutoManagedNetworkClient<NetworkClientConfiguration>;
 
-    if (
-      !hasProperty(
-        this.#autoManagedNetworkClientRegistry[networkClientCategory],
-        networkClientId,
-      )
-    ) {
-      throw new Error(
-        `Could not find ${networkClientCategory} network matching ${networkClientId}`,
-      );
+    if (providerConfig.type === NetworkType.rpc) {
+      const networkClientType = NetworkClientType.Custom;
+      const networkClientId =
+        providerConfig.id === undefined
+          ? (`custom||${providerConfig.chainId}||${providerConfig.rpcUrl}` as const)
+          : (`custom||${providerConfig.id}` as const);
+      const customNetworkClientRegistry =
+        this.#autoManagedNetworkClientRegistry[networkClientType];
+      const possibleNetworkClient =
+        customNetworkClientRegistry.get(networkClientId);
+      if (!possibleNetworkClient) {
+        throw new Error(
+          `Could not find registered custom network matching ${networkClientId}`,
+        );
+      }
+      networkClient = possibleNetworkClient;
+    } else {
+      const networkClientType = NetworkClientType.Infura;
+      const networkClientId = `infura||${providerConfig.type}` as const;
+      const infuraNetworkClientRegistry =
+        this.#autoManagedNetworkClientRegistry[networkClientType];
+      const possibleNetworkClient =
+        infuraNetworkClientRegistry.get(networkClientId);
+      if (!possibleNetworkClient) {
+        throw new Error(
+          `Could not find registered Infura network matching ${networkClientId}`,
+        );
+      }
+      networkClient = possibleNetworkClient;
     }
-
-    const { provider, blockTracker } =
-      this.#autoManagedNetworkClientRegistry[networkClientCategory][
-        networkClientId
-      ];
 
     if (this.#providerProxy) {
-      this.#providerProxy.setTarget(provider);
+      this.#providerProxy.setTarget(networkClient.provider);
     } else {
-      this.#providerProxy = createEventEmitterProxy(provider);
+      this.#providerProxy = createEventEmitterProxy(networkClient.provider);
     }
-    this.#provider = provider;
+    this.#provider = networkClient.provider;
 
     if (this.#blockTrackerProxy) {
-      this.#blockTrackerProxy.setTarget(blockTracker);
+      this.#blockTrackerProxy.setTarget(networkClient.blockTracker);
     } else {
-      this.#blockTrackerProxy = createEventEmitterProxy(blockTracker, {
-        eventFilter: 'skipInternal',
-      });
+      this.#blockTrackerProxy = createEventEmitterProxy(
+        networkClient.blockTracker,
+        {
+          eventFilter: 'skipInternal',
+        },
+      );
     }
 
     this.#ethQuery = new EthQuery(this.#providerProxy);
