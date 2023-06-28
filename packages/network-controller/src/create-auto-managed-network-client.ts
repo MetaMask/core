@@ -22,7 +22,6 @@ export type ProxyWithAccessibleTarget<TargetType> = TargetType & {
 export type AutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
 > = {
-  type: Configuration['type'];
   configuration: Configuration;
   provider: ProxyWithAccessibleTarget<Provider>;
   blockTracker: ProxyWithAccessibleTarget<BlockTracker>;
@@ -165,7 +164,6 @@ export function createAutoManagedNetworkClient<
   };
 
   return {
-    type: networkClientConfiguration.type,
     configuration: networkClientConfiguration,
     provider: providerProxy,
     blockTracker: blockTrackerProxy,
