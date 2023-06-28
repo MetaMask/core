@@ -227,20 +227,22 @@ export type NetworkState = {
 const name = 'NetworkController';
 
 /**
- * Represents the block tracker for the currently selected network. (Yes, this
- * is a proxy around a proxy: the inner one exists to manage a network client
- * that exists only after the block tracker is used, and the outer one exists
- * because the currently selected network can always be changed.)
+ * Represents the block tracker for the currently selected network. (Note that
+ * this is a proxy around a proxy: the inner one exists so that the block
+ * tracker doesn't have to exist until it's used, and the outer one exists so
+ * that the currently selected network can change without consumers needing to
+ * refresh the object reference to that network.)
  */
 export type BlockTrackerProxy = SwappableProxy<
   ProxyWithAccessibleTarget<BlockTracker>
 >;
 
 /**
- * Represents the provider for the currently selected network. (Yes, this is a
- * proxy around a proxy: the inner one exists to manage a network client that
- * exists only after the provider is used, and the outer one exists because the
- * currently selected network can always be changed.)
+ * Represents the provider for the currently selected network. (Note that this
+ * is a proxy around a proxy: the inner one exists so that the provider doesn't
+ * have to exist until it's used, and the outer one exists so that the currently
+ * selected network can change without consumers needing to refresh the object
+ * reference to that network.)
  */
 export type ProviderProxy = SwappableProxy<ProxyWithAccessibleTarget<Provider>>;
 
