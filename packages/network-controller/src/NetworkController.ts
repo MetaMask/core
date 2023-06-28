@@ -870,6 +870,28 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
+   * Retrieves the latest block with retry for the network.
+   *
+   * @param maxAttempts - The maximum number of retries to attempt retrieving the latest block. Defaults to 3.
+   * @returns A promise that either resolves to the block header or null if
+   * there is no latest block, or rejects with an error.
+   */
+  async #getLatestBlockWithRetry(maxAttempts = 3): Promise<Block | null> {
+    let latestBlock;
+    const retryInterval = 500;
+    for (let attempts = 0; attempts <= maxAttempts; attempts++) {
+      latestBlock = await this.#getLatestBlock();
+
+      if (latestBlock) {
+        return latestBlock;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, retryInterval));
+    }
+    return null;
+  }
+
+  /**
    * Fetches the latest block for the network.
    *
    * @returns A promise that either resolves to the block header or null if
@@ -924,14 +946,22 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Retrieves the latest block from the currently selected network; if the
    * block has a `baseFeePerGas` property, then we know that the network
-   * supports EIP-1559; otherwise it doesn't.
+   * supports EIP-1559; otherwise it doesn't. Throws an error if unable to
+   * retrieve the last block.
    *
    * @returns A promise that resolves to true if the network supports EIP-1559
    * and false otherwise.
    */
   async #determineEIP1559Compatibility(): Promise<boolean> {
-    const latestBlock = await this.#getLatestBlock();
-    return latestBlock?.baseFeePerGas !== undefined;
+    const latestBlock = await this.#getLatestBlockWithRetry();
+
+    if (!latestBlock) {
+      throw new Error(
+        'Unable to determine EIP-1559 compatibility. Failed to retrieve the latest block.',
+      );
+    }
+
+    return latestBlock.baseFeePerGas !== undefined;
   }
 
   /**

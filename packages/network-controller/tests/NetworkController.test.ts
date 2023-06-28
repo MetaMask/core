@@ -4061,50 +4061,34 @@ describe('NetworkController', () => {
         });
 
         describe('if the request for the latest block responds with null', () => {
-          it('sets the "1559" property to false', async () => {
+          it('throws as it can not determine if the network supports EIP-1559', async () => {
+            const latestBlockRespondsNull = {
+              request: {
+                method: 'eth_getBlockByNumber',
+                params: ['latest', false],
+              },
+              response: {
+                result: null,
+              },
+            };
             await withController(async ({ controller }) => {
               setFakeProvider(controller, {
                 stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      result: null,
-                    },
-                  },
+                  latestBlockRespondsNull,
+                  latestBlockRespondsNull,
+                  latestBlockRespondsNull,
+                  latestBlockRespondsNull,
                 ],
                 stubLookupNetworkWhileSetting: true,
               });
 
-              await controller.getEIP1559Compatibility();
-
-              expect(controller.state.networkDetails.EIPS[1559]).toBe(false);
-            });
-          });
-
-          it('returns false', async () => {
-            await withController(async ({ controller }) => {
-              setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      result: null,
-                    },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-
-              const isEIP1559Compatible =
-                await controller.getEIP1559Compatibility();
-
-              expect(isEIP1559Compatible).toBe(false);
+              await expect(
+                controller.getEIP1559Compatibility(),
+              ).rejects.toThrow(
+                new Error(
+                  'Unable to determine EIP-1559 compatibility. Failed to retrieve the latest block.',
+                ),
+              );
             });
           });
         });
