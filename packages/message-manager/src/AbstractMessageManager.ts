@@ -6,6 +6,7 @@ import {
   BaseState,
 } from '@metamask/base-controller';
 import { Json } from '@metamask/utils';
+import { AcceptResultCallbacks } from '@metamask/approval-controller';
 
 /**
  * @type OriginalRequest
@@ -401,36 +402,45 @@ export abstract class AbstractMessageManager<
    *
    * @param messageParamsWithId - The params for the personal_sign call to be made after the message is approved.
    * @param messageName - The name of the message
+   * @param resultCallbacks - The callback functions to call when the message is finished.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async waitForFinishStatus(
     messageParamsWithId: AbstractMessageParamsMetamask,
     messageName: string,
+    resultCallbacks: AcceptResultCallbacks | undefined,
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {
       this.hub.once(`${messageId}:finished`, (data: AbstractMessage) => {
         switch (data.status) {
           case 'signed':
+            /* istanbul ignore next */
+            resultCallbacks?.success();
             return resolve(data.rawSig as string);
           case 'rejected':
-            return reject(
-              new Error(
-                `MetaMask ${messageName} Signature: User denied message signature.`,
-              ),
+            const userRejectedError = new Error(
+              `MetaMask ${messageName} Signature: User denied message signature.`,
             );
+            /* istanbul ignore next */
+            resultCallbacks?.error(userRejectedError);
+            return reject(userRejectedError);
           case 'errored':
-            return reject(
-              new Error(`MetaMask ${messageName} Signature: ${data.error}`),
+            const signatureError = new Error(
+              `MetaMask ${messageName} Signature: ${data.error}`,
             );
+            /* istanbul ignore next */
+            resultCallbacks?.error(signatureError);
+            return reject(signatureError);
           default:
-            return reject(
-              new Error(
-                `MetaMask ${messageName} Signature: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
+            const unknownError = new Error(
+              `MetaMask ${messageName} Signature: Unknown problem: ${JSON.stringify(
+                messageParams,
+              )}`,
             );
+            /* istanbul ignore next */
+            resultCallbacks?.error(unknownError);
+            return reject(unknownError);
         }
       });
     });

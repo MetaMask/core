@@ -51,8 +51,15 @@ const messageData = typedMessage;
 const rawSigMock = '0xsignaturemocked';
 const messageIdMock = 'message-id-mocked';
 const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+const resultCallbacksMock = {
+  success: jest.fn(),
+  error: jest.fn(),
+};
 
 describe('AbstractTestManager', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
   it('should set default state', () => {
     const controller = new AbstractTestManager();
     expect(controller.state).toStrictEqual({
@@ -408,6 +415,7 @@ describe('AbstractTestManager', () => {
           metamaskId: messageIdMock,
         },
         'AbstractTestManager',
+        resultCallbacksMock,
       );
 
       setTimeout(() => {
@@ -418,6 +426,7 @@ describe('AbstractTestManager', () => {
       }, 100);
 
       expect(await promise).toStrictEqual(rawSigMock);
+      expect(resultCallbacksMock.success).toHaveBeenCalledTimes(1);
     });
 
     it('rejects with an error when status is "rejected"', async () => {
@@ -428,6 +437,7 @@ describe('AbstractTestManager', () => {
           metamaskId: messageIdMock,
         },
         'AbstractTestManager',
+        resultCallbacksMock,
       );
 
       setTimeout(() => {
@@ -439,6 +449,7 @@ describe('AbstractTestManager', () => {
       await expect(() => promise).rejects.toThrow(
         'MetaMask AbstractTestManager Signature: User denied message signature.',
       );
+      expect(resultCallbacksMock.error).toHaveBeenCalledTimes(1);
     });
 
     it('rejects with an error when finishes with unknown status', async () => {
@@ -449,6 +460,7 @@ describe('AbstractTestManager', () => {
           metamaskId: messageIdMock,
         },
         'AbstractTestManager',
+        resultCallbacksMock,
       );
 
       setTimeout(() => {
@@ -464,6 +476,7 @@ describe('AbstractTestManager', () => {
           },
         )}`,
       );
+      expect(resultCallbacksMock.error).toHaveBeenCalledTimes(1);
     });
 
     it('rejects with an error when finishes with errored status', async () => {
@@ -474,6 +487,7 @@ describe('AbstractTestManager', () => {
           metamaskId: messageIdMock,
         },
         'AbstractTestManager',
+        resultCallbacksMock,
       );
 
       setTimeout(() => {
@@ -486,6 +500,7 @@ describe('AbstractTestManager', () => {
       await expect(() => promise).rejects.toThrow(
         `MetaMask AbstractTestManager Signature: error message`,
       );
+      expect(resultCallbacksMock.error).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -137,6 +137,10 @@ describe('SignatureController', () => {
   const typedMessageManagerMock = createMessageManagerMock<TypedMessageManager>(
     TypedMessageManager.prototype,
   );
+  const resultCallbacksMock = {
+    success: jest.fn(),
+    error: jest.fn(),
+  };
   const messengerMock = createMessengerMock();
   const keyringControllerMock = createKeyringControllerMock();
   const getAllStateMock = jest.fn();
@@ -156,6 +160,9 @@ describe('SignatureController', () => {
     personalMessageManagerConstructorMock.mockReturnValue(
       personalMessageManagerMock,
     );
+    messengerMock.call.mockResolvedValue({
+      resultCallbacks: resultCallbacksMock,
+    });
 
     typedMessageManagerConstructorMock.mockReturnValue(typedMessageManagerMock);
 
@@ -498,7 +505,6 @@ describe('SignatureController', () => {
         ...messageParamsMock,
         deferSetAsSigned: true,
       };
-      messengerMock.call.mockResolvedValueOnce(null);
       typedMessageManagerMock.approveMessage.mockReset();
       typedMessageManagerMock.approveMessage.mockResolvedValueOnce(
         deferredMessageParams,

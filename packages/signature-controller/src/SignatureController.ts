@@ -26,7 +26,11 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Patch } from 'immer';
-import { AddApprovalRequest } from '@metamask/approval-controller';
+import {
+  AddApprovalRequest,
+  AcceptResultCallbacks,
+  AddResult,
+} from '@metamask/approval-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 
 const controllerName = 'SignatureController';
@@ -413,19 +417,26 @@ export class SignatureController extends BaseControllerV2<
       ...(version && { version }),
     };
 
-    const signaturePromise = messageManager.waitForFinishStatus(
-      messageParamsWithId,
-      messageName,
-    );
-
+    let resultCallbacks: AcceptResultCallbacks | undefined;
     try {
-      await this.#requestApproval(messageParamsWithId, approvalType);
+      const acceptResult = await this.#requestApproval(
+        messageParamsWithId,
+        approvalType,
+      );
+      resultCallbacks = acceptResult.resultCallbacks;
     } catch (error) {
       this.#cancelAbstractMessage(messageManager, messageId);
       throw ethErrors.provider.userRejectedRequest(
         'User rejected the request.',
       );
     }
+
+    const signaturePromise = messageManager.waitForFinishStatus(
+      messageParamsWithId,
+      messageName,
+      resultCallbacks,
+    );
+
     await signMessage(messageParamsWithId, signingOpts);
 
     return signaturePromise;
@@ -678,15 +689,14 @@ export class SignatureController extends BaseControllerV2<
   async #requestApproval(
     msgParams: AbstractMessageParamsMetamask,
     type: ApprovalType,
-  ) {
+  ): Promise<AddResult> {
     const id = msgParams.metamaskId as string;
     const origin = msgParams.origin || ORIGIN_METAMASK;
 
     // We are explicitly cloning the message params here to prevent the mutation errors on development mode
     // Because sending it through the messaging system will make the object read only
     const clonedMsgParams = cloneDeep(msgParams);
-
-    return this.messagingSystem.call(
+    return (await this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
         id,
@@ -695,7 +705,7 @@ export class SignatureController extends BaseControllerV2<
         requestData: clonedMsgParams as Required<AbstractMessageParamsMetamask>,
       },
       true,
-    );
+    )) as Promise<AddResult>;
   }
 
   #removeJsonData(
