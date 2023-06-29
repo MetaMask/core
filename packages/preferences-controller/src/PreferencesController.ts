@@ -40,6 +40,7 @@ export interface PreferencesState extends BaseState {
   disabledRpcMethodPreferences: {
     [methodName: string]: boolean;
   };
+  showTestNetworks: boolean;
 }
 
 /**
@@ -75,6 +76,7 @@ export class PreferencesController extends BaseController<
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
+      showTestNetworks: false,
     };
     this.initialize();
   }
@@ -290,6 +292,15 @@ export class PreferencesController extends BaseController<
    */
   setIsMultiAccountBalancesEnabled(isMultiAccountBalancesEnabled: boolean) {
     this.update({ isMultiAccountBalancesEnabled });
+  }
+
+  /**
+   * A setter for the user have the test networks visible/hidden.
+   *
+   * @param showTestNetworks - true to show test networks, false to hidden.
+   */
+  setShowTestNetworks(showTestNetworks: boolean) {
+    this.update({ showTestNetworks });
   }
 }
 
