@@ -1073,6 +1073,12 @@ export class NftController extends BaseController<NftConfig, NftState> {
       asset.tokenId,
     );
 
+    if (nftMetadata.standard && nftMetadata.standard !== type) {
+      throw rpcErrors.invalidInput(
+        `Suggested NFT of type ${nftMetadata.standard} does not match received type ${type}`,
+      );
+    }
+
     const suggestedNftMeta: SuggestedNftMeta = {
       asset: { ...asset, ...nftMetadata },
       type,

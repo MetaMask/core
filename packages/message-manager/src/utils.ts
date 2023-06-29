@@ -98,17 +98,28 @@ export function validateTypedSignMessageDataV3V4(
 ) {
   validateAddress(messageData.from, 'from');
 
-  if (!messageData.data || typeof messageData.data !== 'string') {
+  if (
+    !messageData.data ||
+    Array.isArray(messageData.data) ||
+    (typeof messageData.data !== 'object' &&
+      typeof messageData.data !== 'string')
+  ) {
     throw new Error(
-      `Invalid message "data": ${messageData.data} must be a valid array.`,
+      `Invalid message "data": Must be a valid string or object.`,
     );
   }
+
   let data;
-  try {
-    data = JSON.parse(messageData.data);
-  } catch (e) {
-    throw new Error('Data must be passed as a valid JSON string.');
+  if (typeof messageData.data === 'object') {
+    data = messageData.data;
+  } else {
+    try {
+      data = JSON.parse(messageData.data);
+    } catch (e) {
+      throw new Error('Data must be passed as a valid JSON string.');
+    }
   }
+
   const validation = validate(data, TYPED_MESSAGE_SCHEMA);
   if (validation.errors.length > 0) {
     throw new Error(

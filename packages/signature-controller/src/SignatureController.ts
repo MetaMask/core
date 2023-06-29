@@ -333,12 +333,15 @@ export class SignatureController extends BaseControllerV2<
    * @param messageParams - The params passed to eth_signTypedData.
    * @param req - The original request, containing the origin.
    * @param version - The version indicating the format of the typed data.
+   * @param signingOpts - An options bag for signing.
+   * @param signingOpts.parseJsonData - Whether to parse the JSON before signing.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async newUnsignedTypedMessage(
     messageParams: TypedMessageParams,
     req: OriginalRequest,
     version: string,
+    signingOpts: TypedMessageSigningOptions,
   ): Promise<string> {
     return this.#newUnsignedAbstractMessage(
       this.#typedMessageManager,
@@ -349,9 +352,7 @@ export class SignatureController extends BaseControllerV2<
       req,
       undefined,
       version,
-      {
-        parseJsonData: true,
-      },
+      signingOpts,
     );
   }
 
@@ -389,11 +390,7 @@ export class SignatureController extends BaseControllerV2<
     messageManager: AbstractMessageManager<M, P, PM>,
     approvalType: ApprovalType,
     messageName: string,
-    signMessage: (
-      messageParams: PM,
-      version?: string,
-      signingOpts?: SO,
-    ) => void,
+    signMessage: (messageParams: PM, signingOpts?: SO) => void,
     messageParams: PM,
     req: OriginalRequest,
     validateMessage?: (params: PM) => void,
@@ -413,6 +410,7 @@ export class SignatureController extends BaseControllerV2<
     const messageParamsWithId = {
       ...messageParams,
       metamaskId: messageId,
+      ...(version && { version }),
     };
 
     const signaturePromise = messageManager.waitForFinishStatus(
@@ -428,7 +426,7 @@ export class SignatureController extends BaseControllerV2<
         'User rejected the request.',
       );
     }
-    await signMessage(messageParamsWithId, version, signingOpts);
+    await signMessage(messageParamsWithId, signingOpts);
 
     return signaturePromise;
   }
@@ -471,25 +469,22 @@ export class SignatureController extends BaseControllerV2<
    * Triggers the callback in newUnsignedTypedMessage.
    *
    * @param msgParams - The params passed to eth_signTypedData.
-   * @param version - The version indicating the format of the typed data.
    * @param opts - The options for the method.
    * @param opts.parseJsonData - Whether to parse JSON data before calling the KeyringController.
    * @returns Signature result from signing.
    */
   async #signTypedMessage(
     msgParams: TypedMessageParamsMetamask,
-    version?: string,
-    opts?: TypedMessageSigningOptions,
+    /* istanbul ignore next */
+    opts = { parseJsonData: true },
   ): Promise<any> {
+    const { version } = msgParams;
     return await this.#signAbstractMessage(
       this.#typedMessageManager,
       ApprovalType.EthSignTypedData,
       msgParams,
       async (cleanMsgParams) => {
-        // Options will allways be defined, but we want to satisfy the TS
-        // hence we ignore the branch here
-        /* istanbul ignore next */
-        const finalMessageParams = opts?.parseJsonData
+        const finalMessageParams = opts.parseJsonData
           ? this.#removeJsonData(cleanMsgParams, version as string)
           : cleanMsgParams;
 
@@ -540,15 +535,21 @@ export class SignatureController extends BaseControllerV2<
 
     try {
       const cleanMessageParams = await messageManager.approveMessage(msgParams);
-      const signature = await getSignature(cleanMessageParams);
 
-      this.hub.emit(`${methodName}:signed`, { signature, messageId });
+      try {
+        const signature = await getSignature(cleanMessageParams);
 
-      if (!cleanMessageParams.deferSetAsSigned) {
-        messageManager.setMessageStatusSigned(messageId, signature);
+        this.hub.emit(`${methodName}:signed`, { signature, messageId });
+
+        if (!cleanMessageParams.deferSetAsSigned) {
+          messageManager.setMessageStatusSigned(messageId, signature);
+        }
+
+        return signature;
+      } catch (error) {
+        this.hub.emit(`${messageId}:signError`, { error });
+        throw error;
       }
-
-      return signature;
     } catch (error: any) {
       console.info(`MetaMaskController - ${methodName} failed.`, error);
       this.#errorMessage(messageManager, messageId, error.message);
