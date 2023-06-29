@@ -125,6 +125,49 @@ function knownKeysOf<K extends PropertyKey>(object: Partial<Record<K, any>>) {
 }
 
 /**
+ * Asserts that the given value is of the given type if the given functions
+ * returns a truthy result.
+ *
+ * @param _value - Some value.
+ * @param test - The function to run.
+ * @param message - The message to throw if the function does not return a
+ * truthy result.
+ * @throws if the function does not return a truthy result.
+ */
+function assertOfType<Type>(
+  _value: unknown,
+  test: () => boolean,
+  message: string,
+): asserts _value is Type {
+  assert.ok(test(), message);
+}
+
+/**
+ * Returns a portion of the given object with only the given keys.
+ *
+ * @param object - An object.
+ * @param keys - The keys to pick from the object.
+ * @returns the portion of the object.
+ */
+function pick<Obj extends Record<any, any>, Keys extends keyof Obj>(
+  object: Obj,
+  keys: Keys[],
+): Pick<Obj, Keys> {
+  const pickedObject = keys.reduce<Partial<Pick<Obj, Keys>>>(
+    (finalObject, key) => {
+      return { ...finalObject, [key]: object[key] };
+    },
+    {},
+  );
+  assertOfType<Pick<Obj, Keys>>(
+    pickedObject,
+    () => keys.every((key) => key in pickedObject),
+    'The reduce did not produce an object with all of the desired keys.',
+  );
+  return pickedObject;
+}
+
+/**
  * Convert the given value into a valid network ID. The ID is accepted
  * as either a number, a decimal string, or a 0x-prefixed hex string.
  *
@@ -936,11 +979,10 @@ export class NetworkController extends BaseControllerV2<
       setActive?: boolean;
     },
   ): Promise<string> {
-    const sanitizedNetworkConfiguration = (
-      ['rpcUrl', 'chainId', 'ticker', 'nickname', 'rpcPrefs'] as const
-    ).reduce((obj, key) => {
-      return { ...obj, [key]: networkConfiguration[key] };
-    }, {} as NetworkConfiguration);
+    const sanitizedNetworkConfiguration: NetworkConfiguration = pick(
+      networkConfiguration,
+      ['rpcUrl', 'chainId', 'ticker', 'nickname', 'rpcPrefs'],
+    );
     const { rpcUrl, chainId, ticker } = sanitizedNetworkConfiguration;
 
     assertIsStrictHexString(chainId);
