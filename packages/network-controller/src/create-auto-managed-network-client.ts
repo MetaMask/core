@@ -2,6 +2,13 @@ import { createNetworkClient, NetworkClient } from './create-network-client';
 import { BlockTracker, NetworkClientConfiguration, Provider } from './types';
 
 /**
+ * The name of the method on both the provider and block tracker proxy which can
+ * be used to get the underlying provider or block tracker from the network
+ * client, when it is initialized.
+ */
+const REFLECTIVE_PROPERTY_NAME = '__target__';
+
+/**
  * Represents a proxy object which wraps a target object. As a proxy, it allows
  * for accessing and setting all of the properties that the target object
  * supports, but also supports an extra propertyName (`__target__`) to access
@@ -11,7 +18,7 @@ import { BlockTracker, NetworkClientConfiguration, Provider } from './types';
  * will be constant even when the target is swapped.
  */
 export type ProxyWithAccessibleTarget<TargetType> = TargetType & {
-  __target__: TargetType;
+  [REFLECTIVE_PROPERTY_NAME]: TargetType;
 };
 
 /**
@@ -34,13 +41,6 @@ export type AutoManagedNetworkClient<
  * something, so this object represents that "something".
  */
 const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
-
-/**
- * The name of the method on both the provider and block tracker proxy which can
- * be used to get the underlying provider or block tracker from the network
- * client, when it is initialized.
- */
-const REFLECTIVE_PROPERTY_NAME = '__target__';
 
 /**
  * This function creates two proxies, one that wraps a provider and another that
