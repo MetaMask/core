@@ -373,6 +373,7 @@ describe('SignatureController', () => {
           origin: ORIGIN_METAMASK,
           type: 'eth_sign',
           requestData: messageParamsWithoutOrigin,
+          expectsResult: true,
         },
         true,
       );
@@ -432,6 +433,7 @@ describe('SignatureController', () => {
           origin: messageParamsMock.origin,
           type: 'personal_sign',
           requestData: messageParamsMock,
+          expectsResult: true,
         },
         true,
       );
@@ -495,6 +497,7 @@ describe('SignatureController', () => {
           origin: messageParamsMock.origin,
           type: 'eth_signTypedData',
           requestData: messageParamsMock,
+          expectsResult: true,
         },
         true,
       );
