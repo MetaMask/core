@@ -169,7 +169,7 @@ function isInfuraProviderType(type: string): type is InfuraNetworkType {
  */
 function buildInfuraNetworkClientId(
   infuraNetworkName: InfuraNetworkType,
-): InfuraNetworkClientId {
+): BuiltInNetworkClientId {
   return `infura||${infuraNetworkName}` as const;
 }
 
@@ -361,7 +361,7 @@ type NetworkConfigurationId = string;
 /**
  * The string that uniquely identifies an Infura network client.
  */
-type InfuraNetworkClientId = `infura||${InfuraNetworkType}`;
+type BuiltInNetworkClientId = `infura||${InfuraNetworkType}`;
 
 /**
  * The string that uniquely identifies a custom network client.
@@ -371,8 +371,8 @@ type CustomNetworkClientId = `custom||${string}`;
 /**
  * The collection of auto-managed network clients that map to Infura networks.
  */
-type AutoManagedInfuraNetworkClientRegistry = Record<
-  InfuraNetworkClientId,
+type AutoManagedBuiltInNetworkClientRegistry = Record<
+  BuiltInNetworkClientId,
   AutoManagedNetworkClient<InfuraNetworkClientConfiguration>
 >;
 
@@ -389,7 +389,7 @@ type AutoManagedCustomNetworkClientRegistry = Record<
  * as well as custom networks that users have added.
  */
 type AutoManagedNetworkClientRegistry = {
-  [NetworkClientType.Infura]: AutoManagedInfuraNetworkClientRegistry;
+  [NetworkClientType.Infura]: AutoManagedBuiltInNetworkClientRegistry;
   [NetworkClientType.Custom]: AutoManagedCustomNetworkClientRegistry;
 };
 
@@ -1059,13 +1059,13 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Constructs the registry of network clients based on the set of Infura
+   * Constructs the registry of network clients based on the set of built-in
    * networks as well as the custom networks in state.
    *
    * @returns The network clients keyed by ID.
    */
   #createAutoManagedNetworkClientRegistry() {
-    const infuraNetworkClientRegistry =
+    const builtInNetworkClientRegistry =
       this.#buildIdentifiedInfuraNetworkClientConfigurations().reduce(
         (obj, [networkClientId, networkClientConfiguration]) => {
           const autoManagedNetworkClient = createAutoManagedNetworkClient(
@@ -1073,7 +1073,7 @@ export class NetworkController extends BaseControllerV2<
           );
           return { ...obj, [networkClientId]: autoManagedNetworkClient };
         },
-        {} as AutoManagedInfuraNetworkClientRegistry,
+        {} as AutoManagedBuiltInNetworkClientRegistry,
       );
 
     const customNetworkClientRegistry =
@@ -1091,7 +1091,7 @@ export class NetworkController extends BaseControllerV2<
       this.#buildIdentifiedNetworkClientConfigurationFromProviderConfig();
 
     if (networkClientType === NetworkClientType.Infura) {
-      infuraNetworkClientRegistry[networkClientId] =
+      builtInNetworkClientRegistry[networkClientId] =
         createAutoManagedNetworkClient(networkClientConfiguration);
     } else {
       customNetworkClientRegistry[networkClientId] =
@@ -1099,19 +1099,20 @@ export class NetworkController extends BaseControllerV2<
     }
 
     return {
-      [NetworkClientType.Infura]: infuraNetworkClientRegistry,
+      [NetworkClientType.Infura]: builtInNetworkClientRegistry,
       [NetworkClientType.Custom]: customNetworkClientRegistry,
     };
   }
 
   /**
-   * Constructs the list of network clients for Infura networks (that is,
-   * those that we know Infura supports).
+   * Constructs the list of network clients for built-in networks (that is,
+   * the subset of the networks we know Infura supports that consumers do not
+   * need to explicitly add).
    *
    * @returns The network clients.
    */
   #buildIdentifiedInfuraNetworkClientConfigurations(): [
-    string,
+    BuiltInNetworkClientId,
     InfuraNetworkClientConfiguration,
   ][] {
     return knownKeysOf(InfuraNetworkType).map((network) => {
@@ -1127,12 +1128,12 @@ export class NetworkController extends BaseControllerV2<
 
   /**
    * Constructs the list of network clients for custom networks (that is, those
-   * that have been added to `networkConfigurations` in state).
+   * which consumers have added via `networkConfigurations`).
    *
    * @returns The network clients.
    */
   #buildIdentifiedCustomNetworkClientConfigurations(): [
-    string,
+    CustomNetworkClientId,
     CustomNetworkClientConfiguration,
   ][] {
     return Object.entries(this.state.networkConfigurations).map(
@@ -1172,7 +1173,7 @@ export class NetworkController extends BaseControllerV2<
       ]
     | [
         NetworkClientType.Infura,
-        InfuraNetworkClientId,
+        BuiltInNetworkClientId,
         InfuraNetworkClientConfiguration,
       ] {
     const { providerConfig } = this.state;
@@ -1262,15 +1263,15 @@ export class NetworkController extends BaseControllerV2<
       autoManagedNetworkClient = customNetworkClientRegistry[networkClientId];
       if (!autoManagedNetworkClient) {
         throw new Error(
-          `Could not find Infura network matching ${networkClientId}`,
+          `Could not find built-in network matching ${networkClientId}`,
         );
       }
     } else {
       const networkClientType = NetworkClientType.Infura;
       const networkClientId = buildInfuraNetworkClientId(providerConfig.type);
-      const infuraNetworkClientRegistry =
+      const builtInNetworkClientRegistry =
         this.#autoManagedNetworkClientRegistry[networkClientType];
-      autoManagedNetworkClient = infuraNetworkClientRegistry[networkClientId];
+      autoManagedNetworkClient = builtInNetworkClientRegistry[networkClientId];
       if (!autoManagedNetworkClient) {
         throw new Error(
           `Could not find custom network matching ${networkClientId}`,
