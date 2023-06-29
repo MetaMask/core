@@ -1089,7 +1089,6 @@ export class NetworkController extends BaseControllerV2<
 
     const [networkClientType, networkClientId, networkClientConfiguration] =
       this.#buildIdentifiedNetworkClientConfigurationFromProviderConfig();
-
     if (networkClientType === NetworkClientType.Infura) {
       builtInNetworkClientRegistry[networkClientId] =
         createAutoManagedNetworkClient(networkClientConfiguration);

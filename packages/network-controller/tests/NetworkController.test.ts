@@ -279,7 +279,33 @@ describe('NetworkController', () => {
 
     for (const { networkType } of INFURA_NETWORKS) {
       describe(`when the type in the provider config is "${networkType}"`, () => {
-        it(`creates a network client for the ${networkType} Infura network, capturing the resulting provider`, async () => {
+        it(`does not create another network client for the ${networkType} Infura network, since it is built in`, async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: networkType,
+                }),
+              },
+              infuraProjectId: 'some-infura-project-id',
+            },
+            async ({ controller }) => {
+              const fakeNetworkClient = buildFakeClient();
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+              await controller.initializeProvider();
+
+              expect(createNetworkClientMock).toHaveBeenCalledWith({
+                network: networkType,
+                infuraProjectId: 'some-infura-project-id',
+                type: NetworkClientType.Infura,
+              });
+              expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
+            },
+          );
+        });
+
+        it('captures the resulting provider of the matching network client', async () => {
           await withController(
             {
               state: {
@@ -306,22 +332,17 @@ describe('NetworkController', () => {
 
               await controller.initializeProvider();
 
-              expect(createNetworkClientMock).toHaveBeenCalledWith({
-                network: networkType,
-                infuraProjectId: 'some-infura-project-id',
-                type: NetworkClientType.Infura,
-              });
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider is not set');
-              const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+              const { result } = await promisify(provider.sendAsync).call(
                 provider,
+                {
+                  id: 1,
+                  jsonrpc: '2.0',
+                  method: 'test_method',
+                  params: [],
+                },
               );
-              const { result } = await promisifiedSendAsync({
-                id: 1,
-                jsonrpc: '2.0',
-                method: 'test_method',
-                params: [],
-              });
               expect(result).toBe('test response');
             },
           );
@@ -341,7 +362,7 @@ describe('NetworkController', () => {
 
     describe('when the type in the provider config is "rpc"', () => {
       describe('if chainId and rpcUrl are present in the provider config', () => {
-        it('creates a network client for a custom RPC endpoint using the provider config, capturing the resulting provider', async () => {
+        it('creates a network client for a custom RPC endpoint using the provider config', async () => {
           await withController(
             {
               state: {
@@ -374,17 +395,50 @@ describe('NetworkController', () => {
                 rpcUrl: 'http://example.com',
                 type: NetworkClientType.Custom,
               });
+              expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
+            },
+          );
+        });
+
+        it('captures the resulting provider of the new network client', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: {
+                  type: NetworkType.rpc,
+                  chainId: toHex(1337),
+                  rpcUrl: 'http://example.com',
+                },
+              },
+            },
+            async ({ controller }) => {
+              const fakeProvider = buildFakeProvider([
+                {
+                  request: {
+                    method: 'test_method',
+                    params: [],
+                  },
+                  response: {
+                    result: 'test response',
+                  },
+                },
+              ]);
+              const fakeNetworkClient = buildFakeClient(fakeProvider);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+
+              await controller.initializeProvider();
+
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider is not set');
-              const promisifiedSendAsync = promisify(provider.sendAsync).bind(
+              const { result } = await promisify(provider.sendAsync).call(
                 provider,
+                {
+                  id: 1,
+                  jsonrpc: '2.0',
+                  method: 'test_method',
+                  params: [],
+                },
               );
-              const { result } = await promisifiedSendAsync({
-                id: 1,
-                jsonrpc: '2.0',
-                method: 'test_method',
-                params: [],
-              });
               expect(result).toBe('test response');
             },
           );
