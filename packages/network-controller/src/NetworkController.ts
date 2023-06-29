@@ -52,7 +52,7 @@ export type ProviderConfig = {
   chainId: Hex;
   ticker?: string;
   nickname?: string;
-  rpcPrefs?: { blockExplorerUrl?: string };
+  rpcPrefs?: RPCPreferences;
   id?: NetworkConfigurationId;
 };
 
@@ -74,6 +74,16 @@ export type NetworkDetails = {
 };
 
 /**
+ * Custom RPC network preferences.
+ *
+ * @property blockExplorerUrl - A URL for the block explorer for the RPC's network.
+ */
+export type RPCPreferences = {
+  blockExplorerUrl?: string;
+  ignoreNonceCache?: boolean;
+};
+
+/**
  * Custom RPC network information
  *
  * @property rpcUrl - RPC target URL.
@@ -87,9 +97,7 @@ export type NetworkConfiguration = {
   chainId: Hex;
   ticker: string;
   nickname?: string;
-  rpcPrefs?: {
-    blockExplorerUrl: string;
-  };
+  rpcPrefs?: RPCPreferences;
 };
 
 /**
@@ -353,11 +361,13 @@ export class NetworkController extends BaseControllerV2<
     this.#previousProviderConfig = this.state.providerConfig;
   }
 
-  #configureProvider(
-    type: NetworkType,
-    rpcUrl: string | undefined,
-    chainId: Hex | undefined,
-  ) {
+  #configureProvider(opts: {
+    type: NetworkType;
+    rpcUrl?: string;
+    chainId?: Hex;
+    rpcPrefs?: RPCPreferences;
+  }) {
+    const { type, rpcUrl, chainId, rpcPrefs } = opts;
     switch (type) {
       case NetworkType.mainnet:
       case NetworkType.goerli:
@@ -372,7 +382,7 @@ export class NetworkController extends BaseControllerV2<
         if (rpcUrl === undefined) {
           throw new Error('rpcUrl must be provided for custom RPC endpoints');
         }
-        this.#setupStandardProvider(rpcUrl, chainId);
+        this.#setupStandardProvider(rpcUrl, chainId, rpcPrefs);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -398,8 +408,8 @@ export class NetworkController extends BaseControllerV2<
         EIPS: {},
       };
     });
-    const { rpcUrl, type, chainId } = this.state.providerConfig;
-    this.#configureProvider(type, rpcUrl, chainId);
+    const { rpcUrl, type, chainId, rpcPrefs } = this.state.providerConfig;
+    this.#configureProvider({ type, rpcUrl, chainId, rpcPrefs });
     this.messagingSystem.publish('NetworkController:networkDidChange');
     await this.lookupNetwork();
   }
@@ -422,11 +432,16 @@ export class NetworkController extends BaseControllerV2<
     this.#updateProvider(provider, blockTracker);
   }
 
-  #setupStandardProvider(rpcUrl: string, chainId: Hex) {
+  #setupStandardProvider(
+    rpcUrl: string,
+    chainId: Hex,
+    rpcPrefs?: RPCPreferences,
+  ) {
     const { provider, blockTracker } = createNetworkClient({
       chainId,
       rpcUrl,
       type: NetworkClientType.Custom,
+      ignoreNonceCache: rpcPrefs?.ignoreNonceCache,
     });
 
     this.#updateProvider(provider, blockTracker);
@@ -447,8 +462,8 @@ export class NetworkController extends BaseControllerV2<
    *
    */
   async initializeProvider() {
-    const { type, rpcUrl, chainId } = this.state.providerConfig;
-    this.#configureProvider(type, rpcUrl, chainId);
+    const { type, rpcUrl, chainId, rpcPrefs } = this.state.providerConfig;
+    this.#configureProvider({ type, rpcUrl, chainId, rpcPrefs });
     this.#registerProvider();
     await this.lookupNetwork();
   }
