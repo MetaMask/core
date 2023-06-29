@@ -222,6 +222,14 @@ describe('createAutoManagedNetworkClient', () => {
   ];
   for (const networkClientConfiguration of networkClientConfigurations) {
     describe(`given configuration for a ${networkClientConfiguration.type} network client`, () => {
+      it('allows the network client configuration to be accessed', () => {
+        const { configuration } = createAutoManagedNetworkClient(
+          networkClientConfiguration,
+        );
+
+        expect(configuration).toStrictEqual(networkClientConfiguration);
+      });
+
       it('does not make any network requests initially', () => {
         // If unexpected requests occurred, then Nock would throw
         expect(() => {
@@ -454,6 +462,35 @@ describe('createAutoManagedNetworkClient', () => {
         expect(createNetworkClientMock).toHaveBeenCalledWith(
           networkClientConfiguration,
         );
+      });
+
+      it('allows the block tracker to be destroyed', () => {
+        const mockedNetwork = new MockedNetwork({
+          networkClientConfiguration,
+          specs: [
+            {
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
+              },
+              response: {
+                result: '0x1',
+              },
+            },
+          ],
+        });
+        mockedNetwork.enable();
+        const { blockTracker, destroy } = createAutoManagedNetworkClient(
+          networkClientConfiguration,
+        );
+        // Start the block tracker
+        blockTracker.on('latest', () => {
+          // do nothing
+        });
+
+        destroy();
+
+        expect(blockTracker.isRunning()).toBe(false);
       });
     });
   }
