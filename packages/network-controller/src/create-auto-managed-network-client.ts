@@ -46,14 +46,11 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * This function creates two proxies, one that wraps a provider and another that
  * wraps a block tracker. These proxies are unique in that both will be "empty"
  * at first; that is, neither will point to a functional provider or block
- * tracker. They are set up in this way so as not to create unexpected network
- * requests if the consumer of the proxy never accesses the network. Instead, as
- * soon as a method or event is accessed on either object that requires a
- * network request to function, a network client is created on the fly and
- * the method or event in question is then forwarded to whichever part of the
- * network client is serving as the receiver. The network client is then cached
- * for subsequent usages. It can be destroyed at any time if it is no longer
- * needed.
+ * tracker. Instead, as soon as a method or event is accessed on either object
+ * that requires a network request to function, a network client is created on
+ * the fly and the method or event in question is then forwarded to whichever
+ * part of the network client is serving as the receiver. The network client is
+ * then cached for subsequent usages.
  *
  * @param networkClientConfiguration - The configuration object that will be
  * used to instantiate the network client when it is needed.
@@ -64,7 +61,7 @@ export function createAutoManagedNetworkClient<
 >(
   networkClientConfiguration: Configuration,
 ): AutoManagedNetworkClient<Configuration> {
-  let networkClient: NetworkClient | undefined;
+  let networkClient: NetworkClient<Configuration> | undefined;
 
   const providerProxy = new Proxy(UNINITIALIZED_TARGET, {
     get(_target: any, propertyName: PropertyKey, receiver: unknown) {
