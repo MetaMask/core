@@ -161,8 +161,7 @@ function isInfuraProviderType(type: string): type is InfuraNetworkType {
 }
 
 /**
- * Builds an identifier for an Infura network client, used to look it up in the
- * registry at some later point in time.
+ * Builds an identifier for an Infura network client for lookup purposes.
  *
  * @param infuraNetworkName - The name of the Infura network.
  * @returns The built identifier.
@@ -174,20 +173,24 @@ function buildInfuraNetworkClientId(
 }
 
 /**
- * Builds an identifier for a custom network client, used to look it up in the
- * registry at some later point in time.
+ * Builds an identifier for a custom network client for lookup purposes.
  *
- * @param networkConfigurationId - The ID of the network configuration for the
- * network.
- * @param chainId - The chain ID of the network.
- * @param rpcUrl - The RPC URL of the network.
+ * @param args - The arguments. There are two ways to call this function:
+ * 1. By just passing a network configuration ID.
+ * 2. By passing pieces of a provider configuration. This always has an RPC URL,
+ * but _may_ have a chain ID and even a network configuration ID.
  * @returns The built identifier.
  */
 function buildCustomNetworkClientId(
-  networkConfigurationId: NetworkConfigurationId | undefined,
-  chainId?: Hex,
-  rpcUrl?: string | undefined,
+  ...args:
+    | [NetworkConfigurationId]
+    | [
+        networkConfigurationId: NetworkConfigurationId | undefined,
+        chainId: Hex,
+        rpcUrl: string | undefined,
+      ]
 ): CustomNetworkClientId {
+  const [networkConfigurationId, chainId, rpcUrl] = args;
   if (networkConfigurationId === undefined) {
     if (chainId === undefined) {
       throw new Error('Missing chainId (this should never happen)');
