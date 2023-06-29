@@ -360,7 +360,7 @@ describe('NetworkController', () => {
       });
     }
 
-    describe.only('when the type in the provider config is "rpc"', () => {
+    describe('when the type in the provider config is "rpc"', () => {
       describe('if the provider config points to a network configuration', () => {
         it('creates a network client for the custom RPC endpoint described by the network configuration, not the provider config', async () => {
           await withController(
@@ -1330,7 +1330,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'custom||networkConfiguration',
+                    'custom||AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
                       chainId: toHex(1),
@@ -1410,7 +1410,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'custom||networkConfiguration',
+                    'custom||AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
                       chainId: '0x1',
@@ -1482,7 +1482,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'custom||networkConfiguration',
+                    'custom||AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
                       chainId: toHex(1),
@@ -1556,7 +1556,7 @@ describe('NetworkController', () => {
                   },
                 ],
                 [
-                  'custom||networkConfiguration',
+                  'custom||AAAA-AAAA-AAAA-AAAA',
                   {
                     type: NetworkClientType.Custom,
                     chainId: toHex(1),
