@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.0.1]
-### Uncategorized
-- Fixed issue with type types from permissions rpc methods ([#1464](https://github.com/MetaMask/core/pull/1464))
+### Fixed
+- tuple types from permissions rpc methods ([#1464](https://github.com/MetaMask/core/pull/1464))
 
 ## [4.0.0]
 ### Changed
