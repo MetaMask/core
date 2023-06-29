@@ -939,10 +939,7 @@ export class NetworkController extends BaseControllerV2<
     const sanitizedNetworkConfiguration = (
       ['rpcUrl', 'chainId', 'ticker', 'nickname', 'rpcPrefs'] as const
     ).reduce((obj, key) => {
-      if (key in networkConfiguration) {
-        return { ...obj, [key]: networkConfiguration[key] };
-      }
-      return obj;
+      return { ...obj, [key]: networkConfiguration[key] };
     }, {} as NetworkConfiguration);
     const { rpcUrl, chainId, ticker } = sanitizedNetworkConfiguration;
 
