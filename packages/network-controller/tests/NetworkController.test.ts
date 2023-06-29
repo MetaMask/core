@@ -1062,7 +1062,7 @@ describe('NetworkController', () => {
               type: NetworkType.rpc,
               chainId: '0x2',
               rpcUrl: 'https://test.network',
-              id: 'networkConfiguration'
+              id: 'networkConfiguration',
             },
             networkConfigurations: {
               networkConfiguration: {
@@ -4371,14 +4371,13 @@ describe('NetworkController', () => {
                 const networkClientsById = controller.getNetworkClientsById();
                 expect(Object.keys(networkClientsById)).toHaveLength(4);
                 expect(networkClientsById).toMatchObject({
-                  'custom||AAAA-AAAA-AAAA-AAAA':
-                    expect.objectContaining({
-                      configuration: {
-                        chainId: toHex(999),
-                        rpcUrl: newRpcUrl,
-                        type: NetworkClientType.Custom,
-                      },
-                    }),
+                  'custom||AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
+                    configuration: {
+                      chainId: toHex(999),
+                      rpcUrl: newRpcUrl,
+                      type: NetworkClientType.Custom,
+                    },
+                  }),
                 });
               },
             );
