@@ -1,5 +1,5 @@
-import { createNetworkClient, NetworkClient } from './create-network-client';
-import { BlockTracker, NetworkClientConfiguration, Provider } from './types';
+import {createNetworkClient, NetworkClient} from './create-network-client';
+import {BlockTracker, NetworkClientConfiguration, Provider} from './types';
 
 /**
  * The name of the method on both the provider and block tracker proxy which can
@@ -28,19 +28,19 @@ export type ProxyWithAccessibleTarget<TargetType> = TargetType & {
  */
 export type AutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
-> = {
-  configuration: Configuration;
-  provider: ProxyWithAccessibleTarget<Provider>;
-  blockTracker: ProxyWithAccessibleTarget<BlockTracker>;
-  destroy: () => void;
-};
+  > = {
+    configuration: Configuration;
+    provider: ProxyWithAccessibleTarget<Provider>;
+    blockTracker: ProxyWithAccessibleTarget<BlockTracker>;
+    destroy: () => void;
+  };
 
 /**
  * By default, the provider and block provider proxies will point to nothing.
  * This is impossible when using the Proxy API, as the target object has to be
  * something, so this object represents that "something".
  */
-const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
+const UNINITIALIZED_TARGET = {__UNINITIALIZED__: true};
 
 /**
  * This function creates two proxies, one that wraps a provider and another that
@@ -58,10 +58,10 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  */
 export function createAutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
->(
-  networkClientConfiguration: Configuration,
+  >(
+    networkClientConfiguration: Configuration,
 ): AutoManagedNetworkClient<Configuration> {
-  let networkClient: NetworkClient<Configuration> | undefined;
+  let networkClient: NetworkClient | undefined;
 
   const providerProxy = new Proxy(UNINITIALIZED_TARGET, {
     get(_target: any, propertyName: PropertyKey, receiver: unknown) {
@@ -75,7 +75,7 @@ export function createAutoManagedNetworkClient<
           "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
         );
       }
-      const { provider } = networkClient;
+      const {provider} = networkClient;
 
       if (propertyName in provider) {
         // Typecast: We know that `[propertyName]` is a propertyName on
@@ -103,7 +103,7 @@ export function createAutoManagedNetworkClient<
         return true;
       }
       networkClient ??= createNetworkClient(networkClientConfiguration);
-      const { provider } = networkClient;
+      const {provider} = networkClient;
       return propertyName in provider;
     },
   });
@@ -122,7 +122,7 @@ export function createAutoManagedNetworkClient<
             "It looks like createNetworkClient returned undefined. Perhaps it's mocked?",
           );
         }
-        const { blockTracker } = networkClient;
+        const {blockTracker} = networkClient;
 
         if (propertyName in blockTracker) {
           // Typecast: We know that `[propertyName]` is a propertyName on
@@ -150,7 +150,7 @@ export function createAutoManagedNetworkClient<
           return true;
         }
         networkClient ??= createNetworkClient(networkClientConfiguration);
-        const { blockTracker } = networkClient;
+        const {blockTracker} = networkClient;
         return propertyName in blockTracker;
       },
     },

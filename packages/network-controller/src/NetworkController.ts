@@ -204,6 +204,19 @@ function buildCustomNetworkClientId(
 }
 
 /**
+ * Returns whether the given provider config refers to an Infura network.
+ *
+ * @param providerConfig - The provider config.
+ * @returns True if the provider config refers to an Infura network, false
+ * otherwise.
+ */
+function isInfuraProviderConfig(
+  providerConfig: ProviderConfig,
+): providerConfig is ProviderConfig & { type: InfuraNetworkType } {
+  return isInfuraProviderType(providerConfig.type);
+}
+
+/**
  * The network ID of a network.
  */
 export type NetworkId = `${number}`;
@@ -596,7 +609,7 @@ export class NetworkController extends BaseControllerV2<
       return;
     }
 
-    const isInfura = isInfuraProviderType(this.state.providerConfig.type);
+    const isInfura = isInfuraProviderConfig(this.state.providerConfig);
 
     let networkChanged = false;
     const listener = () => {
@@ -1204,7 +1217,7 @@ export class NetworkController extends BaseControllerV2<
       ];
     }
 
-    if (isInfuraProviderType(providerConfig.type)) {
+    if (isInfuraProviderConfig(providerConfig)) {
       const networkClientId = buildInfuraNetworkClientId(providerConfig);
       const networkClientConfiguration: InfuraNetworkClientConfiguration = {
         network: providerConfig.type,
@@ -1253,18 +1266,7 @@ export class NetworkController extends BaseControllerV2<
 
     let autoManagedNetworkClient: AutoManagedNetworkClient<NetworkClientConfiguration>;
 
-    if (providerConfig.type === NetworkType.rpc) {
-      const networkClientType = NetworkClientType.Custom;
-      const networkClientId = buildCustomNetworkClientId(providerConfig);
-      const customNetworkClientRegistry =
-        this.#autoManagedNetworkClientRegistry[networkClientType];
-      autoManagedNetworkClient = customNetworkClientRegistry[networkClientId];
-      if (!autoManagedNetworkClient) {
-        throw new Error(
-          `Could not find built-in network matching ${networkClientId}`,
-        );
-      }
-    } else {
+    if (isInfuraProviderConfig(providerConfig)) {
       const networkClientType = NetworkClientType.Infura;
       const networkClientId = buildInfuraNetworkClientId(providerConfig);
       const builtInNetworkClientRegistry =
@@ -1273,6 +1275,17 @@ export class NetworkController extends BaseControllerV2<
       if (!autoManagedNetworkClient) {
         throw new Error(
           `Could not find custom network matching ${networkClientId}`,
+        );
+      }
+    } else {
+      const networkClientType = NetworkClientType.Custom;
+      const networkClientId = buildCustomNetworkClientId(providerConfig);
+      const customNetworkClientRegistry =
+        this.#autoManagedNetworkClientRegistry[networkClientType];
+      autoManagedNetworkClient = customNetworkClientRegistry[networkClientId];
+      if (!autoManagedNetworkClient) {
+        throw new Error(
+          `Could not find built-in network matching ${networkClientId}`,
         );
       }
     }
