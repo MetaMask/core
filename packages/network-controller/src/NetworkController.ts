@@ -493,24 +493,28 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Returns all of the network clients that have been created so far. This
-   * collection represents not only Infura networks but also any networks that
-   * the user has added.
+   * Returns all of the network clients that have been created so far, keyed by
+   * their identifier in the network client registry. This collection represents
+   * not only built-in networks but also any custom networks that consumers have
+   * added.
    *
    * @returns The list of known network clients.
    */
-  getNetworkClients(): AutoManagedNetworkClient<NetworkClientConfiguration>[] {
+  getNetworkClientsById(): Record<
+    BuiltInNetworkClientId,
+    AutoManagedNetworkClient<InfuraNetworkClientConfiguration>
+  > &
+    Record<
+      CustomNetworkClientId,
+      AutoManagedNetworkClient<CustomNetworkClientConfiguration>
+    > {
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    return [
-      ...Object.values(
-        autoManagedNetworkClientRegistry[NetworkClientType.Infura],
-      ),
-      ...Object.values(
-        autoManagedNetworkClientRegistry[NetworkClientType.Custom],
-      ),
-    ];
+    return {
+      ...autoManagedNetworkClientRegistry[NetworkClientType.Infura],
+      ...autoManagedNetworkClientRegistry[NetworkClientType.Custom],
+    };
   }
 
   /**
