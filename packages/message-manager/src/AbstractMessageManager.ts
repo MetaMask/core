@@ -408,7 +408,7 @@ export abstract class AbstractMessageManager<
   async waitForFinishStatus(
     messageParamsWithId: AbstractMessageParamsMetamask,
     messageName: string,
-    resultCallbacks: AcceptResultCallbacks | undefined,
+    resultCallbacks?: AcceptResultCallbacks,
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {
