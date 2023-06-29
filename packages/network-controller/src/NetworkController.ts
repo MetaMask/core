@@ -163,44 +163,44 @@ function isInfuraProviderType(type: string): type is InfuraNetworkType {
 /**
  * Builds an identifier for an Infura network client for lookup purposes.
  *
- * @param infuraNetworkName - The name of the Infura network.
+ * @param infuraNetworkOrProviderConfig - The name of an Infura network or a
+ * provider config.
  * @returns The built identifier.
  */
 function buildInfuraNetworkClientId(
-  infuraNetworkName: InfuraNetworkType,
+  infuraNetworkOrProviderConfig:
+    | InfuraNetworkType
+    | (ProviderConfig & { type: InfuraNetworkType }),
 ): BuiltInNetworkClientId {
-  return `infura||${infuraNetworkName}` as const;
+  if (typeof infuraNetworkOrProviderConfig === 'string') {
+    return `infura||${infuraNetworkOrProviderConfig}` as const;
+  }
+  return `infura||${infuraNetworkOrProviderConfig.type}` as const;
 }
 
 /**
  * Builds an identifier for a custom network client for lookup purposes.
  *
- * @param args - The arguments. There are two ways to call this function:
- * 1. By just passing a network configuration ID.
- * 2. By passing pieces of a provider configuration. This always has an RPC URL,
- * but _may_ have a chain ID and even a network configuration ID.
+ * @param networkConfigurationIdOrProviderConfig - Either the ID of a network
+ * configuration or a provider config.
  * @returns The built identifier.
  */
 function buildCustomNetworkClientId(
-  ...args:
-    | [NetworkConfigurationId]
-    | [
-        networkConfigurationId: NetworkConfigurationId | undefined,
-        chainId: Hex,
-        rpcUrl: string | undefined,
-      ]
+  networkConfigurationIdOrProviderConfig:
+    | NetworkConfigurationId
+    | ProviderConfig,
 ): CustomNetworkClientId {
-  const [networkConfigurationId, chainId, rpcUrl] = args;
-  if (networkConfigurationId === undefined) {
-    if (chainId === undefined) {
-      throw new Error('Missing chainId (this should never happen)');
-    }
+  if (typeof networkConfigurationIdOrProviderConfig === 'string') {
+    return `custom||${networkConfigurationIdOrProviderConfig}` as const;
+  }
+  const { id, rpcUrl, chainId } = networkConfigurationIdOrProviderConfig;
+  if (id === undefined) {
     if (rpcUrl === undefined) {
       return `custom||${chainId}` as const;
     }
     return `custom||${chainId}||${rpcUrl.toLowerCase()}` as const;
   }
-  return `custom||${networkConfigurationId}` as const;
+  return `custom||${id}` as const;
 }
 
 /**
@@ -1191,11 +1191,7 @@ export class NetworkController extends BaseControllerV2<
       if (providerConfig.rpcUrl === undefined) {
         throw new Error('rpcUrl must be provided for custom RPC endpoints');
       }
-      const networkClientId = buildCustomNetworkClientId(
-        providerConfig.id,
-        providerConfig.chainId,
-        providerConfig.rpcUrl,
-      );
+      const networkClientId = buildCustomNetworkClientId(providerConfig);
       const networkClientConfiguration: CustomNetworkClientConfiguration = {
         chainId: providerConfig.chainId,
         rpcUrl: providerConfig.rpcUrl,
@@ -1209,7 +1205,7 @@ export class NetworkController extends BaseControllerV2<
     }
 
     if (isInfuraProviderType(providerConfig.type)) {
-      const networkClientId = buildInfuraNetworkClientId(providerConfig.type);
+      const networkClientId = buildInfuraNetworkClientId(providerConfig);
       const networkClientConfiguration: InfuraNetworkClientConfiguration = {
         network: providerConfig.type,
         infuraProjectId: this.#infuraProjectId,
@@ -1259,11 +1255,7 @@ export class NetworkController extends BaseControllerV2<
 
     if (providerConfig.type === NetworkType.rpc) {
       const networkClientType = NetworkClientType.Custom;
-      const networkClientId = buildCustomNetworkClientId(
-        providerConfig.id,
-        providerConfig.chainId,
-        providerConfig.rpcUrl,
-      );
+      const networkClientId = buildCustomNetworkClientId(providerConfig);
       const customNetworkClientRegistry =
         this.#autoManagedNetworkClientRegistry[networkClientType];
       autoManagedNetworkClient = customNetworkClientRegistry[networkClientId];
@@ -1274,7 +1266,7 @@ export class NetworkController extends BaseControllerV2<
       }
     } else {
       const networkClientType = NetworkClientType.Infura;
-      const networkClientId = buildInfuraNetworkClientId(providerConfig.type);
+      const networkClientId = buildInfuraNetworkClientId(providerConfig);
       const builtInNetworkClientRegistry =
         this.#autoManagedNetworkClientRegistry[networkClientType];
       autoManagedNetworkClient = builtInNetworkClientRegistry[networkClientId];
