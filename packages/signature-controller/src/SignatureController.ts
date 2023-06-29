@@ -703,6 +703,7 @@ export class SignatureController extends BaseControllerV2<
         origin,
         type,
         requestData: clonedMsgParams as Required<AbstractMessageParamsMetamask>,
+        expectsResult: true,
       },
       true,
     )) as Promise<AddResult>;
