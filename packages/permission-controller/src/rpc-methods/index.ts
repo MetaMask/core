@@ -7,4 +7,7 @@ import { getPermissionsHandler, GetPermissionsHooks } from './getPermissions';
 export type PermittedRpcMethodHooks = RequestPermissionsHooks &
   GetPermissionsHooks;
 
-export const handlers = [requestPermissionsHandler, getPermissionsHandler];
+export const handlers: [
+  typeof requestPermissionsHandler,
+  typeof getPermissionsHandler,
+] = [requestPermissionsHandler, getPermissionsHandler];
