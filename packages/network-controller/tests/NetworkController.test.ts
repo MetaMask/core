@@ -5174,14 +5174,13 @@ describe('NetworkController', () => {
 
             expect(networkClientToDestroy.destroy).toHaveBeenCalled();
             expect(controller.getNetworkClientsById()).not.toMatchObject({
-              'https://test.network':
-                expect.objectContaining({
-                  configuration: {
-                    chainId: toHex(111),
-                    rpcUrl: 'https://test.network',
-                    type: NetworkClientType.Custom,
-                  },
-                }),
+              'https://test.network': expect.objectContaining({
+                configuration: {
+                  chainId: toHex(111),
+                  rpcUrl: 'https://test.network',
+                  type: NetworkClientType.Custom,
+                },
+              }),
             });
           },
         );
