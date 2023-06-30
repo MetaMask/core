@@ -52,7 +52,7 @@ import {
   ESTIMATE_GAS_ERROR,
 } from './utils';
 
-const HARDFORK = 'london';
+export const HARDFORK = 'london';
 
 /**
  * @type Result

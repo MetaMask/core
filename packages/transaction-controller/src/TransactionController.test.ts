@@ -2,14 +2,8 @@
 
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
-import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
-import type {
-  BlockTracker,
-  NetworkState,
-  Provider,
-} from '@metamask/network-controller';
-import { NetworkStatus } from '@metamask/network-controller';
 import { errorCodes } from 'eth-rpc-errors';
+import Common from '@ethereumjs/common';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import {
   AcceptResultCallbacks,
@@ -22,6 +16,7 @@ import {
   TransactionMeta,
   TransactionControllerMessenger,
   TransactionConfig,
+  HARDFORK,
 } from './TransactionController';
 import {
   ethTxsMock,
@@ -31,6 +26,13 @@ import {
   txsInStateWithOutdatedGasDataMock,
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
+import { NetworkStatus } from '@metamask/network-controller';
+import type {
+  BlockTracker,
+  NetworkState,
+  Provider,
+} from '@metamask/network-controller';
+import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
 
 const v1Stub = jest
   .fn()
@@ -308,6 +310,39 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
   },
   subscribe: () => undefined,
 };
+
+const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
+  provider: PALM_PROVIDER,
+  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  state: {
+    networkId: '59144',
+    networkStatus: NetworkStatus.Available,
+    networkDetails: { EIPS: { 1559: false } },
+    providerConfig: {
+      type: NetworkType['linea-mainnet'],
+      chainId: toHex(59144),
+    },
+    networkConfigurations: {},
+  },
+  subscribe: () => undefined,
+};
+
+const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
+  provider: PALM_PROVIDER,
+  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  state: {
+    networkId: '59140',
+    networkStatus: NetworkStatus.Available,
+    networkDetails: { EIPS: { 1559: false } },
+    providerConfig: {
+      type: NetworkType['linea-goerli'],
+      chainId: toHex(59140),
+    },
+    networkConfigurations: {},
+  },
+  subscribe: () => undefined,
+};
+
 const MOCK_CUSTOM_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
@@ -1504,5 +1539,51 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(2);
     });
+  });
+
+  describe('getCommonConfiguration', () => {
+    it('should get the common  network configuration for mainnet', async () => {
+      const controller = new TransactionController({
+        getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+        onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+        provider: MOCK_MAINNET_NETWORK.provider,
+        blockTracker: MOCK_MAINNET_NETWORK.blockTracker,
+        messenger: messengerMock,
+      });
+
+      const config = await controller.getCommonConfiguration();
+      expect(config).toStrictEqual(
+        new Common({ chain: 'mainnet', hardfork: HARDFORK }),
+      );
+    });
+
+    it.each([
+      ['linea-mainnet', MOCK_LINEA_MAINNET_NETWORK, 59144],
+      ['linea-goerli', MOCK_LINEA_GOERLI_NETWORK, 59140],
+    ])(
+      'should get a custom network configuration for %s',
+      async (_, mockNetwork: MockNetwork, chainId: number) => {
+        const controller = new TransactionController({
+          getNetworkState: () => mockNetwork.state,
+          onNetworkStateChange: mockNetwork.subscribe,
+          provider: mockNetwork.provider,
+          blockTracker: mockNetwork.blockTracker,
+          messenger: messengerMock,
+        });
+
+        const config = controller.getCommonConfiguration();
+        expect(config).toStrictEqual(
+          Common.forCustomChain(
+            NetworkType.mainnet,
+            {
+              name: undefined,
+              chainId,
+              networkId: chainId,
+            },
+            HARDFORK,
+          ),
+        );
+      },
+    );
   });
 });
