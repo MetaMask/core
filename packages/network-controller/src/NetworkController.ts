@@ -1182,7 +1182,7 @@ export class NetworkController extends BaseControllerV2<
     return [
       ...this.#buildIdentifiedInfuraNetworkClientConfigurations(),
       ...this.#buildIdentifiedCustomNetworkClientConfigurations(),
-      this.#buildIdentifiedNetworkClientConfigurationFromProviderConfig(),
+      ...this.#buildIdentifiedNetworkClientConfigurationsFromProviderConfig(),
     ].reduce(
       (
         registry,
@@ -1280,17 +1280,15 @@ export class NetworkController extends BaseControllerV2<
    * @throws If the provider config is of type "rpc" and lacks either a
    * `chainId` or an `rpcUrl`.
    */
-  #buildIdentifiedNetworkClientConfigurationFromProviderConfig():
+  #buildIdentifiedNetworkClientConfigurationsFromProviderConfig():
     | [
-        NetworkClientType.Custom,
-        CustomNetworkClientId,
-        CustomNetworkClientConfiguration,
+        [
+          NetworkClientType.Custom,
+          CustomNetworkClientId,
+          CustomNetworkClientConfiguration,
+        ],
       ]
-    | [
-        NetworkClientType.Infura,
-        BuiltInNetworkClientId,
-        InfuraNetworkClientConfiguration,
-      ] {
+    | [] {
     const { providerConfig } = this.state;
 
     if (isCustomProviderConfig(providerConfig)) {
@@ -1305,24 +1303,12 @@ export class NetworkController extends BaseControllerV2<
         type: NetworkClientType.Custom,
       };
       return [
-        NetworkClientType.Custom,
-        networkClientId,
-        networkClientConfiguration,
+        [NetworkClientType.Custom, networkClientId, networkClientConfiguration],
       ];
     }
 
     if (isInfuraProviderConfig(providerConfig)) {
-      const networkClientId = buildInfuraNetworkClientId(providerConfig);
-      const networkClientConfiguration: InfuraNetworkClientConfiguration = {
-        network: providerConfig.type,
-        infuraProjectId: this.#infuraProjectId,
-        type: NetworkClientType.Infura,
-      };
-      return [
-        NetworkClientType.Infura,
-        networkClientId,
-        networkClientConfiguration,
-      ];
+      return [];
     }
 
     throw new Error(`Unrecognized network type: '${providerConfig.type}'`);
