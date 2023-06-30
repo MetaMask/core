@@ -1183,19 +1183,19 @@ export class NetworkController extends BaseControllerV2<
       this.#buildIdentifiedNetworkClientConfigurationFromProviderConfig(),
     ].reduce(
       (
-        obj,
+        registry,
         [networkClientType, networkClientId, networkClientConfiguration],
       ) => {
         const autoManagedNetworkClient = createAutoManagedNetworkClient(
           networkClientConfiguration,
         );
-        if (networkClientId in obj[networkClientType]) {
-          return obj;
+        if (networkClientId in registry[networkClientType]) {
+          return registry;
         }
         return {
-          ...obj,
+          ...registry,
           [networkClientType]: {
-            ...obj[networkClientType],
+            ...registry[networkClientType],
             [networkClientId]: autoManagedNetworkClient,
           },
         };
@@ -1203,8 +1203,8 @@ export class NetworkController extends BaseControllerV2<
       {
         [NetworkClientType.Infura]: {},
         [NetworkClientType.Custom]: {},
-      } as AutoManagedNetworkClientRegistry,
-    );
+      },
+    ) as AutoManagedNetworkClientRegistry;
   }
 
   /**
