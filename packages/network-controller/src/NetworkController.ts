@@ -127,21 +127,23 @@ export function knownKeysOf<K extends PropertyKey>(
 }
 
 /**
- * Asserts that the given value is of the given type if the given functions
- * returns a truthy result.
+ * Asserts that the given value is of the given type if the given validation
+ * function returns a truthy result.
  *
- * @param _value - Some value.
- * @param test - The function to run.
+ * @param value - The value to validate.
+ * @param validate - A function used to validate that the value is of the given
+ * type. Takes the `value` as an argument and is expected to return true or
+ * false.
  * @param message - The message to throw if the function does not return a
  * truthy result.
  * @throws if the function does not return a truthy result.
  */
 function assertOfType<Type>(
-  _value: unknown,
-  test: () => boolean,
+  value: unknown,
+  validate: (value: unknown) => boolean,
   message: string,
-): asserts _value is Type {
-  assert.ok(test(), message);
+): asserts value is Type {
+  assert.ok(validate(value), message);
 }
 
 /**
