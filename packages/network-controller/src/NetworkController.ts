@@ -145,8 +145,7 @@ function assertOfType<Type>(
 }
 
 /**
- * Returns a portion of the given object with only the given keys (they must
- * exist on the object to be picked).
+ * Returns a portion of the given object with only the given keys.
  *
  * @param object - An object.
  * @param keys - The keys to pick from the object.
