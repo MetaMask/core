@@ -120,7 +120,9 @@ type NetworkConfigurations = Record<
  * @returns The keys of an object, typed according to the type of the object
  * itself.
  */
-function knownKeysOf<K extends PropertyKey>(object: Partial<Record<K, any>>) {
+export function knownKeysOf<K extends PropertyKey>(
+  object: Partial<Record<K, any>>,
+) {
   return Object.keys(object) as K[];
 }
 
@@ -224,9 +226,9 @@ function buildInfuraNetworkClientId(
     | (ProviderConfig & { type: InfuraNetworkType }),
 ): BuiltInNetworkClientId {
   if (typeof infuraNetworkOrProviderConfig === 'string') {
-    return `infura||${infuraNetworkOrProviderConfig}` as const;
+    return infuraNetworkOrProviderConfig;
   }
-  return `infura||${infuraNetworkOrProviderConfig.type}` as const;
+  return infuraNetworkOrProviderConfig.type;
 }
 
 /**
@@ -246,9 +248,9 @@ function buildCustomNetworkClientId(
       ]
 ): CustomNetworkClientId {
   if (args.length === 1) {
-    return `custom||${args[0]}` as const;
+    return args[0];
   }
-  const [{ id, rpcUrl, chainId }, networkConfigurations] = args;
+  const [{ id, rpcUrl }, networkConfigurations] = args;
   if (id === undefined) {
     const matchingNetworkConfiguration = Object.values(
       networkConfigurations,
@@ -256,11 +258,11 @@ function buildCustomNetworkClientId(
       return networkConfiguration.rpcUrl === rpcUrl.toLowerCase();
     });
     if (matchingNetworkConfiguration) {
-      return `custom||${matchingNetworkConfiguration.id}`;
+      return matchingNetworkConfiguration.id;
     }
-    return `custom||${chainId}||${rpcUrl.toLowerCase()}` as const;
+    return rpcUrl.toLowerCase();
   }
-  return `custom||${id}` as const;
+  return id;
 }
 
 /**
@@ -476,12 +478,12 @@ type NetworkConfigurationId = string;
 /**
  * The string that uniquely identifies an Infura network client.
  */
-type BuiltInNetworkClientId = `infura||${InfuraNetworkType}`;
+type BuiltInNetworkClientId = InfuraNetworkType;
 
 /**
  * The string that uniquely identifies a custom network client.
  */
-type CustomNetworkClientId = `custom||${string}`;
+type CustomNetworkClientId = string;
 
 /**
  * The collection of auto-managed network clients that map to Infura networks.
@@ -612,21 +614,16 @@ export class NetworkController extends BaseControllerV2<
    *
    * @returns The list of known network clients.
    */
-  getNetworkClientsById(): Record<
-    BuiltInNetworkClientId,
-    AutoManagedNetworkClient<InfuraNetworkClientConfiguration>
-  > &
-    Record<
-      CustomNetworkClientId,
-      AutoManagedNetworkClient<CustomNetworkClientConfiguration>
-    > {
+  getNetworkClientsById(): AutoManagedBuiltInNetworkClientRegistry &
+    AutoManagedCustomNetworkClientRegistry {
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    return {
-      ...autoManagedNetworkClientRegistry[NetworkClientType.Infura],
-      ...autoManagedNetworkClientRegistry[NetworkClientType.Custom],
-    };
+    return Object.assign(
+      {},
+      autoManagedNetworkClientRegistry[NetworkClientType.Infura],
+      autoManagedNetworkClientRegistry[NetworkClientType.Custom],
+    );
   }
 
   /**

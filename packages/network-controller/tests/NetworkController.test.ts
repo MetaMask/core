@@ -1098,7 +1098,7 @@ describe('NetworkController', () => {
 
             expect(simplifiedNetworkClients).toStrictEqual([
               [
-                'infura||mainnet',
+                'mainnet',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
@@ -1106,7 +1106,7 @@ describe('NetworkController', () => {
                 },
               ],
               [
-                'infura||goerli',
+                'goerli',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
@@ -1114,7 +1114,7 @@ describe('NetworkController', () => {
                 },
               ],
               [
-                'infura||sepolia',
+                'sepolia',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
@@ -1133,14 +1133,14 @@ describe('NetworkController', () => {
           {
             state: {
               networkConfigurations: {
-                networkConfiguration1: {
-                  id: 'networkConfiguration1',
+                'AAAA-AAAA-AAAA-AAAA': {
+                  id: 'AAAA-AAAA-AAAA-AAAA',
                   rpcUrl: 'https://test.network.1',
                   chainId: toHex(1),
                   ticker: 'TEST1',
                 },
-                networkConfiguration2: {
-                  id: 'networkConfiguration2',
+                'BBBB-BBBB-BBBB-BBBB': {
+                  id: 'BBBB-BBBB-BBBB-BBBB',
                   rpcUrl: 'https://test.network.2',
                   chainId: toHex(2),
                   ticker: 'TEST2',
@@ -1163,7 +1163,7 @@ describe('NetworkController', () => {
 
             expect(simplifiedNetworkClients).toStrictEqual([
               [
-                'infura||mainnet',
+                'mainnet',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
@@ -1171,7 +1171,7 @@ describe('NetworkController', () => {
                 },
               ],
               [
-                'infura||goerli',
+                'goerli',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
@@ -1179,7 +1179,7 @@ describe('NetworkController', () => {
                 },
               ],
               [
-                'infura||sepolia',
+                'sepolia',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
@@ -1187,7 +1187,7 @@ describe('NetworkController', () => {
                 },
               ],
               [
-                'custom||networkConfiguration1',
+                'AAAA-AAAA-AAAA-AAAA',
                 {
                   type: NetworkClientType.Custom,
                   chainId: toHex(1),
@@ -1195,7 +1195,7 @@ describe('NetworkController', () => {
                 },
               ],
               [
-                'custom||networkConfiguration2',
+                'BBBB-BBBB-BBBB-BBBB',
                 {
                   type: NetworkClientType.Custom,
                   chainId: toHex(2),
@@ -1240,7 +1240,7 @@ describe('NetworkController', () => {
 
             expect(simplifiedNetworkClients).toStrictEqual([
               [
-                'infura||mainnet',
+                'mainnet',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
@@ -1248,7 +1248,7 @@ describe('NetworkController', () => {
                 },
               ],
               [
-                'infura||goerli',
+                'goerli',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
@@ -1256,7 +1256,7 @@ describe('NetworkController', () => {
                 },
               ],
               [
-                'infura||sepolia',
+                'sepolia',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
@@ -1272,14 +1272,14 @@ describe('NetworkController', () => {
     describe('if a provider config representing a custom network is present in state', () => {
       describe('if it does not point to a network configuration', () => {
         describe("if it does not match an existing network configuration's RPC URL", () => {
-          it('incorporates the network into the list of network clients, using the chain ID and RPC URL for identification', async () => {
+          it('incorporates the network into the list of network clients, using the chain ID and lowercased RPC URL for identification', async () => {
             await withController(
               {
                 state: {
                   providerConfig: {
                     type: NetworkType.rpc,
                     chainId: toHex(2),
-                    rpcUrl: 'https://test.network.2',
+                    rpcUrl: 'HTTPS://TEST.NETWORK.2',
                   },
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
@@ -1306,7 +1306,7 @@ describe('NetworkController', () => {
 
                 expect(simplifiedNetworkClients).toStrictEqual([
                   [
-                    'infura||mainnet',
+                    'mainnet',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
@@ -1314,7 +1314,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'infura||goerli',
+                    'goerli',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
@@ -1322,7 +1322,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'infura||sepolia',
+                    'sepolia',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
@@ -1330,7 +1330,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'custom||AAAA-AAAA-AAAA-AAAA',
+                    'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
                       chainId: toHex(1),
@@ -1338,11 +1338,11 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'custom||0x2||https://test.network.2',
+                    'https://test.network.2',
                     {
                       type: NetworkClientType.Custom,
                       chainId: toHex(2),
-                      rpcUrl: 'https://test.network.2',
+                      rpcUrl: 'HTTPS://TEST.NETWORK.2',
                     },
                   ],
                 ]);
@@ -1386,7 +1386,7 @@ describe('NetworkController', () => {
 
                 expect(simplifiedNetworkClients).toStrictEqual([
                   [
-                    'infura||mainnet',
+                    'mainnet',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
@@ -1394,7 +1394,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'infura||goerli',
+                    'goerli',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
@@ -1402,7 +1402,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'infura||sepolia',
+                    'sepolia',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
@@ -1410,7 +1410,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'custom||AAAA-AAAA-AAAA-AAAA',
+                    'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
                       chainId: '0x1',
@@ -1458,7 +1458,7 @@ describe('NetworkController', () => {
 
                 expect(simplifiedNetworkClients).toStrictEqual([
                   [
-                    'infura||mainnet',
+                    'mainnet',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
@@ -1466,7 +1466,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'infura||goerli',
+                    'goerli',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
@@ -1474,7 +1474,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'infura||sepolia',
+                    'sepolia',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
@@ -1482,7 +1482,7 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'custom||AAAA-AAAA-AAAA-AAAA',
+                    'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
                       chainId: toHex(1),
@@ -1532,7 +1532,7 @@ describe('NetworkController', () => {
 
               expect(simplifiedNetworkClients).toStrictEqual([
                 [
-                  'infura||mainnet',
+                  'mainnet',
                   {
                     type: NetworkClientType.Infura,
                     infuraProjectId: 'some-infura-project-id',
@@ -1540,7 +1540,7 @@ describe('NetworkController', () => {
                   },
                 ],
                 [
-                  'infura||goerli',
+                  'goerli',
                   {
                     type: NetworkClientType.Infura,
                     infuraProjectId: 'some-infura-project-id',
@@ -1548,7 +1548,7 @@ describe('NetworkController', () => {
                   },
                 ],
                 [
-                  'infura||sepolia',
+                  'sepolia',
                   {
                     type: NetworkClientType.Infura,
                     infuraProjectId: 'some-infura-project-id',
@@ -1556,7 +1556,7 @@ describe('NetworkController', () => {
                   },
                 ],
                 [
-                  'custom||AAAA-AAAA-AAAA-AAAA',
+                  'AAAA-AAAA-AAAA-AAAA',
                   {
                     type: NetworkClientType.Custom,
                     chainId: toHex(1),
@@ -4186,7 +4186,7 @@ describe('NetworkController', () => {
             const networkClientsById = controller.getNetworkClientsById();
             expect(Object.keys(networkClientsById)).toHaveLength(4);
             expect(networkClientsById).toMatchObject({
-              'custom||AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
+              'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                 configuration: {
                   chainId: toHex(111),
                   rpcUrl: 'https://test.network',
@@ -4717,7 +4717,7 @@ describe('NetworkController', () => {
                 expect(networkClientToDestroy.destroy).toHaveBeenCalled();
                 expect(Object.keys(networkClientsById)).toHaveLength(4);
                 expect(networkClientsById).not.toMatchObject({
-                  [`custom||0x111|${oldRpcUrl}`]: expect.objectContaining({
+                  [oldRpcUrl]: expect.objectContaining({
                     configuration: {
                       chainId: toHex(111),
                       rpcUrl: oldRpcUrl,
@@ -4771,7 +4771,7 @@ describe('NetworkController', () => {
                 const networkClientsById = controller.getNetworkClientsById();
                 expect(Object.keys(networkClientsById)).toHaveLength(4);
                 expect(networkClientsById).toMatchObject({
-                  'custom||AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
+                  'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                     configuration: {
                       chainId: toHex(999),
                       rpcUrl: newRpcUrl,
@@ -5174,7 +5174,7 @@ describe('NetworkController', () => {
 
             expect(networkClientToDestroy.destroy).toHaveBeenCalled();
             expect(controller.getNetworkClientsById()).not.toMatchObject({
-              [`custom||${toHex(111)}||https://test.network`]:
+              'https://test.network':
                 expect.objectContaining({
                   configuration: {
                     chainId: toHex(111),
