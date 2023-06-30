@@ -405,41 +405,51 @@ export class SignatureController extends BaseControllerV2<
       validateMessage(messageParams);
     }
 
-    const messageId = await messageManager.addUnapprovedMessage(
-      messageParams,
-      req,
-      version,
-    );
-
-    const messageParamsWithId = {
-      ...messageParams,
-      metamaskId: messageId,
-      ...(version && { version }),
-    };
-
     let resultCallbacks: AcceptResultCallbacks | undefined;
     try {
-      const acceptResult = await this.#requestApproval(
+      const messageId = await messageManager.addUnapprovedMessage(
+        messageParams,
+        req,
+        version,
+      );
+
+      const messageParamsWithId = {
+        ...messageParams,
+        metamaskId: messageId,
+        ...(version && { version }),
+      };
+
+      const signaturePromise = messageManager.waitForFinishStatus(
         messageParamsWithId,
-        approvalType,
+        messageName,
       );
-      resultCallbacks = acceptResult.resultCallbacks;
+
+      try {
+        const acceptResult = await this.#requestApproval(
+          messageParamsWithId,
+          approvalType,
+        );
+
+        resultCallbacks = acceptResult.resultCallbacks;
+      } catch {
+        this.#cancelAbstractMessage(messageManager, messageId);
+        throw ethErrors.provider.userRejectedRequest(
+          'User rejected the request.',
+        );
+      }
+
+      await signMessage(messageParamsWithId, signingOpts);
+
+      const signatureResult = await signaturePromise;
+
+      /* istanbul ignore next */
+      resultCallbacks?.success(signatureResult);
+
+      return signatureResult;
     } catch (error) {
-      this.#cancelAbstractMessage(messageManager, messageId);
-      throw ethErrors.provider.userRejectedRequest(
-        'User rejected the request.',
-      );
+      resultCallbacks?.error(error as Error);
+      throw error;
     }
-
-    const signaturePromise = messageManager.waitForFinishStatus(
-      messageParamsWithId,
-      messageName,
-      resultCallbacks,
-    );
-
-    await signMessage(messageParamsWithId, signingOpts);
-
-    return signaturePromise;
   }
 
   /**

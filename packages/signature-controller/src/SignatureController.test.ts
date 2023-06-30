@@ -404,6 +404,18 @@ describe('SignatureController', () => {
         messageIdMock,
       );
     });
+
+    it('calls success callback once message is signed', async () => {
+      const { origin: _origin, ...messageParamsWithoutOrigin } =
+        messageParamsMock;
+
+      await signatureController.newUnsignedMessage(
+        messageParamsWithoutOrigin,
+        requestMock,
+      );
+
+      expect(resultCallbacksMock.success).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('newUnsignedPersonalMessage', () => {
@@ -468,6 +480,15 @@ describe('SignatureController', () => {
       expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledWith(
         messageIdMock,
       );
+    });
+
+    it('calls success callback once message is signed', async () => {
+      await signatureController.newUnsignedPersonalMessage(
+        messageParamsMock,
+        requestMock,
+      );
+
+      expect(resultCallbacksMock.success).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -587,6 +608,17 @@ describe('SignatureController', () => {
       expect(
         typedMessageManagerMock.setMessageStatusErrored,
       ).toHaveBeenCalledWith(messageIdMock, keyringErrorMessageMock);
+    });
+
+    it('calls success callback once message is signed', async () => {
+      await signatureController.newUnsignedTypedMessage(
+        messageParamsMock,
+        requestMock,
+        versionMock,
+        { parseJsonData: false },
+      );
+
+      expect(resultCallbacksMock.success).toHaveBeenCalledTimes(1);
     });
   });
 

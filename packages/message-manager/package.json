@@ -29,7 +29,6 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "workspace:^",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/utils": "^5.0.2",
@@ -48,9 +47,6 @@
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
-  },
-  "peerDependencies": {
-    "@metamask/approval-controller": "workspace:^"
   },
   "engines": {
     "node": ">=16.0.0"
