@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.1]
 ### Fixed
-- tuple types from permissions rpc methods ([#1464](https://github.com/MetaMask/core/pull/1464))
+- Fix permissions RPC method types ([#1464](https://github.com/MetaMask/core/pull/1464))
+  - The RPC method handlers were mistakenly typed as an array rather than a tuple
 
 ## [4.0.0]
 ### Changed
