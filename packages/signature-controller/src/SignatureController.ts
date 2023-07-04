@@ -20,6 +20,7 @@ import {
 } from '@metamask/message-manager';
 import { ethErrors } from 'eth-rpc-errors';
 import { bufferToHex } from 'ethereumjs-util';
+import { Json } from '@metamask/utils';
 
 import {
   BaseControllerV2,
@@ -251,6 +252,19 @@ export class SignatureController extends BaseControllerV2<
   }
 
   /**
+   * A getter for returning all messages from TypedMessages & PersonalMessages
+   *
+   * @returns The array of all messages from their proxies
+   */
+  get allMessages(): unknown[] {
+    return [
+      ...this.#typedMessageManager.getAllMessages(),
+      ...this.#personalMessageManager.getAllMessages(),
+      ...this.#messageManager.getAllMessages()
+    ]
+  }
+
+  /**
    * Reset the controller state to the initial state.
    */
   resetState() {
@@ -354,6 +368,10 @@ export class SignatureController extends BaseControllerV2<
       version,
       signingOpts,
     );
+  }
+
+  setMessageMetadata(messageId: string, metadata: Json) {
+    this.#messageManager.setMetadata(messageId, metadata);
   }
 
   setTypedMessageInProgress(messageId: string) {
