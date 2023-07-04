@@ -4,10 +4,8 @@ import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import EthQuery from 'eth-query';
 import { Hex } from '@metamask/utils';
-import {
-  createNetworkClient,
-  NetworkClientType,
-} from '../../src/create-network-client';
+import { createNetworkClient } from '../../src/create-network-client';
+import { NetworkClientType } from '../../src/types';
 
 /**
  * A dummy value for the `infuraProjectId` option that `createInfuraClient`

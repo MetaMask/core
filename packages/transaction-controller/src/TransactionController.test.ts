@@ -1,16 +1,14 @@
 /* eslint-disable jest/expect-expect */
 
-import { PollingBlockTracker } from 'eth-block-tracker';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
 import type {
-  BlockTrackerProxy,
+  BlockTracker,
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
-import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import { errorCodes } from 'eth-rpc-errors';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import {
@@ -150,10 +148,10 @@ function mockFetchWithDynamicResponse(dataForUrl: any) {
  * always return.
  * @returns The mocked block tracker.
  */
-function buildMockBlockTracker(latestBlockNumber: string): BlockTrackerProxy {
+function buildMockBlockTracker(latestBlockNumber: string): BlockTracker {
   const fakeBlockTracker = new FakeBlockTracker();
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
-  return createEventEmitterProxy<PollingBlockTracker>(fakeBlockTracker);
+  return fakeBlockTracker;
 }
 
 /**
@@ -261,7 +259,7 @@ const PALM_PROVIDER = new HttpProvider(
 
 type MockNetwork = {
   provider: ProviderProxy;
-  blockTracker: BlockTrackerProxy;
+  blockTracker: BlockTracker;
   state: NetworkState;
   subscribe: (listener: (state: NetworkState) => void) => void;
 };
@@ -1003,6 +1001,47 @@ describe('TransactionController', () => {
             controller.state.transactions[0].status =
               TransactionStatus.confirmed;
 
+            throw new Error('TestError');
+          });
+
+          const { result } = await controller.addTransaction({
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          });
+
+          await expect(result).rejects.toThrow('Unknown problem');
+        });
+
+        it('if unrecognised error', async () => {
+          const controller = newController();
+
+          (
+            delayMessengerMock.call as jest.MockedFunction<any>
+          ).mockImplementationOnce(() => {
+            throw new Error('TestError');
+          });
+
+          const { result } = await controller.addTransaction({
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          });
+
+          await expect(result).rejects.toThrow('TestError');
+        });
+
+        it('if transaction removed', async () => {
+          const controller = newController();
+
+          (
+            delayMessengerMock.call as jest.MockedFunction<any>
+          ).mockImplementationOnce(() => {
+            controller.state.transactions = [];
             throw new Error('TestError');
           });
 

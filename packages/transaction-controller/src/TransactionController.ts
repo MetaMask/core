@@ -15,9 +15,9 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import type {
+  BlockTracker,
   NetworkState,
-  ProviderProxy,
-  BlockTrackerProxy,
+  Provider,
 } from '@metamask/network-controller';
 import {
   BNToHex,
@@ -308,7 +308,7 @@ export class TransactionController extends BaseController<
 
   private registry: any;
 
-  private provider: ProviderProxy;
+  private provider: Provider;
 
   private handle?: ReturnType<typeof setTimeout>;
 
@@ -469,8 +469,8 @@ export class TransactionController extends BaseController<
     }: {
       getNetworkState: () => NetworkState;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
-      provider: ProviderProxy;
-      blockTracker: BlockTrackerProxy;
+      provider: Provider;
+      blockTracker: BlockTracker;
       messenger: TransactionControllerMessenger;
     },
     config?: Partial<TransactionConfig>,
@@ -1140,70 +1140,62 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
   ): Promise<string> {
     const transactionId = transactionMeta.id;
-    let rejected = false;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
       const acceptResult = await this.requestApproval(transactionMeta);
       resultCallbacks = acceptResult.resultCallbacks;
 
-      const updatedMeta = this.getTransaction(transactionId);
+      const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
-      const isCompleted =
-        updatedMeta && this.isLocalFinalState(updatedMeta.status);
-
-      if (updatedMeta && !isCompleted) {
+      if (meta && !isCompleted) {
         await this.approveTransaction(transactionId);
       }
     } catch (error: any) {
-      const updatedMeta = this.getTransaction(transactionId);
+      const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
-      const isCompleted =
-        updatedMeta && this.isLocalFinalState(updatedMeta.status);
-
-      if (updatedMeta && !isCompleted) {
+      if (meta && !isCompleted) {
         if (error.code === errorCodes.provider.userRejectedRequest) {
           this.cancelTransaction(transactionId);
-          rejected = true;
+
+          throw ethErrors.provider.userRejectedRequest(
+            'User rejected the transaction',
+          );
         } else {
-          this.failTransaction(updatedMeta, error);
+          this.failTransaction(meta, error);
         }
       }
     }
 
-    if (rejected) {
-      throw ethErrors.provider.userRejectedRequest(
-        'User rejected the transaction',
-      );
-    }
-
     const finalMeta = this.getTransaction(transactionId);
 
-    if (finalMeta && finalMeta.status === TransactionStatus.failed) {
-      resultCallbacks?.error(finalMeta?.error);
-      throw ethErrors.rpc.internal(finalMeta.error.message);
+    switch (finalMeta?.status) {
+      case TransactionStatus.failed:
+        resultCallbacks?.error(finalMeta.error);
+        throw ethErrors.rpc.internal(finalMeta.error.message);
+
+      case TransactionStatus.cancelled:
+        const cancelError = ethErrors.rpc.internal(
+          'User cancelled the transaction',
+        );
+
+        resultCallbacks?.error(cancelError);
+        throw cancelError;
+
+      case TransactionStatus.submitted:
+        resultCallbacks?.success();
+        return finalMeta.transactionHash as string;
+
+      default:
+        const internalError = ethErrors.rpc.internal(
+          `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
+            finalMeta || transactionId,
+          )}`,
+        );
+
+        resultCallbacks?.error(internalError);
+        throw internalError;
     }
-
-    if (finalMeta?.status === TransactionStatus.cancelled) {
-      const error = ethErrors.rpc.internal('User cancelled the transaction');
-      resultCallbacks?.error(error);
-      throw error;
-    }
-
-    if (finalMeta && finalMeta.status === TransactionStatus.submitted) {
-      resultCallbacks?.success();
-      return finalMeta.transactionHash as string;
-    }
-
-    const error = ethErrors.rpc.internal(
-      `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
-        finalMeta || transactionId,
-      )}`,
-    );
-
-    resultCallbacks?.error(error);
-
-    throw error;
   }
 
   /**
@@ -1289,7 +1281,6 @@ export class TransactionController extends BaseController<
       ]);
       transactionMeta.transactionHash = transactionHash;
       transactionMeta.status = TransactionStatus.submitted;
-      console.log('New Status', TransactionStatus.submitted);
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error: any) {
@@ -1642,6 +1633,21 @@ export class TransactionController extends BaseController<
 
   private getApprovalId(txMeta: TransactionMeta) {
     return String(txMeta.id);
+  }
+
+  private isTransactionCompleted(transactionid: string): {
+    meta?: TransactionMeta;
+    isCompleted: boolean;
+  } {
+    const transaction = this.getTransaction(transactionid);
+
+    if (!transaction) {
+      return { meta: undefined, isCompleted: false };
+    }
+
+    const isCompleted = this.isLocalFinalState(transaction.status);
+
+    return { meta: transaction, isCompleted };
   }
 }
 

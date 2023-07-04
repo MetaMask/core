@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+### Added
+- **BREAKING** Add sign version to approval message in Signature Controller ([#1440](https://github.com/MetaMask/core/pull/1440))
+  - Method `newUnsignedTypedMessage` on the SignatureController now requires a fourth argument: `signingOpts`
+  - Method `signMessage` on the SignatureController no longer expects a `version` as a second argument. The second argument is now `signingOpts` which was previously the third argument.
+
+## [4.0.1]
+### Fixed
+- Remove optional parameter from newUnsignedTypedMessage function ([#1436](https://github.com/MetaMask/core/pull/1436))
+
 ## [4.0.0]
 ### Changed
 - **BREAKING:** `newUnsignedXMessage` middlewares now creates and awaits approvals itself. ([#1377](https://github.com/MetaMask/core/pull/1377))
@@ -33,7 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@4.0.1...@metamask/signature-controller@5.0.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@4.0.0...@metamask/signature-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@3.0.0...@metamask/signature-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@2.0.0...@metamask/signature-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@1.0.0...@metamask/signature-controller@2.0.0
