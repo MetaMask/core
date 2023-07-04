@@ -6,7 +6,7 @@ import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
 import type {
   BlockTracker,
   NetworkState,
-  ProviderProxy,
+  Provider,
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
 import { errorCodes } from 'eth-rpc-errors';
@@ -258,7 +258,7 @@ const PALM_PROVIDER = new HttpProvider(
 );
 
 type MockNetwork = {
-  provider: ProviderProxy;
+  provider: Provider;
   blockTracker: BlockTracker;
   state: NetworkState;
   subscribe: (listener: (state: NetworkState) => void) => void;
