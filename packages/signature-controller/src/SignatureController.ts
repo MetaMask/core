@@ -252,9 +252,9 @@ export class SignatureController extends BaseControllerV2<
   }
 
   /**
-   * A getter for returning all messages from TypedMessages & PersonalMessages
+   * Retrieves an array of all messages from TypedMessages and PersonalMessages.
    *
-   * @returns The array of all messages from their proxies
+   * @returns The array of all messages from their proxies.
    */
   get allMessages(): unknown[] {
     return [
