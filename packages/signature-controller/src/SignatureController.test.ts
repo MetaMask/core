@@ -105,6 +105,8 @@ const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
     rejectMessage: jest.fn(),
     subscribe: jest.fn(),
     update: jest.fn(),
+    setMetadata: jest.fn(),
+    getAllMessages: jest.fn(),
     hub: {
       on: jest.fn(),
     },
@@ -602,6 +604,43 @@ describe('SignatureController', () => {
       expect(
         typedMessageManagerMock.setMessageStatusInProgress,
       ).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('setMessageMetadata', () => {
+    it('calls the message manager', async () => {
+      signatureController.setMessageMetadata(
+        messageParamsMock.metamaskId,
+        messageParamsMock.data
+      );
+
+      expect(
+        messageManagerMock.setMetadata,
+      ).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('allMessages', () => {
+    const message = [
+      {
+        name: 'some message',
+        type: 'type',
+        value: 'value',
+        messageParams: {
+          data: [],
+          from: '0x0123',
+        },
+        time: 1,
+        status: '',
+        id: '1',
+      }
+    ];
+
+    it('returns all the messages from typed, personal and messageManager', () => {
+      typedMessageManagerMock.getAllMessages.mockReturnValueOnce(message);
+      personalMessageManagerMock.getAllMessages.mockReturnValueOnce([]);
+      messageManagerMock.getAllMessages.mockReturnValueOnce([]);
+      expect(signatureController.allMessages).toMatchObject(message);
     });
   });
 
