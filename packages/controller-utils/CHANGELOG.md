@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.1.0]
-### Uncategorized
-- Display result pages using the ApprovalController ([#1442](https://github.com/MetaMask/core/pull/1442))
+### Added
+- Add approval types for result pages ([#1442](https://github.com/MetaMask/core/pull/1442))
 
 ## [4.0.1]
 ### Changed
