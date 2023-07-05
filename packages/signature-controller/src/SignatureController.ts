@@ -260,8 +260,8 @@ export class SignatureController extends BaseControllerV2<
     return [
       ...this.#typedMessageManager.getAllMessages(),
       ...this.#personalMessageManager.getAllMessages(),
-      ...this.#messageManager.getAllMessages()
-    ]
+      ...this.#messageManager.getAllMessages(),
+    ];
   }
 
   /**

@@ -611,12 +611,10 @@ describe('SignatureController', () => {
     it('calls the message manager', async () => {
       signatureController.setMessageMetadata(
         messageParamsMock.metamaskId,
-        messageParamsMock.data
+        messageParamsMock.data,
       );
 
-      expect(
-        messageManagerMock.setMetadata,
-      ).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -633,7 +631,7 @@ describe('SignatureController', () => {
         time: 1,
         status: '',
         id: '1',
-      }
+      },
     ];
 
     it('returns all the messages from typed, personal and messageManager', () => {
