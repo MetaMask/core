@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.2]
+### Uncategorized
+- Fix race condition when creating typed messages ([#1467](https://github.com/MetaMask/core/pull/1467))
+
 ## [7.0.1]
 ### Fixed
 - eth_signTypedData_v4 and v3 should take an object as well as string for data parameter. ([#1438](https://github.com/MetaMask/core/pull/1438))
@@ -84,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.2...HEAD
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.1...@metamask/message-manager@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.0...@metamask/message-manager@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@6.0.0...@metamask/message-manager@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@5.0.0...@metamask/message-manager@6.0.0

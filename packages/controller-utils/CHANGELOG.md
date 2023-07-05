@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0]
+### Uncategorized
+- Display result pages using the ApprovalController ([#1442](https://github.com/MetaMask/core/pull/1442))
+
 ## [4.0.1]
 ### Changed
 - Add dependencies `eth-query` and `babel-runtime` ([#1447](https://github.com/MetaMask/core/pull/1447))
@@ -116,7 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.0.1...@metamask/controller-utils@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.0.0...@metamask/controller-utils@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.4.0...@metamask/controller-utils@4.0.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.3.0...@metamask/controller-utils@3.4.0
