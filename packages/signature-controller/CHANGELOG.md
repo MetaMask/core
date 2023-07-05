@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [5.1.0]
-### Uncategorized
-- Add result callbacks to signature controller ([#1458](https://github.com/MetaMask/core/pull/1458))
+### Changed
+- Report approval success using result callbacks ([#1458](https://github.com/MetaMask/core/pull/1458))
 
 ## [5.0.0]
 ### Added

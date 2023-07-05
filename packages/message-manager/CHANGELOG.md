@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.0.2]
-### Uncategorized
-- Fix race condition when creating typed messages ([#1467](https://github.com/MetaMask/core/pull/1467))
+### Fixed
+- Avoid race condition when creating typed messages ([#1467](https://github.com/MetaMask/core/pull/1467))
 
 ## [7.0.1]
 ### Fixed
