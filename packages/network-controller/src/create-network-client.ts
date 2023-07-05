@@ -27,36 +27,24 @@ import {
   ChainId,
   NetworkId,
 } from '@metamask/controller-utils';
-import type { BlockTracker, Provider } from './types';
+import {
+  BlockTracker,
+  NetworkClientConfiguration,
+  NetworkClientType,
+  Provider,
+} from './types';
 
 const SECOND = 1000;
 
 /**
- * The type of network client that can be created.
+ * The pair of provider / block tracker that can be used to interface with the
+ * network and respond to new activity.
  */
-export enum NetworkClientType {
-  Custom = 'custom',
-  Infura = 'infura',
-}
-
-/**
- * A configuration object that can be used to create a provider engine for a
- * custom network.
- */
-type CustomNetworkConfiguration = {
-  chainId: Hex;
-  rpcUrl: string;
-  type: NetworkClientType.Custom;
-};
-
-/**
- * A configuration object that can be used to create a provider engine for an
- * Infura network.
- */
-type InfuraNetworkConfiguration = {
-  network: InfuraNetworkType;
-  infuraProjectId: string;
-  type: NetworkClientType.Infura;
+export type NetworkClient = {
+  configuration: NetworkClientConfiguration;
+  provider: Provider;
+  blockTracker: BlockTracker;
+  destroy: () => void;
 };
 
 /**
@@ -66,8 +54,8 @@ type InfuraNetworkConfiguration = {
  * @returns The network client.
  */
 export function createNetworkClient(
-  networkConfig: CustomNetworkConfiguration | InfuraNetworkConfiguration,
-): { provider: Provider; blockTracker: BlockTracker } {
+  networkConfig: NetworkClientConfiguration,
+): NetworkClient {
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
@@ -114,7 +102,11 @@ export function createNetworkClient(
 
   const provider = providerFromEngine(engine);
 
-  return { provider, blockTracker };
+  const destroy = () => {
+    blockTracker.destroy();
+  };
+
+  return { configuration: networkConfig, provider, blockTracker, destroy };
 }
 
 /**

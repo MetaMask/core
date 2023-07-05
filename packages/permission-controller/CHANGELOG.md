@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1]
+### Fixed
+- Fix permissions RPC method types ([#1464](https://github.com/MetaMask/core/pull/1464))
+  - The RPC method handlers were mistakenly typed as an array rather than a tuple
+
 ## [4.0.0]
 ### Changed
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
@@ -64,7 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.0...@metamask/permission-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.2.0...@metamask/permission-controller@4.0.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.1.0...@metamask/permission-controller@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.0.0...@metamask/permission-controller@3.1.0
