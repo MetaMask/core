@@ -237,7 +237,6 @@ export class TokenDetectionController extends BaseController<
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
     const { tokenList } = this.getTokenListState();
-
     const tokensToDetect: string[] = [];
     for (const address in tokenList) {
       if (!tokensAddresses.includes(address)) {
