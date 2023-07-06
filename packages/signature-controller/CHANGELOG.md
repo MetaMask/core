@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0]
+### Changed
+- Report approval success using result callbacks ([#1458](https://github.com/MetaMask/core/pull/1458))
+
 ## [5.0.0]
 ### Added
 - **BREAKING** Add sign version to approval message in Signature Controller ([#1440](https://github.com/MetaMask/core/pull/1440))
@@ -43,7 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.0.0...@metamask/signature-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@4.0.1...@metamask/signature-controller@5.0.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@4.0.0...@metamask/signature-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@3.0.0...@metamask/signature-controller@4.0.0

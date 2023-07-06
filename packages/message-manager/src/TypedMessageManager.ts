@@ -135,7 +135,7 @@ export class TypedMessageManager extends AbstractMessageManager<
       time: Date.now(),
       type: 'eth_signTypedData',
     };
-    this.addMessage(messageData);
+    await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, messageParamsMetamask);
     return messageId;
   }
