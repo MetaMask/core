@@ -81,7 +81,6 @@ export class TokenDetectionController extends BaseController<
       onTokenListStateChange,
       getBalancesInSingleCall,
       addDetectedTokens,
-
       getTokenListState,
       getTokensState,
       getNetworkState,
