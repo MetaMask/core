@@ -608,13 +608,29 @@ describe('SignatureController', () => {
   });
 
   describe('setMessageMetadata', () => {
-    it('calls the message manager', async () => {
+    it('resets state in all message managers', () => {
       signatureController.setMessageMetadata(
         messageParamsMock.metamaskId,
         messageParamsMock.data,
       );
 
       expect(messageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.setMetadata).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
+
+      expect(personalMessageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
+      expect(personalMessageManagerMock.setMetadata).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
+
+      expect(typedMessageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
+      expect(typedMessageManagerMock.setMetadata).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
     });
   });
 
@@ -638,7 +654,18 @@ describe('SignatureController', () => {
       typedMessageManagerMock.getAllMessages.mockReturnValueOnce(message);
       personalMessageManagerMock.getAllMessages.mockReturnValueOnce([]);
       messageManagerMock.getAllMessages.mockReturnValueOnce([]);
-      expect(signatureController.allMessages).toMatchObject(message);
+      expect(signatureController.allMessages).toMatchObject({
+        id: '1',
+        messageParams: {
+          data: [],
+          from: '0x0123',
+        },
+        name: 'some message',
+        status: '',
+        time: 1,
+        type: 'type',
+        value: 'value',
+      });
     });
   });
 
