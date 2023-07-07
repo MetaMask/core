@@ -264,12 +264,12 @@ export class SignatureController extends BaseControllerV2<
       ...this.#personalMessageManager.getAllMessages(),
       ...this.#messageManager.getAllMessages(),
     ];
-  
+
     for (const message of allMessages) {
       const id = message.id;
-      messagesObject.id = message;
+      messagesObject[id] = message;
     }
-  
+
     return messagesObject;
   }
 
