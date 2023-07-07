@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.3.0]
+### Added
+- Add `getNetworkClientsById` method ([#1439](https://github.com/MetaMask/core/pull/1439))
+  - This method returns a registry of available built-in and custom networks, allowing consumers to access multiple networks simultaneously if desired
+
+### Changed
+- Network clients are retained and will no longer be destroyed or recreated whenever the network is initialized or switched ([#1439](https://github.com/MetaMask/core/pull/1439))
+  - This means that cached responses for a network will no longer disappear when a different network is selected
+- Update `upsertNetworkConfiguration` to keep the network client registry up to date with changes to the set of network configurations ([#1439](https://github.com/MetaMask/core/pull/1439))
+  - If a new network configuration is added, the information in it will be used to create and register a new network client
+  - If an existing network configuration is updated, its information will be used to recreate the client for the corresponding network
+
 ## [10.2.0]
 ### Added
 - Expose `BlockTracker` type ([#1443](https://github.com/MetaMask/core/pull/1443))
@@ -188,7 +200,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.0...HEAD
+[10.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.2.0...@metamask/network-controller@10.3.0
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.1.0...@metamask/network-controller@10.2.0
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.0.0...@metamask/network-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@9.0.0...@metamask/network-controller@10.0.0
