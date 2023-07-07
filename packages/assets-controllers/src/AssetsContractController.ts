@@ -177,6 +177,19 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
+   * Query for the name for a given ERC20 asset.
+   *
+   * @param address - ERC20 asset contract address.
+   * @returns Promise resolving to the 'decimals'.
+   */
+  async getERC20TokenName(address: string): Promise<string> {
+    if (this.erc20Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
+    return await this.erc20Standard.getTokenName(address);
+  }
+
+  /**
    * Enumerate assets assigned to an owner.
    *
    * @param address - ERC721 asset contract address.

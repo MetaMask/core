@@ -24,7 +24,12 @@ import {
   ERC20,
 } from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
-import { TokenListToken } from './TokenListController';
+import type { AssetsContractController } from './AssetsContractController';
+import {
+  TokenListMap,
+  TokenListState,
+  TokenListToken,
+} from './TokenListController';
 import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
@@ -158,6 +163,8 @@ export class TokensController extends BaseController<
    */
   override name = 'TokensController';
 
+  private getERC20TokenName: AssetsContractController['getERC20TokenName'];
+
   /**
    * Creates a TokensController instance.
    *
@@ -165,6 +172,8 @@ export class TokensController extends BaseController<
    * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
+   * @param options.getERC20TokenName - Gets the ERC-20 token name.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messenger.
@@ -173,6 +182,8 @@ export class TokensController extends BaseController<
     chainId: initialChainId,
     onPreferencesStateChange,
     onNetworkStateChange,
+    onTokenListStateChange,
+    getERC20TokenName,
     config,
     state,
     messenger,
@@ -184,6 +195,10 @@ export class TokensController extends BaseController<
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
     ) => void;
+    onTokenListStateChange: (
+      listener: (tokenListState: TokenListState) => void,
+    ) => void;
+    getERC20TokenName: AssetsContractController['getERC20TokenName'];
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
     messenger: TokensControllerMessenger;
@@ -209,6 +224,7 @@ export class TokensController extends BaseController<
 
     this.initialize();
     this.abortController = new WhatwgAbortController();
+    this.getERC20TokenName = getERC20TokenName;
 
     this.messagingSystem = messenger;
 
@@ -237,6 +253,13 @@ export class TokensController extends BaseController<
         detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
       });
     });
+
+    onTokenListStateChange(({ tokenList }) => {
+      const { tokens } = this.state;
+      if (tokens.length && !tokens[0].name) {
+        this.updateTokensAttribute(tokenList, 'name');
+      }
+    });
   }
 
   _instantiateNewEthersProvider(): any {
@@ -249,16 +272,21 @@ export class TokensController extends BaseController<
    * @param address - Hex address of the token contract.
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals the token uses.
-   * @param image - Image of the token.
-   * @param interactingAddress - The address of the account to add a token to.
+   * @param options - Object containing name and image of the token
+   * @param options.name - Name of the token
+   * @param options.image - Image of the token
+   * @param options.interactingAddress - The address of the account to add a token to.
    * @returns Current token list.
    */
   async addToken(
     address: string,
     symbol: string,
     decimals: number,
-    image?: string,
-    interactingAddress?: string,
+    {
+      name,
+      image,
+      interactingAddress,
+    }: { name?: string; image?: string; interactingAddress?: string } = {},
   ): Promise<Token[]> {
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId: currentChainId, selectedAddress } = this.config;
@@ -295,6 +323,7 @@ export class TokensController extends BaseController<
           }),
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
+        name,
       };
       const previousEntry = newTokens.find(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -358,10 +387,10 @@ export class TokensController extends BaseController<
       output[current.address] = current;
       return output;
     }, {} as { [address: string]: Token });
-
     try {
       tokensToImport.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators } = tokenToAdd;
+        const { address, symbol, decimals, image, aggregators, name } =
+          tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const formattedToken: Token = {
           address: checksumAddress,
@@ -369,6 +398,7 @@ export class TokensController extends BaseController<
           decimals,
           image,
           aggregators,
+          name,
         };
         newTokensMap[address] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
@@ -462,8 +492,15 @@ export class TokensController extends BaseController<
 
     try {
       incomingDetectedTokens.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators, isERC721 } =
-          tokenToAdd;
+        const {
+          address,
+          symbol,
+          decimals,
+          image,
+          aggregators,
+          isERC721,
+          name,
+        } = tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
           address: checksumAddress,
@@ -472,6 +509,7 @@ export class TokensController extends BaseController<
           image,
           isERC721,
           aggregators,
+          name,
         };
         const previousImportedEntry = newTokens.find(
           (token) =>
@@ -554,6 +592,29 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * This is a function that updates the tokens name for the tokens name if it is not defined.
+   *
+   * @param tokenList - Represents the fetched token list from service API
+   * @param tokenAttribute - Represents the token attribute that we want to update on the token list
+   */
+  private updateTokensAttribute(
+    tokenList: TokenListMap,
+    tokenAttribute: keyof Token & keyof TokenListToken,
+  ) {
+    const { tokens } = this.state;
+
+    const newTokens = tokens.map((token) => {
+      const newToken = tokenList[token.address.toLowerCase()];
+
+      return !token[tokenAttribute] && newToken?.[tokenAttribute]
+        ? { ...token, [tokenAttribute]: newToken[tokenAttribute] }
+        : { ...token };
+    });
+
+    this.update({ tokens: newTokens });
+  }
+
+  /**
    * Detects whether or not a token is ERC-721 compatible.
    *
    * @param tokenAddress - The token contract address.
@@ -631,13 +692,18 @@ export class TokensController extends BaseController<
 
     await this._requestApproval(suggestedAssetMeta);
 
-    await this.addToken(
-      asset.address,
-      asset.symbol,
-      asset.decimals,
-      asset.image,
-      suggestedAssetMeta.interactingAddress,
-    );
+    let name;
+    try {
+      name = await this.getERC20TokenName(asset.address);
+    } catch (error) {
+      name = undefined;
+    }
+
+    await this.addToken(asset.address, asset.symbol, asset.decimals, {
+      name,
+      image: asset.image,
+      interactingAddress: suggestedAssetMeta.interactingAddress,
+    });
   }
 
   /**

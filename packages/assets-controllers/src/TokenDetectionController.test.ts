@@ -80,6 +80,7 @@ const sampleTokenA: Token = {
     'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
+  name: 'Chainlink',
 };
 const sampleTokenB: Token = {
   address: tokenBFromList.address,
@@ -89,6 +90,7 @@ const sampleTokenB: Token = {
     'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
+  name: 'Bancor',
 };
 
 type MainControllerMessenger = ControllerMessenger<
@@ -175,12 +177,15 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         onNetworkStateChangeListeners.push(listener),
+      onTokenListStateChange: sinon.stub(),
+      getERC20TokenName: sinon.stub(),
       messenger: undefined as unknown as TokensControllerMessenger,
     });
 
     const tokenListSetup = setupTokenListController(controllerMessenger);
     tokenList = tokenListSetup.tokenList;
     await tokenList.start();
+
     getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
@@ -340,6 +345,7 @@ describe('TokenDetectionController', () => {
       sampleTokenB.address,
       sampleTokenB.symbol,
       sampleTokenB.decimals,
+      { name: sampleTokenB.name },
     );
 
     tokensController.ignoreTokens([sampleTokenA.address]);
