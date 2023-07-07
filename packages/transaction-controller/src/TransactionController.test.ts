@@ -4,6 +4,13 @@ import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 import { errorCodes } from 'eth-rpc-errors';
 import Common from '@ethereumjs/common';
+import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
+import type {
+  BlockTracker,
+  NetworkState,
+  Provider,
+} from '@metamask/network-controller';
+import { NetworkStatus } from '@metamask/network-controller';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import {
   AcceptResultCallbacks,
@@ -26,13 +33,6 @@ import {
   txsInStateWithOutdatedGasDataMock,
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
-import { NetworkStatus } from '@metamask/network-controller';
-import type {
-  BlockTracker,
-  NetworkState,
-  Provider,
-} from '@metamask/network-controller';
-import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
 
 const v1Stub = jest
   .fn()
