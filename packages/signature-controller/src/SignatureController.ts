@@ -257,7 +257,7 @@ export class SignatureController extends BaseControllerV2<
    * @returns The array of all messages from their proxies.
    */
   get allMessages(): unknown[] {
-    const messagesObject: any = {};
+    let messagesObject: any = {};
 
     const allMessages = [
       ...this.#typedMessageManager.getAllMessages(),
@@ -266,8 +266,7 @@ export class SignatureController extends BaseControllerV2<
     ];
 
     for (const message of allMessages) {
-      const id = message.id;
-      messagesObject[id] = message;
+      messagesObject = { ...messagesObject, ...message };
     }
 
     return messagesObject;
