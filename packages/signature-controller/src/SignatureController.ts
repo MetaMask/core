@@ -257,11 +257,20 @@ export class SignatureController extends BaseControllerV2<
    * @returns The array of all messages from their proxies.
    */
   get allMessages(): unknown[] {
-    return [
+    const messagesObject: any = {};
+
+    const allMessages = [
       ...this.#typedMessageManager.getAllMessages(),
       ...this.#personalMessageManager.getAllMessages(),
       ...this.#messageManager.getAllMessages(),
     ];
+  
+    for (const message of allMessages) {
+      const id = message.id;
+      messagesObject.id = message;
+    }
+  
+    return messagesObject;
   }
 
   /**
@@ -371,7 +380,9 @@ export class SignatureController extends BaseControllerV2<
   }
 
   setMessageMetadata(messageId: string, metadata: Json) {
-    this.#messageManager.setMetadata(messageId, metadata);
+    this.#setMessageMetadata(this.#messageManager, messageId, metadata);
+    this.#setMessageMetadata(this.#personalMessageManager, messageId, metadata);
+    this.#setMessageMetadata(this.#typedMessageManager, messageId, metadata);
   }
 
   setTypedMessageInProgress(messageId: string) {
@@ -514,6 +525,18 @@ export class SignatureController extends BaseControllerV2<
         );
       },
     );
+  }
+
+  #setMessageMetadata<
+    M extends AbstractMessage,
+    P extends AbstractMessageParams,
+    PM extends AbstractMessageParamsMetamask,
+  >(
+    messageManager: AbstractMessageManager<M, P, PM>,
+    messageId: string,
+    metadata: Json,
+  ) {
+    messageManager.setMetadata(messageId, metadata);
   }
 
   #rejectUnapproved<
