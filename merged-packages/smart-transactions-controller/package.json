@@ -1,7 +1,7 @@
 {
   "name": "@metamask/smart-transactions-controller",
   "version": "3.1.0",
-  "description": "MetaMask controller for Smart Transactions.",
+  "description": "Improves success rates for swaps by trialing transactions privately and finding minimum fees",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/smart-transactions-controller.git"

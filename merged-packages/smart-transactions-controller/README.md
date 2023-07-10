@@ -1,22 +1,14 @@
-# MetaMask Module Template
+# `@metamask/smart-transactions-controller`
 
-This TypeScript module is maintained in the style of the MetaMask team.
+Improves success rates for swaps by trialing transactions privately and finding minimum fees.
 
 ## Installation
 
-`yarn add @metamask/this-module`
+`yarn add @metamask/smart-transactions-controller`
 
 or
 
-`npm install @metamask/this-module`
-
-## Usage
-
-_Add examples here_
-
-## API
-
-_Add examples here_
+`npm install @metamask/smart-transactions-controller`
 
 ## Contributing
 
