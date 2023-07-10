@@ -35,9 +35,12 @@ blockTracker.on('sync', ({ newBlock, oldBlock }) => {
 
 ### Methods
 
-#### new PollingBlockTracker({ provider, pollingInterval, retryTimeout, keepEventLoopActive })
+#### new PollingBlockTracker({ provider, pollingInterval, retryTimeout, keepEventLoopActive, usePastBlocks })
 
-Creates a new block tracker with `provider` as a data source and `pollingInterval` (ms) timeout between polling for the latest block. If an error is encountered when fetching blocks, it will wait `retryTimeout` (ms) before attempting again. If `keepEventLoopActive` is false, in Node.js it will [unref the polling timeout](https://nodejs.org/api/timers.html#timers_timeout_unref), allowing the process to exit during the polling interval. Defaults to `true`, meaning the process will be kept alive.
+- Creates a new block tracker with `provider` as a data source and `pollingInterval` (ms) timeout between polling for the latest block.
+- If an error is encountered when fetching blocks, it will wait `retryTimeout` (ms) before attempting again.
+- If `keepEventLoopActive` is `false`, in Node.js it will [unref the polling timeout](https://nodejs.org/api/timers.html#timers_timeout_unref), allowing the process to exit during the polling interval. Defaults to `true`, meaning the process will be kept alive.
+- If `usePastBlocks` is `true`, block numbers less than the current block number can used and emitted. Defaults to `false`, meaning that only block numbers greater than the current block number will be used and emitted.
 
 #### getCurrentBlock()
 
