@@ -625,16 +625,16 @@ describe('SignatureController', () => {
     });
 
     it('should return false when an error occurs', () => {
-      messageManagerMock.setMetadata = jest.fn().mockImplementation(() => {
+      jest.spyOn(messageManagerMock, 'setMetadata').mockImplementation(() => {
         throw new Error('mocked error');
       });
-  
+
       const result = signatureController.setMessageMetadata(
         messageParamsMock.metamaskId,
         messageParamsMock.data,
       );
-  
-      expect(result).toBe(undefined);
+
+      expect(result).toBeUndefined();
       expect(messageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
       expect(messageManagerMock.setMetadata).toHaveBeenCalledWith(
         messageIdMock,
