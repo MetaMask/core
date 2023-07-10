@@ -607,8 +607,8 @@ describe('SignatureController', () => {
     });
   });
 
-  describe('setMessageMetadata', () => {
-    it('resets state in all message managers', () => {
+  describe('trySetMessageMetadata', () => {
+    it('sets the metadata in a message manager', () => {
       signatureController.setMessageMetadata(
         messageParamsMock.metamaskId,
         messageParamsMock.data,
@@ -620,21 +620,12 @@ describe('SignatureController', () => {
         messageParamsWithoutIdMock.data,
       );
 
-      expect(personalMessageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
-      expect(personalMessageManagerMock.setMetadata).toHaveBeenCalledWith(
-        messageIdMock,
-        messageParamsWithoutIdMock.data,
-      );
-
-      expect(typedMessageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
-      expect(typedMessageManagerMock.setMetadata).toHaveBeenCalledWith(
-        messageIdMock,
-        messageParamsWithoutIdMock.data,
-      );
+      expect(personalMessageManagerMock.setMetadata).not.toHaveBeenCalled();
+      expect(typedMessageManagerMock.setMetadata).not.toHaveBeenCalled();
     });
   });
 
-  describe('allMessages', () => {
+  describe('messages getter', () => {
     const message = [
       {
         name: 'some message',
@@ -654,17 +645,19 @@ describe('SignatureController', () => {
       typedMessageManagerMock.getAllMessages.mockReturnValueOnce(message);
       personalMessageManagerMock.getAllMessages.mockReturnValueOnce([]);
       messageManagerMock.getAllMessages.mockReturnValueOnce([]);
-      expect(signatureController.allMessages).toMatchObject({
-        id: '1',
-        messageParams: {
-          data: [],
-          from: '0x0123',
+      expect(signatureController.messages).toMatchObject({
+        '1': {
+          id: '1',
+          messageParams: {
+            data: [],
+            from: '0x0123',
+          },
+          name: 'some message',
+          status: '',
+          time: 1,
+          type: 'type',
+          value: 'value',
         },
-        name: 'some message',
-        status: '',
-        time: 1,
-        type: 'type',
-        value: 'value',
       });
     });
   });

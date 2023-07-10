@@ -17,6 +17,9 @@ import {
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
+  TypedMessage,
+  PersonalMessage,
+  Message,
 } from '@metamask/message-manager';
 import { ethErrors } from 'eth-rpc-errors';
 import { bufferToHex } from 'ethereumjs-util';
@@ -252,22 +255,23 @@ export class SignatureController extends BaseControllerV2<
   }
 
   /**
-   * Retrieves an array of all messages from TypedMessages and PersonalMessages.
+   * A getter for returning an array of all messages.
    *
-   * @returns The array of all messages from their proxies.
+   * @returns The array of all messages.
    */
-  get allMessages(): unknown[] {
-    let messagesObject: any = {};
-
-    const allMessages = [
+  get messages(): { [id: string]: Message | PersonalMessage | TypedMessage } {
+    const messages = [
       ...this.#typedMessageManager.getAllMessages(),
       ...this.#personalMessageManager.getAllMessages(),
       ...this.#messageManager.getAllMessages(),
     ];
 
-    for (const message of allMessages) {
-      messagesObject = { ...messagesObject, ...message };
-    }
+    const messagesObject = messages.reduce<{
+      [id: string]: Message | PersonalMessage | TypedMessage;
+    }>((acc, message) => {
+      acc[message.id] = message;
+      return acc;
+    }, {});
 
     return messagesObject;
   }
@@ -378,10 +382,26 @@ export class SignatureController extends BaseControllerV2<
     );
   }
 
+  /**
+   * Called when the message metadata needs to be updated.
+   *
+   * @param messageId - The id of the message to update.
+   * @param metadata - The data to update the metadata property in the message.
+   */
   setMessageMetadata(messageId: string, metadata: Json) {
-    this.#setMessageMetadata(this.#messageManager, messageId, metadata);
-    this.#setMessageMetadata(this.#personalMessageManager, messageId, metadata);
-    this.#setMessageMetadata(this.#typedMessageManager, messageId, metadata);
+    const messageManagers = [
+      this.#messageManager,
+      this.#personalMessageManager,
+      this.#typedMessageManager,
+    ];
+
+    for (const manager of messageManagers) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      if (this.#trySetMessageMetadata(manager, messageId, metadata)) {
+        return;
+      }
+    }
   }
 
   setTypedMessageInProgress(messageId: string) {
@@ -526,7 +546,7 @@ export class SignatureController extends BaseControllerV2<
     );
   }
 
-  #setMessageMetadata<
+  #trySetMessageMetadata<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
     PM extends AbstractMessageParamsMetamask,
@@ -535,7 +555,12 @@ export class SignatureController extends BaseControllerV2<
     messageId: string,
     metadata: Json,
   ) {
-    messageManager.setMetadata(messageId, metadata);
+    try {
+      messageManager.setMetadata(messageId, metadata);
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   #rejectUnapproved<
