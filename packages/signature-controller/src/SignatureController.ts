@@ -544,12 +544,8 @@ export class SignatureController extends BaseControllerV2<
     );
   }
 
-  #trySetMessageMetadata<
-    M extends AbstractMessage,
-    P extends AbstractMessageParams,
-    PM extends AbstractMessageParamsMetamask,
-  >(
-    messageManager: AbstractMessageManager<M, P, PM>,
+  #trySetMessageMetadata(
+    messageManager: AbstractMessageManager<any, any, any>,
     messageId: string,
     metadata: Json,
   ) {
