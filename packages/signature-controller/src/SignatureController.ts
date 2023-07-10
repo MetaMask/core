@@ -255,9 +255,9 @@ export class SignatureController extends BaseControllerV2<
   }
 
   /**
-   * A getter for returning an array of all messages.
+   * A getter for returning all messages.
    *
-   * @returns The array of all messages.
+   * @returns The object containing all messages.
    */
   get messages(): { [id: string]: Message | PersonalMessage | TypedMessage } {
     const messages = [
@@ -396,9 +396,7 @@ export class SignatureController extends BaseControllerV2<
     ];
 
     for (const manager of messageManagers) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      if (this.#trySetMessageMetadata(manager, messageId, metadata)) {
+      if (this.#trySetMessageMetadata(manager as any, messageId, metadata)) {
         return;
       }
     }
