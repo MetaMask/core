@@ -396,7 +396,7 @@ export class SignatureController extends BaseControllerV2<
     ];
 
     for (const manager of messageManagers) {
-      if (this.#trySetMessageMetadata(manager as any, messageId, metadata)) {
+      if (this.#trySetMessageMetadata(manager, messageId, metadata)) {
         return;
       }
     }
