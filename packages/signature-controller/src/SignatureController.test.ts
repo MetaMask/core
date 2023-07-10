@@ -623,6 +623,24 @@ describe('SignatureController', () => {
       expect(personalMessageManagerMock.setMetadata).not.toHaveBeenCalled();
       expect(typedMessageManagerMock.setMetadata).not.toHaveBeenCalled();
     });
+
+    it('should return false when an error occurs', () => {
+      messageManagerMock.setMetadata = jest.fn().mockImplementation(() => {
+        throw new Error('mocked error');
+      });
+  
+      const result = signatureController.setMessageMetadata(
+        messageParamsMock.metamaskId,
+        messageParamsMock.data,
+      );
+  
+      expect(result).toBe(undefined);
+      expect(messageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.setMetadata).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
+    });
   });
 
   describe('messages getter', () => {
