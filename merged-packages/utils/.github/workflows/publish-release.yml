@@ -5,6 +5,8 @@ on:
     secrets:
       NPM_TOKEN:
         required: true
+      SLACK_WEBHOOK_URL:
+        required: true
       PUBLISH_DOCS_TOKEN:
         required: true
 
@@ -21,7 +23,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
-      - uses: MetaMask/action-publish-release@v2
+      - uses: MetaMask/action-publish-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install
@@ -52,7 +54,10 @@ jobs:
           key: ${{ github.sha }}
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
-        uses: MetaMask/action-npm-publish@v2
+        uses: MetaMask/action-npm-publish@v4
+        with:
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          subteam: S042S7RE4AE # @metamask-npm-publishers
         env:
           SKIP_PREPACK: true
 

@@ -65,15 +65,18 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', 'https://github.com/MetaMask/
 % The license for the package must be specified.
 gen_enforced_field(WorkspaceCwd, 'license').
 
-% The entrypoint for the package must be `./dist/index.js`.
-gen_enforced_field(WorkspaceCwd, 'main', './dist/index.js').
+% The type definitions entrypoint the package must be `./dist/types/index.d.ts`.
+gen_enforced_field(WorkspaceCwd, 'types', './dist/types/index.d.ts').
 
-% The type definitions entrypoint the package must be `./dist/index.d.ts`.
-gen_enforced_field(WorkspaceCwd, 'types', './dist/index.d.ts').
+% The entrypoint for the package must be `./dist/cjs/index.js`.
+gen_enforced_field(WorkspaceCwd, 'main', './dist/cjs/index.js').
+
+% The module entrypoint for the package must be `./dist/esm/index.js`.
+gen_enforced_field(WorkspaceCwd, 'module', './dist/esm/index.js').
 
 % The list of files included in the package must only include files generated
 % during the build step.
-gen_enforced_field(WorkspaceCwd, 'files', ['dist/']).
+gen_enforced_field(WorkspaceCwd, 'files', ['dist/cjs/**', 'dist/esm/**', 'dist/types/**']).
 
 % If a dependency is listed under "dependencies", it should not be listed under
 % "devDependencies".
