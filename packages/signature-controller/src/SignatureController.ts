@@ -17,9 +17,13 @@ import {
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
+  TypedMessage,
+  PersonalMessage,
+  Message,
 } from '@metamask/message-manager';
 import { ethErrors } from 'eth-rpc-errors';
 import { bufferToHex } from 'ethereumjs-util';
+import { Json } from '@metamask/utils';
 
 import {
   BaseControllerV2,
@@ -255,6 +259,28 @@ export class SignatureController extends BaseControllerV2<
   }
 
   /**
+   * A getter for returning all messages.
+   *
+   * @returns The object containing all messages.
+   */
+  get messages(): { [id: string]: Message | PersonalMessage | TypedMessage } {
+    const messages = [
+      ...this.#typedMessageManager.getAllMessages(),
+      ...this.#personalMessageManager.getAllMessages(),
+      ...this.#messageManager.getAllMessages(),
+    ];
+
+    const messagesObject = messages.reduce<{
+      [id: string]: Message | PersonalMessage | TypedMessage;
+    }>((acc, message) => {
+      acc[message.id] = message;
+      return acc;
+    }, {});
+
+    return messagesObject;
+  }
+
+  /**
    * Reset the controller state to the initial state.
    */
   resetState() {
@@ -358,6 +384,26 @@ export class SignatureController extends BaseControllerV2<
       version,
       signingOpts,
     );
+  }
+
+  /**
+   * Called when the message metadata needs to be updated.
+   *
+   * @param messageId - The id of the message to update.
+   * @param metadata - The data to update the metadata property in the message.
+   */
+  setMessageMetadata(messageId: string, metadata: Json) {
+    const messageManagers = [
+      this.#messageManager,
+      this.#personalMessageManager,
+      this.#typedMessageManager,
+    ];
+
+    for (const manager of messageManagers) {
+      if (this.#trySetMessageMetadata(manager, messageId, metadata)) {
+        return;
+      }
+    }
   }
 
   setTypedMessageInProgress(messageId: string) {
@@ -517,6 +563,19 @@ export class SignatureController extends BaseControllerV2<
         );
       },
     );
+  }
+
+  #trySetMessageMetadata(
+    messageManager: AbstractMessageManager<any, any, any>,
+    messageId: string,
+    metadata: Json,
+  ) {
+    try {
+      messageManager.setMetadata(messageId, metadata);
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 
   #rejectUnapproved<
