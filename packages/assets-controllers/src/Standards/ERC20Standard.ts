@@ -49,6 +49,26 @@ export class ERC20Standard {
   }
 
   /**
+   * Query for the name for a given ERC20 asset.
+   *
+   * @param address - ERC20 asset contract string.
+   * @returns Promise resolving to the 'name'.
+   */
+  async getTokenName(address: string): Promise<string> {
+    const contract = new Contract(address, abiERC20, this.provider);
+    try {
+      const name = await contract.name();
+      return name.toString();
+    } catch (err: any) {
+      // Mirror previous implementation
+      if (err.message.includes('call revert exception')) {
+        throw new Error('Failed to parse token name');
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Query for symbol for a given ERC20 asset.
    *
    * @param address - ERC20 asset contract address.
