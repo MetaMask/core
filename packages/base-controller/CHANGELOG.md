@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.1.0]
-### Uncategorized
+### Changed
 - Prevent event publish from throwing error ([#1475](https://github.com/MetaMask/core/pull/1475))
+  - The controller messenger will no longer throw when an event subscriber throws an error. Calls to `publish` (either within controllers or on a messenger instance directly) will no longer throw errors.
+  - Errors are thrown in a timeout handler so that they can still be logged and captured.
 
 ## [3.0.0]
 ### Changed

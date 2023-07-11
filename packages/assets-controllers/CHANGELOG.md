@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [10.0.0]
-### Uncategorized
-- Update name of tokens on token list ([#1127](https://github.com/MetaMask/core/pull/1127))
+### Added
+- The method `getERC20TokenName` has been added to the assets contract controller ([#1127](https://github.com/MetaMask/core/pull/1127))
+  - This method gets the token name from the token contract
+
+### Changed
+- **BREAKING:** The tokens controller now requires `onTokenListStateChange` and `getERC20TokenName` as constructor parameters ([#1127](https://github.com/MetaMask/core/pull/1127))
+  - The `getERC20TokenName` method is used to get the token name for tokens added via `wallet_watchAsset`
+  - The `onTokenListStateChange` method is used to trigger a name update when the token list changes. On each change, token names are copied from the token list if they're missing from token controller state.
+- The token detection controller now sets the token name when new tokens are detected ([#1127](https://github.com/MetaMask/core/pull/1127))
+- The `Token` type now includes an optional `name` field ([#1127](https://github.com/MetaMask/core/pull/1127))
 
 ## [9.2.0]
 ### Added

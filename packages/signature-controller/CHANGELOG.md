@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [5.2.0]
-### Uncategorized
-- MMI-3035 create the getAllMessages and setMetadata ([#1469](https://github.com/MetaMask/core/pull/1469))
+### Added
+- Add methods `getAllMessages` and `setMetadata` ([#1469](https://github.com/MetaMask/core/pull/1469))
 
 ## [5.1.0]
 ### Changed
