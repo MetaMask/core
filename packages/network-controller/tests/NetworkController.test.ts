@@ -87,6 +87,18 @@ const BLOCK: Block = POST_1559_BLOCK;
  */
 const INFURA_NETWORKS = [
   {
+    networkType: NetworkType['linea-goerli'],
+    chainId: toHex(59140),
+    ticker: 'LineaETH',
+    blockExplorerUrl: 'https://explorer.goerli.linea.build',
+  },
+  {
+    networkType: NetworkType['linea-mainnet'],
+    chainId: toHex(59144),
+    ticker: 'ETH',
+    blockExplorerUrl: 'https://lineascan.build',
+  },
+  {
     networkType: NetworkType.mainnet,
     chainId: toHex(1),
     ticker: 'ETH',
@@ -1089,28 +1101,51 @@ describe('NetworkController', () => {
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
             const networkClientsById = controller.getNetworkClientsById();
-            const simplifiedNetworkClients = Object.entries(
-              networkClientsById,
-            ).map(([networkClientId, networkClient]) => [
-              networkClientId,
-              networkClient.configuration,
-            ]);
+            const simplifiedNetworkClients = Object.entries(networkClientsById)
+              .map(
+                ([networkClientId, networkClient]) =>
+                  [networkClientId, networkClient.configuration] as const,
+              )
+              .sort(
+                (
+                  [networkClientId1, _networkClient1],
+                  [networkClientId2, _networkClient2],
+                ) => {
+                  return networkClientId1.localeCompare(networkClientId2);
+                },
+              );
 
             expect(simplifiedNetworkClients).toStrictEqual([
-              [
-                'mainnet',
-                {
-                  type: NetworkClientType.Infura,
-                  infuraProjectId: 'some-infura-project-id',
-                  network: InfuraNetworkType.mainnet,
-                },
-              ],
               [
                 'goerli',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   network: InfuraNetworkType.goerli,
+                },
+              ],
+              [
+                'linea-goerli',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType['linea-goerli'],
+                },
+              ],
+              [
+                'linea-mainnet',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType['linea-mainnet'],
+                },
+              ],
+              [
+                'mainnet',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType.mainnet,
                 },
               ],
               [
@@ -1154,38 +1189,21 @@ describe('NetworkController', () => {
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
             const networkClientsById = controller.getNetworkClientsById();
-            const simplifiedNetworkClients = Object.entries(
-              networkClientsById,
-            ).map(([networkClientId, networkClient]) => [
-              networkClientId,
-              networkClient.configuration,
-            ]);
+            const simplifiedNetworkClients = Object.entries(networkClientsById)
+              .map(
+                ([networkClientId, networkClient]) =>
+                  [networkClientId, networkClient.configuration] as const,
+              )
+              .sort(
+                (
+                  [networkClientId1, _networkClient1],
+                  [networkClientId2, _networkClient2],
+                ) => {
+                  return networkClientId1.localeCompare(networkClientId2);
+                },
+              );
 
             expect(simplifiedNetworkClients).toStrictEqual([
-              [
-                'mainnet',
-                {
-                  type: NetworkClientType.Infura,
-                  infuraProjectId: 'some-infura-project-id',
-                  network: InfuraNetworkType.mainnet,
-                },
-              ],
-              [
-                'goerli',
-                {
-                  type: NetworkClientType.Infura,
-                  infuraProjectId: 'some-infura-project-id',
-                  network: InfuraNetworkType.goerli,
-                },
-              ],
-              [
-                'sepolia',
-                {
-                  type: NetworkClientType.Infura,
-                  infuraProjectId: 'some-infura-project-id',
-                  network: InfuraNetworkType.sepolia,
-                },
-              ],
               [
                 'AAAA-AAAA-AAAA-AAAA',
                 {
@@ -1200,6 +1218,46 @@ describe('NetworkController', () => {
                   type: NetworkClientType.Custom,
                   chainId: toHex(2),
                   rpcUrl: 'https://test.network.2',
+                },
+              ],
+              [
+                'goerli',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType.goerli,
+                },
+              ],
+              [
+                'linea-goerli',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType['linea-goerli'],
+                },
+              ],
+              [
+                'linea-mainnet',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType['linea-mainnet'],
+                },
+              ],
+              [
+                'mainnet',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType.mainnet,
+                },
+              ],
+              [
+                'sepolia',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType.sepolia,
                 },
               ],
             ]);
@@ -1231,28 +1289,51 @@ describe('NetworkController', () => {
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
             const networkClientsById = controller.getNetworkClientsById();
-            const simplifiedNetworkClients = Object.entries(
-              networkClientsById,
-            ).map(([networkClientId, networkClient]) => [
-              networkClientId,
-              networkClient.configuration,
-            ]);
+            const simplifiedNetworkClients = Object.entries(networkClientsById)
+              .map(
+                ([networkClientId, networkClient]) =>
+                  [networkClientId, networkClient.configuration] as const,
+              )
+              .sort(
+                (
+                  [networkClientId1, _networkClient1],
+                  [networkClientId2, _networkClient2],
+                ) => {
+                  return networkClientId1.localeCompare(networkClientId2);
+                },
+              );
 
             expect(simplifiedNetworkClients).toStrictEqual([
-              [
-                'mainnet',
-                {
-                  type: NetworkClientType.Infura,
-                  infuraProjectId: 'some-infura-project-id',
-                  network: InfuraNetworkType.mainnet,
-                },
-              ],
               [
                 'goerli',
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
                   network: InfuraNetworkType.goerli,
+                },
+              ],
+              [
+                'linea-goerli',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType['linea-goerli'],
+                },
+              ],
+              [
+                'linea-mainnet',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType['linea-mainnet'],
+                },
+              ],
+              [
+                'mainnet',
+                {
+                  type: NetworkClientType.Infura,
+                  infuraProjectId: 'some-infura-project-id',
+                  network: InfuraNetworkType.mainnet,
                 },
               ],
               [
@@ -1299,18 +1380,27 @@ describe('NetworkController', () => {
                 const networkClientsById = controller.getNetworkClientsById();
                 const simplifiedNetworkClients = Object.entries(
                   networkClientsById,
-                ).map(([networkClientId, networkClient]) => [
-                  networkClientId,
-                  networkClient.configuration,
-                ]);
+                )
+                  .map(
+                    ([networkClientId, networkClient]) =>
+                      [networkClientId, networkClient.configuration] as const,
+                  )
+                  .sort(
+                    (
+                      [networkClientId1, _networkClient1],
+                      [networkClientId2, _networkClient2],
+                    ) => {
+                      return networkClientId1.localeCompare(networkClientId2);
+                    },
+                  );
 
                 expect(simplifiedNetworkClients).toStrictEqual([
                   [
-                    'mainnet',
+                    'AAAA-AAAA-AAAA-AAAA',
                     {
-                      type: NetworkClientType.Infura,
-                      infuraProjectId: 'some-infura-project-id',
-                      network: InfuraNetworkType.mainnet,
+                      type: NetworkClientType.Custom,
+                      chainId: toHex(1),
+                      rpcUrl: 'https://test.network.1',
                     },
                   ],
                   [
@@ -1322,27 +1412,43 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
-                    'sepolia',
-                    {
-                      type: NetworkClientType.Infura,
-                      infuraProjectId: 'some-infura-project-id',
-                      network: InfuraNetworkType.sepolia,
-                    },
-                  ],
-                  [
-                    'AAAA-AAAA-AAAA-AAAA',
-                    {
-                      type: NetworkClientType.Custom,
-                      chainId: toHex(1),
-                      rpcUrl: 'https://test.network.1',
-                    },
-                  ],
-                  [
                     'https://test.network.2',
                     {
                       type: NetworkClientType.Custom,
                       chainId: toHex(2),
                       rpcUrl: 'HTTPS://TEST.NETWORK.2',
+                    },
+                  ],
+                  [
+                    'linea-goerli',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType['linea-goerli'],
+                    },
+                  ],
+                  [
+                    'linea-mainnet',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType['linea-mainnet'],
+                    },
+                  ],
+                  [
+                    'mainnet',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType.mainnet,
+                    },
+                  ],
+                  [
+                    'sepolia',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType.sepolia,
                     },
                   ],
                 ]);
@@ -1379,18 +1485,27 @@ describe('NetworkController', () => {
                 const networkClientsById = controller.getNetworkClientsById();
                 const simplifiedNetworkClients = Object.entries(
                   networkClientsById,
-                ).map(([networkClientId, networkClient]) => [
-                  networkClientId,
-                  networkClient.configuration,
-                ]);
+                )
+                  .map(
+                    ([networkClientId, networkClient]) =>
+                      [networkClientId, networkClient.configuration] as const,
+                  )
+                  .sort(
+                    (
+                      [networkClientId1, _networkClient1],
+                      [networkClientId2, _networkClient2],
+                    ) => {
+                      return networkClientId1.localeCompare(networkClientId2);
+                    },
+                  );
 
                 expect(simplifiedNetworkClients).toStrictEqual([
                   [
-                    'mainnet',
+                    'AAAA-AAAA-AAAA-AAAA',
                     {
-                      type: NetworkClientType.Infura,
-                      infuraProjectId: 'some-infura-project-id',
-                      network: InfuraNetworkType.mainnet,
+                      type: NetworkClientType.Custom,
+                      chainId: '0x1',
+                      rpcUrl: 'https://test.network',
                     },
                   ],
                   [
@@ -1402,19 +1517,35 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
+                    'linea-goerli',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType['linea-goerli'],
+                    },
+                  ],
+                  [
+                    'linea-mainnet',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType['linea-mainnet'],
+                    },
+                  ],
+                  [
+                    'mainnet',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType.mainnet,
+                    },
+                  ],
+                  [
                     'sepolia',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
                       network: InfuraNetworkType.sepolia,
-                    },
-                  ],
-                  [
-                    'AAAA-AAAA-AAAA-AAAA',
-                    {
-                      type: NetworkClientType.Custom,
-                      chainId: '0x1',
-                      rpcUrl: 'https://test.network',
                     },
                   ],
                 ]);
@@ -1451,18 +1582,27 @@ describe('NetworkController', () => {
                 const networkClientsById = controller.getNetworkClientsById();
                 const simplifiedNetworkClients = Object.entries(
                   networkClientsById,
-                ).map(([networkClientId, networkClient]) => [
-                  networkClientId,
-                  networkClient.configuration,
-                ]);
+                )
+                  .map(
+                    ([networkClientId, networkClient]) =>
+                      [networkClientId, networkClient.configuration] as const,
+                  )
+                  .sort(
+                    (
+                      [networkClientId1, _networkClient1],
+                      [networkClientId2, _networkClient2],
+                    ) => {
+                      return networkClientId1.localeCompare(networkClientId2);
+                    },
+                  );
 
                 expect(simplifiedNetworkClients).toStrictEqual([
                   [
-                    'mainnet',
+                    'AAAA-AAAA-AAAA-AAAA',
                     {
-                      type: NetworkClientType.Infura,
-                      infuraProjectId: 'some-infura-project-id',
-                      network: InfuraNetworkType.mainnet,
+                      type: NetworkClientType.Custom,
+                      chainId: toHex(1),
+                      rpcUrl: 'https://test.network',
                     },
                   ],
                   [
@@ -1474,19 +1614,35 @@ describe('NetworkController', () => {
                     },
                   ],
                   [
+                    'linea-goerli',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType['linea-goerli'],
+                    },
+                  ],
+                  [
+                    'linea-mainnet',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType['linea-mainnet'],
+                    },
+                  ],
+                  [
+                    'mainnet',
+                    {
+                      type: NetworkClientType.Infura,
+                      infuraProjectId: 'some-infura-project-id',
+                      network: InfuraNetworkType.mainnet,
+                    },
+                  ],
+                  [
                     'sepolia',
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
                       network: InfuraNetworkType.sepolia,
-                    },
-                  ],
-                  [
-                    'AAAA-AAAA-AAAA-AAAA',
-                    {
-                      type: NetworkClientType.Custom,
-                      chainId: toHex(1),
-                      rpcUrl: 'https://test.network',
                     },
                   ],
                 ]);
@@ -1525,18 +1681,27 @@ describe('NetworkController', () => {
               const networkClientsById = controller.getNetworkClientsById();
               const simplifiedNetworkClients = Object.entries(
                 networkClientsById,
-              ).map(([networkClientId, networkClient]) => [
-                networkClientId,
-                networkClient.configuration,
-              ]);
+              )
+                .map(
+                  ([networkClientId, networkClient]) =>
+                    [networkClientId, networkClient.configuration] as const,
+                )
+                .sort(
+                  (
+                    [networkClientId1, _networkClient1],
+                    [networkClientId2, _networkClient2],
+                  ) => {
+                    return networkClientId1.localeCompare(networkClientId2);
+                  },
+                );
 
               expect(simplifiedNetworkClients).toStrictEqual([
                 [
-                  'mainnet',
+                  'AAAA-AAAA-AAAA-AAAA',
                   {
-                    type: NetworkClientType.Infura,
-                    infuraProjectId: 'some-infura-project-id',
-                    network: InfuraNetworkType.mainnet,
+                    type: NetworkClientType.Custom,
+                    chainId: toHex(1),
+                    rpcUrl: 'https://test.network.1',
                   },
                 ],
                 [
@@ -1548,19 +1713,35 @@ describe('NetworkController', () => {
                   },
                 ],
                 [
+                  'linea-goerli',
+                  {
+                    type: NetworkClientType.Infura,
+                    infuraProjectId: 'some-infura-project-id',
+                    network: InfuraNetworkType['linea-goerli'],
+                  },
+                ],
+                [
+                  'linea-mainnet',
+                  {
+                    type: NetworkClientType.Infura,
+                    infuraProjectId: 'some-infura-project-id',
+                    network: InfuraNetworkType['linea-mainnet'],
+                  },
+                ],
+                [
+                  'mainnet',
+                  {
+                    type: NetworkClientType.Infura,
+                    infuraProjectId: 'some-infura-project-id',
+                    network: InfuraNetworkType.mainnet,
+                  },
+                ],
+                [
                   'sepolia',
                   {
                     type: NetworkClientType.Infura,
                     infuraProjectId: 'some-infura-project-id',
                     network: InfuraNetworkType.sepolia,
-                  },
-                ],
-                [
-                  'AAAA-AAAA-AAAA-AAAA',
-                  {
-                    type: NetworkClientType.Custom,
-                    chainId: toHex(1),
-                    rpcUrl: 'https://test.network.1',
                   },
                 ],
               ]);
@@ -4184,7 +4365,7 @@ describe('NetworkController', () => {
             );
 
             const networkClientsById = controller.getNetworkClientsById();
-            expect(Object.keys(networkClientsById)).toHaveLength(4);
+            expect(Object.keys(networkClientsById)).toHaveLength(6);
             expect(networkClientsById).toMatchObject({
               'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                 configuration: {
@@ -4715,7 +4896,7 @@ describe('NetworkController', () => {
 
                 const networkClientsById = controller.getNetworkClientsById();
                 expect(networkClientToDestroy.destroy).toHaveBeenCalled();
-                expect(Object.keys(networkClientsById)).toHaveLength(4);
+                expect(Object.keys(networkClientsById)).toHaveLength(6);
                 expect(networkClientsById).not.toMatchObject({
                   [oldRpcUrl]: expect.objectContaining({
                     configuration: {
@@ -4769,7 +4950,7 @@ describe('NetworkController', () => {
                 );
 
                 const networkClientsById = controller.getNetworkClientsById();
-                expect(Object.keys(networkClientsById)).toHaveLength(4);
+                expect(Object.keys(networkClientsById)).toHaveLength(6);
                 expect(networkClientsById).toMatchObject({
                   'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                     configuration: {
