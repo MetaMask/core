@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0]
+### Added
+- Add address related utils ([#112](https://github.com/MetaMask/utils/pull/112))
+  - `isValidHexAddress` has been added to check the validity of an hex address
+  - `getChecksumAddress` has been added to calculate the ERC-55 mixed-case checksum of an hex address
+  - `isValidChecksumAddress` has been added to check the validity of an ERC-55 mixed-case checksum address
+
 ## [6.1.0]
 ### Added
 - Add optional `destroy` method to `Keyring` type ([#108](https://github.com/MetaMask/utils/pull/108))
@@ -158,7 +165,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v6.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v6.2.0...HEAD
+[6.2.0]: https://github.com/MetaMask/utils/compare/v6.1.0...v6.2.0
 [6.1.0]: https://github.com/MetaMask/utils/compare/v6.0.1...v6.1.0
 [6.0.1]: https://github.com/MetaMask/utils/compare/v6.0.0...v6.0.1
 [6.0.0]: https://github.com/MetaMask/utils/compare/v5.0.2...v6.0.0
