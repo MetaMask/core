@@ -15,13 +15,19 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "license": "MIT",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
   "files": [
-    "dist/"
+    "dist/cjs/**",
+    "dist/esm/**",
+    "dist/types/**"
   ],
   "scripts": {
+    "build:cjs": "swc src --out-dir dist/cjs --config-file ../../.swcrc.build.json --config module.type=commonjs",
     "build:docs": "typedoc",
+    "build:esm": "swc src --out-dir dist/esm --config-file ../../.swcrc.build.json --config module.type=es6",
+    "build:source": "yarn build:esm && yarn build:cjs",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/keyring-controller",
     "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",

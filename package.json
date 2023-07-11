@@ -12,9 +12,11 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc --build tsconfig.build.json --verbose",
+    "build": "yarn build:source && yarn build:types",
     "build:clean": "rimraf dist '**/*.tsbuildinfo' && yarn build",
     "build:docs": "yarn workspaces foreach --parallel --interlaced --verbose run build:docs",
+    "build:source": "yarn workspaces foreach --parallel --interlaced --verbose run build:source",
+    "build:types": "tsc --build tsconfig.build.json --verbose",
     "build:watch": "yarn run build --watch",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
     "child-workspace-package-names-as-json": "ts-node scripts/child-workspace-package-names-as-json.ts",
@@ -40,6 +42,8 @@
     "@metamask/eslint-config-nodejs": "^9.0.0",
     "@metamask/eslint-config-typescript": "^9.0.1",
     "@metamask/eth-json-rpc-provider": "^1.0.0",
+    "@swc/cli": "^0.1.62",
+    "@swc/core": "^1.3.66",
     "@types/node": "^16.18.24",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
@@ -88,7 +92,8 @@
       "web3-provider-engine>eth-sig-util>ethereumjs-abi>ethereumjs-util>keccak": false,
       "web3-provider-engine>eth-sig-util>ethereumjs-abi>ethereumjs-util>secp256k1": false,
       "web3-provider-engine>ethereumjs-vm>ethereumjs-util>keccak": false,
-      "web3-provider-engine>ethereumjs-vm>ethereumjs-util>secp256k1": false
+      "web3-provider-engine>ethereumjs-vm>ethereumjs-util>secp256k1": false,
+      "@swc/core": true
     }
   }
 }

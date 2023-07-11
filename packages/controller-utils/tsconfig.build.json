@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": "./",
     "lib": ["ES2017", "DOM"],
-    "outDir": "./dist",
+    "outDir": "./dist/types",
     "rootDir": "./src"
   },
   "include": ["../../types", "./src"]

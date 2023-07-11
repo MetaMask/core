@@ -3,7 +3,9 @@
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,
+    "emitDeclarationOnly": true,
     "inlineSources": true,
+    "module": "ES2020",
     "sourceMap": true
   },
   "exclude": ["./jest.config.packages.ts", "**/*.test.ts", "**/jest.config.ts"]

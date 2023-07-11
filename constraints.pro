@@ -215,14 +215,16 @@ gen_enforced_field(WorkspaceCwd, 'license', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
 % The entrypoint for all published packages must be the same.
-gen_enforced_field(WorkspaceCwd, 'main', './dist/index.js') :-
+gen_enforced_field(WorkspaceCwd, 'main', './dist/cjs/index.js') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+gen_enforced_field(WorkspaceCwd, 'module', './dist/esm/index.js') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 % Non-published packages must not specify an entrypoint.
 gen_enforced_field(WorkspaceCwd, 'main', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
 % The type definitions entrypoint for all publishable packages must be the same.
-gen_enforced_field(WorkspaceCwd, 'types', './dist/index.d.ts') :-
+gen_enforced_field(WorkspaceCwd, 'types', './dist/types/index.d.ts') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 % Non-published packages must not specify a type definitions entrypoint.
 gen_enforced_field(WorkspaceCwd, 'types', null) :-
@@ -230,13 +232,21 @@ gen_enforced_field(WorkspaceCwd, 'types', null) :-
 
 % The list of files included in published packages must only include files
 % generated during the build step.
-gen_enforced_field(WorkspaceCwd, 'files', ['dist/']) :-
+gen_enforced_field(WorkspaceCwd, 'files', ['dist/cjs/**', 'dist/esm/**', 'dist/types/**']) :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 % The root package must specify an empty set of published files. (This is
 % required in order to be able to import anything in development-only scripts,
 % as otherwise the `node/no-unpublished-require` ESLint rule will disallow it.)
 gen_enforced_field(WorkspaceCwd, 'files', []) :-
   WorkspaceCwd = '.'.
+
+% All non-root packages must have the same build scripts.
+gen_enforced_field(WorkspaceCwd, 'scripts.build:source', 'yarn build:esm && yarn build:cjs') :-
+  WorkspaceCwd \= '.'.
+gen_enforced_field(WorkspaceCwd, 'scripts.build:esm', 'swc src --out-dir dist/esm --config-file ../../.swcrc.build.json --config module.type=es6') :-
+  WorkspaceCwd \= '.'.
+gen_enforced_field(WorkspaceCwd, 'scripts.build:cjs', 'swc src --out-dir dist/cjs --config-file ../../.swcrc.build.json --config module.type=commonjs') :-
+  WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "build:docs" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-

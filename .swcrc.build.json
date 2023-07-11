@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/swcrc",
+  "jsc": {
+    "parser": {
+      "syntax": "typescript"
+    },
+    "target": "es2020"
+  },
+  "sourceMaps": true,
+  "exclude": [
+    ".*__fixtures__.*",
+    ".*__mocks__.*",
+    ".*__snapshots__.*",
+    ".*__tests?__.*",
+    ".*\\.test\\.?.*\\.tsx?",
+    ".*\\.d\\.tsx?"
+  ]
+}
