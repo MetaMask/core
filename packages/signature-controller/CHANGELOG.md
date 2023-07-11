@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.2.0]
 ### Added
-- Add methods `getAllMessages` and `setMetadata` ([#1469](https://github.com/MetaMask/core/pull/1469))
+- Add `messages` getter that returns all messages ([#1469](https://github.com/MetaMask/core/pull/1469))
+- Add `setMessageMetadata` method for customizing the metadata for an individual message ([#1469](https://github.com/MetaMask/core/pull/1469))
 
 ## [5.1.0]
 ### Changed
