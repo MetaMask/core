@@ -81,17 +81,45 @@ If you're a MetaMask contributor, you can create these preview versions via draf
 
    - **Yarn >= 2 (berry):**
 
-     Add the following in `.yarnrc.yml`
+     Ensure that the project `.yarnrc.yml` file has the following contents:
 
      ```
+     npmRegistries:
+       "https://npm.pkg.github.com":
+         npmAlwaysAuth: true
+         npmAuthToken: "${GITHUB_NPM_TOKEN-}"
+
      npmScopes:
-        metamask:
-           npmAlwaysAuth: true
-           npmAuthToken: <your personal access token>
-           npmRegistryServer: 'https://npm.pkg.github.com'
+       metamask:
+         npmRegistryServer: "${METAMASK_NPM_REGISTRY:-https://registry.yarnpkg.com}"
      ```
 
-   Make sure not to commit these changes.
+     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to enable preview builds, then unset it to disable them.
+
+     For example, in Bash, this command will enable preview builds:
+
+     ```bash
+     export METAMASK_NPM_REGISTRY=https://npm.pkg.github.com
+     ```
+
+     Then to disable them, run
+
+     ```bash
+     unset METAMASK_NPM_REGISTRY
+     ```
+
+     The `GITHUB_NPM_TOKEN` environment variable is where your token is set. This can be set the same way as for `METAMASK_NPM_REGISTRY`, or it can be set before each install command.
+
+     For example, you could run this to install preview builds:
+
+     ```bash
+     GITHUB_NPM_TOKEN=<your personal access token> yarn
+     ```
+
+     - It's recommended to use your machine's local keychain to store the token, and retrieve it from there. For example on macOS, you can use:
+       ```bash
+       GITHUB_NPM_TOKEN=$(security find-generic-password -s 'GitHub NPM Token' -w) yarn install
+       ```
 
 3. Go to GitHub and open up a pull request for this repository, then post a comment on the PR with the text `@metamaskbot publish-preview`. (This triggers the `publish-preview` GitHub action.)
 4. After a few minutes, you will see a new comment indicating that all packages have been published with the format `<package name>-<commit id>`.
@@ -116,17 +144,45 @@ If you're a contributor and you've forked this repository, you can create previe
 
    - **Yarn >= 2 (berry):**
 
-     Add the following in `.yarnrc.yml`
+     Ensure that the project `.yarnrc.yml` file has the following contents:
 
      ```
+     npmRegistries:
+       "https://npm.pkg.github.com":
+         npmAlwaysAuth: true
+         npmAuthToken: "${GITHUB_NPM_TOKEN-}"
+
      npmScopes:
-        <your GitHub username>:
-           npmAlwaysAuth: true
-           npmAuthToken: <your personal access token>
-           npmRegistryServer: 'https://npm.pkg.github.com'
+       metamask:
+         npmRegistryServer: "${METAMASK_NPM_REGISTRY:-https://registry.yarnpkg.com}"
      ```
 
-   Make sure not to commit these changes.
+     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to enable preview builds, then unset it to disable them.
+
+     For example, in Bash, this command will enable preview builds:
+
+     ```bash
+     export METAMASK_NPM_REGISTRY=https://npm.pkg.github.com
+     ```
+
+     Then to disable them, run
+
+     ```bash
+     unset METAMASK_NPM_REGISTRY
+     ```
+
+     The `GITHUB_NPM_TOKEN` environment variable is where your token is set. This can be set the same way as for `METAMASK_NPM_REGISTRY`, or it can be set before each install command.
+
+     For example, you could run this to install preview builds:
+
+     ```bash
+     GITHUB_NPM_TOKEN=<your personal access token> yarn
+     ```
+
+     - It's recommended to use your machine's local keychain to store the token, and retrieve it from there. For example on macOS, you can use:
+       ```bash
+       GITHUB_NPM_TOKEN=$(security find-generic-password -s 'GitHub NPM Token' -w) yarn install
+       ```
 
 3. Open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<your GitHub username>`.
 4. Switch to your fork of this repository locally and run `yarn prepare-preview-builds "$(git rev-parse --short HEAD)" && yarn build && yarn publish-previews` to generate preview versions for all packages based on the current branch and publish them to GitHub Package Registry. Take note of the version that is published; it should look like `1.2.3-e2df9b4` instead of `1.2.3`.
