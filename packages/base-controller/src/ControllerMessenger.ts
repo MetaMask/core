@@ -445,6 +445,9 @@ export class ControllerMessenger<
    *
    * Publishes the given payload to all subscribers of the given event type.
    *
+   * Note that this method should never throw directly. Any errors from
+   * subscribers are captured and re-thrown in a timeout handler.
+   *
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param payload - The event payload. The type of the parameters for each event handler must
    * match the type of this payload.
@@ -458,16 +461,24 @@ export class ControllerMessenger<
 
     if (subscribers) {
       for (const [handler, selector] of subscribers.entries()) {
-        if (selector) {
-          const previousValue = this.eventPayloadCache.get(handler);
-          const newValue = selector(...payload);
+        try {
+          if (selector) {
+            const previousValue = this.eventPayloadCache.get(handler);
+            const newValue = selector(...payload);
 
-          if (newValue !== previousValue) {
-            this.eventPayloadCache.set(handler, newValue);
-            handler(newValue, previousValue);
+            if (newValue !== previousValue) {
+              this.eventPayloadCache.set(handler, newValue);
+              handler(newValue, previousValue);
+            }
+          } else {
+            (handler as GenericEventHandler)(...payload);
           }
-        } else {
-          (handler as GenericEventHandler)(...payload);
+        } catch (error) {
+          // Throw error after timeout so that it is capured as a console error
+          // (and by Sentry) without interrupting the event publishing.
+          setTimeout(() => {
+            throw error;
+          });
         }
       }
     }

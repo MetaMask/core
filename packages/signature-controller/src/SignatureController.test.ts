@@ -105,6 +105,8 @@ const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
     rejectMessage: jest.fn(),
     subscribe: jest.fn(),
     update: jest.fn(),
+    setMetadata: jest.fn(),
+    getAllMessages: jest.fn(),
     hub: {
       on: jest.fn(),
     },
@@ -643,6 +645,79 @@ describe('SignatureController', () => {
       expect(
         typedMessageManagerMock.setMessageStatusInProgress,
       ).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('trySetMessageMetadata', () => {
+    it('sets the metadata in a message manager', () => {
+      signatureController.setMessageMetadata(
+        messageParamsMock.metamaskId,
+        messageParamsMock.data,
+      );
+
+      expect(messageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.setMetadata).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
+
+      expect(personalMessageManagerMock.setMetadata).not.toHaveBeenCalled();
+      expect(typedMessageManagerMock.setMetadata).not.toHaveBeenCalled();
+    });
+
+    it('should return false when an error occurs', () => {
+      jest.spyOn(messageManagerMock, 'setMetadata').mockImplementation(() => {
+        throw new Error('mocked error');
+      });
+
+      const result = signatureController.setMessageMetadata(
+        messageParamsMock.metamaskId,
+        messageParamsMock.data,
+      );
+
+      expect(result).toBeUndefined();
+      expect(messageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.setMetadata).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
+    });
+  });
+
+  describe('messages getter', () => {
+    const message = [
+      {
+        name: 'some message',
+        type: 'type',
+        value: 'value',
+        messageParams: {
+          data: [],
+          from: '0x0123',
+        },
+        time: 1,
+        status: '',
+        id: '1',
+      },
+    ];
+
+    it('returns all the messages from typed, personal and messageManager', () => {
+      typedMessageManagerMock.getAllMessages.mockReturnValueOnce(message);
+      personalMessageManagerMock.getAllMessages.mockReturnValueOnce([]);
+      messageManagerMock.getAllMessages.mockReturnValueOnce([]);
+      expect(signatureController.messages).toMatchObject({
+        '1': {
+          id: '1',
+          messageParams: {
+            data: [],
+            from: '0x0123',
+          },
+          name: 'some message',
+          status: '',
+          time: 1,
+          type: 'type',
+          value: 'value',
+        },
+      });
     });
   });
 
