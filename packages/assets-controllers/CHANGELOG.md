@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+### Added
+- The method `getERC20TokenName` has been added to `AssetsContractController` ([#1127](https://github.com/MetaMask/core/pull/1127))
+  - This method gets the token name from the token contract
+
+### Changed
+- **BREAKING:** The tokens controller now requires `onTokenListStateChange` and `getERC20TokenName` as constructor parameters ([#1127](https://github.com/MetaMask/core/pull/1127))
+  - The `getERC20TokenName` method is used to get the token name for tokens added via `wallet_watchAsset`
+  - The `onTokenListStateChange` method is used to trigger a name update when the token list changes. On each change, token names are copied from the token list if they're missing from token controller state.
+- **BREAKING:** The signature of the tokens controller method `addToken` has changed
+  - The fourth and fifth positional parameters (`image` and `interactingAddress`) have been replaced by an `options` object 
+  - The new options parameter includes the `image` and `interactingAddress` properties, and a new `name` property
+- The token detection controller now sets the token name when new tokens are detected ([#1127](https://github.com/MetaMask/core/pull/1127))
+- The `Token` type now includes an optional `name` field ([#1127](https://github.com/MetaMask/core/pull/1127))
+
 ## [9.2.0]
 ### Added
 - Add validation that the nft standard matches the type argument of a `wallet_watchAsset` request when type is 'ERC721' or 'ERC1155' ([#1455](https://github.com/MetaMask/core/pull/1455))
@@ -172,7 +187,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.2.0...@metamask/assets-controllers@10.0.0
 [9.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.1.0...@metamask/assets-controllers@9.2.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.0.0...@metamask/assets-controllers@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@8.0.0...@metamask/assets-controllers@9.0.0

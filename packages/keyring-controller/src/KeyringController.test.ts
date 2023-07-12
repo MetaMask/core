@@ -430,7 +430,7 @@ describe('KeyringController', () => {
       it('should get correct keyring', async () => {
         await withController(async ({ controller }) => {
           const normalizedInitialAccounts =
-            controller.state.keyrings[0].accounts.map(normalize);
+            controller.state.keyrings[0].accounts.map(normalize) as string[];
           const keyring = (await controller.getKeyringForAccount(
             normalizedInitialAccounts[0],
           )) as KeyringObject;
@@ -741,7 +741,7 @@ describe('KeyringController', () => {
             from: '',
           }),
         ).rejects.toThrow(
-          'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
+          'No keyring found for the requested account. Error info: There are keyrings, but none match the address',
         );
       });
     });
@@ -785,7 +785,7 @@ describe('KeyringController', () => {
             from: '',
           }),
         ).rejects.toThrow(
-          'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
+          'No keyring found for the requested account. Error info: There are keyrings, but none match the address',
         );
       });
     });
@@ -1070,7 +1070,7 @@ describe('KeyringController', () => {
           expect(unsignedEthTx.v).toBeUndefined();
           await controller.signTransaction(unsignedEthTx, '');
         }).rejects.toThrow(
-          'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
+          'No keyring found for the requested account. Error info: There are keyrings, but none match the address',
         );
       });
     });
