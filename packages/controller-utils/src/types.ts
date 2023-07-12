@@ -48,10 +48,10 @@ export enum BuiltInNetworkName {
  * `toHex` not invoked to avoid cyclic dependency
  */
 export const ChainId = {
-  [BuiltInNetworkName.Mainnet]: '0x1', // toHex(1)
-  [BuiltInNetworkName.Goerli]: '0x5', // toHex(5)
-  [BuiltInNetworkName.Sepolia]: '0xaa36a7', // toHex(11155111)
-  [BuiltInNetworkName.Aurora]: '0x4e454152', // toHex(1313161554)
+  [BuiltInNetworkName.Mainnet]: 'eip155:1',
+  [BuiltInNetworkName.Goerli]: 'eip155:5',
+  [BuiltInNetworkName.Sepolia]: 'eip155:11155111',
+  [BuiltInNetworkName.Aurora]: 'eip155:1313161554',
 } as const;
 export type ChainId = typeof ChainId[keyof typeof ChainId];
 

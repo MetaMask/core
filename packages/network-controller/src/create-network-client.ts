@@ -20,12 +20,12 @@ import {
   SafeEventEmitterProvider,
 } from '@metamask/eth-json-rpc-provider';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
-import type { Hex } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   InfuraNetworkType,
   ChainId,
   NetworkId,
+  getEthChainIdHexFromCaipChainId,
 } from '@metamask/controller-utils';
 import {
   BlockTracker,
@@ -160,11 +160,11 @@ function createNetworkAndChainIdMiddleware({
 }
 
 const createChainIdMiddleware = (
-  chainId: Hex,
+  caipChainId: string,
 ): JsonRpcMiddleware<unknown, unknown> => {
   return (req, res, next, end) => {
     if (req.method === 'eth_chainId') {
-      res.result = chainId;
+      res.result = getEthChainIdHexFromCaipChainId(caipChainId);
       return end();
     }
     return next();
@@ -186,7 +186,7 @@ function createCustomNetworkMiddleware({
   rpcApiMiddleware,
 }: {
   blockTracker: PollingBlockTracker;
-  chainId: Hex;
+  chainId: string;
   rpcApiMiddleware: any;
 }) {
   // eslint-disable-next-line node/no-process-env

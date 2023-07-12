@@ -31,6 +31,7 @@ import {
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
+  getEthChainIdHexFromCaipChainId,
 } from '@metamask/controller-utils';
 import {
   AcceptResultCallbacks,
@@ -89,7 +90,7 @@ export interface FetchAllOptions {
  * @property value - Value associated with this transaction
  */
 export interface Transaction {
-  chainId?: Hex;
+  chainId?: string;
   data?: string;
   from: string;
   gas?: string;
@@ -147,7 +148,7 @@ type TransactionMetaBase = {
   };
   id: string;
   networkID?: string;
-  chainId?: Hex;
+  chainId?: string;
   origin?: string;
   rawTransaction?: string;
   time: number;
@@ -346,7 +347,7 @@ export class TransactionController extends BaseController<
   private normalizeTx(
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
-    currentChainId: Hex,
+    currentChainId: string,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const normalizedTransactionBase = {
@@ -388,7 +389,7 @@ export class TransactionController extends BaseController<
   private normalizeTokenTx = (
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
-    currentChainId: Hex,
+    currentChainId: string,
   ): TransactionMeta => {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const {
@@ -1210,7 +1211,7 @@ export class TransactionController extends BaseController<
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const { providerConfig } = this.getNetworkState();
-    const { chainId } = providerConfig;
+    const { chainId: caipChainId } = providerConfig;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
@@ -1225,7 +1226,7 @@ export class TransactionController extends BaseController<
           new Error('No sign method defined.'),
         );
         return;
-      } else if (!chainId) {
+      } else if (!caipChainId) {
         releaseLock();
         this.failTransaction(transactionMeta, new Error('No chainId defined.'));
         return;
@@ -1239,6 +1240,8 @@ export class TransactionController extends BaseController<
         nonceLock = await this.nonceTracker.getNonceLock(from);
         nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
       }
+
+      const chainId = getEthChainIdHexFromCaipChainId(caipChainId)
 
       transactionMeta.status = status;
       transactionMeta.transaction.nonce = nonceToUse;

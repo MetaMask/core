@@ -20,7 +20,7 @@ export enum NetworkClientType {
  * network.
  */
 export type CustomNetworkClientConfiguration = {
-  chainId: Hex;
+  chainId: string;
   rpcUrl: string;
   type: NetworkClientType.Custom;
 };

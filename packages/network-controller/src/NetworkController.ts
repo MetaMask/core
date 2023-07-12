@@ -17,6 +17,7 @@ import {
   InfuraNetworkType,
   NetworkType,
   isSafeChainId,
+  getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
 import {
   Hex,
@@ -42,6 +43,7 @@ import {
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
 
+
 /**
  * @type ProviderConfig
  *
@@ -56,7 +58,7 @@ const log = createModuleLogger(projectLogger, 'NetworkController');
 export type ProviderConfig = {
   rpcUrl?: string;
   type: NetworkType;
-  chainId: Hex;
+  chainId: string;
   ticker?: string;
   nickname?: string;
   rpcPrefs?: { blockExplorerUrl?: string };
@@ -982,7 +984,9 @@ export class NetworkController extends BaseControllerV2<
       networkConfiguration,
       ['rpcUrl', 'chainId', 'ticker', 'nickname', 'rpcPrefs'],
     );
-    const { rpcUrl, chainId, ticker } = sanitizedNetworkConfiguration;
+    const { rpcUrl, chainId: caipChainId, ticker } = sanitizedNetworkConfiguration;
+
+    const chainId = getEthChainIdDecFromCaipChainId(caipChainId)
 
     assertIsStrictHexString(chainId);
     if (!isSafeChainId(chainId)) {

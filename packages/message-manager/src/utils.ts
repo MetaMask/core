@@ -2,7 +2,7 @@ import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
 import { validate } from 'jsonschema';
 import type { Hex } from '@metamask/utils';
-import { isValidHexAddress } from '@metamask/controller-utils';
+import { getEthChainIdIntFromCaipChainId, isValidHexAddress } from '@metamask/controller-utils';
 import { MessageParams } from './MessageManager';
 import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
@@ -94,7 +94,7 @@ export function validateTypedSignMessageDataV1(
  */
 export function validateTypedSignMessageDataV3V4(
   messageData: TypedMessageParams,
-  currentChainId: Hex | undefined,
+  currentCaipChainId: string | undefined,
 ) {
   validateAddress(messageData.from, 'from');
 
@@ -127,7 +127,7 @@ export function validateTypedSignMessageDataV3V4(
     );
   }
 
-  if (!currentChainId) {
+  if (!currentCaipChainId) {
     throw new Error('Current chainId cannot be null or undefined.');
   }
 
@@ -137,7 +137,7 @@ export function validateTypedSignMessageDataV3V4(
       chainId = parseInt(chainId, chainId.startsWith('0x') ? 16 : 10);
     }
 
-    const activeChainId = parseInt(currentChainId, 16);
+    const activeChainId = getEthChainIdIntFromCaipChainId(currentCaipChainId)
     if (Number.isNaN(activeChainId)) {
       throw new Error(
         `Cannot sign messages for chainId "${chainId}", because MetaMask is switching networks.`,
