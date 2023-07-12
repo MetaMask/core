@@ -1,7 +1,8 @@
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { JsonRpcRequest } from 'json-rpc-engine';
 import getCreateRandomId from 'json-rpc-random-id';
 import pify from 'pify';
-import { JsonRpcRequest } from 'json-rpc-engine';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+
 import { BaseBlockTracker } from './BaseBlockTracker';
 import { projectLogger, createModuleLogger } from './logging-utils';
 
@@ -24,15 +25,15 @@ interface ExtendedJsonRpcRequest<T> extends JsonRpcRequest<T> {
 }
 
 export class PollingBlockTracker extends BaseBlockTracker {
-  private _provider: SafeEventEmitterProvider;
+  private readonly _provider: SafeEventEmitterProvider;
 
-  private _pollingInterval: number;
+  private readonly _pollingInterval: number;
 
-  private _retryTimeout: number;
+  private readonly _retryTimeout: number;
 
-  private _keepEventLoopActive: boolean;
+  private readonly _keepEventLoopActive: boolean;
 
-  private _setSkipCacheFlag: boolean;
+  private readonly _setSkipCacheFlag: boolean;
 
   constructor(opts: PollingBlockTrackerOptions = {}) {
     // parse + validate args
@@ -134,7 +135,7 @@ export class PollingBlockTracker extends BaseBlockTracker {
  * the process (true for no, false for yes). Defaults to false.
  * @returns A promise that can be used to wait.
  */
-function timeout(duration: number, unref: boolean) {
+async function timeout(duration: number, unref: boolean) {
   return new Promise((resolve) => {
     const timeoutRef = setTimeout(resolve, duration);
     // don't keep process open

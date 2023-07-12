@@ -14,9 +14,9 @@ interface BaseBlockTrackerArgs {
 export abstract class BaseBlockTracker extends SafeEventEmitter {
   protected _isRunning: boolean;
 
-  private _blockResetDuration: number;
+  private readonly _blockResetDuration: number;
 
-  private _usePastBlocks: boolean;
+  private readonly _usePastBlocks: boolean;
 
   private _currentBlock: string | null;
 
@@ -107,6 +107,7 @@ export abstract class BaseBlockTracker extends SafeEventEmitter {
   private _onNewListener(eventName: string | symbol): void {
     // `newListener` is called *before* the listener is added
     if (blockTrackerEvents.includes(eventName)) {
+      // TODO: Handle dangling promise
       this._maybeStart();
     }
   }

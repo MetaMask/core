@@ -1,8 +1,8 @@
+import { PollingBlockTracker } from '.';
+import buildDeferred from '../tests/buildDeferred';
 import EMPTY_FUNCTION from '../tests/emptyFunction';
 import recordCallsToSetTimeout from '../tests/recordCallsToSetTimeout';
 import { withPollingBlockTracker } from '../tests/withBlockTracker';
-import buildDeferred from '../tests/buildDeferred';
-import { PollingBlockTracker } from '.';
 
 interface Sync {
   oldBlock: string;
@@ -80,7 +80,7 @@ describe('PollingBlockTracker', () => {
           await new Promise((resolve) => {
             blockTracker.on('_waitingForNextIteration', resolve);
           });
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
           blockTracker.removeAllListeners();
           expect(
             setTimeoutRecorder.calls.some((call) => {
@@ -99,7 +99,7 @@ describe('PollingBlockTracker', () => {
           await new Promise((resolve) =>
             originalSetTimeout(resolve, blockTrackerOptions.blockResetDuration),
           );
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
         },
       );
     });
@@ -131,7 +131,7 @@ describe('PollingBlockTracker', () => {
           await new Promise((resolve) => {
             blockTracker.on('_waitingForNextIteration', resolve);
           });
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
           blockTracker.removeAllListeners();
           await setTimeoutRecorder.nextMatchingDuration(
             blockTrackerOptions.blockResetDuration,
@@ -186,7 +186,7 @@ describe('PollingBlockTracker', () => {
         },
         async ({ blockTracker }) => {
           const latestBlockNumber = await blockTracker.getLatestBlock();
-          expect(latestBlockNumber).toStrictEqual('0x0');
+          expect(latestBlockNumber).toBe('0x0');
         },
       );
     });
@@ -307,14 +307,14 @@ describe('PollingBlockTracker', () => {
               blockTracker[methodToAddListener]('error', resolve);
             });
 
-            const promiseForLatestBlock = await blockTracker.getLatestBlock();
+            const promiseForLatestBlock = blockTracker.getLatestBlock();
 
             const caughtError = await promiseForCaughtError;
             expect(caughtError.message).toMatch(
               /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
             );
             const latestBlock = await promiseForLatestBlock;
-            expect(latestBlock).toStrictEqual('0x0');
+            expect(latestBlock).toBe('0x0');
           },
         );
       });
@@ -353,7 +353,7 @@ describe('PollingBlockTracker', () => {
               /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom\n/u,
             );
             const latestBlock = await promiseForLatestBlock;
-            expect(latestBlock).toStrictEqual('0x0');
+            expect(latestBlock).toBe('0x0');
           },
         );
       });
@@ -392,7 +392,7 @@ describe('PollingBlockTracker', () => {
               /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
             );
             const latestBlock = await promiseForLatestBlock;
-            expect(latestBlock).toStrictEqual('0x0');
+            expect(latestBlock).toBe('0x0');
           },
         );
       });
@@ -422,14 +422,14 @@ describe('PollingBlockTracker', () => {
               blockTracker[methodToAddListener]('error', resolve);
             });
 
-            const promiseForLatestBlock = await blockTracker.getLatestBlock();
+            const promiseForLatestBlock = blockTracker.getLatestBlock();
 
             const caughtError = await promiseForCaughtError;
             expect(caughtError.message).toMatch(
               /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
             );
             const latestBlock = await promiseForLatestBlock;
-            expect(latestBlock).toStrictEqual('0x0');
+            expect(latestBlock).toBe('0x0');
           },
         );
       });
@@ -592,7 +592,7 @@ describe('PollingBlockTracker', () => {
         async ({ blockTracker }) => {
           await blockTracker.getLatestBlock();
           const currentBlockNumber = blockTracker.getCurrentBlock();
-          expect(currentBlockNumber).toStrictEqual('0x0');
+          expect(currentBlockNumber).toBe('0x0');
         },
       );
     });
@@ -621,7 +621,7 @@ describe('PollingBlockTracker', () => {
         async ({ blockTracker }) => {
           await blockTracker.getLatestBlock();
           const currentBlockNumber = blockTracker.getCurrentBlock();
-          expect(currentBlockNumber).toStrictEqual('0x0');
+          expect(currentBlockNumber).toBe('0x0');
 
           // When the block tracker stops, there may be two `setTimeout`s in
           // play: one to go to the next iteration of the block tracker
@@ -696,7 +696,7 @@ describe('PollingBlockTracker', () => {
         },
         async ({ blockTracker }) => {
           const latestBlockNumber = await blockTracker.checkForLatestBlock();
-          expect(latestBlockNumber).toStrictEqual('0x0');
+          expect(latestBlockNumber).toBe('0x0');
         },
       );
     });
@@ -720,7 +720,7 @@ describe('PollingBlockTracker', () => {
         async ({ blockTracker }) => {
           await blockTracker.checkForLatestBlock();
           const currentBlockNumber = blockTracker.getCurrentBlock();
-          expect(currentBlockNumber).toStrictEqual('0x0');
+          expect(currentBlockNumber).toBe('0x0');
         },
       );
     });
@@ -830,7 +830,7 @@ describe('PollingBlockTracker', () => {
           );
 
           expect(setTimeoutRecorder.calls).toHaveLength(0);
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
         },
       );
     });
@@ -866,9 +866,9 @@ describe('PollingBlockTracker', () => {
             },
             async ({ blockTracker }) => {
               const blockNumber1 = await blockTracker.checkForLatestBlock();
-              expect(blockNumber1).toStrictEqual('0x0');
+              expect(blockNumber1).toBe('0x0');
               const blockNumber2 = await blockTracker.checkForLatestBlock();
-              expect(blockNumber2).toStrictEqual('0x1');
+              expect(blockNumber2).toBe('0x1');
             },
           );
         });
@@ -900,7 +900,7 @@ describe('PollingBlockTracker', () => {
               await blockTracker.checkForLatestBlock();
               await blockTracker.checkForLatestBlock();
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x1');
+              expect(currentBlockNumber).toBe('0x1');
             },
           );
         });
@@ -930,9 +930,9 @@ describe('PollingBlockTracker', () => {
             },
             async ({ blockTracker }) => {
               const blockNumber1 = await blockTracker.checkForLatestBlock();
-              expect(blockNumber1).toStrictEqual('0x1');
+              expect(blockNumber1).toBe('0x1');
               const blockNumber2 = await blockTracker.checkForLatestBlock();
-              expect(blockNumber2).toStrictEqual('0x1');
+              expect(blockNumber2).toBe('0x1');
             },
           );
         });
@@ -964,7 +964,7 @@ describe('PollingBlockTracker', () => {
               await blockTracker.checkForLatestBlock();
               await blockTracker.checkForLatestBlock();
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x1');
+              expect(currentBlockNumber).toBe('0x1');
             },
           );
         });
@@ -997,9 +997,9 @@ describe('PollingBlockTracker', () => {
           },
           async ({ blockTracker }) => {
             const blockNumber1 = await blockTracker.checkForLatestBlock();
-            expect(blockNumber1).toStrictEqual('0x0');
+            expect(blockNumber1).toBe('0x0');
             const blockNumber2 = await blockTracker.checkForLatestBlock();
-            expect(blockNumber2).toStrictEqual('0x1');
+            expect(blockNumber2).toBe('0x1');
           },
         );
       });
@@ -1031,7 +1031,7 @@ describe('PollingBlockTracker', () => {
             await blockTracker.checkForLatestBlock();
             await blockTracker.checkForLatestBlock();
             const currentBlockNumber = blockTracker.getCurrentBlock();
-            expect(currentBlockNumber).toStrictEqual('0x1');
+            expect(currentBlockNumber).toBe('0x1');
           },
         );
       });
@@ -1061,9 +1061,9 @@ describe('PollingBlockTracker', () => {
           },
           async ({ blockTracker }) => {
             const blockNumber1 = await blockTracker.checkForLatestBlock();
-            expect(blockNumber1).toStrictEqual('0x1');
+            expect(blockNumber1).toBe('0x1');
             const blockNumber2 = await blockTracker.checkForLatestBlock();
-            expect(blockNumber2).toStrictEqual('0x0');
+            expect(blockNumber2).toBe('0x0');
           },
         );
       });
@@ -1095,7 +1095,7 @@ describe('PollingBlockTracker', () => {
             await blockTracker.checkForLatestBlock();
             await blockTracker.checkForLatestBlock();
             const currentBlockNumber = blockTracker.getCurrentBlock();
-            expect(currentBlockNumber).toStrictEqual('0x0');
+            expect(currentBlockNumber).toBe('0x0');
           },
         );
       });
@@ -1135,7 +1135,7 @@ describe('PollingBlockTracker', () => {
               const latestBlockNumber = await new Promise<string>((resolve) => {
                 blockTracker[methodToAddListener]('latest', resolve);
               });
-              expect(latestBlockNumber).toStrictEqual('0x0');
+              expect(latestBlockNumber).toBe('0x0');
             },
           );
         });
@@ -1161,7 +1161,7 @@ describe('PollingBlockTracker', () => {
                 blockTracker[methodToAddListener]('latest', resolve);
               });
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x0');
+              expect(currentBlockNumber).toBe('0x0');
             },
           );
         });
@@ -1206,7 +1206,7 @@ describe('PollingBlockTracker', () => {
                   return call.duration === blockTrackerOptions.pollingInterval;
                 },
               );
-              expect(nextIterationTimeout).not.toBeUndefined();
+              expect(nextIterationTimeout).toBeDefined();
               expect(nextIterationTimeout?.timeout.hasRef()).toBe(false);
             },
           );
@@ -1302,7 +1302,7 @@ describe('PollingBlockTracker', () => {
                 /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
               );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toStrictEqual('0x0');
+              expect(latestBlock).toBe('0x0');
             },
           );
         });
@@ -1343,7 +1343,7 @@ describe('PollingBlockTracker', () => {
                 /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom\n/u,
               );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toStrictEqual('0x0');
+              expect(latestBlock).toBe('0x0');
             },
           );
         });
@@ -1384,7 +1384,7 @@ describe('PollingBlockTracker', () => {
                 /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
               );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toStrictEqual('0x0');
+              expect(latestBlock).toBe('0x0');
             },
           );
         });
@@ -1423,7 +1423,7 @@ describe('PollingBlockTracker', () => {
                 /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
               );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toStrictEqual('0x0');
+              expect(latestBlock).toBe('0x0');
             },
           );
         });
@@ -1922,7 +1922,7 @@ describe('PollingBlockTracker', () => {
                 blockTracker[methodToAddListener]('sync', resolve);
               });
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x0');
+              expect(currentBlockNumber).toBe('0x0');
             },
           );
         });
@@ -1967,7 +1967,7 @@ describe('PollingBlockTracker', () => {
                   return call.duration === blockTrackerOptions.pollingInterval;
                 },
               );
-              expect(nextIterationTimeout).not.toBeUndefined();
+              expect(nextIterationTimeout).toBeDefined();
               expect(nextIterationTimeout?.timeout.hasRef()).toBe(false);
             },
           );
@@ -2693,7 +2693,7 @@ describe('PollingBlockTracker', () => {
               blockTracker.on('latest', listener2);
               await promiseForLatestBlock;
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x0');
+              expect(currentBlockNumber).toBe('0x0');
 
               blockTracker[methodToRemoveListener]('latest', listener1);
               blockTracker[methodToRemoveListener]('latest', listener2);
@@ -2762,7 +2762,7 @@ describe('PollingBlockTracker', () => {
               blockTracker.on('sync', listener2);
               await promiseForLatestBlock;
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x0');
+              expect(currentBlockNumber).toBe('0x0');
 
               blockTracker[methodToRemoveListener]('sync', listener1);
               blockTracker[methodToRemoveListener]('sync', listener2);
@@ -2862,7 +2862,7 @@ describe('PollingBlockTracker', () => {
                 return call.duration === blockTrackerOptions.pollingInterval;
               },
             );
-            expect(nextIterationTimeout).not.toBeUndefined();
+            expect(nextIterationTimeout).toBeDefined();
             expect(nextIterationTimeout?.timeout.hasRef()).toBe(false);
           },
         );
@@ -2893,7 +2893,7 @@ describe('PollingBlockTracker', () => {
             await new Promise((resolve) => {
               blockTracker.once('latest', resolve);
             });
-            expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+            expect(blockTracker.getCurrentBlock()).toBe('0x0');
 
             // When the block tracker stops, there may be two `setTimeout`s in
             // play: one to go to the next iteration of the block tracker
@@ -2944,7 +2944,7 @@ describe('PollingBlockTracker', () => {
                 /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
               );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toStrictEqual('0x0');
+              expect(latestBlock).toBe('0x0');
             },
           );
         });
@@ -2985,7 +2985,7 @@ describe('PollingBlockTracker', () => {
                 /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom\n/u,
               );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toStrictEqual('0x0');
+              expect(latestBlock).toBe('0x0');
             },
           );
         });
@@ -3026,7 +3026,7 @@ describe('PollingBlockTracker', () => {
                 /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
               );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toStrictEqual('0x0');
+              expect(latestBlock).toBe('0x0');
             },
           );
         });
@@ -3065,7 +3065,7 @@ describe('PollingBlockTracker', () => {
                 /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
               );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toStrictEqual('0x0');
+              expect(latestBlock).toBe('0x0');
             },
           );
         });
@@ -3276,7 +3276,7 @@ describe('PollingBlockTracker', () => {
             await new Promise((resolve) => {
               blockTracker.once('sync', resolve);
             });
-            expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+            expect(blockTracker.getCurrentBlock()).toBe('0x0');
 
             // When the block tracker stops, there may be two `setTimeout`s in
             // play: one to go to the next iteration of the block tracker
@@ -3700,7 +3700,7 @@ describe('PollingBlockTracker', () => {
           await new Promise((resolve) => {
             blockTracker.on('sync', resolve);
           });
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
 
           blockTracker.removeAllListeners();
           // When the block tracker stops, there may be two `setTimeout`s in
@@ -3759,7 +3759,7 @@ describe('PollingBlockTracker', () => {
           await new Promise((resolve) => {
             blockTracker.on('sync', resolve);
           });
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
 
           blockTracker.removeAllListeners('latest');
           blockTracker.removeAllListeners('sync');

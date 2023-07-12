@@ -1,4 +1,5 @@
 import EventEmitter from 'events';
+
 import EMPTY_FUNCTION from './emptyFunction';
 
 type SetTimeoutCallback = () => any;
@@ -50,7 +51,7 @@ class SetTimeoutRecorder {
    * @returns A promise that resolves when the first `setTimeout` call is
    * called.
    */
-  next(): Promise<void> {
+  async next(): Promise<void> {
     return new Promise<void>((resolve) => {
       if (this.calls.length > 0) {
         const call = this.calls.shift() as SetTimeoutCall;
@@ -75,7 +76,7 @@ class SetTimeoutRecorder {
    * @returns A promise that resolves when a `setTimeout` call matching the
    * given duration is called.
    */
-  nextMatchingDuration(duration: number): Promise<void> {
+  async nextMatchingDuration(duration: number): Promise<void> {
     return new Promise<void>((resolve) => {
       const index = this.calls.findIndex((call) => call.duration === duration);
 

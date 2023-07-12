@@ -1,17 +1,14 @@
-import util from 'util';
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import {
-  JsonRpcEngine,
-  JsonRpcRequest,
-  JsonRpcResponse,
-} from 'json-rpc-engine';
-import {
-  PollingBlockTracker,
+import type { JsonRpcRequest, JsonRpcResponse } from 'json-rpc-engine';
+import { JsonRpcEngine } from 'json-rpc-engine';
+import util from 'util';
+
+import type {
   PollingBlockTrackerOptions,
-  SubscribeBlockTracker,
   SubscribeBlockTrackerOptions,
 } from '../src';
+import { PollingBlockTracker, SubscribeBlockTracker } from '../src';
 
 interface WithPollingBlockTrackerOptions {
   provider?: FakeProviderOptions;

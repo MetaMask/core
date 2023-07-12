@@ -1,8 +1,8 @@
+import { SubscribeBlockTracker } from '.';
+import buildDeferred from '../tests/buildDeferred';
 import EMPTY_FUNCTION from '../tests/emptyFunction';
 import recordCallsToSetTimeout from '../tests/recordCallsToSetTimeout';
 import { withSubscribeBlockTracker } from '../tests/withBlockTracker';
-import buildDeferred from '../tests/buildDeferred';
-import { SubscribeBlockTracker } from '.';
 
 interface Sync {
   oldBlock: string;
@@ -82,7 +82,7 @@ describe('SubscribeBlockTracker', () => {
           await new Promise((resolve) => {
             blockTracker.on('sync', resolve);
           });
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
           blockTracker.removeAllListeners();
           expect(setTimeoutRecorder.calls).not.toHaveLength(0);
 
@@ -92,7 +92,7 @@ describe('SubscribeBlockTracker', () => {
           await new Promise((resolve) =>
             originalSetTimeout(resolve, blockResetDuration),
           );
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
         },
       );
     });
@@ -118,7 +118,7 @@ describe('SubscribeBlockTracker', () => {
           await new Promise((resolve) => {
             blockTracker.on('sync', resolve);
           });
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
           blockTracker.removeAllListeners();
           await setTimeoutRecorder.next();
 
@@ -175,7 +175,7 @@ describe('SubscribeBlockTracker', () => {
             const latestBlockNumber = await blockTracker[
               methodToGetLatestBlock
             ]();
-            expect(latestBlockNumber).toStrictEqual('0x0');
+            expect(latestBlockNumber).toBe('0x0');
           },
         );
       });
@@ -387,7 +387,7 @@ describe('SubscribeBlockTracker', () => {
                 blockTracker[methodToGetLatestBlock]();
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -419,7 +419,7 @@ describe('SubscribeBlockTracker', () => {
 
               await expect(promiseForCaughtError).toNeverResolve();
               const latestBlockNumber = await promiseForLatestBlock;
-              expect(latestBlockNumber).toStrictEqual('0x0');
+              expect(latestBlockNumber).toBe('0x0');
             },
           );
         });
@@ -511,7 +511,7 @@ describe('SubscribeBlockTracker', () => {
                 blockTracker[methodToGetLatestBlock]();
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -627,7 +627,7 @@ describe('SubscribeBlockTracker', () => {
               await blockTracker[methodToGetLatestBlock]();
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
             },
           );
         });
@@ -652,7 +652,7 @@ describe('SubscribeBlockTracker', () => {
           async ({ blockTracker }) => {
             await blockTracker[methodToGetLatestBlock]();
             const currentBlockNumber = blockTracker.getCurrentBlock();
-            expect(currentBlockNumber).toStrictEqual('0x0');
+            expect(currentBlockNumber).toBe('0x0');
           },
         );
       });
@@ -681,7 +681,7 @@ describe('SubscribeBlockTracker', () => {
           async ({ blockTracker }) => {
             await blockTracker[methodToGetLatestBlock]();
             const currentBlockNumber = blockTracker.getCurrentBlock();
-            expect(currentBlockNumber).toStrictEqual('0x0');
+            expect(currentBlockNumber).toBe('0x0');
 
             // For PollingBlockTracker, there are possibly multiple
             // `setTimeout`s in play at this point. For SubscribeBlockTracker
@@ -730,7 +730,7 @@ describe('SubscribeBlockTracker', () => {
               const latestBlockNumber = await new Promise<string>((resolve) => {
                 blockTracker[methodToAddListener]('latest', resolve);
               });
-              expect(latestBlockNumber).toStrictEqual('0x0');
+              expect(latestBlockNumber).toBe('0x0');
             },
           );
         });
@@ -756,7 +756,7 @@ describe('SubscribeBlockTracker', () => {
                 blockTracker[methodToAddListener]('latest', resolve);
               });
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x0');
+              expect(currentBlockNumber).toBe('0x0');
             },
           );
         });
@@ -945,7 +945,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -977,7 +977,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError).toStrictEqual('boom');
+              expect(caughtError).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -1013,7 +1013,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -1051,7 +1051,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               await expect(promiseForCaughtError).toNeverResolve();
-              expect(latestBlockNumber).toStrictEqual('0x0');
+              expect(latestBlockNumber).toBe('0x0');
             },
           );
         });
@@ -1082,7 +1082,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -1114,7 +1114,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError).toStrictEqual('boom');
+              expect(caughtError).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -1144,7 +1144,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -1538,7 +1538,7 @@ describe('SubscribeBlockTracker', () => {
                 blockTracker[methodToAddListener]('sync', resolve);
               });
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x0');
+              expect(currentBlockNumber).toBe('0x0');
             },
           );
         });
@@ -1728,7 +1728,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
             },
           );
@@ -1760,7 +1760,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError).toStrictEqual('boom');
+              expect(caughtError).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
             },
           );
@@ -1790,7 +1790,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
             },
           );
@@ -1857,7 +1857,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
             },
           );
@@ -1889,7 +1889,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError).toStrictEqual('boom');
+              expect(caughtError).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
             },
           );
@@ -1919,7 +1919,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
             },
           );
@@ -2347,7 +2347,7 @@ describe('SubscribeBlockTracker', () => {
               blockTracker.on('latest', listener2);
               await promiseForLatestBlock;
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x0');
+              expect(currentBlockNumber).toBe('0x0');
 
               blockTracker[methodToRemoveListener]('latest', listener1);
               blockTracker[methodToRemoveListener]('latest', listener2);
@@ -2430,7 +2430,7 @@ describe('SubscribeBlockTracker', () => {
                 });
 
                 const caughtError = await promiseForCaughtError;
-                expect(caughtError.message).toStrictEqual('boom');
+                expect(caughtError.message).toBe('boom');
               },
             );
           });
@@ -2466,7 +2466,7 @@ describe('SubscribeBlockTracker', () => {
                 });
 
                 const caughtError = await promiseForCaughtError;
-                expect(caughtError).toStrictEqual('boom');
+                expect(caughtError).toBe('boom');
               },
             );
           });
@@ -2500,7 +2500,7 @@ describe('SubscribeBlockTracker', () => {
                 });
 
                 const caughtError = await promiseForCaughtError;
-                expect(caughtError.message).toStrictEqual('boom');
+                expect(caughtError.message).toBe('boom');
               },
             );
           });
@@ -2558,7 +2558,7 @@ describe('SubscribeBlockTracker', () => {
               blockTracker.on('sync', listener2);
               await promiseForLatestBlock;
               const currentBlockNumber = blockTracker.getCurrentBlock();
-              expect(currentBlockNumber).toStrictEqual('0x0');
+              expect(currentBlockNumber).toBe('0x0');
 
               blockTracker[methodToRemoveListener]('sync', listener1);
               blockTracker[methodToRemoveListener]('sync', listener2);
@@ -2641,7 +2641,7 @@ describe('SubscribeBlockTracker', () => {
                 });
 
                 const caughtError = await promiseForCaughtError;
-                expect(caughtError.message).toStrictEqual('boom');
+                expect(caughtError.message).toBe('boom');
               },
             );
           });
@@ -2677,7 +2677,7 @@ describe('SubscribeBlockTracker', () => {
                 });
 
                 const caughtError = await promiseForCaughtError;
-                expect(caughtError).toStrictEqual('boom');
+                expect(caughtError).toBe('boom');
               },
             );
           });
@@ -2711,7 +2711,7 @@ describe('SubscribeBlockTracker', () => {
                 });
 
                 const caughtError = await promiseForCaughtError;
-                expect(caughtError.message).toStrictEqual('boom');
+                expect(caughtError.message).toBe('boom');
               },
             );
           });
@@ -2785,7 +2785,7 @@ describe('SubscribeBlockTracker', () => {
             await new Promise((resolve) => {
               blockTracker.once('latest', resolve);
             });
-            expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+            expect(blockTracker.getCurrentBlock()).toBe('0x0');
 
             // For PollingBlockTracker, there are possibly multiple
             // `setTimeout`s in play at this point. For SubscribeBlockTracker
@@ -2922,7 +2922,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -2954,7 +2954,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               await expect(promiseForCaughtError).toNeverResolve();
-              expect(latestBlockNumber).toStrictEqual('0x0');
+              expect(latestBlockNumber).toBe('0x0');
             },
           );
         });
@@ -3049,7 +3049,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
             },
           );
@@ -3111,7 +3111,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
             },
           );
         });
@@ -3142,7 +3142,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError).toStrictEqual('boom');
+              expect(caughtError).toBe('boom');
             },
           );
         });
@@ -3171,7 +3171,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
             },
           );
         });
@@ -3220,7 +3220,7 @@ describe('SubscribeBlockTracker', () => {
             await new Promise((resolve) => {
               blockTracker.once('sync', resolve);
             });
-            expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+            expect(blockTracker.getCurrentBlock()).toBe('0x0');
 
             // For PollingBlockTracker, there are possibly multiple
             // `setTimeout`s in play at this point. For SubscribeBlockTracker
@@ -3360,7 +3360,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
             },
           );
@@ -3487,7 +3487,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
             },
           );
@@ -3519,7 +3519,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
             },
           );
         });
@@ -3550,7 +3550,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError).toStrictEqual('boom');
+              expect(caughtError).toBe('boom');
             },
           );
         });
@@ -3579,7 +3579,7 @@ describe('SubscribeBlockTracker', () => {
               });
 
               const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toStrictEqual('boom');
+              expect(caughtError.message).toBe('boom');
             },
           );
         });
@@ -3669,7 +3669,7 @@ describe('SubscribeBlockTracker', () => {
           await new Promise((resolve) => {
             blockTracker.on('sync', resolve);
           });
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
 
           blockTracker.removeAllListeners();
           // For PollingBlockTracker, there are possibly multiple `setTimeout`s
@@ -3727,7 +3727,7 @@ describe('SubscribeBlockTracker', () => {
           await new Promise((resolve) => {
             blockTracker.on('sync', resolve);
           });
-          expect(blockTracker.getCurrentBlock()).toStrictEqual('0x0');
+          expect(blockTracker.getCurrentBlock()).toBe('0x0');
 
           blockTracker.removeAllListeners('latest');
           blockTracker.removeAllListeners('sync');

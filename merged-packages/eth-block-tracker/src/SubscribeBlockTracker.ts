@@ -1,6 +1,7 @@
-import getCreateRandomId from 'json-rpc-random-id';
-import { JsonRpcNotification, JsonRpcSuccess } from 'json-rpc-engine';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { JsonRpcNotification, JsonRpcSuccess } from 'json-rpc-engine';
+import getCreateRandomId from 'json-rpc-random-id';
+
 import { BaseBlockTracker } from './BaseBlockTracker';
 
 const createRandomId = getCreateRandomId();
@@ -17,7 +18,7 @@ interface SubscriptionNotificationParams {
 }
 
 export class SubscribeBlockTracker extends BaseBlockTracker {
-  private _provider: SafeEventEmitterProvider;
+  private readonly _provider: SafeEventEmitterProvider;
 
   private _subscriptionId: string | null;
 
@@ -65,7 +66,7 @@ export class SubscribeBlockTracker extends BaseBlockTracker {
     }
   }
 
-  private _call(method: string, ...params: unknown[]): Promise<unknown> {
+  private async _call(method: string, ...params: unknown[]): Promise<unknown> {
     return new Promise((resolve, reject) => {
       this._provider.sendAsync(
         {
