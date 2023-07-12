@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "64.0.0",
+  "version": "65.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -61,7 +61,6 @@
     "simple-git-hooks": "^2.8.0",
     "ts-node": "^10.9.1",
     "typescript": "~4.6.3",
-    "web3-provider-engine": "^16.0.5",
     "which": "^3.0.0"
   },
   "packageManager": "yarn@3.3.0",
@@ -78,17 +77,7 @@
       "eth-sig-util>ethereumjs-util>secp256k1": true,
       "ethereumjs-util>ethereum-cryptography>keccak": true,
       "ethereumjs-util>ethereum-cryptography>secp256k1": true,
-      "simple-git-hooks": false,
-      "web3-provider-engine>@ethereumjs/tx>ethereumjs-util>ethereum-cryptography>keccak": false,
-      "web3-provider-engine>@ethereumjs/tx>ethereumjs-util>ethereum-cryptography>secp256k1": false,
-      "web3-provider-engine>ethereumjs-util>keccak": false,
-      "web3-provider-engine>ethereumjs-util>secp256k1": false,
-      "web3-provider-engine>ethereumjs-util>ethereum-cryptography>keccak": false,
-      "web3-provider-engine>ethereumjs-util>ethereum-cryptography>secp256k1": false,
-      "web3-provider-engine>eth-sig-util>ethereumjs-abi>ethereumjs-util>keccak": false,
-      "web3-provider-engine>eth-sig-util>ethereumjs-abi>ethereumjs-util>secp256k1": false,
-      "web3-provider-engine>ethereumjs-vm>ethereumjs-util>keccak": false,
-      "web3-provider-engine>ethereumjs-vm>ethereumjs-util>secp256k1": false
+      "simple-git-hooks": false
     }
   }
 }

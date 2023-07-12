@@ -53,7 +53,7 @@ import {
   ESTIMATE_GAS_ERROR,
 } from './utils';
 
-const HARDFORK = 'london';
+export const HARDFORK = 'london';
 
 /**
  * @type Result
@@ -631,7 +631,11 @@ export class TransactionController extends BaseController<
       providerConfig: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
-    if (chain !== RPC) {
+    if (
+      chain !== RPC &&
+      chain !== NetworkType['linea-goerli'] &&
+      chain !== NetworkType['linea-mainnet']
+    ) {
       return new Common({ chain, hardfork: HARDFORK });
     }
 

@@ -5,6 +5,8 @@ export const InfuraNetworkType = {
   mainnet: 'mainnet',
   goerli: 'goerli',
   sepolia: 'sepolia',
+  'linea-goerli': 'linea-goerli',
+  'linea-mainnet': 'linea-mainnet',
 } as const;
 
 export type InfuraNetworkType =
@@ -39,6 +41,8 @@ export enum BuiltInNetworkName {
   Mainnet = 'mainnet',
   Goerli = 'goerli',
   Sepolia = 'sepolia',
+  LineaGoerli = 'linea-goerli',
+  LineaMainnet = 'linea-mainnet',
   Aurora = 'aurora',
 }
 
@@ -52,6 +56,8 @@ export const ChainId = {
   [BuiltInNetworkName.Goerli]: 'eip155:5',
   [BuiltInNetworkName.Sepolia]: 'eip155:11155111',
   [BuiltInNetworkName.Aurora]: 'eip155:1313161554',
+  [BuiltInNetworkName.LineaGoerli]: 'eip155:59140',
+  [BuiltInNetworkName.LineaMainnet]: 'eip155:59144',
 } as const;
 export type ChainId = typeof ChainId[keyof typeof ChainId];
 
@@ -62,6 +68,8 @@ export const NetworkId = {
   [InfuraNetworkType.mainnet]: '1',
   [InfuraNetworkType.goerli]: '5',
   [InfuraNetworkType.sepolia]: '11155111',
+  [InfuraNetworkType['linea-goerli']]: '59140',
+  [InfuraNetworkType['linea-mainnet']]: '59144',
 } as const;
 export type NetworkId = typeof NetworkId[keyof typeof NetworkId];
 
@@ -69,5 +77,7 @@ export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
   sepolia = 'SepoliaETH',
+  'linea-goerli' = 'LineaETH',
+  'linea-mainnet' = 'ETH',
   rpc = '',
 }
