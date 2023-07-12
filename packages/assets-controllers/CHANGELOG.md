@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.0]
 ### Added
-- The method `getERC20TokenName` has been added to the assets contract controller ([#1127](https://github.com/MetaMask/core/pull/1127))
+- The method `getERC20TokenName` has been added to `AssetsContractController` ([#1127](https://github.com/MetaMask/core/pull/1127))
   - This method gets the token name from the token contract
 
 ### Changed
