@@ -31,9 +31,9 @@
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/eth-sig-util": "^6.0.0",
     "@metamask/utils": "^5.0.2",
     "@types/uuid": "^8.3.0",
-    "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^7.0.10",
     "jsonschema": "^1.2.4",
     "uuid": "^8.3.2"
