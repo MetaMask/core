@@ -66,7 +66,7 @@ export class PermissionTree {
       rootMap.set(permissionName, true);
     }
     for (const permission of Object.values(permissions)) {
-      this.traverseChildren(permission, rootMap);
+      this.traverseNode(permission, rootMap);
     }
     return [...rootMap.entries()].reduce<
       PermissionSpecificationConstraint['targetName'][]
@@ -78,7 +78,7 @@ export class PermissionTree {
     }, []);
   }
 
-  private traverseChildren(
+  private traverseNode(
     node: PermissionSpecificationConstraint,
     rootMap: Map<PermissionSpecificationConstraint['targetName'], boolean>,
     isChild = false,
@@ -90,7 +90,7 @@ export class PermissionTree {
     if (node.children) {
       for (const child of node.children) {
         const permission = this._permissionSpecifications[child];
-        this.traverseChildren(permission, rootMap, true);
+        this.traverseNode(permission, rootMap, true);
       }
     }
   }
@@ -104,7 +104,10 @@ export class PermissionTree {
       this.childToRootPermissionMap.set(node.targetName, rootName);
       const rootMap = this.rootToChildrenLevelsMap.get(rootName);
       if (!rootMap) {
-        this.rootToChildrenLevelsMap.set(rootName, new Map());
+        this.rootToChildrenLevelsMap.set(
+          rootName,
+          new Map([[node.targetName, level]]),
+        );
       } else {
         rootMap.set(node.targetName, level);
       }
