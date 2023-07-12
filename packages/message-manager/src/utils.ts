@@ -1,5 +1,8 @@
 import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
-import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from '@metamask/eth-sig-util';
+import {
+  TYPED_MESSAGE_SCHEMA,
+  typedSignatureHash,
+} from '@metamask/eth-sig-util';
 import { validate } from 'jsonschema';
 import type { Hex } from '@metamask/utils';
 import { isValidHexAddress } from '@metamask/controller-utils';
