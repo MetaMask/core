@@ -50,8 +50,6 @@ describe('CurrencyRateController', () => {
 
   afterEach(() => {
     jest.useRealTimers();
-
-    nock.cleanAll();
   });
 
   it('should set default state', () => {

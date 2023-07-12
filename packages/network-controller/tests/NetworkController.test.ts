@@ -11,7 +11,6 @@ import assert from 'assert';
 import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
-import nock from 'nock';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 } from 'uuid';
 
@@ -151,14 +150,10 @@ const GENERIC_JSON_RPC_ERROR = ethErrors.rpc.internal(
 
 describe('NetworkController', () => {
   beforeEach(() => {
-    // Disable all requests, even those to localhost
-    nock.disableNetConnect();
     jest.resetAllMocks();
   });
 
   afterEach(() => {
-    nock.enableNetConnect('localhost');
-    nock.cleanAll();
     resetAllWhenMocks();
   });
 

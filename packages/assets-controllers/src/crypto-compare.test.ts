@@ -5,18 +5,6 @@ import { fetchExchangeRate } from './crypto-compare';
 const cryptoCompareHost = 'https://min-api.cryptocompare.com';
 
 describe('CryptoCompare', () => {
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
-
-  afterEach(() => {
-    nock.cleanAll();
-  });
-
   it('should return CAD conversion rate', async () => {
     nock(cryptoCompareHost)
       .get('/data/price?fsym=ETH&tsyms=CAD')

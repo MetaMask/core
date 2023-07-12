@@ -20,12 +20,6 @@ describe('ERC1155Standard', () => {
       chainId: 1,
     });
     erc1155Standard = new ERC1155Standard(MAINNET_PROVIDER);
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.restore();
-    nock.enableNetConnect();
   });
 
   it('should determine if contract supports URI metadata interface correctly', async () => {

@@ -339,7 +339,6 @@ export async function withMockedCommunications(
     return await fn(comms);
   } finally {
     nock.isDone();
-    nock.cleanAll();
   }
 }
 
