@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.1.0]
-### Uncategorized
-- deps: bump eth-sig-util to latest ([#1483](https://github.com/MetaMask/core/pull/1483))
+### Changed
+- Replace eth-sig-util with @metamask/eth-sig-util ([#1483](https://github.com/MetaMask/core/pull/1483))
 
 ## [7.0.2]
 ### Fixed
