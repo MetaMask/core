@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+### Added
+- Add `usePastBlocks` to constructor ([#151](https://github.com/MetaMask/eth-block-tracker/pull/151))
+  - Optional flag. When set to true, it allows blocks less than the current block number to be cached and returned.
+
 ## [7.0.1]
 ### Changed
 - Dependency updates:
@@ -122,7 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/eth-block-tracker/compare/v7.0.1...v7.1.0
 [7.0.1]: https://github.com/MetaMask/eth-block-tracker/compare/v7.0.0...v7.0.1
 [7.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v6.1.0...v7.0.0
 [6.1.0]: https://github.com/MetaMask/eth-block-tracker/compare/v6.0.0...v6.1.0
