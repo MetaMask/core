@@ -94,18 +94,12 @@ If you're a MetaMask contributor, you can create these preview versions via draf
          npmRegistryServer: "${METAMASK_NPM_REGISTRY:-https://registry.yarnpkg.com}"
      ```
 
-     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to enable preview builds, then unset it to disable them.
+     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to use preview builds.
 
-     For example, in Bash, this command will enable preview builds:
-
-     ```bash
-     export METAMASK_NPM_REGISTRY=https://npm.pkg.github.com
-     ```
-
-     Then to disable them, run
+     For example, in Bash you can set this variable when installing dependencies:
 
      ```bash
-     unset METAMASK_NPM_REGISTRY
+     METAMASK_NPM_REGISTRY=https://npm.pkg.github.com yarn install
      ```
 
      The `GITHUB_NPM_TOKEN` environment variable is where your token is set. This can be set the same way as for `METAMASK_NPM_REGISTRY`, or it can be set before each install command.
@@ -157,18 +151,12 @@ If you're a contributor and you've forked this repository, you can create previe
          npmRegistryServer: "${METAMASK_NPM_REGISTRY:-https://registry.yarnpkg.com}"
      ```
 
-     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to enable preview builds, then unset it to disable them.
+     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to use preview builds.
 
-     For example, in Bash, this command will enable preview builds:
-
-     ```bash
-     export METAMASK_NPM_REGISTRY=https://npm.pkg.github.com
-     ```
-
-     Then to disable them, run
+     For example, in Bash you can set this variable when installing dependencies:
 
      ```bash
-     unset METAMASK_NPM_REGISTRY
+     METAMASK_NPM_REGISTRY=https://npm.pkg.github.com yarn install
      ```
 
      The `GITHUB_NPM_TOKEN` environment variable is where your token is set. This can be set the same way as for `METAMASK_NPM_REGISTRY`, or it can be set before each install command.
