@@ -608,6 +608,8 @@ export class PermissionController<
       ...permissionSpecifications,
     });
 
+    // build permission tree
+
     this.registerMessageHandlers();
     this.createPermissionMiddleware = getPermissionMiddlewareFactory({
       executeRestrictedMethod: this._executeRestrictedMethod.bind(this),

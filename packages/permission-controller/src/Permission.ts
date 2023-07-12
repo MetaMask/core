@@ -421,6 +421,13 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    * Leaving this as undefined uses default behaviour where the permission is available to request for all subject types.
    */
   subjectTypes?: readonly SubjectType[];
+
+  /**
+   * An array of associated permission names that fall under this "parent" permission. Target names would be limited to the
+   * array of child permissions associated with this particular permission.
+   */
+  // TODO(hassan): Improve type so that it narrows to the children associated with this target name
+  children?: TargetName[];
 };
 
 /**
