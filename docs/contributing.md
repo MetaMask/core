@@ -112,7 +112,7 @@ To use preview builds locally, follow these steps:
 
      The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to use preview builds. The `GITHUB_NPM_TOKEN` environment variable is where your token is set (the one created in step 1).
 
-     For example, in Bash you can set both of these environment variables when installing dependencies:
+     For example, in Bash or ZSH, you can set both of these environment variables when installing dependencies:
 
      ```bash
      GITHUB_NPM_TOKEN=<your personal access token> METAMASK_NPM_REGISTRY=https://npm.pkg.github.com yarn install
