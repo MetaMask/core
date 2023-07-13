@@ -1,4 +1,4 @@
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
@@ -37,7 +37,7 @@ export enum AddressType {
  * AddressBookEntry representation
  * @property address - Hex address of a recipient account
  * @property name - Nickname associated with this address
- * @property chainId - Chain id identifies the current chain
+ * @property caipChainId - Caip chain id identifies the current chain
  * @property memo - User's note about address
  * @property isEns - is the entry an ENS name
  * @property addressType - is the type of this address
@@ -45,7 +45,7 @@ export enum AddressType {
 export interface AddressBookEntry {
   address: string;
   name: string;
-  chainId: Hex;
+  caipChainId: CaipChainId;
   memo: string;
   isEns: boolean;
   addressType?: AddressType;
@@ -58,7 +58,7 @@ export interface AddressBookEntry {
  * @property addressBook - Array of contact entry objects
  */
 export interface AddressBookState extends BaseState {
-  addressBook: { [chainId: Hex]: { [address: string]: AddressBookEntry } };
+  addressBook: { [caipChainId: CaipChainId]: { [address: string]: AddressBookEntry } };
 }
 
 /**
@@ -97,25 +97,25 @@ export class AddressBookController extends BaseController<
   /**
    * Remove a contract entry by address.
    *
-   * @param chainId - Chain id identifies the current chain.
+   * @param caipChainId - Caip chain id identifies the current chain.
    * @param address - Recipient address to delete.
    * @returns Whether the entry was deleted.
    */
-  delete(chainId: Hex, address: string) {
+  delete(caipChainId: CaipChainId, address: string) {
     address = toChecksumHexAddress(address);
     if (
       !isValidHexAddress(address) ||
-      !this.state.addressBook[chainId] ||
-      !this.state.addressBook[chainId][address]
+      !this.state.addressBook[caipChainId] ||
+      !this.state.addressBook[caipChainId][address]
     ) {
       return false;
     }
 
     const addressBook = Object.assign({}, this.state.addressBook);
-    delete addressBook[chainId][address];
+    delete addressBook[caipChainId][address];
 
-    if (Object.keys(addressBook[chainId]).length === 0) {
-      delete addressBook[chainId];
+    if (Object.keys(addressBook[caipChainId]).length === 0) {
+      delete addressBook[caipChainId];
     }
 
     this.update({ addressBook });
@@ -127,7 +127,7 @@ export class AddressBookController extends BaseController<
    *
    * @param address - Recipient address to add or update.
    * @param name - Nickname to associate with this address.
-   * @param chainId - Chain id identifies the current chain.
+   * @param caipChainId - Caip chain id identifies the current chain.
    * @param memo - User's note about address.
    * @param addressType - Contact's address type.
    * @returns Boolean indicating if the address was successfully set.
@@ -135,7 +135,7 @@ export class AddressBookController extends BaseController<
   set(
     address: string,
     name: string,
-    chainId = toHex(1),
+    caipChainId: CaipChainId = 'eip155:1',
     memo = '',
     addressType?: AddressType,
   ) {
@@ -146,7 +146,7 @@ export class AddressBookController extends BaseController<
 
     const entry = {
       address,
-      chainId,
+      caipChainId,
       isEns: false,
       memo,
       name,
@@ -162,8 +162,8 @@ export class AddressBookController extends BaseController<
     this.update({
       addressBook: {
         ...this.state.addressBook,
-        [chainId]: {
-          ...this.state.addressBook[chainId],
+        [caipChainId]: {
+          ...this.state.addressBook[caipChainId],
           [address]: entry,
         },
       },

@@ -7,13 +7,14 @@ import {
   ExternalProvider,
   JsonRpcFetchFunc,
 } from '@ethersproject/providers';
-import { Hex, createProjectLogger, hasProperty } from '@metamask/utils';
+import { CaipChainId, Hex, createProjectLogger, hasProperty } from '@metamask/utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
   NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
   getEthChainIdIntFromCaipChainId,
+  isEthCaipChainId,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import { toASCII } from 'punycode/';
@@ -42,12 +43,12 @@ const name = 'EnsController';
  * @type EnsEntry
  *
  * ENS entry representation
- * @property chainId - Id of the associated chain
+ * @property caipChainId - caip chain id of the associated chain
  * @property ensName - The ENS name
  * @property address - Hex address with the ENS name, or null
  */
 export type EnsEntry = {
-  chainId: Hex;
+  caipChainId: CaipChainId;
   ensName: string;
   address: string | null;
 };
@@ -60,7 +61,7 @@ export type EnsEntry = {
  */
 export type EnsControllerState = {
   ensEntries: {
-    [chainId: Hex]: {
+    [caipChainId: CaipChainId]: {
       [ensName: string]: EnsEntry;
     };
   };
@@ -90,7 +91,7 @@ const ZERO_X_ERROR_ADDRESS = '0x';
 
 /**
  * Controller that manages a list ENS names and their resolved addresses
- * by chainId. A null address indicates an unresolved ENS name.
+ * by caipChainId. A null address indicates an unresolved ENS name.
  */
 export class EnsController extends BaseControllerV2<
   typeof name,
@@ -177,25 +178,25 @@ export class EnsController extends BaseControllerV2<
   /**
    * Delete an ENS entry.
    *
-   * @param chainId - Parent chain of the ENS entry to delete.
+   * @param caipChainId - Parent caip chain id of the ENS entry to delete.
    * @param ensName - Name of the ENS entry to delete.
    * @returns Boolean indicating if the entry was deleted.
    */
-  delete(chainId: Hex, ensName: string): boolean {
+  delete(caipChainId: CaipChainId, ensName: string): boolean {
     const normalizedEnsName = normalizeEnsName(ensName);
     if (
       !normalizedEnsName ||
-      !this.state.ensEntries[chainId] ||
-      !this.state.ensEntries[chainId][normalizedEnsName]
+      !this.state.ensEntries[caipChainId] ||
+      !this.state.ensEntries[caipChainId][normalizedEnsName]
     ) {
       return false;
     }
 
     this.update((state) => {
-      delete state.ensEntries[chainId][normalizedEnsName];
+      delete state.ensEntries[caipChainId][normalizedEnsName];
 
-      if (Object.keys(state.ensEntries[chainId]).length === 0) {
-        delete state.ensEntries[chainId];
+      if (Object.keys(state.ensEntries[caipChainId]).length === 0) {
+        delete state.ensEntries[caipChainId];
       }
     });
     return true;
@@ -204,39 +205,39 @@ export class EnsController extends BaseControllerV2<
   /**
    * Retrieve a DNS entry.
    *
-   * @param chainId - Parent chain of the ENS entry to retrieve.
+   * @param caipChainId - Parent caip chain id of the ENS entry to retrieve.
    * @param ensName - Name of the ENS entry to retrieve.
    * @returns The EnsEntry or null if it does not exist.
    */
-  get(chainId: Hex, ensName: string): EnsEntry | null {
+  get(caipChainId: CaipChainId, ensName: string): EnsEntry | null {
     const normalizedEnsName = normalizeEnsName(ensName);
 
     // TODO Explicitly handle the case where `normalizedEnsName` is `null`
     // eslint-disable-next-line no-implicit-coercion
-    return !!normalizedEnsName && this.state.ensEntries[chainId]
-      ? this.state.ensEntries[chainId][normalizedEnsName] || null
+    return !!normalizedEnsName && this.state.ensEntries[caipChainId]
+      ? this.state.ensEntries[caipChainId][normalizedEnsName] || null
       : null;
   }
 
   /**
-   * Add or update an ENS entry by chainId and ensName.
+   * Add or update an ENS entry by caipChainId and ensName.
    *
    * A null address indicates that the ENS name does not resolve.
    *
-   * @param chainId - Id of the associated chain.
+   * @param caipChainId - Caip chain id of the associated chain.
    * @param ensName - The ENS name.
    * @param address - Associated address (or null) to add or update.
    * @returns Boolean indicating if the entry was set.
    */
-  set(chainId: Hex, ensName: string, address: string | null): boolean {
+  set(caipChainId: CaipChainId, ensName: string, address: string | null): boolean {
     if (
-      !Number.isInteger(Number.parseInt(chainId, 10)) ||
+      !isEthCaipChainId(caipChainId) || // is this right?
       !ensName ||
       typeof ensName !== 'string' ||
       (address && !isValidHexAddress(address))
     ) {
       throw new Error(
-        `Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`,
+        `Invalid ENS entry: { caipChainId:${caipChainId}, ensName:${ensName}, address:${address}}`,
       );
     }
 
@@ -246,7 +247,7 @@ export class EnsController extends BaseControllerV2<
     }
 
     const normalizedAddress = address ? toChecksumHexAddress(address) : null;
-    const subState = this.state.ensEntries[chainId];
+    const subState = this.state.ensEntries[caipChainId];
 
     if (
       subState?.[normalizedEnsName] &&
@@ -258,11 +259,11 @@ export class EnsController extends BaseControllerV2<
     this.update((state) => {
       state.ensEntries = {
         ...this.state.ensEntries,
-        [chainId]: {
-          ...this.state.ensEntries[chainId],
+        [caipChainId]: {
+          ...this.state.ensEntries[caipChainId],
           [normalizedEnsName]: {
             address: normalizedAddress,
-            chainId,
+            caipChainId,
             ensName: normalizedEnsName,
           },
         },

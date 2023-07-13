@@ -242,17 +242,17 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
-   * Sets a new chainId.
+   * Sets a new caipChainId.
    *
    * TODO: Replace this with a method.
    *
-   * @param _chainId - The current chain ID.
+   * @param _caipChainId - The current caip chain ID.
    */
-  set chainId(_chainId: Hex) {
+  set caipChainId(_caipChainId: CaipChainId) {
     !this.disabled && safelyExecute(() => this.updateExchangeRates());
   }
 
-  get chainId() {
+  get caipChainId() {
     throw new Error('Property only used for setting');
   }
 

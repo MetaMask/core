@@ -557,8 +557,8 @@ export class TokensController extends BaseController<
 
       const { caipChainId, selectedAddress } = this.config;
       // if the newly added detectedTokens were detected on (and therefore added to) a different caipChainId/selectedAddress than the currently configured combo
-      // the newDetectedTokens (which should contain the detectedTokens on the current chainId/address combo) needs to be repointed to the current caipChainId/address pair
-      // if the detectedTokens were detected on the current chainId/address then this won't change anything.
+      // the newDetectedTokens (which should contain the detectedTokens on the current caipChainId/address combo) needs to be repointed to the current caipChainId/address pair
+      // if the detectedTokens were detected on the current caipChainId/address then this won't change anything.
       newDetectedTokens =
         newAllDetectedTokens?.[caipChainId]?.[selectedAddress] || [];
 
