@@ -11,6 +11,8 @@ const COINGECKO_ASSETS_PATH = '/asset_platforms';
 const COINGECKO_SUPPORTED_CURRENCIES = '/simple/supported_vs_currencies';
 const ADDRESS = '0x01';
 
+const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
+
 describe('TokenRatesController', () => {
   beforeAll(() => {
     nock.disableNetConnect();
@@ -57,6 +59,8 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController({
       chainId: toHex(1),
       ticker: NetworksTicker.mainnet,
+      selectedAddress: defaultSelectedAddress,
+      onPreferencesStateChange: sinon.stub(),
       onTokensStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
     });
@@ -69,15 +73,19 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController({
       chainId: toHex(1),
       ticker: NetworksTicker.mainnet,
+      selectedAddress: defaultSelectedAddress,
+      onPreferencesStateChange: sinon.stub(),
       onTokensStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
     });
     expect(controller.config).toStrictEqual({
+      allDetectedTokens: {},
+      allTokens: {},
       disabled: false,
       interval: 180000,
       nativeCurrency: NetworksTicker.mainnet,
       chainId: toHex(1),
-      tokens: [],
+      selectedAddress: defaultSelectedAddress,
       threshold: 21600000,
     });
   });
@@ -89,12 +97,20 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: jest.fn(),
         onTokensStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
       },
       {
         interval: 100,
-        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+        allTokens: {
+          [toHex(1)]: {
+            [defaultSelectedAddress]: [
+              { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+            ],
+          },
+        },
       },
     );
 
@@ -113,12 +129,20 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
       },
       {
         interval,
-        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+        allTokens: {
+          [toHex(1)]: {
+            [defaultSelectedAddress]: [
+              { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+            ],
+          },
+        },
       },
     );
 
@@ -142,12 +166,20 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
       },
       {
         interval,
-        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+        allTokens: {
+          [toHex(1)]: {
+            [defaultSelectedAddress]: [
+              { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+            ],
+          },
+        },
       },
     );
 
@@ -165,6 +197,8 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
@@ -191,20 +225,26 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
       {
         interval: 10,
-        tokens: [
-          {
-            address: tokenAddress,
-            decimals: 18,
-            symbol: 'DAI',
-            aggregators: [],
+        allTokens: {
+          [toHex(1)]: {
+            [defaultSelectedAddress]: [
+              {
+                address: tokenAddress,
+                decimals: 18,
+                symbol: 'DAI',
+                aggregators: [],
+              },
+              { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
+            ],
           },
-          { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
-        ],
+        },
       },
     );
 
@@ -227,19 +267,27 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
       {
         interval: 10,
-        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+        allTokens: {
+          [toHex(1)]: {
+            [defaultSelectedAddress]: [
+              { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+            ],
+          },
+        },
       },
     );
+    expect(controller.state.contractExchangeRates).toStrictEqual({});
     sinon.stub(controller, 'fetchExchangeRate').throws({
       error: 'Not Found',
       message: 'Not Found',
     });
-    expect(controller.state.contractExchangeRates).toStrictEqual({});
     const mock = sinon.stub(controller, 'updateExchangeRates');
 
     await controller.updateExchangeRates();
@@ -258,10 +306,21 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange,
         onNetworkStateChange,
       },
-      { interval: 10 },
+      {
+        interval: 10,
+        allTokens: {
+          [toHex(1)]: {
+            [defaultSelectedAddress]: [
+              { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+            ],
+          },
+        },
+      },
     );
     await controller.start();
     const updateExchangeRatesStub = sinon.stub(
@@ -270,7 +329,16 @@ describe('TokenRatesController', () => {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
+    tokenStateChangeListener!({
+      allDetectedTokens: {},
+      allTokens: {
+        [toHex(1)]: {
+          [defaultSelectedAddress]: [
+            { address: 'foo', decimals: 0, symbol: '', aggregators: [] },
+          ],
+        },
+      },
+    });
 
     expect(updateExchangeRatesStub.callCount).toBe(1);
   });
@@ -285,18 +353,40 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange,
         onNetworkStateChange,
       },
       { interval: 10 },
     );
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await tokenStateChangeListener!({
+      allDetectedTokens: {},
+      allTokens: {
+        [toHex(1)]: {
+          [defaultSelectedAddress]: [
+            { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+          ],
+        },
+      },
+    });
     const updateExchangeRatesStub = sinon.stub(
       controller,
       'updateExchangeRates',
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
+    tokenStateChangeListener!({
+      allDetectedTokens: {},
+      allTokens: {
+        [toHex(1)]: {
+          [defaultSelectedAddress]: [
+            { address: 'foo', decimals: 0, symbol: '', aggregators: [] },
+          ],
+        },
+      },
+    });
 
     expect(updateExchangeRatesStub.callCount).toBe(0);
   });
@@ -312,6 +402,8 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange,
         onNetworkStateChange,
       },
@@ -341,6 +433,8 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange,
         onNetworkStateChange,
       },
@@ -386,27 +480,33 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(137),
         ticker: 'MATIC',
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange: sinon.stub(),
         onNetworkStateChange,
       },
       {
         interval: 10,
-        tokens: [
-          {
-            address: '0x02',
-            decimals: 18,
-            image: undefined,
-            symbol: 'bar',
-            isERC721: false,
+        allTokens: {
+          [toHex(137)]: {
+            [defaultSelectedAddress]: [
+              {
+                address: '0x02',
+                decimals: 18,
+                image: undefined,
+                symbol: 'bar',
+                isERC721: false,
+              },
+              {
+                address: '0x03',
+                decimals: 18,
+                image: undefined,
+                symbol: 'bazz',
+                isERC721: false,
+              },
+            ],
           },
-          {
-            address: '0x03',
-            decimals: 18,
-            image: undefined,
-            symbol: 'bazz',
-            isERC721: false,
-          },
-        ],
+        },
       },
     );
 
@@ -435,37 +535,38 @@ describe('TokenRatesController', () => {
       networkChangeListener = listener;
     });
 
-    let tokenStateChangeListener: (state: any) => void;
-    const onTokensStateChange = sinon.stub().callsFake((listener) => {
-      tokenStateChangeListener = listener;
-    });
-
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
-        onTokensStateChange,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
+        onTokensStateChange: sinon.stub(),
         onNetworkStateChange,
       },
       {
         interval: 10,
         nativeCurrency: 'ETH',
-        tokens: [
-          {
-            address: '0x02',
-            decimals: 18,
-            image: undefined,
-            symbol: 'bar',
-            isERC721: false,
+        allTokens: {
+          [toHex(1)]: {
+            [defaultSelectedAddress]: [
+              {
+                address: '0x02',
+                decimals: 18,
+                image: undefined,
+                symbol: 'bar',
+                isERC721: false,
+              },
+              {
+                address: '0x03',
+                decimals: 18,
+                image: undefined,
+                symbol: 'bazz',
+                isERC721: false,
+              },
+            ],
           },
-          {
-            address: '0x03',
-            decimals: 18,
-            image: undefined,
-            symbol: 'bazz',
-            isERC721: false,
-          },
-        ],
+        },
       },
     );
 
@@ -479,12 +580,6 @@ describe('TokenRatesController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkChangeListener!({
       providerConfig: { chainId: toHex(4) },
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      tokens: [],
-      detectedTokens: [],
     });
 
     expect(controller.state.contractExchangeRates).toStrictEqual({});
@@ -510,6 +605,8 @@ describe('TokenRatesController', () => {
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
         onTokensStateChange,
         onNetworkStateChange: sinon.stub(),
       },
@@ -519,23 +616,27 @@ describe('TokenRatesController', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await tokenStateChangeListener!({
-      detectedTokens: [
-        {
-          address: '0x02',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bar',
-          isERC721: false,
+      allDetectedTokens: {
+        [toHex(1)]: {
+          [defaultSelectedAddress]: [
+            {
+              address: '0x02',
+              decimals: 18,
+              image: undefined,
+              symbol: 'bar',
+              isERC721: false,
+            },
+            {
+              address: '0x03',
+              decimals: 18,
+              image: undefined,
+              symbol: 'bazz',
+              isERC721: false,
+            },
+          ],
         },
-        {
-          address: '0x03',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bazz',
-          isERC721: false,
-        },
-      ],
-      tokens: [],
+      },
+      allTokens: {},
     });
     await controller.updateExchangeRates();
 
