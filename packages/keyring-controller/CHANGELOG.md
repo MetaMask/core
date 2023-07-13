@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0]
+### Changed
+- Bump @metamask/eth-sig-util to ^6.0.0 ([#1483](https://github.com/MetaMask/core/pull/1483))
+
 ## [6.0.0]
 ### Added
 - Add messenger events `KeyringController:lock` and `KeyringController:unlock`, emitted when the inner EthKeyringController is locked/unlocked ([#1378](https://github.com/MetaMask/core/pull/1378))
@@ -105,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - This change was introduced by an indirect dependency on `ethereumjs/util` v8
 - Rename this repository to `core` ([#1031](https://github.com/MetaMask/controllers/pull/1031))
 - Update `@metamask/eth-sig-util` to v5 ([#914](https://github.com/MetaMask/controllers/pull/914))
-- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041)) 
+- Update `@metamask/controller-utils` package ([#1041](https://github.com/MetaMask/controllers/pull/1041))
 
 ## [1.0.1]
 ### Changed
@@ -119,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.1.0...HEAD
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.0.0...@metamask/keyring-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.1.0...@metamask/keyring-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.0.0...@metamask/keyring-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@4.0.0...@metamask/keyring-controller@5.0.0
