@@ -1,6 +1,5 @@
 import { InfuraNetworkType } from '@metamask/controller-utils';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import { Hex } from '@metamask/utils';
 import type { PollingBlockTracker } from 'eth-block-tracker';
 
 export type Provider = SafeEventEmitterProvider;

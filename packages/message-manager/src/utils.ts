@@ -4,8 +4,10 @@ import {
   typedSignatureHash,
 } from '@metamask/eth-sig-util';
 import { validate } from 'jsonschema';
-import type { Hex } from '@metamask/utils';
-import { getEthChainIdIntFromCaipChainId, isValidHexAddress } from '@metamask/controller-utils';
+import {
+  getEthChainIdIntFromCaipChainId,
+  isValidHexAddress,
+} from '@metamask/controller-utils';
 import { MessageParams } from './MessageManager';
 import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
@@ -93,7 +95,7 @@ export function validateTypedSignMessageDataV1(
  * the event of any validation error for eth_signTypedMessage_V3.
  *
  * @param messageData - TypedMessageParams object to validate.
- * @param currentChainId - The current chainId.
+ * @param currentCaipChainId - The current caip chain id.
  */
 export function validateTypedSignMessageDataV3V4(
   messageData: TypedMessageParams,
@@ -140,7 +142,7 @@ export function validateTypedSignMessageDataV3V4(
       chainId = parseInt(chainId, chainId.startsWith('0x') ? 16 : 10);
     }
 
-    const activeChainId = getEthChainIdIntFromCaipChainId(currentCaipChainId)
+    const activeChainId = getEthChainIdIntFromCaipChainId(currentCaipChainId);
     if (Number.isNaN(activeChainId)) {
       throw new Error(
         `Cannot sign messages for chainId "${chainId}", because MetaMask is switching networks.`,

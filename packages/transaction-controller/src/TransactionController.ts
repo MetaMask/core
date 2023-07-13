@@ -7,7 +7,6 @@ import Common from '@ethereumjs/common';
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
-import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -1245,7 +1244,7 @@ export class TransactionController extends BaseController<
         nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
       }
 
-      const chainId = getEthChainIdHexFromCaipChainId(caipChainId)
+      const chainId = getEthChainIdHexFromCaipChainId(caipChainId);
 
       transactionMeta.status = status;
       transactionMeta.transaction.nonce = nonceToUse;

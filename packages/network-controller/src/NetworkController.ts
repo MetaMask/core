@@ -43,7 +43,6 @@ import {
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
 
-
 /**
  * @type ProviderConfig
  *
@@ -984,9 +983,13 @@ export class NetworkController extends BaseControllerV2<
       networkConfiguration,
       ['rpcUrl', 'chainId', 'ticker', 'nickname', 'rpcPrefs'],
     );
-    const { rpcUrl, chainId: caipChainId, ticker } = sanitizedNetworkConfiguration;
+    const {
+      rpcUrl,
+      chainId: caipChainId,
+      ticker,
+    } = sanitizedNetworkConfiguration;
 
-    const chainId = getEthChainIdDecFromCaipChainId(caipChainId)
+    const chainId = getEthChainIdDecFromCaipChainId(caipChainId);
 
     assertIsStrictHexString(chainId);
     if (!isSafeChainId(chainId)) {
