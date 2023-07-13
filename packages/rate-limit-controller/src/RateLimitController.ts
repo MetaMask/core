@@ -104,9 +104,10 @@ export class RateLimitController<
     implementations: RateLimitedApis;
   }) {
     const defaultState = {
-      requests: Object.keys(implementations).reduce<
-        Record<keyof RateLimitedApis, Record<string, number>>
-      >((acc, key) => ({ ...acc, [key]: {} }), {}),
+      requests: Object.keys(implementations).reduce(
+        (acc, key) => ({ ...acc, [key]: {} }),
+        {} as Record<keyof RateLimitedApis, Record<string, number>>,
+      ),
     };
     super({
       name,
@@ -120,7 +121,7 @@ export class RateLimitController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:call` as const,
-      (async (
+      ((
         origin: string,
         type: keyof RateLimitedApis,
         ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>
@@ -181,11 +182,7 @@ export class RateLimitController<
       this.implementations[api].rateLimitTimeout ?? this.rateLimitTimeout;
     this.update((state) => {
       const previous = (state as any).requests[api][origin] ?? 0;
-      (
-        state as {
-          requests: Record<keyof RateLimitedApis, Record<string, number>>;
-        }
-      ).requests[api][origin] = previous + 1;
+      (state as any).requests[api][origin] = previous + 1;
 
       if (previous === 0) {
         setTimeout(() => this.resetRequestCount(api, origin), rateLimitTimeout);
@@ -201,7 +198,7 @@ export class RateLimitController<
    */
   private resetRequestCount(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
-      state.requests[api][origin] = 0;
+      (state as any).requests[api][origin] = 0;
     });
   }
 }
