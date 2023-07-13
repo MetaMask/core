@@ -1,5 +1,5 @@
-import { query, fromHex, toHex } from '@metamask/controller-utils';
 import { BN } from 'ethereumjs-util';
+import { query, fromHex, toHex } from '@metamask/controller-utils';
 
 type EthQuery = any;
 
@@ -160,30 +160,28 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
   );
 
   const blockChunks = await Promise.all(
-    requestChunkSpecifiers.map(
-      async ({ numberOfBlocks, endBlockNumber }, i) => {
-        return i === requestChunkSpecifiers.length - 1
-          ? makeRequestForChunk({
-              ethQuery,
-              numberOfBlocks,
-              endBlockNumber,
-              percentiles,
-              includeNextBlock,
-            })
-          : makeRequestForChunk({
-              ethQuery,
-              numberOfBlocks,
-              endBlockNumber,
-              percentiles,
-              includeNextBlock: false,
-            });
-      },
-    ),
+    requestChunkSpecifiers.map(({ numberOfBlocks, endBlockNumber }, i) => {
+      return i === requestChunkSpecifiers.length - 1
+        ? makeRequestForChunk({
+            ethQuery,
+            numberOfBlocks,
+            endBlockNumber,
+            percentiles,
+            includeNextBlock,
+          })
+        : makeRequestForChunk({
+            ethQuery,
+            numberOfBlocks,
+            endBlockNumber,
+            percentiles,
+            includeNextBlock: false,
+          });
+    }),
   );
 
-  return blockChunks.reduce<FeeHistoryBlock<Percentile>[]>(
+  return blockChunks.reduce(
     (array, blocks) => [...array, ...blocks],
-    [],
+    [] as FeeHistoryBlock<Percentile>[],
   );
 }
 
@@ -216,12 +214,12 @@ function buildExistingFeeHistoryBlock<Percentile extends number>({
 }): ExistingFeeHistoryBlock<Percentile> {
   const gasUsedRatio = gasUsedRatios[blockIndex];
   const priorityFeesForEachPercentile = priorityFeePercentileGroups[blockIndex];
-  const priorityFeesByPercentile = percentiles.reduce<Record<Percentile, BN>>(
+  const priorityFeesByPercentile = percentiles.reduce(
     (obj, percentile, percentileIndex) => {
       const priorityFee = priorityFeesForEachPercentile[percentileIndex];
       return { ...obj, [percentile]: fromHex(priorityFee) };
     },
-    {},
+    {} as Record<Percentile, BN>,
   );
 
   return {

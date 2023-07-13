@@ -1,10 +1,9 @@
 import { BN } from 'ethereumjs-util';
 import { when } from 'jest-when';
-
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
 import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
+import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 jest.mock('./fetchBlockFeeHistory');
 jest.mock(

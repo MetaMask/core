@@ -1,5 +1,11 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
+import type { Patch } from 'immer';
+import EthQuery from 'eth-query';
+import { v1 as random } from 'uuid';
+import type { Hex } from '@metamask/utils';
+import {
+  BaseControllerV2,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetStateAction,
@@ -7,19 +13,14 @@ import type {
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
-import EthQuery from 'eth-query';
-import type { Patch } from 'immer';
-import { v1 as random } from 'uuid';
-
-import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
 } from './gas-util';
+import determineGasFeeCalculations from './determineGasFeeCalculations';
+import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
@@ -232,25 +233,25 @@ export class GasFeeController extends BaseControllerV2<
 > {
   private intervalId?: ReturnType<typeof setTimeout>;
 
-  private readonly intervalDelay;
+  private intervalDelay;
 
-  private readonly pollTokens: Set<string>;
+  private pollTokens: Set<string>;
 
-  private readonly legacyAPIEndpoint: string;
+  private legacyAPIEndpoint: string;
 
-  private readonly EIP1559APIEndpoint: string;
+  private EIP1559APIEndpoint: string;
 
-  private readonly getCurrentNetworkEIP1559Compatibility;
+  private getCurrentNetworkEIP1559Compatibility;
 
-  private readonly getCurrentNetworkLegacyGasAPICompatibility;
+  private getCurrentNetworkLegacyGasAPICompatibility;
 
-  private readonly getCurrentAccountEIP1559Compatibility;
+  private getCurrentAccountEIP1559Compatibility;
 
   private currentChainId;
 
   private ethQuery?: EthQuery;
 
-  private readonly clientId?: string;
+  private clientId?: string;
 
   #getProvider: () => ProviderProxy;
 
@@ -466,7 +467,7 @@ export class GasFeeController extends BaseControllerV2<
     }
 
     this.intervalId = setInterval(async () => {
-      await safelyExecute(async () => this._fetchGasFeeEstimateData());
+      await safelyExecute(() => this._fetchGasFeeEstimateData());
     }, this.intervalDelay);
   }
 

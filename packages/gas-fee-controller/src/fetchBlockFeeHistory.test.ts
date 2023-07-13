@@ -1,7 +1,6 @@
-import { query, fromHex, toHex } from '@metamask/controller-utils';
 import { BN } from 'ethereumjs-util';
 import { when } from 'jest-when';
-
+import { query, fromHex, toHex } from '@metamask/controller-utils';
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 
 jest.mock('@metamask/controller-utils', () => {

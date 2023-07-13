@@ -1,27 +1,19 @@
+import nock from 'nock';
+import * as sinon from 'sinon';
+import type { Hex } from '@metamask/utils';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { NetworkType, toHex } from '@metamask/controller-utils';
-import { NetworkController } from '@metamask/network-controller';
-import type {
+import {
+  NetworkController,
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
 import EthQuery from 'eth-query';
-import nock from 'nock';
-import * as sinon from 'sinon';
-
-import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
+import { NetworkType, toHex } from '@metamask/controller-utils';
 import {
-  fetchGasEstimates,
-  fetchLegacyGasPriceEstimates,
-  fetchEthGasPriceEstimate,
-  calculateTimeEstimate,
-} from './gas-util';
-import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController';
-import type {
+  GAS_ESTIMATE_TYPES,
+  GasFeeController,
   GasFeeState,
   GasFeeStateChange,
   GasFeeStateEthGasPrice,
@@ -29,6 +21,14 @@ import type {
   GasFeeStateLegacy,
   GetGasFeeState,
 } from './GasFeeController';
+import {
+  fetchGasEstimates,
+  fetchLegacyGasPriceEstimates,
+  fetchEthGasPriceEstimate,
+  calculateTimeEstimate,
+} from './gas-util';
+import determineGasFeeCalculations from './determineGasFeeCalculations';
+import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 jest.mock('./determineGasFeeCalculations');
 
@@ -298,11 +298,9 @@ describe('GasFeeController', () => {
           mockedDetermineGasFeeCalculations.mockReset();
 
           mockDetermineGasFeeCalculationsReturnValues.forEach((returnValue) => {
-            mockedDetermineGasFeeCalculations.mockImplementationOnce(
-              async () => {
-                return Promise.resolve(returnValue);
-              },
-            );
+            mockedDetermineGasFeeCalculations.mockImplementationOnce(() => {
+              return Promise.resolve(returnValue);
+            });
           });
         });
 
@@ -613,7 +611,7 @@ describe('GasFeeController', () => {
           {},
         );
 
-        expect(gasFeeController.state.gasEstimateType).toBe('none');
+        expect(gasFeeController.state.gasEstimateType).toStrictEqual('none');
       });
     });
 

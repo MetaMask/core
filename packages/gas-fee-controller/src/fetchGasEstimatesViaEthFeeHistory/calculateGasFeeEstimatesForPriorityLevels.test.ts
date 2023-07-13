@@ -1,5 +1,4 @@
 import { BN } from 'ethereumjs-util';
-
 import calculateGasFeeEstimatesForPriorityLevels from './calculateGasFeeEstimatesForPriorityLevels';
 
 describe('calculateGasFeeEstimatesForPriorityLevels', () => {

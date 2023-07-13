@@ -1,12 +1,11 @@
 import nock from 'nock';
-
 import {
   fetchLegacyGasPriceEstimates,
   normalizeGWEIDecimalNumbers,
   fetchGasEstimates,
   calculateTimeEstimate,
 } from './gas-util';
-import type { GasFeeEstimates } from './GasFeeController';
+import { GasFeeEstimates } from './GasFeeController';
 
 const mockEIP1559ApiResponses: GasFeeEstimates[] = [
   {
