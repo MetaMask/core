@@ -1,7 +1,7 @@
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -40,7 +40,7 @@ type DataCache = {
   data: TokenListMap;
 };
 type TokensChainsCache = {
-  [chainId: Hex]: DataCache;
+  [caipChainId: CaipChainId]: DataCache;
 };
 
 export type TokenListState = {
@@ -95,7 +95,7 @@ export class TokenListController extends BaseControllerV2<
 
   private cacheRefreshThreshold: number;
 
-  private chainId: Hex;
+  private caipChainId: CaipChainId;
 
   private abortController: WhatwgAbortController;
 
@@ -103,7 +103,7 @@ export class TokenListController extends BaseControllerV2<
    * Creates a TokenListController instance.
    *
    * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
+   * @param options.caipChainId - The caip chain ID of the current network.
    * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
@@ -112,7 +112,7 @@ export class TokenListController extends BaseControllerV2<
    * @param options.preventPollingOnNetworkRestart - Determines whether to prevent poilling on network restart in extension.
    */
   constructor({
-    chainId,
+    caipChainId,
     preventPollingOnNetworkRestart = false,
     onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
@@ -120,7 +120,7 @@ export class TokenListController extends BaseControllerV2<
     messenger,
     state,
   }: {
-    chainId: Hex;
+    caipChainId: CaipChainId;
     preventPollingOnNetworkRestart?: boolean;
     onNetworkStateChange?: (
       listener: (networkState: NetworkState) => void,
@@ -138,7 +138,7 @@ export class TokenListController extends BaseControllerV2<
     });
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
-    this.chainId = chainId;
+    this.caipChainId = caipChainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new WhatwgAbortController();
     if (onNetworkStateChange) {
@@ -162,10 +162,10 @@ export class TokenListController extends BaseControllerV2<
    * @param networkControllerState - The updated network controller state.
    */
   async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
-    if (this.chainId !== networkControllerState.providerConfig.chainId) {
+    if (this.caipChainId !== networkControllerState.providerConfig.caipChainId) {
       this.abortController.abort();
       this.abortController = new WhatwgAbortController();
-      this.chainId = networkControllerState.providerConfig.chainId;
+      this.caipChainId = networkControllerState.providerConfig.caipChainId;
       if (this.state.preventPollingOnNetworkRestart) {
         this.clearingTokenListData();
       } else {
@@ -173,7 +173,7 @@ export class TokenListController extends BaseControllerV2<
         this.update(() => {
           return {
             ...this.state,
-            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
+            tokenList: this.state.tokensChainsCache[this.caipChainId]?.data || {},
           };
         });
         await this.restart();
@@ -185,7 +185,7 @@ export class TokenListController extends BaseControllerV2<
    * Start polling for the token list.
    */
   async start() {
-    if (!isTokenListSupportedForNetwork(this.chainId)) {
+    if (!isTokenListSupportedForNetwork(this.caipChainId)) {
       return;
     }
     await this.startPolling();
@@ -249,12 +249,12 @@ export class TokenListController extends BaseControllerV2<
       } else {
         // Fetch fresh token list
         const tokensFromAPI: TokenListToken[] = await safelyExecute(() =>
-          fetchTokenList(this.chainId, this.abortController.signal),
+          fetchTokenList(this.caipChainId, this.abortController.signal),
         );
 
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
-          tokenList = { ...(tokensChainsCache[this.chainId]?.data || {}) };
+          tokenList = { ...(tokensChainsCache[this.caipChainId]?.data || {}) };
 
           this.update(() => {
             return {
@@ -289,7 +289,7 @@ export class TokenListController extends BaseControllerV2<
             ...token,
             aggregators: formatAggregatorNames(token.aggregators),
             iconUrl: formatIconUrlWithProxy({
-              chainId: this.chainId,
+              caipChainId: this.caipChainId,
               tokenAddress: token.address,
             }),
           };
@@ -298,7 +298,7 @@ export class TokenListController extends BaseControllerV2<
       }
       const updatedTokensChainsCache: TokensChainsCache = {
         ...tokensChainsCache,
-        [this.chainId]: {
+        [this.caipChainId]: {
           timestamp: Date.now(),
           data: tokenList,
         },
@@ -324,7 +324,7 @@ export class TokenListController extends BaseControllerV2<
    */
   async fetchFromCache(): Promise<TokenListMap | null> {
     const { tokensChainsCache }: TokenListState = this.state;
-    const dataCache = tokensChainsCache[this.chainId];
+    const dataCache = tokensChainsCache[this.caipChainId];
     const now = Date.now();
     if (
       dataCache?.data &&

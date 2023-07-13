@@ -2,7 +2,7 @@ import { BN } from 'ethereumjs-util';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { Hex } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -19,10 +19,10 @@ import { ERC20Standard } from './Standards/ERC20Standard';
 /**
  * Check if token detection is enabled for certain networks
  *
- * @param chainId - ChainID of network
+ * @param caipChainId - Caip chain id of network
  * @returns Whether the current network supports token detection
  */
-export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID: Record<CaipChainId, string> = {
   [SupportedTokenDetectionNetworks.mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
   [SupportedTokenDetectionNetworks.bsc]:
@@ -47,7 +47,7 @@ export const MISSING_PROVIDER_ERROR =
 export interface AssetsContractConfig extends BaseConfig {
   provider: any;
   ipfsGateway: string;
-  chainId: Hex;
+  caipChainId: CaipChainId;
 }
 
 /**
@@ -84,7 +84,7 @@ export class AssetsContractController extends BaseController<
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
+   * @param options.caipChainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param config - Initial options used to configure this controller.
@@ -92,11 +92,11 @@ export class AssetsContractController extends BaseController<
    */
   constructor(
     {
-      chainId: initialChainId,
+      caipChainId: initialCaipChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
     }: {
-      chainId: Hex;
+      caipChainId: CaipChainId;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -111,7 +111,7 @@ export class AssetsContractController extends BaseController<
     this.defaultConfig = {
       provider: undefined,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      chainId: initialChainId,
+      caipChainId: initialCaipChainId,
     };
     this.initialize();
 
@@ -120,9 +120,9 @@ export class AssetsContractController extends BaseController<
     });
 
     onNetworkStateChange((networkState) => {
-      if (this.config.chainId !== networkState.providerConfig.chainId) {
+      if (this.config.caipChainId !== networkState.providerConfig.caipChainId) {
         this.configure({
-          chainId: networkState.providerConfig.chainId,
+          caipChainId: networkState.providerConfig.caipChainId,
         });
       }
     });
@@ -408,12 +408,12 @@ export class AssetsContractController extends BaseController<
     selectedAddress: string,
     tokensToDetect: string[],
   ) {
-    if (!(this.config.chainId in SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID)) {
+    if (!(this.config.caipChainId in SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID)) {
       // Only fetch balance if contract address exists
       return {};
     }
     const contractAddress =
-      SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[this.config.chainId];
+    SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID[this.config.caipChainId];
 
     const contract = new Contract(
       contractAddress,

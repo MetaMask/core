@@ -1,5 +1,5 @@
 import {
-  GANACHE_CHAIN_ID,
+  GANACHE_CAIP_CHAIN_ID,
   ChainId,
   convertHexToDecimal,
   toHex,
@@ -286,7 +286,7 @@ describe('assetsUtil', () => {
     });
 
     it('returns true for ganache local network', () => {
-      expect(assetsUtil.isTokenListSupportedForNetwork(GANACHE_CHAIN_ID)).toBe(
+      expect(assetsUtil.isTokenListSupportedForNetwork(GANACHE_CAIP_CHAIN_ID)).toBe(
         true,
       );
     });

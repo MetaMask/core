@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 import {
   MessageManager,
@@ -122,7 +122,7 @@ export type SignatureControllerOptions = {
     requestData: any,
     methodName: string,
   ) => Promise<any>;
-  getCurrentChainId: () => Hex;
+  getCurrentCaipChainId: () => CaipChainId;
 };
 
 /**
@@ -156,7 +156,7 @@ export class SignatureController extends BaseControllerV2<
    * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
    * @param options.getAllState - Callback to retrieve all user state.
    * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
-   * @param options.getCurrentChainId - A function for retrieving the current chainId.
+   * @param options.getCurrentCaipChainId - A function for retrieving the current caipChainId.
    */
   constructor({
     messenger,
@@ -164,7 +164,7 @@ export class SignatureController extends BaseControllerV2<
     isEthSignEnabled,
     getAllState,
     securityProviderRequest,
-    getCurrentChainId,
+    getCurrentCaipChainId,
   }: SignatureControllerOptions) {
     super({
       name: controllerName,
@@ -193,7 +193,7 @@ export class SignatureController extends BaseControllerV2<
       undefined,
       securityProviderRequest,
       undefined,
-      getCurrentChainId,
+      getCurrentCaipChainId,
     );
 
     this.#handleMessageManagerEvents(this.#messageManager, 'unapprovedMessage');

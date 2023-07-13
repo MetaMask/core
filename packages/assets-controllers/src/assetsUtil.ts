@@ -1,10 +1,11 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import { CID } from 'multiformats/cid';
-import type { Hex } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 import {
   convertHexToDecimal,
   isValidHexAddress,
-  GANACHE_CHAIN_ID,
+  GANACHE_CAIP_CHAIN_ID,
+  getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
 import { BigNumber } from '@ethersproject/bignumber';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
@@ -86,19 +87,19 @@ export const formatAggregatorNames = (aggregators: string[]) => {
 /**
  * Format token list assets to use image proxy from Codefi.
  *
- * @param params - Object that contains chainID and tokenAddress.
- * @param params.chainId - ChainID of network in 0x-prefixed hexadecimal format.
+ * @param params - Object that contains caipChainId and tokenAddress.
+ * @param params.caipChainId - Caip chain id of network
  * @param params.tokenAddress - Address of token in mixed or lowercase.
  * @returns Formatted image url
  */
 export const formatIconUrlWithProxy = ({
-  chainId,
+  caipChainId,
   tokenAddress,
 }: {
-  chainId: Hex;
+  caipChainId: CaipChainId;
   tokenAddress: string;
 }) => {
-  const chainIdDecimal = convertHexToDecimal(chainId).toString();
+  const chainIdDecimal = getEthChainIdDecFromCaipChainId(caipChainId)
   return `https://static.metafi.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 
@@ -137,36 +138,36 @@ export function validateTokenToWatch(token: Token) {
 }
 
 /**
- * Networks where token detection is supported - Values are in decimal format
+ * Networks where token detection is supported - Values are in CAIP-2 format
  */
 export enum SupportedTokenDetectionNetworks {
-  mainnet = '0x1', // decimal: 1
-  bsc = '0x38', // decimal: 56
-  polygon = '0x89', // decimal: 137
-  avax = '0xa86a', // decimal: 43114
-  aurora = '0x4e454152', // decimal: 1313161554
+  mainnet = 'eip155:1',
+  bsc = 'eip155:56',
+  polygon = 'eip155:137',
+  avax = 'eip155:43114',
+  aurora = 'eip155:1313161554',
 }
 
 /**
  * Check if token detection is enabled for certain networks.
  *
- * @param chainId - ChainID of network
+ * @param caipChainId - The caip chain id of the network
  * @returns Whether the current network supports token detection
  */
-export function isTokenDetectionSupportedForNetwork(chainId: Hex): boolean {
-  return Object.values<Hex>(SupportedTokenDetectionNetworks).includes(chainId);
+export function isTokenDetectionSupportedForNetwork(caipChainId: CaipChainId): boolean {
+  return Object.values<string>(SupportedTokenDetectionNetworks).includes(caipChainId);
 }
 
 /**
  * Check if token list polling is enabled for a given network.
  * Currently this method is used to support e2e testing for consumers of this package.
  *
- * @param chainId - ChainID of network
+ * @param caipChainId - Caip chain id of network
  * @returns Whether the current network supports tokenlists
  */
-export function isTokenListSupportedForNetwork(chainId: Hex): boolean {
+export function isTokenListSupportedForNetwork(caipChainId: CaipChainId): boolean {
   return (
-    isTokenDetectionSupportedForNetwork(chainId) || chainId === GANACHE_CHAIN_ID
+    isTokenDetectionSupportedForNetwork(caipChainId) || caipChainId === GANACHE_CAIP_CHAIN_ID
   );
 }
 

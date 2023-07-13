@@ -1,4 +1,4 @@
-import type { Hex } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -10,6 +10,8 @@ import {
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
   toHex,
+  getEthChainIdHexFromCaipChainId,
+  getEthChainIdIntFromCaipChainId,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
@@ -64,14 +66,14 @@ export interface Token {
  * Token rates controller configuration
  * @property interval - Polling interval used to fetch new token rates
  * @property nativeCurrency - Current native currency selected to use base of rates
- * @property chainId - Current network chainId
+ * @property caipChainId - Current network caipChainId
  * @property tokens - List of tokens to track exchange rates for
  * @property threshold - Threshold to invalidate the supportedChains
  */
 export interface TokenRatesConfig extends BaseConfig {
   interval: number;
   nativeCurrency: string;
-  chainId: Hex;
+  caipChainId: CaipChainId;
   tokens: Token[];
   threshold: number;
 }
@@ -115,23 +117,23 @@ const CoinGeckoApi = {
 };
 
 /**
- * Finds the chain slug in the data array given a chainId.
+ * Finds the chain slug in the data array given a caipChainId.
  *
- * @param chainId - The current chain ID.
+ * @param caipChainId - The current caip chain ID.
  * @param data - A list platforms supported by the CoinGecko API.
  * @returns The CoinGecko slug for the given chain ID, or `null` if the slug was not found.
  */
 function findChainSlug(
-  chainId: Hex,
+  caipChainId: CaipChainId,
   data: CoinGeckoPlatform[] | null,
 ): string | null {
   if (!data) {
     return null;
   }
+  const chainId = getEthChainIdIntFromCaipChainId(caipChainId)
   const chain =
     data.find(
-      ({ chain_identifier }) =>
-        chain_identifier !== null && toHex(chain_identifier) === chainId,
+      ({ chain_identifier }) => chain_identifier === chainId,
     ) ?? null;
   return chain?.id || null;
 }
@@ -167,7 +169,7 @@ export class TokenRatesController extends BaseController<
    * Creates a TokenRatesController instance.
    *
    * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
+   * @param options.caipChainId - The caip chain ID of the current network.
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
    * @param options.onCurrencyRateStateChange - Allows subscribing to currency rate controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network state changes.
@@ -176,12 +178,12 @@ export class TokenRatesController extends BaseController<
    */
   constructor(
     {
-      chainId: initialChainId,
+      caipChainId: initialCaipChainId,
       onTokensStateChange,
       onCurrencyRateStateChange,
       onNetworkStateChange,
     }: {
-      chainId: Hex;
+      caipChainId: CaipChainId;
       onTokensStateChange: (
         listener: (tokensState: TokensState) => void,
       ) => void;
@@ -200,7 +202,7 @@ export class TokenRatesController extends BaseController<
       disabled: false,
       interval: 3 * 60 * 1000,
       nativeCurrency: 'eth',
-      chainId: initialChainId,
+      caipChainId: initialCaipChainId,
       tokens: [],
       threshold: 6 * 60 * 60 * 1000,
     };
@@ -222,9 +224,9 @@ export class TokenRatesController extends BaseController<
     });
 
     onNetworkStateChange(({ providerConfig }) => {
-      const { chainId } = providerConfig;
+      const { caipChainId } = providerConfig;
       this.update({ contractExchangeRates: {} });
-      this.configure({ chainId });
+      this.configure({ caipChainId });
     });
     this.poll();
   }
@@ -324,7 +326,7 @@ export class TokenRatesController extends BaseController<
    * @returns The CoinGecko slug for the current chain ID.
    */
   async getChainSlug(): Promise<string | null> {
-    const { threshold, chainId } = this.config;
+    const { threshold, caipChainId } = this.config;
     const { data, timestamp } = this.supportedChains;
 
     const now = Date.now();
@@ -335,10 +337,10 @@ export class TokenRatesController extends BaseController<
         data: platforms,
         timestamp: Date.now(),
       };
-      return findChainSlug(chainId, platforms);
+      return findChainSlug(caipChainId, platforms);
     }
 
-    return findChainSlug(chainId, data);
+    return findChainSlug(caipChainId, data);
   }
 
   /**

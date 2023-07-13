@@ -1,5 +1,6 @@
 import { InfuraNetworkType } from '@metamask/controller-utils';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { CaipChainId } from '@metamask/utils';
 import type { PollingBlockTracker } from 'eth-block-tracker';
 
 export type Provider = SafeEventEmitterProvider;
@@ -19,7 +20,7 @@ export enum NetworkClientType {
  * network.
  */
 export type CustomNetworkClientConfiguration = {
-  chainId: string;
+  caipChainId: CaipChainId;
   rpcUrl: string;
   type: NetworkClientType.Custom;
 };

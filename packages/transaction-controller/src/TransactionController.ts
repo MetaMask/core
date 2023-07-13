@@ -29,9 +29,10 @@ import {
   RPC,
   ApprovalType,
   ORIGIN_METAMASK,
-  convertHexToDecimal,
   getEthChainIdHexFromCaipChainId,
+  getEthChainIdIntFromCaipChainId,
 } from '@metamask/controller-utils';
+import { CaipChainId } from "@metamask/utils"
 import {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -89,7 +90,7 @@ export interface FetchAllOptions {
  * @property value - Value associated with this transaction
  */
 export interface Transaction {
-  chainId?: string;
+  chainId?: string; // Eth specific
   data?: string;
   from: string;
   gas?: string;
@@ -147,7 +148,7 @@ type TransactionMetaBase = {
   };
   id: string;
   networkID?: string;
-  chainId?: string;
+  caipChainId?: CaipChainId;
   origin?: string;
   rawTransaction?: string;
   time: number;
@@ -346,14 +347,14 @@ export class TransactionController extends BaseController<
   private normalizeTx(
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
-    currentChainId: string,
+    currentCaipChainId: CaipChainId,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const normalizedTransactionBase = {
       blockNumber: txMeta.blockNumber,
       id: random({ msecs: time }),
       networkID: currentNetworkID,
-      chainId: currentChainId,
+      caipChainId: currentCaipChainId,
       time,
       transaction: {
         data: txMeta.input,
@@ -388,7 +389,7 @@ export class TransactionController extends BaseController<
   private normalizeTokenTx = (
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
-    currentChainId: string,
+    currentCaipChainId: CaipChainId,
   ): TransactionMeta => {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const {
@@ -407,11 +408,11 @@ export class TransactionController extends BaseController<
       id: random({ msecs: time }),
       isTransfer: true,
       networkID: currentNetworkID,
-      chainId: currentChainId,
+      caipChainId: currentCaipChainId,
       status: TransactionStatus.confirmed,
       time,
       transaction: {
-        chainId: currentChainId,
+        chainId: getEthChainIdHexFromCaipChainId(currentCaipChainId),
         from,
         gas,
         gasPrice,
@@ -579,7 +580,7 @@ export class TransactionController extends BaseController<
     const transactionMeta: TransactionMeta = {
       id: random(),
       networkID: networkId ?? undefined,
-      chainId: providerConfig.chainId,
+      caipChainId: providerConfig.caipChainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
@@ -627,7 +628,7 @@ export class TransactionController extends BaseController<
   getCommonConfiguration(): Common {
     const {
       networkId,
-      providerConfig: { type: chain, chainId, nickname: name },
+      providerConfig: { type: chain, caipChainId, nickname: name },
     } = this.getNetworkState();
 
     if (
@@ -640,7 +641,7 @@ export class TransactionController extends BaseController<
 
     const customChainParams = {
       name,
-      chainId: parseInt(chainId, 16),
+      chainId: getEthChainIdIntFromCaipChainId(caipChainId),
       networkId: networkId === null ? NaN : parseInt(networkId, undefined),
     };
 
@@ -967,16 +968,16 @@ export class TransactionController extends BaseController<
     const { transactions } = this.state;
     const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { caipChainId: currentCaipChainId } = providerConfig;
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          // Using fallback to networkID only when there is no chainId present.
+          // Using fallback to networkID only when there is no caipChainId present.
           // Should be removed when networkID is completely removed.
           const txBelongsToCurrentChain =
-            meta.chainId === currentChainId ||
-            (!meta.chainId && meta.networkID === currentNetworkID);
+            meta.caipChainId === currentCaipChainId ||
+            (!meta.caipChainId && meta.networkID === currentNetworkID);
 
           if (!meta.verifiedOnBlockchain && txBelongsToCurrentChain) {
             const [reconciledTx, updateRequired] =
@@ -1028,13 +1029,13 @@ export class TransactionController extends BaseController<
     }
     const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { caipChainId: currentCaipChainId } = providerConfig;
     const newTransactions = this.state.transactions.filter(
-      ({ networkID, chainId }) => {
-        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
+      ({ networkID, caipChainId }) => {
+        // Using fallback to networkID only when there is no caipChainId present. Should be removed when networkID is completely removed.
         const isCurrentNetwork =
-          chainId === currentChainId ||
-          (!chainId && networkID === currentNetworkID);
+          caipChainId === currentCaipChainId ||
+          (!caipChainId && networkID === currentNetworkID);
         return !isCurrentNetwork;
       },
     );
@@ -1059,7 +1060,7 @@ export class TransactionController extends BaseController<
   ): Promise<string | void> {
     const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
-    const { chainId: currentChainId, type: networkType } = providerConfig;
+    const { caipChainId: currentCaipChainId, type: networkType } = providerConfig;
     const { transactions } = this.state;
 
     const supportedNetworkIds = ['1', '5', '11155111'];
@@ -1081,11 +1082,11 @@ export class TransactionController extends BaseController<
 
     const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
-        this.normalizeTx(tx, currentNetworkID, currentChainId),
+        this.normalizeTx(tx, currentNetworkID, currentCaipChainId),
     );
     const normalizedTokenTxs = etherscanTokenResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
-        this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
+        this.normalizeTokenTx(tx, currentNetworkID, currentCaipChainId),
     );
 
     const [updateRequired, allTxs] = this.etherscanTransactionStateReconciler(
@@ -1099,9 +1100,9 @@ export class TransactionController extends BaseController<
     allTxs.forEach(async (tx) => {
       /* istanbul ignore next */
       if (
-        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-        (tx.chainId === currentChainId ||
-          (!tx.chainId && tx.networkID === currentNetworkID)) &&
+        // Using fallback to networkID only when there is no caipChainId present. Should be removed when networkID is completely removed.
+        (tx.caipChainId === currentCaipChainId ||
+          (!tx.caipChainId && tx.networkID === currentNetworkID)) &&
         tx.transaction.to &&
         tx.transaction.to.toLowerCase() === address.toLowerCase()
       ) {
@@ -1214,7 +1215,7 @@ export class TransactionController extends BaseController<
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const { providerConfig } = this.getNetworkState();
-    const { chainId: caipChainId } = providerConfig;
+    const { caipChainId } = providerConfig;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
@@ -1231,7 +1232,7 @@ export class TransactionController extends BaseController<
         return;
       } else if (!caipChainId) {
         releaseLock();
-        this.failTransaction(transactionMeta, new Error('No chainId defined.'));
+        this.failTransaction(transactionMeta, new Error('No caipChainId defined.'));
         return;
       }
 
@@ -1244,11 +1245,9 @@ export class TransactionController extends BaseController<
         nonceToUse = addHexPrefix(nonceLock.nextNonce.toString(16));
       }
 
-      const chainId = getEthChainIdHexFromCaipChainId(caipChainId);
-
       transactionMeta.status = status;
       transactionMeta.transaction.nonce = nonceToUse;
-      transactionMeta.transaction.chainId = chainId;
+      transactionMeta.transaction.chainId = getEthChainIdHexFromCaipChainId(caipChainId);
 
       const baseTxParams = {
         ...transactionMeta.transaction,
@@ -1340,11 +1339,10 @@ export class TransactionController extends BaseController<
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
     const txsToKeep = transactions.reverse().filter((tx) => {
-      const { chainId, networkID, status, transaction, time } = tx;
+      const { caipChainId, networkID, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${
-          chainId ? convertHexToDecimal(chainId) : networkID
-        }-${new Date(time).toDateString()}`;
+        const networkChainId = caipChainId || networkID // is this right?
+        const key = `${transaction.nonce}-${networkChainId}-${new Date(time).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (

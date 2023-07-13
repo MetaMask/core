@@ -7,7 +7,7 @@ import { Mutex } from 'async-mutex';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -48,7 +48,7 @@ import {
  */
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
-  chainId: Hex;
+  caipChainId: CaipChainId;
   provider: any;
 }
 
@@ -85,9 +85,9 @@ export interface TokensState extends BaseState {
   tokens: Token[];
   ignoredTokens: string[];
   detectedTokens: Token[];
-  allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
-  allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
-  allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allTokens: { [caipChainId: CaipChainId]: { [key: string]: Token[] } };
+  allIgnoredTokens: { [caipChainId: CaipChainId]: { [key: string]: string[] } };
+  allDetectedTokens: { [caipChainId: CaipChainId]: { [key: string]: Token[] } };
 }
 
 /**
@@ -137,7 +137,7 @@ export class TokensController extends BaseController<
   ): Promise<TokenListToken | undefined> {
     try {
       const token = await fetchTokenMetadata<TokenListToken>(
-        this.config.chainId,
+        this.config.caipChainId,
         tokenAddress,
         this.abortController.signal,
       );
@@ -169,7 +169,7 @@ export class TokensController extends BaseController<
    * Creates a TokensController instance.
    *
    * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
+   * @param options.caipChainId - The caip chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
@@ -179,7 +179,7 @@ export class TokensController extends BaseController<
    * @param options.messenger - The controller messenger.
    */
   constructor({
-    chainId: initialChainId,
+    caipChainId: initialCaipChainId,
     onPreferencesStateChange,
     onNetworkStateChange,
     onTokenListStateChange,
@@ -188,7 +188,7 @@ export class TokensController extends BaseController<
     state,
     messenger,
   }: {
-    chainId: Hex;
+    caipChainId: CaipChainId;
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
@@ -207,7 +207,7 @@ export class TokensController extends BaseController<
 
     this.defaultConfig = {
       selectedAddress: '',
-      chainId: initialChainId,
+      caipChainId: initialCaipChainId,
       provider: undefined,
       ...config,
     };
@@ -230,27 +230,27 @@ export class TokensController extends BaseController<
 
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-      const { chainId } = this.config;
+      const { caipChainId } = this.config;
       this.configure({ selectedAddress });
       this.update({
-        tokens: allTokens[chainId]?.[selectedAddress] || [],
-        ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
-        detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
+        tokens: allTokens[caipChainId]?.[selectedAddress] || [],
+        ignoredTokens: allIgnoredTokens[caipChainId]?.[selectedAddress] || [],
+        detectedTokens: allDetectedTokens[caipChainId]?.[selectedAddress] || [],
       });
     });
 
     onNetworkStateChange(({ providerConfig }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
-      const { chainId } = providerConfig;
+      const { caipChainId } = providerConfig;
       this.abortController.abort();
       this.abortController = new WhatwgAbortController();
-      this.configure({ chainId });
+      this.configure({ caipChainId });
       this.ethersProvider = this._instantiateNewEthersProvider();
       this.update({
-        tokens: allTokens[chainId]?.[selectedAddress] || [],
-        ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
-        detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
+        tokens: allTokens[caipChainId]?.[selectedAddress] || [],
+        ignoredTokens: allIgnoredTokens[caipChainId]?.[selectedAddress] || [],
+        detectedTokens: allDetectedTokens[caipChainId]?.[selectedAddress] || [],
       });
     });
 
@@ -289,24 +289,24 @@ export class TokensController extends BaseController<
     }: { name?: string; image?: string; interactingAddress?: string } = {},
   ): Promise<Token[]> {
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const { chainId: currentChainId, selectedAddress } = this.config;
+    const { caipChainId: currentCaipChainId, selectedAddress } = this.config;
     const accountAddress = interactingAddress || selectedAddress;
     const isInteractingWithWalletAccount = accountAddress === selectedAddress;
     const releaseLock = await this.mutex.acquire();
 
     try {
       address = toChecksumHexAddress(address);
-      const tokens = allTokens[currentChainId]?.[accountAddress] || [];
+      const tokens = allTokens[currentCaipChainId]?.[accountAddress] || [];
       const ignoredTokens =
-        allIgnoredTokens[currentChainId]?.[accountAddress] || [];
+        allIgnoredTokens[currentCaipChainId]?.[accountAddress] || [];
       const detectedTokens =
-        allDetectedTokens[currentChainId]?.[accountAddress] || [];
+        allDetectedTokens[currentCaipChainId]?.[accountAddress] || [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this._detectIsERC721(address),
         this.fetchTokenMetadata(address),
       ]);
-      if (currentChainId !== this.config.chainId) {
+      if (currentCaipChainId !== this.config.caipChainId) {
         throw new Error(
           'TokensController Error: Switched networks while adding token',
         );
@@ -318,7 +318,7 @@ export class TokensController extends BaseController<
         image:
           image ||
           formatIconUrlWithProxy({
-            chainId: this.config.chainId,
+            caipChainId: this.config.caipChainId,
             tokenAddress: address,
           }),
         isERC721,
@@ -479,11 +479,11 @@ export class TokensController extends BaseController<
    * @param incomingDetectedTokens - Array of detected tokens to be added or updated.
    * @param detectionDetails - An object containing the chain ID and address of the currently selected network on which the incomingDetectedTokens were detected.
    * @param detectionDetails.selectedAddress - the account address on which the incomingDetectedTokens were detected.
-   * @param detectionDetails.chainId - the chainId on which the incomingDetectedTokens were detected.
+   * @param detectionDetails.caipChainId - the caipChainId on which the incomingDetectedTokens were detected.
    */
   async addDetectedTokens(
     incomingDetectedTokens: Token[],
-    detectionDetails?: { selectedAddress: string; chainId: Hex },
+    detectionDetails?: { selectedAddress: string; caipChainId: CaipChainId },
   ) {
     const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
@@ -543,7 +543,7 @@ export class TokensController extends BaseController<
 
       const {
         selectedAddress: interactingAddress,
-        chainId: interactingChainId,
+        caipChainId: interactingCaipChainId,
       } = detectionDetails || {};
 
       const { newAllTokens, newAllDetectedTokens } = this._getNewAllTokensState(
@@ -551,16 +551,16 @@ export class TokensController extends BaseController<
           newTokens,
           newDetectedTokens,
           interactingAddress,
-          interactingChainId,
+          interactingCaipChainId,
         },
       );
 
-      const { chainId, selectedAddress } = this.config;
-      // if the newly added detectedTokens were detected on (and therefore added to) a different chainId/selectedAddress than the currently configured combo
-      // the newDetectedTokens (which should contain the detectedTokens on the current chainId/address combo) needs to be repointed to the current chainId/address pair
+      const { caipChainId, selectedAddress } = this.config;
+      // if the newly added detectedTokens were detected on (and therefore added to) a different caipChainId/selectedAddress than the currently configured combo
+      // the newDetectedTokens (which should contain the detectedTokens on the current chainId/address combo) needs to be repointed to the current caipChainId/address pair
       // if the detectedTokens were detected on the current chainId/address then this won't change anything.
       newDetectedTokens =
-        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
+        newAllDetectedTokens?.[caipChainId]?.[selectedAddress] || [];
 
       this.update({
         tokens: newTokens,
@@ -715,7 +715,7 @@ export class TokensController extends BaseController<
    * @param params.newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
    * @param params.newDetectedTokens - The new detected tokens to set for the current network and selected account.
    * @param params.interactingAddress - The account address to use to store the tokens.
-   * @param params.interactingChainId - The chainId to use to store the tokens.
+   * @param params.interactingCaipChainId - The caipChainId to use to store the tokens.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
   _getNewAllTokensState(params: {
@@ -723,37 +723,37 @@ export class TokensController extends BaseController<
     newIgnoredTokens?: string[];
     newDetectedTokens?: Token[];
     interactingAddress?: string;
-    interactingChainId?: Hex;
+    interactingCaipChainId?: CaipChainId;
   }) {
     const {
       newTokens,
       newIgnoredTokens,
       newDetectedTokens,
       interactingAddress,
-      interactingChainId,
+      interactingCaipChainId,
     } = params;
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const { chainId, selectedAddress } = this.config;
+    const { caipChainId, selectedAddress } = this.config;
 
     const userAddressToAddTokens = interactingAddress ?? selectedAddress;
-    const chainIdToAddTokens = interactingChainId ?? chainId;
+    const caipChainIdToAddTokens = interactingCaipChainId ?? caipChainId;
 
     let newAllTokens = allTokens;
     if (
       newTokens?.length ||
       (newTokens &&
         allTokens &&
-        allTokens[chainIdToAddTokens] &&
-        allTokens[chainIdToAddTokens][userAddressToAddTokens])
+        allTokens[caipChainIdToAddTokens] &&
+        allTokens[caipChainIdToAddTokens][userAddressToAddTokens])
     ) {
-      const networkTokens = allTokens[chainIdToAddTokens];
+      const networkTokens = allTokens[caipChainIdToAddTokens];
       const newNetworkTokens = {
         ...networkTokens,
         ...{ [userAddressToAddTokens]: newTokens },
       };
       newAllTokens = {
         ...allTokens,
-        ...{ [chainIdToAddTokens]: newNetworkTokens },
+        ...{ [caipChainIdToAddTokens]: newNetworkTokens },
       };
     }
 
@@ -762,17 +762,17 @@ export class TokensController extends BaseController<
       newIgnoredTokens?.length ||
       (newIgnoredTokens &&
         allIgnoredTokens &&
-        allIgnoredTokens[chainIdToAddTokens] &&
-        allIgnoredTokens[chainIdToAddTokens][userAddressToAddTokens])
+        allIgnoredTokens[caipChainIdToAddTokens] &&
+        allIgnoredTokens[caipChainIdToAddTokens][userAddressToAddTokens])
     ) {
-      const networkIgnoredTokens = allIgnoredTokens[chainIdToAddTokens];
+      const networkIgnoredTokens = allIgnoredTokens[caipChainIdToAddTokens];
       const newIgnoredNetworkTokens = {
         ...networkIgnoredTokens,
         ...{ [userAddressToAddTokens]: newIgnoredTokens },
       };
       newAllIgnoredTokens = {
         ...allIgnoredTokens,
-        ...{ [chainIdToAddTokens]: newIgnoredNetworkTokens },
+        ...{ [caipChainIdToAddTokens]: newIgnoredNetworkTokens },
       };
     }
 
@@ -781,17 +781,17 @@ export class TokensController extends BaseController<
       newDetectedTokens?.length ||
       (newDetectedTokens &&
         allDetectedTokens &&
-        allDetectedTokens[chainIdToAddTokens] &&
-        allDetectedTokens[chainIdToAddTokens][userAddressToAddTokens])
+        allDetectedTokens[caipChainIdToAddTokens] &&
+        allDetectedTokens[caipChainIdToAddTokens][userAddressToAddTokens])
     ) {
-      const networkDetectedTokens = allDetectedTokens[chainIdToAddTokens];
+      const networkDetectedTokens = allDetectedTokens[caipChainIdToAddTokens];
       const newDetectedNetworkTokens = {
         ...networkDetectedTokens,
         ...{ [userAddressToAddTokens]: newDetectedTokens },
       };
       newAllDetectedTokens = {
         ...allDetectedTokens,
-        ...{ [chainIdToAddTokens]: newDetectedNetworkTokens },
+        ...{ [caipChainIdToAddTokens]: newDetectedNetworkTokens },
       };
     }
     return { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens };

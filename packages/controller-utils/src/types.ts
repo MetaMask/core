@@ -47,11 +47,9 @@ export enum BuiltInNetworkName {
 }
 
 /**
- * Decimal string chain IDs of built-in networks, by name.
- *
- * `toHex` not invoked to avoid cyclic dependency
+ * Caip-2 chain IDs of built-in networks, by name.
  */
-export const ChainId = {
+export const BuiltInCaipChainId = {
   [BuiltInNetworkName.Mainnet]: 'eip155:1',
   [BuiltInNetworkName.Goerli]: 'eip155:5',
   [BuiltInNetworkName.Sepolia]: 'eip155:11155111',
@@ -59,19 +57,18 @@ export const ChainId = {
   [BuiltInNetworkName.LineaGoerli]: 'eip155:59140',
   [BuiltInNetworkName.LineaMainnet]: 'eip155:59144',
 } as const;
-export type ChainId = typeof ChainId[keyof typeof ChainId];
 
 /**
  * Decimal string network IDs of built-in Infura networks, by name.
  */
-export const NetworkId = {
+export const InfuraNetworkId = { // should these be eip'd?..
   [InfuraNetworkType.mainnet]: '1',
   [InfuraNetworkType.goerli]: '5',
   [InfuraNetworkType.sepolia]: '11155111',
   [InfuraNetworkType['linea-goerli']]: '59140',
   [InfuraNetworkType['linea-mainnet']]: '59144',
 } as const;
-export type NetworkId = typeof NetworkId[keyof typeof NetworkId];
+export type InfuraNetworkId = typeof InfuraNetworkId[keyof typeof InfuraNetworkId];
 
 export enum NetworksTicker {
   mainnet = 'ETH',

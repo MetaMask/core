@@ -1,5 +1,5 @@
-import type { Hex } from '@metamask/utils';
-import { convertHexToDecimal, timeoutFetch } from '@metamask/controller-utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
+import { convertHexToDecimal, getEthChainIdDecFromCaipChainId, timeoutFetch } from '@metamask/controller-utils';
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
 export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
@@ -9,23 +9,23 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
 /**
  * Get the tokens URL for a specific network.
  *
- * @param chainId - The chain ID of the network the tokens requested are on.
+ * @param caipChainId - The caip chain ID of the network the tokens requested are on.
  * @returns The tokens URL.
  */
-function getTokensURL(chainId: Hex) {
-  return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(chainId)}`;
+function getTokensURL(caipChainId: CaipChainId) {
+  return `${TOKEN_END_POINT_API}/tokens/${getEthChainIdDecFromCaipChainId(caipChainId)}`;
 }
 
 /**
  * Get the token metadata URL for the given network and token.
  *
- * @param chainId - The chain ID of the network the token is on.
+ * @param caipChainId - The caip chain ID of the network the token is on.
  * @param tokenAddress - The token address.
  * @returns The token metadata URL.
  */
-function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
-  return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
-    chainId,
+function getTokenMetadataURL(caipChainId: CaipChainId, tokenAddress: string) {
+  return `${TOKEN_END_POINT_API}/token/${getEthChainIdDecFromCaipChainId(
+    caipChainId,
   )}?address=${tokenAddress}`;
 }
 
@@ -39,18 +39,18 @@ const defaultTimeout = tenSecondsInMilliseconds;
  * Fetch the list of token metadata for a given network. This request is cancellable using the
  * abort signal passed in.
  *
- * @param chainId - The chain ID of the network the requested tokens are on.
+ * @param caipChainId - The caip chain ID of the network the requested tokens are on.
  * @param abortSignal - The abort signal used to cancel the request if necessary.
  * @param options - Additional fetch options.
  * @param options.timeout - The fetch timeout.
  * @returns The token list, or `undefined` if the request was cancelled.
  */
 export async function fetchTokenList(
-  chainId: Hex,
+  caipChainId: CaipChainId,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<unknown> {
-  const tokenURL = getTokensURL(chainId);
+  const tokenURL = getTokensURL(caipChainId);
   const response = await queryApi(tokenURL, abortSignal, timeout);
   if (response) {
     return parseJsonResponse(response);
@@ -62,7 +62,7 @@ export async function fetchTokenList(
  * Fetch metadata for the token address provided for a given network. This request is cancellable
  * using the abort signal passed in.
  *
- * @param chainId - The chain ID of the network the token is on.
+ * @param caipChainId - The caip chain ID of the network the token is on.
  * @param tokenAddress - The address of the token to fetch metadata for.
  * @param abortSignal - The abort signal used to cancel the request if necessary.
  * @param options - Additional fetch options.
@@ -70,15 +70,15 @@ export async function fetchTokenList(
  * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
 export async function fetchTokenMetadata<T>(
-  chainId: Hex,
+  caipChainId: CaipChainId,
   tokenAddress: string,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<T | undefined> {
-  if (!isTokenListSupportedForNetwork(chainId)) {
+  if (!isTokenListSupportedForNetwork(caipChainId)) {
     throw new Error(TOKEN_METADATA_NO_SUPPORT_ERROR);
   }
-  const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
+  const tokenMetadataURL = getTokenMetadataURL(caipChainId, tokenAddress);
   const response = await queryApi(tokenMetadataURL, abortSignal, timeout);
   if (response) {
     return parseJsonResponse(response) as Promise<T>;

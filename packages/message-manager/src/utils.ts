@@ -13,6 +13,7 @@ import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
 import { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
 import { DecryptMessageParams } from './DecryptMessageManager';
+import { CaipChainId } from '@metamask/utils';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 /**
@@ -99,7 +100,7 @@ export function validateTypedSignMessageDataV1(
  */
 export function validateTypedSignMessageDataV3V4(
   messageData: TypedMessageParams,
-  currentCaipChainId: string | undefined,
+  currentCaipChainId: CaipChainId | undefined,
 ) {
   validateAddress(messageData.from, 'from');
 

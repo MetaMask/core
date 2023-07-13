@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { isAddress } from '@ethersproject/address';
 import { Mutex } from 'async-mutex';
-import type { Hex } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 import { v4 as random } from 'uuid';
 import { rpcErrors } from '@metamask/rpc-errors';
 import {
@@ -66,7 +66,7 @@ type SuggestedNftMeta = {
  * @property animationOriginal - URI of the original animation associated with this NFT
  * @property externalLink - External link containing additional information
  * @property creator - The NFT owner information object
- * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
+ * @property isCurrentlyOwned - Boolean indicating whether the address/caipChainId combination where it's currently stored currently owns this NFT
  * @property transactionId - Transaction Id associated with the NFT
  */
 export interface Nft extends NftMetadata {
@@ -142,7 +142,7 @@ export interface NftMetadata {
 
 interface AccountParams {
   userAddress: string;
-  chainId: Hex;
+  caipChainId: CaipChainId;
 }
 
 /**
@@ -153,7 +153,7 @@ interface AccountParams {
  */
 export interface NftConfig extends BaseConfig {
   selectedAddress: string;
-  chainId: Hex;
+  caipChainId: CaipChainId;
   ipfsGateway: string;
   openSeaEnabled: boolean;
   useIPFSSubdomains: boolean;
@@ -169,9 +169,9 @@ export interface NftConfig extends BaseConfig {
  */
 export interface NftState extends BaseState {
   allNftContracts: {
-    [key: string]: { [chainId: Hex]: NftContract[] };
+    [key: string]: { [caipChainId: CaipChainId]: NftContract[] };
   };
-  allNfts: { [key: string]: { [chainId: Hex]: Nft[] } };
+  allNfts: { [key: string]: { [caipChainId: CaipChainId]: Nft[] } };
   ignoredNfts: Nft[];
 }
 
@@ -243,16 +243,16 @@ export class NftController extends BaseController<NftConfig, NftState> {
    *
    * @param newCollection - the modified piece of state to update in the controller's store
    * @param baseStateKey - The root key in the store to update.
-   * @param passedConfig - An object containing the selectedAddress and chainId that are passed through the auto-detection flow.
+   * @param passedConfig - An object containing the selectedAddress and caipChainId that are passed through the auto-detection flow.
    * @param passedConfig.userAddress - the address passed through the NFT detection flow to ensure assets are stored to the correct account
-   * @param passedConfig.chainId - the chainId passed through the NFT detection flow to ensure assets are stored to the correct account
+   * @param passedConfig.caipChainId - the caipChainId passed through the NFT detection flow to ensure assets are stored to the correct account
    */
   private updateNestedNftState(
     newCollection: Nft[] | NftContract[],
     baseStateKey: 'allNfts' | 'allNftContracts',
-    { userAddress, chainId } = {
+    { userAddress, caipChainId } = {
       userAddress: this.config.selectedAddress,
-      chainId: this.config.chainId,
+      caipChainId: this.config.caipChainId,
     },
   ) {
     const { [baseStateKey]: oldState } = this.state;
@@ -260,7 +260,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     const addressState = oldState[userAddress];
     const newAddressState = {
       ...addressState,
-      ...{ [chainId]: newCollection },
+      ...{ [caipChainId]: newCollection },
     };
     const newState = {
       ...oldState,
@@ -641,16 +641,16 @@ export class NftController extends BaseController<NftConfig, NftState> {
     try {
       address = toChecksumHexAddress(address);
       const { allNfts } = this.state;
-      let chainId, selectedAddress;
+      let caipChainId, selectedAddress;
       if (accountParams) {
-        chainId = accountParams.chainId;
+        caipChainId = accountParams.caipChainId;
         selectedAddress = accountParams.userAddress;
       } else {
-        chainId = this.config.chainId;
+        caipChainId = this.config.caipChainId;
         selectedAddress = this.config.selectedAddress;
       }
 
-      const nfts = allNfts[selectedAddress]?.[chainId] || [];
+      const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
 
       const existingEntry: Nft | undefined = nfts.find(
         (nft) =>
@@ -689,7 +689,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
       const newNfts = [...nfts, newEntry];
       this.updateNestedNftState(newNfts, ALL_NFTS_STATE_KEY, {
-        chainId,
+        caipChainId,
         userAddress: selectedAddress,
       });
 
@@ -726,16 +726,16 @@ export class NftController extends BaseController<NftConfig, NftState> {
     try {
       address = toChecksumHexAddress(address);
       const { allNftContracts } = this.state;
-      let chainId, selectedAddress;
+      let caipChainId, selectedAddress;
       if (accountParams) {
-        chainId = accountParams.chainId;
+        caipChainId = accountParams.caipChainId;
         selectedAddress = accountParams.userAddress;
       } else {
-        chainId = this.config.chainId;
+        caipChainId = this.config.caipChainId;
         selectedAddress = this.config.selectedAddress;
       }
 
-      const nftContracts = allNftContracts[selectedAddress]?.[chainId] || [];
+      const nftContracts = allNftContracts[selectedAddress]?.[caipChainId] || [];
 
       const existingEntry = nftContracts.find(
         (nftContract) =>
@@ -790,7 +790,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       );
       const newNftContracts = [...nftContracts, newEntry];
       this.updateNestedNftState(newNftContracts, ALL_NFTS_CONTRACTS_STATE_KEY, {
-        chainId,
+        caipChainId,
         userAddress: selectedAddress,
       });
 
@@ -809,9 +809,9 @@ export class NftController extends BaseController<NftConfig, NftState> {
   private removeAndIgnoreIndividualNft(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
     const { allNfts, ignoredNfts } = this.state;
-    const { chainId, selectedAddress } = this.config;
+    const { caipChainId, selectedAddress } = this.config;
     const newIgnoredNfts = [...ignoredNfts];
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
     const newNfts = nfts.filter((nft) => {
       if (
         nft.address.toLowerCase() === address.toLowerCase() &&
@@ -842,8 +842,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
   private removeIndividualNft(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
     const { allNfts } = this.state;
-    const { chainId, selectedAddress } = this.config;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const { caipChainId, selectedAddress } = this.config;
+    const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
     const newNfts = nfts.filter(
       (nft) =>
         !(
@@ -863,8 +863,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
   private removeNftContract(address: string): NftContract[] {
     address = toChecksumHexAddress(address);
     const { allNftContracts } = this.state;
-    const { chainId, selectedAddress } = this.config;
-    const nftContracts = allNftContracts[selectedAddress]?.[chainId] || [];
+    const { caipChainId, selectedAddress } = this.config;
+    const nftContracts = allNftContracts[selectedAddress]?.[caipChainId] || [];
 
     const newNftContracts = nftContracts.filter(
       (nftContract) =>
@@ -914,7 +914,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * Creates an NftController instance.
    *
    * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
+   * @param options.caipChainId - The caip chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getERC721AssetName - Gets the name of the asset at the given address.
@@ -931,7 +931,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    */
   constructor(
     {
-      chainId: initialChainId,
+      caipChainId: initialCaipChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
       getERC721AssetName,
@@ -943,7 +943,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       onNftAdded,
       messenger,
     }: {
-      chainId: Hex;
+      caipChainId: CaipChainId;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -971,7 +971,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     super(config, state);
     this.defaultConfig = {
       selectedAddress: '',
-      chainId: initialChainId,
+      caipChainId: initialCaipChainId,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       openSeaEnabled: false,
       useIPFSSubdomains: true,
@@ -999,8 +999,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
     );
 
     onNetworkStateChange(({ providerConfig }) => {
-      const { chainId } = providerConfig;
-      this.configure({ chainId });
+      const { caipChainId } = providerConfig;
+      this.configure({ caipChainId });
     });
   }
 
@@ -1064,7 +1064,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
    */
   async watchNft(asset: NftAsset, type: NFTStandardType, origin: string) {
-    const { selectedAddress, chainId } = this.config;
+    const { selectedAddress, caipChainId } = this.config;
 
     await this.validateWatchNft(asset, type, selectedAddress);
 
@@ -1101,7 +1101,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         standard: standard ?? null,
       },
       {
-        chainId,
+        caipChainId,
         userAddress: selectedAddress,
       },
       Source.Dapp,
@@ -1226,8 +1226,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
     address = toChecksumHexAddress(address);
     this.removeIndividualNft(address, tokenId);
     const { allNfts } = this.state;
-    const { chainId, selectedAddress } = this.config;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const { caipChainId, selectedAddress } = this.config;
+    const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
     const remainingNft = nfts.find(
       (nft) => nft.address.toLowerCase() === address.toLowerCase(),
     );
@@ -1246,8 +1246,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
     address = toChecksumHexAddress(address);
     this.removeAndIgnoreIndividualNft(address, tokenId);
     const { allNfts } = this.state;
-    const { chainId, selectedAddress } = this.config;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const { caipChainId, selectedAddress } = this.config;
+    const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
     const remainingNft = nfts.find(
       (nft) => nft.address.toLowerCase() === address.toLowerCase(),
     );
@@ -1269,17 +1269,17 @@ export class NftController extends BaseController<NftConfig, NftState> {
    *
    * @param nft - The NFT object to check and update.
    * @param batch - A boolean indicating whether this method is being called as part of a batch or single update.
-   * @param accountParams - The userAddress and chainId to check ownership against
+   * @param accountParams - The userAddress and caipChainId to check ownership against
    * @param accountParams.userAddress - the address passed through the confirmed transaction flow to ensure assets are stored to the correct account
-   * @param accountParams.chainId - the chainId passed through the confirmed transaction flow to ensure assets are stored to the correct account
+   * @param accountParams.caipChainId - the caipChainId passed through the confirmed transaction flow to ensure assets are stored to the correct account
    * @returns the NFT with the updated isCurrentlyOwned value
    */
   async checkAndUpdateSingleNftOwnershipStatus(
     nft: Nft,
     batch: boolean,
-    { userAddress, chainId } = {
+    { userAddress, caipChainId } = {
       userAddress: this.config.selectedAddress,
-      chainId: this.config.chainId,
+      caipChainId: this.config.caipChainId,
     },
   ) {
     const { address, tokenId } = nft;
@@ -1305,7 +1305,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     // if this is not part of a batched update we update this one NFT in state
     const { allNfts } = this.state;
-    const nfts = allNfts[userAddress]?.[chainId] || [];
+    const nfts = allNfts[userAddress]?.[caipChainId] || [];
     const nftToUpdate = nfts.find(
       (item) =>
         item.tokenId === tokenId &&
@@ -1315,20 +1315,20 @@ export class NftController extends BaseController<NftConfig, NftState> {
       nftToUpdate.isCurrentlyOwned = isOwned;
       this.updateNestedNftState(nfts, ALL_NFTS_STATE_KEY, {
         userAddress,
-        chainId,
+        caipChainId,
       });
     }
     return nft;
   }
 
   /**
-   * Checks whether NFTs associated with current selectedAddress/chainId combination are still owned by the user
+   * Checks whether NFTs associated with current selectedAddress/caipChainId combination are still owned by the user
    * And updates the isCurrentlyOwned value on each accordingly.
    */
   async checkAndUpdateAllNftsOwnershipStatus() {
     const { allNfts } = this.state;
-    const { chainId, selectedAddress } = this.config;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const { caipChainId, selectedAddress } = this.config;
+    const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
     const updatedNfts = await Promise.all(
       nfts.map(async (nft) => {
         return (
@@ -1349,8 +1349,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
    */
   updateNftFavoriteStatus(address: string, tokenId: string, favorite: boolean) {
     const { allNfts } = this.state;
-    const { chainId, selectedAddress } = this.config;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const { caipChainId, selectedAddress } = this.config;
+    const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
     const index: number = nfts.findIndex(
       (nft) => nft.address === address && nft.tokenId === tokenId,
     );
@@ -1376,17 +1376,17 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param address - Hex address of the NFT contract.
    * @param tokenId - Number that represents the id of the token.
    * @param selectedAddress - Hex address of the user account.
-   * @param chainId - Id of the current network.
+   * @param caipChainId - Caip chain id of the current network.
    * @returns Object containing the NFT and its position in the array
    */
   findNftByAddressAndTokenId(
     address: string,
     tokenId: string,
     selectedAddress: string,
-    chainId: Hex,
+    caipChainId: CaipChainId,
   ): { nft: Nft; index: number } | null {
     const { allNfts } = this.state;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
     const index: number = nfts.findIndex(
       (nft) =>
         nft.address.toLowerCase() === address.toLowerCase() &&
@@ -1406,21 +1406,21 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param nft - NFT object to find the right NFT to updates.
    * @param updates - NFT partial object to update properties of the NFT.
    * @param selectedAddress - Hex address of the user account.
-   * @param chainId - Id of the current network.
+   * @param caipChainId - Caip chain id of the current network.
    */
   updateNft(
     nft: Nft,
     updates: Partial<Nft>,
     selectedAddress: string,
-    chainId: Hex,
+    caipChainId: CaipChainId,
   ) {
     const { allNfts } = this.state;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
     const nftInfo = this.findNftByAddressAndTokenId(
       nft.address,
       nft.tokenId,
       selectedAddress,
-      chainId,
+      caipChainId,
     );
 
     if (!nftInfo) {
@@ -1446,16 +1446,16 @@ export class NftController extends BaseController<NftConfig, NftState> {
    *
    * @param transactionId - NFT transaction id.
    * @param selectedAddress - Hex address of the user account.
-   * @param chainId - Id of the current network.
+   * @param caipChainId - Caip chain id of the current network.
    * @returns a boolean indicating if the reset was well succeded or not
    */
   resetNftTransactionStatusByTransactionId(
     transactionId: string,
     selectedAddress: string,
-    chainId: Hex,
+    caipChainId: CaipChainId,
   ): boolean {
     const { allNfts } = this.state;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const nfts = allNfts[selectedAddress]?.[caipChainId] || [];
     const index: number = nfts.findIndex(
       (nft) => nft.transactionId === transactionId,
     );

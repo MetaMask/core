@@ -23,10 +23,13 @@ import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   InfuraNetworkType,
-  ChainId,
-  NetworkId,
+  InfuraNetworkId,
+  BuiltInCaipChainId,
   getEthChainIdHexFromCaipChainId,
 } from '@metamask/controller-utils';
+import {
+  CaipChainId,
+} from "@metamask/utils"
 import {
   BlockTracker,
   NetworkClientConfiguration,
@@ -92,7 +95,7 @@ export function createNetworkClient(
         })
       : createCustomNetworkMiddleware({
           blockTracker,
-          chainId: networkConfig.chainId,
+          caipChainId: networkConfig.caipChainId,
           rpcApiMiddleware,
         });
 
@@ -154,13 +157,13 @@ function createNetworkAndChainIdMiddleware({
   network: InfuraNetworkType;
 }) {
   return createScaffoldMiddleware({
-    eth_chainId: ChainId[network],
-    net_version: NetworkId[network],
+    eth_chainId: getEthChainIdHexFromCaipChainId(BuiltInCaipChainId[network]),
+    net_version: InfuraNetworkId[network],
   });
 }
 
 const createChainIdMiddleware = (
-  caipChainId: string,
+  caipChainId: CaipChainId,
 ): JsonRpcMiddleware<unknown, unknown> => {
   return (req, res, next, end) => {
     if (req.method === 'eth_chainId') {
@@ -176,17 +179,17 @@ const createChainIdMiddleware = (
  *
  * @param args - The arguments.
  * @param args.blockTracker - The block tracker to use.
- * @param args.chainId - The chain id to use.
+ * @param args.caipChainId - The caip chain id to use.
  * @param args.rpcApiMiddleware - Additional middleware.
  * @returns The collection of middleware that makes up the Infura client.
  */
 function createCustomNetworkMiddleware({
   blockTracker,
-  chainId,
+  caipChainId,
   rpcApiMiddleware,
 }: {
   blockTracker: PollingBlockTracker;
-  chainId: string;
+  caipChainId: CaipChainId;
   rpcApiMiddleware: any;
 }) {
   // eslint-disable-next-line node/no-process-env
@@ -196,7 +199,7 @@ function createCustomNetworkMiddleware({
 
   return mergeMiddleware([
     ...testMiddlewares,
-    createChainIdMiddleware(chainId),
+    createChainIdMiddleware(caipChainId),
     createBlockRefRewriteMiddleware({ blockTracker }),
     createBlockCacheMiddleware({ blockTracker }),
     createInflightCacheMiddleware(),

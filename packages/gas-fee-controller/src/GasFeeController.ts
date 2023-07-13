@@ -1,12 +1,12 @@
 import type { Patch } from 'immer';
 import EthQuery from 'eth-query';
 import { v1 as random } from 'uuid';
-import type { Hex } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
+import { convertHexToDecimal, getEthChainIdDecFromCaipChainId, safelyExecute } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
@@ -247,7 +247,7 @@ export class GasFeeController extends BaseControllerV2<
 
   private getCurrentAccountEIP1559Compatibility;
 
-  private currentChainId;
+  private currentCaipChainId: CaipChainId;
 
   private ethQuery?: EthQuery;
 
@@ -268,7 +268,7 @@ export class GasFeeController extends BaseControllerV2<
    * current network is compatible with the legacy gas price API.
    * @param options.getCurrentAccountEIP1559Compatibility - Determines whether or not the current
    * account is EIP-1559 compatible.
-   * @param options.getChainId - Returns the current chain ID.
+   * @param options.getCaipChainId - Returns the current caip chain ID.
    * @param options.getProvider - Returns a network provider for the current network.
    * @param options.onNetworkStateChange - A function for registering an event handler for the
    * network state change event.
@@ -284,7 +284,7 @@ export class GasFeeController extends BaseControllerV2<
     state,
     getCurrentNetworkEIP1559Compatibility,
     getCurrentAccountEIP1559Compatibility,
-    getChainId,
+    getCaipChainId,
     getCurrentNetworkLegacyGasAPICompatibility,
     getProvider,
     onNetworkStateChange,
@@ -298,7 +298,7 @@ export class GasFeeController extends BaseControllerV2<
     getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
-    getChainId?: () => Hex;
+    getCaipChainId?: () => CaipChainId;
     getProvider: () => ProviderProxy;
     onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
@@ -326,15 +326,15 @@ export class GasFeeController extends BaseControllerV2<
 
     this.ethQuery = new EthQuery(this.#getProvider());
 
-    if (onNetworkStateChange && getChainId) {
-      this.currentChainId = getChainId();
+    if (onNetworkStateChange && getCaipChainId) {
+      this.currentCaipChainId = getCaipChainId();
       onNetworkStateChange(async (networkControllerState) => {
         await this.#onNetworkControllerStateChange(networkControllerState);
       });
     } else {
-      this.currentChainId = this.messagingSystem.call(
+      this.currentCaipChainId = this.messagingSystem.call(
         'NetworkController:getState',
-      ).providerConfig.chainId;
+      ).providerConfig.caipChainId;
       this.messagingSystem.subscribe(
         'NetworkController:stateChange',
         async (networkControllerState) => {
@@ -390,7 +390,7 @@ export class GasFeeController extends BaseControllerV2<
     const isLegacyGasAPICompatible =
       this.getCurrentNetworkLegacyGasAPICompatibility();
 
-    const decimalChainId = convertHexToDecimal(this.currentChainId);
+    const decimalChainId = getEthChainIdDecFromCaipChainId(this.currentCaipChainId);
 
     try {
       isEIP1559Compatible = await this.getEIP1559Compatibility();
@@ -506,13 +506,13 @@ export class GasFeeController extends BaseControllerV2<
   }
 
   async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
-    const newChainId = networkControllerState.providerConfig.chainId;
+    const newCaipChainId = networkControllerState.providerConfig.caipChainId;
 
-    if (newChainId !== this.currentChainId) {
+    if (newCaipChainId !== this.currentCaipChainId) {
       this.ethQuery = new EthQuery(this.#getProvider());
       await this.resetPolling();
 
-      this.currentChainId = newChainId;
+      this.currentCaipChainId = newCaipChainId;
     }
   }
 }

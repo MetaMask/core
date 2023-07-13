@@ -13,14 +13,14 @@ import {
   BUILT_IN_NETWORKS,
   convertHexToDecimal,
   NetworksTicker,
-  ChainId,
   InfuraNetworkType,
   NetworkType,
   isSafeChainId,
-  getEthChainIdDecFromCaipChainId,
+  BuiltInCaipChainId,
+  getEthChainIdHexFromCaipChainId,
 } from '@metamask/controller-utils';
 import {
-  Hex,
+  CaipChainId,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
@@ -49,7 +49,7 @@ const log = createModuleLogger(projectLogger, 'NetworkController');
  * Configuration passed to web3-provider-engine
  * @property rpcUrl - RPC target URL.
  * @property type - Human-readable network name.
- * @property chainId - Network ID as per EIP-155.
+ * @property caipChainId - chain ID as per CAIP-2.
  * @property ticker - Currency ticker.
  * @property nickname - Personalized network name.
  * @property id - Network Configuration Id.
@@ -57,7 +57,7 @@ const log = createModuleLogger(projectLogger, 'NetworkController');
 export type ProviderConfig = {
   rpcUrl?: string;
   type: NetworkType;
-  chainId: string;
+  caipChainId: CaipChainId;
   ticker?: string;
   nickname?: string;
   rpcPrefs?: { blockExplorerUrl?: string };
@@ -85,14 +85,14 @@ export type NetworkDetails = {
  * Custom RPC network information
  *
  * @property rpcUrl - RPC target URL.
- * @property chainId - Network ID as per EIP-155
+ * @property caipChainId - chain ID as per CAIP-2.
  * @property nickname - Personalized network name.
  * @property ticker - Currency ticker.
  * @property rpcPrefs - Personalized preferences.
  */
 export type NetworkConfiguration = {
   rpcUrl: string;
-  chainId: Hex;
+  caipChainId: CaipChainId;
   ticker: string;
   nickname?: string;
   rpcPrefs?: {
@@ -312,8 +312,8 @@ function isCustomProviderConfig(
 function validateCustomProviderConfig(
   providerConfig: ProviderConfig & { type: typeof NetworkType.rpc },
 ): asserts providerConfig is typeof providerConfig & { rpcUrl: string } {
-  if (providerConfig.chainId === undefined) {
-    throw new Error('chainId must be provided for custom RPC endpoints');
+  if (providerConfig.caipChainId === undefined) {
+    throw new Error('caipChainId must be provided for custom RPC endpoints');
   }
   if (providerConfig.rpcUrl === undefined) {
     throw new Error('rpcUrl must be provided for custom RPC endpoints');
@@ -455,7 +455,7 @@ export const defaultState: NetworkState = {
   networkStatus: NetworkStatus.Unknown,
   providerConfig: {
     type: NetworkType.mainnet,
-    chainId: ChainId.mainnet,
+    caipChainId: BuiltInCaipChainId.mainnet,
   },
   networkDetails: {
     EIPS: {},
@@ -829,7 +829,7 @@ export class NetworkController extends BaseControllerV2<
     this.update((state) => {
       state.providerConfig.type = type;
       state.providerConfig.ticker = ticker;
-      state.providerConfig.chainId = ChainId[type];
+      state.providerConfig.caipChainId = BuiltInCaipChainId[type];
       state.providerConfig.rpcPrefs = BUILT_IN_NETWORKS[type].rpcPrefs;
       state.providerConfig.rpcUrl = undefined;
       state.providerConfig.nickname = undefined;
@@ -860,7 +860,7 @@ export class NetworkController extends BaseControllerV2<
     this.update((state) => {
       state.providerConfig.type = NetworkType.rpc;
       state.providerConfig.rpcUrl = targetNetwork.rpcUrl;
-      state.providerConfig.chainId = targetNetwork.chainId;
+      state.providerConfig.caipChainId = targetNetwork.caipChainId;
       state.providerConfig.ticker = targetNetwork.ticker;
       state.providerConfig.nickname = targetNetwork.nickname;
       state.providerConfig.rpcPrefs = targetNetwork.rpcPrefs;
@@ -949,12 +949,12 @@ export class NetworkController extends BaseControllerV2<
    *
    * This may involve updating the `networkConfigurations` property in
    * state as well and/or adding a new network client to the network client
-   * registry. The `rpcUrl` and `chainId` of the given object are used to
+   * registry. The `rpcUrl` and `caipChainId` of the given object are used to
    * determine which action to take:
    *
    * - If the `rpcUrl` corresponds to an existing network configuration
    * (case-insensitively), then it is overwritten with the object. Furthermore,
-   * if the `chainId` is different from the existing network configuration, then
+   * if the `caipChainId` is different from the existing network configuration, then
    * the existing network client is replaced with a new one.
    * - If the `rpcUrl` does not correspond to an existing network configuration
    * (case-insensitively), then the object is used to add a new network
@@ -981,15 +981,15 @@ export class NetworkController extends BaseControllerV2<
   ): Promise<string> {
     const sanitizedNetworkConfiguration: NetworkConfiguration = pick(
       networkConfiguration,
-      ['rpcUrl', 'chainId', 'ticker', 'nickname', 'rpcPrefs'],
+      ['rpcUrl', 'caipChainId', 'ticker', 'nickname', 'rpcPrefs'],
     );
     const {
       rpcUrl,
-      chainId: caipChainId,
+      caipChainId,
       ticker,
     } = sanitizedNetworkConfiguration;
 
-    const chainId = getEthChainIdDecFromCaipChainId(caipChainId);
+    const chainId = getEthChainIdHexFromCaipChainId(caipChainId);
 
     assertIsStrictHexString(chainId);
     if (!isSafeChainId(chainId)) {
@@ -1049,7 +1049,7 @@ export class NetworkController extends BaseControllerV2<
       customNetworkClientRegistry[networkClientId];
     const shouldDestroyExistingNetworkClient =
       existingAutoManagedNetworkClient &&
-      existingAutoManagedNetworkClient.configuration.chainId !== chainId;
+      existingAutoManagedNetworkClient.configuration.caipChainId !== caipChainId;
     if (shouldDestroyExistingNetworkClient) {
       existingAutoManagedNetworkClient.destroy();
     }
@@ -1060,7 +1060,7 @@ export class NetworkController extends BaseControllerV2<
       customNetworkClientRegistry[networkClientId] =
         createAutoManagedNetworkClient({
           type: NetworkClientType.Custom,
-          chainId,
+          caipChainId,
           rpcUrl,
         });
     }
@@ -1256,8 +1256,8 @@ export class NetworkController extends BaseControllerV2<
   ][] {
     return Object.entries(this.state.networkConfigurations).map(
       ([networkConfigurationId, networkConfiguration]) => {
-        if (networkConfiguration.chainId === undefined) {
-          throw new Error('chainId must be provided for custom RPC endpoints');
+        if (networkConfiguration.caipChainId === undefined) {
+          throw new Error('caipChainId must be provided for custom RPC endpoints');
         }
         if (networkConfiguration.rpcUrl === undefined) {
           throw new Error('rpcUrl must be provided for custom RPC endpoints');
@@ -1267,7 +1267,7 @@ export class NetworkController extends BaseControllerV2<
         );
         const networkClientConfiguration: CustomNetworkClientConfiguration = {
           type: NetworkClientType.Custom,
-          chainId: networkConfiguration.chainId,
+          caipChainId: networkConfiguration.caipChainId,
           rpcUrl: networkConfiguration.rpcUrl,
         };
         return [
@@ -1305,7 +1305,7 @@ export class NetworkController extends BaseControllerV2<
         this.state.networkConfigurations,
       );
       const networkClientConfiguration: CustomNetworkClientConfiguration = {
-        chainId: providerConfig.chainId,
+        caipChainId: providerConfig.caipChainId,
         rpcUrl: providerConfig.rpcUrl,
         type: NetworkClientType.Custom,
       };

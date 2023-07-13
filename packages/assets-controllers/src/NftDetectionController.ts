@@ -1,4 +1,4 @@
-import type { Hex } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -11,7 +11,7 @@ import {
   OPENSEA_API_URL,
   fetchWithErrorHandling,
   toChecksumHexAddress,
-  ChainId,
+  BuiltInCaipChainId,
 } from '@metamask/controller-utils';
 import type { NftController, NftState, NftMetadata } from './NftController';
 import { Source } from './constants';
@@ -124,7 +124,7 @@ export interface ApiNftCreator {
  */
 export interface NftDetectionConfig extends BaseConfig {
   interval: number;
-  chainId: Hex;
+  caipChainId: CaipChainId;
   selectedAddress: string;
 }
 
@@ -206,7 +206,7 @@ export class NftDetectionController extends BaseController<
    * Creates an NftDetectionController instance.
    *
    * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
+   * @param options.caipChainId - The caip chain ID of the current network.
    * @param options.onNftsStateChange - Allows subscribing to assets controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
@@ -218,14 +218,14 @@ export class NftDetectionController extends BaseController<
    */
   constructor(
     {
-      chainId: initialChainId,
+      caipChainId: initialCaipChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
       getOpenSeaApiKey,
       addNft,
       getNftState,
     }: {
-      chainId: Hex;
+      caipChainId: CaipChainId;
       onNftsStateChange: (listener: (nftsState: NftState) => void) => void;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -243,7 +243,7 @@ export class NftDetectionController extends BaseController<
     super(config, state);
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
-      chainId: initialChainId,
+      caipChainId: initialCaipChainId,
       selectedAddress: '',
       disabled: true,
     };
@@ -271,7 +271,7 @@ export class NftDetectionController extends BaseController<
 
     onNetworkStateChange(({ providerConfig }) => {
       this.configure({
-        chainId: providerConfig.chainId,
+        caipChainId: providerConfig.caipChainId,
       });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
@@ -321,7 +321,7 @@ export class NftDetectionController extends BaseController<
    *
    * @returns Whether current network is mainnet.
    */
-  isMainnet = (): boolean => this.config.chainId === ChainId.mainnet;
+  isMainnet = (): boolean => this.config.caipChainId === BuiltInCaipChainId.mainnet;
 
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
@@ -332,7 +332,7 @@ export class NftDetectionController extends BaseController<
     if (!this.isMainnet() || this.disabled) {
       return;
     }
-    const { selectedAddress, chainId } = this.config;
+    const { selectedAddress, caipChainId } = this.config;
 
     /* istanbul ignore else */
     if (!selectedAddress) {
@@ -401,7 +401,7 @@ export class NftDetectionController extends BaseController<
           nftMetadata,
           {
             userAddress: selectedAddress,
-            chainId,
+            caipChainId,
           },
           Source.Detected,
         );

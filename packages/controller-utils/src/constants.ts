@@ -1,12 +1,11 @@
-import { NetworkType, NetworksTicker, ChainId, NetworkId } from './types';
+import { NetworkType, NetworksTicker, BuiltInCaipChainId, InfuraNetworkId } from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
 export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
 
 // NETWORKS ID
-// `toHex` not invoked to avoid cyclic dependency
-export const GANACHE_CHAIN_ID = '0x539'; // toHex(1337)
+export const GANACHE_CAIP_CHAIN_ID = 'eip155:1337';
 /**
  * The largest possible chain ID we can handle.
  * Explanation: https://gist.github.com/rekmarks/a47bd5f2525936c4b8eee31a16345553
@@ -49,42 +48,42 @@ export const TESTNET_TICKER_SYMBOLS = {
  */
 export const BUILT_IN_NETWORKS = {
   [NetworkType.goerli]: {
-    chainId: ChainId.goerli,
+    caipChainId: BuiltInCaipChainId.goerli,
     ticker: NetworksTicker.goerli,
     rpcPrefs: {
       blockExplorerUrl: `https://${NetworkType.goerli}.etherscan.io`,
     },
   },
   [NetworkType.sepolia]: {
-    chainId: ChainId.sepolia,
+    caipChainId: BuiltInCaipChainId.sepolia,
     ticker: NetworksTicker.sepolia,
     rpcPrefs: {
       blockExplorerUrl: `https://${NetworkType.sepolia}.etherscan.io`,
     },
   },
   [NetworkType.mainnet]: {
-    chainId: ChainId.mainnet,
+    caipChainId: BuiltInCaipChainId.mainnet,
     ticker: NetworksTicker.mainnet,
     rpcPrefs: {
       blockExplorerUrl: 'https://etherscan.io',
     },
   },
   [NetworkType['linea-goerli']]: {
-    chainId: ChainId['linea-goerli'],
+    caipChainId: BuiltInCaipChainId['linea-goerli'],
     ticker: NetworksTicker['linea-goerli'],
     rpcPrefs: {
       blockExplorerUrl: 'https://explorer.goerli.linea.build',
     },
   },
   [NetworkType['linea-mainnet']]: {
-    chainId: ChainId['linea-mainnet'],
+    caipChainId: BuiltInCaipChainId['linea-mainnet'],
     ticker: NetworksTicker['linea-mainnet'],
     rpcPrefs: {
       blockExplorerUrl: 'https://lineascan.build',
     },
   },
   [NetworkType.rpc]: {
-    chainId: undefined,
+    caipChainId: undefined,
     blockExplorerUrl: undefined,
     rpcPrefs: undefined,
   },
@@ -126,12 +125,12 @@ export enum ApprovalType {
 }
 
 export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
-  NetworkId,
+InfuraNetworkId,
   NetworkType
 > = {
-  [NetworkId.goerli]: NetworkType.goerli,
-  [NetworkId.sepolia]: NetworkType.sepolia,
-  [NetworkId.mainnet]: NetworkType.mainnet,
-  [NetworkId['linea-goerli']]: NetworkType['linea-goerli'],
-  [NetworkId['linea-mainnet']]: NetworkType['linea-mainnet'],
+  [InfuraNetworkId.goerli]: NetworkType.goerli,
+  [InfuraNetworkId.sepolia]: NetworkType.sepolia,
+  [InfuraNetworkId.mainnet]: NetworkType.mainnet,
+  [InfuraNetworkId['linea-goerli']]: NetworkType['linea-goerli'],
+  [InfuraNetworkId['linea-mainnet']]: NetworkType['linea-mainnet'],
 };

@@ -374,7 +374,7 @@ export const txsInStateMock = (
 ): TransactionMeta[] => [
   {
     id: 'token-transaction-id',
-    chainId: toHex(1),
+    caipChainId: 'eip155:1',
     status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
@@ -392,7 +392,7 @@ export const txsInStateMock = (
   },
   {
     id: 'eth-transaction-id',
-    chainId: toHex(1),
+    caipChainId: 'eip155:1',
     status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
@@ -416,7 +416,7 @@ export const txsInStateWithOutdatedStatusMock = (
 ): TransactionMeta[] => [
   {
     id: 'token-transaction-id',
-    chainId: toHex(1),
+    caipChainId: 'eip155:1',
     status: TransactionStatus.rejected,
     time: 1615497996125,
     transaction: {
@@ -434,7 +434,7 @@ export const txsInStateWithOutdatedStatusMock = (
   },
   {
     id: 'eth-transaction-id',
-    chainId: toHex(1),
+    caipChainId: 'eip155:1',
     status: TransactionStatus.rejected,
     time: 1615497996125,
     transaction: {
@@ -458,7 +458,7 @@ export const txsInStateWithOutdatedGasDataMock = (
 ): TransactionMeta[] => [
   {
     id: 'token-transaction-id',
-    chainId: toHex(1),
+    caipChainId: 'eip155:1',
     status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
@@ -476,7 +476,7 @@ export const txsInStateWithOutdatedGasDataMock = (
   },
   {
     id: 'eth-transaction-id',
-    chainId: toHex(1),
+    caipChainId: 'eip155:1',
     status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
@@ -500,7 +500,7 @@ export const txsInStateWithOutdatedStatusAndGasDataMock = (
 ): TransactionMeta[] => [
   {
     id: 'token-transaction-id',
-    chainId: toHex(1),
+    caipChainId: 'eip155:1',
     status: TransactionStatus.rejected,
     time: 1615497996125,
     transaction: {
@@ -518,7 +518,7 @@ export const txsInStateWithOutdatedStatusAndGasDataMock = (
   },
   {
     id: 'eth-transaction-id',
-    chainId: toHex(1),
+    caipChainId: 'eip155:1',
     status: TransactionStatus.rejected,
     time: 1615497996125,
     transaction: {

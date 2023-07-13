@@ -1,7 +1,9 @@
 import {
+  CaipChainId,
   getCaipChainIdString,
   parseCaipChainIdString,
   isCaipChainIdString,
+  Hex,
 } from '@metamask/utils';
 
 /**
@@ -10,7 +12,7 @@ import {
  * @param caipChainId - The caip chain ID to check for safety.
  * @returns Whether the given caip chain ID is valid for Ethereum chains.
  */
-export function isEthCaipChainId(caipChainId: string): boolean {
+export function isEthCaipChainId(caipChainId: CaipChainId): boolean {
   if (!isCaipChainIdString(caipChainId)) {
     return false;
   }
@@ -41,7 +43,7 @@ export function getCaipChainIdFromEthChainId(ethChainId: string): string {
  * @param caipChainId - The eth caip chain ID string.
  * @returns a decimal string for the eth chain id.
  */
-export function getEthChainIdDecFromCaipChainId(caipChainId: string): string {
+export function getEthChainIdDecFromCaipChainId(caipChainId: CaipChainId): string {
   const { reference } = parseCaipChainIdString(caipChainId);
   return reference;
 }
@@ -52,7 +54,7 @@ export function getEthChainIdDecFromCaipChainId(caipChainId: string): string {
  * @param caipChainId - The eth caip chain ID string.
  * @returns a hex string for the eth chain id.
  */
-export function getEthChainIdHexFromCaipChainId(caipChainId: string): string {
+export function getEthChainIdHexFromCaipChainId(caipChainId: CaipChainId): Hex {
   const { reference } = parseCaipChainIdString(caipChainId);
   return `0x${parseInt(reference, 10).toString(16)}`;
 }
@@ -63,7 +65,7 @@ export function getEthChainIdHexFromCaipChainId(caipChainId: string): string {
  * @param caipChainId - The eth caip chain ID string.
  * @returns an integer for the eth chain id.
  */
-export function getEthChainIdIntFromCaipChainId(caipChainId: string): number {
+export function getEthChainIdIntFromCaipChainId(caipChainId: CaipChainId): number {
   const { reference } = parseCaipChainIdString(caipChainId);
   return parseInt(reference, 10);
 }

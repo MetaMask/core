@@ -1,4 +1,4 @@
-import type { Hex } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -24,14 +24,14 @@ const DEFAULT_INTERVAL = 180000;
  * TokenDetection configuration
  * @property interval - Polling interval used to fetch new token rates
  * @property selectedAddress - Vault selected address
- * @property chainId - The chain ID of the current network
+ * @property caipChainId - The caip chain ID of the current network
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
 export interface TokenDetectionConfig extends BaseConfig {
   interval: number;
   selectedAddress: string;
-  chainId: Hex;
+  caipChainId: CaipChainId;
   isDetectionEnabledFromPreferences: boolean;
   isDetectionEnabledForNetwork: boolean;
 }
@@ -106,7 +106,7 @@ export class TokenDetectionController extends BaseController<
     state?: Partial<BaseState>,
   ) {
     const {
-      providerConfig: { chainId: defaultChainId },
+      providerConfig: { caipChainId: defaultCaipChainId },
     } = getNetworkState();
     const { useTokenDetection: defaultUseTokenDetection } =
       getPreferencesState();
@@ -116,10 +116,10 @@ export class TokenDetectionController extends BaseController<
       interval: DEFAULT_INTERVAL,
       selectedAddress: '',
       disabled: true,
-      chainId: defaultChainId,
+      caipChainId: defaultCaipChainId,
       isDetectionEnabledFromPreferences: defaultUseTokenDetection,
       isDetectionEnabledForNetwork:
-        isTokenDetectionSupportedForNetwork(defaultChainId),
+        isTokenDetectionSupportedForNetwork(defaultCaipChainId),
       ...config,
     };
 
@@ -160,14 +160,14 @@ export class TokenDetectionController extends BaseController<
       }
     });
 
-    onNetworkStateChange(({ providerConfig: { chainId } }) => {
-      const { chainId: currentChainId } = this.config;
+    onNetworkStateChange(({ providerConfig: { caipChainId } }) => {
+      const { caipChainId: currentCaipChainId } = this.config;
       const isDetectionEnabledForNetwork =
-        isTokenDetectionSupportedForNetwork(chainId);
-      const isChainIdChanged = currentChainId !== chainId;
+        isTokenDetectionSupportedForNetwork(caipChainId);
+      const isChainIdChanged = currentCaipChainId !== caipChainId;
 
       this.configure({
-        chainId,
+        caipChainId,
         isDetectionEnabledForNetwork,
       });
 
@@ -230,7 +230,7 @@ export class TokenDetectionController extends BaseController<
       return;
     }
     const { tokens } = this.getTokensState();
-    const { selectedAddress, chainId } = this.config;
+    const { selectedAddress, caipChainId } = this.config;
 
     const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
@@ -298,7 +298,7 @@ export class TokenDetectionController extends BaseController<
         if (tokensToAdd.length) {
           await this.addDetectedTokens(tokensToAdd, {
             selectedAddress,
-            chainId,
+            caipChainId,
           });
         }
       });
