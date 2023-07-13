@@ -41,3 +41,14 @@ export type InfuraNetworkClientConfiguration = {
 export type NetworkClientConfiguration =
   | CustomNetworkClientConfiguration
   | InfuraNetworkClientConfiguration;
+
+/**
+ * The pair of provider / block tracker that can be used to interface with the
+ * network and respond to new activity.
+ */
+export type NetworkClient = {
+  configuration: NetworkClientConfiguration;
+  provider: Provider;
+  blockTracker: BlockTracker;
+  destroy: () => void;
+};

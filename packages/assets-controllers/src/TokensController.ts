@@ -6,6 +6,12 @@ import type {
   BaseState,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import type {
+  NetworkState,
+  Provider,
+  NetworkClient,
+} from '@metamask/network-controller';
 import {
   toChecksumHexAddress,
   ERC721_INTERFACE_ID,
@@ -14,8 +20,6 @@ import {
   ERC20,
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
-import type { NetworkState, Provider, ProviderConfig } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
 import { Mutex } from 'async-mutex';
@@ -32,13 +36,7 @@ import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from './token-service';
-import type {
-  TokenListMap,
-  TokenListState,
-  TokenListToken,
-} from './TokenListController';
 import type { Token } from './TokenRatesController';
-import { NetworkClient } from '@metamask/network-controller/src/create-network-client';
 
 /**
  * @type TokensConfig
@@ -96,10 +94,23 @@ export interface TokensState extends BaseState {
  */
 const controllerName = 'TokensController';
 
+export type getClientForDomain = {
+  type: `SelectedNetworkController:getClientForDomain`;
+  handler: (opts: { origin: string }) => NetworkClient;
+};
+
+export type getChainForDomain = {
+  type: `SelectedNetworkController:getChainForDomain`;
+  handler: (opts: { origin: string }) => string;
+};
+
 /**
  * The external actions available to the {@link TokensController}.
  */
-type AllowedActions = AddApprovalRequest;
+type AllowedActions =
+  | AddApprovalRequest
+  | getClientForDomain
+  | getChainForDomain;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -693,15 +704,14 @@ export class TokensController extends BaseController<
       throw new Error(`Asset of type ${type} not supported`);
     }
 
-    // figure out when we need the networkClient from the origin vs when we can use the default from the networkController
     const networkClient = await this.messagingSystem.call(
       'SelectedNetworkController:getClientForDomain',
-      origin,
+      { origin },
     );
 
     const chainId: any = await this.messagingSystem.call(
       'SelectedNetworkController:getChainForDomain',
-      origin,
+      { origin },
     );
 
     const { selectedAddress } = this.config;
@@ -750,7 +760,6 @@ export class TokensController extends BaseController<
    * @param params.newDetectedTokens - The new detected tokens to set for the current network and selected account.
    * @param params.interactingAddress - The account address to use to store the tokens.
    * @param params.interactingChainId - The chainId to use to store the tokens.
-   * @param params.chainId - The chainId to use to store the tokens.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
   _getNewAllTokensState(params: {
