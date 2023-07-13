@@ -22,6 +22,7 @@ module.exports = {
       // various rules meant just to apply to tests have been disabled.
       files: ['**/tests/**/*.{ts,js}', '!*.test.{ts,js}'],
       rules: {
+        '@typescript-eslint/naming-convention': 'off',
         'jest/no-export': 'off',
         'jest/require-top-level-describe': 'off',
         'jest/no-if': 'off',
@@ -77,32 +78,20 @@ module.exports = {
     },
   ],
   rules: {
-    // This is already set in the newest version of eslint-config
-    'padding-line-between-statements': [
-      'error',
-      {
-        blankLine: 'always',
-        prev: 'directive',
-        next: '*',
-      },
-      {
-        blankLine: 'any',
-        prev: 'directive',
-        next: 'directive',
-      },
-    ],
-
     // Left disabled because various properties throughough this repo are snake_case because the
     // names come from external sources or must comply with standards
     // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
     camelcase: 'off',
 
     // TODO: re-enble most of these rules
+    '@typescript-eslint/naming-convention': 'warn',
     'function-paren-newline': 'off',
     'guard-for-in': 'off',
+    'id-denylist': 'off',
     'implicit-arrow-linebreak': 'off',
     'import/no-anonymous-default-export': 'off',
     'import/no-unassigned-import': 'off',
+    'jsdoc/match-description': 'warn',
     'lines-around-comment': 'off',
     'no-async-promise-executor': 'off',
     'no-case-declarations': 'off',
@@ -113,7 +102,7 @@ module.exports = {
     radix: 'off',
     'require-atomic-updates': 'off',
     'jsdoc/match-description': [
-      'error',
+      'warn',
       { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
     ],
   },
