@@ -28,6 +28,10 @@ module.exports = {
         'jest/no-test-return-statement': 'off',
         // TODO: Re-enable this rule; we can accomodate this even in our test helpers
         'jest/expect-expect': 'off',
+
+        // TODO: Re-enable
+        '@typescript-eslint/naming-convention': 'off',
+        'import/no-named-as-default-member': 'off',
       },
     },
     {
@@ -60,11 +64,23 @@ module.exports = {
             ignoreRestSiblings: true,
           },
         ],
+
+        '@typescript-eslint/await-thenable': 'warn',
+        '@typescript-eslint/naming-convention': 'warn',
+        '@typescript-eslint/no-floating-promises': 'warn',
+        '@typescript-eslint/no-misused-promises': 'warn',
+        '@typescript-eslint/unbound-method': 'warn',
+        '@typescript-eslint/prefer-enum-initializers': 'off',
+        '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+        '@typescript-eslint/restrict-template-expressions': 'warn',
+        'no-restricted-syntax': 'warn',
+        'no-restricted-globals': 'off',
       },
     },
     {
       files: ['*.d.ts'],
       rules: {
+        '@typescript-eslint/naming-convention': 'warn',
         'import/unambiguous': 'off',
       },
     },
@@ -72,7 +88,7 @@ module.exports = {
       files: ['scripts/*.ts'],
       rules: {
         // All scripts will have shebangs.
-        'node/shebang': 'off',
+        'n/shebang': 'off',
       },
     },
   ],
@@ -96,6 +112,7 @@ module.exports = {
     // names come from external sources or must comply with standards
     // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
     camelcase: 'off',
+    'id-length': 'off',
 
     // TODO: re-enble most of these rules
     'function-paren-newline': 'off',
@@ -104,12 +121,14 @@ module.exports = {
     'import/no-anonymous-default-export': 'off',
     'import/no-unassigned-import': 'off',
     'lines-around-comment': 'off',
+    'n/no-sync': 'off',
     'no-async-promise-executor': 'off',
     'no-case-declarations': 'off',
     'no-invalid-this': 'off',
     'no-negated-condition': 'off',
     'no-new': 'off',
     'no-param-reassign': 'off',
+    'no-restricted-syntax': 'off',
     radix: 'off',
     'require-atomic-updates': 'off',
     'jsdoc/match-description': [

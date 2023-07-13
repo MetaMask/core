@@ -771,7 +771,7 @@ export class KeyringController extends BaseControllerV2<
    * Cancels qr keyring sync.
    */
   async cancelQRSynchronization(): Promise<void> {
-    // eslint-disable-next-line node/no-sync
+    // eslint-disable-next-line n/no-sync
     (await this.getOrAddQRKeyring()).cancelSync();
   }
 
