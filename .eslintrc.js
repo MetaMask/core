@@ -82,7 +82,7 @@ module.exports = {
         '@typescript-eslint/no-unnecassary-type-assertion': 'off',
         '@typescript-eslint/unbound-method': 'warn',
         '@typescript-eslint/prefer-enum-initializers': 'off',
-        '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+        '@typescript-eslint/prefer-nullish-coalescing': 'off',
         '@typescript-eslint/prefer-optional-chain': 'off',
         '@typescript-eslint/restrict-plus-operands': 'warn',
         '@typescript-eslint/restrict-template-expressions': 'warn',
