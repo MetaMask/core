@@ -15,6 +15,11 @@ module.exports = {
     {
       files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
       extends: ['@metamask/eslint-config-jest'],
+      rules: {
+        // TODO: Re-enable
+        'import/no-named-as-default-member': 'off',
+        'jest/no-conditional-expect': 'off',
+      },
     },
     {
       // These files are test helpers, not tests. We still use the Jest ESLint
@@ -31,7 +36,6 @@ module.exports = {
 
         // TODO: Re-enable
         '@typescript-eslint/naming-convention': 'off',
-        'import/no-named-as-default-member': 'off',
       },
     },
     {
@@ -68,10 +72,14 @@ module.exports = {
         '@typescript-eslint/await-thenable': 'warn',
         '@typescript-eslint/naming-convention': 'warn',
         '@typescript-eslint/no-floating-promises': 'warn',
+        '@typescript-eslint/no-for-in-array': 'warn',
+        '@typescript-eslint/no-loss-of-precision': 'warn',
         '@typescript-eslint/no-misused-promises': 'warn',
         '@typescript-eslint/unbound-method': 'warn',
         '@typescript-eslint/prefer-enum-initializers': 'off',
         '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+        '@typescript-eslint/prefer-optional-chain': 'off',
+        '@typescript-eslint/restrict-plus-operands': 'warn',
         '@typescript-eslint/restrict-template-expressions': 'warn',
         'no-restricted-syntax': 'warn',
         'no-restricted-globals': 'off',
