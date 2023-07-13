@@ -87,6 +87,11 @@ interface SupportedVsCurrenciesCache {
   data: string[];
 }
 
+enum PollState {
+  Active = 'Active',
+  Inactive = 'Inactive',
+}
+
 /**
  * @type TokenRatesState
  *
@@ -155,6 +160,8 @@ export class TokenRatesController extends BaseController<
     data: [],
   };
 
+  #pollState = PollState.Inactive;
+
   /**
    * Name of this controller used during composition
    */
@@ -217,20 +224,49 @@ export class TokenRatesController extends BaseController<
       this.update({ contractExchangeRates: {} });
       this.configure({ chainId, nativeCurrency: ticker });
     });
-    this.poll();
   }
 
   /**
-   * Sets a new polling interval.
+   * Start (or restart) polling.
    *
    * @param interval - Polling interval used to fetch new token rates.
    */
-  async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+  async start(interval?: number) {
+    if (interval) {
+      this.configure({ interval }, false, false);
+    }
+    this.#stopPoll();
+    this.#pollState = PollState.Active;
+    await this.#poll();
+  }
+
+  /**
+   * Stop polling.
+   */
+  stop() {
+    this.#stopPoll();
+    this.#pollState = PollState.Inactive;
+  }
+
+  /**
+   * Clear the active polling timer, if present.
+   */
+  #stopPoll() {
+    if (this.handle) {
+      clearTimeout(this.handle);
+    }
+  }
+
+  /**
+   * Poll for exchange rate updates.
+   */
+  async #poll() {
     await safelyExecute(() => this.updateExchangeRates());
+
+    // Poll using recursive `setTimeout` instead of `setInterval` so that
+    // requests don't stack if they take longer than the polling interval
     this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
+      this.#poll();
     }, this.config.interval);
   }
 
@@ -242,7 +278,9 @@ export class TokenRatesController extends BaseController<
    * @param _chainId - The current chain ID.
    */
   set chainId(_chainId: Hex) {
-    !this.disabled && safelyExecute(() => this.updateExchangeRates());
+    if (this.#pollState === PollState.Active) {
+      this.updateExchangeRates();
+    }
   }
 
   get chainId() {
@@ -258,7 +296,9 @@ export class TokenRatesController extends BaseController<
    */
   set tokens(tokens: Token[]) {
     this.tokenList = tokens;
-    !this.disabled && safelyExecute(() => this.updateExchangeRates());
+    if (this.#pollState === PollState.Active) {
+      this.updateExchangeRates();
+    }
   }
 
   get tokens() {

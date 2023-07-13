@@ -4,6 +4,8 @@ import * as sinon from 'sinon';
 
 import { TokenRatesController } from './TokenRatesController';
 
+const originalSetTimeout = globalThis.setTimeout;
+
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const COINGECKO_ETH_PATH = '/simple/token_price/ethereum';
 const COINGECKO_MATIC_PATH = '/simple/token_price/polygon-pos-network';
@@ -44,13 +46,14 @@ describe('TokenRatesController', () => {
           name: 'Polygon',
           shortname: 'MATIC',
         },
-      ])
-      .persist();
+      ]);
   });
 
   afterEach(() => {
     nock.cleanAll();
     sinon.restore();
+    jest.resetAllMocks();
+    jest.useRealTimers();
   });
 
   it('should set default state', () => {
@@ -94,11 +97,34 @@ describe('TokenRatesController', () => {
     );
   });
 
-  it('should poll and update rate in the right interval', async () => {
-    const pollSpy = jest.spyOn(TokenRatesController.prototype, 'poll');
-    const interval = 100;
-    const times = 5;
+  it('should not poll by default', async () => {
+    jest.useFakeTimers();
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
     new TokenRatesController(
+      {
+        chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
+        onTokensStateChange: jest.fn(),
+        onNetworkStateChange: jest.fn(),
+      },
+      {
+        interval: 100,
+        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+      },
+    );
+
+    jest.advanceTimersByTime(500);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should poll and update rate in the right interval', async () => {
+    jest.useFakeTimers();
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      throw new Error('Network error');
+    });
+    const interval = 100;
+    const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
@@ -111,13 +137,46 @@ describe('TokenRatesController', () => {
       },
     );
 
-    expect(pollSpy).toHaveBeenCalledTimes(1);
-    expect(pollSpy).not.toHaveBeenCalledTimes(times);
-    await new Promise((resolve) => {
-      setTimeout(resolve, interval * (times - 0.5));
+    await controller.start();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(interval);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    // empty Promise queue
+    await new Promise((resolve) => originalSetTimeout(resolve, 0));
+    jest.advanceTimersByTime(interval);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('should stop polling', async () => {
+    jest.useFakeTimers();
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      throw new Error('Network error');
     });
-    expect(pollSpy).toHaveBeenCalledTimes(times);
-    pollSpy.mockClear();
+    const interval = 100;
+    const controller = new TokenRatesController(
+      {
+        chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
+        onTokensStateChange: jest.fn(),
+        onNetworkStateChange: jest.fn(),
+      },
+      {
+        interval,
+        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+      },
+    );
+
+    await controller.start();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    controller.stop();
+
+    // empty Promise queue
+    await new Promise((resolve) => originalSetTimeout(resolve, 0));
+    jest.advanceTimersByTime(interval);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
   it('should not update rates if disabled', async () => {
@@ -138,24 +197,35 @@ describe('TokenRatesController', () => {
     expect((controller.fetchExchangeRate as any).called).toBe(false);
   });
 
-  it('should clear previous interval', async () => {
-    const mock = sinon.stub(global, 'clearTimeout');
+  it('should update polling interval', async () => {
+    jest.useFakeTimers();
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      throw new Error('Network error');
+    });
+    const newInterval = 1000;
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
-        onTokensStateChange: sinon.stub(),
-        onNetworkStateChange: sinon.stub(),
+        onTokensStateChange: jest.fn(),
+        onNetworkStateChange: jest.fn(),
       },
-      { interval: 1337 },
+      {
+        interval: 100,
+        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+      },
     );
-    await new Promise<void>((resolve) => {
-      setTimeout(() => {
-        controller.poll(1338);
-        expect(mock.called).toBe(true);
-        resolve();
-      }, 100);
-    });
+
+    await controller.start();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(newInterval);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    // empty Promise queue
+    await new Promise((resolve) => originalSetTimeout(resolve, 0));
+    jest.advanceTimersByTime(newInterval);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
   it('should update all rates', async () => {
@@ -165,8 +235,7 @@ describe('TokenRatesController', () => {
       )
       .reply(200, {
         '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
-      })
-      .persist();
+      });
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
@@ -216,7 +285,8 @@ describe('TokenRatesController', () => {
     expect(mock).not.toThrow();
   });
 
-  it('should update exchange rates when tokens change', async () => {
+  it('should update exchange rates when tokens change while polling is active', async () => {
+    jest.useFakeTimers();
     let tokenStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub().callsFake((listener) => {
       tokenStateChangeListener = listener;
@@ -231,18 +301,47 @@ describe('TokenRatesController', () => {
       },
       { interval: 10 },
     );
-
+    await controller.start();
     const updateExchangeRatesStub = sinon.stub(
       controller,
       'updateExchangeRates',
     );
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
+
     // FIXME: This is now being called twice
     expect(updateExchangeRatesStub.callCount).toBe(2);
   });
 
-  it('should update exchange rates when ticker changes', async () => {
+  it('should not update exchange rates when tokens change while polling is inactive', async () => {
+    let tokenStateChangeListener: (state: any) => void;
+    const onTokensStateChange = sinon.stub().callsFake((listener) => {
+      tokenStateChangeListener = listener;
+    });
+    const onNetworkStateChange = sinon.stub();
+    const controller = new TokenRatesController(
+      {
+        chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
+        onTokensStateChange,
+        onNetworkStateChange,
+      },
+      { interval: 10 },
+    );
+    const updateExchangeRatesStub = sinon.stub(
+      controller,
+      'updateExchangeRates',
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
+
+    expect(updateExchangeRatesStub.callCount).toStrictEqual(0);
+  });
+
+  it('should update exchange rates when ticker changes while polling is active', async () => {
+    jest.useFakeTimers();
     let networkStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub();
     const onNetworkStateChange = sinon.stub().callsFake((listener) => {
@@ -257,17 +356,47 @@ describe('TokenRatesController', () => {
       },
       { interval: 10 },
     );
-
+    await controller.start();
     const updateExchangeRatesStub = sinon.stub(
       controller,
       'updateExchangeRates',
     );
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     networkStateChangeListener!({
       providerConfig: { chainId: toHex(1), ticker: 'dai' },
     });
+
     // FIXME: This is now being called twice
     expect(updateExchangeRatesStub.callCount).toBe(2);
+  });
+
+  it('should not update exchange rates when ticker changes while polling is inactive', async () => {
+    let networkStateChangeListener: (state: any) => void;
+    const onTokensStateChange = sinon.stub();
+    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+      networkStateChangeListener = listener;
+    });
+    const controller = new TokenRatesController(
+      {
+        chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
+        onTokensStateChange,
+        onNetworkStateChange,
+      },
+      { interval: 10 },
+    );
+    const updateExchangeRatesStub = sinon.stub(
+      controller,
+      'updateExchangeRates',
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    networkStateChangeListener!({
+      providerConfig: { chainId: toHex(1), ticker: 'dai' },
+    });
+
+    expect(updateExchangeRatesStub.callCount).toStrictEqual(0);
   });
 
   it('should update exchange rates when native currency is not supported by coingecko', async () => {
@@ -281,13 +410,11 @@ describe('TokenRatesController', () => {
         '0x03': {
           eth: 0.002,
         },
-      })
-      .persist();
+      });
 
     nock('https://min-api.cryptocompare.com')
       .get('/data/price?fsym=ETH&tsyms=MATIC')
-      .reply(200, { MATIC: 0.5 }) // .5 eth to 1 matic
-      .persist();
+      .reply(200, { MATIC: 0.5 }); // .5 eth to 1 matic
 
     const expectedExchangeRates = {
       '0x02': 0.0005, // token value in terms of matic = (token value in eth) * (eth value in matic) = .001 * .5
@@ -349,8 +476,7 @@ describe('TokenRatesController', () => {
         '0x03': {
           eth: 0.002,
         },
-      })
-      .persist();
+      });
 
     let networkChangeListener: (state: any) => void;
     const onNetworkStateChange = sinon.stub().callsFake((listener) => {
@@ -427,14 +553,11 @@ describe('TokenRatesController', () => {
         '0x03': {
           eth: 0.002,
         },
-      })
-      .persist();
-
+      });
     let tokenStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub().callsFake((listener) => {
       tokenStateChangeListener = listener;
     });
-
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
@@ -444,7 +567,6 @@ describe('TokenRatesController', () => {
       },
       { interval: 10 },
     );
-
     expect(controller.state.contractExchangeRates).toStrictEqual({});
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -467,7 +589,6 @@ describe('TokenRatesController', () => {
       ],
       tokens: [],
     });
-
     await controller.updateExchangeRates();
 
     expect(controller.state.contractExchangeRates).toStrictEqual({
