@@ -132,6 +132,7 @@ module.exports = {
     '@typescript-eslint/naming-convention': 'off',
     'function-paren-newline': 'off',
     'guard-for-in': 'off',
+    'id-denylist': 'off',
     'implicit-arrow-linebreak': 'off',
     'import/no-anonymous-default-export': 'off',
     'import/no-unassigned-import': 'off',
