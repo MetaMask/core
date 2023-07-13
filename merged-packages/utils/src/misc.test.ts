@@ -3,6 +3,7 @@ import {
   isNullOrUndefined,
   isObject,
   hasProperty,
+  getKnownPropertyNames,
   RuntimeObject,
   isPlainObject,
   calculateNumberSize,
@@ -113,6 +114,21 @@ describe('miscellaneous', () => {
       ).forEach(([objectValue, property]) => {
         expect(hasProperty(objectValue, property)).toBe(false);
       });
+    });
+  });
+
+  describe('getKnownPropertyNames', () => {
+    it('returns the own property names of the object', () => {
+      const object = { foo: 'bar', baz: 'qux' };
+
+      expect(getKnownPropertyNames(object)).toStrictEqual(['foo', 'baz']);
+    });
+
+    it('does not return inherited properties', () => {
+      const superObject = { foo: 'bar' };
+      const object = Object.create(superObject);
+
+      expect(getKnownPropertyNames(object)).toStrictEqual([]);
     });
   });
 

@@ -99,6 +99,23 @@ export const hasProperty = <
     Property extends keyof ObjectToCheck ? ObjectToCheck[Property] : unknown
   > => Object.hasOwnProperty.call(objectToCheck, name);
 
+/**
+ * `Object.getOwnPropertyNames()` is intentionally generic: it returns the
+ * immediate property names of an object, but it cannot make guarantees about
+ * the contents of that object, so the type of the property names is merely
+ * `string[]`. While this is technically accurate, it is also unnecessary if we
+ * have an object with a type that we own (such as an enum).
+ *
+ * @param object - The plain object.
+ * @returns The own property names of the object which are assigned a type
+ * derived from the object itself.
+ */
+export function getKnownPropertyNames<Key extends PropertyKey>(
+  object: Partial<Record<Key, any>>,
+): Key[] {
+  return Object.getOwnPropertyNames(object) as Key[];
+}
+
 export type PlainObject = Record<number | string | symbol, unknown>;
 
 /**

@@ -1,6 +1,11 @@
 import { expectAssignable, expectNotAssignable, expectType } from 'tsd';
 
-import { isObject, hasProperty, RuntimeObject } from './misc';
+import {
+  isObject,
+  hasProperty,
+  getKnownPropertyNames,
+  RuntimeObject,
+} from './misc';
 
 //=============================================================================
 // isObject
@@ -98,6 +103,19 @@ const hasPropertyTypeExample: HasPropertyTypeExample = {};
 if (hasProperty(hasPropertyTypeExample, 'a')) {
   expectType<number | undefined>(hasPropertyTypeExample.a);
 }
+
+//=============================================================================
+// getKnownPropertyNames
+//=============================================================================
+
+enum GetKnownPropertyNamesEnumExample {
+  Foo = 'bar',
+  Baz = 'qux',
+}
+
+expectType<('Foo' | 'Baz')[]>(
+  getKnownPropertyNames(GetKnownPropertyNamesEnumExample),
+);
 
 //=============================================================================
 // RuntimeObject
