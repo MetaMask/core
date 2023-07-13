@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0]
+### Added
+- Add support for Linea networks ([#1423](https://github.com/MetaMask/core/pull/1423))
+  - Add `LINEA_GOERLI` to `TESTNET_TICKER_SYMBOLS` map
+  - Add `linea-goerli` and `linea-mainnet` to `BUILT_IN_NETWORKS` map, as well as `NetworkType`, `InfuraNetworkType`, `ChainId`, and `NetworkId `enums
+  - Add `LineaGoerli` and `LineaMainnet` to `BuiltInNetworkName` enum
+
 ## [4.1.0]
 ### Added
 - Add approval types for result pages ([#1442](https://github.com/MetaMask/core/pull/1442))
@@ -120,7 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.2.0...HEAD
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.1.0...@metamask/controller-utils@4.2.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.0.1...@metamask/controller-utils@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.0.0...@metamask/controller-utils@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.4.0...@metamask/controller-utils@4.0.0
