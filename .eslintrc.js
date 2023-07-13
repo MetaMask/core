@@ -69,6 +69,9 @@ module.exports = {
           },
         ],
 
+        // TODO: auto-fix breaks stuff
+        '@typescript-eslint/promise-function-async': 'off',
+
         // TODO: re-enble most of these rules
         '@typescript-eslint/await-thenable': 'warn',
         '@typescript-eslint/naming-convention': 'off',
