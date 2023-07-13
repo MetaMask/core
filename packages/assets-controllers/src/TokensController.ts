@@ -6,8 +6,6 @@ import type {
   BaseState,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
-import contractsMap from '@metamask/contract-metadata';
 import {
   toChecksumHexAddress,
   ERC721_INTERFACE_ID,
@@ -16,7 +14,7 @@ import {
   ERC20,
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
-import type { NetworkState } from '@metamask/network-controller';
+import type { NetworkState, Provider, ProviderConfig } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
@@ -40,6 +38,7 @@ import type {
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import { NetworkClient } from '@metamask/network-controller/src/create-network-client';
 
 /**
  * @type TokensConfig
@@ -69,6 +68,7 @@ type SuggestedAssetMeta = {
   type: string;
   asset: Token;
   interactingAddress: string;
+  chainId: string;
 };
 
 /**
@@ -131,14 +131,16 @@ export class TokensController extends BaseController<
    * Fetch metadata for a token.
    *
    * @param tokenAddress - The address of the token.
+   * @param chainId - The chain ID of the current network.
    * @returns The token metadata.
    */
   private async fetchTokenMetadata(
     tokenAddress: string,
+    chainId?: `0x${string}`,
   ): Promise<TokenListToken | undefined> {
     try {
       const token = await fetchTokenMetadata<TokenListToken>(
-        this.config.chainId,
+        chainId || this.config.chainId,
         tokenAddress,
         this.abortController.signal,
       );
@@ -273,6 +275,8 @@ export class TokensController extends BaseController<
    * @param address - Hex address of the token contract.
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals the token uses.
+   * @param chainId - The chain ID of the current network.
+   * @param networkClient - The network client.
    * @param options - Object containing name and image of the token
    * @param options.name - Name of the token
    * @param options.image - Image of the token
@@ -283,11 +287,17 @@ export class TokensController extends BaseController<
     address: string,
     symbol: string,
     decimals: number,
+    chainId?: `0x${string}`,
+    networkClient?: NetworkClient,
     {
       name,
       image,
       interactingAddress,
-    }: { name?: string; image?: string; interactingAddress?: string } = {},
+    }: {
+      name?: string;
+      image?: string;
+      interactingAddress?: string;
+    } = {},
   ): Promise<Token[]> {
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId: currentChainId, selectedAddress } = this.config;
@@ -304,8 +314,8 @@ export class TokensController extends BaseController<
         allDetectedTokens[currentChainId]?.[accountAddress] || [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
-        this._detectIsERC721(address),
-        this.fetchTokenMetadata(address),
+        this._detectIsERC721(address, networkClient?.provider),
+        this.fetchTokenMetadata(address, chainId),
       ]);
       if (currentChainId !== this.config.chainId) {
         throw new Error(
@@ -349,6 +359,7 @@ export class TokensController extends BaseController<
           newIgnoredTokens,
           newDetectedTokens,
           interactingAddress: accountAddress,
+          interactingChainId: chainId,
         });
 
       let newState: Partial<TokensState> = {
@@ -619,10 +630,11 @@ export class TokensController extends BaseController<
    * Detects whether or not a token is ERC-721 compatible.
    *
    * @param tokenAddress - The token contract address.
+   * @param provider - The provider to use to check for ERC-721 compatibility.
    * @returns A boolean indicating whether the token address passed in supports the EIP-721
    * interface.
    */
-  async _detectIsERC721(tokenAddress: string) {
+  async _detectIsERC721(tokenAddress: string, provider?: Provider) {
     const checksumAddress = toChecksumHexAddress(tokenAddress);
     // if this token is already in our contract metadata map we don't need
     // to check against the contract
@@ -635,7 +647,7 @@ export class TokensController extends BaseController<
     const tokenContract = this._createEthersContract(
       tokenAddress,
       abiERC721,
-      this.ethersProvider,
+      provider || this.ethersProvider,
     );
     try {
       return await tokenContract.supportsInterface(ERC721_INTERFACE_ID);
@@ -667,17 +679,30 @@ export class TokensController extends BaseController<
    *
    * @param asset - The asset to be watched. For now only ERC20 tokens are accepted.
    * @param type - The asset type.
+   * @param origin - The config for the current network.
    * @param interactingAddress - The address of the account that is requesting to watch the asset.
    * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
    */
   async watchAsset(
     asset: Token,
     type: string,
+    origin: string,
     interactingAddress?: string,
   ): Promise<void> {
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
     }
+
+    // figure out when we need the networkClient from the origin vs when we can use the default from the networkController
+    const networkClient = await this.messagingSystem.call(
+      'SelectedNetworkController:getClientForDomain',
+      origin,
+    );
+
+    const chainId: any = await this.messagingSystem.call(
+      'SelectedNetworkController:getChainForDomain',
+      origin,
+    );
 
     const { selectedAddress } = this.config;
 
@@ -687,6 +712,7 @@ export class TokensController extends BaseController<
       time: Date.now(),
       type,
       interactingAddress: interactingAddress || selectedAddress,
+      chainId,
     };
 
     validateTokenToWatch(asset);
@@ -700,11 +726,18 @@ export class TokensController extends BaseController<
       name = undefined;
     }
 
-    await this.addToken(asset.address, asset.symbol, asset.decimals, {
-      name,
-      image: asset.image,
-      interactingAddress: suggestedAssetMeta.interactingAddress,
-    });
+    await this.addToken(
+      asset.address,
+      asset.symbol,
+      asset.decimals,
+      chainId,
+      networkClient,
+      {
+        name,
+        image: asset.image,
+        interactingAddress: suggestedAssetMeta.interactingAddress,
+      },
+    );
   }
 
   /**
@@ -717,6 +750,7 @@ export class TokensController extends BaseController<
    * @param params.newDetectedTokens - The new detected tokens to set for the current network and selected account.
    * @param params.interactingAddress - The account address to use to store the tokens.
    * @param params.interactingChainId - The chainId to use to store the tokens.
+   * @param params.chainId - The chainId to use to store the tokens.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
   _getNewAllTokensState(params: {
@@ -734,6 +768,7 @@ export class TokensController extends BaseController<
       interactingChainId,
     } = params;
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+
     const { chainId, selectedAddress } = this.config;
 
     const userAddressToAddTokens = interactingAddress ?? selectedAddress;
