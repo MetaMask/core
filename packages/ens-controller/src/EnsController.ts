@@ -7,7 +7,7 @@ import {
   ExternalProvider,
   JsonRpcFetchFunc,
 } from '@ethersproject/providers';
-import { CaipChainId, Hex, createProjectLogger, hasProperty } from '@metamask/utils';
+import { CaipChainId, createProjectLogger, hasProperty } from '@metamask/utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
@@ -229,7 +229,11 @@ export class EnsController extends BaseControllerV2<
    * @param address - Associated address (or null) to add or update.
    * @returns Boolean indicating if the entry was set.
    */
-  set(caipChainId: CaipChainId, ensName: string, address: string | null): boolean {
+  set(
+    caipChainId: CaipChainId,
+    ensName: string,
+    address: string | null,
+  ): boolean {
     if (
       !isEthCaipChainId(caipChainId) || // is this right?
       !ensName ||

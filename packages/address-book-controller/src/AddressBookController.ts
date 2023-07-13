@@ -1,9 +1,8 @@
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
-  toHex,
 } from '@metamask/controller-utils';
 import {
   BaseController,
@@ -58,7 +57,9 @@ export interface AddressBookEntry {
  * @property addressBook - Array of contact entry objects
  */
 export interface AddressBookState extends BaseState {
-  addressBook: { [caipChainId: CaipChainId]: { [address: string]: AddressBookEntry } };
+  addressBook: {
+    [caipChainId: CaipChainId]: { [address: string]: AddressBookEntry };
+  };
 }
 
 /**
