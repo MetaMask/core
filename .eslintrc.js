@@ -132,7 +132,7 @@ module.exports = {
     radix: 'off',
     'require-atomic-updates': 'off',
     'jsdoc/match-description': [
-      'warn',
+      'off',
       { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
     ],
   },
