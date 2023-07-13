@@ -41,7 +41,7 @@ const originalSetTimeout = setTimeout;
  * @param args - The arguments that `console.log` takes.
  */
 function debug(...args: any) {
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   if (process.env.DEBUG_PROVIDER_TESTS === '1') {
     console.log(...args);
   }
@@ -432,9 +432,9 @@ export async function withNetworkClient(
   // than it usually would to complete. Or at least it should — this doesn't
   // appear to be working correctly. Unset `IN_TEST` on `process.env` to prevent
   // this behavior.
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   const inTest = process.env.IN_TEST;
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   delete process.env.IN_TEST;
   const clientUnderTest =
     providerType === 'infura'
@@ -448,7 +448,7 @@ export async function withNetworkClient(
           rpcUrl: customRpcUrl,
           type: NetworkClientType.Custom,
         });
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
 
   const { provider, blockTracker } = clientUnderTest;
