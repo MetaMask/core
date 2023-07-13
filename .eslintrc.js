@@ -41,7 +41,6 @@ module.exports = {
     {
       files: ['*.js'],
       parserOptions: {
-        project: ['./tsconfig.packages.json'],
         sourceType: 'script',
         ecmaVersion: '2018',
       },
@@ -49,9 +48,6 @@ module.exports = {
     {
       files: ['*.ts'],
       extends: ['@metamask/eslint-config-typescript'],
-      parserOptions: {
-        project: ['./tsconfig.packages.json'],
-      },
       rules: {
         // disabled due to incompatibility with Record<string, unknown>
         // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
