@@ -361,6 +361,41 @@ describe('ControllerMessenger', () => {
     expect(selector.callCount).toStrictEqual(4);
   });
 
+  it('should throw subscriber errors in a timeout', () => {
+    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    type MessageEvent = { type: 'message'; payload: [string] };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+
+    const handler = sinon.stub().throws(() => new Error('Example error'));
+    controllerMessenger.subscribe('message', handler);
+
+    expect(() => controllerMessenger.publish('message', 'hello')).not.toThrow();
+    expect(setTimeoutStub.callCount).toStrictEqual(1);
+    const onTimeout = setTimeoutStub.firstCall.args[0];
+    expect(() => onTimeout()).toThrow('Example error');
+  });
+
+  it('should continue calling subscribers when one throws', () => {
+    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    type MessageEvent = { type: 'message'; payload: [string] };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+
+    const handler1 = sinon.stub().throws(() => new Error('Example error'));
+    const handler2 = sinon.stub();
+    controllerMessenger.subscribe('message', handler1);
+    controllerMessenger.subscribe('message', handler2);
+
+    expect(() => controllerMessenger.publish('message', 'hello')).not.toThrow();
+
+    expect(handler1.calledWithExactly('hello')).toStrictEqual(true);
+    expect(handler1.callCount).toStrictEqual(1);
+    expect(handler2.calledWithExactly('hello')).toStrictEqual(true);
+    expect(handler2.callCount).toStrictEqual(1);
+    expect(setTimeoutStub.callCount).toStrictEqual(1);
+    const onTimeout = setTimeoutStub.firstCall.args[0];
+    expect(() => onTimeout()).toThrow('Example error');
+  });
+
   it('should not call subscriber after unsubscribing', () => {
     type MessageEvent = { type: 'message'; payload: [string] };
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();

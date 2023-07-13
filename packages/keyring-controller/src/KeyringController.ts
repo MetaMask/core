@@ -585,7 +585,6 @@ export class KeyringController extends BaseControllerV2<
   ) {
     try {
       const address = normalizeAddress(messageParams.from);
-
       if (!address || !isValidHexAddress(address)) {
         throw new Error(
           `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
