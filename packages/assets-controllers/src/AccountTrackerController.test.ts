@@ -1,10 +1,9 @@
-import * as sinon from 'sinon';
-import HttpProvider from 'ethjs-provider-http';
-import {
-  ContactEntry,
-  PreferencesController,
-} from '@metamask/preferences-controller';
 import { query } from '@metamask/controller-utils';
+import type { ContactEntry } from '@metamask/preferences-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
+import HttpProvider from 'ethjs-provider-http';
+import * as sinon from 'sinon';
+
 import { AccountTrackerController } from './AccountTrackerController';
 
 jest.mock('@metamask/controller-utils', () => {

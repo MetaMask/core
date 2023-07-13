@@ -1,11 +1,5 @@
-import type { Hex } from '@metamask/utils';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
-import type { NetworkState } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
   OPENSEA_API_URL,
@@ -13,8 +7,12 @@ import {
   toChecksumHexAddress,
   ChainId,
 } from '@metamask/controller-utils';
-import type { NftController, NftState, NftMetadata } from './NftController';
+import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
+
 import { Source } from './constants';
+import type { NftController, NftState, NftMetadata } from './NftController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -196,11 +194,11 @@ export class NftDetectionController extends BaseController<
    */
   override name = 'NftDetectionController';
 
-  private getOpenSeaApiKey: () => string | undefined;
+  private readonly getOpenSeaApiKey: () => string | undefined;
 
-  private addNft: NftController['addNft'];
+  private readonly addNft: NftController['addNft'];
 
-  private getNftState: () => NftState;
+  private readonly getNftState: () => NftState;
 
   /**
    * Creates an NftDetectionController instance.

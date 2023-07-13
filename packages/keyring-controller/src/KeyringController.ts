@@ -1,3 +1,21 @@
+import type {
+  MetaMaskKeyring as QRKeyring,
+  IKeyringState as IQRKeyringState,
+} from '@keystonehq/metamask-airgapped-keyring';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import { isValidHexAddress } from '@metamask/controller-utils';
+import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
+import {
+  normalize as normalizeAddress,
+  signTypedData,
+} from '@metamask/eth-sig-util';
+import type {
+  PersonalMessageParams,
+  TypedMessageParams,
+} from '@metamask/message-manager';
+import type { PreferencesController } from '@metamask/preferences-controller';
+import { Mutex } from 'async-mutex';
 import {
   addHexPrefix,
   bufferToHex,
@@ -6,27 +24,7 @@ import {
   stripHexPrefix,
   getBinarySize,
 } from 'ethereumjs-util';
-import { isValidHexAddress } from '@metamask/controller-utils';
-import {
-  normalize as normalizeAddress,
-  signTypedData,
-} from '@metamask/eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
-import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
-import { Mutex } from 'async-mutex';
-import {
-  MetaMaskKeyring as QRKeyring,
-  IKeyringState as IQRKeyringState,
-} from '@keystonehq/metamask-airgapped-keyring';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  PersonalMessageParams,
-  TypedMessageParams,
-} from '@metamask/message-manager';
 import type { Patch } from 'immer';
 
 const name = 'KeyringController';
@@ -184,17 +182,17 @@ export class KeyringController extends BaseControllerV2<
   KeyringControllerState,
   KeyringControllerMessenger
 > {
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
-  private removeIdentity: PreferencesController['removeIdentity'];
+  private readonly removeIdentity: PreferencesController['removeIdentity'];
 
-  private syncIdentities: PreferencesController['syncIdentities'];
+  private readonly syncIdentities: PreferencesController['syncIdentities'];
 
-  private updateIdentities: PreferencesController['updateIdentities'];
+  private readonly updateIdentities: PreferencesController['updateIdentities'];
 
-  private setSelectedAddress: PreferencesController['setSelectedAddress'];
+  private readonly setSelectedAddress: PreferencesController['setSelectedAddress'];
 
-  private setAccountLabel?: PreferencesController['setAccountLabel'];
+  private readonly setAccountLabel?: PreferencesController['setAccountLabel'];
 
   #keyring: typeof EthKeyringController;
 

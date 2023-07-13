@@ -1,17 +1,20 @@
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import type {
+  AbstractMessage,
+  OriginalRequest,
+} from '@metamask/message-manager';
 import {
   MessageManager,
   PersonalMessageManager,
   TypedMessageManager,
-  AbstractMessage,
-  OriginalRequest,
 } from '@metamask/message-manager';
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { EthereumProviderError } from 'eth-rpc-errors';
-import {
-  SignatureController,
+
+import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
 } from './SignatureController';
+import { SignatureController } from './SignatureController';
 
 jest.mock('@metamask/message-manager', () => ({
   MessageManager: jest.fn(),

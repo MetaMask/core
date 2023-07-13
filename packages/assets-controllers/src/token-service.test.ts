@@ -1,6 +1,7 @@
-import nock from 'nock';
-import { AbortController as WhatwgAbortController } from 'abort-controller';
 import { toHex } from '@metamask/controller-utils';
+import { AbortController as WhatwgAbortController } from 'abort-controller';
+import nock from 'nock';
+
 import {
   fetchTokenList,
   fetchTokenMetadata,

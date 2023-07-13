@@ -1,8 +1,5 @@
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 /**
@@ -162,7 +159,7 @@ export class PreferencesController extends BaseController<
     const newlyLost: { [address: string]: ContactEntry } = {};
 
     for (const identity in identities) {
-      if (addresses.indexOf(identity) === -1) {
+      if (!addresses.includes(identity)) {
         newlyLost[identity] = identities[identity];
         delete identities[identity];
       }
@@ -180,7 +177,7 @@ export class PreferencesController extends BaseController<
     });
     this.addIdentities(addresses);
 
-    if (addresses.indexOf(this.state.selectedAddress) === -1) {
+    if (!addresses.includes(this.state.selectedAddress)) {
       this.update({ selectedAddress: addresses[0] });
     }
 

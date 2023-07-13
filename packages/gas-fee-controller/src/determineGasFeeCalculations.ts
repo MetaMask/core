@@ -1,11 +1,11 @@
-import {
-  GAS_ESTIMATE_TYPES,
+import type {
   EstimatedGasFeeTimeBounds,
   EthGasPriceEstimate,
   GasFeeEstimates,
   GasFeeState as GasFeeCalculations,
   LegacyGasPriceEstimate,
 } from './GasFeeController';
+import { GAS_ESTIMATE_TYPES } from './GasFeeController';
 
 /**
  * Obtains a set of max base and priority fee estimates along with time estimates so that we

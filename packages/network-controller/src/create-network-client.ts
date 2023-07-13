@@ -1,10 +1,6 @@
-import {
-  createAsyncMiddleware,
-  createScaffoldMiddleware,
-  JsonRpcEngine,
-  mergeMiddleware,
-  JsonRpcMiddleware,
-} from 'json-rpc-engine';
+import type { InfuraNetworkType } from '@metamask/controller-utils';
+import { ChainId, NetworkId } from '@metamask/controller-utils';
+import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
   createBlockRefMiddleware,
@@ -14,25 +10,27 @@ import {
   createFetchMiddleware,
   createRetryOnEmptyMiddleware,
 } from '@metamask/eth-json-rpc-middleware';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import {
   providerFromEngine,
   providerFromMiddleware,
-  SafeEventEmitterProvider,
 } from '@metamask/eth-json-rpc-provider';
-import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import type { Hex } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import {
-  InfuraNetworkType,
-  ChainId,
-  NetworkId,
-} from '@metamask/controller-utils';
-import {
+  createAsyncMiddleware,
+  createScaffoldMiddleware,
+  JsonRpcEngine,
+  mergeMiddleware,
+} from 'json-rpc-engine';
+import type { JsonRpcMiddleware } from 'json-rpc-engine';
+
+import type {
   BlockTracker,
   NetworkClientConfiguration,
-  NetworkClientType,
   Provider,
 } from './types';
+import { NetworkClientType } from './types';
 
 const SECOND = 1000;
 

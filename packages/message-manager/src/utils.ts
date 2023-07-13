@@ -1,16 +1,17 @@
-import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
+import { isValidHexAddress } from '@metamask/controller-utils';
 import {
   TYPED_MESSAGE_SCHEMA,
   typedSignatureHash,
 } from '@metamask/eth-sig-util';
-import { validate } from 'jsonschema';
 import type { Hex } from '@metamask/utils';
-import { isValidHexAddress } from '@metamask/controller-utils';
-import { MessageParams } from './MessageManager';
-import { PersonalMessageParams } from './PersonalMessageManager';
-import { TypedMessageParams } from './TypedMessageManager';
-import { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
-import { DecryptMessageParams } from './DecryptMessageManager';
+import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
+import { validate } from 'jsonschema';
+
+import type { DecryptMessageParams } from './DecryptMessageManager';
+import type { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
+import type { MessageParams } from './MessageManager';
+import type { PersonalMessageParams } from './PersonalMessageManager';
+import type { TypedMessageParams } from './TypedMessageManager';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 /**

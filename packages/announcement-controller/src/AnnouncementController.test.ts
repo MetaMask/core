@@ -1,12 +1,13 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
+
+import type {
   AnnouncementControllerState,
-  AnnouncementController,
   StateAnnouncementMap,
   AnnouncementControllerActions,
   AnnouncementControllerEvents,
   AnnouncementMap,
 } from './AnnouncementController';
+import { AnnouncementController } from './AnnouncementController';
 
 const name = 'AnnouncementController';
 

@@ -8,11 +8,12 @@ import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
 } from 'json-rpc-engine';
-import {
+
+import type {
   CaveatSpecificationConstraint,
   CaveatSpecificationMap,
 } from './Caveat';
-import {
+import type {
   PermissionSpecificationConstraint,
   PermissionSpecificationMap,
 } from './Permission';
