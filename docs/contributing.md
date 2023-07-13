@@ -55,20 +55,36 @@ When submitting a pull request for this repo, take some a bit of extra time to f
 
 When developing changes to packages within this repository that a different project depends upon, you may wish to load those changes into the project and test them locally or in CI before publishing proper releases of those packages. To solve that problem, this repository provides a mechanism to publish "preview" versions of packages to GitHub Package Registry. These versions can then be used in the project like any other version, provided the project is configured to use that registry.
 
+### Publishing preview builds as a MetaMask contributor
+
+If you are a member of the MetaMask organization, you can create branches directly on this repository rather than using a fork. This allows you to use our preview build GitHub Action.
+
+Post a comment on the PR with the text `@metamaskbot publish-preview` (This triggers the `publish-preview` GitHub action). After a few minutes, you will see a new comment indicating that all packages have been published with the format `<package name>-<commit id>`.
+
+### Publishing preview builds as an independent contributor
+
+If you're a contributor and you've forked this repository, you can create preview versions for a branch by following these steps:
+
+1. Open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<your GitHub username>`.
+2. From your local fork of the repository, run `yarn prepare-preview-builds "$(git rev-parse --short HEAD)" && yarn build && yarn publish-previews` to generate preview versions for all packages based on the current branch and publish them to GitHub Package Registry.
+   - Take note of the version that is published; it should look like `1.2.3-e2df9b4` instead of `1.2.3`.
+
+### Using preview builds
+
 > **Warning**
 >
 > There is a known problem with the preview build workflow. It relies upon you having a local cache of any non-preview `@metamask/`-scoped packages.
 >
-> If you encounter problems installing non-preview `@metamask/`-scoped packages when using this workflow, you can work around the problem by temporarily removing the `.npmrc` / `.yarnrc.yml` changes to install the missing packages. Once they are installed, restore the preview build credentials to use preview builds. The non-preview `@metamask/`-scoped packages should then be found in your local cache.
+> If you encounter problems installing non-preview `@metamask/`-scoped packages when using this workflow, you can work around the problem by first installing dependencies without preview builds enabled (e.g. by temporarily removing the `.npmrc` or unsetting the required environment variables) to install the missing packages. Once they are installed, preview build installations should work (the non-preview `@metamask/`-scoped packages will be found in your local cache).
 >
 > See [issue #1075](https://github.com/MetaMask/core/issues/1075) for more details.
 
-### As a MetaMask contributor
+Preview builds should automatically work in CI on the MetaMask extension and MetaMask mobile repositories, as long as the PR is in draft.
 
-If you're a MetaMask contributor, you can create these preview versions via draft pull requests:
+To use preview builds locally, follow these steps:
 
 1. Navigate to your settings within GitHub and [create a classic access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `read:packages` scope.
-2. Switch to your project locally and add/edit the appropriate file with the following content, filling in the appropriate areas:
+2. Follow these steps in the project using the preview builds:
 
    - **Yarn 1 (classic) or NPM**
 
@@ -94,89 +110,22 @@ If you're a MetaMask contributor, you can create these preview versions via draf
          npmRegistryServer: "${METAMASK_NPM_REGISTRY:-https://registry.yarnpkg.com}"
      ```
 
-     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to use preview builds.
+     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to use preview builds. The `GITHUB_NPM_TOKEN` environment variable is where your token is set (the one created in step 1).
 
-     For example, in Bash you can set this variable when installing dependencies:
-
-     ```bash
-     METAMASK_NPM_REGISTRY=https://npm.pkg.github.com yarn install
-     ```
-
-     The `GITHUB_NPM_TOKEN` environment variable is where your token is set. This can be set the same way as for `METAMASK_NPM_REGISTRY`, or it can be set before each install command.
-
-     For example, you could run this to install preview builds:
+     For example, in Bash you can set both of these environment variables when installing dependencies:
 
      ```bash
-     GITHUB_NPM_TOKEN=<your personal access token> yarn
+     GITHUB_NPM_TOKEN=<your personal access token> METAMASK_NPM_REGISTRY=https://npm.pkg.github.com yarn install
      ```
 
      - It's recommended to use your machine's local keychain to store the token, and retrieve it from there. For example on macOS, you can use:
        ```bash
-       GITHUB_NPM_TOKEN=$(security find-generic-password -s 'GitHub NPM Token' -w) yarn install
+       GITHUB_NPM_TOKEN=$(security find-generic-password -s 'GitHub NPM Token' -w) METAMASK_NPM_REGISTRY=https://npm.pkg.github.com yarn install
        ```
 
-3. Go to GitHub and open up a pull request for this repository, then post a comment on the PR with the text `@metamaskbot publish-preview`. (This triggers the `publish-preview` GitHub action.)
-4. After a few minutes, you will see a new comment indicating that all packages have been published with the format `<package name>-<commit id>`.
-5. Switch back to your project locally and update `package.json` by replacing the versions for the packages you've changed in your PR using the new version format (e.g. `1.2.3-e2df9b4` instead of `~1.2.3`), then run `yarn install`.
-6. Repeat steps 3-5 after pushing new changes to your PR to generate and use new preview versions.
-
-### As an independent contributor
-
-If you're a contributor and you've forked this repository, you can create preview versions for a branch via provided scripts:
-
-1. Navigate to your settings within GitHub and [create a **classic** access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `read:packages` scope.
-2. Switch to your project locally and add/edit the appropriate file with the following content, filling in the appropriate areas.
-
-   - **Yarn 1 (classic) or NPM:**
-
-     Add the following in `.npmrc`
-
-     ```
-     @<your GitHub username>:registry=https://npm.pkg.github.com
-     //npm.pkg.github.com/:_authToken=<your personal access token>
-     ```
-
-   - **Yarn >= 2 (berry):**
-
-     Ensure that the project `.yarnrc.yml` file has the following contents:
-
-     ```
-     npmRegistries:
-       "https://npm.pkg.github.com":
-         npmAlwaysAuth: true
-         npmAuthToken: "${GITHUB_NPM_TOKEN-}"
-
-     npmScopes:
-       metamask:
-         npmRegistryServer: "${METAMASK_NPM_REGISTRY:-https://registry.yarnpkg.com}"
-     ```
-
-     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to use preview builds.
-
-     For example, in Bash you can set this variable when installing dependencies:
-
-     ```bash
-     METAMASK_NPM_REGISTRY=https://npm.pkg.github.com yarn install
-     ```
-
-     The `GITHUB_NPM_TOKEN` environment variable is where your token is set. This can be set the same way as for `METAMASK_NPM_REGISTRY`, or it can be set before each install command.
-
-     For example, you could run this to install preview builds:
-
-     ```bash
-     GITHUB_NPM_TOKEN=<your personal access token> yarn
-     ```
-
-     - It's recommended to use your machine's local keychain to store the token, and retrieve it from there. For example on macOS, you can use:
-       ```bash
-       GITHUB_NPM_TOKEN=$(security find-generic-password -s 'GitHub NPM Token' -w) yarn install
-       ```
-
-3. Open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<your GitHub username>`.
-4. Switch to your fork of this repository locally and run `yarn prepare-preview-builds "$(git rev-parse --short HEAD)" && yarn build && yarn publish-previews` to generate preview versions for all packages based on the current branch and publish them to GitHub Package Registry. Take note of the version that is published; it should look like `1.2.3-e2df9b4` instead of `1.2.3`.
-5. Switch back to your project and update `package.json` by replacing the versions for all packages you've changed using the version that was output in the previous step, then run `yarn install`.
-6. If you make any new changes to your project, repeat steps 3-5 to generate and use new preview versions.
-7. As changes will have been made to this repository (due to step 4), make sure to clear out those changes after you've completed testing.
+3. Update `package.json` with the new preview build versions
+   - Each preview build package should have a version matching (e.g. `1.2.3-e2df9b4` instead of `~1.2.3`), then run `yarn install`.
+4. Repeat step 3 each time you publish new preview builds.
 
 ## Releasing
 
