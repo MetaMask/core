@@ -387,6 +387,26 @@ export class SignatureController extends BaseControllerV2<
   }
 
   /**
+   * Called when a MMI wants to update the message status as signed.
+   *
+   * @param messageId - The id of the Message to update.
+   * @param signature - The data to update the message with.
+   */
+  setMessageStatusSigned(messageId: string, signature: any) {
+    const messageManagers = [
+      this.#messageManager,
+      this.#personalMessageManager,
+      this.#typedMessageManager,
+    ];
+
+    for (const manager of messageManagers) {
+      if (this.#trySetMessageStatusSigned(manager, messageId, signature)) {
+        return;
+      }
+    }
+  }
+
+  /**
    * Called when the message metadata needs to be updated.
    *
    * @param messageId - The id of the message to update.
@@ -401,6 +421,45 @@ export class SignatureController extends BaseControllerV2<
 
     for (const manager of messageManagers) {
       if (this.#trySetMessageMetadata(manager, messageId, metadata)) {
+        return;
+      }
+    }
+  }
+
+  /**
+   * Called when MMI needs to set the defer value in the message.
+   *
+   * @param messageId - The id of the Message to update.
+   * @param deferAsSigned - The defer value to add in the message params.
+   */
+  setDeferAsSigned(messageId: string, deferAsSigned: any) {
+    const messageManagers = [
+      this.#messageManager,
+      this.#personalMessageManager,
+      this.#typedMessageManager,
+    ];
+
+    for (const manager of messageManagers) {
+      if (this.#trySetDeferAsSigned(manager, messageId, deferAsSigned)) {
+        return;
+      }
+    }
+  }
+
+  /**
+   * Called when a MMI wants to cancel a signing message.
+   *
+   * @param messageId - The id of the Message to update.
+   */
+  cancelAbstractMessage(messageId: string) {
+    const messageManagers = [
+      this.#messageManager,
+      this.#personalMessageManager,
+      this.#typedMessageManager,
+    ];
+
+    for (const manager of messageManagers) {
+      if (this.#tryCancelAbstractMessage(manager, messageId)) {
         return;
       }
     }
@@ -565,6 +624,19 @@ export class SignatureController extends BaseControllerV2<
     );
   }
 
+  #trySetMessageStatusSigned(
+    messageManager: AbstractMessageManager<any, any, any>,
+    messageId: string,
+    signature: any,
+  ) {
+    try {
+      messageManager.setMessageStatusSigned(messageId, signature);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
   #trySetMessageMetadata(
     messageManager: AbstractMessageManager<any, any, any>,
     messageId: string,
@@ -572,6 +644,31 @@ export class SignatureController extends BaseControllerV2<
   ) {
     try {
       messageManager.setMetadata(messageId, metadata);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  #trySetDeferAsSigned(
+    messageManager: AbstractMessageManager<any, any, any>,
+    messageId: string,
+    deferAsSigned: any,
+  ) {
+    try {
+      messageManager.setDeferAsSigned(messageId, deferAsSigned);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  #tryCancelAbstractMessage(
+    messageManager: AbstractMessageManager<any, any, any>,
+    messageId: string,
+  ) {
+    try {
+      messageManager.rejectMessage(messageId);
       return true;
     } catch (error) {
       return false;
@@ -613,8 +710,17 @@ export class SignatureController extends BaseControllerV2<
 
     const messageId = msgParams.metamaskId as string;
 
+    const message = this.#getMessage(messageId);
+
+    const messageParamsUpdated = {
+      ...msgParams,
+      deferSetAsSigned: message?.msgParams.deferSetAsSigned,
+    };
+
     try {
-      const cleanMessageParams = await messageManager.approveMessage(msgParams);
+      const cleanMessageParams = await messageManager.approveMessage(
+        messageParamsUpdated,
+      );
 
       try {
         const signature = await getSignature(cleanMessageParams);

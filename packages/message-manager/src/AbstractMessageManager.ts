@@ -37,6 +37,7 @@ export interface AbstractMessage {
   securityProviderResponse?: Record<string, Json>;
   metadata?: Json;
   error?: string;
+  messageParams?: any;
 }
 
 /**
@@ -359,6 +360,21 @@ export abstract class AbstractMessageManager<
       throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
     }
     message.metadata = metadata;
+    this.updateMessage(message, false);
+  }
+
+  /**
+   * Sets the message defer property.
+   *
+   * @param messageId - The id of the Message to update.
+   * @param deferAsSigned - The defer value to add in the message params.
+   */
+  setDeferAsSigned(messageId: string, deferAsSigned: any) {
+    const message = this.getMessage(messageId);
+    if (!message) {
+      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
+    }
+    message.messageParams = { ...message.messageParams, ...deferAsSigned };
     this.updateMessage(message, false);
   }
 

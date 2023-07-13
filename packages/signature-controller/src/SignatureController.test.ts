@@ -103,6 +103,8 @@ const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
     setMessageStatusErrored: jest.fn(),
     setMessageStatusInProgress: jest.fn(),
     rejectMessage: jest.fn(),
+    setDeferAsSigned: jest.fn(),
+    cancelAbstractMessage: jest.fn(),
     subscribe: jest.fn(),
     update: jest.fn(),
     setMetadata: jest.fn(),
@@ -680,6 +682,121 @@ describe('SignatureController', () => {
       expect(messageManagerMock.setMetadata).toHaveBeenCalledWith(
         messageIdMock,
         messageParamsWithoutIdMock.data,
+      );
+    });
+  });
+
+  describe('trySetMessageStatusSigned', () => {
+    it('sets a message status as signed in a message manager', () => {
+      signatureController.setMessageStatusSigned(
+        messageParamsMock.metamaskId,
+        messageParamsMock.data,
+      );
+
+      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
+
+      expect(
+        personalMessageManagerMock.setMessageStatusSigned,
+      ).not.toHaveBeenCalled();
+      expect(
+        typedMessageManagerMock.setMessageStatusSigned,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should return false when an error occurs', () => {
+      jest
+        .spyOn(messageManagerMock, 'setMessageStatusSigned')
+        .mockImplementation(() => {
+          throw new Error('mocked error');
+        });
+
+      const result = signatureController.setMessageStatusSigned(
+        messageParamsMock.metamaskId,
+        messageParamsMock.data,
+      );
+
+      expect(result).toBeUndefined();
+      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
+    });
+  });
+
+  describe('trySetDeferAsSigned', () => {
+    it('sets the parameter deferAsSigned in the message params', () => {
+      signatureController.setDeferAsSigned(messageParamsMock.metamaskId, {
+        deferAsSigned: true,
+      });
+
+      expect(messageManagerMock.setDeferAsSigned).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.setDeferAsSigned).toHaveBeenCalledWith(
+        messageIdMock,
+        { deferAsSigned: true },
+      );
+
+      expect(
+        personalMessageManagerMock.setDeferAsSigned,
+      ).not.toHaveBeenCalled();
+      expect(typedMessageManagerMock.setDeferAsSigned).not.toHaveBeenCalled();
+    });
+
+    it('should return false when an error occurs', () => {
+      jest
+        .spyOn(messageManagerMock, 'setDeferAsSigned')
+        .mockImplementation(() => {
+          throw new Error('mocked error');
+        });
+
+      const result = signatureController.setDeferAsSigned(
+        messageParamsMock.metamaskId,
+        { deferAsSigned: true },
+      );
+
+      expect(result).toBeUndefined();
+      expect(messageManagerMock.setDeferAsSigned).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.setDeferAsSigned).toHaveBeenCalledWith(
+        messageIdMock,
+        { deferAsSigned: true },
+      );
+    });
+  });
+
+  describe('tryCancelAbstractMessage', () => {
+    it('rejects a message by calling rejectMessage', () => {
+      signatureController.cancelAbstractMessage(messageParamsMock.metamaskId);
+
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
+        messageIdMock,
+      );
+
+      expect(personalMessageManagerMock.rejectMessage).not.toHaveBeenCalled();
+      expect(typedMessageManagerMock.rejectMessage).not.toHaveBeenCalled();
+    });
+
+    it('should return false when an error occurs', () => {
+      jest.spyOn(messageManagerMock, 'rejectMessage').mockImplementation(() => {
+        throw new Error('mocked error');
+      });
+
+      const result = signatureController.cancelAbstractMessage(
+        messageParamsMock.metamaskId,
+      );
+
+      expect(result).toBeUndefined();
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
+        messageIdMock,
       );
     });
   });
