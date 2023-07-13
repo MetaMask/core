@@ -870,28 +870,6 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Retrieves the latest block with retry for the network.
-   *
-   * @param maxAttempts - The maximum number of retries to attempt retrieving the latest block. Defaults to 3.
-   * @returns A promise that either resolves to the block header or null if
-   * there is no latest block, or rejects with an error.
-   */
-  async #getLatestBlockWithRetry(maxAttempts = 3): Promise<Block | null> {
-    let latestBlock;
-    const retryInterval = 500;
-    for (let attempts = 0; attempts <= maxAttempts; attempts++) {
-      latestBlock = await this.#getLatestBlock();
-
-      if (latestBlock) {
-        return latestBlock;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, retryInterval));
-    }
-    return null;
-  }
-
-  /**
    * Fetches the latest block for the network.
    *
    * @returns A promise that either resolves to the block header or null if
@@ -938,27 +916,26 @@ export class NetworkController extends BaseControllerV2<
 
     const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
     this.update((state) => {
-      state.networkDetails.EIPS[1559] = isEIP1559Compatible;
+      if (isEIP1559Compatible !== undefined) {
+        state.networkDetails.EIPS[1559] = isEIP1559Compatible;
+      }
     });
     return isEIP1559Compatible;
   }
 
   /**
-   * Retrieves the latest block from the currently selected network; if the
-   * block has a `baseFeePerGas` property, then we know that the network
-   * supports EIP-1559; otherwise it doesn't. Throws an error if unable to
-   * retrieve the last block.
+   * Retrieves and checks the latest block from the currently selected
+   * network; if the block has a `baseFeePerGas` property, then we know
+   * that the network supports EIP-1559; otherwise it doesn't.
    *
-   * @returns A promise that resolves to true if the network supports EIP-1559
-   * and false otherwise.
+   * @returns A promise that resolves to `true` if the network supports EIP-1559,
+   * `false` otherwise, or `undefined` if unable to retrieve the last block.
    */
-  async #determineEIP1559Compatibility(): Promise<boolean> {
-    const latestBlock = await this.#getLatestBlockWithRetry();
+  async #determineEIP1559Compatibility(): Promise<boolean | undefined> {
+    const latestBlock = await this.#getLatestBlock();
 
     if (!latestBlock) {
-      throw new Error(
-        'Unable to determine EIP-1559 compatibility. Failed to retrieve the latest block.',
-      );
+      return undefined;
     }
 
     return latestBlock.baseFeePerGas !== undefined;

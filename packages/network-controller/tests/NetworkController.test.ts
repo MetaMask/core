@@ -4061,34 +4061,41 @@ describe('NetworkController', () => {
         });
 
         describe('if the request for the latest block responds with null', () => {
-          it('throws as it can not determine if the network supports EIP-1559', async () => {
-            const latestBlockRespondsNull = {
-              request: {
-                method: 'eth_getBlockByNumber',
-                params: ['latest', false],
-              },
-              response: {
-                result: null,
-              },
-            };
+          const latestBlockRespondsNull = {
+            request: {
+              method: 'eth_getBlockByNumber',
+              params: ['latest', false],
+            },
+            response: {
+              result: null,
+            },
+          };
+          it('keeps the "1559" property as undefined', async () => {
             await withController(async ({ controller }) => {
               setFakeProvider(controller, {
-                stubs: [
-                  latestBlockRespondsNull,
-                  latestBlockRespondsNull,
-                  latestBlockRespondsNull,
-                  latestBlockRespondsNull,
-                ],
+                stubs: [latestBlockRespondsNull],
                 stubLookupNetworkWhileSetting: true,
               });
 
-              await expect(
-                controller.getEIP1559Compatibility(),
-              ).rejects.toThrow(
-                new Error(
-                  'Unable to determine EIP-1559 compatibility. Failed to retrieve the latest block.',
-                ),
-              );
+              await controller.getEIP1559Compatibility();
+
+              expect(
+                controller.state.networkDetails.EIPS[1559],
+              ).toBeUndefined();
+            });
+          });
+
+          it('returns undefined', async () => {
+            await withController(async ({ controller }) => {
+              setFakeProvider(controller, {
+                stubs: [latestBlockRespondsNull],
+                stubLookupNetworkWhileSetting: true,
+              });
+
+              const isEIP1559Compatible =
+                await controller.getEIP1559Compatibility();
+
+              expect(isEIP1559Compatible).toBeUndefined();
             });
           });
         });
