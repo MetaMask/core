@@ -221,10 +221,14 @@ export class TokenRatesController extends BaseController<
       this.configure({ nativeCurrency: currencyRateState.nativeCurrency });
     });
 
+    // let previousChainId = initialChainId;
     onNetworkStateChange(({ providerConfig }) => {
       const { chainId } = providerConfig;
+      // if (chainId !== previousChainId) {
+      // previousChainId = chainId;
       this.update({ contractExchangeRates: {} });
       this.configure({ chainId });
+      // }
     });
     this.poll();
   }

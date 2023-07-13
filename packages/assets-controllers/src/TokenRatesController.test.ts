@@ -13,6 +13,33 @@ import {
   TokensControllerMessenger,
 } from './TokensController';
 
+const originalSetTimeout = global.setTimeout;
+
+/**
+ * The token rates controller polls by calling its `poll` instance method,
+ * which starts a timer which calls its `poll` method, which starts a timer,
+ * etc.
+ *
+ * In order to test this behavior deterministically we have to manually step
+ * through these "iterations" by faking timers up front and then running the
+ * timer that `poll` sets. The problem is that this timer does not appear
+ * initially; the exchange rates are updated and then the timer starts. So we
+ * have to wait it appears before we can run it.
+ */
+async function runOnlyPendingTimersWhenTheyAppear() {
+  let numTimesClockHasBeenAdvanced = 0;
+
+  while (jest.getTimerCount() === 0) {
+    if (numTimesClockHasBeenAdvanced > 15) {
+      throw new Error('Waited for timers to appear, but they never did');
+    }
+    await new Promise((resolve) => originalSetTimeout(resolve, 0));
+    numTimesClockHasBeenAdvanced += 1;
+  }
+
+  jest.runOnlyPendingTimers();
+}
+
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const COINGECKO_ETH_PATH = '/simple/token_price/ethereum';
 const COINGECKO_BSC_PATH = '/simple/token_price/binance-smart-chain';
@@ -46,6 +73,7 @@ describe('TokenRatesController', () => {
           shortname: 'MATIC',
         },
       ])
+      .persist()
       .get(
         `${COINGECKO_ETH_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
       )
@@ -112,6 +140,7 @@ describe('TokenRatesController', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     nock.cleanAll();
     sinon.restore();
     messenger.clearEventSubscriptions('NetworkController:stateChange');
@@ -487,6 +516,77 @@ describe('TokenRatesController', () => {
     });
 
     expect(controller.state.contractExchangeRates).toStrictEqual({});
+  });
+
+  it.only('should update exchange rates when network is changed', async () => {
+    nock(COINGECKO_API)
+      .get(`${COINGECKO_ETH_PATH}`)
+      .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+      .reply(200, {
+        '0x02': {
+          eth: 0.001, // token value in terms of ETH
+        },
+        '0x03': {
+          eth: 0.002,
+        },
+      });
+    jest.useFakeTimers();
+    let networkChangeListener: (state: any) => void;
+    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+      networkChangeListener = listener;
+    });
+
+    const controller = new TokenRatesController(
+      {
+        chainId: toHex(4),
+        onTokensStateChange: sinon.stub(),
+        onNetworkStateChange,
+        onCurrencyRateStateChange: sinon.stub(),
+      },
+      {
+        interval: 10,
+        nativeCurrency: 'ETH',
+        tokens: [
+          {
+            address: '0x02',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bar',
+            isERC721: false,
+          },
+          {
+            address: '0x03',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bazz',
+            isERC721: false,
+          },
+        ],
+      },
+    );
+    // Get past any updates run upon construction
+    await runOnlyPendingTimersWhenTheyAppear();
+    await runOnlyPendingTimersWhenTheyAppear();
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await networkChangeListener!({
+      providerConfig: { chainId: toHex(1) },
+    });
+
+    // .... for some reason, we need to await pending timers 7 times
+    // before we see the state get updated. I don't understand why.
+    await runOnlyPendingTimersWhenTheyAppear();
+    await runOnlyPendingTimersWhenTheyAppear();
+    await runOnlyPendingTimersWhenTheyAppear();
+    await runOnlyPendingTimersWhenTheyAppear();
+    await runOnlyPendingTimersWhenTheyAppear();
+    await runOnlyPendingTimersWhenTheyAppear();
+    await runOnlyPendingTimersWhenTheyAppear();
+
+    expect(controller.state.contractExchangeRates).toStrictEqual({
+      '0x02': 0.001,
+      '0x03': 0.002,
+    });
   });
 
   it('should update exchange rates when detected tokens are added', async () => {
