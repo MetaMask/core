@@ -1,3 +1,4 @@
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -10,7 +11,7 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
-import type { TokensController, TokensState } from './TokensController';
+import { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 import { TokenListState } from './TokenListController';
@@ -30,7 +31,7 @@ const DEFAULT_INTERVAL = 180000;
 export interface TokenDetectionConfig extends BaseConfig {
   interval: number;
   selectedAddress: string;
-  chainId: string;
+  chainId: Hex;
   isDetectionEnabledFromPreferences: boolean;
   isDetectionEnabledForNetwork: boolean;
 }
@@ -280,7 +281,7 @@ export class TokenDetectionController extends BaseController<
             ) || '';
 
           if (ignored === undefined) {
-            const { decimals, symbol, aggregators, iconUrl } =
+            const { decimals, symbol, aggregators, iconUrl, name } =
               tokenList[caseInsensitiveTokenKey];
             tokensToAdd.push({
               address: tokenAddress,
@@ -289,6 +290,7 @@ export class TokenDetectionController extends BaseController<
               aggregators,
               image: iconUrl,
               isERC721: false,
+              name,
             });
           }
         }

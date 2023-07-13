@@ -1,14 +1,27 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
+import { AddApprovalRequest } from '@metamask/approval-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  ChainId,
+  ERC20,
+  NetworkType,
+  ORIGIN_METAMASK,
+  convertHexToDecimal,
+  toHex,
+} from '@metamask/controller-utils';
 import {
   NetworkState,
   ProviderConfig,
   defaultState as defaultNetworkState,
 } from '@metamask/network-controller';
-import { TokensController } from './TokensController';
+import {
+  TokensController,
+  TokensControllerMessenger,
+} from './TokensController';
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
 
@@ -27,12 +40,23 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   });
 };
 
-const SEPOLIA = { chainId: '11155111', type: NetworkType.sepolia };
-const GOERLI = { chainId: '5', type: NetworkType.goerli };
+const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
+const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
+
+const controllerName = 'TokensController' as const;
+
+type ApprovalActions = AddApprovalRequest;
 
 describe('TokensController', () => {
   let tokensController: TokensController;
   let preferences: PreferencesController;
+  const messenger = new ControllerMessenger<
+    ApprovalActions,
+    never
+  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
+    name: controllerName,
+    allowedActions: ['ApprovalController:addRequest'],
+  }) as TokensControllerMessenger;
 
   let onNetworkStateChangeListener: (state: NetworkState) => void;
   const changeNetwork = (providerConfig: ProviderConfig) => {
@@ -42,17 +66,25 @@ describe('TokensController', () => {
     });
   };
 
-  beforeEach(() => {
+  let tokenListStateChangeListener: (state: any) => void;
+  const onTokenListStateChange = sinon.stub().callsFake((listener) => {
+    tokenListStateChangeListener = listener;
+  });
+
+  beforeEach(async () => {
     const defaultSelectedAddress = '0x1';
     preferences = new PreferencesController();
     tokensController = new TokensController({
+      chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         (onNetworkStateChangeListener = listener),
+      onTokenListStateChange,
       config: {
-        chainId: NetworksChainId.mainnet,
         selectedAddress: defaultSelectedAddress,
       },
+      getERC20TokenName: sinon.stub(),
+      messenger,
     });
 
     sinon
@@ -69,7 +101,6 @@ describe('TokensController', () => {
       allTokens: {},
       allIgnoredTokens: {},
       ignoredTokens: [],
-      suggestedAssets: [],
       tokens: [],
       detectedTokens: [],
       allDetectedTokens: {},
@@ -87,6 +118,7 @@ describe('TokensController', () => {
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
     await tokensController.addToken('0x01', 'baz', 2);
     expect(tokensController.state.tokens[0]).toStrictEqual({
@@ -97,6 +129,7 @@ describe('TokensController', () => {
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
     stub.restore();
   });
@@ -105,8 +138,20 @@ describe('TokensController', () => {
     const stub = stubCreateEthers(tokensController, false);
 
     await tokensController.addTokens([
-      { address: '0x01', symbol: 'barA', decimals: 2, aggregators: [] },
-      { address: '0x02', symbol: 'barB', decimals: 2, aggregators: [] },
+      {
+        address: '0x01',
+        symbol: 'barA',
+        decimals: 2,
+        aggregators: [],
+        name: 'Token1',
+      },
+      {
+        address: '0x02',
+        symbol: 'barB',
+        decimals: 2,
+        aggregators: [],
+        name: 'Token2',
+      },
     ]);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
@@ -115,6 +160,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'barA',
       aggregators: [],
+      name: 'Token1',
     });
 
     expect(tokensController.state.tokens[1]).toStrictEqual({
@@ -123,6 +169,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'barB',
       aggregators: [],
+      name: 'Token2',
     });
 
     await tokensController.addTokens([
@@ -146,6 +193,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'bazA',
       aggregators: [],
+      name: undefined,
     });
 
     expect(tokensController.state.tokens[1]).toStrictEqual({
@@ -154,6 +202,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'bazB',
       aggregators: [],
+      name: undefined,
     });
 
     stub.restore();
@@ -174,6 +223,7 @@ describe('TokensController', () => {
       symbol: 'barA',
       aggregators: [],
       isERC721: undefined,
+      name: undefined,
     });
 
     expect(tokensController.state.detectedTokens[1]).toStrictEqual({
@@ -183,6 +233,7 @@ describe('TokensController', () => {
       symbol: 'barB',
       aggregators: [],
       isERC721: undefined,
+      name: undefined,
     });
 
     await tokensController.addDetectedTokens([
@@ -192,6 +243,7 @@ describe('TokensController', () => {
         decimals: 2,
         aggregators: [],
         isERC721: undefined,
+        name: undefined,
       },
       {
         address: '0x02',
@@ -199,6 +251,7 @@ describe('TokensController', () => {
         decimals: 2,
         aggregators: [],
         isERC721: undefined,
+        name: undefined,
       },
     ]);
 
@@ -209,6 +262,7 @@ describe('TokensController', () => {
       symbol: 'bazA',
       aggregators: [],
       isERC721: undefined,
+      name: undefined,
     });
 
     expect(tokensController.state.detectedTokens[1]).toStrictEqual({
@@ -218,6 +272,7 @@ describe('TokensController', () => {
       symbol: 'bazB',
       aggregators: [],
       isERC721: undefined,
+      name: undefined,
     });
 
     stub.restore();
@@ -242,6 +297,7 @@ describe('TokensController', () => {
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
 
     stub.restore();
@@ -264,6 +320,7 @@ describe('TokensController', () => {
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
 
     stub.restore();
@@ -296,6 +353,7 @@ describe('TokensController', () => {
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
     stub.restore();
   });
@@ -318,6 +376,7 @@ describe('TokensController', () => {
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
+      name: undefined,
     });
     stub.restore();
   });
@@ -451,6 +510,7 @@ describe('TokensController', () => {
         isERC721: false,
         symbol: 'A',
         aggregators: [],
+        name: undefined,
       },
       {
         address: '0x02',
@@ -460,6 +520,7 @@ describe('TokensController', () => {
         isERC721: false,
         symbol: 'B',
         aggregators: [],
+        name: undefined,
       },
     ]);
 
@@ -572,6 +633,7 @@ describe('TokensController', () => {
               'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
             decimals: 4,
             aggregators: [],
+            name: undefined,
           },
         ]);
 
@@ -613,6 +675,7 @@ describe('TokensController', () => {
               'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
             decimals: 5,
             aggregators: [],
+            name: undefined,
           },
         ]);
 
@@ -638,7 +701,11 @@ describe('TokensController', () => {
       const error = 'An error occured';
       const fullErrorMessage = `TokenService Error: ${error}`;
       nock(TOKEN_END_POINT_API)
-        .get(`/token/${NetworksChainId.mainnet}?address=${dummyTokenAddress}`)
+        .get(
+          `/token/${convertHexToDecimal(
+            ChainId.mainnet,
+          )}?address=${dummyTokenAddress}`,
+        )
         .reply(200, { error })
         .persist();
 
@@ -656,6 +723,7 @@ describe('TokensController', () => {
         aggregators: [],
         image: undefined,
         isERC721: false,
+        name: undefined,
       };
       const dummyAddedToken: Token = {
         ...dummyDetectedToken,
@@ -698,7 +766,8 @@ describe('TokensController', () => {
         aggregators: [],
         isERC721: false,
         image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
+        name: undefined,
       };
 
       const directlyAddedToken: Token = {
@@ -706,9 +775,10 @@ describe('TokensController', () => {
         decimals: 5,
         symbol: 'B',
         image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
         isERC721: false,
         aggregators: [],
+        name: undefined,
       };
 
       // detectionDetails object is passed as second arg with details about where token was detected
@@ -722,7 +792,7 @@ describe('TokensController', () => {
         directlyAddedToken.address,
         directlyAddedToken.symbol,
         directlyAddedToken.decimals,
-        directlyAddedToken.image,
+        { image: directlyAddedToken.image },
       );
 
       expect(tokensController.state.allDetectedTokens).toStrictEqual({
@@ -749,6 +819,7 @@ describe('TokensController', () => {
           decimals: 2,
           aggregators: [],
           image: undefined,
+          name: undefined,
         },
         {
           address: '0x02',
@@ -756,6 +827,7 @@ describe('TokensController', () => {
           decimals: 2,
           aggregators: [],
           image: undefined,
+          name: undefined,
         },
       ];
       const dummyDetectedTokens: Token[] = [
@@ -797,28 +869,26 @@ describe('TokensController', () => {
     it('should nest newTokens under chain ID and selected address when provided with newTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
         newTokens: dummyTokens,
       });
       expect(
-        processedTokens.newAllTokens[NetworksChainId.mainnet][
-          dummySelectedAddress
-        ],
+        processedTokens.newAllTokens[ChainId.mainnet][dummySelectedAddress],
       ).toStrictEqual(dummyTokens);
     });
 
     it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
         newDetectedTokens: dummyTokens,
       });
       expect(
-        processedTokens.newAllDetectedTokens[NetworksChainId.mainnet][
+        processedTokens.newAllDetectedTokens[ChainId.mainnet][
           dummySelectedAddress
         ],
       ).toStrictEqual(dummyTokens);
@@ -827,14 +897,14 @@ describe('TokensController', () => {
     it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       const dummyIgnoredTokens = [dummyTokens[0].address];
       const processedTokens = tokensController._getNewAllTokensState({
         newIgnoredTokens: dummyIgnoredTokens,
       });
       expect(
-        processedTokens.newAllIgnoredTokens[NetworksChainId.mainnet][
+        processedTokens.newAllIgnoredTokens[ChainId.mainnet][
           dummySelectedAddress
         ],
       ).toStrictEqual(dummyIgnoredTokens);
@@ -844,15 +914,17 @@ describe('TokensController', () => {
   describe('on watchAsset', function () {
     let asset: any, type: any;
     const interactingAddress = '0x2';
+    const requestId = '12345';
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
-      type = 'ERC20';
+      type = ERC20;
       asset = {
         address: '0x000000000000000000000000000000000000dEaD',
         decimals: 12,
         symbol: 'SES',
         image: 'image',
+        name: undefined,
       };
       createEthersStub = stubCreateEthers(tokensController, false);
     });
@@ -937,105 +1009,7 @@ describe('TokensController', () => {
       await expect(result).rejects.toThrow('Invalid address "0x123".');
     });
 
-    it('should handle ERC20 type and add to suggestedAssets', async function () {
-      const clock = sinon.useFakeTimers(1);
-      const generateRandomIdStub = sinon
-        .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
-      type = 'ERC20';
-      await tokensController.watchAsset(asset, type);
-      expect(tokensController.state.suggestedAssets).toStrictEqual([
-        {
-          id: '12345',
-          status: 'pending',
-          time: 1, // uses the fakeTimers clock
-          type: 'ERC20',
-          asset,
-          interactingAddress: '0x1',
-        },
-      ]);
-
-      generateRandomIdStub.restore();
-      clock.restore();
-    });
-
-    it('should handle ERC20 type and add to suggestedAssets with interacting address', async function () {
-      const clock = sinon.useFakeTimers(1);
-      const generateRandomIdStub = sinon
-        .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
-      type = 'ERC20';
-      await tokensController.watchAsset(asset, type, interactingAddress);
-      expect(tokensController.state.suggestedAssets).toStrictEqual([
-        {
-          id: '12345',
-          status: 'pending',
-          interactingAddress,
-          time: 1, // uses the fakeTimers clock
-          type: 'ERC20',
-          asset,
-        },
-      ]);
-
-      generateRandomIdStub.restore();
-      clock.restore();
-    });
-
-    it('should add token correctly if user confirms', async function () {
-      const generateRandomIdStub = sinon
-        .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
-      type = 'ERC20';
-      await tokensController.watchAsset(asset, type);
-      await tokensController.acceptWatchAsset('12345');
-
-      expect(tokensController.state.suggestedAssets).toStrictEqual([]);
-      expect(tokensController.state.tokens).toHaveLength(1);
-      expect(tokensController.state.tokens).toStrictEqual([
-        {
-          isERC721: false,
-          aggregators: [],
-          ...asset,
-          image: 'image',
-        },
-      ]);
-
-      generateRandomIdStub.restore();
-    });
-
-    it('should store token correctly under interacting address if user confirms', async function () {
-      const generateRandomIdStub = sinon
-        .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
-      type = 'ERC20';
-      await tokensController.watchAsset(asset, type, interactingAddress);
-      await tokensController.acceptWatchAsset('12345');
-
-      expect(tokensController.state.suggestedAssets).toStrictEqual([]);
-      expect(tokensController.state.tokens).toHaveLength(0);
-      expect(tokensController.state.tokens).toStrictEqual([]);
-      expect(
-        tokensController.state.allTokens[NetworksChainId.mainnet][
-          interactingAddress
-        ],
-      ).toHaveLength(1);
-      expect(
-        tokensController.state.allTokens[NetworksChainId.mainnet][
-          interactingAddress
-        ],
-      ).toStrictEqual([
-        {
-          isERC721: false,
-          aggregators: [],
-          ...asset,
-          image: 'image',
-        },
-      ]);
-
-      generateRandomIdStub.restore();
-    });
-
-    it('should fail an invalid type suggested asset via watchAsset', async () => {
+    it('fails with an invalid type suggested', async () => {
       await expect(
         tokensController.watchAsset(
           {
@@ -1048,60 +1022,121 @@ describe('TokensController', () => {
       ).rejects.toThrow('Asset of type ERC721 not supported');
     });
 
-    it('should reject a valid suggested asset via watchAsset', async () => {
-      const { result, suggestedAssetMeta } = await tokensController.watchAsset(
+    it('stores token correctly if user confirms', async () => {
+      const generateRandomIdStub = jest
+        .spyOn(tokensController, '_generateRandomId')
+        .mockReturnValue(requestId);
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockResolvedValue(undefined);
+
+      await tokensController.watchAsset(asset, type);
+
+      expect(tokensController.state.tokens).toHaveLength(1);
+      expect(tokensController.state.tokens).toStrictEqual([
         {
-          address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-          decimals: 18,
-          symbol: 'TKN',
+          isERC721: false,
+          aggregators: [],
+          ...asset,
         },
-        'ERC20',
+      ]);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: '0x1',
+            asset,
+          },
+        },
+        true,
       );
-      tokensController.rejectWatchAsset('0x01');
-      tokensController.rejectWatchAsset(suggestedAssetMeta.id);
-      tokensController.hub.once(`${suggestedAssetMeta.id}:finished`, () => {
-        expect(tokensController.state.suggestedAssets).toHaveLength(0);
-      });
-      await expect(result).rejects.toThrow('User rejected to watch the asset.');
+
+      generateRandomIdStub.mockRestore();
     });
 
-    it('should accept a valid suggested asset via watchAsset', async () => {
-      const { result, suggestedAssetMeta } = await tokensController.watchAsset(
+    it('stores token correctly under interacting address if user confirms', async function () {
+      const generateRandomIdStub = jest
+        .spyOn(tokensController, '_generateRandomId')
+        .mockReturnValue(requestId);
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockResolvedValue(undefined);
+
+      await tokensController.watchAsset(asset, type, interactingAddress);
+
+      expect(tokensController.state.tokens).toHaveLength(0);
+      expect(tokensController.state.tokens).toStrictEqual([]);
+      expect(
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
+      ).toHaveLength(1);
+      expect(
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
+      ).toStrictEqual([
         {
-          address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-          decimals: 18,
-          symbol: 'TKN',
+          isERC721: false,
+          aggregators: [],
+          ...asset,
         },
-        'ERC20',
+      ]);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress,
+            asset,
+          },
+        },
+        true,
       );
-      await tokensController.acceptWatchAsset(suggestedAssetMeta.id);
-      const res = await result;
-      expect(tokensController.state.suggestedAssets).toHaveLength(0);
-      expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
+
+      generateRandomIdStub.mockRestore();
     });
 
-    it('should fail a valid suggested asset via watchAsset with wrong type', async () => {
-      const { result, suggestedAssetMeta } = await tokensController.watchAsset(
+    it('throws and token is not added if pending approval fails', async function () {
+      const generateRandomIdStub = jest
+        .spyOn(tokensController, '_generateRandomId')
+        .mockReturnValue(requestId);
+
+      const errorMessage = 'Mock Error Message';
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockRejectedValue(new Error(errorMessage));
+
+      await expect(tokensController.watchAsset(asset, type)).rejects.toThrow(
+        errorMessage,
+      );
+
+      expect(tokensController.state.tokens).toHaveLength(0);
+      expect(tokensController.state.tokens).toStrictEqual([]);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
         {
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 18,
-          symbol: 'TKN',
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: '0x1',
+            asset,
+          },
         },
-        'ERC20',
+        true,
       );
-      const { suggestedAssets } = tokensController.state;
-      const index = suggestedAssets.findIndex(
-        ({ id }) => suggestedAssetMeta.id === id,
-      );
-      const newSuggestedAssetMeta = suggestedAssets[index];
-      suggestedAssetMeta.type = 'ERC721';
-      tokensController.update({
-        suggestedAssets: [...suggestedAssets, newSuggestedAssetMeta],
-      });
-      await tokensController.acceptWatchAsset(suggestedAssetMeta.id);
-      await expect(result).rejects.toThrow(
-        'Asset of type ERC721 not supported',
-      );
+
+      generateRandomIdStub.mockRestore();
     });
   });
 
@@ -1124,6 +1159,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'A',
           aggregators: [],
+          name: undefined,
         },
         {
           address: '0x02',
@@ -1133,6 +1169,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'B',
           aggregators: [],
+          name: undefined,
         },
       ]);
       preferences.setSelectedAddress('0x2');
@@ -1145,6 +1182,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'C',
           aggregators: [],
+          name: undefined,
         },
       ]);
 
@@ -1180,6 +1218,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'A',
           aggregators: [],
+          name: undefined,
         },
         {
           address: '0x02',
@@ -1189,6 +1228,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'B',
           aggregators: [],
+          name: undefined,
         },
       ]);
 
@@ -1201,6 +1241,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'C',
           aggregators: [],
+          name: undefined,
         },
         {
           address: '0x04',
@@ -1210,6 +1251,7 @@ describe('TokensController', () => {
           isERC721: false,
           symbol: 'D',
           aggregators: [],
+          name: undefined,
         },
       ]);
 
@@ -1238,28 +1280,26 @@ describe('TokensController', () => {
     it('should clear nest allTokens under chain ID and selected address when an added token is ignored', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
       tokensController.ignoreTokens(['0x01']);
       expect(
-        tokensController.state.allTokens[NetworksChainId.mainnet][
-          selectedAddress
-        ],
+        tokensController.state.allTokens[ChainId.mainnet][selectedAddress],
       ).toStrictEqual([]);
     });
 
     it('should clear nest allIgnoredTokens under chain ID and selected address when an ignored token is re-added', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
       tokensController.ignoreTokens([tokenAddress]);
       await tokensController.addTokens(dummyTokens);
 
       expect(
-        tokensController.state.allIgnoredTokens[NetworksChainId.mainnet][
+        tokensController.state.allIgnoredTokens[ChainId.mainnet][
           selectedAddress
         ],
       ).toStrictEqual([]);
@@ -1268,16 +1308,60 @@ describe('TokensController', () => {
     it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: NetworksChainId.mainnet,
+        chainId: ChainId.mainnet,
       });
       await tokensController.addDetectedTokens(dummyTokens);
       await tokensController.addTokens(dummyTokens);
 
       expect(
-        tokensController.state.allDetectedTokens[NetworksChainId.mainnet][
+        tokensController.state.allDetectedTokens[ChainId.mainnet][
           selectedAddress
         ],
       ).toStrictEqual([]);
+    });
+  });
+
+  describe('onTokenListStateChange', () => {
+    it('onTokenListChange', async () => {
+      const stub = stubCreateEthers(tokensController, false);
+      await tokensController.addToken('0x01', 'bar', 2);
+      expect(tokensController.state.tokens[0]).toStrictEqual({
+        address: '0x01',
+        decimals: 2,
+        image:
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        symbol: 'bar',
+        isERC721: false,
+        aggregators: [],
+        name: undefined,
+      });
+
+      const sampleMainnetTokenList = {
+        '0x01': {
+          address: '0x01',
+          symbol: 'bar',
+          decimals: 2,
+          occurrences: 1,
+          name: 'BarName',
+          iconUrl:
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          aggregators: ['Aave'],
+        },
+      };
+
+      await tokenListStateChangeListener({ tokenList: sampleMainnetTokenList });
+
+      expect(tokensController.state.tokens[0]).toStrictEqual({
+        address: '0x01',
+        decimals: 2,
+        image:
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        symbol: 'bar',
+        isERC721: false,
+        aggregators: [],
+        name: 'BarName',
+      });
+      stub.restore();
     });
   });
 });

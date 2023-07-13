@@ -4,3 +4,4 @@ export * from './Permission';
 export * from './PermissionController';
 export * from './utils';
 export * as permissionRpcMethods from './rpc-methods';
+export * from './SubjectMetadataController';

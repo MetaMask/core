@@ -15,6 +15,8 @@ describe('PreferencesController', () => {
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
+      isMultiAccountBalancesEnabled: true,
+      showTestNetworks: false,
     });
   });
 
@@ -184,5 +186,17 @@ describe('PreferencesController', () => {
     expect(
       controller.state.disabledRpcMethodPreferences.eth_sign,
     ).toStrictEqual(true);
+  });
+
+  it('should set isMultiAccountBalancesEnabled', () => {
+    const controller = new PreferencesController();
+    controller.setIsMultiAccountBalancesEnabled(true);
+    expect(controller.state.isMultiAccountBalancesEnabled).toStrictEqual(true);
+  });
+
+  it('should set showTestNetworks', () => {
+    const controller = new PreferencesController();
+    controller.setShowTestNetworks(true);
+    expect(controller.state.showTestNetworks).toStrictEqual(true);
   });
 });

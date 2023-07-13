@@ -2,6 +2,7 @@ import { BN } from 'ethereumjs-util';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -21,7 +22,7 @@ import { ERC20Standard } from './Standards/ERC20Standard';
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<string, string> = {
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
   [SupportedTokenDetectionNetworks.mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
   [SupportedTokenDetectionNetworks.bsc]:
@@ -30,6 +31,8 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<string, string> = {
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
   [SupportedTokenDetectionNetworks.avax]:
     '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
+  [SupportedTokenDetectionNetworks.aurora]:
+    '0x1286415D333855237f89Df27D388127181448538',
 };
 
 export const MISSING_PROVIDER_ERROR =
@@ -44,7 +47,7 @@ export const MISSING_PROVIDER_ERROR =
 export interface AssetsContractConfig extends BaseConfig {
   provider: any;
   ipfsGateway: string;
-  chainId: string;
+  chainId: Hex;
 }
 
 /**
@@ -81,6 +84,7 @@ export class AssetsContractController extends BaseController<
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param config - Initial options used to configure this controller.
@@ -88,9 +92,11 @@ export class AssetsContractController extends BaseController<
    */
   constructor(
     {
+      chainId: initialChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
     }: {
+      chainId: Hex;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -105,7 +111,7 @@ export class AssetsContractController extends BaseController<
     this.defaultConfig = {
       provider: undefined,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: initialChainId,
     };
     this.initialize();
 
@@ -168,6 +174,19 @@ export class AssetsContractController extends BaseController<
       throw new Error(MISSING_PROVIDER_ERROR);
     }
     return await this.erc20Standard.getTokenDecimals(address);
+  }
+
+  /**
+   * Query for the name for a given ERC20 asset.
+   *
+   * @param address - ERC20 asset contract address.
+   * @returns Promise resolving to the 'decimals'.
+   */
+  async getERC20TokenName(address: string): Promise<string> {
+    if (this.erc20Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
+    return await this.erc20Standard.getTokenName(address);
   }
 
   /**

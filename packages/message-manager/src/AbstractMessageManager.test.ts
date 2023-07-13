@@ -24,6 +24,10 @@ class AbstractTestManager extends AbstractMessageManager<
   setMessageStatus(messageId: string, status: string) {
     return super.setMessageStatus(messageId, status);
   }
+
+  async addUnapprovedMessage(_messageParams: TypedMessageParamsMetamask) {
+    return Promise.resolve('mocked');
+  }
 }
 const typedMessage = [
   {
@@ -38,11 +42,15 @@ const typedMessage = [
   },
 ];
 const messageId = '1';
+const messageId2 = '2';
 const from = '0x0123';
 const messageTime = Date.now();
 const messageStatus = 'unapproved';
 const messageType = 'eth_signTypedData';
 const messageData = typedMessage;
+const rawSigMock = '0xsignaturemocked';
+const messageIdMock = 'message-id-mocked';
+const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 
 describe('AbstractTestManager', () => {
   it('should set default state', () => {
@@ -80,6 +88,35 @@ describe('AbstractTestManager', () => {
     expect(message.time).toBe(messageTime);
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
+  });
+
+  it('should get all messages', async () => {
+    const controller = new AbstractTestManager();
+    const message = {
+      id: messageId,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    };
+    const message2 = {
+      id: messageId2,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    };
+
+    await controller.addMessage(message);
+    await controller.addMessage(message2);
+    const messages = controller.getAllMessages();
+    expect(messages).toStrictEqual([message, message2]);
   });
 
   it('adds a valid message with provider security response', async () => {
@@ -184,6 +221,31 @@ describe('AbstractTestManager', () => {
     expect(message.status).toBe('test-status');
   });
 
+  it('should set a status to inProgress', async () => {
+    const controller = new AbstractTestManager(
+      undefined,
+      undefined,
+      undefined,
+      ['test-status'],
+    );
+    await controller.addMessage({
+      id: messageId,
+      messageParams: {
+        data: typedMessage,
+        from,
+      },
+      status: messageStatus,
+      time: messageTime,
+      type: messageType,
+    });
+    controller.setMessageStatusInProgress(messageId);
+    const message = controller.getMessage(messageId);
+    if (!message) {
+      throw new Error('"message" is falsy');
+    }
+    expect(message.status).toBe('inProgress');
+  });
+
   it('should get correct unapproved messages', async () => {
     const firstMessageData = [
       {
@@ -280,6 +342,149 @@ describe('AbstractTestManager', () => {
 
       expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
         'AbstractMessageManager: Message not found for id: 1.',
+      );
+    });
+  });
+
+  describe('setMessageStatusAndResult', () => {
+    it('emits updateBadge once', async () => {
+      jest.mock('events', () => ({
+        emit: jest.fn(),
+      }));
+
+      const controller = new AbstractTestManager();
+      await controller.addMessage({
+        id: messageId,
+        messageParams: { from: '0x1234', data: 'test' },
+        status: 'status',
+        time: 10,
+        type: 'type',
+      });
+      const messageBefore = controller.getMessage(messageId);
+      expect(messageBefore?.status).toStrictEqual('status');
+
+      controller.setMessageStatusAndResult(messageId, 'newRawSig', 'newstatus');
+      const messageAfter = controller.getMessage(messageId);
+
+      // expect(controller.hub.emit).toHaveBeenNthCalledWith(1, 'updateBadge');
+      expect(messageAfter?.status).toStrictEqual('newstatus');
+    });
+  });
+
+  describe('setMetadata', () => {
+    it('should set the given message metadata', async () => {
+      const controller = new AbstractTestManager();
+      await controller.addMessage({
+        id: messageId,
+        messageParams: { from: '0x1234', data: 'test' },
+        status: 'status',
+        time: 10,
+        type: 'type',
+      });
+
+      const messageBefore = controller.getMessage(messageId);
+      expect(messageBefore?.metadata).toBeUndefined();
+
+      controller.setMetadata(messageId, { foo: 'bar' });
+      const messageAfter = controller.getMessage(messageId);
+      expect(messageAfter?.metadata).toStrictEqual({ foo: 'bar' });
+    });
+
+    it('should throw an error if message is not found', () => {
+      const controller = new AbstractTestManager();
+
+      expect(() => controller.setMetadata(messageId, { foo: 'bar' })).toThrow(
+        'AbstractMessageManager: Message not found for id: 1.',
+      );
+    });
+  });
+
+  describe('waitForFinishStatus', () => {
+    it('signs the message when status is "signed"', async () => {
+      const controller = new AbstractTestManager();
+      const promise = controller.waitForFinishStatus(
+        {
+          from: fromMock,
+          metamaskId: messageIdMock,
+        },
+        'AbstractTestManager',
+      );
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'signed',
+          rawSig: rawSigMock,
+        });
+      }, 100);
+
+      expect(await promise).toStrictEqual(rawSigMock);
+    });
+
+    it('rejects with an error when status is "rejected"', async () => {
+      const controller = new AbstractTestManager();
+      const promise = controller.waitForFinishStatus(
+        {
+          from: fromMock,
+          metamaskId: messageIdMock,
+        },
+        'AbstractTestManager',
+      );
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'rejected',
+        });
+      }, 100);
+
+      await expect(() => promise).rejects.toThrow(
+        'MetaMask AbstractTestManager Signature: User denied message signature.',
+      );
+    });
+
+    it('rejects with an error when finishes with unknown status', async () => {
+      const controller = new AbstractTestManager();
+      const promise = controller.waitForFinishStatus(
+        {
+          from: fromMock,
+          metamaskId: messageIdMock,
+        },
+        'AbstractTestManager',
+      );
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'unknown',
+        });
+      }, 100);
+
+      await expect(() => promise).rejects.toThrow(
+        `MetaMask AbstractTestManager Signature: Unknown problem: ${JSON.stringify(
+          {
+            from: fromMock,
+          },
+        )}`,
+      );
+    });
+
+    it('rejects with an error when finishes with errored status', async () => {
+      const controller = new AbstractTestManager();
+      const promise = controller.waitForFinishStatus(
+        {
+          from: fromMock,
+          metamaskId: messageIdMock,
+        },
+        'AbstractTestManager',
+      );
+
+      setTimeout(() => {
+        controller.hub.emit(`${messageIdMock}:finished`, {
+          status: 'errored',
+          error: 'error message',
+        });
+      }, 100);
+
+      await expect(() => promise).rejects.toThrow(
+        `MetaMask AbstractTestManager Signature: error message`,
       );
     });
   });

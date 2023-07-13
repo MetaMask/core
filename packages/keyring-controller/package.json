@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "4.0.0",
+  "version": "6.0.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -34,31 +34,36 @@
     "@ledgerhq/metamask-keyring": "0.3.3",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
-    "@metamask/eth-keyring-controller": "^10.0.0",
-    "@metamask/eth-sig-util": "^5.0.2",
+    "@metamask/eth-keyring-controller": "^10.0.1",
+    "@metamask/eth-sig-util": "^5.0.3",
     "@metamask/message-manager": "workspace:^",
     "@metamask/preferences-controller": "workspace:^",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
-    "ethereumjs-wallet": "^1.0.1"
+    "ethereumjs-wallet": "^1.0.1",
+    "immer": "^9.0.6"
   },
   "devDependencies": {
     "@ethereumjs/common": "^2.6.1",
     "@ethereumjs/tx": "^3.5.2",
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
     "@metamask/auto-changelog": "^3.1.0",
-    "@types/jest": "^26.0.22",
+    "@metamask/scure-bip39": "^2.1.0",
+    "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
-    "jest": "^26.4.2",
+    "jest": "^27.5.1",
     "sinon": "^9.2.4",
-    "ts-jest": "^26.5.2",
+    "ts-jest": "^27.1.4",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3",
     "uuid": "^8.3.2"
   },
+  "peerDependencies": {
+    "@metamask/preferences-controller": "workspace:^"
+  },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "publishConfig": {
     "access": "public",

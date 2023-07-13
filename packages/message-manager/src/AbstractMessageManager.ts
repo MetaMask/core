@@ -1,10 +1,11 @@
 import { EventEmitter } from 'events';
+import type { Hex } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import { Json } from '@metamask/controller-utils';
+import { Json } from '@metamask/utils';
 
 /**
  * @type OriginalRequest
@@ -25,6 +26,7 @@ export interface OriginalRequest {
  * A 'Message' which always has a signing type
  * @property rawSig - Raw data of the signature request
  * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
+ * @property metadata - Additional data for the message, for example external identifiers
  */
 export interface AbstractMessage {
   id: string;
@@ -32,7 +34,9 @@ export interface AbstractMessage {
   status: string;
   type: string;
   rawSig?: string;
-  securityProviderResponse?: Map<string, Json>;
+  securityProviderResponse?: Record<string, Json>;
+  metadata?: Json;
+  error?: string;
 }
 
 /**
@@ -41,10 +45,12 @@ export interface AbstractMessage {
  * Represents the parameters to pass to the signing method once the signature request is approved.
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
+ * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
 export interface AbstractMessageParams {
   from: string;
   origin?: string;
+  deferSetAsSigned?: boolean;
 }
 
 /**
@@ -81,6 +87,8 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
+type getCurrentChainId = () => Hex;
+
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
@@ -91,6 +99,8 @@ export abstract class AbstractMessageManager<
 > extends BaseController<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
 
+  protected getCurrentChainId: getCurrentChainId | undefined;
+
   private securityProviderRequest: SecurityProviderRequest | undefined;
 
   private additionalFinishStatuses: string[];
@@ -98,12 +108,15 @@ export abstract class AbstractMessageManager<
   /**
    * Saves the unapproved messages, and their count to state.
    *
+   * @param emitUpdateBadge - Whether to emit the updateBadge event.
    */
-  protected saveMessageList() {
+  protected saveMessageList(emitUpdateBadge = true) {
     const unapprovedMessages = this.getUnapprovedMessages();
     const unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     this.update({ unapprovedMessages, unapprovedMessagesCount });
-    this.hub.emit('updateBadge');
+    if (emitUpdateBadge) {
+      this.hub.emit('updateBadge');
+    }
   }
 
   /**
@@ -135,14 +148,15 @@ export abstract class AbstractMessageManager<
    * Then saves the unapprovedMessage list to storage.
    *
    * @param message - A Message that will replace an existing Message (with the id) in this.messages.
+   * @param emitUpdateBadge - Whether to emit the updateBadge event.
    */
-  protected updateMessage(message: M) {
+  protected updateMessage(message: M, emitUpdateBadge = true) {
     const index = this.messages.findIndex((msg) => message.id === msg.id);
     /* istanbul ignore next */
     if (index !== -1) {
       this.messages[index] = message;
     }
-    this.saveMessageList();
+    this.saveMessageList(emitUpdateBadge);
   }
 
   /**
@@ -182,12 +196,14 @@ export abstract class AbstractMessageManager<
    * @param state - Initial state to set on this controller.
    * @param securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    * @param additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
+   * @param getCurrentChainId - Optional function to get the current chainId.
    */
   constructor(
     config?: Partial<BaseConfig>,
     state?: Partial<MessageManagerState<M>>,
     securityProviderRequest?: SecurityProviderRequest,
     additionalFinishStatuses?: string[],
+    getCurrentChainId?: getCurrentChainId,
   ) {
     super(config, state);
     this.defaultState = {
@@ -197,6 +213,7 @@ export abstract class AbstractMessageManager<
     this.messages = [];
     this.securityProviderRequest = securityProviderRequest;
     this.additionalFinishStatuses = additionalFinishStatuses ?? [];
+    this.getCurrentChainId = getCurrentChainId;
     this.initialize();
   }
 
@@ -247,6 +264,15 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Returns all the messages.
+   *
+   * @returns An array of messages.
+   */
+  getAllMessages() {
+    return this.messages;
+  }
+
+  /**
    * Approves a Message. Sets the message status via a call to this.setMessageStatusApproved,
    * and returns a promise with any the message params modified for proper signing.
    *
@@ -271,6 +297,16 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Sets message status to inProgress in order to allow users to use extension
+   * while waiting for a custodian signature.
+   *
+   * @param messageId - The id of the message to set to inProgress
+   */
+  setMessageStatusInProgress(messageId: string) {
+    this.setMessageStatus(messageId, 'inProgress');
+  }
+
+  /**
    * Sets a Message status to 'signed' via a call to this.setMessageStatus and updates
    * that Message in this.messages by adding the raw signature data of the signature
    * request to the Message.
@@ -283,22 +319,47 @@ export abstract class AbstractMessageManager<
   }
 
   /**
-   * Sets the message to a new status via a call to this.setMsgStatus and
-   * updates the rawSig field in this.messages.
+   * Sets the message via a call to this.setResult and updates status of the message.
    *
    * @param messageId - The id of the Message to sign.
    * @param rawSig - The data to update rawSig in the message.
    * @param status - The new message status.
    */
   setMessageStatusAndResult(messageId: string, rawSig: string, status: string) {
+    this.setResult(messageId, rawSig);
+    this.setMessageStatus(messageId, status);
+  }
+
+  /**
+   * Sets the message result.
+   *
+   * @param messageId - The id of the Message to sign.
+   * @param result - The data to update result in the message.
+   */
+  setResult(messageId: string, result: string) {
     const message = this.getMessage(messageId);
     /* istanbul ignore if */
     if (!message) {
       return;
     }
-    message.rawSig = rawSig;
-    this.updateMessage(message);
-    this.setMessageStatus(messageId, status);
+    message.rawSig = result;
+    this.updateMessage(message, false);
+  }
+
+  /**
+   * Sets the messsage metadata
+   *
+   * @param messageId - The id of the Message to update
+   * @param metadata - The data with which to replace the metadata property in the message
+   */
+
+  setMetadata(messageId: string, metadata: Json) {
+    const message = this.getMessage(messageId);
+    if (!message) {
+      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
+    }
+    message.metadata = metadata;
+    this.updateMessage(message, false);
   }
 
   /**
@@ -311,12 +372,68 @@ export abstract class AbstractMessageManager<
   abstract prepMessageForSigning(messageParams: PM): Promise<P>;
 
   /**
+   * Creates a new Message with an 'unapproved' status using the passed messageParams.
+   * this.addMessage is called to add the new Message to this.messages, and to save the
+   * unapproved Messages.
+   *
+   * @param messageParams - Message parameters for the message to add
+   * @param req - The original request object possibly containing the origin.
+   * @param version? - The version of the JSON RPC protocol the request is using.
+   * @returns The id of the newly created message.
+   */
+  abstract addUnapprovedMessage(
+    messageParams: PM,
+    request: OriginalRequest,
+    version?: string,
+  ): Promise<string>;
+
+  /**
    * Sets a Message status to 'rejected' via a call to this.setMessageStatus.
    *
    * @param messageId - The id of the Message to reject.
    */
   rejectMessage(messageId: string) {
     this.setMessageStatus(messageId, 'rejected');
+  }
+
+  /**
+   * Creates a promise which will resolve or reject when the message process is finished.
+   *
+   * @param messageParamsWithId - The params for the personal_sign call to be made after the message is approved.
+   * @param messageName - The name of the message
+   * @returns Promise resolving to the raw data of the signature request.
+   */
+  async waitForFinishStatus(
+    messageParamsWithId: AbstractMessageParamsMetamask,
+    messageName: string,
+  ): Promise<string> {
+    const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
+    return new Promise((resolve, reject) => {
+      this.hub.once(`${messageId}:finished`, (data: AbstractMessage) => {
+        switch (data.status) {
+          case 'signed':
+            return resolve(data.rawSig as string);
+          case 'rejected':
+            return reject(
+              new Error(
+                `MetaMask ${messageName} Signature: User denied message signature.`,
+              ),
+            );
+          case 'errored':
+            return reject(
+              new Error(`MetaMask ${messageName} Signature: ${data.error}`),
+            );
+          default:
+            return reject(
+              new Error(
+                `MetaMask ${messageName} Signature: Unknown problem: ${JSON.stringify(
+                  messageParams,
+                )}`,
+              ),
+            );
+        }
+      });
+    });
   }
 }
 

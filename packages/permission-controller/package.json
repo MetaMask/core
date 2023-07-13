@@ -1,6 +1,6 @@
 {
   "name": "@metamask/permission-controller",
-  "version": "3.1.0",
+  "version": "4.0.1",
   "description": "Mediates access to JSON-RPC methods, used to interact with pieces of the MetaMask stack, via middleware for json-rpc-engine",
   "keywords": [
     "MetaMask",
@@ -32,20 +32,20 @@
     "@metamask/approval-controller": "workspace:^",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
-    "@metamask/types": "^1.1.0",
+    "@metamask/utils": "^5.0.2",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
-    "eth-rpc-errors": "^4.0.0",
+    "eth-rpc-errors": "^4.0.2",
     "immer": "^9.0.6",
     "json-rpc-engine": "^6.1.0",
     "nanoid": "^3.1.31"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
-    "@types/jest": "^26.0.22",
+    "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
-    "jest": "^26.4.2",
-    "ts-jest": "^26.5.2",
+    "jest": "^27.5.1",
+    "ts-jest": "^27.1.4",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
@@ -54,7 +54,7 @@
     "@metamask/approval-controller": "workspace:^"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "publishConfig": {
     "access": "public",

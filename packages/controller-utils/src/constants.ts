@@ -1,11 +1,12 @@
-import { NetworkType, NetworksTicker, NetworksChainId } from './types';
+import { NetworkType, NetworksTicker, ChainId, NetworkId } from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
 export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
 
 // NETWORKS ID
-export const GANACHE_CHAIN_ID = '1337';
+// `toHex` not invoked to avoid cyclic dependency
+export const GANACHE_CHAIN_ID = '0x539'; // toHex(1337)
 /**
  * The largest possible chain ID we can handle.
  * Explanation: https://gist.github.com/rekmarks/a47bd5f2525936c4b8eee31a16345553
@@ -47,30 +48,25 @@ export const TESTNET_TICKER_SYMBOLS = {
  */
 export const BUILT_IN_NETWORKS = {
   [NetworkType.goerli]: {
-    chainId: NetworksChainId.goerli,
+    chainId: ChainId.goerli,
     ticker: NetworksTicker.goerli,
     rpcPrefs: {
       blockExplorerUrl: `https://${NetworkType.goerli}.etherscan.io`,
     },
   },
   [NetworkType.sepolia]: {
-    chainId: NetworksChainId.sepolia,
+    chainId: ChainId.sepolia,
     ticker: NetworksTicker.sepolia,
     rpcPrefs: {
       blockExplorerUrl: `https://${NetworkType.sepolia}.etherscan.io`,
     },
   },
   [NetworkType.mainnet]: {
-    chainId: NetworksChainId.mainnet,
+    chainId: ChainId.mainnet,
     ticker: NetworksTicker.mainnet,
     rpcPrefs: {
       blockExplorerUrl: 'https://etherscan.io',
     },
-  },
-  [NetworkType.localhost]: {
-    chainId: NetworksChainId.localhost,
-    blockExplorerUrl: undefined,
-    rpcPrefs: undefined,
   },
   [NetworkType.rpc]: {
     chainId: undefined,
@@ -84,3 +80,41 @@ export const OPENSEA_PROXY_URL =
   'https://proxy.metafi.codefi.network/opensea/v1/api/v1';
 export const OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
 export const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
+
+// Default origin for controllers
+export const ORIGIN_METAMASK = 'metamask';
+
+/**
+ * Approval request types for various operations.
+ * These types are used by different controllers to create and manage
+ * approval requests consistently.
+ */
+export enum ApprovalType {
+  AddEthereumChain = 'wallet_addEthereumChain',
+  ConnectAccounts = 'connect_accounts',
+  EthDecrypt = 'eth_decrypt',
+  EthGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
+  EthSign = 'eth_sign',
+  EthSignTypedData = 'eth_signTypedData',
+  PersonalSign = 'personal_sign',
+  ResultError = 'result_error',
+  ResultSuccess = 'result_success',
+  SnapDialogAlert = 'snap_dialog:alert',
+  SnapDialogConfirmation = 'snap_dialog:confirmation',
+  SnapDialogPrompt = 'snap_dialog:prompt',
+  SwitchEthereumChain = 'wallet_switchEthereumChain',
+  Transaction = 'transaction',
+  Unlock = 'unlock',
+  WalletConnect = 'wallet_connect',
+  WalletRequestPermissions = 'wallet_requestPermissions',
+  WatchAsset = 'wallet_watchAsset',
+}
+
+export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
+  NetworkId,
+  NetworkType
+> = {
+  [NetworkId.goerli]: NetworkType.goerli,
+  [NetworkId.sepolia]: NetworkType.sepolia,
+  [NetworkId.mainnet]: NetworkType.mainnet,
+};

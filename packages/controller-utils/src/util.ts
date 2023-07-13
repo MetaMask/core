@@ -6,10 +6,12 @@ import {
   toChecksumAddress,
   stripHexPrefix,
 } from 'ethereumjs-util';
+import type EthQuery from 'eth-query';
 import { fromWei, toWei } from 'ethjs-unit';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
-import type { Json } from './types';
+import type { Hex } from '@metamask/utils';
+import { isStrictHexString, Json } from '@metamask/utils';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
@@ -22,9 +24,15 @@ const TIMEOUT_ERROR = new Error('timeout');
  * @param chainId - The chain ID to check for safety.
  * @returns Whether the given chain ID is safe.
  */
-export function isSafeChainId(chainId: number): boolean {
+export function isSafeChainId(chainId: Hex): boolean {
+  if (!isHexString(chainId)) {
+    return false;
+  }
+  const decimalChainId = Number.parseInt(chainId);
   return (
-    Number.isSafeInteger(chainId) && chainId > 0 && chainId <= MAX_SAFE_CHAIN_ID
+    Number.isSafeInteger(decimalChainId) &&
+    decimalChainId > 0 &&
+    decimalChainId <= MAX_SAFE_CHAIN_ID
   );
 }
 /**
@@ -134,7 +142,7 @@ export function getBuyURL(
  * @returns A BN instance.
  */
 export function hexToBN(inputHex: string) {
-  return new BN(stripHexPrefix(inputHex), 16);
+  return inputHex ? new BN(stripHexPrefix(inputHex), 16) : new BN(0);
 }
 
 /**
@@ -174,8 +182,8 @@ export function fromHex(value: string | BN): BN {
  * @param value - An integer, an integer encoded as a base-10 string, or a BN.
  * @returns The integer encoded as a hex string.
  */
-export function toHex(value: number | string | BN): string {
-  if (typeof value === 'string' && isHexString(value)) {
+export function toHex(value: number | string | BN): Hex {
+  if (typeof value === 'string' && isStrictHexString(value)) {
     return value;
   }
   const hexString = BN.isBN(value)
@@ -258,15 +266,12 @@ export function toChecksumHexAddress(address: string) {
 /**
  * Validates that the input is a hex address. This utility method is a thin
  * wrapper around ethereumjs-util.isValidAddress, with the exception that it
- * does not throw an error when provided values that are not hex strings. In
- * addition, and by default, this method will return true for hex strings that
- * meet the length requirement of a hex address, but are not prefixed with `0x`
- * Finally, if the mixedCaseUseChecksum flag is true and a mixed case string is
- * provided this method will validate it has the proper checksum formatting.
+ * by default will return true for hex strings that meet the length requirement
+ * of a hex address, but are not prefixed with `0x`.
  *
  * @param possibleAddress - Input parameter to check against.
  * @param options - The validation options.
- * @param options.allowNonPrefixed - If true will first ensure '0x' is prepended to the string.
+ * @param options.allowNonPrefixed - If true will allow addresses without `0x` prefix.`
  * @returns Whether or not the input is a valid hex address.
  */
 export function isValidHexAddress(
@@ -424,12 +429,12 @@ export function normalizeEnsName(ensName: string): string | null {
  * @returns Promise resolving the request.
  */
 export function query(
-  ethQuery: any,
+  ethQuery: EthQuery,
   method: string,
   args: any[] = [],
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const cb = (error: Error, result: any) => {
+    const cb = (error: unknown, result: unknown) => {
       if (error) {
         reject(error);
         return;
@@ -437,7 +442,9 @@ export function query(
       resolve(result);
     };
 
-    if (typeof ethQuery[method] === 'function') {
+    // Using `in` rather than `hasProperty` so that we look up the prototype
+    // chain for the method.
+    if (method in ethQuery && typeof ethQuery[method] === 'function') {
       ethQuery[method](...args, cb);
     } else {
       ethQuery.sendAsync({ method, params: args }, cb);
@@ -472,11 +479,6 @@ type PlainObject = Record<number | string | symbol, unknown>;
 export function isPlainObject(value: unknown): value is PlainObject {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
-
-export const hasProperty = (
-  object: PlainObject,
-  key: string | number | symbol,
-) => Reflect.hasOwnProperty.call(object, key);
 
 /**
  * Like {@link Array}, but always non-empty.

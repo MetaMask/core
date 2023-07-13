@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gas-fee-controller",
-  "version": "4.0.1",
+  "version": "6.0.1",
   "description": "Periodically calculates gas fee estimates based on various gas limits as well as other data displayed on transaction confirm screens",
   "keywords": [
     "MetaMask",
@@ -32,6 +32,7 @@
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/network-controller": "workspace:^",
+    "@metamask/utils": "^5.0.2",
     "@types/uuid": "^8.3.0",
     "babel-runtime": "^6.26.0",
     "eth-query": "^2.1.2",
@@ -42,14 +43,14 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
-    "@types/jest": "^26.0.22",
+    "@types/jest": "^27.4.1",
     "@types/jest-when": "^2.7.3",
     "deepmerge": "^4.2.2",
-    "jest": "^26.4.2",
+    "jest": "^27.5.1",
     "jest-when": "^3.4.2",
     "nock": "^13.0.7",
     "sinon": "^9.2.4",
-    "ts-jest": "^26.5.2",
+    "ts-jest": "^27.1.4",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
@@ -58,7 +59,7 @@
     "@metamask/network-controller": "workspace:^"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "publishConfig": {
     "access": "public",

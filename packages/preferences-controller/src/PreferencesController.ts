@@ -36,9 +36,11 @@ export interface PreferencesState extends BaseState {
   useTokenDetection: boolean;
   useNftDetection: boolean;
   openSeaEnabled: boolean;
+  isMultiAccountBalancesEnabled: boolean;
   disabledRpcMethodPreferences: {
     [methodName: string]: boolean;
   };
+  showTestNetworks: boolean;
 }
 
 /**
@@ -70,9 +72,11 @@ export class PreferencesController extends BaseController<
       useTokenDetection: true,
       useNftDetection: false,
       openSeaEnabled: false,
+      isMultiAccountBalancesEnabled: true,
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
+      showTestNetworks: false,
     };
     this.initialize();
   }
@@ -279,6 +283,24 @@ export class PreferencesController extends BaseController<
       [methodName]: isEnabled,
     };
     this.update({ disabledRpcMethodPreferences: newDisabledRpcMethods });
+  }
+
+  /**
+   * A setter for the user preferences to enable/disable fetch of multiple accounts balance.
+   *
+   * @param isMultiAccountBalancesEnabled - true to enable multiple accounts balance fetch, false to fetch only selectedAddress.
+   */
+  setIsMultiAccountBalancesEnabled(isMultiAccountBalancesEnabled: boolean) {
+    this.update({ isMultiAccountBalancesEnabled });
+  }
+
+  /**
+   * A setter for the user have the test networks visible/hidden.
+   *
+   * @param showTestNetworks - true to show test networks, false to hidden.
+   */
+  setShowTestNetworks(showTestNetworks: boolean) {
+    this.update({ showTestNetworks });
   }
 }
 
