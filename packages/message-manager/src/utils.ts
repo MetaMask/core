@@ -8,12 +8,12 @@ import {
   getEthChainIdIntFromCaipChainId,
   isValidHexAddress,
 } from '@metamask/controller-utils';
+import { CaipChainId } from '@metamask/utils';
 import { MessageParams } from './MessageManager';
 import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
 import { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
 import { DecryptMessageParams } from './DecryptMessageManager';
-import { CaipChainId } from '@metamask/utils';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 /**

@@ -983,11 +983,7 @@ export class NetworkController extends BaseControllerV2<
       networkConfiguration,
       ['rpcUrl', 'caipChainId', 'ticker', 'nickname', 'rpcPrefs'],
     );
-    const {
-      rpcUrl,
-      caipChainId,
-      ticker,
-    } = sanitizedNetworkConfiguration;
+    const { rpcUrl, caipChainId, ticker } = sanitizedNetworkConfiguration;
 
     const chainId = getEthChainIdHexFromCaipChainId(caipChainId);
 
@@ -1049,7 +1045,8 @@ export class NetworkController extends BaseControllerV2<
       customNetworkClientRegistry[networkClientId];
     const shouldDestroyExistingNetworkClient =
       existingAutoManagedNetworkClient &&
-      existingAutoManagedNetworkClient.configuration.caipChainId !== caipChainId;
+      existingAutoManagedNetworkClient.configuration.caipChainId !==
+        caipChainId;
     if (shouldDestroyExistingNetworkClient) {
       existingAutoManagedNetworkClient.destroy();
     }
@@ -1257,7 +1254,9 @@ export class NetworkController extends BaseControllerV2<
     return Object.entries(this.state.networkConfigurations).map(
       ([networkConfigurationId, networkConfiguration]) => {
         if (networkConfiguration.caipChainId === undefined) {
-          throw new Error('caipChainId must be provided for custom RPC endpoints');
+          throw new Error(
+            'caipChainId must be provided for custom RPC endpoints',
+          );
         }
         if (networkConfiguration.rpcUrl === undefined) {
           throw new Error('rpcUrl must be provided for custom RPC endpoints');

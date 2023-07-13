@@ -27,9 +27,7 @@ import {
   BuiltInCaipChainId,
   getEthChainIdHexFromCaipChainId,
 } from '@metamask/controller-utils';
-import {
-  CaipChainId,
-} from "@metamask/utils"
+import { CaipChainId } from '@metamask/utils';
 import {
   BlockTracker,
   NetworkClientConfiguration,

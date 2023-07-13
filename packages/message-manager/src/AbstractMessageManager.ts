@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,

@@ -286,9 +286,9 @@ describe('assetsUtil', () => {
     });
 
     it('returns true for ganache local network', () => {
-      expect(assetsUtil.isTokenListSupportedForNetwork(GANACHE_CAIP_CHAIN_ID)).toBe(
-        true,
-      );
+      expect(
+        assetsUtil.isTokenListSupportedForNetwork(GANACHE_CAIP_CHAIN_ID),
+      ).toBe(true);
     });
 
     it('returns true for custom network such as Polygon', () => {

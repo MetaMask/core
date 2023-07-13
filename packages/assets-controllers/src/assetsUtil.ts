@@ -1,8 +1,7 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import { CID } from 'multiformats/cid';
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
-  convertHexToDecimal,
   isValidHexAddress,
   GANACHE_CAIP_CHAIN_ID,
   getEthChainIdDecFromCaipChainId,
@@ -99,7 +98,7 @@ export const formatIconUrlWithProxy = ({
   caipChainId: CaipChainId;
   tokenAddress: string;
 }) => {
-  const chainIdDecimal = getEthChainIdDecFromCaipChainId(caipChainId)
+  const chainIdDecimal = getEthChainIdDecFromCaipChainId(caipChainId);
   return `https://static.metafi.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 
@@ -154,8 +153,12 @@ export enum SupportedTokenDetectionNetworks {
  * @param caipChainId - The caip chain id of the network
  * @returns Whether the current network supports token detection
  */
-export function isTokenDetectionSupportedForNetwork(caipChainId: CaipChainId): boolean {
-  return Object.values<string>(SupportedTokenDetectionNetworks).includes(caipChainId);
+export function isTokenDetectionSupportedForNetwork(
+  caipChainId: CaipChainId,
+): boolean {
+  return Object.values<string>(SupportedTokenDetectionNetworks).includes(
+    caipChainId,
+  );
 }
 
 /**
@@ -165,9 +168,12 @@ export function isTokenDetectionSupportedForNetwork(caipChainId: CaipChainId): b
  * @param caipChainId - Caip chain id of network
  * @returns Whether the current network supports tokenlists
  */
-export function isTokenListSupportedForNetwork(caipChainId: CaipChainId): boolean {
+export function isTokenListSupportedForNetwork(
+  caipChainId: CaipChainId,
+): boolean {
   return (
-    isTokenDetectionSupportedForNetwork(caipChainId) || caipChainId === GANACHE_CAIP_CHAIN_ID
+    isTokenDetectionSupportedForNetwork(caipChainId) ||
+    caipChainId === GANACHE_CAIP_CHAIN_ID
   );
 }
 

@@ -1,7 +1,7 @@
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -162,7 +162,9 @@ export class TokenListController extends BaseControllerV2<
    * @param networkControllerState - The updated network controller state.
    */
   async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
-    if (this.caipChainId !== networkControllerState.providerConfig.caipChainId) {
+    if (
+      this.caipChainId !== networkControllerState.providerConfig.caipChainId
+    ) {
       this.abortController.abort();
       this.abortController = new WhatwgAbortController();
       this.caipChainId = networkControllerState.providerConfig.caipChainId;
@@ -173,7 +175,8 @@ export class TokenListController extends BaseControllerV2<
         this.update(() => {
           return {
             ...this.state,
-            tokenList: this.state.tokensChainsCache[this.caipChainId]?.data || {},
+            tokenList:
+              this.state.tokensChainsCache[this.caipChainId]?.data || {},
           };
         });
         await this.restart();

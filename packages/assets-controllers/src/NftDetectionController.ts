@@ -1,4 +1,4 @@
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -321,7 +321,8 @@ export class NftDetectionController extends BaseController<
    *
    * @returns Whether current network is mainnet.
    */
-  isMainnet = (): boolean => this.config.caipChainId === BuiltInCaipChainId.mainnet;
+  isMainnet = (): boolean =>
+    this.config.caipChainId === BuiltInCaipChainId.mainnet;
 
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are

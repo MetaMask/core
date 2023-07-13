@@ -2,7 +2,7 @@ import { BN } from 'ethereumjs-util';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,
@@ -22,7 +22,10 @@ import { ERC20Standard } from './Standards/ERC20Standard';
  * @param caipChainId - Caip chain id of network
  * @returns Whether the current network supports token detection
  */
-export const SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID: Record<CaipChainId, string> = {
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID: Record<
+  CaipChainId,
+  string
+> = {
   [SupportedTokenDetectionNetworks.mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
   [SupportedTokenDetectionNetworks.bsc]:
@@ -408,12 +411,16 @@ export class AssetsContractController extends BaseController<
     selectedAddress: string,
     tokensToDetect: string[],
   ) {
-    if (!(this.config.caipChainId in SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID)) {
+    if (
+      !(
+        this.config.caipChainId in SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID
+      )
+    ) {
       // Only fetch balance if contract address exists
       return {};
     }
     const contractAddress =
-    SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID[this.config.caipChainId];
+      SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID[this.config.caipChainId];
 
     const contract = new Contract(
       contractAddress,

@@ -1,4 +1,4 @@
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,

@@ -9,8 +9,6 @@ import {
   handleFetch,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
-  toHex,
-  getEthChainIdHexFromCaipChainId,
   getEthChainIdIntFromCaipChainId,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
@@ -130,11 +128,9 @@ function findChainSlug(
   if (!data) {
     return null;
   }
-  const chainId = getEthChainIdIntFromCaipChainId(caipChainId)
+  const chainId = getEthChainIdIntFromCaipChainId(caipChainId);
   const chain =
-    data.find(
-      ({ chain_identifier }) => chain_identifier === chainId,
-    ) ?? null;
+    data.find(({ chain_identifier }) => chain_identifier === chainId) ?? null;
   return chain?.id || null;
 }
 

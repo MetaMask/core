@@ -61,14 +61,16 @@ export const BuiltInCaipChainId = {
 /**
  * Decimal string network IDs of built-in Infura networks, by name.
  */
-export const InfuraNetworkId = { // should these be eip'd?..
+export const InfuraNetworkId = {
+  // should these be eip'd?..
   [InfuraNetworkType.mainnet]: '1',
   [InfuraNetworkType.goerli]: '5',
   [InfuraNetworkType.sepolia]: '11155111',
   [InfuraNetworkType['linea-goerli']]: '59140',
   [InfuraNetworkType['linea-mainnet']]: '59144',
 } as const;
-export type InfuraNetworkId = typeof InfuraNetworkId[keyof typeof InfuraNetworkId];
+export type InfuraNetworkId =
+  typeof InfuraNetworkId[keyof typeof InfuraNetworkId];
 
 export enum NetworksTicker {
   mainnet = 'ETH',

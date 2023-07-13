@@ -1,5 +1,8 @@
-import type { Hex, CaipChainId } from '@metamask/utils';
-import { convertHexToDecimal, getEthChainIdDecFromCaipChainId, timeoutFetch } from '@metamask/controller-utils';
+import type { CaipChainId } from '@metamask/utils';
+import {
+  getEthChainIdDecFromCaipChainId,
+  timeoutFetch,
+} from '@metamask/controller-utils';
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
 export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
@@ -13,7 +16,9 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(caipChainId: CaipChainId) {
-  return `${TOKEN_END_POINT_API}/tokens/${getEthChainIdDecFromCaipChainId(caipChainId)}`;
+  return `${TOKEN_END_POINT_API}/tokens/${getEthChainIdDecFromCaipChainId(
+    caipChainId,
+  )}`;
 }
 
 /**

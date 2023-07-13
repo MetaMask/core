@@ -7,7 +7,7 @@ import { Mutex } from 'async-mutex';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   BaseController,
   BaseConfig,

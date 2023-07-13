@@ -1,12 +1,15 @@
 import type { Patch } from 'immer';
 import EthQuery from 'eth-query';
 import { v1 as random } from 'uuid';
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { convertHexToDecimal, getEthChainIdDecFromCaipChainId, safelyExecute } from '@metamask/controller-utils';
+import {
+  getEthChainIdDecFromCaipChainId,
+  safelyExecute,
+} from '@metamask/controller-utils';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
@@ -390,7 +393,9 @@ export class GasFeeController extends BaseControllerV2<
     const isLegacyGasAPICompatible =
       this.getCurrentNetworkLegacyGasAPICompatibility();
 
-    const decimalChainId = getEthChainIdDecFromCaipChainId(this.currentCaipChainId);
+    const decimalChainId = getEthChainIdDecFromCaipChainId(
+      this.currentCaipChainId,
+    );
 
     try {
       isEIP1559Compatible = await this.getEIP1559Compatibility();

@@ -32,7 +32,7 @@ import {
   getEthChainIdHexFromCaipChainId,
   getEthChainIdIntFromCaipChainId,
 } from '@metamask/controller-utils';
-import { CaipChainId } from "@metamask/utils"
+import { CaipChainId } from '@metamask/utils';
 import {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -341,7 +341,7 @@ export class TransactionController extends BaseController<
    *
    * @param txMeta - The transaction.
    * @param currentNetworkID - The current network ID.
-   * @param currentChainId - The current chain ID.
+   * @param currentCaipChainId - The current caip chain ID.
    * @returns The normalized transaction.
    */
   private normalizeTx(
@@ -1060,7 +1060,8 @@ export class TransactionController extends BaseController<
   ): Promise<string | void> {
     const { providerConfig, networkId: currentNetworkID } =
       this.getNetworkState();
-    const { caipChainId: currentCaipChainId, type: networkType } = providerConfig;
+    const { caipChainId: currentCaipChainId, type: networkType } =
+      providerConfig;
     const { transactions } = this.state;
 
     const supportedNetworkIds = ['1', '5', '11155111'];
@@ -1232,7 +1233,10 @@ export class TransactionController extends BaseController<
         return;
       } else if (!caipChainId) {
         releaseLock();
-        this.failTransaction(transactionMeta, new Error('No caipChainId defined.'));
+        this.failTransaction(
+          transactionMeta,
+          new Error('No caipChainId defined.'),
+        );
         return;
       }
 
@@ -1247,7 +1251,8 @@ export class TransactionController extends BaseController<
 
       transactionMeta.status = status;
       transactionMeta.transaction.nonce = nonceToUse;
-      transactionMeta.transaction.chainId = getEthChainIdHexFromCaipChainId(caipChainId);
+      transactionMeta.transaction.chainId =
+        getEthChainIdHexFromCaipChainId(caipChainId);
 
       const baseTxParams = {
         ...transactionMeta.transaction,
@@ -1341,8 +1346,10 @@ export class TransactionController extends BaseController<
     const txsToKeep = transactions.reverse().filter((tx) => {
       const { caipChainId, networkID, status, transaction, time } = tx;
       if (transaction) {
-        const networkChainId = caipChainId || networkID // is this right?
-        const key = `${transaction.nonce}-${networkChainId}-${new Date(time).toDateString()}`;
+        const networkChainId = caipChainId || networkID; // is this right?
+        const key = `${transaction.nonce}-${networkChainId}-${new Date(
+          time,
+        ).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (

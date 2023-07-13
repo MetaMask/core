@@ -43,7 +43,9 @@ export function getCaipChainIdFromEthChainId(ethChainId: string): string {
  * @param caipChainId - The eth caip chain ID string.
  * @returns a decimal string for the eth chain id.
  */
-export function getEthChainIdDecFromCaipChainId(caipChainId: CaipChainId): string {
+export function getEthChainIdDecFromCaipChainId(
+  caipChainId: CaipChainId,
+): string {
   const { reference } = parseCaipChainIdString(caipChainId);
   return reference;
 }
@@ -65,7 +67,9 @@ export function getEthChainIdHexFromCaipChainId(caipChainId: CaipChainId): Hex {
  * @param caipChainId - The eth caip chain ID string.
  * @returns an integer for the eth chain id.
  */
-export function getEthChainIdIntFromCaipChainId(caipChainId: CaipChainId): number {
+export function getEthChainIdIntFromCaipChainId(
+  caipChainId: CaipChainId,
+): number {
   const { reference } = parseCaipChainIdString(caipChainId);
   return parseInt(reference, 10);
 }

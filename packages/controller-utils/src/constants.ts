@@ -1,4 +1,9 @@
-import { NetworkType, NetworksTicker, BuiltInCaipChainId, InfuraNetworkId } from './types';
+import {
+  NetworkType,
+  NetworksTicker,
+  BuiltInCaipChainId,
+  InfuraNetworkId,
+} from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
@@ -125,7 +130,7 @@ export enum ApprovalType {
 }
 
 export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
-InfuraNetworkId,
+  InfuraNetworkId,
   NetworkType
 > = {
   [InfuraNetworkId.goerli]: NetworkType.goerli,

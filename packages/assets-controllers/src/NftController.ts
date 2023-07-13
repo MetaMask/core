@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { isAddress } from '@ethersproject/address';
 import { Mutex } from 'async-mutex';
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import { v4 as random } from 'uuid';
 import { rpcErrors } from '@metamask/rpc-errors';
 import {
@@ -735,7 +735,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
         selectedAddress = this.config.selectedAddress;
       }
 
-      const nftContracts = allNftContracts[selectedAddress]?.[caipChainId] || [];
+      const nftContracts =
+        allNftContracts[selectedAddress]?.[caipChainId] || [];
 
       const existingEntry = nftContracts.find(
         (nftContract) =>
