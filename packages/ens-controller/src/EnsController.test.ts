@@ -1,6 +1,7 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkType,
+  NetworksTicker,
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
@@ -121,6 +122,7 @@ describe('EnsController', () => {
           providerConfig: {
             chainId: toHex(1),
             type: NetworkType.mainnet,
+            ticker: NetworksTicker.mainnet,
           },
         });
       },
@@ -446,6 +448,7 @@ describe('EnsController', () => {
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -464,6 +467,7 @@ describe('EnsController', () => {
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -489,6 +493,7 @@ describe('EnsController', () => {
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -516,6 +521,7 @@ describe('EnsController', () => {
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -538,6 +544,7 @@ describe('EnsController', () => {
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -563,6 +570,7 @@ describe('EnsController', () => {
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -588,6 +596,7 @@ describe('EnsController', () => {
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -615,6 +624,7 @@ describe('EnsController', () => {
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -641,6 +651,7 @@ describe('EnsController', () => {
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },

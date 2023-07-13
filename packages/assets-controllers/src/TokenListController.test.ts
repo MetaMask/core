@@ -10,6 +10,7 @@ import {
 import {
   ChainId,
   NetworkType,
+  NetworksTicker,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
@@ -658,6 +659,7 @@ describe('TokenListController', () => {
       buildNetworkControllerStateWithProviderConfig({
         chainId: ChainId.goerli,
         type: NetworkType.goerli,
+        ticker: NetworksTicker.goerli,
       }),
     );
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
@@ -1049,6 +1051,7 @@ describe('TokenListController', () => {
       buildNetworkControllerStateWithProviderConfig({
         type: NetworkType.goerli,
         chainId: ChainId.goerli,
+        ticker: NetworksTicker.goerli,
       }),
       [],
     );
@@ -1068,6 +1071,7 @@ describe('TokenListController', () => {
         type: NetworkType.rpc,
         chainId: toHex(56),
         rpcUrl: 'http://localhost:8545',
+        ticker: 'TEST',
       }),
       [],
     );
@@ -1132,6 +1136,7 @@ describe('TokenListController', () => {
       buildNetworkControllerStateWithProviderConfig({
         type: NetworkType.mainnet,
         chainId: ChainId.mainnet,
+        ticker: NetworksTicker.mainnet,
       }),
       [],
     );
@@ -1178,6 +1183,7 @@ describe('TokenListController', () => {
           type: NetworkType.rpc,
           chainId: toHex(56),
           rpcUrl: 'http://localhost:8545',
+          ticker: 'TEST',
         }),
         [],
       );

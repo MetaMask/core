@@ -4,7 +4,12 @@ import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 import { errorCodes } from 'eth-rpc-errors';
 import Common from '@ethereumjs/common';
-import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
+import {
+  ChainId,
+  NetworkType,
+  NetworksTicker,
+  toHex,
+} from '@metamask/controller-utils';
 import type {
   BlockTracker,
   NetworkState,
@@ -276,6 +281,7 @@ const MOCK_NETWORK: MockNetwork = {
     providerConfig: {
       type: NetworkType.goerli,
       chainId: ChainId.goerli,
+      ticker: NetworksTicker.goerli,
     },
     networkConfigurations: {},
   },
@@ -305,6 +311,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
     providerConfig: {
       type: NetworkType.mainnet,
       chainId: ChainId.mainnet,
+      ticker: NetworksTicker.mainnet,
     },
     networkConfigurations: {},
   },
@@ -321,6 +328,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
     providerConfig: {
       type: NetworkType['linea-mainnet'],
       chainId: toHex(59144),
+      ticker: NetworksTicker['linea-mainnet'],
     },
     networkConfigurations: {},
   },
@@ -337,6 +345,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
     providerConfig: {
       type: NetworkType['linea-goerli'],
       chainId: toHex(59140),
+      ticker: NetworksTicker['linea-mainnet'],
     },
     networkConfigurations: {},
   },
@@ -353,6 +362,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
     providerConfig: {
       type: NetworkType.rpc,
       chainId: toHex(11297108109),
+      ticker: 'TEST',
     },
     networkConfigurations: {},
   },

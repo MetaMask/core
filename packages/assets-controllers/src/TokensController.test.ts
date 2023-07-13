@@ -9,6 +9,7 @@ import {
   ChainId,
   ERC20,
   NetworkType,
+  NetworksTicker,
   ORIGIN_METAMASK,
   convertHexToDecimal,
   toHex,
@@ -40,8 +41,16 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   });
 };
 
-const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
-const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
+const SEPOLIA = {
+  chainId: toHex(11155111),
+  type: NetworkType.sepolia,
+  ticker: NetworksTicker.sepolia,
+};
+const GOERLI = {
+  chainId: toHex(5),
+  type: NetworkType.goerli,
+  ticker: NetworksTicker.goerli,
+};
 
 const controllerName = 'TokensController' as const;
 
