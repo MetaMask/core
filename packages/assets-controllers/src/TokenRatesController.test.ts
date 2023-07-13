@@ -122,7 +122,6 @@ describe('TokenRatesController', () => {
       chainId: toHex(1),
       ticker: NetworksTicker.mainnet,
       onTokensStateChange: sinon.stub(),
-      onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
     });
     expect(controller.state).toStrictEqual({
@@ -135,7 +134,6 @@ describe('TokenRatesController', () => {
       chainId: toHex(1),
       ticker: NetworksTicker.mainnet,
       onTokensStateChange: sinon.stub(),
-      onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
     });
     expect(controller.config).toStrictEqual({
@@ -153,7 +151,6 @@ describe('TokenRatesController', () => {
       chainId: toHex(1),
       ticker: NetworksTicker.mainnet,
       onTokensStateChange: sinon.stub(),
-      onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
     });
     expect(() => console.log(controller.tokens)).toThrow(
@@ -170,7 +167,6 @@ describe('TokenRatesController', () => {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
         onTokensStateChange: jest.fn(),
-        onCurrencyRateStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
       },
       {
@@ -194,7 +190,6 @@ describe('TokenRatesController', () => {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
         onTokensStateChange: sinon.stub(),
-        onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
       {
@@ -214,7 +209,6 @@ describe('TokenRatesController', () => {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
         onTokensStateChange: sinon.stub(),
-        onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
       { interval: 1337 },
@@ -249,7 +243,6 @@ describe('TokenRatesController', () => {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
         onTokensStateChange: (listener) => tokensController.subscribe(listener),
-        onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: (listener) =>
           messenger.subscribe('NetworkController:stateChange', listener),
       },
@@ -278,7 +271,6 @@ describe('TokenRatesController', () => {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
         onTokensStateChange: sinon.stub(),
-        onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
       { interval: 10 },
@@ -301,14 +293,12 @@ describe('TokenRatesController', () => {
     const onTokensStateChange = sinon.stub().callsFake((listener) => {
       tokenStateChangeListener = listener;
     });
-    const onCurrencyRateStateChange = sinon.stub();
     const onNetworkStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
         onTokensStateChange,
-        onCurrencyRateStateChange,
         onNetworkStateChange,
       },
       { interval: 10 },
@@ -324,19 +314,17 @@ describe('TokenRatesController', () => {
     expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
   });
 
-  it('should update exchange rates when native currency changes', async () => {
-    let currencyRateStateChangeListener: (state: any) => void;
+  it('should update exchange rates when ticker changes', async () => {
+    let networkStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub();
-    const onCurrencyRateStateChange = sinon.stub().callsFake((listener) => {
-      currencyRateStateChangeListener = listener;
+    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+      networkStateChangeListener = listener;
     });
-    const onNetworkStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
         onTokensStateChange,
-        onCurrencyRateStateChange,
         onNetworkStateChange,
       },
       { interval: 10 },
@@ -347,7 +335,9 @@ describe('TokenRatesController', () => {
       'updateExchangeRates',
     );
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    currencyRateStateChangeListener!({ nativeCurrency: 'dai' });
+    networkStateChangeListener!({
+      providerConfig: { chainId: toHex(1), ticker: 'dai' },
+    });
     // FIXME: This is now being called twice
     expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
   });
@@ -387,7 +377,6 @@ describe('TokenRatesController', () => {
         chainId: toHex(137),
         ticker: 'MATIC',
         onTokensStateChange,
-        onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange,
       },
       { interval: 10 },
@@ -451,7 +440,6 @@ describe('TokenRatesController', () => {
         ticker: NetworksTicker.mainnet,
         onTokensStateChange,
         onNetworkStateChange,
-        onCurrencyRateStateChange: sinon.stub(),
       },
       { interval: 10 },
     );
@@ -525,7 +513,6 @@ describe('TokenRatesController', () => {
         ticker: NetworksTicker.mainnet,
         onTokensStateChange,
         onNetworkStateChange: sinon.stub(),
-        onCurrencyRateStateChange: sinon.stub(),
       },
       { interval: 10 },
     );
