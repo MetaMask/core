@@ -12,7 +12,10 @@ import {
   signTypedData,
 } from '@metamask/eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
-import { KeyringController as EthKeyringController, keyringBuilderFactory } from '@metamask/eth-keyring-controller';
+import {
+  KeyringController as EthKeyringController,
+  keyringBuilderFactory,
+} from '@metamask/eth-keyring-controller';
 import { Mutex } from 'async-mutex';
 import {
   MetaMaskKeyring as QRKeyring,
@@ -29,8 +32,8 @@ import {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
-import { SerializedLedgerKeyring } from './types/SerializedKeyringTypes';
 import type { Patch } from 'immer';
+import { SerializedLedgerKeyring } from './types/SerializedKeyringTypes';
 
 const name = 'KeyringController';
 
@@ -246,14 +249,22 @@ export class KeyringController extends BaseControllerV2<
       },
     });
 
-    const additionalKeyringBuilders = [keyringBuilderFactory(QRKeyring), keyringBuilderFactory(LedgerKeyring)];
+    const additionalKeyringBuilders = [
+      keyringBuilderFactory(QRKeyring),
+      keyringBuilderFactory(LedgerKeyring),
+    ];
     this.#keyring = new EthKeyringController(
       Object.assign(
         { initState: state },
         {
           encryptor,
           cacheEncryptionKey,
-          keyringBuilders: [ ...(keyringBuilders && Array.isArray(keyringBuilders) ? keyringBuilders : []), ...additionalKeyringBuilders]
+          keyringBuilders: [
+            ...(keyringBuilders && Array.isArray(keyringBuilders)
+              ? keyringBuilders
+              : []),
+            ...additionalKeyringBuilders,
+          ],
         },
       ),
     );
@@ -590,7 +601,6 @@ export class KeyringController extends BaseControllerV2<
           `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
         );
       }
-
 
       const ledgerKeyring = await this.getLedgerKeyring();
       const isLedgerAccount = await ledgerKeyring.managesAccount(address);

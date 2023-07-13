@@ -2049,11 +2049,11 @@ describe('KeyringController', () => {
       // Setup
 
       // const updateIdentitiesSpy = sinon.spy(preferences, 'updateIdentities');
-      const setAccountLabelSpy = sinon.spy(preferences, 'setAccountLabel');
-      const setSelectedAddressSpy = sinon.spy(
-        preferences,
-        'setSelectedAddress',
-      );
+      // const setAccountLabelSpy = sinon.spy(preferences, 'setAccountLabel');
+      // const setSelectedAddressSpy = sinon.spy(
+      //   preferences,
+      //   'setSelectedAddress',
+      // );
 
       const persistAllKeyringsSpy = sinon.spy(
         EthKeyringController.prototype,
