@@ -80,7 +80,7 @@ module.exports = {
         '@typescript-eslint/no-loss-of-precision': 'warn',
         '@typescript-eslint/no-misused-promises': 'warn',
         '@typescript-eslint/no-unnecassary-type-assertion': 'off',
-        '@typescript-eslint/unbound-method': 'warn',
+        '@typescript-eslint/unbound-method': 'off',
         '@typescript-eslint/prefer-enum-initializers': 'off',
         '@typescript-eslint/prefer-nullish-coalescing': 'off',
         '@typescript-eslint/prefer-optional-chain': 'off',
