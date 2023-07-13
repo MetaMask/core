@@ -1,4 +1,5 @@
 import type { Json } from '@metamask/utils';
+// eslint-disable-next-line import/order
 import { enablePatches, produceWithPatches, applyPatches } from 'immer';
 
 // Imported separately because only the type is used

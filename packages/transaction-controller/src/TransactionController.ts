@@ -9,17 +9,9 @@ import type {
 import type {
   BaseConfig,
   BaseState,
-  RestrictedControllerMessenger} from '@metamask/base-controller';
-import {
-  BaseController
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import type {
-  BlockTracker,
-  NetworkState,
-  Provider,
-} from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
-import { Mutex } from 'async-mutex';
+import { BaseController } from '@metamask/base-controller';
 import {
   BNToHex,
   fractionBN,
@@ -33,6 +25,13 @@ import {
   ORIGIN_METAMASK,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
+import type {
+  BlockTracker,
+  NetworkState,
+  Provider,
+} from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import EthQuery from 'eth-query';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';

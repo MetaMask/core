@@ -6,7 +6,7 @@ import type { NonEmptyArray } from '@metamask/controller-utils';
 import type { Json } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
-import type { CaveatConstraint, Caveat } from './Caveat';
+import type { CaveatConstraint } from './Caveat';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   PermissionController,
