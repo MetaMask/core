@@ -82,18 +82,6 @@ describe('TokenRatesController', () => {
     });
   });
 
-  it('should throw when tokens property is accessed', () => {
-    const controller = new TokenRatesController({
-      chainId: toHex(1),
-      ticker: NetworksTicker.mainnet,
-      onTokensStateChange: sinon.stub(),
-      onNetworkStateChange: sinon.stub(),
-    });
-    expect(() => console.log(controller.tokens)).toThrow(
-      'Property only used for setting',
-    );
-  });
-
   it('should not poll by default', async () => {
     const clock = sinon.useFakeTimers({ now: Date.now() });
     const fetchSpy = jest.spyOn(globalThis, 'fetch');
@@ -198,6 +186,7 @@ describe('TokenRatesController', () => {
       .reply(200, {
         '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
       });
+    const tokenAddress = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
@@ -205,19 +194,28 @@ describe('TokenRatesController', () => {
         onTokensStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
-      { interval: 10 },
+      {
+        interval: 10,
+        tokens: [
+          {
+            address: tokenAddress,
+            decimals: 18,
+            symbol: 'DAI',
+            aggregators: [],
+          },
+          { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
+        ],
+      },
     );
-    const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
+
     expect(controller.state.contractExchangeRates).toStrictEqual({});
-    controller.tokens = [
-      { address, decimals: 18, symbol: 'DAI', aggregators: [] },
-      { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
-    ];
     await controller.updateExchangeRates();
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
-      address,
+      tokenAddress,
     );
-    expect(controller.state.contractExchangeRates[address]).toBeGreaterThan(0);
+    expect(
+      controller.state.contractExchangeRates[tokenAddress],
+    ).toBeGreaterThan(0);
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
       ADDRESS,
     );
@@ -232,18 +230,20 @@ describe('TokenRatesController', () => {
         onTokensStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
-      { interval: 10 },
+      {
+        interval: 10,
+        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+      },
     );
     sinon.stub(controller, 'fetchExchangeRate').throws({
       error: 'Not Found',
       message: 'Not Found',
     });
     expect(controller.state.contractExchangeRates).toStrictEqual({});
-    controller.tokens = [
-      { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
-    ];
     const mock = sinon.stub(controller, 'updateExchangeRates');
+
     await controller.updateExchangeRates();
+
     expect(mock).not.toThrow();
   });
 
@@ -272,8 +272,7 @@ describe('TokenRatesController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
 
-    // FIXME: This is now being called twice
-    expect(updateExchangeRatesStub.callCount).toBe(2);
+    expect(updateExchangeRatesStub.callCount).toBe(1);
   });
 
   it('should not update exchange rates when tokens change while polling is inactive', async () => {
@@ -329,8 +328,7 @@ describe('TokenRatesController', () => {
       providerConfig: { chainId: toHex(1), ticker: 'dai' },
     });
 
-    // FIXME: This is now being called twice
-    expect(updateExchangeRatesStub.callCount).toBe(2);
+    expect(updateExchangeRatesStub.callCount).toBe(1);
   });
 
   it('should not update exchange rates when ticker changes while polling is inactive', async () => {
@@ -383,42 +381,34 @@ describe('TokenRatesController', () => {
       '0x03': 0.001,
     };
 
-    let tokenStateChangeListener: (state: any) => void;
-    const onTokensStateChange = sinon.stub().callsFake((listener) => {
-      tokenStateChangeListener = listener;
-    });
-
     const onNetworkStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         chainId: toHex(137),
         ticker: 'MATIC',
-        onTokensStateChange,
+        onTokensStateChange: sinon.stub(),
         onNetworkStateChange,
       },
-      { interval: 10 },
+      {
+        interval: 10,
+        tokens: [
+          {
+            address: '0x02',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bar',
+            isERC721: false,
+          },
+          {
+            address: '0x03',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bazz',
+            isERC721: false,
+          },
+        ],
+      },
     );
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      tokens: [
-        {
-          address: '0x02',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bar',
-          isERC721: false,
-        },
-        {
-          address: '0x03',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bazz',
-          isERC721: false,
-        },
-      ],
-      detectedTokens: [],
-    });
 
     await controller.updateExchangeRates();
 
@@ -457,31 +447,27 @@ describe('TokenRatesController', () => {
         onTokensStateChange,
         onNetworkStateChange,
       },
-      { interval: 10 },
+      {
+        interval: 10,
+        nativeCurrency: 'ETH',
+        tokens: [
+          {
+            address: '0x02',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bar',
+            isERC721: false,
+          },
+          {
+            address: '0x03',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bazz',
+            isERC721: false,
+          },
+        ],
+      },
     );
-
-    await controller.configure({ nativeCurrency: 'ETH' });
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      tokens: [
-        {
-          address: '0x02',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bar',
-          isERC721: false,
-        },
-        {
-          address: '0x03',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bazz',
-          isERC721: false,
-        },
-      ],
-      detectedTokens: [],
-    });
 
     await controller.updateExchangeRates();
 
