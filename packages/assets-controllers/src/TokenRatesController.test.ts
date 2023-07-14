@@ -1,17 +1,7 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
-import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworksTicker, toHex } from '@metamask/controller-utils';
 import { TokenRatesController } from './TokenRatesController';
-import {
-  TokensController,
-  TokensControllerMessenger,
-} from './TokensController';
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const COINGECKO_ETH_PATH = '/simple/token_price/ethereum';
@@ -29,7 +19,6 @@ describe('TokenRatesController', () => {
     nock.enableNetConnect();
   });
 
-  let messenger: NetworkControllerMessenger;
   beforeEach(() => {
     nock(COINGECKO_API)
       .get(COINGECKO_SUPPORTED_CURRENCIES)
@@ -56,18 +45,11 @@ describe('TokenRatesController', () => {
         },
       ])
       .persist();
-
-    messenger = new ControllerMessenger().getRestricted({
-      name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
-      allowedActions: [],
-    });
   });
 
   afterEach(() => {
     nock.cleanAll();
     sinon.restore();
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set default state', () => {
@@ -184,28 +166,12 @@ describe('TokenRatesController', () => {
         '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
       })
       .persist();
-    new NetworkController({
-      infuraProjectId: 'infura-project-id',
-      messenger,
-      trackMetaMetricsEvent: jest.fn(),
-    });
-    const preferences = new PreferencesController();
-    const tokensController = new TokensController({
-      chainId: toHex(1),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
-      onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
-      messenger: undefined as unknown as TokensControllerMessenger,
-    });
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
-        onTokensStateChange: (listener) => tokensController.subscribe(listener),
-        onNetworkStateChange: (listener) =>
-          messenger.subscribe('NetworkController:stateChange', listener),
+        onTokensStateChange: sinon.stub(),
+        onNetworkStateChange: sinon.stub(),
       },
       { interval: 10 },
     );
