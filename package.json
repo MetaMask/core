@@ -79,5 +79,9 @@
       "ethereumjs-util>ethereum-cryptography>secp256k1": true,
       "simple-git-hooks": false
     }
+  },
+  "devDependencies": {
+    "@metamask/utils": "^6.2.0",
+    "nock": "^13.3.2"
   }
 }

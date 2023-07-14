@@ -1450,6 +1450,7 @@ __metadata:
     "@metamask/eslint-config-nodejs": ^9.0.0
     "@metamask/eslint-config-typescript": ^9.0.1
     "@metamask/eth-json-rpc-provider": ^1.0.0
+    "@metamask/utils": ^6.2.0
     "@types/node": ^16.18.24
     "@typescript-eslint/eslint-plugin": ^4.33.0
     "@typescript-eslint/parser": ^4.33.0
@@ -1465,6 +1466,7 @@ __metadata:
     execa: ^5.0.0
     isomorphic-fetch: ^3.0.0
     json-rpc-engine: ^6.1.0
+    nock: ^13.3.2
     prettier: ^2.6.2
     prettier-plugin-packagejson: ^2.2.17
     rimraf: ^3.0.2
@@ -2079,6 +2081,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/utils@npm:^6.2.0":
+  version: 6.2.0
+  resolution: "@metamask/utils@npm:6.2.0"
+  dependencies:
+    "@ethereumjs/tx": ^4.1.2
+    "@noble/hashes": ^1.3.1
+    "@types/debug": ^4.1.7
+    debug: ^4.3.4
+    semver: ^7.3.8
+    superstruct: ^1.0.3
+  checksum: 0bc675358ecc09b3bc04da613d73666295d7afa51ff6b8554801585966900b24b8545bd93b8b2e9a17db867ebe421fe884baf3558ec4ca3199fa65504f677c1b
+  languageName: node
+  linkType: hard
+
 "@ngraveio/bc-ur@npm:^1.1.5":
   version: 1.1.6
   resolution: "@ngraveio/bc-ur@npm:1.1.6"
@@ -2114,6 +2130,13 @@ __metadata:
   version: 1.3.0
   resolution: "@noble/hashes@npm:1.3.0"
   checksum: d7ddb6d7c60f1ce1f87facbbef5b724cdea536fc9e7f59ae96e0fc9de96c8f1a2ae2bdedbce10f7dcc621338dfef8533daa73c873f2b5c87fa1a4e05a95c2e2e
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:^1.3.1":
+  version: 1.3.1
+  resolution: "@noble/hashes@npm:1.3.1"
+  checksum: 7fdefc0f7a0c1ec27acc6ff88841793e3f93ec4ce6b8a6a12bfc0dd70ae6b7c4c82fe305fdfeda1735d5ad4a9eebe761e6693b3d355689c559e91242f4bc95b1
   languageName: node
   linkType: hard
 
@@ -6916,6 +6939,18 @@ __metadata:
     lodash.set: ^4.3.2
     propagate: ^2.0.0
   checksum: 022f388ab360321a04b5f661dc273001cbdda39d3f87623efaf3672f0e36bd2c771b4a24125717668bda082bbd8ad704ee2d86c26a9260d0facebb378436cc4c
+  languageName: node
+  linkType: hard
+
+"nock@npm:^13.3.2":
+  version: 13.3.2
+  resolution: "nock@npm:13.3.2"
+  dependencies:
+    debug: ^4.1.0
+    json-stringify-safe: ^5.0.1
+    lodash: ^4.17.21
+    propagate: ^2.0.0
+  checksum: 1d7d5fda1816a3a0d2cb47f10283db139fcd15be6975db6f9b260efa781d5f0eeadf9bd7aab6db61191c519dd99bcd4c5c061e77880341be60abc39cd6163c1f
   languageName: node
   linkType: hard
 
