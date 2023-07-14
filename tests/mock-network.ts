@@ -128,13 +128,8 @@ class MockedNetwork {
    */
   #mockRpcCall(requestMock: JsonRpcRequestMock): nock.Scope {
     // eth-query always passes `params`, so even if we don't supply this
-    // property, for consistency with makeRpcCall, assume that the `body`
-    // contains it
+    // property, assume that the `body` contains it
     const { method, params = [], ...rest } = requestMock.request;
-    const httpStatus =
-      'response' in requestMock && 'httpStatus' in requestMock.response
-        ? requestMock.response.httpStatus
-        : 200;
 
     const url =
       this.#networkClientConfiguration.type === NetworkClientType.Infura
@@ -160,6 +155,10 @@ class MockedNetwork {
         getErrorMessage(requestMock.error),
       );
     } else {
+      const httpStatus =
+        'response' in requestMock && 'httpStatus' in requestMock.response
+          ? requestMock.response.httpStatus
+          : 200;
       newNockScope = nockInterceptor.reply(
         httpStatus,
         (_uri: any, requestBody: JsonRpcRequest<any>) => {
