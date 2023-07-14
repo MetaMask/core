@@ -33,9 +33,6 @@ module.exports = {
         'jest/no-test-return-statement': 'off',
         // TODO: Re-enable this rule; we can accomodate this even in our test helpers
         'jest/expect-expect': 'off',
-
-        // TODO: Re-enable
-        '@typescript-eslint/naming-convention': 'off',
       },
     },
     {
@@ -56,18 +53,6 @@ module.exports = {
         // disabled due to incompatibility with Record<string, unknown>
         // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
         '@typescript-eslint/consistent-type-definitions': 'off',
-
-        // Modified to include the 'ignoreRestSiblings' option
-        // TODO: Migrate this rule change back into `@metamask/eslint-config`
-        '@typescript-eslint/no-unused-vars': [
-          'error',
-          {
-            vars: 'all',
-            args: 'all',
-            argsIgnorePattern: '[_]+',
-            ignoreRestSiblings: true,
-          },
-        ],
 
         // TODO: auto-fix breaks stuff
         '@typescript-eslint/promise-function-async': 'off',
@@ -107,21 +92,6 @@ module.exports = {
     },
   ],
   rules: {
-    // This is already set in the newest version of eslint-config
-    'padding-line-between-statements': [
-      'error',
-      {
-        blankLine: 'always',
-        prev: 'directive',
-        next: '*',
-      },
-      {
-        blankLine: 'any',
-        prev: 'directive',
-        next: 'directive',
-      },
-    ],
-
     // Left disabled because various properties throughough this repo are snake_case because the
     // names come from external sources or must comply with standards
     // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
