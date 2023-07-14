@@ -4,8 +4,6 @@ import * as sinon from 'sinon';
 
 import { TokenRatesController } from './TokenRatesController';
 
-const originalSetTimeout = globalThis.setTimeout;
-
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const COINGECKO_ETH_PATH = '/simple/token_price/ethereum';
 const COINGECKO_MATIC_PATH = '/simple/token_price/polygon-pos-network';
@@ -53,7 +51,6 @@ describe('TokenRatesController', () => {
     nock.cleanAll();
     sinon.restore();
     jest.resetAllMocks();
-    jest.useRealTimers();
   });
 
   it('should set default state', () => {
@@ -98,7 +95,7 @@ describe('TokenRatesController', () => {
   });
 
   it('should not poll by default', async () => {
-    jest.useFakeTimers();
+    const clock = sinon.useFakeTimers({ now: Date.now() });
     const fetchSpy = jest.spyOn(globalThis, 'fetch');
     new TokenRatesController(
       {
@@ -113,13 +110,13 @@ describe('TokenRatesController', () => {
       },
     );
 
-    jest.advanceTimersByTime(500);
+    await clock.tickAsync(500);
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should poll and update rate in the right interval', async () => {
-    jest.useFakeTimers();
+    const clock = sinon.useFakeTimers({ now: Date.now() });
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
       throw new Error('Network error');
     });
@@ -140,17 +137,15 @@ describe('TokenRatesController', () => {
     await controller.start();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(interval);
+    await clock.tickAsync(interval);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
 
-    // empty Promise queue
-    await new Promise((resolve) => originalSetTimeout(resolve, 0));
-    jest.advanceTimersByTime(interval);
+    await clock.tickAsync(interval);
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
   it('should stop polling', async () => {
-    jest.useFakeTimers();
+    const clock = sinon.useFakeTimers({ now: Date.now() });
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
       throw new Error('Network error');
     });
@@ -173,9 +168,7 @@ describe('TokenRatesController', () => {
 
     controller.stop();
 
-    // empty Promise queue
-    await new Promise((resolve) => originalSetTimeout(resolve, 0));
-    jest.advanceTimersByTime(interval);
+    await clock.tickAsync(interval);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -198,7 +191,7 @@ describe('TokenRatesController', () => {
   });
 
   it('should update polling interval', async () => {
-    jest.useFakeTimers();
+    const clock = sinon.useFakeTimers({ now: Date.now() });
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
       throw new Error('Network error');
     });
@@ -216,15 +209,13 @@ describe('TokenRatesController', () => {
       },
     );
 
-    await controller.start();
+    await controller.start(newInterval);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(newInterval);
+    await clock.tickAsync(newInterval);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
 
-    // empty Promise queue
-    await new Promise((resolve) => originalSetTimeout(resolve, 0));
-    jest.advanceTimersByTime(newInterval);
+    await clock.tickAsync(newInterval);
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
@@ -286,7 +277,7 @@ describe('TokenRatesController', () => {
   });
 
   it('should update exchange rates when tokens change while polling is active', async () => {
-    jest.useFakeTimers();
+    sinon.useFakeTimers({ now: Date.now() });
     let tokenStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub().callsFake((listener) => {
       tokenStateChangeListener = listener;
@@ -341,7 +332,7 @@ describe('TokenRatesController', () => {
   });
 
   it('should update exchange rates when ticker changes while polling is active', async () => {
-    jest.useFakeTimers();
+    sinon.useFakeTimers({ now: Date.now() });
     let networkStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub();
     const onNetworkStateChange = sinon.stub().callsFake((listener) => {
