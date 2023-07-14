@@ -215,14 +215,21 @@ export class TokenRatesController extends BaseController<
       this.configure({ disabled: true }, false, false);
     }
 
-    onTokensStateChange(({ tokens, detectedTokens }) => {
+    onTokensStateChange(async ({ tokens, detectedTokens }) => {
       this.configure({ tokens: [...tokens, ...detectedTokens] });
+      this.tokenList = this.config.tokens;
+      if (this.#pollState === PollState.Active) {
+        await this.updateExchangeRates();
+      }
     });
 
-    onNetworkStateChange(({ providerConfig }) => {
+    onNetworkStateChange(async ({ providerConfig }) => {
       const { chainId, ticker } = providerConfig;
       this.update({ contractExchangeRates: {} });
       this.configure({ chainId, nativeCurrency: ticker });
+      if (this.#pollState === PollState.Active) {
+        await this.updateExchangeRates();
+      }
     });
   }
 
@@ -263,41 +270,6 @@ export class TokenRatesController extends BaseController<
     this.handle = setTimeout(() => {
       this.#poll();
     }, this.config.interval);
-  }
-
-  /**
-   * Sets a new chainId.
-   *
-   * TODO: Replace this with a method.
-   *
-   * @param _chainId - The current chain ID.
-   */
-  set chainId(_chainId: Hex) {
-    if (this.#pollState === PollState.Active) {
-      this.updateExchangeRates();
-    }
-  }
-
-  get chainId() {
-    throw new Error('Property only used for setting');
-  }
-
-  /**
-   * Sets a new token list to track prices.
-   *
-   * TODO: Replace this with a method.
-   *
-   * @param tokens - List of tokens to track exchange rates for.
-   */
-  set tokens(tokens: Token[]) {
-    this.tokenList = tokens;
-    if (this.#pollState === PollState.Active) {
-      this.updateExchangeRates();
-    }
-  }
-
-  get tokens() {
-    throw new Error('Property only used for setting');
   }
 
   /**
