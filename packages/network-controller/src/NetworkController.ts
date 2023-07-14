@@ -901,7 +901,7 @@ export class NetworkController extends BaseControllerV2<
    * appropriately.
    *
    * @returns A promise that resolves to true if the network supports EIP-1559
-   * and false otherwise.
+   * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
   async getEIP1559Compatibility() {
     const { EIPS } = this.state.networkDetails;
