@@ -2047,6 +2047,7 @@ __metadata:
   peerDependencies:
     "@metamask/approval-controller": "workspace:^"
     "@metamask/network-controller": "workspace:^"
+    babel-runtime: ^6.26.0
   languageName: unknown
   linkType: soft
 

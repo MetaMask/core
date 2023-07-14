@@ -316,10 +316,14 @@ gen_enforced_field(WorkspaceCwd, 'publishConfig', null) :-
 
 % nonce-tracker has an unlisted dependency on babel-runtime (via `ethjs-query`), so that package
 % needs to be present if nonce-tracker is present.
-gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', DependencyType) :-
-  workspace_has_dependency(WorkspaceCwd, 'nonce-tracker', _, DependencyType).
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'nonce-tracker', _, 'dependencies').
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'devDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'nonce-tracker', _, 'dependencies').
 
 % eth-method-registry has an unlisted dependency on babel-runtime (via `ethjs->ethjs-query`), so
 % that package needs to be present if eth-method-registry is present.
-gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', DependencyType) :-
-  workspace_has_dependency(WorkspaceCwd, 'eth-method-registry', _, DependencyType).
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'eth-method-registry', _, 'dependencies').
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'devDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'eth-method-registry', _, 'dependencies').
