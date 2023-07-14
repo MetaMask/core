@@ -328,7 +328,7 @@ describe('TokenRatesController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
 
-    expect(updateExchangeRatesStub.callCount).toStrictEqual(0);
+    expect(updateExchangeRatesStub.callCount).toBe(0);
   });
 
   it('should update exchange rates when ticker changes while polling is active', async () => {
@@ -387,7 +387,7 @@ describe('TokenRatesController', () => {
       providerConfig: { chainId: toHex(1), ticker: 'dai' },
     });
 
-    expect(updateExchangeRatesStub.callCount).toStrictEqual(0);
+    expect(updateExchangeRatesStub.callCount).toBe(0);
   });
 
   it('should update exchange rates when native currency is not supported by coingecko', async () => {
