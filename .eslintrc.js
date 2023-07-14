@@ -36,7 +36,6 @@ module.exports = {
     {
       files: ['*.js'],
       parserOptions: {
-        project: ['./tsconfig.packages.json'],
         sourceType: 'script',
         ecmaVersion: '2018',
       },
