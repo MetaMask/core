@@ -37,7 +37,6 @@
     "@metamask/swappable-obj-proxy": "^2.1.0",
     "@metamask/utils": "^5.0.2",
     "async-mutex": "^0.2.6",
-    "babel-runtime": "^6.26.0",
     "eth-block-tracker": "^7.0.1",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.2",
