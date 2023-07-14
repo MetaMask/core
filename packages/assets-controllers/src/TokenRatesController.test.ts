@@ -15,65 +15,23 @@ import {
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const COINGECKO_ETH_PATH = '/simple/token_price/ethereum';
-const COINGECKO_BSC_PATH = '/simple/token_price/binance-smart-chain';
 const COINGECKO_MATIC_PATH = '/simple/token_price/polygon-pos-network';
 const COINGECKO_ASSETS_PATH = '/asset_platforms';
 const COINGECKO_SUPPORTED_CURRENCIES = '/simple/supported_vs_currencies';
 const ADDRESS = '0x01';
 
 describe('TokenRatesController', () => {
+  beforeAll(() => {
+    nock.disableNetConnect();
+  });
+
+  afterAll(() => {
+    nock.enableNetConnect();
+  });
+
   let messenger: NetworkControllerMessenger;
   beforeEach(() => {
     nock(COINGECKO_API)
-      .get(COINGECKO_ASSETS_PATH)
-      .reply(200, [
-        {
-          id: 'binance-smart-chain',
-          chain_identifier: 56,
-          name: 'Binance Smart Chain',
-          shortname: 'BSC',
-        },
-        {
-          id: 'ethereum',
-          chain_identifier: 1,
-          name: 'Ethereum',
-          shortname: '',
-        },
-        {
-          id: 'polygon-pos-network',
-          chain_identifier: 137,
-          name: 'Polygon',
-          shortname: 'MATIC',
-        },
-      ])
-      .get(
-        `${COINGECKO_ETH_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
-      )
-      .reply(200, {
-        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
-      })
-      .get(
-        `${COINGECKO_ETH_PATH}?contract_addresses=${ADDRESS}&vs_currencies=eth`,
-      )
-      .reply(200, {})
-      .get(`${COINGECKO_ETH_PATH}?contract_addresses=bar&vs_currencies=eth`)
-      .reply(200, {})
-      .get(
-        `${COINGECKO_ETH_PATH}?contract_addresses=${ADDRESS}&vs_currencies=gno`,
-      )
-      .reply(200, {})
-      .get(
-        `${COINGECKO_BSC_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
-      )
-      .reply(200, {
-        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
-      })
-      .get(`${COINGECKO_BSC_PATH}?contract_addresses=0xfoO&vs_currencies=eth`)
-      .reply(200, {})
-      .get(`${COINGECKO_BSC_PATH}?contract_addresses=bar&vs_currencies=eth`)
-      .reply(200, {})
-      .get(`${COINGECKO_BSC_PATH}?contract_addresses=0xfoO&vs_currencies=gno`)
-      .reply(200, {})
       .get(COINGECKO_SUPPORTED_CURRENCIES)
       .reply(200, ['eth', 'usd'])
       .get(COINGECKO_ASSETS_PATH)
@@ -97,11 +55,6 @@ describe('TokenRatesController', () => {
           shortname: 'MATIC',
         },
       ])
-      .persist();
-
-    nock('https://min-api.cryptocompare.com')
-      .get('/data/price?fsym=ETH&tsyms=USD')
-      .reply(200, { USD: 179.63 })
       .persist();
 
     messenger = new ControllerMessenger().getRestricted({
@@ -223,6 +176,14 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
+    nock(COINGECKO_API)
+      .get(
+        `${COINGECKO_ETH_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
+      )
+      .reply(200, {
+        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
+      })
+      .persist();
     new NetworkController({
       infuraProjectId: 'infura-project-id',
       messenger,
