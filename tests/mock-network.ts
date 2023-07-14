@@ -18,10 +18,6 @@ import {
  * @property response.error - Specifies the `error` field of the JSON-RPC
  * response.
  * @property error - The error that should be raised upon making the request.
- * @property implementation - A function that is called to generate the
- * response. Should return the same interface as the `response` property above.
- * @property delay - The amount of time that should pass before the response
- * returns.
  * @property httpStatus - The HTTP status that the response should have.
  * @property discardAfterMatching - Usually a request mock represents a single
  * request for a JSON-RPC method and is discarded when that request occurs. This
@@ -48,9 +44,6 @@ type JsonRpcRequestMock = {
     }
   | {
       error: unknown;
-    }
-  | {
-      implementation: () => void;
     }
 );
 
