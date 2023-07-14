@@ -706,12 +706,12 @@ export class TokensController extends BaseController<
 
     const networkClient = await this.messagingSystem.call(
       'SelectedNetworkController:getClientForDomain',
-      { origin },
+      origin,
     );
 
     const chainId = await this.messagingSystem.call(
       'SelectedNetworkController:getChainForDomain',
-      { origin },
+      origin,
     );
 
     const { selectedAddress } = this.config;
