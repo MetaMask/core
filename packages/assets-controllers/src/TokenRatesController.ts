@@ -228,13 +228,8 @@ export class TokenRatesController extends BaseController<
 
   /**
    * Start (or restart) polling.
-   *
-   * @param interval - Polling interval used to fetch new token rates.
    */
-  async start(interval?: number) {
-    if (interval) {
-      this.configure({ interval }, false, false);
-    }
+  async start() {
     this.#stopPoll();
     this.#pollState = PollState.Active;
     await this.#poll();

@@ -190,35 +190,6 @@ describe('TokenRatesController', () => {
     expect((controller.fetchExchangeRate as any).called).toBe(false);
   });
 
-  it('should update polling interval', async () => {
-    const clock = sinon.useFakeTimers({ now: Date.now() });
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
-      throw new Error('Network error');
-    });
-    const newInterval = 1000;
-    const controller = new TokenRatesController(
-      {
-        chainId: toHex(1),
-        ticker: NetworksTicker.mainnet,
-        onTokensStateChange: jest.fn(),
-        onNetworkStateChange: jest.fn(),
-      },
-      {
-        interval: 100,
-        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
-      },
-    );
-
-    await controller.start(newInterval);
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-
-    await clock.tickAsync(newInterval);
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
-
-    await clock.tickAsync(newInterval);
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
-  });
-
   it('should update all rates', async () => {
     nock(COINGECKO_API)
       .get(
