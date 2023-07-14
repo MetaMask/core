@@ -44,6 +44,7 @@ module.exports = {
       files: ['*.ts'],
       extends: ['@metamask/eslint-config-typescript'],
       parserOptions: {
+        tsconfigRootDir: __dirname,
         project: ['./tsconfig.packages.json'],
       },
       rules: {
