@@ -447,22 +447,26 @@ describe('TokenRatesController', () => {
         onTokensStateChange,
         onNetworkStateChange,
       },
-      { interval: 10, nativeCurrency: 'ETH', tokens: [
-        {
-          address: '0x02',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bar',
-          isERC721: false,
-        },
-        {
-          address: '0x03',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bazz',
-          isERC721: false,
-        },
-      ] },
+      {
+        interval: 10,
+        nativeCurrency: 'ETH',
+        tokens: [
+          {
+            address: '0x02',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bar',
+            isERC721: false,
+          },
+          {
+            address: '0x03',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bazz',
+            isERC721: false,
+          },
+        ],
+      },
     );
 
     await controller.updateExchangeRates();
