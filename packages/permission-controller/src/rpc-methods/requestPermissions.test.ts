@@ -1,5 +1,6 @@
-import { JsonRpcEngine, createAsyncMiddleware } from 'json-rpc-engine';
 import { ethErrors, serializeError } from 'eth-rpc-errors';
+import { JsonRpcEngine, createAsyncMiddleware } from 'json-rpc-engine';
+
 import { requestPermissionsHandler } from './requestPermissions';
 
 describe('requestPermissions RPC method', () => {

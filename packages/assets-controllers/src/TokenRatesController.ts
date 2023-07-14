@@ -1,9 +1,5 @@
-import type { Hex } from '@metamask/utils';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   safelyExecute,
   handleFetch,
@@ -12,6 +8,8 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
+
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
 import type { TokensState } from './TokensController';
 

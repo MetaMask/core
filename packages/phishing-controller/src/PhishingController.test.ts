@@ -1,7 +1,8 @@
 import { strict as assert } from 'assert';
-import * as sinon from 'sinon';
-import nock from 'nock';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
 import {
   ListNames,
   METAMASK_HOTLIST_DIFF_FILE,

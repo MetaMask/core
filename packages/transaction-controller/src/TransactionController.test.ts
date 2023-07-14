@@ -1,8 +1,5 @@
 /* eslint-disable jest/expect-expect */
 
-import HttpProvider from 'ethjs-provider-http';
-import NonceTracker from 'nonce-tracker';
-import { errorCodes } from 'eth-rpc-errors';
 import Common from '@ethereumjs/common';
 import {
   ChainId,
@@ -16,20 +13,10 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import {
-  AcceptResultCallbacks,
-  AddResult,
-} from '../../approval-controller/src';
-import { ESTIMATE_GAS_ERROR } from './utils';
-import {
-  TransactionController,
-  TransactionStatus,
-  TransactionMeta,
-  TransactionControllerMessenger,
-  TransactionConfig,
-  HARDFORK,
-} from './TransactionController';
+import { errorCodes } from 'eth-rpc-errors';
+import HttpProvider from 'ethjs-provider-http';
+import NonceTracker from 'nonce-tracker';
+
 import {
   ethTxsMock,
   tokenTxsMock,
@@ -38,6 +25,22 @@ import {
   txsInStateWithOutdatedGasDataMock,
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
+import type {
+  TransactionMeta,
+  TransactionControllerMessenger,
+  TransactionConfig,
+} from './TransactionController';
+import {
+  TransactionController,
+  TransactionStatus,
+  HARDFORK,
+} from './TransactionController';
+import { ESTIMATE_GAS_ERROR } from './utils';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import type {
+  AcceptResultCallbacks,
+  AddResult,
+} from '../../approval-controller/src';
 
 const v1Stub = jest
   .fn()
@@ -464,7 +467,7 @@ describe('TransactionController', () => {
   let rejectMessengerMock: TransactionControllerMessenger;
   let delayMessengerMock: TransactionControllerMessenger;
   let approveTransaction: () => void;
-  let getNonceLockSpy: jest.Mock<any, any>;
+  let getNonceLockSpy: jest.Mock;
 
   /**
    * Create a new instance of the TransactionController.
@@ -873,11 +876,11 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(2);
       const secondTransaction = controller.state.transactions[1];
 
-      expect(firstTransaction.transaction.nonce).toStrictEqual(
+      expect(firstTransaction.transaction.nonce).toBe(
         `0x${NONCE_MOCK.toString(16)}`,
       );
 
-      expect(secondTransaction.transaction.nonce).toStrictEqual(
+      expect(secondTransaction.transaction.nonce).toBe(
         `0x${(NONCE_MOCK + 1).toString(16)}`,
       );
     });
@@ -1314,8 +1317,8 @@ describe('TransactionController', () => {
         ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
       ) || { id: '' };
 
-      expect(tokenTransaction?.id).toStrictEqual('token-transaction-id');
-      expect(ethTransaction?.id).toStrictEqual('eth-transaction-id');
+      expect(tokenTransaction?.id).toBe('token-transaction-id');
+      expect(ethTransaction?.id).toBe('eth-transaction-id');
     });
 
     it('updates all transactions with outdated status using remote data', async () => {
@@ -1372,8 +1375,8 @@ describe('TransactionController', () => {
         ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
       ) || { transaction: { gasUsed: '0x0' } };
 
-      expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-      expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+      expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+      expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
     });
 
     it('updates all transactions with outdated status and gas data using remote data', async () => {
@@ -1407,8 +1410,8 @@ describe('TransactionController', () => {
         TransactionStatus.confirmed,
       );
       expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
-      expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-      expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+      expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+      expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
     });
 
     it('returns undefined if no matching transactions', async () => {
@@ -1435,7 +1438,7 @@ describe('TransactionController', () => {
         args: [{ type: 'uint256' }, { type: 'uint256' }],
         name: 'Eth To Token Swap Input',
       });
-      expect(registry.registryMethod).toStrictEqual(
+      expect(registry.registryMethod).toBe(
         'ethToTokenSwapInput(uint256,uint256)',
       );
     });

@@ -1,4 +1,4 @@
-import { LogType } from './LogType';
+import type { LogType } from './LogType';
 
 /**
  * An enum of the signing method types that we are interested in logging.

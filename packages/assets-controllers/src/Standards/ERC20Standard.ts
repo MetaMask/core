@@ -1,15 +1,16 @@
 import { Contract } from '@ethersproject/contracts';
-import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { BN, toUtf8 } from 'ethereumjs-util';
+import type { Web3Provider } from '@ethersproject/providers';
 import { decodeSingle } from '@metamask/abi-utils';
-
-import { Web3Provider } from '@ethersproject/providers';
 import { ERC20 } from '@metamask/controller-utils';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { assertIsStrictHexString } from '@metamask/utils';
+import { toUtf8 } from 'ethereumjs-util';
+import type { BN } from 'ethereumjs-util';
+
 import { ethersBigNumberToBN } from '../assetsUtil';
 
 export class ERC20Standard {
-  private provider: Web3Provider;
+  private readonly provider: Web3Provider;
 
   constructor(provider: Web3Provider) {
     this.provider = provider;
