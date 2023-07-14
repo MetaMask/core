@@ -453,6 +453,99 @@ describe('TokenRatesController', () => {
     expect(updateExchangeRatesStub.callCount).toBe(0);
   });
 
+  it('should update exchange rates when selected address changes while polling is active', async () => {
+    sinon.useFakeTimers({ now: Date.now() });
+    nock(COINGECKO_API)
+      .get(`${COINGECKO_ETH_PATH}`)
+      .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+      .reply(200, {
+        '0x02': {
+          eth: 0.001, // token value in terms of ETH
+        },
+        '0x03': {
+          eth: 0.002,
+        },
+      });
+    let preferencesStateChangeListener: (state: any) => void;
+    const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
+      preferencesStateChangeListener = listener;
+    });
+    const alternateSelectedAddress =
+      '0x0000000000000000000000000000000000000002';
+    const controller = new TokenRatesController(
+      {
+        chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange,
+        onTokensStateChange: sinon.stub(),
+        onNetworkStateChange: sinon.stub(),
+      },
+      {
+        interval: 10,
+        allTokens: {
+          [toHex(1)]: {
+            [alternateSelectedAddress]: [
+              { address: '0x02', decimals: 0, symbol: '', aggregators: [] },
+              { address: '0x03', decimals: 0, symbol: '', aggregators: [] },
+            ],
+          },
+        },
+      },
+    );
+    await controller.start();
+    expect(controller.state.contractExchangeRates).toStrictEqual({});
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await preferencesStateChangeListener!({
+      selectedAddress: alternateSelectedAddress,
+    });
+
+    expect(controller.state.contractExchangeRates).toStrictEqual({
+      '0x02': 0.001,
+      '0x03': 0.002,
+    });
+  });
+
+  it('should not update exchange rates when selected address changes while polling is inactive', async () => {
+    sinon.useFakeTimers({ now: Date.now() });
+    let preferencesStateChangeListener: (state: any) => void;
+    const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
+      preferencesStateChangeListener = listener;
+    });
+    const alternateSelectedAddress =
+      '0x0000000000000000000000000000000000000002';
+    const controller = new TokenRatesController(
+      {
+        chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange,
+        onTokensStateChange: sinon.stub(),
+        onNetworkStateChange: sinon.stub(),
+      },
+      {
+        interval: 10,
+        allTokens: {
+          [toHex(1)]: {
+            [alternateSelectedAddress]: [
+              { address: '0x02', decimals: 0, symbol: '', aggregators: [] },
+              { address: '0x03', decimals: 0, symbol: '', aggregators: [] },
+            ],
+          },
+        },
+      },
+    );
+    expect(controller.state.contractExchangeRates).toStrictEqual({});
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await preferencesStateChangeListener!({
+      selectedAddress: alternateSelectedAddress,
+    });
+
+    expect(controller.state.contractExchangeRates).toStrictEqual({});
+  });
+
   it('should update exchange rates when native currency is not supported by coingecko', async () => {
     nock(COINGECKO_API)
       .get(`${COINGECKO_MATIC_PATH}`)

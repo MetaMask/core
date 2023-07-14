@@ -232,7 +232,9 @@ export class TokenRatesController extends BaseController<
     onPreferencesStateChange(async ({ selectedAddress }) => {
       this.configure({ selectedAddress });
       this.#updateTokenList();
-      await this.updateExchangeRates();
+      if (this.#pollState === PollState.Active) {
+        await this.updateExchangeRates();
+      }
     });
 
     onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
