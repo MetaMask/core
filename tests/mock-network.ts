@@ -1,9 +1,8 @@
-import { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
+import type { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
 import nock from 'nock';
-import {
-  NetworkClientConfiguration,
-  NetworkClientType,
-} from '../packages/network-controller/src/types';
+
+import type { NetworkClientConfiguration } from '../packages/network-controller/src/types';
+import { NetworkClientType } from '../packages/network-controller/src/types';
 
 /**
  * An object which instructs the MockedNetwork class which JSON-RPC request
@@ -165,11 +164,8 @@ class MockedNetwork {
           const baseResponse = { id: requestBody.id, jsonrpc: '2.0' as const };
           let completeResponse: JsonRpcResponse<any> | undefined;
 
-          if ('response' in requestMock && requestMock.response !== undefined) {
-            if (
-              'result' in requestMock.response &&
-              requestMock.response.result !== undefined
-            ) {
+          if ('response' in requestMock) {
+            if ('result' in requestMock.response) {
               completeResponse = {
                 ...baseResponse,
                 result: requestMock.response.result,
