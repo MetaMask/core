@@ -1,5 +1,5 @@
-import { BN } from 'ethereumjs-util';
 import { query, fromHex, toHex } from '@metamask/controller-utils';
+import { BN } from 'ethereumjs-util';
 
 type EthQuery = any;
 

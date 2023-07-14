@@ -1,15 +1,14 @@
-import HttpProvider from 'ethjs-provider-http';
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ChainId,
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
+import type { NetworkControllerMessenger } from '@metamask/network-controller';
+import { NetworkController } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import HttpProvider from 'ethjs-provider-http';
+
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
@@ -127,8 +126,8 @@ describe('AssetsContractController', () => {
       ERC20_UNI_ADDRESS,
       '0x202637dAAEfbd7f131f90338a4A6c69F6Cd5CE91',
     );
-    expect(UNIBalance.toString(16)).not.toStrictEqual('0');
-    expect(UNINoBalance.toString(16)).toStrictEqual('0');
+    expect(UNIBalance.toString(16)).not.toBe('0');
+    expect(UNINoBalance.toString(16)).toBe('0');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -140,7 +139,7 @@ describe('AssetsContractController', () => {
       '0x9a90bd8d1149a88b42a99cf62215ad955d6f498a',
       0,
     );
-    expect(tokenId).not.toStrictEqual(0);
+    expect(tokenId).not.toBe(0);
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -176,7 +175,7 @@ describe('AssetsContractController', () => {
       ERC721_GODS_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
-    expect(standardAndDetails.standard).toStrictEqual('ERC721');
+    expect(standardAndDetails.standard).toBe('ERC721');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -187,7 +186,7 @@ describe('AssetsContractController', () => {
       ERC1155_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
-    expect(standardAndDetails.standard).toStrictEqual('ERC1155');
+    expect(standardAndDetails.standard).toBe('ERC1155');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -198,7 +197,7 @@ describe('AssetsContractController', () => {
       ERC20_UNI_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
-    expect(standardAndDetails.standard).toStrictEqual('ERC20');
+    expect(standardAndDetails.standard).toBe('ERC20');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -209,7 +208,7 @@ describe('AssetsContractController', () => {
       ERC721_GODS_ADDRESS,
       '0',
     );
-    expect(tokenId).toStrictEqual('https://api.godsunchained.com/card/0');
+    expect(tokenId).toBe('https://api.godsunchained.com/card/0');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -232,7 +231,7 @@ describe('AssetsContractController', () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const name = await assetsContract.getERC721AssetName(ERC721_GODS_ADDRESS);
-    expect(name).toStrictEqual('Gods Unchained');
+    expect(name).toBe('Gods Unchained');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -242,7 +241,7 @@ describe('AssetsContractController', () => {
     const symbol = await assetsContract.getERC721AssetSymbol(
       ERC721_GODS_ADDRESS,
     );
-    expect(symbol).toStrictEqual('GODS');
+    expect(symbol).toBe('GODS');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -260,7 +259,7 @@ describe('AssetsContractController', () => {
     const decimals = await assetsContract.getERC20TokenDecimals(
       ERC20_DAI_ADDRESS,
     );
-    expect(Number(decimals)).toStrictEqual(18);
+    expect(Number(decimals)).toBe(18);
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
   it('should get ERC-20 token name', async () => {
@@ -272,7 +271,7 @@ describe('AssetsContractController', () => {
       '0x6B175474E89094C44Da98b954EedeAC495271d0F',
     );
 
-    expect(name).toStrictEqual('Dai Stablecoin');
+    expect(name).toBe('Dai Stablecoin');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -283,7 +282,7 @@ describe('AssetsContractController', () => {
       ERC721_GODS_ADDRESS,
       '148332',
     );
-    expect(tokenId).not.toStrictEqual('');
+    expect(tokenId).not.toBe('');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -302,7 +301,7 @@ describe('AssetsContractController', () => {
       ERC20_DAI_ADDRESS,
       [ERC20_DAI_ADDRESS],
     );
-    expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
+    expect(balances[ERC20_DAI_ADDRESS]).toBeDefined();
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -316,7 +315,7 @@ describe('AssetsContractController', () => {
       ERC20_DAI_ADDRESS,
       [ERC20_DAI_ADDRESS],
     );
-    expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
+    expect(balances[ERC20_DAI_ADDRESS]).toBeDefined();
 
     await network.setProviderType(NetworkType.sepolia);
 

@@ -1,14 +1,15 @@
-import { promisify } from 'util';
-import nock from 'nock';
 import { NetworkType } from '@metamask/controller-utils';
-import { mockNetwork } from '../../../tests/mock-network';
+import nock from 'nock';
+import { promisify } from 'util';
+
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import * as createNetworkClientModule from './create-network-client';
-import {
+import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
-  NetworkClientType,
 } from './types';
+import { NetworkClientType } from './types';
+import { mockNetwork } from '../../../tests/mock-network';
 
 describe('createAutoManagedNetworkClient', () => {
   beforeEach(() => {

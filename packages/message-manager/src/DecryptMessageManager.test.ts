@@ -145,13 +145,13 @@ describe('DecryptMessageManager', () => {
       messageParams,
       originalRequest,
     );
-    expect(messageId).not.toBeUndefined();
+    expect(messageId).toBeDefined();
     const message = controller.getMessage(messageId);
     if (!message) {
       throw new Error('"message" is falsy');
     }
     expect(message.messageParams.from).toBe(messageParams.from);
-    expect(message.time).not.toBeUndefined();
+    expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
   });
@@ -188,7 +188,7 @@ describe('DecryptMessageManager', () => {
     };
     await controller.addMessage(firstMessage);
     await controller.addMessage(secondMessage);
-    expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
+    expect(controller.getUnapprovedMessagesCount()).toBe(2);
     expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
       [secondMessage.id]: secondMessage,
@@ -208,6 +208,6 @@ describe('DecryptMessageManager', () => {
     if (!message) {
       throw new Error('"message" is falsy');
     }
-    expect(message.status).toStrictEqual('approved');
+    expect(message.status).toBe('approved');
   });
 });

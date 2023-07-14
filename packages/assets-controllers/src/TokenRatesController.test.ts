@@ -1,79 +1,27 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworksTicker, toHex } from '@metamask/controller-utils';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
 import { TokenRatesController } from './TokenRatesController';
-import {
-  TokensController,
-  TokensControllerMessenger,
-} from './TokensController';
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const COINGECKO_ETH_PATH = '/simple/token_price/ethereum';
-const COINGECKO_BSC_PATH = '/simple/token_price/binance-smart-chain';
 const COINGECKO_MATIC_PATH = '/simple/token_price/polygon-pos-network';
 const COINGECKO_ASSETS_PATH = '/asset_platforms';
 const COINGECKO_SUPPORTED_CURRENCIES = '/simple/supported_vs_currencies';
 const ADDRESS = '0x01';
 
 describe('TokenRatesController', () => {
-  let messenger: NetworkControllerMessenger;
+  beforeAll(() => {
+    nock.disableNetConnect();
+  });
+
+  afterAll(() => {
+    nock.enableNetConnect();
+  });
+
   beforeEach(() => {
     nock(COINGECKO_API)
-      .get(COINGECKO_ASSETS_PATH)
-      .reply(200, [
-        {
-          id: 'binance-smart-chain',
-          chain_identifier: 56,
-          name: 'Binance Smart Chain',
-          shortname: 'BSC',
-        },
-        {
-          id: 'ethereum',
-          chain_identifier: 1,
-          name: 'Ethereum',
-          shortname: '',
-        },
-        {
-          id: 'polygon-pos-network',
-          chain_identifier: 137,
-          name: 'Polygon',
-          shortname: 'MATIC',
-        },
-      ])
-      .get(
-        `${COINGECKO_ETH_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
-      )
-      .reply(200, {
-        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
-      })
-      .get(
-        `${COINGECKO_ETH_PATH}?contract_addresses=${ADDRESS}&vs_currencies=eth`,
-      )
-      .reply(200, {})
-      .get(`${COINGECKO_ETH_PATH}?contract_addresses=bar&vs_currencies=eth`)
-      .reply(200, {})
-      .get(
-        `${COINGECKO_ETH_PATH}?contract_addresses=${ADDRESS}&vs_currencies=gno`,
-      )
-      .reply(200, {})
-      .get(
-        `${COINGECKO_BSC_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
-      )
-      .reply(200, {
-        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
-      })
-      .get(`${COINGECKO_BSC_PATH}?contract_addresses=0xfoO&vs_currencies=eth`)
-      .reply(200, {})
-      .get(`${COINGECKO_BSC_PATH}?contract_addresses=bar&vs_currencies=eth`)
-      .reply(200, {})
-      .get(`${COINGECKO_BSC_PATH}?contract_addresses=0xfoO&vs_currencies=gno`)
-      .reply(200, {})
       .get(COINGECKO_SUPPORTED_CURRENCIES)
       .reply(200, ['eth', 'usd'])
       .get(COINGECKO_ASSETS_PATH)
@@ -98,23 +46,11 @@ describe('TokenRatesController', () => {
         },
       ])
       .persist();
-
-    nock('https://min-api.cryptocompare.com')
-      .get('/data/price?fsym=ETH&tsyms=USD')
-      .reply(200, { USD: 179.63 })
-      .persist();
-
-    messenger = new ControllerMessenger().getRestricted({
-      name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
-      allowedActions: [],
-    });
   });
 
   afterEach(() => {
     nock.cleanAll();
     sinon.restore();
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set default state', () => {
@@ -223,28 +159,20 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
-    new NetworkController({
-      infuraProjectId: 'infura-project-id',
-      messenger,
-      trackMetaMetricsEvent: jest.fn(),
-    });
-    const preferences = new PreferencesController();
-    const tokensController = new TokensController({
-      chainId: toHex(1),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
-      onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
-      messenger: undefined as unknown as TokensControllerMessenger,
-    });
+    nock(COINGECKO_API)
+      .get(
+        `${COINGECKO_ETH_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
+      )
+      .reply(200, {
+        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
+      })
+      .persist();
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
-        onTokensStateChange: (listener) => tokensController.subscribe(listener),
-        onNetworkStateChange: (listener) =>
-          messenger.subscribe('NetworkController:stateChange', listener),
+        onTokensStateChange: sinon.stub(),
+        onNetworkStateChange: sinon.stub(),
       },
       { interval: 10 },
     );
@@ -262,7 +190,7 @@ describe('TokenRatesController', () => {
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
       ADDRESS,
     );
-    expect(controller.state.contractExchangeRates[ADDRESS]).toStrictEqual(0);
+    expect(controller.state.contractExchangeRates[ADDRESS]).toBe(0);
   });
 
   it('should handle balance not found in API', async () => {
@@ -311,7 +239,7 @@ describe('TokenRatesController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
     // FIXME: This is now being called twice
-    expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
+    expect(updateExchangeRatesStub.callCount).toBe(2);
   });
 
   it('should update exchange rates when ticker changes', async () => {
@@ -339,7 +267,7 @@ describe('TokenRatesController', () => {
       providerConfig: { chainId: toHex(1), ticker: 'dai' },
     });
     // FIXME: This is now being called twice
-    expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
+    expect(updateExchangeRatesStub.callCount).toBe(2);
   });
 
   it('should update exchange rates when native currency is not supported by coingecko', async () => {
