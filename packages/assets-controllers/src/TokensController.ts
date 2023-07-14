@@ -324,8 +324,14 @@ export class TokensController extends BaseController<
       const detectedTokens =
         allDetectedTokens[currentChainId]?.[accountAddress] || [];
       const newTokens: Token[] = [...tokens];
+      if (!networkClient) {
+        throw new Error(
+          'TokensController Error: Could not add token due to missing networkClient',
+        );
+      }
+      const web3Provider = new Web3Provider(networkClient?.provider as any);
       const [isERC721, tokenMetadata] = await Promise.all([
-        this._detectIsERC721(address, networkClient?.provider),
+        this._detectIsERC721(address, web3Provider as any),
         this.fetchTokenMetadata(address, chainId),
       ]);
       if (currentChainId !== this.config.chainId) {
