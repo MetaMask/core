@@ -399,6 +399,35 @@ describe('AbstractTestManager', () => {
     });
   });
 
+  describe('setDeferAsSigned', () => {
+    it('should set the defer property', async () => {
+      const controller = new AbstractTestManager();
+      await controller.addMessage({
+        id: messageId,
+        messageParams: { from: '0x1234', data: 'test' },
+        status: 'status',
+        time: 10,
+        type: 'type',
+      });
+
+      controller.setDeferAsSigned(messageId, { deferAsSigned: true });
+      const messageAfter = controller.getMessage(messageId);
+      expect(messageAfter?.messageParams).toStrictEqual({
+        from: '0x1234',
+        data: 'test',
+        deferAsSigned: true,
+      });
+    });
+
+    it('should throw an error if message is not found', () => {
+      const controller = new AbstractTestManager();
+
+      expect(() =>
+        controller.setDeferAsSigned(messageId, { deferAsSigned: true }),
+      ).toThrow('AbstractMessageManager: Message not found for id: 1.');
+    });
+  });
+
   describe('waitForFinishStatus', () => {
     it('signs the message when status is "signed"', async () => {
       const controller = new AbstractTestManager();
