@@ -316,13 +316,15 @@ export class TokensController extends BaseController<
     const isInteractingWithWalletAccount = accountAddress === selectedAddress;
     const releaseLock = await this.mutex.acquire();
 
+    const selectedChainId = chainId || currentChainId;
+
     try {
       address = toChecksumHexAddress(address);
-      const tokens = allTokens[currentChainId]?.[accountAddress] || [];
+      const tokens = allTokens[selectedChainId]?.[accountAddress] || [];
       const ignoredTokens =
-        allIgnoredTokens[currentChainId]?.[accountAddress] || [];
+        allIgnoredTokens[selectedChainId]?.[accountAddress] || [];
       const detectedTokens =
-        allDetectedTokens[currentChainId]?.[accountAddress] || [];
+        allDetectedTokens[selectedChainId]?.[accountAddress] || [];
       const newTokens: Token[] = [...tokens];
       if (!networkClient) {
         throw new Error(
@@ -331,14 +333,13 @@ export class TokensController extends BaseController<
       }
       const web3Provider = new Web3Provider(networkClient?.provider as any);
       const [isERC721, tokenMetadata] = await Promise.all([
-        this._detectIsERC721(address, web3Provider as any),
+        this._detectIsERC721(
+          address,
+          (web3Provider as any) || this.ethersProvider,
+        ),
         this.fetchTokenMetadata(address, chainId),
       ]);
-      if (currentChainId !== this.config.chainId) {
-        throw new Error(
-          'TokensController Error: Switched networks while adding token',
-        );
-      }
+
       const newEntry: Token = {
         address,
         symbol,
