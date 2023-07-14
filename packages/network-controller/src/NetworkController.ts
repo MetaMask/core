@@ -57,7 +57,7 @@ export type ProviderConfig = {
   rpcUrl?: string;
   type: NetworkType;
   chainId: Hex;
-  ticker?: string;
+  ticker: string;
   nickname?: string;
   rpcPrefs?: { blockExplorerUrl?: string };
   id?: NetworkConfigurationId;
@@ -455,6 +455,7 @@ export const defaultState: NetworkState = {
   providerConfig: {
     type: NetworkType.mainnet,
     chainId: ChainId.mainnet,
+    ticker: NetworksTicker.mainnet,
   },
   networkDetails: {
     EIPS: {},
