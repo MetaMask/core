@@ -32,7 +32,7 @@
   "simple-git-hooks": {
     "pre-push": "yarn lint"
   },
-  "dependencies": {
+  "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",
     "@metamask/create-release-branch": "^1.0.1",
     "@metamask/eslint-config": "^12.0.0",
