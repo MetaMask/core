@@ -108,27 +108,19 @@ describe('TokenRatesController', () => {
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
       throw new Error('Network error');
     });
-    let tokenStateChangeListener: (state: any) => void;
-    const onTokensStateChange = sinon.stub().callsFake((listener) => {
-      tokenStateChangeListener = listener;
-    });
     const interval = 100;
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
-        onTokensStateChange,
+        onTokensStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
       },
       {
         interval,
+        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
       },
     );
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      detectedTokens: [],
-      tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
-    });
 
     await controller.start();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -145,27 +137,19 @@ describe('TokenRatesController', () => {
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(() => {
       throw new Error('Network error');
     });
-    let tokenStateChangeListener: (state: any) => void;
-    const onTokensStateChange = sinon.stub().callsFake((listener) => {
-      tokenStateChangeListener = listener;
-    });
     const interval = 100;
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
-        onTokensStateChange,
+        onTokensStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
       },
       {
         interval,
+        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
       },
     );
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      detectedTokens: [],
-      tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
-    });
 
     await controller.start();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -202,34 +186,36 @@ describe('TokenRatesController', () => {
       .reply(200, {
         '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
       });
-    let tokenStateChangeListener: (state: any) => void;
-    const onTokensStateChange = sinon.stub().callsFake((listener) => {
-      tokenStateChangeListener = listener;
-    });
+    const tokenAddress = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
-        onTokensStateChange,
+        onTokensStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
-      { interval: 10 },
+      {
+        interval: 10,
+        tokens: [
+          {
+            address: tokenAddress,
+            decimals: 18,
+            symbol: 'DAI',
+            aggregators: [],
+          },
+          { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
+        ],
+      },
     );
-    const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      detectedTokens: [],
-      tokens: [
-        { address, decimals: 18, symbol: 'DAI', aggregators: [] },
-        { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
-      ],
-    });
+
     expect(controller.state.contractExchangeRates).toStrictEqual({});
     await controller.updateExchangeRates();
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
-      address,
+      tokenAddress,
     );
-    expect(controller.state.contractExchangeRates[address]).toBeGreaterThan(0);
+    expect(
+      controller.state.contractExchangeRates[tokenAddress],
+    ).toBeGreaterThan(0);
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
       ADDRESS,
     );
@@ -237,31 +223,27 @@ describe('TokenRatesController', () => {
   });
 
   it('should handle balance not found in API', async () => {
-    let tokenStateChangeListener: (state: any) => void;
-    const onTokensStateChange = sinon.stub().callsFake((listener) => {
-      tokenStateChangeListener = listener;
-    });
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
         ticker: NetworksTicker.mainnet,
-        onTokensStateChange,
+        onTokensStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
-      { interval: 10 },
+      {
+        interval: 10,
+        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+      },
     );
     sinon.stub(controller, 'fetchExchangeRate').throws({
       error: 'Not Found',
       message: 'Not Found',
     });
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      detectedTokens: [],
-      tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
-    });
     expect(controller.state.contractExchangeRates).toStrictEqual({});
     const mock = sinon.stub(controller, 'updateExchangeRates');
+
     await controller.updateExchangeRates();
+
     expect(mock).not.toThrow();
   });
 
@@ -399,42 +381,34 @@ describe('TokenRatesController', () => {
       '0x03': 0.001,
     };
 
-    let tokenStateChangeListener: (state: any) => void;
-    const onTokensStateChange = sinon.stub().callsFake((listener) => {
-      tokenStateChangeListener = listener;
-    });
-
     const onNetworkStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         chainId: toHex(137),
         ticker: 'MATIC',
-        onTokensStateChange,
+        onTokensStateChange: sinon.stub(),
         onNetworkStateChange,
       },
-      { interval: 10 },
+      {
+        interval: 10,
+        tokens: [
+          {
+            address: '0x02',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bar',
+            isERC721: false,
+          },
+          {
+            address: '0x03',
+            decimals: 18,
+            image: undefined,
+            symbol: 'bazz',
+            isERC721: false,
+          },
+        ],
+      },
     );
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      tokens: [
-        {
-          address: '0x02',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bar',
-          isERC721: false,
-        },
-        {
-          address: '0x03',
-          decimals: 18,
-          image: undefined,
-          symbol: 'bazz',
-          isERC721: false,
-        },
-      ],
-      detectedTokens: [],
-    });
 
     await controller.updateExchangeRates();
 
@@ -473,14 +447,7 @@ describe('TokenRatesController', () => {
         onTokensStateChange,
         onNetworkStateChange,
       },
-      { interval: 10 },
-    );
-
-    await controller.configure({ nativeCurrency: 'ETH' });
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
-      tokens: [
+      { interval: 10, nativeCurrency: 'ETH', tokens: [
         {
           address: '0x02',
           decimals: 18,
@@ -495,9 +462,8 @@ describe('TokenRatesController', () => {
           symbol: 'bazz',
           isERC721: false,
         },
-      ],
-      detectedTokens: [],
-    });
+      ] },
+    );
 
     await controller.updateExchangeRates();
 

@@ -215,6 +215,8 @@ export class TokenRatesController extends BaseController<
       this.configure({ disabled: true }, false, false);
     }
 
+    this.tokenList = this.config.tokens;
+
     onTokensStateChange(async ({ tokens, detectedTokens }) => {
       this.configure({ tokens: [...tokens, ...detectedTokens] });
       this.tokenList = this.config.tokens;
