@@ -498,6 +498,12 @@ describe('SignatureController', () => {
 
   describe('newUnsignedTypedMessage', () => {
     it('adds message to typed message manager', async () => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      signatureController.update(() => ({
+        unapprovedTypedMessages: { [messageIdMock]: stateMessageMock } as any,
+      }));
+
       await signatureController.newUnsignedTypedMessage(
         messageParamsMock,
         requestMock,
