@@ -101,7 +101,7 @@ export type getClientForDomain = {
 
 export type getChainForDomain = {
   type: `SelectedNetworkController:getChainForDomain`;
-  handler: (opts: { origin: string }) => string;
+  handler: (opts: { origin: string }) => `0x${string}`;
 };
 
 /**
@@ -709,7 +709,7 @@ export class TokensController extends BaseController<
       { origin },
     );
 
-    const chainId: any = await this.messagingSystem.call(
+    const chainId = await this.messagingSystem.call(
       'SelectedNetworkController:getChainForDomain',
       { origin },
     );
