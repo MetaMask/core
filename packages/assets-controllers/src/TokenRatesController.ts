@@ -14,7 +14,6 @@ import {
 import type { NetworkState } from '@metamask/network-controller';
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
 import type { TokensState } from './TokensController';
-import type { CurrencyRateState } from './CurrencyRateController';
 
 /**
  * @type CoinGeckoResponse
@@ -168,8 +167,8 @@ export class TokenRatesController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
+   * @param options.ticker - The ticker for the current network.
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
-   * @param options.onCurrencyRateStateChange - Allows subscribing to currency rate controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network state changes.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -177,16 +176,14 @@ export class TokenRatesController extends BaseController<
   constructor(
     {
       chainId: initialChainId,
+      ticker: initialTicker,
       onTokensStateChange,
-      onCurrencyRateStateChange,
       onNetworkStateChange,
     }: {
       chainId: Hex;
+      ticker: string;
       onTokensStateChange: (
         listener: (tokensState: TokensState) => void,
-      ) => void;
-      onCurrencyRateStateChange: (
-        listener: (currencyRateState: CurrencyRateState) => void,
       ) => void;
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
@@ -199,7 +196,7 @@ export class TokenRatesController extends BaseController<
     this.defaultConfig = {
       disabled: false,
       interval: 3 * 60 * 1000,
-      nativeCurrency: 'eth',
+      nativeCurrency: initialTicker,
       chainId: initialChainId,
       tokens: [],
       threshold: 6 * 60 * 60 * 1000,
@@ -217,14 +214,10 @@ export class TokenRatesController extends BaseController<
       this.configure({ tokens: [...tokens, ...detectedTokens] });
     });
 
-    onCurrencyRateStateChange((currencyRateState) => {
-      this.configure({ nativeCurrency: currencyRateState.nativeCurrency });
-    });
-
     onNetworkStateChange(({ providerConfig }) => {
-      const { chainId } = providerConfig;
+      const { chainId, ticker } = providerConfig;
       this.update({ contractExchangeRates: {} });
-      this.configure({ chainId });
+      this.configure({ chainId, nativeCurrency: ticker });
     });
     this.poll();
   }

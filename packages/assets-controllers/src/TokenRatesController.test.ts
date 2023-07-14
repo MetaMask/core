@@ -1,79 +1,26 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
-import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { toHex } from '@metamask/controller-utils';
+import { NetworksTicker, toHex } from '@metamask/controller-utils';
 import { TokenRatesController } from './TokenRatesController';
-import {
-  TokensController,
-  TokensControllerMessenger,
-} from './TokensController';
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const COINGECKO_ETH_PATH = '/simple/token_price/ethereum';
-const COINGECKO_BSC_PATH = '/simple/token_price/binance-smart-chain';
 const COINGECKO_MATIC_PATH = '/simple/token_price/polygon-pos-network';
 const COINGECKO_ASSETS_PATH = '/asset_platforms';
 const COINGECKO_SUPPORTED_CURRENCIES = '/simple/supported_vs_currencies';
 const ADDRESS = '0x01';
 
 describe('TokenRatesController', () => {
-  let messenger: NetworkControllerMessenger;
+  beforeAll(() => {
+    nock.disableNetConnect();
+  });
+
+  afterAll(() => {
+    nock.enableNetConnect();
+  });
+
   beforeEach(() => {
     nock(COINGECKO_API)
-      .get(COINGECKO_ASSETS_PATH)
-      .reply(200, [
-        {
-          id: 'binance-smart-chain',
-          chain_identifier: 56,
-          name: 'Binance Smart Chain',
-          shortname: 'BSC',
-        },
-        {
-          id: 'ethereum',
-          chain_identifier: 1,
-          name: 'Ethereum',
-          shortname: '',
-        },
-        {
-          id: 'polygon-pos-network',
-          chain_identifier: 137,
-          name: 'Polygon',
-          shortname: 'MATIC',
-        },
-      ])
-      .get(
-        `${COINGECKO_ETH_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
-      )
-      .reply(200, {
-        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
-      })
-      .get(
-        `${COINGECKO_ETH_PATH}?contract_addresses=${ADDRESS}&vs_currencies=eth`,
-      )
-      .reply(200, {})
-      .get(`${COINGECKO_ETH_PATH}?contract_addresses=bar&vs_currencies=eth`)
-      .reply(200, {})
-      .get(
-        `${COINGECKO_ETH_PATH}?contract_addresses=${ADDRESS}&vs_currencies=gno`,
-      )
-      .reply(200, {})
-      .get(
-        `${COINGECKO_BSC_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
-      )
-      .reply(200, {
-        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
-      })
-      .get(`${COINGECKO_BSC_PATH}?contract_addresses=0xfoO&vs_currencies=eth`)
-      .reply(200, {})
-      .get(`${COINGECKO_BSC_PATH}?contract_addresses=bar&vs_currencies=eth`)
-      .reply(200, {})
-      .get(`${COINGECKO_BSC_PATH}?contract_addresses=0xfoO&vs_currencies=gno`)
-      .reply(200, {})
       .get(COINGECKO_SUPPORTED_CURRENCIES)
       .reply(200, ['eth', 'usd'])
       .get(COINGECKO_ASSETS_PATH)
@@ -98,30 +45,18 @@ describe('TokenRatesController', () => {
         },
       ])
       .persist();
-
-    nock('https://min-api.cryptocompare.com')
-      .get('/data/price?fsym=ETH&tsyms=USD')
-      .reply(200, { USD: 179.63 })
-      .persist();
-
-    messenger = new ControllerMessenger().getRestricted({
-      name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
-      allowedActions: [],
-    });
   });
 
   afterEach(() => {
     nock.cleanAll();
     sinon.restore();
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set default state', () => {
     const controller = new TokenRatesController({
       chainId: toHex(1),
+      ticker: NetworksTicker.mainnet,
       onTokensStateChange: sinon.stub(),
-      onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
     });
     expect(controller.state).toStrictEqual({
@@ -132,14 +67,14 @@ describe('TokenRatesController', () => {
   it('should initialize with the default config', () => {
     const controller = new TokenRatesController({
       chainId: toHex(1),
+      ticker: NetworksTicker.mainnet,
       onTokensStateChange: sinon.stub(),
-      onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
     });
     expect(controller.config).toStrictEqual({
       disabled: false,
       interval: 180000,
-      nativeCurrency: 'eth',
+      nativeCurrency: NetworksTicker.mainnet,
       chainId: toHex(1),
       tokens: [],
       threshold: 21600000,
@@ -149,8 +84,8 @@ describe('TokenRatesController', () => {
   it('should throw when tokens property is accessed', () => {
     const controller = new TokenRatesController({
       chainId: toHex(1),
+      ticker: NetworksTicker.mainnet,
       onTokensStateChange: sinon.stub(),
-      onCurrencyRateStateChange: sinon.stub(),
       onNetworkStateChange: sinon.stub(),
     });
     expect(() => console.log(controller.tokens)).toThrow(
@@ -165,8 +100,8 @@ describe('TokenRatesController', () => {
     new TokenRatesController(
       {
         chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
         onTokensStateChange: jest.fn(),
-        onCurrencyRateStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
       },
       {
@@ -188,8 +123,8 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
         onTokensStateChange: sinon.stub(),
-        onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
       {
@@ -207,8 +142,8 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
         onTokensStateChange: sinon.stub(),
-        onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
       { interval: 1337 },
@@ -223,28 +158,20 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
-    new NetworkController({
-      infuraProjectId: 'infura-project-id',
-      messenger,
-      trackMetaMetricsEvent: jest.fn(),
-    });
-    const preferences = new PreferencesController();
-    const tokensController = new TokensController({
-      chainId: toHex(1),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
-      onTokenListStateChange: sinon.stub(),
-      getERC20TokenName: sinon.stub(),
-      messenger: undefined as unknown as TokensControllerMessenger,
-    });
+    nock(COINGECKO_API)
+      .get(
+        `${COINGECKO_ETH_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
+      )
+      .reply(200, {
+        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
+      })
+      .persist();
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
-        onTokensStateChange: (listener) => tokensController.subscribe(listener),
-        onCurrencyRateStateChange: sinon.stub(),
-        onNetworkStateChange: (listener) =>
-          messenger.subscribe('NetworkController:stateChange', listener),
+        ticker: NetworksTicker.mainnet,
+        onTokensStateChange: sinon.stub(),
+        onNetworkStateChange: sinon.stub(),
       },
       { interval: 10 },
     );
@@ -269,8 +196,8 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
         onTokensStateChange: sinon.stub(),
-        onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange: sinon.stub(),
       },
       { interval: 10 },
@@ -293,13 +220,12 @@ describe('TokenRatesController', () => {
     const onTokensStateChange = sinon.stub().callsFake((listener) => {
       tokenStateChangeListener = listener;
     });
-    const onCurrencyRateStateChange = sinon.stub();
     const onNetworkStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
         onTokensStateChange,
-        onCurrencyRateStateChange,
         onNetworkStateChange,
       },
       { interval: 10 },
@@ -315,18 +241,17 @@ describe('TokenRatesController', () => {
     expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
   });
 
-  it('should update exchange rates when native currency changes', async () => {
-    let currencyRateStateChangeListener: (state: any) => void;
+  it('should update exchange rates when ticker changes', async () => {
+    let networkStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub();
-    const onCurrencyRateStateChange = sinon.stub().callsFake((listener) => {
-      currencyRateStateChangeListener = listener;
+    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+      networkStateChangeListener = listener;
     });
-    const onNetworkStateChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
         onTokensStateChange,
-        onCurrencyRateStateChange,
         onNetworkStateChange,
       },
       { interval: 10 },
@@ -337,7 +262,9 @@ describe('TokenRatesController', () => {
       'updateExchangeRates',
     );
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    currencyRateStateChangeListener!({ nativeCurrency: 'dai' });
+    networkStateChangeListener!({
+      providerConfig: { chainId: toHex(1), ticker: 'dai' },
+    });
     // FIXME: This is now being called twice
     expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
   });
@@ -375,13 +302,12 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController(
       {
         chainId: toHex(137),
+        ticker: 'MATIC',
         onTokensStateChange,
-        onCurrencyRateStateChange: sinon.stub(),
         onNetworkStateChange,
       },
       { interval: 10 },
     );
-    await controller.configure({ nativeCurrency: 'MATIC' });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await tokenStateChangeListener!({
@@ -438,9 +364,9 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
         onTokensStateChange,
         onNetworkStateChange,
-        onCurrencyRateStateChange: sinon.stub(),
       },
       { interval: 10 },
     );
@@ -511,11 +437,11 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController(
       {
         chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
         onTokensStateChange,
         onNetworkStateChange: sinon.stub(),
-        onCurrencyRateStateChange: sinon.stub(),
       },
-      { interval: 10, nativeCurrency: 'ETH' },
+      { interval: 10 },
     );
 
     expect(controller.state.contractExchangeRates).toStrictEqual({});

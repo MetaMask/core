@@ -21,6 +21,7 @@ import {
   toHex,
   ApprovalType,
   ERC20,
+  NetworksTicker,
 } from '@metamask/controller-utils';
 import {
   AddApprovalRequest,
@@ -59,8 +60,16 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
   true,
 );
 
-const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
-const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
+const SEPOLIA = {
+  chainId: toHex(11155111),
+  type: NetworkType.sepolia,
+  ticker: NetworksTicker.sepolia,
+};
+const GOERLI = {
+  chainId: toHex(5),
+  type: NetworkType.goerli,
+  ticker: NetworksTicker.goerli,
+};
 
 type ApprovalActions = AddApprovalRequest;
 type ApprovalEvents = ApprovalStateChange;

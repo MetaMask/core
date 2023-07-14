@@ -10,6 +10,7 @@ import {
 import {
   ChainId,
   NetworkType,
+  NetworksTicker,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
@@ -146,6 +147,7 @@ describe('TokenDetectionController', () => {
   const mainnet = {
     chainId: ChainId.mainnet,
     type: NetworkType.mainnet,
+    ticker: NetworksTicker.mainnet,
   };
 
   beforeEach(async () => {
@@ -295,6 +297,7 @@ describe('TokenDetectionController', () => {
     const auroraMainnet = {
       chainId: ChainId.aurora,
       type: NetworkType.mainnet,
+      ticker: 'Aurora ETH',
     };
     preferences.update({ selectedAddress: '0x1' });
     changeNetwork(auroraMainnet);

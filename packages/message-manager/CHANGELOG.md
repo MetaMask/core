@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+### Changed
+- Replace eth-sig-util with @metamask/eth-sig-util ([#1483](https://github.com/MetaMask/core/pull/1483))
+
 ## [7.0.2]
 ### Fixed
 - Avoid race condition when creating typed messages ([#1467](https://github.com/MetaMask/core/pull/1467))
@@ -88,7 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.2...@metamask/message-manager@7.1.0
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.1...@metamask/message-manager@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.0...@metamask/message-manager@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@6.0.0...@metamask/message-manager@7.0.0
