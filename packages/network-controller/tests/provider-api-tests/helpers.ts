@@ -1,9 +1,11 @@
-import nock, { Scope as NockScope } from 'nock';
-import sinon from 'sinon';
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 import EthQuery from 'eth-query';
-import { Hex } from '@metamask/utils';
+import nock from 'nock';
+import type { Scope as NockScope } from 'nock';
+import sinon from 'sinon';
+
 import { createNetworkClient } from '../../src/create-network-client';
 import { NetworkClientType } from '../../src/types';
 

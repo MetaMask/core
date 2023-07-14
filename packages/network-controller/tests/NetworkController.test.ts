@@ -1,10 +1,4 @@
-import { inspect, isDeepStrictEqual, promisify } from 'util';
-import assert from 'assert';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { Patch } from 'immer';
-import { v4 } from 'uuid';
-import nock from 'nock';
-import { ethErrors } from 'eth-rpc-errors';
 import {
   BUILT_IN_NETWORKS,
   ChainId,
@@ -13,9 +7,21 @@ import {
   NetworkType,
   toHex,
 } from '@metamask/controller-utils';
+import assert from 'assert';
+import { ethErrors } from 'eth-rpc-errors';
+import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
-import {
-  NetworkController,
+import nock from 'nock';
+import { inspect, isDeepStrictEqual, promisify } from 'util';
+import { v4 } from 'uuid';
+
+import type { FakeProviderStub } from './fake-provider';
+import { FakeProvider } from './fake-provider';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { NetworkStatus } from '../src/constants';
+import type { NetworkClient } from '../src/create-network-client';
+import { createNetworkClient } from '../src/create-network-client';
+import type {
   NetworkControllerActions,
   NetworkControllerEvents,
   NetworkControllerOptions,
@@ -23,15 +29,9 @@ import {
   NetworkState,
   ProviderConfig,
 } from '../src/NetworkController';
+import { NetworkController } from '../src/NetworkController';
 import type { Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
-import { NetworkStatus } from '../src/constants';
-import {
-  createNetworkClient,
-  NetworkClient,
-} from '../src/create-network-client';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider, FakeProviderStub } from './fake-provider';
 
 jest.mock('../src/create-network-client');
 

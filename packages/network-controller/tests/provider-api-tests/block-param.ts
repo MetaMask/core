@@ -1,7 +1,7 @@
+import type { ProviderType } from './helpers';
 import {
   buildMockParams,
   buildRequestWithReplacedBlockParam,
-  ProviderType,
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
   withNetworkClient,
@@ -635,7 +635,7 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          expect(result).toStrictEqual('the result');
+          expect(result).toBe('the result');
         });
       });
 
@@ -785,7 +785,7 @@ export function testsForRpcMethodSupportingBlockParam(
           },
         );
 
-        expect(result).toStrictEqual('the result');
+        expect(result).toBe('the result');
       });
     });
 
@@ -937,7 +937,7 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          expect(result).toStrictEqual('the result');
+          expect(result).toBe('the result');
         });
       });
 
@@ -1087,7 +1087,7 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          expect(result).toStrictEqual('the result');
+          expect(result).toBe('the result');
         });
       });
 
@@ -1267,7 +1267,7 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          expect(result).toStrictEqual('the result');
+          expect(result).toBe('the result');
         });
       });
 
@@ -1408,7 +1408,7 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          expect(result).toStrictEqual('the result');
+          expect(result).toBe('the result');
         });
       });
 
@@ -1753,7 +1753,7 @@ export function testsForRpcMethodSupportingBlockParam(
                 ({ makeRpcCall }) => makeRpcCall(request),
               );
 
-              expect(result).toStrictEqual('the result');
+              expect(result).toBe('the result');
             });
           });
 
@@ -1793,7 +1793,7 @@ export function testsForRpcMethodSupportingBlockParam(
                         ),
                     );
 
-                    expect(result).toStrictEqual('some value');
+                    expect(result).toBe('some value');
                   },
                 );
               });
@@ -1948,7 +1948,7 @@ export function testsForRpcMethodSupportingBlockParam(
               ({ makeRpcCall }) => makeRpcCall(request),
             );
 
-            expect(result).toStrictEqual('the result');
+            expect(result).toBe('the result');
           });
         });
 

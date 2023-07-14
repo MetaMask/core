@@ -8,8 +8,6 @@ module.exports = {
     'dist',
     'docs',
     'coverage',
-    'scripts',
-    'tests',
   ],
   overrides: [
     {
