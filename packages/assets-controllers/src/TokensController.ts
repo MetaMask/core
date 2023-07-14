@@ -94,14 +94,14 @@ export interface TokensState extends BaseState {
  */
 const controllerName = 'TokensController';
 
-export type getClientForDomain = {
+export type GetClientForDomain = {
   type: `SelectedNetworkController:getClientForDomain`;
-  handler: (opts: { origin: string }) => NetworkClient;
+  handler: (origin: string) => NetworkClient;
 };
 
-export type getChainForDomain = {
+export type GetChainForDomain = {
   type: `SelectedNetworkController:getChainForDomain`;
-  handler: (opts: { origin: string }) => `0x${string}`;
+  handler: (origin: string) => `0x${string}`;
 };
 
 /**
@@ -109,8 +109,8 @@ export type getChainForDomain = {
  */
 type AllowedActions =
   | AddApprovalRequest
-  | getClientForDomain
-  | getChainForDomain;
+  | GetClientForDomain
+  | GetChainForDomain;
 
 /**
  * The messenger of the {@link TokensController}.
