@@ -230,28 +230,41 @@ export class TokenRatesController extends BaseController<
     this.#updateTokenList();
 
     onPreferencesStateChange(async ({ selectedAddress }) => {
-      this.configure({ selectedAddress });
-      this.#updateTokenList();
-      if (this.#pollState === PollState.Active) {
-        await this.updateExchangeRates();
+      if (this.config.selectedAddress !== selectedAddress) {
+        this.configure({ selectedAddress });
+        this.#updateTokenList();
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates();
+        }
       }
     });
 
     onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
-      this.configure({ allTokens, allDetectedTokens });
-      this.#updateTokenList();
-      if (this.#pollState === PollState.Active) {
-        await this.updateExchangeRates();
+      // These two state properties are assumed to be immutable
+      if (
+        this.config.allTokens !== allTokens ||
+        this.config.allDetectedTokens !== allDetectedTokens
+      ) {
+        this.configure({ allTokens, allDetectedTokens });
+        this.#updateTokenList();
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates();
+        }
       }
     });
 
     onNetworkStateChange(async ({ providerConfig }) => {
       const { chainId, ticker } = providerConfig;
-      this.update({ contractExchangeRates: {} });
-      this.configure({ chainId, nativeCurrency: ticker });
-      this.#updateTokenList();
-      if (this.#pollState === PollState.Active) {
-        await this.updateExchangeRates();
+      if (
+        this.config.chainId !== chainId ||
+        this.config.nativeCurrency !== ticker
+      ) {
+        this.update({ contractExchangeRates: {} });
+        this.configure({ chainId, nativeCurrency: ticker });
+        this.#updateTokenList();
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates();
+        }
       }
     });
   }
