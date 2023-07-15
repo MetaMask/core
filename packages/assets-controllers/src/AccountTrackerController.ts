@@ -1,18 +1,15 @@
-import EthQuery from 'eth-query';
-import type { Provider } from 'eth-query';
-import { Mutex } from 'async-mutex';
-import {
-  BaseConfig,
-  BaseController,
-  BaseState,
-} from '@metamask/base-controller';
-import { assert } from '@metamask/utils';
-import { PreferencesState } from '@metamask/preferences-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   BNToHex,
   query,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import { assert } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
+import EthQuery from 'eth-query';
+import type { Provider } from 'eth-query';
 
 /**
  * @type AccountInformation
@@ -54,7 +51,7 @@ export class AccountTrackerController extends BaseController<
 > {
   private ethQuery?: EthQuery;
 
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   private handle?: ReturnType<typeof setTimeout>;
 
@@ -63,10 +60,10 @@ export class AccountTrackerController extends BaseController<
     const addresses = Object.keys(this.getIdentities());
     const existing = Object.keys(accounts);
     const newAddresses = addresses.filter(
-      (address) => existing.indexOf(address) === -1,
+      (address) => !existing.includes(address),
     );
     const oldAddresses = existing.filter(
-      (address) => addresses.indexOf(address) === -1,
+      (address) => !addresses.includes(address),
     );
     newAddresses.forEach((address) => {
       accounts[address] = { balance: '0x0' };
@@ -83,11 +80,11 @@ export class AccountTrackerController extends BaseController<
    */
   override name = 'AccountTrackerController';
 
-  private getIdentities: () => PreferencesState['identities'];
+  private readonly getIdentities: () => PreferencesState['identities'];
 
-  private getSelectedAddress: () => PreferencesState['selectedAddress'];
+  private readonly getSelectedAddress: () => PreferencesState['selectedAddress'];
 
-  private getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
+  private readonly getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
 
   /**
    * Creates an AccountTracker instance.

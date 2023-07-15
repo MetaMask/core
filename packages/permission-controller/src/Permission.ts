@@ -1,18 +1,20 @@
-import { Json } from '@metamask/utils';
+import type {
+  ActionConstraint,
+  EventConstraint,
+} from '@metamask/base-controller';
+import type { NonEmptyArray } from '@metamask/controller-utils';
+import type { Json } from '@metamask/utils';
 import { nanoid } from 'nanoid';
-import { NonEmptyArray } from '@metamask/controller-utils';
-import { ActionConstraint, EventConstraint } from '@metamask/base-controller';
-import type { SubjectType } from './SubjectMetadataController';
-import { CaveatConstraint } from './Caveat';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { CaveatConstraint, Caveat } from './Caveat';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   PermissionController,
   PermissionsRequest,
   SideEffectMessenger,
 } from './PermissionController';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { Caveat } from './Caveat';
+import type { SubjectType } from './SubjectMetadataController';
 
 /**
  * The origin of a subject.

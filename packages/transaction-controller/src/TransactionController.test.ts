@@ -1,8 +1,12 @@
 /* eslint-disable jest/expect-expect */
 
-import HttpProvider from 'ethjs-provider-http';
-import NonceTracker from 'nonce-tracker';
-import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
+import Common from '@ethereumjs/common';
+import {
+  ChainId,
+  NetworkType,
+  NetworksTicker,
+  toHex,
+} from '@metamask/controller-utils';
 import type {
   BlockTracker,
   NetworkState,
@@ -10,19 +14,9 @@ import type {
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
 import { errorCodes } from 'eth-rpc-errors';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import {
-  AcceptResultCallbacks,
-  AddResult,
-} from '../../approval-controller/src';
-import { ESTIMATE_GAS_ERROR } from './utils';
-import {
-  TransactionController,
-  TransactionStatus,
-  TransactionMeta,
-  TransactionControllerMessenger,
-  TransactionConfig,
-} from './TransactionController';
+import HttpProvider from 'ethjs-provider-http';
+import NonceTracker from 'nonce-tracker';
+
 import {
   ethTxsMock,
   tokenTxsMock,
@@ -31,6 +25,22 @@ import {
   txsInStateWithOutdatedGasDataMock,
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
+import type {
+  TransactionMeta,
+  TransactionControllerMessenger,
+  TransactionConfig,
+} from './TransactionController';
+import {
+  TransactionController,
+  TransactionStatus,
+  HARDFORK,
+} from './TransactionController';
+import { ESTIMATE_GAS_ERROR } from './utils';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import type {
+  AcceptResultCallbacks,
+  AddResult,
+} from '../../approval-controller/src';
 
 const v1Stub = jest
   .fn()
@@ -274,6 +284,7 @@ const MOCK_NETWORK: MockNetwork = {
     providerConfig: {
       type: NetworkType.goerli,
       chainId: ChainId.goerli,
+      ticker: NetworksTicker.goerli,
     },
     networkConfigurations: {},
   },
@@ -303,11 +314,47 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
     providerConfig: {
       type: NetworkType.mainnet,
       chainId: ChainId.mainnet,
+      ticker: NetworksTicker.mainnet,
     },
     networkConfigurations: {},
   },
   subscribe: () => undefined,
 };
+
+const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
+  provider: PALM_PROVIDER,
+  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  state: {
+    networkId: '59144',
+    networkStatus: NetworkStatus.Available,
+    networkDetails: { EIPS: { 1559: false } },
+    providerConfig: {
+      type: NetworkType['linea-mainnet'],
+      chainId: toHex(59144),
+      ticker: NetworksTicker['linea-mainnet'],
+    },
+    networkConfigurations: {},
+  },
+  subscribe: () => undefined,
+};
+
+const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
+  provider: PALM_PROVIDER,
+  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  state: {
+    networkId: '59140',
+    networkStatus: NetworkStatus.Available,
+    networkDetails: { EIPS: { 1559: false } },
+    providerConfig: {
+      type: NetworkType['linea-goerli'],
+      chainId: toHex(59140),
+      ticker: NetworksTicker['linea-mainnet'],
+    },
+    networkConfigurations: {},
+  },
+  subscribe: () => undefined,
+};
+
 const MOCK_CUSTOM_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
@@ -318,6 +365,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
     providerConfig: {
       type: NetworkType.rpc,
       chainId: toHex(11297108109),
+      ticker: 'TEST',
     },
     networkConfigurations: {},
   },
@@ -419,7 +467,7 @@ describe('TransactionController', () => {
   let rejectMessengerMock: TransactionControllerMessenger;
   let delayMessengerMock: TransactionControllerMessenger;
   let approveTransaction: () => void;
-  let getNonceLockSpy: jest.Mock<any, any>;
+  let getNonceLockSpy: jest.Mock;
 
   /**
    * Create a new instance of the TransactionController.
@@ -828,11 +876,11 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(2);
       const secondTransaction = controller.state.transactions[1];
 
-      expect(firstTransaction.transaction.nonce).toStrictEqual(
+      expect(firstTransaction.transaction.nonce).toBe(
         `0x${NONCE_MOCK.toString(16)}`,
       );
 
-      expect(secondTransaction.transaction.nonce).toStrictEqual(
+      expect(secondTransaction.transaction.nonce).toBe(
         `0x${(NONCE_MOCK + 1).toString(16)}`,
       );
     });
@@ -1269,8 +1317,8 @@ describe('TransactionController', () => {
         ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
       ) || { id: '' };
 
-      expect(tokenTransaction?.id).toStrictEqual('token-transaction-id');
-      expect(ethTransaction?.id).toStrictEqual('eth-transaction-id');
+      expect(tokenTransaction?.id).toBe('token-transaction-id');
+      expect(ethTransaction?.id).toBe('eth-transaction-id');
     });
 
     it('updates all transactions with outdated status using remote data', async () => {
@@ -1327,8 +1375,8 @@ describe('TransactionController', () => {
         ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
       ) || { transaction: { gasUsed: '0x0' } };
 
-      expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-      expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+      expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+      expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
     });
 
     it('updates all transactions with outdated status and gas data using remote data', async () => {
@@ -1362,8 +1410,8 @@ describe('TransactionController', () => {
         TransactionStatus.confirmed,
       );
       expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
-      expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-      expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+      expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+      expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
     });
 
     it('returns undefined if no matching transactions', async () => {
@@ -1390,7 +1438,7 @@ describe('TransactionController', () => {
         args: [{ type: 'uint256' }, { type: 'uint256' }],
         name: 'Eth To Token Swap Input',
       });
-      expect(registry.registryMethod).toStrictEqual(
+      expect(registry.registryMethod).toBe(
         'ethToTokenSwapInput(uint256,uint256)',
       );
     });
@@ -1504,5 +1552,51 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(2);
     });
+  });
+
+  describe('getCommonConfiguration', () => {
+    it('should get the common  network configuration for mainnet', async () => {
+      const controller = new TransactionController({
+        getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+        onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+        provider: MOCK_MAINNET_NETWORK.provider,
+        blockTracker: MOCK_MAINNET_NETWORK.blockTracker,
+        messenger: messengerMock,
+      });
+
+      const config = await controller.getCommonConfiguration();
+      expect(config).toStrictEqual(
+        new Common({ chain: 'mainnet', hardfork: HARDFORK }),
+      );
+    });
+
+    it.each([
+      ['linea-mainnet', MOCK_LINEA_MAINNET_NETWORK, 59144],
+      ['linea-goerli', MOCK_LINEA_GOERLI_NETWORK, 59140],
+    ])(
+      'should get a custom network configuration for %s',
+      async (_, mockNetwork: MockNetwork, chainId: number) => {
+        const controller = new TransactionController({
+          getNetworkState: () => mockNetwork.state,
+          onNetworkStateChange: mockNetwork.subscribe,
+          provider: mockNetwork.provider,
+          blockTracker: mockNetwork.blockTracker,
+          messenger: messengerMock,
+        });
+
+        const config = controller.getCommonConfiguration();
+        expect(config).toStrictEqual(
+          Common.forCustomChain(
+            NetworkType.mainnet,
+            {
+              name: undefined,
+              chainId,
+              networkId: chainId,
+            },
+            HARDFORK,
+          ),
+        );
+      },
+    );
   });
 });

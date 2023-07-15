@@ -1,19 +1,27 @@
-import nock from 'nock';
-import * as sinon from 'sinon';
-import type { Hex } from '@metamask/utils';
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  NetworkController,
+import { NetworkType, toHex } from '@metamask/controller-utils';
+import { NetworkController } from '@metamask/network-controller';
+import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 import EthQuery from 'eth-query';
-import { NetworkType, toHex } from '@metamask/controller-utils';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
+import determineGasFeeCalculations from './determineGasFeeCalculations';
+import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
-  GAS_ESTIMATE_TYPES,
-  GasFeeController,
+  fetchGasEstimates,
+  fetchLegacyGasPriceEstimates,
+  fetchEthGasPriceEstimate,
+  calculateTimeEstimate,
+} from './gas-util';
+import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController';
+import type {
   GasFeeState,
   GasFeeStateChange,
   GasFeeStateEthGasPrice,
@@ -21,14 +29,6 @@ import {
   GasFeeStateLegacy,
   GetGasFeeState,
 } from './GasFeeController';
-import {
-  fetchGasEstimates,
-  fetchLegacyGasPriceEstimates,
-  fetchEthGasPriceEstimate,
-  calculateTimeEstimate,
-} from './gas-util';
-import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 jest.mock('./determineGasFeeCalculations');
 
@@ -317,6 +317,7 @@ describe('GasFeeController', () => {
                 type: NetworkType.rpc,
                 chainId: toHex(1337),
                 rpcUrl: 'http://some/url',
+                ticker: 'TEST',
               },
             },
             clientId: '99999',
@@ -372,6 +373,7 @@ describe('GasFeeController', () => {
                 type: NetworkType.rpc,
                 chainId: toHex(1337),
                 rpcUrl: 'http://some/url',
+                ticker: 'TEST',
               },
             },
             clientId: '99999',
@@ -611,7 +613,7 @@ describe('GasFeeController', () => {
           {},
         );
 
-        expect(gasFeeController.state.gasEstimateType).toStrictEqual('none');
+        expect(gasFeeController.state.gasEstimateType).toBe('none');
       });
     });
 
@@ -682,6 +684,7 @@ describe('GasFeeController', () => {
               type: NetworkType.rpc,
               chainId: toHex(1337),
               rpcUrl: 'http://some/url',
+              ticker: 'TEST',
             },
           },
           clientId: '99999',
@@ -793,6 +796,7 @@ describe('GasFeeController', () => {
               type: NetworkType.rpc,
               chainId: toHex(1337),
               rpcUrl: 'http://some/url',
+              ticker: 'TEST',
             },
           },
           clientId: '99999',

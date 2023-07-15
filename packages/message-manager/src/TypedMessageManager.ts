@@ -1,15 +1,16 @@
 import { v1 as random } from 'uuid';
-import {
-  validateTypedSignMessageDataV1,
-  validateTypedSignMessageDataV3V4,
-} from './utils';
-import {
-  AbstractMessageManager,
+
+import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
+import {
+  validateTypedSignMessageDataV1,
+  validateTypedSignMessageDataV3V4,
+} from './utils';
 
 /**
  * @type TypedMessage

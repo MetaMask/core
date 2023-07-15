@@ -1,32 +1,35 @@
-import { bufferToHex } from 'ethereumjs-util';
+import Common from '@ethereumjs/common';
+import { TransactionFactory } from '@ethereumjs/tx';
+import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
+import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
+import { ControllerMessenger } from '@metamask/base-controller';
+import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
+import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import {
   normalize,
   recoverPersonalSignature,
   recoverTypedSignature,
   SignTypedDataVersion,
 } from '@metamask/eth-sig-util';
-import * as sinon from 'sinon';
-import Common from '@ethereumjs/common';
-import { TransactionFactory } from '@ethereumjs/tx';
-import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
-import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
-import * as uuid from 'uuid';
-import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
-import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import { ControllerMessenger } from '@metamask/base-controller';
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
-import {
-  AccountImportStrategy,
-  KeyringController,
+import { bufferToHex } from 'ethereumjs-util';
+import * as sinon from 'sinon';
+import * as uuid from 'uuid';
+
+import type {
   KeyringObject,
   KeyringControllerEvents,
   KeyringControllerMessenger,
   KeyringControllerState,
-  KeyringTypes,
   KeyringControllerOptions,
   KeyringControllerActions,
 } from './KeyringController';
+import {
+  AccountImportStrategy,
+  KeyringController,
+  KeyringTypes,
+} from './KeyringController';
+import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
 
 jest.mock('uuid', () => {
   return {
@@ -282,7 +285,7 @@ describe('KeyringController', () => {
               expect(controller.state.keyrings).not.toStrictEqual([]);
               const keyring = controller.state.keyrings[0];
               expect(keyring.accounts).not.toStrictEqual([]);
-              expect(keyring.type).toStrictEqual('HD Key Tree');
+              expect(keyring.type).toBe('HD Key Tree');
               expect(controller.state.vault).toBeDefined();
             });
           });
@@ -430,7 +433,7 @@ describe('KeyringController', () => {
       it('should get correct keyring', async () => {
         await withController(async ({ controller }) => {
           const normalizedInitialAccounts =
-            controller.state.keyrings[0].accounts.map(normalize);
+            controller.state.keyrings[0].accounts.map(normalize) as string[];
           const keyring = (await controller.getKeyringForAccount(
             normalizedInitialAccounts[0],
           )) as KeyringObject;
@@ -741,7 +744,7 @@ describe('KeyringController', () => {
             from: '',
           }),
         ).rejects.toThrow(
-          'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
+          'No keyring found for the requested account. Error info: There are keyrings, but none match the address',
         );
       });
     });
@@ -785,7 +788,7 @@ describe('KeyringController', () => {
             from: '',
           }),
         ).rejects.toThrow(
-          'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
+          'No keyring found for the requested account. Error info: There are keyrings, but none match the address',
         );
       });
     });
@@ -1045,7 +1048,7 @@ describe('KeyringController', () => {
           unsignedEthTx,
           account,
         );
-        expect(signedTx.v).not.toBeUndefined();
+        expect(signedTx.v).toBeDefined();
         expect(signedTx).not.toBe('');
       });
     });
@@ -1070,7 +1073,7 @@ describe('KeyringController', () => {
           expect(unsignedEthTx.v).toBeUndefined();
           await controller.signTransaction(unsignedEthTx, '');
         }).rejects.toThrow(
-          'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
+          'No keyring found for the requested account. Error info: There are keyrings, but none match the address',
         );
       });
     });
@@ -1469,7 +1472,7 @@ describe('KeyringController', () => {
           tx,
           account,
         );
-        expect(signedTx.v).not.toBeUndefined();
+        expect(signedTx.v).toBeDefined();
         expect(signedTx).not.toBe('');
       });
     });

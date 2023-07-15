@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -33,7 +33,7 @@
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/eth-keyring-controller": "^10.0.1",
-    "@metamask/eth-sig-util": "^5.0.3",
+    "@metamask/eth-sig-util": "^6.0.0",
     "@metamask/message-manager": "workspace:^",
     "@metamask/preferences-controller": "workspace:^",
     "async-mutex": "^0.2.6",

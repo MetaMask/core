@@ -1,37 +1,41 @@
 /* eslint-enable @typescript-eslint/no-unused-vars */
-import deepFreeze from 'deep-freeze-strict';
-import { castDraft, Draft, Patch } from 'immer';
-import { nanoid } from 'nanoid';
-import { EthereumRpcError } from 'eth-rpc-errors';
-import { hasProperty, Json, Mutable } from '@metamask/utils';
-import {
+import type {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
   HasApprovalRequest,
   RejectRequest as RejectApprovalRequest,
 } from '@metamask/approval-controller';
-import {
-  BaseControllerV2,
+import type {
   StateMetadata,
   RestrictedControllerMessenger,
   ActionConstraint,
   EventConstraint,
 } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import type { NonEmptyArray } from '@metamask/controller-utils';
 import {
   isNonEmptyArray,
   isPlainObject,
   isValidJson,
-  NonEmptyArray,
 } from '@metamask/controller-utils';
-import { GetSubjectMetadata } from './SubjectMetadataController';
-import {
+import { hasProperty } from '@metamask/utils';
+import type { Json, Mutable } from '@metamask/utils';
+import deepFreeze from 'deep-freeze-strict';
+import { EthereumRpcError } from 'eth-rpc-errors';
+import { castDraft } from 'immer';
+import type { Draft, Patch } from 'immer';
+import { nanoid } from 'nanoid';
+
+import type {
   CaveatConstraint,
   CaveatSpecificationConstraint,
   CaveatSpecificationMap,
-  decorateWithCaveats,
   ExtractCaveat,
   ExtractCaveats,
   ExtractCaveatValue,
+} from './Caveat';
+import {
+  decorateWithCaveats,
   isRestrictedMethodCaveatSpecification,
 } from './Caveat';
 import {
@@ -59,18 +63,14 @@ import {
   UnrecognizedSubjectError,
   userRejectedRequest,
 } from './errors';
-import {
-  constructPermission,
+import type {
   EndowmentSpecificationConstraint,
   ExtractAllowedCaveatTypes,
   ExtractPermissionSpecification,
-  findCaveat,
-  hasSpecificationType,
   OriginString,
   PermissionConstraint,
   PermissionSpecificationConstraint,
   PermissionSpecificationMap,
-  PermissionType,
   RequestedPermissions,
   RestrictedMethod,
   RestrictedMethodParameters,
@@ -79,7 +79,14 @@ import {
   ValidPermission,
   ValidPermissionSpecification,
 } from './Permission';
+import {
+  constructPermission,
+  findCaveat,
+  hasSpecificationType,
+  PermissionType,
+} from './Permission';
 import { getPermissionMiddlewareFactory } from './permission-middleware';
+import type { GetSubjectMetadata } from './SubjectMetadataController';
 import { MethodNames } from './utils';
 import { PermissionTree } from './PermissionTree';
 

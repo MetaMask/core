@@ -95,16 +95,16 @@ export class RestrictedControllerMessenger<
   AllowedAction extends string,
   AllowedEvent extends string,
 > {
-  private controllerMessenger: ControllerMessenger<
+  private readonly controllerMessenger: ControllerMessenger<
     ActionConstraint,
     EventConstraint
   >;
 
-  private controllerName: N;
+  private readonly controllerName: N;
 
-  private allowedActions: AllowedAction[] | null;
+  private readonly allowedActions: AllowedAction[] | null;
 
-  private allowedEvents: AllowedEvent[] | null;
+  private readonly allowedEvents: AllowedEvent[] | null;
 
   /**
    * Constructs a restricted controller messenger
@@ -360,14 +360,14 @@ export class ControllerMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > {
-  private actions = new Map<Action['type'], unknown>();
+  private readonly actions = new Map<Action['type'], unknown>();
 
-  private events = new Map<Event['type'], EventSubscriptionMap>();
+  private readonly events = new Map<Event['type'], EventSubscriptionMap>();
 
   /**
    * A cache of selector return values for their respective handlers.
    */
-  private eventPayloadCache = new Map<
+  private readonly eventPayloadCache = new Map<
     GenericEventHandler,
     unknown | undefined
   >();
@@ -445,6 +445,9 @@ export class ControllerMessenger<
    *
    * Publishes the given payload to all subscribers of the given event type.
    *
+   * Note that this method should never throw directly. Any errors from
+   * subscribers are captured and re-thrown in a timeout handler.
+   *
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param payload - The event payload. The type of the parameters for each event handler must
    * match the type of this payload.
@@ -458,16 +461,24 @@ export class ControllerMessenger<
 
     if (subscribers) {
       for (const [handler, selector] of subscribers.entries()) {
-        if (selector) {
-          const previousValue = this.eventPayloadCache.get(handler);
-          const newValue = selector(...payload);
+        try {
+          if (selector) {
+            const previousValue = this.eventPayloadCache.get(handler);
+            const newValue = selector(...payload);
 
-          if (newValue !== previousValue) {
-            this.eventPayloadCache.set(handler, newValue);
-            handler(newValue, previousValue);
+            if (newValue !== previousValue) {
+              this.eventPayloadCache.set(handler, newValue);
+              handler(newValue, previousValue);
+            }
+          } else {
+            (handler as GenericEventHandler)(...payload);
           }
-        } else {
-          (handler as GenericEventHandler)(...payload);
+        } catch (error) {
+          // Throw error after timeout so that it is capured as a console error
+          // (and by Sentry) without interrupting the event publishing.
+          setTimeout(() => {
+            throw error;
+          });
         }
       }
     }

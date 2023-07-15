@@ -1,16 +1,20 @@
-import { promisify } from 'util';
-import nock from 'nock';
-import { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
 import { NetworkType } from '@metamask/controller-utils';
-import { FakeProviderStub, FakeProviderResponse } from '../tests/fake-provider';
+import type { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
+import nock from 'nock';
+import { promisify } from 'util';
+
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import * as createNetworkClientModule from './create-network-client';
-import {
+import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
-  NetworkClientType,
 } from './types';
+import { NetworkClientType } from './types';
+import type {
+  FakeProviderStub,
+  FakeProviderResponse,
+} from '../tests/fake-provider';
 
 /**
  * An object which instructs the NetworkMock class which JSON-RPC request should
