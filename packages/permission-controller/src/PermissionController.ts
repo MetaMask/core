@@ -81,6 +81,7 @@ import {
 } from './Permission';
 import { getPermissionMiddlewareFactory } from './permission-middleware';
 import { MethodNames } from './utils';
+import { PermissionTree } from './PermissionTree';
 
 /**
  * Metadata associated with {@link PermissionController} subjects.
@@ -523,6 +524,8 @@ export class PermissionController<
 
   private readonly _unrestrictedMethods: ReadonlySet<string>;
 
+  private readonly permissionTree: PermissionTree;
+
   /**
    * The names of all JSON-RPC methods that will be ignored by the controller.
    *
@@ -608,7 +611,7 @@ export class PermissionController<
       ...permissionSpecifications,
     });
 
-    // build permission tree
+    this.permissionTree = new PermissionTree(this._permissionSpecifications);
 
     this.registerMessageHandlers();
     this.createPermissionMiddleware = getPermissionMiddlewareFactory({
@@ -1568,8 +1571,11 @@ export class PermissionController<
       >
     >;
 
+    const populatedRequest =
+      this.permissionTree.getPopulatedRequest(approvedPermissions);
+
     for (const [requestedTarget, approvedPermission] of Object.entries(
-      approvedPermissions,
+      populatedRequest,
     )) {
       if (!this.targetExists(requestedTarget)) {
         throw methodNotFound(requestedTarget);
