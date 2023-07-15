@@ -86,9 +86,9 @@ import {
   PermissionType,
 } from './Permission';
 import { getPermissionMiddlewareFactory } from './permission-middleware';
+import { PermissionTree } from './PermissionTree';
 import type { GetSubjectMetadata } from './SubjectMetadataController';
 import { MethodNames } from './utils';
-import { PermissionTree } from './PermissionTree';
 
 /**
  * Metadata associated with {@link PermissionController} subjects.

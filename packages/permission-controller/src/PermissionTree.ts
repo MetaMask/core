@@ -1,4 +1,4 @@
-import {
+import type {
   PermissionSpecificationMap,
   PermissionSpecificationConstraint,
   RequestedPermissions,
@@ -13,9 +13,11 @@ export class PermissionTree {
     PermissionSpecificationMap<PermissionSpecificationConstraint>
   >;
 
-  private childToParentPermissionMap: Map<
-    PermissionSpecificationConstraint['targetName'],
-    Set<PermissionSpecificationConstraint['targetName']>
+  private readonly childToParentPermissionMap: Readonly<
+    Map<
+      PermissionSpecificationConstraint['targetName'],
+      Set<PermissionSpecificationConstraint['targetName']>
+    >
   >;
 
   private rootPermissions: PermissionSpecificationConstraint['targetName'][];
