@@ -15,13 +15,19 @@ import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
-import type {
-
+import { isValidHexAddress, type Hex } from '@metamask/utils';
+import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
+import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
+import { ControllerMessenger } from '@metamask/base-controller';
+import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+import {
   KeyringControllerEvents,
   KeyringControllerMessenger,
   KeyringControllerState,
   KeyringControllerOptions,
   KeyringControllerActions,
+  assertHasUint8ArrayMnemonic,
+  assertIsQRKeyring,
 } from './KeyringController';
 import {
   AccountImportStrategy,
@@ -271,7 +277,7 @@ describe('KeyringController', () => {
                 expect(initialSeedWord).not.toBe(currentSeedWord);
                 expect(
                   isValidHexAddress(
-                    cleanKeyringController.state.keyrings[0].accounts[0],
+                    cleanKeyringController.state.keyrings[0].accounts[0] as Hex,
                   ),
                 ).toBe(true);
                 expect(controller.state.vault).toBeDefined();
@@ -449,7 +455,11 @@ describe('KeyringController', () => {
     describe('when non-existing account is provided', () => {
       it('should throw error', async () => {
         await withController(async ({ controller }) => {
-          await expect(controller.getKeyringForAccount('0x0')).rejects.toThrow(
+          await expect(
+            controller.getKeyringForAccount(
+              '0x0000000000000000000000000000000000000000',
+            ),
+          ).rejects.toThrow(
             'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
@@ -699,12 +709,16 @@ describe('KeyringController', () => {
           [privateKey],
         );
 
-        await expect(controller.removeAccount('0x')).rejects.toThrow(
+        await expect(
+          controller.removeAccount(
+            '0x0000000000000000000000000000000000000000',
+          ),
+        ).rejects.toThrow(
           'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
         );
 
         await expect(controller.removeAccount('0xDUMMY_INPUT')).rejects.toThrow(
-          'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
+          'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
         );
       });
     });
@@ -1647,6 +1661,58 @@ describe('KeyringController', () => {
         cancelSyncRequestStub.resolves();
         await signProcessKeyringController.cancelQRSynchronization();
         expect(cancelSyncRequestStub.called).toBe(true);
+      });
+    });
+  });
+});
+
+describe('Type guards and assertions', () => {
+  describe('assertHasUint8ArrayMnemonic', () => {
+    it('should not throw if mnemonic is defined', async () => {
+      await withController(async ({ controller }) => {
+        const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+        expect(() => assertHasUint8ArrayMnemonic(keyring)).not.toThrow();
+      });
+    });
+
+    it('should throw if mnemonic is not defined', async () => {
+      await withController(async ({ controller }) => {
+        await controller.importAccountWithStrategy(
+          AccountImportStrategy.privateKey,
+          [privateKey],
+        );
+
+        const keyring = await controller.getKeyringForAccount(
+          '0x51253087e6f8358b5f10c0a94315d69db3357859',
+        );
+
+        expect(() => assertHasUint8ArrayMnemonic(keyring)).toThrow(
+          "Can't get mnemonic bytes from keyring",
+        );
+      });
+    });
+  });
+
+  describe('assertIsQRKeyring', () => {
+    it('should not throw if keyring is a QRKeyring', async () => {
+      const keyring = new QRKeyring();
+      expect(() => assertIsQRKeyring(keyring)).not.toThrow();
+    });
+
+    it('should throw if keyring is not QRKeyring', async () => {
+      await withController(async ({ controller }) => {
+        await controller.importAccountWithStrategy(
+          AccountImportStrategy.privateKey,
+          [privateKey],
+        );
+
+        const keyring = await controller.getKeyringForAccount(
+          '0x51253087e6f8358b5f10c0a94315d69db3357859',
+        );
+
+        expect(() => assertIsQRKeyring(keyring)).toThrow(
+          'Expected QRKeyring instance',
+        );
       });
     });
   });

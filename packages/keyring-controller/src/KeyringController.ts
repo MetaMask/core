@@ -19,11 +19,14 @@ import {
   stripHexPrefix,
   getBinarySize,
 } from 'ethereumjs-util';
-import { isValidHexAddress } from '@metamask/controller-utils';
 import {
+  assertIsStrictHexString,
+  hasProperty,
+  isValidHexAddress,
   type Hex,
-  type Keyring as KeyringObject,
+  type Keyring,
   type Json,
+  type Bytes,
 } from '@metamask/utils';
 import {
   normalize as normalizeAddress,
@@ -59,7 +62,7 @@ export type KeyringControllerState = {
   vault?: string;
   isUnlocked: boolean;
   keyringTypes: string[];
-  keyrings: Keyring[];
+  keyrings: KeyringObject[];
   encryptionKey?: string;
   encryptionSalt?: string;
 };
@@ -118,21 +121,21 @@ export type KeyringControllerOptions = {
   setAccountLabel?: PreferencesController['setAccountLabel'];
   encryptor?: any;
   keyringBuilders?:
-    | { (): KeyringObject<Json>; type: string }
-    | ConcatArray<{ (): KeyringObject<Json>; type: string }>;
+    | { (): Keyring<Json>; type: string }
+    | ConcatArray<{ (): Keyring<Json>; type: string }>;
   cacheEncryptionKey?: boolean;
   messenger: KeyringControllerMessenger;
-  state?: Partial<KeyringControllerState>;
+  state?: { vault: string };
 };
 
 /**
- * @type Keyring
+ * @type KeyringObject
  *
  * Keyring object to return in fullUpdate
  * @property type - Keyring type
  * @property accounts - Associated accounts
  */
-export type Keyring = {
+export type KeyringObject = {
   accounts: string[];
   type: string;
 };
@@ -163,30 +166,38 @@ const defaultState: KeyringControllerState = {
 };
 
 /**
- * Type guard for checking if a keyring has an exportable
+ * Assert that the given keyring has an exportable
  * mnemonic.
  *
  * @param keyring - The keyring to check
- * @returns Whether the keyring has a mnemonic
+ * @throws When the keyring does not have a mnemonic
  */
-function hasMnemonic(
-  keyring: KeyringObject<Json>,
-): keyring is KeyringObject<Json> & { mnemonic: unknown } {
-  return 'mnemonic' in keyring;
+export function assertHasUint8ArrayMnemonic(
+  keyring: Keyring<Json>,
+): asserts keyring is Keyring<Json> & { mnemonic: Uint8Array } {
+  if (
+    !(
+      hasProperty(keyring, 'mnemonic') && keyring.mnemonic instanceof Uint8Array
+    )
+  ) {
+    throw new Error("Can't get mnemonic bytes from keyring");
+  }
 }
 
 /**
- * Type guard for checking if a keyring is a QRKeyring.
+ * Assert that the passed keyring is a QRKeyring.
  * This is needed as currently `@keystonehq/metamask-airgapped-keyring`
  * is not compatible with the `Keyring` type from `@metamask/utils`.
  *
  * @param keyring - The keyring to check
- * @returns Whether the keyring is a QRKeyring
+ * @throws When the keyring is not an instance of QRKeyring
  */
-function isQRKeyring(
-  keyring: KeyringObject<Json> | QRKeyring,
-): keyring is QRKeyring {
-  return keyring instanceof QRKeyring;
+export function assertIsQRKeyring(
+  keyring: unknown,
+): asserts keyring is QRKeyring {
+  if (!(keyring instanceof QRKeyring)) {
+    throw new Error('Expected QRKeyring instance');
+  }
 }
 
 /**
@@ -262,9 +273,9 @@ export class KeyringController extends BaseControllerV2<
     });
 
     this.#keyring = new EthKeyringController({
-      // @ts-expect-error - `eth-keyring-controller` expects a `Keyring` class
-      // but we can't use the type from `@metamask/utils` because it's not
-      // compatible with `BaseControllerV2` as it is not assignable to type `Json`
+      // @ts-expect-error @metamask/eth-keyring-controller uses initState to
+      // initialize the persistent store, which is an object
+      // with a `vault` property
       initState: state,
       encryptor,
       keyringBuilders,
@@ -323,9 +334,7 @@ export class KeyringController extends BaseControllerV2<
       (selectedAddress: string) => !oldAccounts.includes(selectedAddress),
     );
 
-    if (!addedAccountAddress) {
-      throw new Error('Could not find added account');
-    }
+    assertIsStrictHexString(addedAccountAddress);
     return {
       keyringState: this.#getMemState(),
       addedAccountAddress,
@@ -421,11 +430,9 @@ export class KeyringController extends BaseControllerV2<
    * @param password - Password of the keyring.
    * @returns Promise resolving to the seed phrase.
    */
-  async exportSeedPhrase(password: string): Promise<unknown> {
+  async exportSeedPhrase(password: string): Promise<Uint8Array> {
     await this.verifyPassword(password);
-    if (!hasMnemonic(this.#keyring.keyrings[0])) {
-      throw new Error(`Can't get seed phrase from HD Key Tree`);
-    }
+    assertHasUint8ArrayMnemonic(this.#keyring.keyrings[0]);
     return this.#keyring.keyrings[0].mnemonic;
   }
 
@@ -460,7 +467,7 @@ export class KeyringController extends BaseControllerV2<
    * @param account - An account address.
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
-  async getKeyringForAccount(account: string): Promise<KeyringObject<Json>> {
+  async getKeyringForAccount(account: string): Promise<Keyring<Json>> {
     return this.#keyring.getKeyringForAccount(account);
   }
 
@@ -473,7 +480,7 @@ export class KeyringController extends BaseControllerV2<
    * @param type - Keyring type name.
    * @returns An array of keyrings of the given type.
    */
-  getKeyringsByType(type: KeyringTypes | string): KeyringObject<Json>[] {
+  getKeyringsByType(type: KeyringTypes | string): Keyring<Json>[] {
     return this.#keyring.getKeyringsByType(type);
   }
 
@@ -603,10 +610,10 @@ export class KeyringController extends BaseControllerV2<
   async signTypedMessage(
     messageParams: TypedMessageParams,
     version: SignTypedDataVersion,
-  ) {
+  ): Promise<string | Bytes> {
     try {
       const address = normalizeAddress(messageParams.from);
-      if (!address || !isValidHexAddress(address)) {
+      if (!address || !isValidHexAddress(address as Hex)) {
         throw new Error(
           `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
         );
@@ -635,11 +642,8 @@ export class KeyringController extends BaseControllerV2<
         }
       }
 
-      if (!this.#keyring.password) {
-        throw new Error('Keyring must be unlocked to sign typed message.');
-      }
       const privateKey = await this.exportAccount(
-        this.#keyring.password,
+        this.#keyring.password as string,
         address,
       );
       const privateKeyBuffer = toBuffer(addHexPrefix(privateKey));
@@ -726,22 +730,20 @@ export class KeyringController extends BaseControllerV2<
       throw new Error('No HD keyring found.');
     }
 
-    if (!hasMnemonic(primaryKeyring)) {
-      throw new Error('Cannot find HD keyring seed phrase.');
-    }
-    const seedWords = primaryKeyring.mnemonic as Uint8Array;
+    assertHasUint8ArrayMnemonic(primaryKeyring);
+
+    const seedWords = primaryKeyring.mnemonic;
     const accounts = await primaryKeyring.getAccounts();
     /* istanbul ignore if */
     if (accounts.length === 0) {
       throw new Error('Cannot verify an empty keyring.');
     }
 
+    // The HD Keyring Builder is a default keyring builder
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const hdKeyringBuilder = this.#keyring.getKeyringBuilderForType(
       KeyringTypes.hd,
-    );
-    if (!hdKeyringBuilder) {
-      throw new Error('Cannot find HD keyring builder.');
-    }
+    )!;
 
     const hdKeyring = hdKeyringBuilder();
     // @ts-expect-error @metamask/eth-hd-keyring correctly handles
@@ -775,7 +777,7 @@ export class KeyringController extends BaseControllerV2<
    * @throws If a QRKeyring builder is not provided
    * when initializing the controller
    */
-  private async addQRKeyring(): Promise<KeyringObject<Json>> {
+  private async addQRKeyring(): Promise<Keyring<Json>> {
     // we need to pass an empty array of accounts as options
     // otherwise `eth-keyring-controller` will apply `{}` as default and
     // pass it to `QRKeyring.deserialize` method, that will cause
@@ -793,9 +795,8 @@ export class KeyringController extends BaseControllerV2<
       this.#keyring.getKeyringsByType(KeyringTypes.qr)[0] ||
       (await this.addQRKeyring());
 
-    if (!isQRKeyring(keyring)) {
-      throw new Error('QR keyring not found');
-    }
+    assertIsQRKeyring(keyring);
+
     return keyring;
   }
 
@@ -874,9 +875,7 @@ export class KeyringController extends BaseControllerV2<
 
     keyring.setAccountToUnlock(index);
     const oldAccounts = await this.#keyring.getAccounts();
-    await this.#keyring.addNewAccount(
-      keyring as unknown as KeyringObject<Json>,
-    );
+    await this.#keyring.addNewAccount(keyring as unknown as Keyring<Json>);
     const newAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(newAccounts);
     newAccounts.forEach((address: string) => {
