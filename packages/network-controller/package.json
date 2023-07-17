@@ -35,7 +35,7 @@
     "@metamask/eth-json-rpc-middleware": "^11.0.0",
     "@metamask/eth-json-rpc-provider": "^1.0.0",
     "@metamask/swappable-obj-proxy": "^2.1.0",
-    "@metamask/utils": "^5.0.2",
+    "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
     "eth-block-tracker": "^7.0.1",
     "eth-query": "^2.1.2",
