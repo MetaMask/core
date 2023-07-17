@@ -774,9 +774,9 @@
     yargs "^17.0.1"
 
 "@metamask/eslint-config-jest@^12.0.0":
-  version "12.0.0"
-  resolved "https://registry.yarnpkg.com/@metamask/eslint-config-jest/-/eslint-config-jest-12.0.0.tgz#54857b8e903410857459d53894a07337caaf28ca"
-  integrity sha512-07Cc4vCzzUZLMdYmlG5GdQ0SabXJ062ZQtDNI5N3PBzKjQzzOgWlzUw64EWOVwrvKye6srG5XpoSXiMDq4tbxw==
+  version "12.1.0"
+  resolved "https://registry.yarnpkg.com/@metamask/eslint-config-jest/-/eslint-config-jest-12.1.0.tgz#4218dff6f763e7f3bb6b29b4b50fb7d55014b500"
+  integrity sha512-5TdLDqdukUwHwC2tqOpO/mxFr3hf4HQWNilu0VYFhLV6ovS73KGFPdkRMBGpDkLfYoD17x3mt+3eq52oNMq1+g==
 
 "@metamask/eslint-config-nodejs@^12.0.0":
   version "12.0.0"
