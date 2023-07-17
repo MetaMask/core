@@ -45,7 +45,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/auto-changelog": "^3.2.0",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.24",
     "babel-runtime": "^6.26.0",
