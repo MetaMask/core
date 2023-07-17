@@ -399,7 +399,7 @@ describe('AbstractTestManager', () => {
     });
   });
 
-  describe('setDeferAsSigned', () => {
+  describe('setDeferSetAsSigned', () => {
     it('should set the defer property', async () => {
       const controller = new AbstractTestManager();
       await controller.addMessage({
@@ -410,7 +410,7 @@ describe('AbstractTestManager', () => {
         type: 'type',
       });
 
-      controller.setDeferAsSigned(messageId, { deferAsSigned: true });
+      controller.setDeferSetAsSigned(messageId, { deferAsSigned: true });
       const messageAfter = controller.getMessage(messageId);
       expect(messageAfter?.messageParams).toStrictEqual({
         from: '0x1234',
@@ -423,7 +423,7 @@ describe('AbstractTestManager', () => {
       const controller = new AbstractTestManager();
 
       expect(() =>
-        controller.setDeferAsSigned(messageId, { deferAsSigned: true }),
+        controller.setDeferSetAsSigned(messageId, { deferAsSigned: true }),
       ).toThrow('AbstractMessageManager: Message not found for id: 1.');
     });
   });
