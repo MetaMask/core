@@ -8,6 +8,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
@@ -69,7 +70,9 @@ export interface TokenRatesConfig extends BaseConfig {
   interval: number;
   nativeCurrency: string;
   chainId: Hex;
-  tokens: Token[];
+  selectedAddress: string;
+  allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   threshold: number;
 }
 
@@ -173,6 +176,8 @@ export class TokenRatesController extends BaseController<
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.ticker - The ticker for the current network.
+   * @param options.selectedAddress - The current selected address.
+   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network state changes.
    * @param config - Initial options used to configure this controller.
@@ -182,11 +187,17 @@ export class TokenRatesController extends BaseController<
     {
       chainId: initialChainId,
       ticker: initialTicker,
+      selectedAddress: initialSelectedAddress,
+      onPreferencesStateChange,
       onTokensStateChange,
       onNetworkStateChange,
     }: {
       chainId: Hex;
       ticker: string;
+      selectedAddress: string;
+      onPreferencesStateChange: (
+        listener: (preferencesState: PreferencesState) => void,
+      ) => void;
       onTokensStateChange: (
         listener: (tokensState: TokensState) => void,
       ) => void;
@@ -203,7 +214,9 @@ export class TokenRatesController extends BaseController<
       interval: 3 * 60 * 1000,
       nativeCurrency: initialTicker,
       chainId: initialChainId,
-      tokens: [],
+      selectedAddress: initialSelectedAddress,
+      allTokens: {}, // TODO: initialize these correctly, maybe as part of BaseControllerV2 migration
+      allDetectedTokens: {},
       threshold: 6 * 60 * 60 * 1000,
     };
 
@@ -214,12 +227,19 @@ export class TokenRatesController extends BaseController<
     if (config?.disabled) {
       this.configure({ disabled: true }, false, false);
     }
+    this.#updateTokenList();
 
-    this.tokenList = this.config.tokens;
+    onPreferencesStateChange(async ({ selectedAddress }) => {
+      this.configure({ selectedAddress });
+      this.#updateTokenList();
+      if (this.#pollState === PollState.Active) {
+        await this.updateExchangeRates();
+      }
+    });
 
-    onTokensStateChange(async ({ tokens, detectedTokens }) => {
-      this.configure({ tokens: [...tokens, ...detectedTokens] });
-      this.tokenList = this.config.tokens;
+    onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
+      this.configure({ allTokens, allDetectedTokens });
+      this.#updateTokenList();
       if (this.#pollState === PollState.Active) {
         await this.updateExchangeRates();
       }
@@ -229,10 +249,21 @@ export class TokenRatesController extends BaseController<
       const { chainId, ticker } = providerConfig;
       this.update({ contractExchangeRates: {} });
       this.configure({ chainId, nativeCurrency: ticker });
+      this.#updateTokenList();
       if (this.#pollState === PollState.Active) {
         await this.updateExchangeRates();
       }
     });
+  }
+
+  #updateTokenList() {
+    const { allTokens, allDetectedTokens } = this.config;
+    const tokens =
+      allTokens[this.config.chainId]?.[this.config.selectedAddress] || [];
+    const detectedTokens =
+      allDetectedTokens[this.config.chainId]?.[this.config.selectedAddress] ||
+      [];
+    this.tokenList = [...tokens, ...detectedTokens];
   }
 
   /**
