@@ -753,7 +753,9 @@ describe('SignatureController', () => {
       expect(
         personalMessageManagerMock.setDeferSetAsSigned,
       ).not.toHaveBeenCalled();
-      expect(typedMessageManagerMock.setDeferSetAsSigned).not.toHaveBeenCalled();
+      expect(
+        typedMessageManagerMock.setDeferSetAsSigned,
+      ).not.toHaveBeenCalled();
     });
 
     it('should return false when an error occurs', () => {
