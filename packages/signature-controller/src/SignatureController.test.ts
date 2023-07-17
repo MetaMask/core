@@ -692,9 +692,9 @@ describe('SignatureController', () => {
     });
   });
 
-  describe('trySetMessageStatusSigned', () => {
+  describe('trySetDeferredSignSuccess', () => {
     it('sets a message status as signed in a message manager', () => {
-      signatureController.setMessageStatusSigned(
+      signatureController.setDeferredSignSuccess(
         messageParamsMock.metamaskId,
         messageParamsMock.data,
       );
@@ -722,7 +722,7 @@ describe('SignatureController', () => {
           throw new Error('mocked error');
         });
 
-      const result = signatureController.setMessageStatusSigned(
+      const result = signatureController.setDeferredSignSuccess(
         messageParamsMock.metamaskId,
         messageParamsMock.data,
       );
@@ -738,7 +738,19 @@ describe('SignatureController', () => {
     });
   });
 
-  describe('trysetDeferSetAsSigned', () => {
+  describe('tryForEachMessageManager', () => {
+    it('should return false when an error occurs', () => {
+      const dummyCallback = jest.fn();
+      const result = signatureController.tryForEachMessageManager(
+        dummyCallback,
+        null,
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('trySetDeferSetAsSigned', () => {
     it('sets the parameter deferAsSigned in the message params', () => {
       signatureController.setDeferSetAsSigned(messageParamsMock.metamaskId, {
         deferAsSigned: true,
@@ -779,9 +791,9 @@ describe('SignatureController', () => {
     });
   });
 
-  describe('tryCancelAbstractMessage', () => {
+  describe('trySetDeferredSignError', () => {
     it('rejects a message by calling rejectMessage', () => {
-      signatureController.cancelAbstractMessage(messageParamsMock.metamaskId);
+      signatureController.setDeferredSignError(messageParamsMock.metamaskId);
 
       expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
       expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
@@ -797,7 +809,7 @@ describe('SignatureController', () => {
         throw new Error('mocked error');
       });
 
-      const result = signatureController.cancelAbstractMessage(
+      const result = signatureController.setDeferredSignError(
         messageParamsMock.metamaskId,
       );
 

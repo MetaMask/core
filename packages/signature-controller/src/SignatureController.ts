@@ -387,23 +387,17 @@ export class SignatureController extends BaseControllerV2<
   }
 
   /**
-   * Called when a MMI wants to update the message status as signed.
+   * Called to update the message status as signed.
    *
    * @param messageId - The id of the Message to update.
    * @param signature - The data to update the message with.
    */
-  setMessageStatusSigned(messageId: string, signature: any) {
-    const messageManagers = [
-      this.#messageManager,
-      this.#personalMessageManager,
-      this.#typedMessageManager,
-    ];
-
-    for (const manager of messageManagers) {
-      if (this.#trySetMessageStatusSigned(manager, messageId, signature)) {
-        return;
-      }
-    }
+  setDeferredSignSuccess(messageId: string, signature: any) {
+    this.tryForEachMessageManager(
+      this.#trySetDeferredSignSuccess,
+      messageId,
+      signature,
+    );
   }
 
   /**
@@ -413,56 +407,34 @@ export class SignatureController extends BaseControllerV2<
    * @param metadata - The data to update the metadata property in the message.
    */
   setMessageMetadata(messageId: string, metadata: Json) {
-    const messageManagers = [
-      this.#messageManager,
-      this.#personalMessageManager,
-      this.#typedMessageManager,
-    ];
-
-    for (const manager of messageManagers) {
-      if (this.#trySetMessageMetadata(manager, messageId, metadata)) {
-        return;
-      }
-    }
+    this.tryForEachMessageManager(
+      this.#trySetMessageMetadata,
+      messageId,
+      metadata,
+    );
   }
 
   /**
-   * Called when MMI needs to set the defer value in the message.
+   * Called to set the defer value in the message.
    *
    * @param messageId - The id of the Message to update.
    * @param deferSetAsSigned - The defer value to add in the message params.
    */
   setDeferSetAsSigned(messageId: string, deferSetAsSigned: any) {
-    const messageManagers = [
-      this.#messageManager,
-      this.#personalMessageManager,
-      this.#typedMessageManager,
-    ];
-
-    for (const manager of messageManagers) {
-      if (this.#trySetDeferSetAsSigned(manager, messageId, deferSetAsSigned)) {
-        return;
-      }
-    }
+    this.tryForEachMessageManager(
+      this.#trySetDeferSetAsSigned,
+      messageId,
+      deferSetAsSigned,
+    );
   }
 
   /**
-   * Called when a MMI wants to cancel a signing message.
+   * Called to cancel a signing message.
    *
    * @param messageId - The id of the Message to update.
    */
-  cancelAbstractMessage(messageId: string) {
-    const messageManagers = [
-      this.#messageManager,
-      this.#personalMessageManager,
-      this.#typedMessageManager,
-    ];
-
-    for (const manager of messageManagers) {
-      if (this.#tryCancelAbstractMessage(manager, messageId)) {
-        return;
-      }
-    }
+  setDeferredSignError(messageId: string) {
+    this.tryForEachMessageManager(this.#trySetDeferredSignError, messageId);
   }
 
   setTypedMessageInProgress(messageId: string) {
@@ -624,7 +596,28 @@ export class SignatureController extends BaseControllerV2<
     );
   }
 
-  #trySetMessageStatusSigned(
+  tryForEachMessageManager(
+    callbackFn: (
+      messageManager: AbstractMessageManager<any, any, any>,
+      ...args: any[]
+    ) => boolean,
+    ...args: any[]
+  ) {
+    const messageManagers = [
+      this.#messageManager,
+      this.#personalMessageManager,
+      this.#typedMessageManager,
+    ];
+
+    for (const manager of messageManagers) {
+      if (callbackFn(manager, ...args)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  #trySetDeferredSignSuccess(
     messageManager: AbstractMessageManager<any, any, any>,
     messageId: string,
     signature: any,
@@ -663,7 +656,7 @@ export class SignatureController extends BaseControllerV2<
     }
   }
 
-  #tryCancelAbstractMessage(
+  #trySetDeferredSignError(
     messageManager: AbstractMessageManager<any, any, any>,
     messageId: string,
   ) {
