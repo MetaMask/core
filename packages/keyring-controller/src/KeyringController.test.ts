@@ -189,9 +189,9 @@ describe('KeyringController', () => {
           await withController(
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
-              const currentSeedWord = (await controller.exportSeedPhrase(
+              const currentSeedWord = await controller.exportSeedPhrase(
                 password,
-              )) as Uint8Array;
+              );
 
               await controller.createNewVaultAndRestore(
                 password,
