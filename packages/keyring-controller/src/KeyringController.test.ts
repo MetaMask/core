@@ -3,7 +3,6 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { isValidHexAddress } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import {
   normalize,
@@ -12,20 +11,17 @@ import {
   SignTypedDataVersion,
 } from '@metamask/eth-sig-util';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
+import { isValidHexAddress, type Hex } from '@metamask/utils';
 import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
-import { isValidHexAddress, type Hex } from '@metamask/utils';
-import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
-import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import { ControllerMessenger } from '@metamask/base-controller';
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+
 import {
-  KeyringControllerEvents,
-  KeyringControllerMessenger,
-  KeyringControllerState,
-  KeyringControllerOptions,
-  KeyringControllerActions,
+  type KeyringControllerEvents,
+  type KeyringControllerMessenger,
+  type KeyringControllerState,
+  type KeyringControllerOptions,
+  type KeyringControllerActions,
   assertHasUint8ArrayMnemonic,
   assertIsQRKeyring,
 } from './KeyringController';

@@ -1,3 +1,4 @@
+import type { TxData, TypedTransaction } from '@ethereumjs/tx';
 import {
   MetaMaskKeyring as QRKeyring,
   type IKeyringState as IQRKeyringState,
@@ -5,20 +6,15 @@ import {
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
+import {
+  normalize as normalizeAddress,
+  signTypedData,
+} from '@metamask/eth-sig-util';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
 import type { PreferencesController } from '@metamask/preferences-controller';
-import { Mutex } from 'async-mutex';
-import {
-  addHexPrefix,
-  bufferToHex,
-  isValidPrivate,
-  toBuffer,
-  stripHexPrefix,
-  getBinarySize,
-} from 'ethereumjs-util';
 import {
   assertIsStrictHexString,
   hasProperty,
@@ -28,13 +24,17 @@ import {
   type Json,
   type Bytes,
 } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 import {
-  normalize as normalizeAddress,
-  signTypedData,
-} from '@metamask/eth-sig-util';
+  addHexPrefix,
+  bufferToHex,
+  isValidPrivate,
+  toBuffer,
+  stripHexPrefix,
+  getBinarySize,
+} from 'ethereumjs-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
-import type { TxData, TypedTransaction } from '@ethereumjs/tx';
 
 const name = 'KeyringController';
 
