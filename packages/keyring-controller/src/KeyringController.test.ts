@@ -438,7 +438,8 @@ describe('KeyringController', () => {
           const normalizedInitialAccounts =
             controller.state.keyrings[0].accounts.map(normalize);
           const keyring = await controller.getKeyringForAccount(
-            normalizedInitialAccounts[0] as string,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            normalizedInitialAccounts[0]!,
           );
           expect(keyring.type).toBe('HD Key Tree');
           expect(keyring.getAccounts()).toStrictEqual(
@@ -663,7 +664,7 @@ describe('KeyringController', () => {
      */
     it('should remove HD Key Tree keyring from state when single account associated with it is deleted', async () => {
       await withController(async ({ controller, initialState }) => {
-        const account = initialState.keyrings[0].accounts[0] as `0x${string}`;
+        const account = initialState.keyrings[0].accounts[0] as Hex;
         await controller.removeAccount(account);
         expect(controller.state.keyrings).toHaveLength(0);
       });
@@ -829,6 +830,39 @@ describe('KeyringController', () => {
             ),
           ).rejects.toThrow(
             "Keyring Controller signTypedMessage: Error: Unexpected signTypedMessage version: 'junk'",
+          );
+        },
+      );
+    });
+
+    it('should throw when keyring is locked', async () => {
+      await withController(
+        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
+        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
+        async ({ controller, initialState }) => {
+          const typedMsgParams = [
+            {
+              name: 'Message',
+              type: 'string',
+              value: 'Hi, Alice!',
+            },
+            {
+              name: 'A number',
+              type: 'uint32',
+              value: '1337',
+            },
+          ];
+          const account = initialState.keyrings[0].accounts[0];
+
+          await controller.setLocked();
+
+          await expect(
+            controller.signTypedMessage(
+              { data: typedMsgParams, from: account },
+              SignTypedDataVersion.V1,
+            ),
+          ).rejects.toThrow(
+            'Keyring Controller signTypedMessage: Error: Keyring must be unlocked to sign a message.',
           );
         },
       );

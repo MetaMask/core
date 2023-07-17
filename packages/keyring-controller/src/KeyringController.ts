@@ -612,6 +612,10 @@ export class KeyringController extends BaseControllerV2<
     version: SignTypedDataVersion,
   ): Promise<string | Bytes> {
     try {
+      if (!this.isUnlocked() || !this.#keyring.password) {
+        throw new Error('Keyring must be unlocked to sign a message.');
+      }
+
       const address = normalizeAddress(messageParams.from);
       if (!address || !isValidHexAddress(address as Hex)) {
         throw new Error(
@@ -643,7 +647,7 @@ export class KeyringController extends BaseControllerV2<
       }
 
       const privateKey = await this.exportAccount(
-        this.#keyring.password as string,
+        this.#keyring.password,
         address,
       );
       const privateKeyBuffer = toBuffer(addHexPrefix(privateKey));
@@ -875,6 +879,10 @@ export class KeyringController extends BaseControllerV2<
 
     keyring.setAccountToUnlock(index);
     const oldAccounts = await this.#keyring.getAccounts();
+    // QRKeyring is not yet compatible with Keyring from
+    // @metamask/utils, but we can use the `addNewAccount` method
+    // as it internally calls `addAccounts` from on the keyring instance,
+    // which is supported by QRKeyring API.
     await this.#keyring.addNewAccount(keyring as unknown as Keyring<Json>);
     const newAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(newAccounts);
