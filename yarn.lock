@@ -1641,20 +1641,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@npm:^11.0.0":
-  version: 11.0.0
-  resolution: "@metamask/eth-json-rpc-middleware@npm:11.0.0"
+"@metamask/eth-json-rpc-middleware@npm:^11.0.1":
+  version: 11.0.1
+  resolution: "@metamask/eth-json-rpc-middleware@npm:11.0.1"
   dependencies:
     "@metamask/eth-json-rpc-provider": ^1.0.0
     "@metamask/eth-sig-util": ^5.0.0
-    "@metamask/utils": ^3.0.3
+    "@metamask/utils": ^5.0.1
     clone: ^2.1.1
-    eth-block-tracker: ^7.0.0
+    eth-block-tracker: ^7.0.1
     eth-rpc-errors: ^4.0.3
     json-rpc-engine: ^6.1.0
     pify: ^3.0.0
     safe-stable-stringify: ^2.3.2
-  checksum: c866d07a199ab480ceeb7ab8df61c08284640b5ac13aee3dd81dae9e0e5575f4a425d95728070ab5402c0c6cd5f9237fb5f4f22dbcdc99fe0b50bb47df561830
+  checksum: 157672f3e0dde42ba85676b51593d36d956a1e66f9b98777735ab2903c6e077fd5f7c2acf4ecc9661074b2780a88309065007a86b5cb25cfcf2ce3fdc71a5a8f
   languageName: node
   linkType: hard
 
@@ -1857,7 +1857,7 @@ __metadata:
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
     "@metamask/eth-json-rpc-infura": ^8.1.0
-    "@metamask/eth-json-rpc-middleware": ^11.0.0
+    "@metamask/eth-json-rpc-middleware": ^11.0.1
     "@metamask/eth-json-rpc-provider": ^1.0.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^5.0.2
@@ -4521,7 +4521,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-block-tracker@npm:^7.0.0, eth-block-tracker@npm:^7.0.1":
+"eth-block-tracker@npm:^7.0.1":
   version: 7.0.1
   resolution: "eth-block-tracker@npm:7.0.1"
   dependencies:
