@@ -784,9 +784,9 @@
   integrity sha512-qYg6TESACJokSD8pnbgJ6JtQDvx2jCM/hWEeHbGsNDDUvMl0f8MlHz1H5bDutiUgWDJMI3oMWm6OYMmUWZhXPw==
 
 "@metamask/eslint-config-typescript@^12.0.0":
-  version "12.0.0"
-  resolved "https://registry.yarnpkg.com/@metamask/eslint-config-typescript/-/eslint-config-typescript-12.0.0.tgz#242953cab14ba03d586903a7531c0b58e3b8c145"
-  integrity sha512-5I2fBXlAV1hYDuonqwkItUySTGN8AZ6F4MTwn9lCZ1Oor5BjnchoK9BBfL6OwyNyPGGsV5YucDqU90pfOOJSxw==
+  version "12.1.0"
+  resolved "https://registry.yarnpkg.com/@metamask/eslint-config-typescript/-/eslint-config-typescript-12.1.0.tgz#90903bfffad51426073d6c2cb8af7b9de71aa8ca"
+  integrity sha512-tKBVv1+AyQysp//Oq0bJWrtUbzPZZDt8u3FnhpOjXS7ACvQMwhzEOi5tjBDlW677mbIKDxTlx2RMfIyfIwglyA==
 
 "@metamask/eslint-config@^12.0.0":
   version "12.0.0"
