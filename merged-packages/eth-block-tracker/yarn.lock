@@ -779,9 +779,9 @@
   integrity sha512-5TdLDqdukUwHwC2tqOpO/mxFr3hf4HQWNilu0VYFhLV6ovS73KGFPdkRMBGpDkLfYoD17x3mt+3eq52oNMq1+g==
 
 "@metamask/eslint-config-nodejs@^12.0.0":
-  version "12.0.0"
-  resolved "https://registry.yarnpkg.com/@metamask/eslint-config-nodejs/-/eslint-config-nodejs-12.0.0.tgz#4c891bec8e44c9a956be02f0f9ef128c735079a3"
-  integrity sha512-HV8IDlqWqaU3Ku3svhuioXVw7b4QNyxVbrhDwt+kHGeaIjB3gNYpqlkybhv07el8n2UW+tQ5d3lnlCX+LEQHNg==
+  version "12.1.0"
+  resolved "https://registry.yarnpkg.com/@metamask/eslint-config-nodejs/-/eslint-config-nodejs-12.1.0.tgz#a773fb7abf9a5fcb5cfe34fbeab785e89a22f857"
+  integrity sha512-qYg6TESACJokSD8pnbgJ6JtQDvx2jCM/hWEeHbGsNDDUvMl0f8MlHz1H5bDutiUgWDJMI3oMWm6OYMmUWZhXPw==
 
 "@metamask/eslint-config-typescript@^12.0.0":
   version "12.0.0"
