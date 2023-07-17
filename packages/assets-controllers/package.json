@@ -42,7 +42,7 @@
     "@metamask/network-controller": "workspace:^",
     "@metamask/preferences-controller": "workspace:^",
     "@metamask/rpc-errors": "^5.1.1",
-    "@metamask/utils": "^5.0.2",
+    "@metamask/utils": "^6.2.0",
     "@types/uuid": "^8.3.0",
     "abort-controller": "^3.0.0",
     "async-mutex": "^0.2.6",

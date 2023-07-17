@@ -1,9 +1,9 @@
-import Common from '@ethereumjs/common';
+import { Common } from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
+import { isValidHexAddress } from '@metamask/controller-utils';
 import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import {
   normalize,
@@ -1457,15 +1457,12 @@ describe('KeyringController', () => {
             type: 2,
           },
           {
-            common: Common.forCustomChain(
-              NetworkType.mainnet,
-              {
-                name: 'goerli',
-                chainId: parseInt('5'),
-                networkId: parseInt('5'),
-              },
-              'london',
-            ),
+            common: Common.custom({
+              name: 'goerli',
+              chainId: parseInt('5'),
+              networkId: parseInt('5'),
+              defaultHardfork: 'london',
+            }),
           },
         );
         const signedTx = await signProcessKeyringController.signTransaction(

@@ -29,13 +29,13 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@ethereumjs/common": "^2.6.1",
-    "@ethereumjs/tx": "^3.5.2",
+    "@ethereumjs/common": "^3.2.0",
+    "@ethereumjs/tx": "^4.2.0",
     "@metamask/approval-controller": "workspace:^",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/network-controller": "workspace:^",
-    "@metamask/utils": "^5.0.2",
+    "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
     "eth-method-registry": "1.1.0",
     "eth-query": "^2.1.2",
