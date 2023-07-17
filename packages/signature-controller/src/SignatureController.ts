@@ -430,9 +430,9 @@ export class SignatureController extends BaseControllerV2<
    * Called when MMI needs to set the defer value in the message.
    *
    * @param messageId - The id of the Message to update.
-   * @param deferAsSigned - The defer value to add in the message params.
+   * @param deferSetAsSigned - The defer value to add in the message params.
    */
-  setDeferSetAsSigned(messageId: string, deferAsSigned: any) {
+  setDeferSetAsSigned(messageId: string, deferSetAsSigned: any) {
     const messageManagers = [
       this.#messageManager,
       this.#personalMessageManager,
@@ -440,7 +440,7 @@ export class SignatureController extends BaseControllerV2<
     ];
 
     for (const manager of messageManagers) {
-      if (this.#trySetDeferSetAsSigned(manager, messageId, deferAsSigned)) {
+      if (this.#trySetDeferSetAsSigned(manager, messageId, deferSetAsSigned)) {
         return;
       }
     }
@@ -653,10 +653,10 @@ export class SignatureController extends BaseControllerV2<
   #trySetDeferSetAsSigned(
     messageManager: AbstractMessageManager<any, any, any>,
     messageId: string,
-    deferAsSigned: any,
+    deferSetAsSigned: any,
   ) {
     try {
-      messageManager.setDeferSetAsSigned(messageId, deferAsSigned);
+      messageManager.setDeferSetAsSigned(messageId, deferSetAsSigned);
       return true;
     } catch (error) {
       return false;

@@ -367,14 +367,14 @@ export abstract class AbstractMessageManager<
    * Sets the message defer property.
    *
    * @param messageId - The id of the Message to update.
-   * @param deferAsSigned - The defer value to add in the message params.
+   * @param deferSetAsSigned - The defer value to add in the message params.
    */
-  setDeferSetAsSigned(messageId: string, deferAsSigned: any) {
+  setDeferSetAsSigned(messageId: string, deferSetAsSigned: any) {
     const message = this.getMessage(messageId);
     if (!message) {
       throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
     }
-    message.messageParams = { ...message.messageParams, ...deferAsSigned };
+    message.messageParams = { ...message.messageParams, ...deferSetAsSigned };
     this.updateMessage(message, false);
   }
 
