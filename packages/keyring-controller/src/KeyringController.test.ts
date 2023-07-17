@@ -1797,7 +1797,6 @@ async function withController<ReturnValue>(
   const messenger = buildKeyringControllerMessenger();
   const controller = new KeyringController({
     encryptor,
-    cacheEncryptionKey: false,
     messenger,
     ...preferences,
     ...rest,
