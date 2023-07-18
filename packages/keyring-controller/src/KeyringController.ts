@@ -711,8 +711,8 @@ export class KeyringController extends BaseControllerV2<
    * @throws If a QRKeyring builder is not provided
    * when initializing the controller
    */
-  private async addQRKeyring(): Promise<Keyring<Json>> {
-    return this.#keyring.addNewKeyring(KeyringTypes.qr);
+  async #addQRKeyring(): Promise<QRKeyring> {
+    return this.#keyring.addNewKeyring(KeyringTypes.qr) as unknown as QRKeyring;
   }
 
   /**
@@ -721,8 +721,10 @@ export class KeyringController extends BaseControllerV2<
    * @returns The added keyring
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
-    const keyring = (this.#keyring.getKeyringsByType(KeyringTypes.qr)[0] ||
-      (await this.addQRKeyring())) as unknown as QRKeyring;
+    const keyring =
+      (this.#keyring.getKeyringsByType(
+        KeyringTypes.qr,
+      )[0] as unknown as QRKeyring) || (await this.#addQRKeyring());
     return keyring;
   }
 
