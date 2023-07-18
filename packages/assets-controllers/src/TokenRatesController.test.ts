@@ -295,7 +295,7 @@ describe('TokenRatesController', () => {
     expect(mock).not.toThrow();
   });
 
-  it('should update exchange rates when tokens change while polling is active', async () => {
+  it('should update exchange rates when tokens change', async () => {
     sinon.useFakeTimers({ now: Date.now() });
     let tokenStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub().callsFake((listener) => {
@@ -341,6 +341,52 @@ describe('TokenRatesController', () => {
     });
 
     expect(updateExchangeRatesStub.callCount).toBe(1);
+  });
+
+  it('should not update exchange rates when token state changes without "all tokens" or "all detected tokens" changing', async () => {
+    sinon.useFakeTimers({ now: Date.now() });
+    let tokenStateChangeListener: (state: any) => void;
+    const onTokensStateChange = sinon.stub().callsFake((listener) => {
+      tokenStateChangeListener = listener;
+    });
+    const onNetworkStateChange = sinon.stub();
+    const allTokens = {
+      [toHex(1)]: {
+        [defaultSelectedAddress]: [
+          { address: 'foo', decimals: 0, symbol: '', aggregators: [] },
+        ],
+      },
+    };
+    const allDetectedTokens = {};
+    const controller = new TokenRatesController(
+      {
+        chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
+        onTokensStateChange,
+        onNetworkStateChange,
+      },
+      {
+        interval: 10,
+        allDetectedTokens,
+        allTokens,
+      },
+    );
+    await controller.start();
+    const updateExchangeRatesStub = sinon.stub(
+      controller,
+      'updateExchangeRates',
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    tokenStateChangeListener!({
+      allDetectedTokens,
+      allTokens,
+      tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
+    });
+
+    expect(updateExchangeRatesStub.callCount).toBe(0);
   });
 
   it('should not update exchange rates when tokens change while polling is inactive', async () => {
@@ -391,7 +437,39 @@ describe('TokenRatesController', () => {
     expect(updateExchangeRatesStub.callCount).toBe(0);
   });
 
-  it('should update exchange rates when ticker changes while polling is active', async () => {
+  it('should update exchange rates when ticker changes', async () => {
+    sinon.useFakeTimers({ now: Date.now() });
+    let networkStateChangeListener: (state: any) => void;
+    const onTokensStateChange = sinon.stub();
+    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+      networkStateChangeListener = listener;
+    });
+    const controller = new TokenRatesController(
+      {
+        chainId: toHex(1337),
+        ticker: 'TEST',
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange: sinon.stub(),
+        onTokensStateChange,
+        onNetworkStateChange,
+      },
+      { interval: 10 },
+    );
+    await controller.start();
+    const updateExchangeRatesStub = sinon.stub(
+      controller,
+      'updateExchangeRates',
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    networkStateChangeListener!({
+      providerConfig: { chainId: toHex(1), ticker: NetworksTicker.mainnet },
+    });
+
+    expect(updateExchangeRatesStub.callCount).toBe(1);
+  });
+
+  it('should not update exchange rates when network state changes without a ticker/chain id change', async () => {
     sinon.useFakeTimers({ now: Date.now() });
     let networkStateChangeListener: (state: any) => void;
     const onTokensStateChange = sinon.stub();
@@ -417,10 +495,10 @@ describe('TokenRatesController', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     networkStateChangeListener!({
-      providerConfig: { chainId: toHex(1), ticker: 'dai' },
+      providerConfig: { chainId: toHex(1), ticker: NetworksTicker.mainnet },
     });
 
-    expect(updateExchangeRatesStub.callCount).toBe(1);
+    expect(updateExchangeRatesStub.callCount).toBe(0);
   });
 
   it('should not update exchange rates when ticker changes while polling is inactive', async () => {
@@ -453,7 +531,7 @@ describe('TokenRatesController', () => {
     expect(updateExchangeRatesStub.callCount).toBe(0);
   });
 
-  it('should update exchange rates when selected address changes while polling is active', async () => {
+  it('should update exchange rates when selected address changes', async () => {
     sinon.useFakeTimers({ now: Date.now() });
     nock(COINGECKO_API)
       .get(`${COINGECKO_ETH_PATH}`)
@@ -505,6 +583,74 @@ describe('TokenRatesController', () => {
       '0x02': 0.001,
       '0x03': 0.002,
     });
+  });
+
+  it('should not update exchange rates when preferences state changes without selected address changing', async () => {
+    sinon.useFakeTimers({ now: Date.now() });
+    nock(COINGECKO_API)
+      .get(`${COINGECKO_ETH_PATH}`)
+      .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+      .reply(200, {
+        '0x02': {
+          eth: 0.001, // token value in terms of ETH
+        },
+        '0x03': {
+          eth: 0.002,
+        },
+      });
+    const secondCall = nock(COINGECKO_API)
+      .get(`${COINGECKO_ETH_PATH}`)
+      .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+      .reply(200, {
+        '0x02': {
+          eth: 0.002, // token value in terms of ETH
+        },
+        '0x03': {
+          eth: 0.003,
+        },
+      });
+    let preferencesStateChangeListener: (state: any) => void;
+    const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
+      preferencesStateChangeListener = listener;
+    });
+    const controller = new TokenRatesController(
+      {
+        chainId: toHex(1),
+        ticker: NetworksTicker.mainnet,
+        selectedAddress: defaultSelectedAddress,
+        onPreferencesStateChange,
+        onTokensStateChange: sinon.stub(),
+        onNetworkStateChange: sinon.stub(),
+      },
+      {
+        interval: 10,
+        allTokens: {
+          [toHex(1)]: {
+            [defaultSelectedAddress]: [
+              { address: '0x02', decimals: 0, symbol: '', aggregators: [] },
+              { address: '0x03', decimals: 0, symbol: '', aggregators: [] },
+            ],
+          },
+        },
+      },
+    );
+    await controller.start();
+    expect(controller.state.contractExchangeRates).toStrictEqual({
+      '0x02': 0.001,
+      '0x03': 0.002,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await preferencesStateChangeListener!({
+      selectedAddress: defaultSelectedAddress,
+      exampleConfig: 'exampleValue',
+    });
+
+    expect(controller.state.contractExchangeRates).toStrictEqual({
+      '0x02': 0.001,
+      '0x03': 0.002,
+    });
+    expect(secondCall.isDone()).toBe(false);
   });
 
   it('should not update exchange rates when selected address changes while polling is inactive', async () => {
