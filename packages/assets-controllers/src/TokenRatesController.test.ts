@@ -25,7 +25,7 @@ describe('TokenRatesController', () => {
   beforeEach(() => {
     nock(COINGECKO_API)
       .get(COINGECKO_SUPPORTED_CURRENCIES)
-      .reply(200, ['eth', 'usd'])
+      .reply(200, ['eth', 'usd', 'dai'])
       .get(COINGECKO_ASSETS_PATH)
       .reply(200, [
         {
@@ -329,6 +329,54 @@ describe('TokenRatesController', () => {
 
         expect(updateExchangeRatesStub.callCount).toBe(0);
       });
+
+      it('should not update exchange rates when detectedtokens change', async () => {
+        let tokenStateChangeListener: (state: any) => Promise<void>;
+        const onTokensStateChange = sinon.stub().callsFake((listener) => {
+          tokenStateChangeListener = listener;
+        });
+        const onNetworkStateChange = sinon.stub();
+        const controller = new TokenRatesController(
+          {
+            chainId: toHex(1),
+            ticker: NetworksTicker.mainnet,
+            selectedAddress: defaultSelectedAddress,
+            onPreferencesStateChange: sinon.stub(),
+            onTokensStateChange,
+            onNetworkStateChange,
+          },
+          { interval: 10 },
+        );
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await tokenStateChangeListener!({
+          allDetectedTokens: {
+            [toHex(1)]: {
+              [defaultSelectedAddress]: [
+                { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+              ],
+            },
+          },
+          allTokens: {},
+        });
+        const updateExchangeRatesStub = sinon.stub(
+          controller,
+          'updateExchangeRates',
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await tokenStateChangeListener!({
+          allDetectedTokens: {
+            [toHex(1)]: {
+              [defaultSelectedAddress]: [
+                { address: 'foo', decimals: 0, symbol: '', aggregators: [] },
+              ],
+            },
+          },
+          allTokens: {},
+        });
+
+        expect(updateExchangeRatesStub.callCount).toBe(0);
+      });
     });
   });
 
@@ -360,10 +408,185 @@ describe('TokenRatesController', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         await networkStateChangeListener!({
-          providerConfig: { chainId: toHex(1), ticker: NetworksTicker.mainnet },
+          providerConfig: { chainId: toHex(1337), ticker: 'NEW' },
         });
 
         expect(updateExchangeRatesStub.callCount).toBe(1);
+      });
+
+      it('should update exchange rates when chain ID changes', async () => {
+        sinon.useFakeTimers({ now: Date.now() });
+        let networkStateChangeListener: (state: any) => Promise<void>;
+        const onTokensStateChange = sinon.stub();
+        const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+          networkStateChangeListener = listener;
+        });
+        const controller = new TokenRatesController(
+          {
+            chainId: toHex(1337),
+            ticker: 'TEST',
+            selectedAddress: defaultSelectedAddress,
+            onPreferencesStateChange: sinon.stub(),
+            onTokensStateChange,
+            onNetworkStateChange,
+          },
+          { interval: 10 },
+        );
+        await controller.start();
+        const updateExchangeRatesStub = sinon.stub(
+          controller,
+          'updateExchangeRates',
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await networkStateChangeListener!({
+          providerConfig: { chainId: toHex(1338), ticker: 'TEST' },
+        });
+
+        expect(updateExchangeRatesStub.callCount).toBe(1);
+      });
+
+      it('should clear contractExchangeRates state when ticker changes', async () => {
+        nock(COINGECKO_API)
+          .get(`${COINGECKO_ETH_PATH}`)
+          .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+          .reply(200, {
+            '0x02': {
+              eth: 0.001, // token value in terms of ETH
+            },
+            '0x03': {
+              eth: 0.002,
+            },
+          })
+          .get(`${COINGECKO_ETH_PATH}`)
+          .query({ contract_addresses: '0x02,0x03', vs_currencies: 'dai' })
+          .replyWithError('Custom error');
+
+        let networkChangeListener: (state: any) => Promise<void>;
+        const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+          networkChangeListener = listener;
+        });
+
+        const controller = new TokenRatesController(
+          {
+            chainId: toHex(1),
+            ticker: NetworksTicker.mainnet,
+            selectedAddress: defaultSelectedAddress,
+            onPreferencesStateChange: sinon.stub(),
+            onTokensStateChange: sinon.stub(),
+            onNetworkStateChange,
+          },
+          {
+            interval: 10,
+            nativeCurrency: 'ETH',
+            allTokens: {
+              [toHex(1)]: {
+                [defaultSelectedAddress]: [
+                  {
+                    address: '0x02',
+                    decimals: 18,
+                    image: undefined,
+                    symbol: 'bar',
+                    isERC721: false,
+                  },
+                  {
+                    address: '0x03',
+                    decimals: 18,
+                    image: undefined,
+                    symbol: 'bazz',
+                    isERC721: false,
+                  },
+                ],
+              },
+            },
+          },
+        );
+
+        await controller.start();
+
+        expect(controller.state.contractExchangeRates).toStrictEqual({
+          '0x02': 0.001,
+          '0x03': 0.002,
+        });
+
+        // Ensure next update throws an error so that the "blank" state that
+        // we're testing for isn't overwritten
+        await expect(() =>
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          networkChangeListener!({
+            providerConfig: { chainId: toHex(1), ticker: 'DAI' },
+          }),
+        ).rejects.toThrow('Custom error');
+
+        expect(controller.state.contractExchangeRates).toStrictEqual({});
+      });
+
+      it('should clear contractExchangeRates state when chain ID changes', async () => {
+        nock(COINGECKO_API)
+          .get(`${COINGECKO_ETH_PATH}`)
+          .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+          .reply(200, {
+            '0x02': {
+              eth: 0.001, // token value in terms of ETH
+            },
+            '0x03': {
+              eth: 0.002,
+            },
+          });
+
+        let networkChangeListener: (state: any) => Promise<void>;
+        const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+          networkChangeListener = listener;
+        });
+
+        const controller = new TokenRatesController(
+          {
+            chainId: toHex(1),
+            ticker: NetworksTicker.mainnet,
+            selectedAddress: defaultSelectedAddress,
+            onPreferencesStateChange: sinon.stub(),
+            onTokensStateChange: sinon.stub(),
+            onNetworkStateChange,
+          },
+          {
+            interval: 10,
+            nativeCurrency: 'ETH',
+            allTokens: {
+              [toHex(1)]: {
+                [defaultSelectedAddress]: [
+                  {
+                    address: '0x02',
+                    decimals: 18,
+                    image: undefined,
+                    symbol: 'bar',
+                    isERC721: false,
+                  },
+                  {
+                    address: '0x03',
+                    decimals: 18,
+                    image: undefined,
+                    symbol: 'bazz',
+                    isERC721: false,
+                  },
+                ],
+              },
+            },
+          },
+        );
+
+        await controller.start();
+
+        expect(controller.state.contractExchangeRates).toStrictEqual({
+          '0x02': 0.001,
+          '0x03': 0.002,
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await networkChangeListener!({
+          providerConfig: { chainId: toHex(2) },
+        });
+
+        expect(controller.state.contractExchangeRates).toStrictEqual({});
       });
 
       it('should not update exchange rates when network state changes without a ticker/chain id change', async () => {
@@ -408,8 +631,8 @@ describe('TokenRatesController', () => {
         });
         const controller = new TokenRatesController(
           {
-            chainId: toHex(1),
-            ticker: NetworksTicker.mainnet,
+            chainId: toHex(1337),
+            ticker: 'TEST',
             selectedAddress: defaultSelectedAddress,
             onPreferencesStateChange: sinon.stub(),
             onTokensStateChange,
@@ -424,13 +647,43 @@ describe('TokenRatesController', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         await networkStateChangeListener!({
-          providerConfig: { chainId: toHex(1), ticker: 'dai' },
+          providerConfig: { chainId: toHex(1337), ticker: 'NEW' },
         });
 
         expect(updateExchangeRatesStub.callCount).toBe(0);
       });
 
-      it('should clear contractExchangeRates state when network is changed', async () => {
+      it('should not update exchange rates when chain ID changes', async () => {
+        let networkStateChangeListener: (state: any) => Promise<void>;
+        const onTokensStateChange = sinon.stub();
+        const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+          networkStateChangeListener = listener;
+        });
+        const controller = new TokenRatesController(
+          {
+            chainId: toHex(1337),
+            ticker: 'TEST',
+            selectedAddress: defaultSelectedAddress,
+            onPreferencesStateChange: sinon.stub(),
+            onTokensStateChange,
+            onNetworkStateChange,
+          },
+          { interval: 10 },
+        );
+        const updateExchangeRatesStub = sinon.stub(
+          controller,
+          'updateExchangeRates',
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await networkStateChangeListener!({
+          providerConfig: { chainId: toHex(1338), ticker: 'TEST' },
+        });
+
+        expect(updateExchangeRatesStub.callCount).toBe(0);
+      });
+
+      it('should clear contractExchangeRates state when ticker changes', async () => {
         nock(COINGECKO_API)
           .get(`${COINGECKO_ETH_PATH}`)
           .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
@@ -492,7 +745,75 @@ describe('TokenRatesController', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         await networkChangeListener!({
-          providerConfig: { chainId: toHex(4) },
+          providerConfig: { chainId: toHex(1), ticker: 'NEW' },
+        });
+
+        expect(controller.state.contractExchangeRates).toStrictEqual({});
+      });
+
+      it('should clear contractExchangeRates state when chain ID changes', async () => {
+        nock(COINGECKO_API)
+          .get(`${COINGECKO_ETH_PATH}`)
+          .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+          .reply(200, {
+            '0x02': {
+              eth: 0.001, // token value in terms of ETH
+            },
+            '0x03': {
+              eth: 0.002,
+            },
+          });
+
+        let networkChangeListener: (state: any) => Promise<void>;
+        const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+          networkChangeListener = listener;
+        });
+
+        const controller = new TokenRatesController(
+          {
+            chainId: toHex(1),
+            ticker: NetworksTicker.mainnet,
+            selectedAddress: defaultSelectedAddress,
+            onPreferencesStateChange: sinon.stub(),
+            onTokensStateChange: sinon.stub(),
+            onNetworkStateChange,
+          },
+          {
+            interval: 10,
+            nativeCurrency: 'ETH',
+            allTokens: {
+              [toHex(1)]: {
+                [defaultSelectedAddress]: [
+                  {
+                    address: '0x02',
+                    decimals: 18,
+                    image: undefined,
+                    symbol: 'bar',
+                    isERC721: false,
+                  },
+                  {
+                    address: '0x03',
+                    decimals: 18,
+                    image: undefined,
+                    symbol: 'bazz',
+                    isERC721: false,
+                  },
+                ],
+              },
+            },
+          },
+        );
+
+        await controller.updateExchangeRates();
+
+        expect(controller.state.contractExchangeRates).toStrictEqual({
+          '0x02': 0.001,
+          '0x03': 0.002,
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await networkChangeListener!({
+          providerConfig: { chainId: toHex(2) },
         });
 
         expect(controller.state.contractExchangeRates).toStrictEqual({});
