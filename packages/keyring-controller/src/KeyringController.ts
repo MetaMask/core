@@ -1,6 +1,6 @@
 import type { TxData, TypedTransaction } from '@ethereumjs/tx';
 import {
-  MetaMaskKeyring as QRKeyring,
+  type MetaMaskKeyring as QRKeyring,
   type IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
@@ -170,7 +170,7 @@ const defaultState: KeyringControllerState = {
  * @param keyring - The keyring to check
  * @throws When the keyring does not have a mnemonic
  */
-export function assertHasUint8ArrayMnemonic(
+function assertHasUint8ArrayMnemonic(
   keyring: Keyring<Json>,
 ): asserts keyring is Keyring<Json> & { mnemonic: Uint8Array } {
   if (
@@ -179,22 +179,6 @@ export function assertHasUint8ArrayMnemonic(
     )
   ) {
     throw new Error("Can't get mnemonic bytes from keyring");
-  }
-}
-
-/**
- * Assert that the passed keyring is a QRKeyring.
- * This is needed as currently `@keystonehq/metamask-airgapped-keyring`
- * is not compatible with the `Keyring` type from `@metamask/utils`.
- *
- * @param keyring - The keyring to check
- * @throws When the keyring is not an instance of QRKeyring
- */
-export function assertIsQRKeyring(
-  keyring: unknown,
-): asserts keyring is QRKeyring {
-  if (!(keyring instanceof QRKeyring)) {
-    throw new Error('Expected QRKeyring instance');
   }
 }
 
@@ -465,7 +449,7 @@ export class KeyringController extends BaseControllerV2<
    * @param account - An account address.
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
-  async getKeyringForAccount(account: string): Promise<Keyring<Json>> {
+  async getKeyringForAccount(account: string): Promise<unknown> {
     return this.#keyring.getKeyringForAccount(account);
   }
 
@@ -478,7 +462,7 @@ export class KeyringController extends BaseControllerV2<
    * @param type - Keyring type name.
    * @returns An array of keyrings of the given type.
    */
-  getKeyringsByType(type: KeyringTypes | string): Keyring<Json>[] {
+  getKeyringsByType(type: KeyringTypes | string): unknown[] {
     return this.#keyring.getKeyringsByType(type);
   }
 
@@ -793,12 +777,8 @@ export class KeyringController extends BaseControllerV2<
    * @returns The added keyring
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
-    const keyring =
-      this.#keyring.getKeyringsByType(KeyringTypes.qr)[0] ||
-      (await this.addQRKeyring());
-
-    assertIsQRKeyring(keyring);
-
+    const keyring = (this.#keyring.getKeyringsByType(KeyringTypes.qr)[0] ||
+      (await this.addQRKeyring())) as unknown as QRKeyring;
     return keyring;
   }
 

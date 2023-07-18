@@ -11,19 +11,22 @@ import {
   SignTypedDataVersion,
 } from '@metamask/eth-sig-util';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import { isValidHexAddress, type Hex } from '@metamask/utils';
+import {
+  isValidHexAddress,
+  type Hex,
+  type Keyring,
+  type Json,
+} from '@metamask/utils';
 import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
-import {
-  type KeyringControllerEvents,
-  type KeyringControllerMessenger,
-  type KeyringControllerState,
-  type KeyringControllerOptions,
-  type KeyringControllerActions,
-  assertHasUint8ArrayMnemonic,
-  assertIsQRKeyring,
+import type {
+  KeyringControllerEvents,
+  KeyringControllerMessenger,
+  KeyringControllerState,
+  KeyringControllerOptions,
+  KeyringControllerActions,
 } from './KeyringController';
 import {
   AccountImportStrategy,
@@ -348,24 +351,42 @@ describe('KeyringController', () => {
   });
 
   describe('exportSeedPhrase', () => {
-    describe('when correct password is provided', () => {
-      it('should export seed phrase', async () => {
+    describe('when mnemonic is not exportable', () => {
+      it('should throw error', async () => {
         await withController(async ({ controller }) => {
-          const seed = await controller.exportSeedPhrase(password);
-          expect(seed).not.toBe('');
+          const primaryKeyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as Keyring<Json> & { mnemonic: string };
+
+          primaryKeyring.mnemonic = '';
+
+          await expect(controller.exportSeedPhrase(password)).rejects.toThrow(
+            "Can't get mnemonic bytes from keyring",
+          );
         });
       });
     });
 
-    describe('when wrong password is provided', () => {
-      it('should export seed phrase', async () => {
-        await withController(async ({ controller, encryptor }) => {
-          sinon
-            .stub(encryptor, 'decrypt')
-            .throws(new Error('Invalid password'));
-          await expect(controller.exportSeedPhrase('')).rejects.toThrow(
-            'Invalid password',
-          );
+    describe('when mnemonic is exportable', () => {
+      describe('when correct password is provided', () => {
+        it('should export seed phrase', async () => {
+          await withController(async ({ controller }) => {
+            const seed = await controller.exportSeedPhrase(password);
+            expect(seed).not.toBe('');
+          });
+        });
+      });
+
+      describe('when wrong password is provided', () => {
+        it('should export seed phrase', async () => {
+          await withController(async ({ controller, encryptor }) => {
+            sinon
+              .stub(encryptor, 'decrypt')
+              .throws(new Error('Invalid password'));
+            await expect(controller.exportSeedPhrase('')).rejects.toThrow(
+              'Invalid password',
+            );
+          });
         });
       });
     });
@@ -437,10 +458,10 @@ describe('KeyringController', () => {
         await withController(async ({ controller }) => {
           const normalizedInitialAccounts =
             controller.state.keyrings[0].accounts.map(normalize);
-          const keyring = await controller.getKeyringForAccount(
+          const keyring = (await controller.getKeyringForAccount(
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             normalizedInitialAccounts[0]!,
-          );
+          )) as Keyring<Json>;
           expect(keyring.type).toBe('HD Key Tree');
           expect(keyring.getAccounts()).toStrictEqual(
             normalizedInitialAccounts,
@@ -468,7 +489,9 @@ describe('KeyringController', () => {
     describe('when existing type is provided', () => {
       it('should return keyrings of the right type', async () => {
         await withController(async ({ controller }) => {
-          const keyrings = controller.getKeyringsByType(KeyringTypes.hd);
+          const keyrings = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as Keyring<Json>[];
           expect(keyrings).toHaveLength(1);
           expect(keyrings[0].type).toBe(KeyringTypes.hd);
           expect(keyrings[0].getAccounts()).toStrictEqual(
@@ -1206,6 +1229,20 @@ describe('KeyringController', () => {
         expect(seedPhrase).toBeInstanceOf(Uint8Array);
       });
     });
+
+    it('should throw if mnemonic is not defined', async () => {
+      await withController(async ({ controller }) => {
+        const primaryKeyring = controller.getKeyringsByType(
+          KeyringTypes.hd,
+        )[0] as Keyring<Json> & { mnemonic: string };
+
+        primaryKeyring.mnemonic = '';
+
+        await expect(controller.verifySeedPhrase()).rejects.toThrow(
+          "Can't get mnemonic bytes from keyring",
+        );
+      });
+    });
   });
 
   describe('verifyPassword', () => {
@@ -1691,58 +1728,6 @@ describe('KeyringController', () => {
         cancelSyncRequestStub.resolves();
         await signProcessKeyringController.cancelQRSynchronization();
         expect(cancelSyncRequestStub.called).toBe(true);
-      });
-    });
-  });
-});
-
-describe('Type guards and assertions', () => {
-  describe('assertHasUint8ArrayMnemonic', () => {
-    it('should not throw if mnemonic is defined', async () => {
-      await withController(async ({ controller }) => {
-        const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
-        expect(() => assertHasUint8ArrayMnemonic(keyring)).not.toThrow();
-      });
-    });
-
-    it('should throw if mnemonic is not defined', async () => {
-      await withController(async ({ controller }) => {
-        await controller.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [privateKey],
-        );
-
-        const keyring = await controller.getKeyringForAccount(
-          '0x51253087e6f8358b5f10c0a94315d69db3357859',
-        );
-
-        expect(() => assertHasUint8ArrayMnemonic(keyring)).toThrow(
-          "Can't get mnemonic bytes from keyring",
-        );
-      });
-    });
-  });
-
-  describe('assertIsQRKeyring', () => {
-    it('should not throw if keyring is a QRKeyring', async () => {
-      const keyring = new QRKeyring();
-      expect(() => assertIsQRKeyring(keyring)).not.toThrow();
-    });
-
-    it('should throw if keyring is not QRKeyring', async () => {
-      await withController(async ({ controller }) => {
-        await controller.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [privateKey],
-        );
-
-        const keyring = await controller.getKeyringForAccount(
-          '0x51253087e6f8358b5f10c0a94315d69db3357859',
-        );
-
-        expect(() => assertIsQRKeyring(keyring)).toThrow(
-          'Expected QRKeyring instance',
-        );
       });
     });
   });
