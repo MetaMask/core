@@ -32,7 +32,7 @@
     "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
-    "@metamask/eth-keyring-controller": "^10.0.1",
+    "@metamask/eth-keyring-controller": "^12.0.1",
     "@metamask/eth-sig-util": "^6.0.0",
     "@metamask/message-manager": "workspace:^",
     "@metamask/preferences-controller": "workspace:^",

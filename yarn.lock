@@ -1375,7 +1375,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/browser-passworder@npm:^4.0.2":
+"@metamask/browser-passworder@npm:^4.1.0":
   version: 4.1.0
   resolution: "@metamask/browser-passworder@npm:4.1.0"
   checksum: f1edb3b75594b8e8d075b3134c9ce6c73573160eb48184ef722b9d96a5763db1e2e9acb166fc5c66c7c82936e134a02a3fb4c0022ca9a948857a30181cb84d7e
@@ -1615,30 +1615,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-keyring-controller@npm:^10.0.1":
-  version: 10.0.1
-  resolution: "@metamask/eth-keyring-controller@npm:10.0.1"
+"@metamask/eth-keyring-controller@npm:^12.0.1":
+  version: 12.0.1
+  resolution: "@metamask/eth-keyring-controller@npm:12.0.1"
   dependencies:
-    "@metamask/browser-passworder": ^4.0.2
+    "@ethereumjs/tx": ^4.2.0
+    "@metamask/browser-passworder": ^4.1.0
     "@metamask/eth-hd-keyring": ^6.0.0
-    "@metamask/eth-sig-util": 5.0.2
+    "@metamask/eth-sig-util": ^6.0.0
     "@metamask/eth-simple-keyring": ^5.0.0
+    "@metamask/utils": ^6.2.0
     obs-store: ^4.0.3
-  checksum: 61ce1c7de37c414b5917c004e61c4d1ca71465bd95a00c749408fdde2105cd9c15bedc32c7ce2f6f2f4ff31ca8b6c7056f3460ad91e3d24d9f43974d84b5603b
-  languageName: node
-  linkType: hard
-
-"@metamask/eth-sig-util@npm:5.0.2":
-  version: 5.0.2
-  resolution: "@metamask/eth-sig-util@npm:5.0.2"
-  dependencies:
-    "@ethereumjs/util": ^8.0.0
-    bn.js: ^4.11.8
-    ethereum-cryptography: ^1.1.2
-    ethjs-util: ^0.1.6
-    tweetnacl: ^1.0.3
-    tweetnacl-util: ^0.15.1
-  checksum: 1fbf1a0f5e654058f0219c9018dbebadf53036c9c3b47c8faf1cac54816532bb18996821736f526ac4e3d579afcaf502af4ad07e88158a50f015141858b08a90
+  checksum: b3fa08f370a5c8542abbdb37c955f5f05fe55587f56f6b27bf611299c5bb50a0b5dfdec294b09ed8b939a2a23f1b02fc19139c78ebc0bb5163ea45bc97643d78
   languageName: node
   linkType: hard
 
@@ -1724,7 +1712,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
     "@metamask/controller-utils": "workspace:^"
-    "@metamask/eth-keyring-controller": ^10.0.1
+    "@metamask/eth-keyring-controller": ^12.0.1
     "@metamask/eth-sig-util": ^6.0.0
     "@metamask/message-manager": "workspace:^"
     "@metamask/preferences-controller": "workspace:^"
