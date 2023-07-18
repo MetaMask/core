@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gas-fee-controller",
-  "version": "6.0.1",
+  "version": "6.1.0",
   "description": "Periodically calculates gas fee estimates based on various gas limits as well as other data displayed on transaction confirm screens",
   "keywords": [
     "MetaMask",
@@ -32,7 +32,7 @@
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/network-controller": "workspace:^",
-    "@metamask/utils": "^5.0.2",
+    "@metamask/utils": "^6.2.0",
     "@types/uuid": "^8.3.0",
     "eth-query": "^2.1.2",
     "ethereumjs-util": "^7.0.10",

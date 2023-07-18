@@ -413,6 +413,10 @@ describe('BaseController', () => {
 });
 
 describe('getAnonymizedState', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should return empty state', () => {
     expect(getAnonymizedState({}, {})).toStrictEqual({});
   });
@@ -556,9 +560,41 @@ describe('getAnonymizedState', () => {
 
     expect(anonymizedState).toStrictEqual({ count: 1 });
   });
+
+  it('should suppress errors thrown when deriving state', () => {
+    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    const persistentState = getAnonymizedState(
+      {
+        extraState: 'extraState',
+        privateKey: '123',
+        network: 'mainnet',
+      },
+      // @ts-expect-error Intentionally testing invalid state
+      {
+        privateKey: {
+          anonymous: true,
+          persist: true,
+        },
+        network: {
+          anonymous: false,
+          persist: false,
+        },
+      },
+    );
+    expect(persistentState).toStrictEqual({
+      privateKey: '123',
+    });
+    expect(setTimeoutStub.callCount).toBe(1);
+    const onTimeout = setTimeoutStub.firstCall.args[0];
+    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
+  });
 });
 
 describe('getPersistentState', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should return empty state', () => {
     expect(getPersistentState({}, {})).toStrictEqual({});
   });
@@ -701,6 +737,34 @@ describe('getPersistentState', () => {
     );
 
     expect(persistentState).toStrictEqual({ count: 1 });
+  });
+
+  it('should suppress errors thrown when deriving state', () => {
+    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    const persistentState = getPersistentState(
+      {
+        extraState: 'extraState',
+        privateKey: '123',
+        network: 'mainnet',
+      },
+      // @ts-expect-error Intentionally testing invalid state
+      {
+        privateKey: {
+          anonymous: false,
+          persist: true,
+        },
+        network: {
+          anonymous: false,
+          persist: false,
+        },
+      },
+    );
+    expect(persistentState).toStrictEqual({
+      privateKey: '123',
+    });
+    expect(setTimeoutStub.callCount).toBe(1);
+    const onTimeout = setTimeoutStub.firstCall.args[0];
+    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
   });
 
   describe('inter-controller communication', () => {
