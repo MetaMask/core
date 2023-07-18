@@ -1,0 +1,42 @@
+diff --git a/build/workers/messageParent.js b/build/workers/messageParent.js
+index 11a77f732f2034d373b6db8d9136b78cddf310d1..b7a7229c9ed5c5ac748692a60d0b23727555fad3 100644
+--- a/build/workers/messageParent.js
++++ b/build/workers/messageParent.js
+@@ -16,6 +16,7 @@ function _worker_threads() {
+ }
+ 
+ var _types = require('../types');
++var JSONBigInt = require('json-bigint');
+ 
+ /**
+  * Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+@@ -30,7 +31,7 @@ function messageParent(message, parentProcess = process) {
+       message
+     ]);
+   } else if (typeof parentProcess.send === 'function') {
+-    parentProcess.send([_types.PARENT_MESSAGE_CUSTOM, message]);
++    parentProcess.send([_types.PARENT_MESSAGE_CUSTOM, JSONBigInt.parse(JSONBigInt.stringify(message))]);
+   } else {
+     throw new Error('"messageParent" can only be used inside a worker');
+   }
+diff --git a/build/workers/processChild.js b/build/workers/processChild.js
+index 44d90b57492c0d0189b5bc693b92495be6bd168d..5ea1281e772809832128e887adb9779c4cf26fe1 100644
+--- a/build/workers/processChild.js
++++ b/build/workers/processChild.js
+@@ -1,6 +1,7 @@
+ 'use strict';
+ 
+ var _types = require('../types');
++var JSONBigInt = require('json-bigint');
+ 
+ /**
+  * Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+@@ -56,7 +57,7 @@ function reportSuccess(result) {
+     throw new Error('Child can only be used on a forked process');
+   }
+ 
+-  process.send([_types.PARENT_MESSAGE_OK, result]);
++  process.send([_types.PARENT_MESSAGE_OK, JSONBigInt.parse(JSONBigInt.stringify(result))]);
+ }
+ 
+ function reportClientError(error) {
