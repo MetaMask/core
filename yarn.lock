@@ -1496,6 +1496,7 @@ __metadata:
     "@metamask/eslint-config-nodejs": ^12.0.0
     "@metamask/eslint-config-typescript": ^12.0.0
     "@metamask/eth-json-rpc-provider": ^1.0.0
+    "@metamask/utils": ^6.2.0
     "@types/node": ^16.18.24
     "@typescript-eslint/eslint-plugin": ^5.30.7
     "@typescript-eslint/parser": ^5.30.7
@@ -1512,6 +1513,7 @@ __metadata:
     execa: ^5.0.0
     isomorphic-fetch: ^3.0.0
     json-rpc-engine: ^6.1.0
+    nock: ^13.3.2
     prettier: ^2.7.1
     prettier-plugin-packagejson: ^2.2.17
     rimraf: ^3.0.2
@@ -7411,7 +7413,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nock@npm:^13.0.7":
+"nock@npm:^13.0.7, nock@npm:^13.3.2":
   version: 13.3.2
   resolution: "nock@npm:13.3.2"
   dependencies:
