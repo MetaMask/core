@@ -705,17 +705,6 @@ export class KeyringController extends BaseControllerV2<
   // QR Hardware related methods
 
   /**
-   * Add qr hardware keyring.
-   *
-   * @returns The added keyring
-   * @throws If a QRKeyring builder is not provided
-   * when initializing the controller
-   */
-  async #addQRKeyring(): Promise<QRKeyring> {
-    return this.#keyring.addNewKeyring(KeyringTypes.qr) as unknown as QRKeyring;
-  }
-
-  /**
    * Get qr hardware keyring.
    *
    * @returns The added keyring
@@ -833,6 +822,17 @@ export class KeyringController extends BaseControllerV2<
       this.setSelectedAddress(account);
     });
     await this.#keyring.persistAllKeyrings();
+  }
+
+  /**
+   * Add qr hardware keyring.
+   *
+   * @returns The added keyring
+   * @throws If a QRKeyring builder is not provided
+   * when initializing the controller
+   */
+  async #addQRKeyring(): Promise<QRKeyring> {
+    return this.#keyring.addNewKeyring(KeyringTypes.qr) as unknown as QRKeyring;
   }
 
   /**
