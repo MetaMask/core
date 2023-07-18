@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0]
+### Uncategorized
+- Improve error handling when state metadata is missing ([#1529](https://github.com/MetaMask/core/pull/1529))
+- Update `@ethereumjs/tx` and `@ethereumjs/common` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- devDeps: update eslint packages ([#1498](https://github.com/MetaMask/core/pull/1498))
+
 ## [3.1.0]
 ### Changed
 - Prevent event publish from throwing error ([#1475](https://github.com/MetaMask/core/pull/1475))
@@ -54,7 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.2.0...HEAD
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.1.0...@metamask/base-controller@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@3.0.0...@metamask/base-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@2.0.0...@metamask/base-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@1.1.2...@metamask/base-controller@2.0.0

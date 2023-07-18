@@ -6,6 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+### Uncategorized
+- Bump @metamask/abi-utils from 1.2.0 to 2.0.1 ([#1525](https://github.com/MetaMask/core/pull/1525))
+- Add additional `TokenRateController` tests ([#1522](https://github.com/MetaMask/core/pull/1522))
+- Fix `TokenRateController` test ESLint warnings ([#1528](https://github.com/MetaMask/core/pull/1528))
+- Reorganize `TokenRateController` tests ([#1521](https://github.com/MetaMask/core/pull/1521))
+- Prevent redundant token rate updates ([#1512](https://github.com/MetaMask/core/pull/1512))
+- Fix another `TokenRatesController` event ordering bug ([#1511](https://github.com/MetaMask/core/pull/1511))
+- Update `@ethereumjs/tx` and `@ethereumjs/common` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- Remove `TokenRateController` setters ([#1505](https://github.com/MetaMask/core/pull/1505))
+- Disable automatic token rate polling ([#1501](https://github.com/MetaMask/core/pull/1501))
+- devDeps: update eslint packages ([#1498](https://github.com/MetaMask/core/pull/1498))
+- Remove unnecessary `babel-runtime` dependencies ([#1504](https://github.com/MetaMask/core/pull/1504))
+- Simplify `TokenRatesController` update test case ([#1503](https://github.com/MetaMask/core/pull/1503))
+- Remove unnecessary nock calls from `TokenRatesController` tests ([#1500](https://github.com/MetaMask/core/pull/1500))
+- Prevent bug where incorrect symbol used for token rates ([#1496](https://github.com/MetaMask/core/pull/1496))
+- Fix initial native currency `TokenRatesController` configuration ([#1497](https://github.com/MetaMask/core/pull/1497))
+- Make provider config property `ticker` mandatory ([#1495](https://github.com/MetaMask/core/pull/1495))
+
 ## [10.0.0]
 ### Added
 - The method `getERC20TokenName` has been added to `AssetsContractController` ([#1127](https://github.com/MetaMask/core/pull/1127))
@@ -187,7 +206,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@10.0.0...@metamask/assets-controllers@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.2.0...@metamask/assets-controllers@10.0.0
 [9.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.1.0...@metamask/assets-controllers@9.2.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.0.0...@metamask/assets-controllers@9.1.0

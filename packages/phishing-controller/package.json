@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "MetaMask",

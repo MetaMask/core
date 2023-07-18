@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+### Uncategorized
+- Update `@ethereumjs/tx` and `@ethereumjs/common` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- Bump @metamask/eth-json-rpc-infura from 8.1.0 to 8.1.1 ([#1517](https://github.com/MetaMask/core/pull/1517))
+- devDeps: update eslint packages ([#1498](https://github.com/MetaMask/core/pull/1498))
+- Remove unnecessary `babel-runtime` dependencies ([#1504](https://github.com/MetaMask/core/pull/1504))
+- Make provider config property `ticker` mandatory ([#1495](https://github.com/MetaMask/core/pull/1495))
+
 ## [10.3.1]
 ### Changed
 - Bump `@metamask/eth-json-rpc-infura` dependency from ^8.0.0 to ^8.1.0
@@ -205,7 +213,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.1...@metamask/network-controller@11.0.0
 [10.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.0...@metamask/network-controller@10.3.1
 [10.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.2.0...@metamask/network-controller@10.3.0
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.1.0...@metamask/network-controller@10.2.0
