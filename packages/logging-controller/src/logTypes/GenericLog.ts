@@ -1,4 +1,4 @@
-import { LogType } from './LogType';
+import type { LogType } from './LogType';
 
 /*
  * The logging controller can handle any kind of log statement that may benefit

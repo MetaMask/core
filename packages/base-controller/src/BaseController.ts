@@ -59,7 +59,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
 
   private internalState: S = this.defaultState;
 
-  private internalListeners: Listener<S>[] = [];
+  private readonly internalListeners: Listener<S>[] = [];
 
   /**
    * Creates a BaseController instance. Both initial state and initial

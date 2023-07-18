@@ -1,19 +1,20 @@
-import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import {
   NetworkType,
   convertHexToDecimal,
   handleFetch,
   isValidHexAddress,
 } from '@metamask/controller-utils';
+import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
-import {
+
+import type {
   Transaction,
   FetchAllOptions,
   GasPriceValue,
   FeeMarketEIP1559Values,
   TransactionStatus,
+  TransactionMeta,
 } from './TransactionController';
-import type { TransactionMeta } from './TransactionController';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 

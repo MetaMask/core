@@ -1,12 +1,13 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
+
+import type {
   RateLimitControllerActions,
   RateLimitStateChange,
-  RateLimitController,
   RateLimitMessenger,
   GetRateLimitState,
   CallApi,
 } from './RateLimitController';
+import { RateLimitController } from './RateLimitController';
 
 const name = 'RateLimitController';
 

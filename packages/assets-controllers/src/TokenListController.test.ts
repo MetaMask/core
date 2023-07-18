@@ -1,26 +1,28 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  NetworkControllerStateChangeEvent,
-  NetworkState,
-  NetworkStatus,
-  ProviderConfig,
-} from '@metamask/network-controller';
 import {
   ChainId,
   NetworkType,
+  NetworksTicker,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import {
-  TokenListController,
+import type {
+  NetworkControllerStateChangeEvent,
+  NetworkState,
+  ProviderConfig,
+} from '@metamask/network-controller';
+import { NetworkStatus } from '@metamask/network-controller';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
+import { TOKEN_END_POINT_API } from './token-service';
+import type {
   TokenListStateChange,
   GetTokenListState,
   TokenListMap,
   TokenListState,
 } from './TokenListController';
-import { TOKEN_END_POINT_API } from './token-service';
+import { TokenListController } from './TokenListController';
 
 const name = 'TokenListController';
 const timestamp = Date.now();
@@ -658,6 +660,7 @@ describe('TokenListController', () => {
       buildNetworkControllerStateWithProviderConfig({
         chainId: ChainId.goerli,
         type: NetworkType.goerli,
+        ticker: NetworksTicker.goerli,
       }),
     );
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
@@ -1049,6 +1052,7 @@ describe('TokenListController', () => {
       buildNetworkControllerStateWithProviderConfig({
         type: NetworkType.goerli,
         chainId: ChainId.goerli,
+        ticker: NetworksTicker.goerli,
       }),
       [],
     );
@@ -1068,6 +1072,7 @@ describe('TokenListController', () => {
         type: NetworkType.rpc,
         chainId: toHex(56),
         rpcUrl: 'http://localhost:8545',
+        ticker: 'TEST',
       }),
       [],
     );
@@ -1132,6 +1137,7 @@ describe('TokenListController', () => {
       buildNetworkControllerStateWithProviderConfig({
         type: NetworkType.mainnet,
         chainId: ChainId.mainnet,
+        ticker: NetworksTicker.mainnet,
       }),
       [],
     );
@@ -1178,6 +1184,7 @@ describe('TokenListController', () => {
           type: NetworkType.rpc,
           chainId: toHex(56),
           rpcUrl: 'http://localhost:8545',
+          ticker: 'TEST',
         }),
         [],
       );

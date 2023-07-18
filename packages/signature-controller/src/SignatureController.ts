@@ -1,14 +1,16 @@
-import EventEmitter from 'events';
-import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
-import {
-  MessageManager,
+import type {
+  AddApprovalRequest,
+  AcceptResultCallbacks,
+  AddResult,
+} from '@metamask/approval-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import type {
   MessageParams,
   MessageParamsMetamask,
-  PersonalMessageManager,
   PersonalMessageParams,
   PersonalMessageParamsMetamask,
-  TypedMessageManager,
   TypedMessageParams,
   TypedMessageParamsMetamask,
   AbstractMessageManager,
@@ -21,21 +23,17 @@ import {
   PersonalMessage,
   Message,
 } from '@metamask/message-manager';
+import {
+  MessageManager,
+  PersonalMessageManager,
+  TypedMessageManager,
+} from '@metamask/message-manager';
+import type { Hex, Json } from '@metamask/utils';
 import { ethErrors } from 'eth-rpc-errors';
 import { bufferToHex } from 'ethereumjs-util';
-import { Json } from '@metamask/utils';
-
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { Patch } from 'immer';
-import {
-  AddApprovalRequest,
-  AcceptResultCallbacks,
-  AddResult,
-} from '@metamask/approval-controller';
-import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import EventEmitter from 'events';
+import type { Patch } from 'immer';
+import { cloneDeep } from 'lodash';
 
 const controllerName = 'SignatureController';
 
@@ -802,7 +800,7 @@ export class SignatureController extends BaseControllerV2<
   }
 
   #normalizeMsgData(data: string) {
-    if (data.slice(0, 2) === '0x') {
+    if (data.startsWith('0x')) {
       // data is already hex
       return data;
     }

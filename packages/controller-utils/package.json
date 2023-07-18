@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
@@ -29,9 +29,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/utils": "^5.0.2",
+    "@metamask/utils": "^6.2.0",
     "@spruceid/siwe-parser": "1.1.3",
-    "babel-runtime": "^6.26.0",
     "eth-ens-namehash": "^2.0.8",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.2",

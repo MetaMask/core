@@ -1,10 +1,4 @@
-import { inspect, isDeepStrictEqual, promisify } from 'util';
-import assert from 'assert';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { Patch } from 'immer';
-import { v4 } from 'uuid';
-import nock from 'nock';
-import { ethErrors } from 'eth-rpc-errors';
 import {
   BUILT_IN_NETWORKS,
   ChainId,
@@ -13,9 +7,21 @@ import {
   NetworkType,
   toHex,
 } from '@metamask/controller-utils';
+import assert from 'assert';
+import { ethErrors } from 'eth-rpc-errors';
+import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
-import {
-  NetworkController,
+import nock from 'nock';
+import { inspect, isDeepStrictEqual, promisify } from 'util';
+import { v4 } from 'uuid';
+
+import type { FakeProviderStub } from './fake-provider';
+import { FakeProvider } from './fake-provider';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { NetworkStatus } from '../src/constants';
+import type { NetworkClient } from '../src/create-network-client';
+import { createNetworkClient } from '../src/create-network-client';
+import type {
   NetworkControllerActions,
   NetworkControllerEvents,
   NetworkControllerOptions,
@@ -23,15 +29,9 @@ import {
   NetworkState,
   ProviderConfig,
 } from '../src/NetworkController';
+import { NetworkController } from '../src/NetworkController';
 import type { Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
-import { NetworkStatus } from '../src/constants';
-import {
-  createNetworkClient,
-  NetworkClient,
-} from '../src/create-network-client';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider, FakeProviderStub } from './fake-provider';
 
 jest.mock('../src/create-network-client');
 
@@ -193,6 +193,7 @@ describe('NetworkController', () => {
             "networkStatus": "unknown",
             "providerConfig": Object {
               "chainId": "0x1",
+              "ticker": "ETH",
               "type": "mainnet",
             },
           }
@@ -209,6 +210,7 @@ describe('NetworkController', () => {
               rpcUrl: 'http://example-custom-rpc.metamask.io',
               chainId: '0x9999' as const,
               nickname: 'Test initial state',
+              ticker: 'TEST',
             },
             networkDetails: {
               EIPS: {
@@ -232,6 +234,7 @@ describe('NetworkController', () => {
                 "chainId": "0x9999",
                 "nickname": "Test initial state",
                 "rpcUrl": "http://example-custom-rpc.metamask.io",
+                "ticker": "TEST",
                 "type": "rpc",
               },
             }
@@ -383,6 +386,7 @@ describe('NetworkController', () => {
                   chainId: toHex(2),
                   rpcUrl: 'https://test.network.2',
                   id: 'AAAA-AAAA-AAAA-AAAA',
+                  ticker: 'TEST',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
@@ -430,6 +434,7 @@ describe('NetworkController', () => {
                   chainId: toHex(2),
                   rpcUrl: 'https://test.network.2',
                   id: 'AAAA-AAAA-AAAA-AAAA',
+                  ticker: 'TEST',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
@@ -484,6 +489,7 @@ describe('NetworkController', () => {
                   type: NetworkType.rpc,
                   chainId: toHex(2),
                   rpcUrl: 'https://test.network',
+                  ticker: 'TEST',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
@@ -530,6 +536,7 @@ describe('NetworkController', () => {
                   type: NetworkType.rpc,
                   chainId: toHex(2),
                   rpcUrl: 'https://test.network',
+                  ticker: 'TEST',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
@@ -584,6 +591,7 @@ describe('NetworkController', () => {
                   type: NetworkType.rpc,
                   chainId: toHex(2),
                   rpcUrl: 'HTTPS://TEST.NETWORK',
+                  ticker: 'TEST',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
@@ -630,6 +638,7 @@ describe('NetworkController', () => {
                   type: NetworkType.rpc,
                   chainId: toHex(2),
                   rpcUrl: 'HTTPS://TEST.NETWORK',
+                  ticker: 'TEST',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
@@ -685,6 +694,7 @@ describe('NetworkController', () => {
                     type: NetworkType.rpc,
                     chainId: toHex(1337),
                     rpcUrl: 'http://example.com',
+                    ticker: 'TEST',
                   },
                 },
               },
@@ -723,6 +733,7 @@ describe('NetworkController', () => {
                     type: NetworkType.rpc,
                     chainId: toHex(1337),
                     rpcUrl: 'http://example.com',
+                    ticker: 'TEST',
                   },
                 },
               },
@@ -925,6 +936,7 @@ describe('NetworkController', () => {
                   type: 'rpc',
                   rpcUrl: 'https://mock-rpc-url',
                   chainId: '0x1337',
+                  ticker: 'TEST',
                 },
               },
               infuraProjectId: 'some-infura-project-id',
@@ -1009,6 +1021,7 @@ describe('NetworkController', () => {
                 // NOTE: This doesn't need to match the logical chain ID of
                 // the network selected, it just needs to exist
                 chainId: '0x9999999',
+                ticker: 'TEST',
               },
               networkConfigurations: {
                 testNetworkConfigurationId: {
@@ -1280,6 +1293,7 @@ describe('NetworkController', () => {
               providerConfig: {
                 type: NetworkType.mainnet,
                 chainId: ChainId.mainnet,
+                ticker: 'TEST',
               },
             },
             infuraProjectId: 'some-infura-project-id',
@@ -1361,6 +1375,7 @@ describe('NetworkController', () => {
                     type: NetworkType.rpc,
                     chainId: toHex(2),
                     rpcUrl: 'HTTPS://TEST.NETWORK.2',
+                    ticker: 'TEST',
                   },
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
@@ -1466,6 +1481,7 @@ describe('NetworkController', () => {
                     type: NetworkType.rpc,
                     chainId: toHex(2),
                     rpcUrl: 'https://test.network',
+                    ticker: 'TEST',
                   },
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
@@ -1563,6 +1579,7 @@ describe('NetworkController', () => {
                     type: NetworkType.rpc,
                     chainId: toHex(2),
                     rpcUrl: 'https://TEST.NETWORK',
+                    ticker: 'TEST',
                   },
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
@@ -1662,6 +1679,7 @@ describe('NetworkController', () => {
                   chainId: toHex(2),
                   rpcUrl: 'https://test.network.2',
                   id: 'AAAA-AAAA-AAAA-AAAA',
+                  ticker: 'TEST',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
@@ -8807,6 +8825,7 @@ function buildProviderConfig(
     type: NetworkType.rpc,
     chainId: toHex(1337),
     rpcUrl: 'http://doesntmatter.com',
+    ticker: 'TEST',
     ...config,
   };
 }

@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.3.1]
+### Changed
+- Bump `@metamask/eth-json-rpc-infura` dependency from ^8.0.0 to ^8.1.0
+  - This extends the types that this package recognizes to include Linea networks
+
 ## [10.3.0]
 ### Added
 - Add `getNetworkClientsById` method ([#1439](https://github.com/MetaMask/core/pull/1439))
@@ -200,7 +205,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.1...HEAD
+[10.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.0...@metamask/network-controller@10.3.1
 [10.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.2.0...@metamask/network-controller@10.3.0
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.1.0...@metamask/network-controller@10.2.0
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.0.0...@metamask/network-controller@10.1.0
