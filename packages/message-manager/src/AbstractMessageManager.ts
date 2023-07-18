@@ -37,7 +37,6 @@ export interface AbstractMessage {
   securityProviderResponse?: Record<string, Json>;
   metadata?: Json;
   error?: string;
-  messageParams?: any;
 }
 
 /**
