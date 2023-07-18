@@ -600,7 +600,7 @@ export class SignatureController extends BaseControllerV2<
         return true;
       }
     }
-    throw new Error(`Message not found for id: ${args.messageId}?`);
+    throw new Error(`Message not found for id: ${[args]}?`);
   }
 
   #trySetDeferredSignSuccess(

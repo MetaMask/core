@@ -765,6 +765,26 @@ describe('SignatureController', () => {
         messageIdMock,
       );
     });
+
+    it('should throw an error when tryForEachMessageManager fails', () => {
+      jest.spyOn(messageManagerMock, 'rejectMessage').mockImplementation(() => {
+        throw new Error('mocked error');
+      });
+      jest
+        .spyOn(personalMessageManagerMock, 'rejectMessage')
+        .mockImplementation(() => {
+          throw new Error('mocked error');
+        });
+      jest
+        .spyOn(typedMessageManagerMock, 'rejectMessage')
+        .mockImplementation(() => {
+          throw new Error('mocked error');
+        });
+
+      expect(() =>
+        signatureController.setDeferredSignError(messageParamsMock.metamaskId),
+      ).toThrow('Message not found for id: 123?');
+    });
   });
 
   describe('messages getter', () => {
