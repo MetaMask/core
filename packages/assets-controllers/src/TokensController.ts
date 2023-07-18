@@ -377,7 +377,7 @@ export class TokensController extends BaseController<
           newIgnoredTokens,
           newDetectedTokens,
           interactingAddress: accountAddress,
-          interactingChainId: chainId,
+          interactingChainId: selectedChainId,
         });
 
       let newState: Partial<TokensState> = {
