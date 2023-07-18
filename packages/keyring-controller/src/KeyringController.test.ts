@@ -858,39 +858,6 @@ describe('KeyringController', () => {
       );
     });
 
-    it('should throw when keyring is locked', async () => {
-      await withController(
-        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
-        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
-        async ({ controller, initialState }) => {
-          const typedMsgParams = [
-            {
-              name: 'Message',
-              type: 'string',
-              value: 'Hi, Alice!',
-            },
-            {
-              name: 'A number',
-              type: 'uint32',
-              value: '1337',
-            },
-          ];
-          const account = initialState.keyrings[0].accounts[0];
-
-          await controller.setLocked();
-
-          await expect(
-            controller.signTypedMessage(
-              { data: typedMsgParams, from: account },
-              SignTypedDataVersion.V1,
-            ),
-          ).rejects.toThrow(
-            'Keyring Controller signTypedMessage: Error: Keyring must be unlocked to sign a message.',
-          );
-        },
-      );
-    });
-
     it('should sign typed message V1', async () => {
       await withController(
         // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
@@ -915,7 +882,7 @@ describe('KeyringController', () => {
           );
           const recovered = recoverTypedSignature({
             data: typedMsgParams,
-            signature: signature.toString(),
+            signature,
             version: SignTypedDataVersion.V1,
           });
           expect(account).toBe(recovered);
@@ -972,7 +939,7 @@ describe('KeyringController', () => {
           );
           const recovered = recoverTypedSignature({
             data: msgParams,
-            signature: signature.toString(),
+            signature,
             version: SignTypedDataVersion.V3,
           });
           expect(account).toBe(recovered);
@@ -1043,7 +1010,7 @@ describe('KeyringController', () => {
           );
           const recovered = recoverTypedSignature({
             data: msgParams,
-            signature: signature.toString(),
+            signature,
             version: SignTypedDataVersion.V4,
           });
           expect(account).toBe(recovered);
@@ -1446,7 +1413,7 @@ describe('KeyringController', () => {
         );
         const recovered = recoverTypedSignature({
           data: typedMsgParams,
-          signature: signature.toString(),
+          signature,
           version: SignTypedDataVersion.V1,
         });
         expect(account.toLowerCase()).toBe(recovered.toLowerCase());
@@ -1477,7 +1444,7 @@ describe('KeyringController', () => {
         );
         const recovered = recoverTypedSignature({
           data: JSON.parse(msg),
-          signature: signature.toString(),
+          signature,
           version: SignTypedDataVersion.V3,
         });
         expect(account.toLowerCase()).toBe(recovered);
@@ -1505,7 +1472,7 @@ describe('KeyringController', () => {
         );
         const recovered = recoverTypedSignature({
           data: JSON.parse(msg),
-          signature: signature.toString(),
+          signature,
           version: SignTypedDataVersion.V4,
         });
         expect(account.toLowerCase()).toBe(recovered);

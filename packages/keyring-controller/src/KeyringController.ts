@@ -582,10 +582,6 @@ export class KeyringController extends BaseControllerV2<
     version: SignTypedDataVersion,
   ): Promise<string> {
     try {
-      if (!this.isUnlocked() || !this.#keyring.password) {
-        throw new Error('Keyring must be unlocked to sign a message.');
-      }
-
       if (
         ![
           SignTypedDataVersion.V1,
