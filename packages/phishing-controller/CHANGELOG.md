@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [6.0.0]
-### Uncategorized
-- Remove fallback phishing configuration ([#1527](https://github.com/MetaMask/core/pull/1527))
-- devDeps: update eslint packages ([#1498](https://github.com/MetaMask/core/pull/1498))
+### Changed
+- **BREAKING:** Remove fallback phishing configuration ([#1527](https://github.com/MetaMask/core/pull/1527))
+  - The default configuration is now blank. A custom initial configuration can still be specified via the constructor to preserve the old behavior.
 
 ## [5.0.0]
 ### Changed

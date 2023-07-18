@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [11.0.0]
-### Uncategorized
-- Update `@ethereumjs/tx` and `@ethereumjs/common` ([#1514](https://github.com/MetaMask/core/pull/1514))
+### Changed
+- **BREAKING**: Require `ticker` to be included in the `providerConfig` state ([#1495](https://github.com/MetaMask/core/pull/1495))
+  - This requires a state migration, setting `providerConfig.ticker` to `ETH` if it's missing.
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
 - Bump @metamask/eth-json-rpc-infura from 8.1.0 to 8.1.1 ([#1517](https://github.com/MetaMask/core/pull/1517))
-- devDeps: update eslint packages ([#1498](https://github.com/MetaMask/core/pull/1498))
-- Remove unnecessary `babel-runtime` dependencies ([#1504](https://github.com/MetaMask/core/pull/1504))
-- Make provider config property `ticker` mandatory ([#1495](https://github.com/MetaMask/core/pull/1495))
+- Remove unnecessary `babel-runtime` dependency ([#1504](https://github.com/MetaMask/core/pull/1504))
+
 
 ## [10.3.1]
 ### Changed

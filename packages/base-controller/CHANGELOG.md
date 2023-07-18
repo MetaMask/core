@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.2.0]
-### Uncategorized
-- Improve error handling when state metadata is missing ([#1529](https://github.com/MetaMask/core/pull/1529))
-- Update `@ethereumjs/tx` and `@ethereumjs/common` ([#1514](https://github.com/MetaMask/core/pull/1514))
-- devDeps: update eslint packages ([#1498](https://github.com/MetaMask/core/pull/1498))
+### Changed
+- When deriving state, skip properties with invalid metadata  ([#1529](https://github.com/MetaMask/core/pull/1529))
+  - The previous behavior was to throw an error
+  - An error is thrown in a timeout handler so that it can still be captured in the console, and by global unhandled error handlers.
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
 
 ## [3.1.0]
 ### Changed

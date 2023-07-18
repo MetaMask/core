@@ -7,23 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [11.0.0]
-### Uncategorized
+### Added
+- Add a `stop` method to stop polling
+
+### Changed
+- **BREAKING**: New required constructor parameters for the `TokenRatesController` ([#1497](https://github.com/MetaMask/core/pull/1497), [#1511](https://github.com/MetaMask/core/pull/1511))
+  - The new required parameters are `ticker`, `onSelectedAddress`, and `onPreferencesStateChange`
+- **BREAKING**: Remove `onCurrencyRateStateChange` constructor parameter from `TokenRatesController` ([#1496](https://github.com/MetaMask/core/pull/1496))
+- **BREAKING**: Disable `TokenRatesController` automatic polling ([#1501](https://github.com/MetaMask/core/pull/1501))
+  - Polling must be started explicitly by calling the `start` method
+  - The token rates are not updated upon state changes when polling is disabled.
+- **BREAKING**: Replace the `poll` method with `start` ([#1501](https://github.com/MetaMask/core/pull/1501))
+  - The `start` method does not offer a way to change the interval. That must be done by calling `.configure` instead
+- **BREAKING**: Remove `TokenRatecontroller` setter for `chainId` and `tokens` properties ([#1505](https://github.com/MetaMask/core/pull/1505))
 - Bump @metamask/abi-utils from 1.2.0 to 2.0.1 ([#1525](https://github.com/MetaMask/core/pull/1525))
-- Add additional `TokenRateController` tests ([#1522](https://github.com/MetaMask/core/pull/1522))
-- Fix `TokenRateController` test ESLint warnings ([#1528](https://github.com/MetaMask/core/pull/1528))
-- Reorganize `TokenRateController` tests ([#1521](https://github.com/MetaMask/core/pull/1521))
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- Remove unnecessary `babel-runtime` dependency ([#1504](https://github.com/MetaMask/core/pull/1504))
+
+### Fixed
+- Fix bug where token rates were incorrect after first update if initialized with a non-Ethereum selected network ([#1497](https://github.com/MetaMask/core/pull/1497))
+- Fix bug where token rates would be invalid if event handlers were triggered in the wrong order ([#1496](https://github.com/MetaMask/core/pull/1496), [#1511](https://github.com/MetaMask/core/pull/1511))
 - Prevent redundant token rate updates ([#1512](https://github.com/MetaMask/core/pull/1512))
-- Fix another `TokenRatesController` event ordering bug ([#1511](https://github.com/MetaMask/core/pull/1511))
-- Update `@ethereumjs/tx` and `@ethereumjs/common` ([#1514](https://github.com/MetaMask/core/pull/1514))
-- Remove `TokenRateController` setters ([#1505](https://github.com/MetaMask/core/pull/1505))
-- Disable automatic token rate polling ([#1501](https://github.com/MetaMask/core/pull/1501))
-- devDeps: update eslint packages ([#1498](https://github.com/MetaMask/core/pull/1498))
-- Remove unnecessary `babel-runtime` dependencies ([#1504](https://github.com/MetaMask/core/pull/1504))
-- Simplify `TokenRatesController` update test case ([#1503](https://github.com/MetaMask/core/pull/1503))
-- Remove unnecessary nock calls from `TokenRatesController` tests ([#1500](https://github.com/MetaMask/core/pull/1500))
-- Prevent bug where incorrect symbol used for token rates ([#1496](https://github.com/MetaMask/core/pull/1496))
-- Fix initial native currency `TokenRatesController` configuration ([#1497](https://github.com/MetaMask/core/pull/1497))
-- Make provider config property `ticker` mandatory ([#1495](https://github.com/MetaMask/core/pull/1495))
 
 ## [10.0.0]
 ### Added

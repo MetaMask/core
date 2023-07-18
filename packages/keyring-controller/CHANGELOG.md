@@ -7,10 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.0.0]
-### Uncategorized
-- Update `@metamask/eth-keyring-controller` ([#1441](https://github.com/MetaMask/core/pull/1441))
-- Update `@ethereumjs/tx` and `@ethereumjs/common` ([#1514](https://github.com/MetaMask/core/pull/1514))
-- devDeps: update eslint packages ([#1498](https://github.com/MetaMask/core/pull/1498))
+### Changed
+- **BREAKING**: Remove `keyringTypes` property from the KeyringController state ([#1441](https://github.com/MetaMask/core/pull/1441))
+- **BREAKING**: Constructor `KeyringControllerOptions` type changed ([#1441](https://github.com/MetaMask/core/pull/1441))
+  - The `KeyringControllerOptions.state` accepted type is now `{ vault?: string }`
+  - The `KeyringControllerOptions.keyringBuilders` type is now `{ (): Keyring<Json>; type: string }[]`
+- **BREAKING**: The `address` type accepted by the `removeAccount` method is now `Hex` ([#1441](https://github.com/MetaMask/core/pull/1441))
+- **BREAKING**: The `signTypedMessage` method now returns a `Promise<string>` ([#1441](https://github.com/MetaMask/core/pull/1441))
+- **BREAKING**: The `signTransaction` method now requires a `TypedTransaction` from `@ethereumjs/tx@^4` for the `transaction` argument, and returns a `Promise<TxData>` ([#1441](https://github.com/MetaMask/core/pull/1441))
+- **BREAKING:** Rename `Keyring` type to `KeyringObject` ([#1441](https://github.com/MetaMask/core/pull/1441))
+- **BREAKING:** `addNewAccount` now throws if address of new account is not a hex string ([#1441](https://github.com/MetaMask/core/pull/1441))
+- **BREAKING:** `exportSeedPhrase` now throws if first keyring does not have a mnemonic ([#1441](https://github.com/MetaMask/core/pull/1441))
+- **BREAKING:** `verifySeedPhrase` now throws if HD keyring does not have a mnemonic ([#1441](https://github.com/MetaMask/core/pull/1441))
+- Update return type of `getAccountKeyringType` to `Promise<string>` ([#1441](https://github.com/MetaMask/core/pull/1441))
+- Update `@metamask/eth-keyring-controller` to `^13.0.0` ([#1441](https://github.com/MetaMask/core/pull/1441))
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- Update `@ethereumjs/tx` to `^4.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- Update `@ethereumjs/common` to `^3.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- Update `@keystonehq/metamask-airgapped-keyring` to `^0.13.1` ([#1514](https://github.com/MetaMask/core/pull/1514))
 
 ## [6.1.0]
 ### Changed
