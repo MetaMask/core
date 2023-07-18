@@ -224,10 +224,10 @@ export class KeyringController extends BaseControllerV2<
     setSelectedAddress,
     setAccountLabel,
     encryptor,
-    keyringBuilders = [],
+    keyringBuilders,
     cacheEncryptionKey = false,
     messenger,
-    state = {},
+    state,
   }: KeyringControllerOptions) {
     super({
       name,
@@ -832,6 +832,7 @@ export class KeyringController extends BaseControllerV2<
    * when initializing the controller
    */
   async #addQRKeyring(): Promise<QRKeyring> {
+    // QRKeyring is not yet compatible with Keyring type from @metamask/utils
     return this.#keyring.addNewKeyring(KeyringTypes.qr) as unknown as QRKeyring;
   }
 
