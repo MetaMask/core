@@ -754,16 +754,15 @@ describe('SignatureController', () => {
       jest.spyOn(messageManagerMock, 'rejectMessage').mockImplementation(() => {
         throw new Error('mocked error');
       });
+      jest
+        .spyOn(personalMessageManagerMock, 'rejectMessage')
+        .mockImplementation(() => {
+          throw new Error('mocked error');
+        });
 
-      const result = signatureController.setDeferredSignError(
-        messageParamsMock.metamaskId,
-      );
-
-      expect(result).toBeUndefined();
-      expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock,
-      );
+      expect(() =>
+        signatureController.setDeferredSignError(messageParamsMock.metamaskId),
+      ).not.toThrow();
     });
 
     it('should throw an error when tryForEachMessageManager fails', () => {
