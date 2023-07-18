@@ -1218,13 +1218,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/abi-utils@npm:^1.2.0":
-  version: 1.2.0
-  resolution: "@metamask/abi-utils@npm:1.2.0"
+"@metamask/abi-utils@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "@metamask/abi-utils@npm:2.0.1"
   dependencies:
-    "@metamask/utils": ^3.4.1
+    "@metamask/utils": ^6.1.0
     superstruct: ^1.0.3
-  checksum: 55fde5bcbc7b2b72fb469867e3f2c41fddb1b2e992c6ea846de5701ad8fa5fcc66701facf1df793f8f58b8befcaa3c21a5e5519e839cc6fd5a3932806db7a5d5
+  checksum: 33d2d184d80908d24df0b8cbae223b7e6b72f08ff769105e917647dc099c863fa352622e9b48be8f6afaafc400f2ed6b9015267697ed08294f7aaea248c62ba3
   languageName: node
   linkType: hard
 
@@ -1303,7 +1303,7 @@ __metadata:
     "@ethersproject/bignumber": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
-    "@metamask/abi-utils": ^1.2.0
+    "@metamask/abi-utils": ^2.0.1
     "@metamask/approval-controller": "workspace:^"
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:^"
@@ -2048,7 +2048,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/utils@npm:^3.0.3, @metamask/utils@npm:^3.4.1":
+"@metamask/utils@npm:^3.0.3":
   version: 3.6.0
   resolution: "@metamask/utils@npm:3.6.0"
   dependencies:
@@ -2085,7 +2085,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^6.2.0":
+"@metamask/utils@npm:^6.1.0, @metamask/utils@npm:^6.2.0":
   version: 6.2.0
   resolution: "@metamask/utils@npm:6.2.0"
   dependencies:
