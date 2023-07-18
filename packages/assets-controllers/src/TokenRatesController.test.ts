@@ -125,7 +125,7 @@ describe('TokenRatesController', () => {
     describe('when polling is active', () => {
       it('should update exchange rates when tokens change', async () => {
         sinon.useFakeTimers({ now: Date.now() });
-        let tokenStateChangeListener: (state: any) => void;
+        let tokenStateChangeListener: (state: any) => Promise<void>;
         const onTokensStateChange = sinon.stub().callsFake((listener) => {
           tokenStateChangeListener = listener;
         });
@@ -157,7 +157,7 @@ describe('TokenRatesController', () => {
         );
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        tokenStateChangeListener!({
+        await tokenStateChangeListener!({
           allDetectedTokens: {},
           allTokens: {
             [toHex(1)]: {
@@ -183,7 +183,7 @@ describe('TokenRatesController', () => {
               eth: 0.002,
             },
           });
-        let tokenStateChangeListener: (state: any) => void;
+        let tokenStateChangeListener: (state: any) => Promise<void>;
         const onTokensStateChange = sinon.stub().callsFake((listener) => {
           tokenStateChangeListener = listener;
         });
@@ -234,7 +234,7 @@ describe('TokenRatesController', () => {
 
       it('should not update exchange rates when token state changes without "all tokens" or "all detected tokens" changing', async () => {
         sinon.useFakeTimers({ now: Date.now() });
-        let tokenStateChangeListener: (state: any) => void;
+        let tokenStateChangeListener: (state: any) => Promise<void>;
         const onTokensStateChange = sinon.stub().callsFake((listener) => {
           tokenStateChangeListener = listener;
         });
@@ -269,7 +269,7 @@ describe('TokenRatesController', () => {
         );
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        tokenStateChangeListener!({
+        await tokenStateChangeListener!({
           allDetectedTokens,
           allTokens,
           tokens: [
@@ -283,7 +283,7 @@ describe('TokenRatesController', () => {
 
     describe('when polling is inactive', () => {
       it('should not update exchange rates when tokens change', async () => {
-        let tokenStateChangeListener: (state: any) => void;
+        let tokenStateChangeListener: (state: any) => Promise<void>;
         const onTokensStateChange = sinon.stub().callsFake((listener) => {
           tokenStateChangeListener = listener;
         });
@@ -316,7 +316,7 @@ describe('TokenRatesController', () => {
         );
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        tokenStateChangeListener!({
+        await tokenStateChangeListener!({
           allDetectedTokens: {},
           allTokens: {
             [toHex(1)]: {
@@ -336,7 +336,7 @@ describe('TokenRatesController', () => {
     describe('when polling is active', () => {
       it('should update exchange rates when ticker changes', async () => {
         sinon.useFakeTimers({ now: Date.now() });
-        let networkStateChangeListener: (state: any) => void;
+        let networkStateChangeListener: (state: any) => Promise<void>;
         const onTokensStateChange = sinon.stub();
         const onNetworkStateChange = sinon.stub().callsFake((listener) => {
           networkStateChangeListener = listener;
@@ -359,7 +359,7 @@ describe('TokenRatesController', () => {
         );
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        networkStateChangeListener!({
+        await networkStateChangeListener!({
           providerConfig: { chainId: toHex(1), ticker: NetworksTicker.mainnet },
         });
 
@@ -368,7 +368,7 @@ describe('TokenRatesController', () => {
 
       it('should not update exchange rates when network state changes without a ticker/chain id change', async () => {
         sinon.useFakeTimers({ now: Date.now() });
-        let networkStateChangeListener: (state: any) => void;
+        let networkStateChangeListener: (state: any) => Promise<void>;
         const onTokensStateChange = sinon.stub();
         const onNetworkStateChange = sinon.stub().callsFake((listener) => {
           networkStateChangeListener = listener;
@@ -391,7 +391,7 @@ describe('TokenRatesController', () => {
         );
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        networkStateChangeListener!({
+        await networkStateChangeListener!({
           providerConfig: { chainId: toHex(1), ticker: NetworksTicker.mainnet },
         });
 
@@ -401,7 +401,7 @@ describe('TokenRatesController', () => {
 
     describe('when polling is inactive', () => {
       it('should not update exchange rates when ticker changes', async () => {
-        let networkStateChangeListener: (state: any) => void;
+        let networkStateChangeListener: (state: any) => Promise<void>;
         const onTokensStateChange = sinon.stub();
         const onNetworkStateChange = sinon.stub().callsFake((listener) => {
           networkStateChangeListener = listener;
@@ -423,7 +423,7 @@ describe('TokenRatesController', () => {
         );
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        networkStateChangeListener!({
+        await networkStateChangeListener!({
           providerConfig: { chainId: toHex(1), ticker: 'dai' },
         });
 
@@ -443,7 +443,7 @@ describe('TokenRatesController', () => {
             },
           });
 
-        let networkChangeListener: (state: any) => void;
+        let networkChangeListener: (state: any) => Promise<void>;
         const onNetworkStateChange = sinon.stub().callsFake((listener) => {
           networkChangeListener = listener;
         });
@@ -515,7 +515,7 @@ describe('TokenRatesController', () => {
               eth: 0.002,
             },
           });
-        let preferencesStateChangeListener: (state: any) => void;
+        let preferencesStateChangeListener: (state: any) => Promise<void>;
         const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
           preferencesStateChangeListener = listener;
         });
@@ -580,7 +580,7 @@ describe('TokenRatesController', () => {
               eth: 0.003,
             },
           });
-        let preferencesStateChangeListener: (state: any) => void;
+        let preferencesStateChangeListener: (state: any) => Promise<void>;
         const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
           preferencesStateChangeListener = listener;
         });
@@ -628,7 +628,7 @@ describe('TokenRatesController', () => {
     describe('when polling is inactive', () => {
       it('should not update exchange rates when selected address changes', async () => {
         sinon.useFakeTimers({ now: Date.now() });
-        let preferencesStateChangeListener: (state: any) => void;
+        let preferencesStateChangeListener: (state: any) => Promise<void>;
         const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
           preferencesStateChangeListener = listener;
         });
