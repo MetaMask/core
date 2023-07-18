@@ -386,8 +386,8 @@ export class TokensController extends BaseController<
         allDetectedTokens: newAllDetectedTokens,
       };
 
-      // Only update active tokens if user is interacting with their active wallet account.
-      if (isInteractingWithWalletAccount) {
+      // Only update active tokens if user is interacting with their active wallet account and they are on the same chain.
+      if (isInteractingWithWalletAccount && selectedChainId === chainId) {
         newState = {
           ...newState,
           tokens: newTokens,
