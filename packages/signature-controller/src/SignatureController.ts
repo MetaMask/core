@@ -393,7 +393,7 @@ export class SignatureController extends BaseControllerV2<
    * @param signature - The data to update the message with.
    */
   setDeferredSignSuccess(messageId: string, signature: any) {
-    this.tryForEachMessageManager(
+    this.#tryForEachMessageManager(
       this.#trySetDeferredSignSuccess,
       messageId,
       signature,
@@ -407,24 +407,10 @@ export class SignatureController extends BaseControllerV2<
    * @param metadata - The data to update the metadata property in the message.
    */
   setMessageMetadata(messageId: string, metadata: Json) {
-    this.tryForEachMessageManager(
+    this.#tryForEachMessageManager(
       this.#trySetMessageMetadata,
       messageId,
       metadata,
-    );
-  }
-
-  /**
-   * Called to set the defer value in the message.
-   *
-   * @param messageId - The id of the Message to update.
-   * @param deferSetAsSigned - The defer value to add in the message params.
-   */
-  setDeferSetAsSigned(messageId: string, deferSetAsSigned: any) {
-    this.tryForEachMessageManager(
-      this.#trySetDeferSetAsSigned,
-      messageId,
-      deferSetAsSigned,
     );
   }
 
@@ -434,7 +420,7 @@ export class SignatureController extends BaseControllerV2<
    * @param messageId - The id of the Message to update.
    */
   setDeferredSignError(messageId: string) {
-    this.tryForEachMessageManager(this.#trySetDeferredSignError, messageId);
+    this.#tryForEachMessageManager(this.#trySetDeferredSignError, messageId);
   }
 
   setTypedMessageInProgress(messageId: string) {
@@ -596,12 +582,12 @@ export class SignatureController extends BaseControllerV2<
     );
   }
 
-  tryForEachMessageManager(
+  #tryForEachMessageManager(
     callbackFn: (
       messageManager: AbstractMessageManager<any, any, any>,
       ...args: any[]
     ) => boolean,
-    ...args: any[]
+    ...args: any
   ) {
     const messageManagers = [
       this.#messageManager,
@@ -614,7 +600,7 @@ export class SignatureController extends BaseControllerV2<
         return true;
       }
     }
-    return false;
+    throw new Error(`Message not found for id: ${args.messageId}?`);
   }
 
   #trySetDeferredSignSuccess(
@@ -637,19 +623,6 @@ export class SignatureController extends BaseControllerV2<
   ) {
     try {
       messageManager.setMetadata(messageId, metadata);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  #trySetDeferSetAsSigned(
-    messageManager: AbstractMessageManager<any, any, any>,
-    messageId: string,
-    deferSetAsSigned: any,
-  ) {
-    try {
-      messageManager.setDeferSetAsSigned(messageId, deferSetAsSigned);
       return true;
     } catch (error) {
       return false;
@@ -703,17 +676,8 @@ export class SignatureController extends BaseControllerV2<
 
     const messageId = msgParams.metamaskId as string;
 
-    const message = this.#getMessage(messageId);
-
-    const messageParamsUpdated = {
-      ...msgParams,
-      deferSetAsSigned: message?.msgParams.deferSetAsSigned,
-    };
-
     try {
-      const cleanMessageParams = await messageManager.approveMessage(
-        messageParamsUpdated,
-      );
+      const cleanMessageParams = await messageManager.approveMessage(msgParams);
 
       try {
         const signature = await getSignature(cleanMessageParams);

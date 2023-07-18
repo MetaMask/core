@@ -103,7 +103,6 @@ const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
     setMessageStatusErrored: jest.fn(),
     setMessageStatusInProgress: jest.fn(),
     rejectMessage: jest.fn(),
-    setDeferSetAsSigned: jest.fn(),
     cancelAbstractMessage: jest.fn(),
     subscribe: jest.fn(),
     update: jest.fn(),
@@ -734,59 +733,6 @@ describe('SignatureController', () => {
       expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledWith(
         messageIdMock,
         messageParamsWithoutIdMock.data,
-      );
-    });
-  });
-
-  describe('tryForEachMessageManager', () => {
-    it('should return false when an error occurs', () => {
-      const dummyCallback = jest.fn();
-      const result = signatureController.tryForEachMessageManager(
-        dummyCallback,
-        null,
-      );
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('trySetDeferSetAsSigned', () => {
-    it('sets the parameter deferAsSigned in the message params', () => {
-      signatureController.setDeferSetAsSigned(messageParamsMock.metamaskId, {
-        deferAsSigned: true,
-      });
-
-      expect(messageManagerMock.setDeferSetAsSigned).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.setDeferSetAsSigned).toHaveBeenCalledWith(
-        messageIdMock,
-        { deferAsSigned: true },
-      );
-
-      expect(
-        personalMessageManagerMock.setDeferSetAsSigned,
-      ).not.toHaveBeenCalled();
-      expect(
-        typedMessageManagerMock.setDeferSetAsSigned,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('should return false when an error occurs', () => {
-      jest
-        .spyOn(messageManagerMock, 'setDeferSetAsSigned')
-        .mockImplementation(() => {
-          throw new Error('mocked error');
-        });
-
-      const result = signatureController.setDeferSetAsSigned(
-        messageParamsMock.metamaskId,
-        { deferAsSigned: true },
-      );
-
-      expect(result).toBeUndefined();
-      expect(messageManagerMock.setDeferSetAsSigned).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.setDeferSetAsSigned).toHaveBeenCalledWith(
-        messageIdMock,
-        { deferAsSigned: true },
       );
     });
   });

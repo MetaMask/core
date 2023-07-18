@@ -364,21 +364,6 @@ export abstract class AbstractMessageManager<
   }
 
   /**
-   * Sets the message defer property.
-   *
-   * @param messageId - The id of the Message to update.
-   * @param deferSetAsSigned - The defer value to add in the message params.
-   */
-  setDeferSetAsSigned(messageId: string, deferSetAsSigned: any) {
-    const message = this.getMessage(messageId);
-    if (!message) {
-      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
-    }
-    message.messageParams = { ...message.messageParams, ...deferSetAsSigned };
-    this.updateMessage(message, false);
-  }
-
-  /**
    * Removes the metamaskId property from passed messageParams and returns a promise which
    * resolves the updated messageParams
    *
