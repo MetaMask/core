@@ -6,10 +6,6 @@ import {
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
-import {
-  normalize as normalizeAddress,
-  signTypedData,
-} from '@metamask/eth-sig-util';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
@@ -18,11 +14,9 @@ import type { PreferencesController } from '@metamask/preferences-controller';
 import {
   assertIsStrictHexString,
   hasProperty,
-  isValidHexAddress,
   type Hex,
   type Keyring,
   type Json,
-  type Bytes,
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import {
@@ -61,7 +55,6 @@ export enum KeyringTypes {
 export type KeyringControllerState = {
   vault?: string;
   isUnlocked: boolean;
-  keyringTypes: string[];
   keyrings: KeyringObject[];
   encryptionKey?: string;
   encryptionSalt?: string;
@@ -123,7 +116,7 @@ export type KeyringControllerOptions = {
   keyringBuilders?: { (): Keyring<Json>; type: string }[];
   cacheEncryptionKey?: boolean;
   messenger: KeyringControllerMessenger;
-  state?: { vault: string };
+  state?: { vault?: string };
 };
 
 /**
@@ -159,7 +152,6 @@ export enum SignTypedDataVersion {
 
 const defaultState: KeyringControllerState = {
   isUnlocked: false,
-  keyringTypes: [],
   keyrings: [],
 };
 
@@ -235,14 +227,13 @@ export class KeyringController extends BaseControllerV2<
     keyringBuilders = [],
     cacheEncryptionKey = false,
     messenger,
-    state,
+    state = {},
   }: KeyringControllerOptions) {
     super({
       name,
       metadata: {
         vault: { persist: true, anonymous: false },
         isUnlocked: { persist: false, anonymous: true },
-        keyringTypes: { persist: false, anonymous: false },
         keyrings: { persist: false, anonymous: false },
         encryptionKey: { persist: false, anonymous: false },
         encryptionSalt: { persist: false, anonymous: false },
@@ -255,9 +246,6 @@ export class KeyringController extends BaseControllerV2<
     });
 
     this.#keyring = new EthKeyringController({
-      // @ts-expect-error @metamask/eth-keyring-controller uses initState to
-      // initialize the persistent store, which is an object
-      // with a `vault` property
       initState: state,
       encryptor,
       keyringBuilders,
@@ -522,9 +510,9 @@ export class KeyringController extends BaseControllerV2<
       default:
         throw new Error(`Unexpected import strategy: '${strategy}'`);
     }
-    const newKeyring = await this.#keyring.addNewKeyring(KeyringTypes.simple, {
-      privateKeys: [privateKey],
-    });
+    const newKeyring = await this.#keyring.addNewKeyring(KeyringTypes.simple, [
+      privateKey,
+    ]);
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await this.#keyring.getAccounts();
     this.updateIdentities(allAccounts);
@@ -592,69 +580,33 @@ export class KeyringController extends BaseControllerV2<
   async signTypedMessage(
     messageParams: TypedMessageParams,
     version: SignTypedDataVersion,
-  ): Promise<string | Bytes> {
+  ): Promise<string> {
     try {
       if (!this.isUnlocked() || !this.#keyring.password) {
         throw new Error('Keyring must be unlocked to sign a message.');
       }
 
-      const address = normalizeAddress(messageParams.from);
-      if (!address || !isValidHexAddress(address as Hex)) {
-        throw new Error(
-          `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
-        );
+      if (
+        ![
+          SignTypedDataVersion.V1,
+          SignTypedDataVersion.V3,
+          SignTypedDataVersion.V4,
+        ].includes(version)
+      ) {
+        throw new Error(`Unexpected signTypedMessage version: '${version}'`);
       }
 
-      if ((await this.getAccountKeyringType(address)) === KeyringTypes.qr) {
-        const qrKeyring = await this.getOrAddQRKeyring();
-        const qrAccounts = await qrKeyring.getAccounts();
-        if (
-          qrAccounts.findIndex(
-            (qrAddress: string) =>
-              qrAddress.toLowerCase() === address.toLowerCase(),
-          ) !== -1
-        ) {
-          return this.#keyring.signTypedMessage(
-            {
-              from: messageParams.from,
-              data:
-                version !== SignTypedDataVersion.V1 &&
-                typeof messageParams.data === 'string'
-                  ? JSON.parse(messageParams.data)
-                  : messageParams.data,
-            },
-            { version },
-          );
-        }
-      }
-
-      const privateKey = await this.exportAccount(
-        this.#keyring.password,
-        address,
+      return await this.#keyring.signTypedMessage(
+        {
+          from: messageParams.from,
+          data:
+            version !== SignTypedDataVersion.V1 &&
+            typeof messageParams.data === 'string'
+              ? JSON.parse(messageParams.data)
+              : messageParams.data,
+        },
+        { version },
       );
-      const privateKeyBuffer = toBuffer(addHexPrefix(privateKey));
-      switch (version) {
-        case SignTypedDataVersion.V1:
-          return signTypedData({
-            privateKey: privateKeyBuffer,
-            data: messageParams.data as any,
-            version: SignTypedDataVersion.V1,
-          });
-        case SignTypedDataVersion.V3:
-          return signTypedData({
-            privateKey: privateKeyBuffer,
-            data: JSON.parse(messageParams.data as string),
-            version: SignTypedDataVersion.V3,
-          });
-        case SignTypedDataVersion.V4:
-          return signTypedData({
-            privateKey: privateKeyBuffer,
-            data: JSON.parse(messageParams.data as string),
-            version: SignTypedDataVersion.V4,
-          });
-        default:
-          throw new Error(`Unexpected signTypedMessage version: '${version}'`);
-      }
     } catch (error) {
       throw new Error(`Keyring Controller signTypedMessage: ${error}`);
     }
@@ -764,11 +716,7 @@ export class KeyringController extends BaseControllerV2<
    * when initializing the controller
    */
   private async addQRKeyring(): Promise<Keyring<Json>> {
-    // we need to pass an empty array of accounts as options
-    // otherwise `eth-keyring-controller` will apply `{}` as default and
-    // pass it to `QRKeyring.deserialize` method, that will cause
-    // `QRKeyring.accounts` var to be set to `undefined`.
-    return this.#keyring.addNewKeyring(KeyringTypes.qr, { accounts: [] });
+    return this.#keyring.addNewKeyring(KeyringTypes.qr);
   }
 
   /**
@@ -924,7 +872,6 @@ export class KeyringController extends BaseControllerV2<
     return {
       isUnlocked: this.state.isUnlocked,
       keyrings: this.state.keyrings,
-      keyringTypes: this.state.keyringTypes,
     };
   }
 }
