@@ -691,7 +691,7 @@ describe('SignatureController', () => {
     });
   });
 
-  describe('trySetDeferredSignSuccess', () => {
+  describe('setDeferredSignSuccess', () => {
     it('sets a message status as signed in a message manager', () => {
       signatureController.setDeferredSignSuccess(
         messageParamsMock.metamaskId,
@@ -750,7 +750,7 @@ describe('SignatureController', () => {
       expect(typedMessageManagerMock.rejectMessage).not.toHaveBeenCalled();
     });
 
-    it('should return false when an error occurs', () => {
+    it('rejects message on next message manager if first throws', () => {
       jest.spyOn(messageManagerMock, 'rejectMessage').mockImplementation(() => {
         throw new Error('mocked error');
       });
