@@ -397,6 +397,38 @@ describe('TokenRatesController', () => {
 
         expect(updateExchangeRatesStub.callCount).toBe(0);
       });
+    });
+
+    describe('when polling is inactive', () => {
+      it('should not update exchange rates when ticker changes', async () => {
+        let networkStateChangeListener: (state: any) => void;
+        const onTokensStateChange = sinon.stub();
+        const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+          networkStateChangeListener = listener;
+        });
+        const controller = new TokenRatesController(
+          {
+            chainId: toHex(1),
+            ticker: NetworksTicker.mainnet,
+            selectedAddress: defaultSelectedAddress,
+            onPreferencesStateChange: sinon.stub(),
+            onTokensStateChange,
+            onNetworkStateChange,
+          },
+          { interval: 10 },
+        );
+        const updateExchangeRatesStub = sinon.stub(
+          controller,
+          'updateExchangeRates',
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        networkStateChangeListener!({
+          providerConfig: { chainId: toHex(1), ticker: 'dai' },
+        });
+
+        expect(updateExchangeRatesStub.callCount).toBe(0);
+      });
 
       it('should clear contractExchangeRates state when network is changed', async () => {
         nock(COINGECKO_API)
@@ -464,38 +496,6 @@ describe('TokenRatesController', () => {
         });
 
         expect(controller.state.contractExchangeRates).toStrictEqual({});
-      });
-    });
-
-    describe('when polling is inactive', () => {
-      it('should not update exchange rates when ticker changes', async () => {
-        let networkStateChangeListener: (state: any) => void;
-        const onTokensStateChange = sinon.stub();
-        const onNetworkStateChange = sinon.stub().callsFake((listener) => {
-          networkStateChangeListener = listener;
-        });
-        const controller = new TokenRatesController(
-          {
-            chainId: toHex(1),
-            ticker: NetworksTicker.mainnet,
-            selectedAddress: defaultSelectedAddress,
-            onPreferencesStateChange: sinon.stub(),
-            onTokensStateChange,
-            onNetworkStateChange,
-          },
-          { interval: 10 },
-        );
-        const updateExchangeRatesStub = sinon.stub(
-          controller,
-          'updateExchangeRates',
-        );
-
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        networkStateChangeListener!({
-          providerConfig: { chainId: toHex(1), ticker: 'dai' },
-        });
-
-        expect(updateExchangeRatesStub.callCount).toBe(0);
       });
     });
   });
