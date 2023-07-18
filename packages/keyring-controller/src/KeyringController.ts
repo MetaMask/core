@@ -120,9 +120,7 @@ export type KeyringControllerOptions = {
   setSelectedAddress: PreferencesController['setSelectedAddress'];
   setAccountLabel?: PreferencesController['setAccountLabel'];
   encryptor?: any;
-  keyringBuilders?:
-    | { (): Keyring<Json>; type: string }
-    | ConcatArray<{ (): Keyring<Json>; type: string }>;
+  keyringBuilders?: { (): Keyring<Json>; type: string }[];
   cacheEncryptionKey?: boolean;
   messenger: KeyringControllerMessenger;
   state?: { vault: string };
