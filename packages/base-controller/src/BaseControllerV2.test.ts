@@ -413,6 +413,10 @@ describe('BaseController', () => {
 });
 
 describe('getAnonymizedState', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should return empty state', () => {
     expect(getAnonymizedState({}, {})).toStrictEqual({});
   });
@@ -587,6 +591,10 @@ describe('getAnonymizedState', () => {
 });
 
 describe('getPersistentState', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should return empty state', () => {
     expect(getPersistentState({}, {})).toStrictEqual({});
   });
