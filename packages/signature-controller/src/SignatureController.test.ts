@@ -782,7 +782,7 @@ describe('SignatureController', () => {
 
       expect(() =>
         signatureController.setDeferredSignError(messageParamsMock.metamaskId),
-      ).toThrow('Message not found for id: 123?');
+      ).toThrow('Message not found');
     });
   });
 
