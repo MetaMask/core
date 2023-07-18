@@ -1,11 +1,11 @@
-import { isDeepStrictEqual } from 'util';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import clone from 'clone';
-import {
+import type {
   JsonRpcRequest,
   JsonRpcResponse,
   JsonRpcMiddleware,
 } from 'json-rpc-engine';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { isDeepStrictEqual } from 'util';
 
 /**
  * An object that can be used to assign a canned response to a request made via
@@ -111,7 +111,7 @@ export function buildMockParamsWithBlockParamAt(
  * param missing.
  *
  * @param index - The index within the `params` array where the "block" param
- * *would* appear.
+ * would* appear.
  * @returns The mock params.
  */
 export function buildMockParamsWithoutBlockParamAt(

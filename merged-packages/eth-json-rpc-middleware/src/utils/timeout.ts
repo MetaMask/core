@@ -4,6 +4,6 @@
  * @param duration - The number of milliseconds to wait.
  * @returns A promise that resolves after the specified amount of time.
  */
-export function timeout(duration: number): Promise<void> {
+export async function timeout(duration: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, duration));
 }

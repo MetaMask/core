@@ -1,7 +1,9 @@
+import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from 'json-rpc-engine';
 import pify from 'pify';
-import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
-import { createWalletMiddleware, TransactionParams, MessageParams } from '.';
+
+import type { TransactionParams, MessageParams } from '.';
+import { createWalletMiddleware } from '.';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',

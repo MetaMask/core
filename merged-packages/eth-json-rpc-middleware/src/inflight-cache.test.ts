@@ -1,5 +1,6 @@
 import { JsonRpcEngine } from 'json-rpc-engine';
 import pify from 'pify';
+
 import { createInflightCacheMiddleware } from '.';
 
 function createTestSetup() {

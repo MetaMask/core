@@ -1,6 +1,16 @@
-import { PollingBlockTracker } from 'eth-block-tracker';
-import { createAsyncMiddleware, JsonRpcRequest } from 'json-rpc-engine';
+import type { PollingBlockTracker } from 'eth-block-tracker';
+import type { JsonRpcRequest } from 'json-rpc-engine';
+import { createAsyncMiddleware } from 'json-rpc-engine';
+
 import { projectLogger, createModuleLogger } from './logging-utils';
+import type {
+  Block,
+  BlockCache,
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  Cache,
+  JsonRpcCacheMiddleware,
+  JsonRpcRequestToCache,
+} from './types';
 import {
   cacheIdentifierForRequest,
   blockTagForRequest,
@@ -8,13 +18,6 @@ import {
   canCache,
   CacheStrategy,
 } from './utils/cache';
-import type {
-  Block,
-  BlockCache,
-  Cache,
-  JsonRpcCacheMiddleware,
-  JsonRpcRequestToCache,
-} from './types';
 
 const log = createModuleLogger(projectLogger, 'block-cache');
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
@@ -209,7 +212,7 @@ export function createBlockCacheMiddleware({
           'No cache stored under block number %o, carrying request forward',
           requestedBlockNumber,
         );
-        // eslint-disable-next-line node/callback-return
+        // eslint-disable-next-line n/callback-return
         await next();
 
         // add result to cache

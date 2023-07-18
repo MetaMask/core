@@ -1,4 +1,4 @@
-import { JsonRpcMiddleware, JsonRpcRequest } from 'json-rpc-engine';
+import type { JsonRpcMiddleware, JsonRpcRequest } from 'json-rpc-engine';
 
 interface CreateHitTrackerMiddleware {
   getHits(method: string): JsonRpcRequest<any>[];

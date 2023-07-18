@@ -1,11 +1,10 @@
-import {
-  createAsyncMiddleware,
-  JsonRpcMiddleware,
-  JsonRpcRequest,
-} from 'json-rpc-engine';
-import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
-import { timeout } from './utils/timeout';
+import type { EthereumRpcError } from 'eth-rpc-errors';
+import { ethErrors } from 'eth-rpc-errors';
+import type { JsonRpcMiddleware, JsonRpcRequest } from 'json-rpc-engine';
+import { createAsyncMiddleware } from 'json-rpc-engine';
+
 import type { Block } from './types';
+import { timeout } from './utils/timeout';
 
 const RETRIABLE_ERRORS: string[] = [
   // ignore server overload errors
@@ -146,6 +145,7 @@ function parseResponse(fetchRes: Response, body: Record<string, Block>): Block {
  * @param options.rpcUrl - The URL to send the request to.
  * @param options.originHttpHeaderKey - If provider, the origin field for each JSON-RPC request
  * will be attached to each outgoing fetch request under this header.
+ * @param options.req
  * @returns The fetch middleware.
  */
 export function createFetchConfigFromReq({

@@ -1,9 +1,10 @@
-import { PollingBlockTracker } from 'eth-block-tracker';
-import {
-  createAsyncMiddleware,
+import type { PollingBlockTracker } from 'eth-block-tracker';
+import type {
   JsonRpcMiddleware,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
+import { createAsyncMiddleware } from 'json-rpc-engine';
+
 import { projectLogger, createModuleLogger } from './logging-utils';
 
 const log = createModuleLogger(projectLogger, 'block-tracker-inspector');
@@ -26,7 +27,7 @@ type ValidPropertyType = string | number | symbol;
  *
  * @param objectToCheck - The object to check.
  * @param property - The property to look for.
- * @returns - Whether the object has the property.
+ * @returns Whether the object has the property.
  */
 function hasProperty<ObjectToCheck, Property extends ValidPropertyType>(
   objectToCheck: ObjectToCheck,
@@ -64,7 +65,7 @@ export function createBlockTrackerInspectorMiddleware({
     if (!futureBlockRefRequests.includes(req.method)) {
       return next();
     }
-    // eslint-disable-next-line node/callback-return
+    // eslint-disable-next-line n/callback-return
     await next();
     // abort if no result or no block number
     const responseBlockNumber = getResultBlockNumber(res);

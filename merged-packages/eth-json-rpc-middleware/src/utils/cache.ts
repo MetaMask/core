@@ -1,5 +1,5 @@
+import type { JsonRpcRequest } from 'json-rpc-engine';
 import { configure } from 'safe-stable-stringify';
-import { JsonRpcRequest } from 'json-rpc-engine';
 
 const stringify = configure({ bigint: false, circularValue: Error });
 
@@ -25,7 +25,7 @@ export enum CacheStrategy {
   Permanent = 'perma',
 }
 
-/*
+/**
  * Return a cache identifier for the given request.
  *
  * This identifier should include any request details that might impact the

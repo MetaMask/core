@@ -1,16 +1,17 @@
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import clone from 'clone';
-import { PollingBlockTracker } from 'eth-block-tracker';
-import {
-  createAsyncMiddleware,
+import type { PollingBlockTracker } from 'eth-block-tracker';
+import type {
   JsonRpcMiddleware,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { createAsyncMiddleware } from 'json-rpc-engine';
 import pify from 'pify';
+
 import { projectLogger, createModuleLogger } from './logging-utils';
+import type { Block } from './types';
 import { blockTagParamIndex } from './utils/cache';
 import { timeout } from './utils/timeout';
-import { Block } from './types';
 
 //
 // RetryOnEmptyMiddleware will retry any request with an empty response that has
@@ -103,7 +104,7 @@ export function createRetryOnEmptyMiddleware({
       async () => {
         log('Performing request %o', childRequest);
         const attemptResponse: PendingJsonRpcResponse<Block> = await pify(
-          (provider as SafeEventEmitterProvider).sendAsync,
+          provider.sendAsync,
         ).call(provider, childRequest);
         log('Response is %o', attemptResponse);
         // verify result

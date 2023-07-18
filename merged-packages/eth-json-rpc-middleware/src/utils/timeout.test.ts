@@ -1,4 +1,5 @@
 import { nextTick } from 'process';
+
 import { timeout } from './timeout';
 
 describe('timeout', () => {

@@ -1,8 +1,10 @@
 import clone from 'clone';
-import { createAsyncMiddleware, PendingJsonRpcResponse } from 'json-rpc-engine';
+import type { PendingJsonRpcResponse } from 'json-rpc-engine';
+import { createAsyncMiddleware } from 'json-rpc-engine';
+
 import { projectLogger, createModuleLogger } from './logging-utils';
-import { cacheIdentifierForRequest } from './utils/cache';
 import type { JsonRpcRequestToCache, JsonRpcCacheMiddleware } from './types';
+import { cacheIdentifierForRequest } from './utils/cache';
 
 type RequestHandlers = (handledRes: PendingJsonRpcResponse<unknown>) => void;
 interface InflightRequest {
@@ -49,7 +51,7 @@ export function createInflightCacheMiddleware(): JsonRpcCacheMiddleware<
       inflightRequests[cacheId] = activeRequestHandlers;
       // allow request to be handled normally
       log('Carrying original request forward %o', req);
-      // eslint-disable-next-line node/callback-return
+      // eslint-disable-next-line n/callback-return
       await next();
       // clear inflight requests
       delete inflightRequests[cacheId];
@@ -65,7 +67,7 @@ export function createInflightCacheMiddleware(): JsonRpcCacheMiddleware<
     },
   );
 
-  function createActiveRequestHandler(
+  async function createActiveRequestHandler(
     res: PendingJsonRpcResponse<unknown>,
     activeRequestHandlers: RequestHandlers[],
   ): Promise<void> {

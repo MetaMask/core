@@ -1,7 +1,10 @@
-import { PollingBlockTracker } from 'eth-block-tracker';
-import { JsonRpcEngine, JsonRpcMiddleware } from 'json-rpc-engine';
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { PollingBlockTracker } from 'eth-block-tracker';
+import type { JsonRpcMiddleware } from 'json-rpc-engine';
+import { JsonRpcEngine } from 'json-rpc-engine';
+
+import { createBlockRefMiddleware } from '.';
 import {
   buildMockParamsWithBlockParamAt,
   stubProviderRequests,
@@ -11,7 +14,6 @@ import {
   buildMockParamsWithoutBlockParamAt,
   expectProviderRequestNotToHaveBeenMade,
 } from '../test/util/helpers';
-import { createBlockRefMiddleware } from '.';
 
 /**
  * Objects used in each test.

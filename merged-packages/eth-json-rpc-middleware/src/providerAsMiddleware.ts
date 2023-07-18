@@ -1,5 +1,8 @@
-import { JsonRpcMiddleware, PendingJsonRpcResponse } from 'json-rpc-engine';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type {
+  JsonRpcMiddleware,
+  PendingJsonRpcResponse,
+} from 'json-rpc-engine';
 
 export function providerAsMiddleware(
   provider: SafeEventEmitterProvider,

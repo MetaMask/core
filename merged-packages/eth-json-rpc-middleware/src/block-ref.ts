@@ -1,15 +1,16 @@
-import { PollingBlockTracker } from 'eth-block-tracker';
-import {
-  createAsyncMiddleware,
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import clone from 'clone';
+import type { PollingBlockTracker } from 'eth-block-tracker';
+import type {
   JsonRpcMiddleware,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
-import clone from 'clone';
+import { createAsyncMiddleware } from 'json-rpc-engine';
 import pify from 'pify';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+
 import { projectLogger, createModuleLogger } from './logging-utils';
-import { blockTagParamIndex } from './utils/cache';
 import type { Block } from './types';
+import { blockTagParamIndex } from './utils/cache';
 
 interface BlockRefMiddlewareOptions {
   blockTracker?: PollingBlockTracker;
@@ -66,7 +67,7 @@ export function createBlockRefMiddleware({
     // perform child request
     log('Performing another request %o', childRequest);
     const childRes: PendingJsonRpcResponse<Block> = await pify(
-      (provider as SafeEventEmitterProvider).sendAsync,
+      provider.sendAsync,
     ).call(provider, childRequest);
     // copy child response onto original response
     res.result = childRes.result;

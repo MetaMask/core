@@ -507,10 +507,12 @@ describe('cache utils', () => {
 
   describe('blockTagParamIndex', () => {
     it(`should return expected block index for each known method`, () => {
-      const blockTagIndexes = knownMethods.reduce((indexes, method) => {
+      const blockTagIndexes = knownMethods.reduce<
+        Record<string, number | undefined>
+      >((indexes, method) => {
         indexes[method] = blockTagParamIndex(method);
         return indexes;
-      }, {} as Record<string, number | undefined>);
+      }, {});
 
       expect(blockTagIndexes).toMatchInlineSnapshot(`
         Object {
@@ -560,10 +562,13 @@ describe('cache utils', () => {
 
   describe('cacheTypeForMethod', () => {
     it(`should return expected cache type for each known method`, () => {
-      const cacheTypes = knownMethods.reduce((types, method) => {
-        types[method] = cacheTypeForMethod(method);
-        return types;
-      }, {} as Record<string, string>);
+      const cacheTypes = knownMethods.reduce<Record<string, string>>(
+        (types, method) => {
+          types[method] = cacheTypeForMethod(method);
+          return types;
+        },
+        {},
+      );
 
       expect(cacheTypes).toMatchInlineSnapshot(`
         Object {

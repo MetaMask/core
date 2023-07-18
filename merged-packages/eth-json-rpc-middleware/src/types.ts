@@ -1,4 +1,4 @@
-import { JsonRpcMiddleware, JsonRpcRequest } from 'json-rpc-engine';
+import type { JsonRpcMiddleware, JsonRpcRequest } from 'json-rpc-engine';
 
 export interface JsonRpcRequestToCache<T> extends JsonRpcRequest<T> {
   skipCache?: boolean;
