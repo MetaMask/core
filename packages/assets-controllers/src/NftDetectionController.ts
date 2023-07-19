@@ -138,27 +138,22 @@ export class NftDetectionController extends BaseController<
   private getOwnerNftApi({
     address,
     offset,
-    useProxy,
   }: {
     address: string;
     offset: number;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`
-      : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
+    return `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
   private async getOwnerNfts(address: string) {
     let nftApiResponse: { assets: ApiNft[] };
     let nfts: ApiNft[] = [];
-    const openSeaApiKey = this.getOpenSeaApiKey();
     let offset = 0;
     let pagingFinish = false;
     /* istanbul ignore if */
     do {
       nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, offset, useProxy: true }),
+        url: this.getOwnerNftApi({ address, offset }),
         timeout: 15000,
       });
 

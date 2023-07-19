@@ -216,15 +216,11 @@ export class NftController extends BaseController<NftConfig, NftState> {
   private getNftApi({
     contractAddress,
     tokenId,
-    useProxy,
   }: {
     contractAddress: string;
     tokenId: string;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`
-      : `${OPENSEA_API_URL}/asset/${contractAddress}/${tokenId}`;
+    return `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`;
   }
 
   private getNftContractInformationApi({
@@ -289,7 +285,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
       url: this.getNftApi({
         contractAddress,
         tokenId,
-        useProxy: true,
       }),
     });
 
