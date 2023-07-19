@@ -2,7 +2,6 @@ import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
-  OPENSEA_API_URL,
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
