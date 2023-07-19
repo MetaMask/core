@@ -26,24 +26,12 @@ import {
 import type { JsonRpcMiddleware } from 'json-rpc-engine';
 
 import type {
-  BlockTracker,
+  NetworkClient,
   NetworkClientConfiguration,
-  Provider,
 } from './types';
 import { NetworkClientType } from './types';
 
 const SECOND = 1000;
-
-/**
- * The pair of provider / block tracker that can be used to interface with the
- * network and respond to new activity.
- */
-export type NetworkClient = {
-  configuration: NetworkClientConfiguration;
-  provider: Provider;
-  blockTracker: BlockTracker;
-  destroy: () => void;
-};
 
 /**
  * Create a JSON RPC network client for a specific network.
