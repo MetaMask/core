@@ -162,20 +162,6 @@ export class NftDetectionController extends BaseController<
         timeout: 15000,
       });
 
-      if (openSeaApiKey && !nftApiResponse) {
-        nftApiResponse = await fetchWithErrorHandling({
-          url: this.getOwnerNftApi({
-            address,
-            offset,
-            useProxy: false,
-          }),
-          options: { headers: { 'X-API-KEY': openSeaApiKey } },
-          timeout: 15000,
-          // catch 403 errors (in case API key is down we don't want to blow up)
-          errorCodesToCatch: [403],
-        });
-      }
-
       if (!nftApiResponse) {
         return nfts;
       }
