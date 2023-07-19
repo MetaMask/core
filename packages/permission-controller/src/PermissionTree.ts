@@ -77,12 +77,15 @@ export class PermissionTree {
     const visitedNodes = new Set<
       PermissionSpecificationConstraint['targetName']
     >();
+
     for (const permissionName of Object.keys(permissions)) {
       rootMap.set(permissionName, true);
     }
+
     for (const permission of Object.values(permissions)) {
       this.traverseNode(permission, rootMap, visitedNodes);
     }
+
     return [...rootMap.entries()].reduce<
       PermissionSpecificationConstraint['targetName'][]
     >((rootPermissions, [permissionName, isRoot]) => {
@@ -142,6 +145,7 @@ export class PermissionTree {
         parents.add(rootName);
       }
     }
+
     if (node.children) {
       for (const child of node.children) {
         this.traverseRoot(
@@ -207,6 +211,7 @@ export class PermissionTree {
       if (!populatedRequest[node.targetName]) {
         populatedRequest[node.targetName] = {};
       }
+
       if (node.children) {
         for (const child of node.children) {
           const childNode = this._permissionSpecifications[child];
