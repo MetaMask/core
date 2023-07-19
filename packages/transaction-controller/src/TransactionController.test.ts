@@ -1,6 +1,6 @@
 /* eslint-disable jest/expect-expect */
 
-import Common from '@ethereumjs/common';
+import { Common } from '@ethereumjs/common';
 import {
   ChainId,
   NetworkType,
@@ -1586,15 +1586,12 @@ describe('TransactionController', () => {
 
         const config = controller.getCommonConfiguration();
         expect(config).toStrictEqual(
-          Common.forCustomChain(
-            NetworkType.mainnet,
-            {
-              name: undefined,
-              chainId,
-              networkId: chainId,
-            },
-            HARDFORK,
-          ),
+          Common.custom({
+            name: undefined,
+            chainId,
+            networkId: chainId,
+            defaultHardfork: HARDFORK,
+          }),
         );
       },
     );

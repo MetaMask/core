@@ -1,7 +1,6 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
-import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { toASCII } from 'punycode/';
 
@@ -231,17 +230,7 @@ export class PhishingController extends BaseController<
     };
 
     this.defaultState = {
-      phishingLists: [
-        {
-          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-          version: DEFAULT_PHISHING_RESPONSE.version,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ],
+      phishingLists: [],
       whitelist: [],
       hotlistLastFetched: 0,
       stalelistLastFetched: 0,

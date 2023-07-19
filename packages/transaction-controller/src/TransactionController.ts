@@ -1,4 +1,4 @@
-import Common from '@ethereumjs/common';
+import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import type {
@@ -54,7 +54,7 @@ import {
   ESTIMATE_GAS_ERROR,
 } from './utils';
 
-export const HARDFORK = 'london';
+export const HARDFORK = Hardfork.London;
 
 /**
  * @type Result
@@ -640,17 +640,14 @@ export class TransactionController extends BaseController<
       return new Common({ chain, hardfork: HARDFORK });
     }
 
-    const customChainParams = {
+    const customChainParams: Partial<ChainConfig> = {
       name,
       chainId: parseInt(chainId, 16),
       networkId: networkId === null ? NaN : parseInt(networkId, undefined),
+      defaultHardfork: HARDFORK,
     };
 
-    return Common.forCustomChain(
-      NetworkType.mainnet,
-      customChainParams,
-      HARDFORK,
-    );
+    return Common.custom(customChainParams);
   }
 
   /**
