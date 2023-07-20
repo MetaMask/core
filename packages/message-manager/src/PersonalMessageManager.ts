@@ -94,6 +94,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
     const messageData: PersonalMessage = {
       id: messageId,
       messageParams: finalMsgParams,
+      securityAlertResponse: req?.securityAlertResponse,
       status: 'unapproved',
       time: Date.now(),
       type: 'personal_sign',

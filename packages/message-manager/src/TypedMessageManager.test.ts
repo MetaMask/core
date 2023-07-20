@@ -125,7 +125,7 @@ describe('TypedMessageManager', () => {
       data: messageData,
       from: fromMock,
     };
-    const originalRequest = { origin: 'origin' };
+    const originalRequest = { origin: 'origin', securityAlertResponse: {result_type: 'result_type', reason: 'reason'} };
     const messageId = await controller.addUnapprovedMessage(
       messageParams,
       originalRequest,
@@ -141,6 +141,8 @@ describe('TypedMessageManager', () => {
     expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
+    expect(message.securityAlertResponse?.result_type).toBe('result_type');
+    expect(message.securityAlertResponse?.reason).toBe('reason');
   });
 
   it('should add a valid V3 unapproved message as a JSON-parseable string', async () => {
