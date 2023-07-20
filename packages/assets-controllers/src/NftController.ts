@@ -216,15 +216,11 @@ export class NftController extends BaseController<NftConfig, NftState> {
   private getNftApi({
     contractAddress,
     tokenId,
-    useProxy,
   }: {
     contractAddress: string;
     tokenId: string;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`
-      : `${OPENSEA_API_URL}/asset/${contractAddress}/${tokenId}`;
+    return `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`;
   }
 
   private getNftContractInformationApi({
@@ -285,29 +281,12 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenId: string,
   ): Promise<NftMetadata> {
     // Attempt to fetch the data with the proxy
-    let nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
+    const nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
       url: this.getNftApi({
         contractAddress,
         tokenId,
-        useProxy: true,
       }),
     });
-
-    // if an openSeaApiKey is set we should attempt to refetch calling directly to OpenSea
-    if (!nftInformation && this.openSeaApiKey) {
-      nftInformation = await fetchWithErrorHandling({
-        url: this.getNftApi({
-          contractAddress,
-          tokenId,
-          useProxy: false,
-        }),
-        options: {
-          headers: { 'X-API-KEY': this.openSeaApiKey },
-        },
-        // catch 403 errors (in case API key is down we don't want to blow up)
-        errorCodesToCatch: [403],
-      });
-    }
 
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
     if (!nftInformation) {
