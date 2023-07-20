@@ -1,16 +1,11 @@
-import { JsonRpcMiddleware } from 'json-rpc-engine';
+import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { promisify } from 'util';
 
 import { providerFromMiddleware } from './provider-from-middleware';
 
 describe('providerFromMiddleware', () => {
   it('handle a successful request', async () => {
-    const middleware: JsonRpcMiddleware<unknown, unknown> = (
-      _req,
-      res,
-      _next,
-      end,
-    ) => {
+    const middleware: JsonRpcMiddleware<any, any> = (_req, res, _next, end) => {
       res.result = 42;
       end();
     };

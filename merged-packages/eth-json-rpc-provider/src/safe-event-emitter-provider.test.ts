@@ -1,4 +1,4 @@
-import { JsonRpcEngine } from 'json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { promisify } from 'util';
 
 import { SafeEventEmitterProvider } from './safe-event-emitter-provider';
@@ -14,6 +14,7 @@ describe('SafeEventEmitterProvider', () => {
       // `json-rpc-engine` v6 does not support JSON-RPC notifications directly,
       // so this is the best way to emulate this behavior.
       // We should replace this with `await engine.handle(notification)` when we update to v7
+      // TODO: v7 is now integrated; fix this
       engine.emit('notification', 'test');
 
       expect(notificationListener).toHaveBeenCalledWith(null, 'test');

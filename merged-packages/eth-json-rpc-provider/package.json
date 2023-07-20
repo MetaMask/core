@@ -25,8 +25,9 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/safe-event-emitter": "^2.0.0",
-    "json-rpc-engine": "^6.1.0"
+    "@metamask/json-rpc-engine": "^7.0.0",
+    "@metamask/safe-event-emitter": "^3.0.0",
+    "@metamask/utils": "^5.0.1"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.0.3",

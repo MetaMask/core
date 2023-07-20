@@ -1,5 +1,6 @@
+import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import type { JsonRpcEngine, JsonRpcRequest } from 'json-rpc-engine';
+import type { JsonRpcRequest } from '@metamask/utils';
 
 /**
  * An Ethereum provider.
@@ -34,7 +35,7 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
    * @param callback - A function that is called upon the success or failure of the request.
    */
   sendAsync = (
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
     callback: (error: unknown, providerRes?: any) => void,
   ) => {
     this.#engine.handle(req, callback);
@@ -51,7 +52,7 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
    * @param callback - A function that is called upon the success or failure of the request.
    */
   send = (
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
     callback: (error: unknown, providerRes?: any) => void,
   ) => {
     if (typeof callback !== 'function') {

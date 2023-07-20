@@ -1,4 +1,4 @@
-import type { JsonRpcEngine } from 'json-rpc-engine';
+import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 import { SafeEventEmitterProvider } from './safe-event-emitter-provider';
 
