@@ -232,14 +232,6 @@ function setupController({
 }
 
 describe('NftController', () => {
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
-
   beforeEach(() => {
     nock(OPENSEA_PROXY_URL)
       .get(`/asset_contract/0x01`)
@@ -298,7 +290,6 @@ describe('NftController', () => {
   });
 
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 

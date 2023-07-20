@@ -22,11 +22,6 @@ describe('ERC20Standard', () => {
       chainId: 1,
     });
     erc20Standard = new ERC20Standard(MAINNET_PROVIDER);
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
   });
 
   it('should get correct token symbol for a given ERC20 contract address', async () => {

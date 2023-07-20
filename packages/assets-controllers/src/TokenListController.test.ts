@@ -528,7 +528,6 @@ function buildNetworkControllerStateWithProviderConfig(
 
 describe('TokenListController', () => {
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 

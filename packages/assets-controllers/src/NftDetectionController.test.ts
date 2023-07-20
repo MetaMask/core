@@ -23,13 +23,6 @@ describe('NftDetectionController', () => {
   let assetsContract: AssetsContractController;
   const networkStateChangeNoop = jest.fn();
   const getOpenSeaApiKeyStub = jest.fn();
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
 
   const messenger = new ControllerMessenger<
     ApprovalActions,
@@ -210,7 +203,6 @@ describe('NftDetectionController', () => {
   });
 
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 
