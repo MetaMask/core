@@ -1,5 +1,4 @@
 import { NetworkType } from '@metamask/controller-utils';
-import nock from 'nock';
 import { promisify } from 'util';
 
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
@@ -12,15 +11,6 @@ import { NetworkClientType } from './types';
 import { mockNetwork } from '../../../tests/mock-network';
 
 describe('createAutoManagedNetworkClient', () => {
-  beforeEach(() => {
-    nock.disableNetConnect();
-  });
-
-  afterEach(() => {
-    nock.enableNetConnect();
-    nock.cleanAll();
-  });
-
   const networkClientConfigurations: [
     CustomNetworkClientConfiguration,
     InfuraNetworkClientConfiguration,

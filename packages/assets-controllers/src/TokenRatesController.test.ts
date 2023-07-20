@@ -50,7 +50,6 @@ describe('TokenRatesController', () => {
   });
 
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
     jest.resetAllMocks();
   });
