@@ -630,7 +630,7 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
+  it('should not fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
     const selectedAddress = '0x3';
 
     getOpenSeaApiKeyStub.mockImplementation(() => 'FAKE API KEY');
@@ -702,23 +702,9 @@ describe('NftDetectionController', () => {
       selectedAddress,
     });
 
-    const { chainId } = nftDetection.config;
-
     await nftDetection.detectNfts();
 
-    const nfts = nftController.state.allNfts[selectedAddress][chainId];
-    expect(nfts).toStrictEqual([
-      {
-        address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
-        description: 'DESCRIPTION: DIRECT FROM OPENSEA',
-        imageOriginal: 'DIRECT FROM OPENSEA.jpg',
-        name: 'NAME: DIRECT FROM OPENSEA',
-        standard: 'ERC721',
-        tokenId: '2577',
-        favorite: false,
-        isCurrentlyOwned: true,
-      },
-    ]);
+    expect(nftController.state.allNfts[selectedAddress]).toBeUndefined();
   });
 
   it('should rethrow error when OpenSea proxy server fails with error other than fetch failure', async () => {
