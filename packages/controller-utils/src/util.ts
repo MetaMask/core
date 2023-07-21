@@ -1,7 +1,7 @@
+import type EthQuery from '@metamask/eth-query';
 import type { Hex, Json } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import ensNamehash from 'eth-ens-namehash';
-import type EthQuery from 'eth-query';
 import {
   addHexPrefix,
   isValidAddress,

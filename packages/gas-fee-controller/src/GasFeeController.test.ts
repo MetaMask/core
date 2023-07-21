@@ -1,5 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworkType, toHex } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
 import { NetworkController } from '@metamask/network-controller';
 import type {
   NetworkControllerGetStateAction,
@@ -8,7 +9,6 @@ import type {
   NetworkState,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import EthQuery from 'eth-query';
 import * as sinon from 'sinon';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
