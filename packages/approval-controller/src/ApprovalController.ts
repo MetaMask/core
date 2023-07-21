@@ -1,11 +1,11 @@
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import type { Json, OptionalField } from '@metamask/utils';
+import type { EthereumRpcError } from 'eth-rpc-errors';
+import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
-import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
 import { nanoid } from 'nanoid';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { Json, OptionalField } from '@metamask/utils';
+
 import {
   ApprovalRequestNotFoundError,
   ApprovalRequestNoResultSupportError,

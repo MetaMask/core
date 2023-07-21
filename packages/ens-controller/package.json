@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ens-controller",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "Maps ENS names to their resolved addresses by chain id",
   "keywords": [
     "MetaMask",
@@ -33,7 +33,7 @@
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
     "@metamask/network-controller": "workspace:^",
-    "@metamask/utils": "^5.0.2",
+    "@metamask/utils": "^6.2.0",
     "ethereum-ens-network-map": "^1.0.2",
     "punycode": "^2.1.1"
   },

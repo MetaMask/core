@@ -1,13 +1,10 @@
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import {
-  Web3Provider,
+import type {
   ExternalProvider,
   JsonRpcFetchFunc,
 } from '@ethersproject/providers';
-import { Hex, createProjectLogger, hasProperty } from '@metamask/utils';
+import { Web3Provider } from '@ethersproject/providers';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import {
   normalizeEnsName,
   isValidHexAddress,
@@ -16,8 +13,10 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
-import { toASCII } from 'punycode/';
+import type { Hex } from '@metamask/utils';
+import { createProjectLogger, hasProperty } from '@metamask/utils';
 import ensNetworkMap from 'ethereum-ens-network-map';
+import { toASCII } from 'punycode/';
 
 const log = createProjectLogger('ens-controller');
 

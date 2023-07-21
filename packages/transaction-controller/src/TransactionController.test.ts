@@ -1,9 +1,6 @@
 /* eslint-disable jest/expect-expect */
 
-import HttpProvider from 'ethjs-provider-http';
-import NonceTracker from 'nonce-tracker';
-import { errorCodes } from 'eth-rpc-errors';
-import Common from '@ethereumjs/common';
+import { Common } from '@ethereumjs/common';
 import {
   ChainId,
   NetworkType,
@@ -15,21 +12,11 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
-import { NetworkStatus } from '@metamask/network-controller';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import {
-  AcceptResultCallbacks,
-  AddResult,
-} from '../../approval-controller/src';
-import { ESTIMATE_GAS_ERROR } from './utils';
-import {
-  TransactionController,
-  TransactionStatus,
-  TransactionMeta,
-  TransactionControllerMessenger,
-  TransactionConfig,
-  HARDFORK,
-} from './TransactionController';
+import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
+import { errorCodes } from 'eth-rpc-errors';
+import HttpProvider from 'ethjs-provider-http';
+import NonceTracker from 'nonce-tracker';
+
 import {
   ethTxsMock,
   tokenTxsMock,
@@ -38,6 +25,23 @@ import {
   txsInStateWithOutdatedGasDataMock,
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
+import type {
+  TransactionMeta,
+  TransactionControllerMessenger,
+  TransactionConfig,
+} from './TransactionController';
+import {
+  TransactionController,
+  TransactionStatus,
+  HARDFORK,
+} from './TransactionController';
+import { ESTIMATE_GAS_ERROR } from './utils';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { mockNetwork } from '../../../tests/mock-network';
+import type {
+  AcceptResultCallbacks,
+  AddResult,
+} from '../../approval-controller/src';
 
 const v1Stub = jest
   .fn()
@@ -254,14 +258,15 @@ function waitForTransactionFinished(
 }
 
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
+const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
 const GOERLI_PROVIDER = new HttpProvider(
-  'https://goerli.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
 const MAINNET_PROVIDER = new HttpProvider(
-  'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
 const PALM_PROVIDER = new HttpProvider(
-  'https://palm-mainnet.infura.io/v3/3a961d6501e54add9a41aa53f15de99b',
+  `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
 
 type MockNetwork = {
@@ -464,7 +469,7 @@ describe('TransactionController', () => {
   let rejectMessengerMock: TransactionControllerMessenger;
   let delayMessengerMock: TransactionControllerMessenger;
   let approveTransaction: () => void;
-  let getNonceLockSpy: jest.Mock<any, any>;
+  let getNonceLockSpy: jest.Mock;
 
   /**
    * Create a new instance of the TransactionController.
@@ -873,11 +878,11 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(2);
       const secondTransaction = controller.state.transactions[1];
 
-      expect(firstTransaction.transaction.nonce).toStrictEqual(
+      expect(firstTransaction.transaction.nonce).toBe(
         `0x${NONCE_MOCK.toString(16)}`,
       );
 
-      expect(secondTransaction.transaction.nonce).toStrictEqual(
+      expect(secondTransaction.transaction.nonce).toBe(
         `0x${(NONCE_MOCK + 1).toString(16)}`,
       );
     });
@@ -1314,8 +1319,8 @@ describe('TransactionController', () => {
         ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
       ) || { id: '' };
 
-      expect(tokenTransaction?.id).toStrictEqual('token-transaction-id');
-      expect(ethTransaction?.id).toStrictEqual('eth-transaction-id');
+      expect(tokenTransaction?.id).toBe('token-transaction-id');
+      expect(ethTransaction?.id).toBe('eth-transaction-id');
     });
 
     it('updates all transactions with outdated status using remote data', async () => {
@@ -1372,8 +1377,8 @@ describe('TransactionController', () => {
         ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
       ) || { transaction: { gasUsed: '0x0' } };
 
-      expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-      expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+      expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+      expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
     });
 
     it('updates all transactions with outdated status and gas data using remote data', async () => {
@@ -1407,8 +1412,8 @@ describe('TransactionController', () => {
         TransactionStatus.confirmed,
       );
       expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
-      expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-      expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+      expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+      expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
     });
 
     it('returns undefined if no matching transactions', async () => {
@@ -1429,19 +1434,69 @@ describe('TransactionController', () => {
   describe('handleMethodData', () => {
     it('loads method data from registry', async () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
+      mockNetwork({
+        networkClientConfiguration: {
+          type: NetworkClientType.Infura,
+          network: 'mainnet',
+          infuraProjectId: INFURA_PROJECT_ID,
+        },
+        mocks: [
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
+                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+            },
+          },
+        ],
+      });
       const registry = await controller.handleMethodData('0xf39b5b9b');
 
       expect(registry.parsedRegistryMethod).toStrictEqual({
         args: [{ type: 'uint256' }, { type: 'uint256' }],
         name: 'Eth To Token Swap Input',
       });
-      expect(registry.registryMethod).toStrictEqual(
+      expect(registry.registryMethod).toBe(
         'ethToTokenSwapInput(uint256,uint256)',
       );
     });
 
     it('skips reading registry if already cached in state', async () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
+      mockNetwork({
+        networkClientConfiguration: {
+          type: NetworkClientType.Infura,
+          network: 'mainnet',
+          infuraProjectId: INFURA_PROJECT_ID,
+        },
+        mocks: [
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
+                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+            },
+          },
+        ],
+      });
 
       await controller.handleMethodData('0xf39b5b9b');
 
@@ -1572,26 +1627,27 @@ describe('TransactionController', () => {
       ['linea-goerli', MOCK_LINEA_GOERLI_NETWORK, 59140],
     ])(
       'should get a custom network configuration for %s',
-      async (_, mockNetwork: MockNetwork, chainId: number) => {
+      async (
+        _,
+        { state, subscribe, provider, blockTracker }: MockNetwork,
+        chainId: number,
+      ) => {
         const controller = new TransactionController({
-          getNetworkState: () => mockNetwork.state,
-          onNetworkStateChange: mockNetwork.subscribe,
-          provider: mockNetwork.provider,
-          blockTracker: mockNetwork.blockTracker,
+          getNetworkState: () => state,
+          onNetworkStateChange: subscribe,
+          provider,
+          blockTracker,
           messenger: messengerMock,
         });
 
         const config = controller.getCommonConfiguration();
         expect(config).toStrictEqual(
-          Common.forCustomChain(
-            NetworkType.mainnet,
-            {
-              name: undefined,
-              chainId,
-              networkId: chainId,
-            },
-            HARDFORK,
-          ),
+          Common.custom({
+            name: undefined,
+            chainId,
+            networkId: chainId,
+            defaultHardfork: HARDFORK,
+          }),
         );
       },
     );

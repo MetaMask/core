@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "10.3.1",
+  "version": "11.0.0",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -31,11 +31,11 @@
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
-    "@metamask/eth-json-rpc-infura": "^8.1.0",
+    "@metamask/eth-json-rpc-infura": "^8.1.1",
     "@metamask/eth-json-rpc-middleware": "^11.0.0",
     "@metamask/eth-json-rpc-provider": "^1.0.0",
     "@metamask/swappable-obj-proxy": "^2.1.0",
-    "@metamask/utils": "^5.0.2",
+    "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
     "eth-block-tracker": "^7.0.1",
     "eth-query": "^2.1.2",
@@ -54,7 +54,7 @@
     "jest": "^27.5.1",
     "jest-when": "^3.4.2",
     "lodash": "^4.17.21",
-    "nock": "^13.0.7",
+    "nock": "^13.3.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.22.15",

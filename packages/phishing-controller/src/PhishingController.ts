@@ -1,12 +1,9 @@
-import { toASCII } from 'punycode/';
-import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
-import PhishingDetector from 'eth-phishing-detect/src/detector';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
+import PhishingDetector from 'eth-phishing-detect/src/detector';
+import { toASCII } from 'punycode/';
+
 import { applyDiffs, fetchTimeNow } from './utils';
 
 /**
@@ -233,17 +230,7 @@ export class PhishingController extends BaseController<
     };
 
     this.defaultState = {
-      phishingLists: [
-        {
-          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-          version: DEFAULT_PHISHING_RESPONSE.version,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ],
+      phishingLists: [],
       whitelist: [],
       hotlistLastFetched: 0,
       stalelistLastFetched: 0,
@@ -338,7 +325,7 @@ export class PhishingController extends BaseController<
    */
   test(origin: string): EthPhishingDetectResult {
     const punycodeOrigin = toASCII(origin);
-    if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
+    if (this.state.whitelist.includes(punycodeOrigin)) {
       return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
     }
     return this.detector.check(punycodeOrigin);
@@ -352,7 +339,7 @@ export class PhishingController extends BaseController<
   bypass(origin: string) {
     const punycodeOrigin = toASCII(origin);
     const { whitelist } = this.state;
-    if (whitelist.indexOf(punycodeOrigin) !== -1) {
+    if (whitelist.includes(punycodeOrigin)) {
       return;
     }
     this.update({ whitelist: [...whitelist, punycodeOrigin] });

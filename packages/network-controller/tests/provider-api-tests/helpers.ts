@@ -1,9 +1,11 @@
-import nock, { Scope as NockScope } from 'nock';
-import sinon from 'sinon';
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 import EthQuery from 'eth-query';
-import { Hex } from '@metamask/utils';
+import nock from 'nock';
+import type { Scope as NockScope } from 'nock';
+import sinon from 'sinon';
+
 import { createNetworkClient } from '../../src/create-network-client';
 import { NetworkClientType } from '../../src/types';
 
@@ -41,7 +43,7 @@ const originalSetTimeout = setTimeout;
  * @param args - The arguments that `console.log` takes.
  */
 function debug(...args: any) {
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   if (process.env.DEBUG_PROVIDER_TESTS === '1') {
     console.log(...args);
   }
@@ -337,7 +339,6 @@ export async function withMockedCommunications(
     return await fn(comms);
   } finally {
     nock.isDone();
-    nock.cleanAll();
   }
 }
 
@@ -432,9 +433,9 @@ export async function withNetworkClient(
   // than it usually would to complete. Or at least it should — this doesn't
   // appear to be working correctly. Unset `IN_TEST` on `process.env` to prevent
   // this behavior.
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   const inTest = process.env.IN_TEST;
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   delete process.env.IN_TEST;
   const clientUnderTest =
     providerType === 'infura'
@@ -448,7 +449,7 @@ export async function withNetworkClient(
           rpcUrl: customRpcUrl,
           type: NetworkClientType.Custom,
         });
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
 
   const { provider, blockTracker } = clientUnderTest;

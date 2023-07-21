@@ -1,14 +1,16 @@
-import EventEmitter from 'events';
-import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
-import {
-  MessageManager,
+import type {
+  AddApprovalRequest,
+  AcceptResultCallbacks,
+  AddResult,
+} from '@metamask/approval-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import type {
   MessageParams,
   MessageParamsMetamask,
-  PersonalMessageManager,
   PersonalMessageParams,
   PersonalMessageParamsMetamask,
-  TypedMessageManager,
   TypedMessageParams,
   TypedMessageParamsMetamask,
   AbstractMessageManager,
@@ -21,21 +23,17 @@ import {
   PersonalMessage,
   Message,
 } from '@metamask/message-manager';
+import {
+  MessageManager,
+  PersonalMessageManager,
+  TypedMessageManager,
+} from '@metamask/message-manager';
+import type { Hex, Json } from '@metamask/utils';
 import { ethErrors } from 'eth-rpc-errors';
 import { bufferToHex } from 'ethereumjs-util';
-import { Json } from '@metamask/utils';
-
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { Patch } from 'immer';
-import {
-  AddApprovalRequest,
-  AcceptResultCallbacks,
-  AddResult,
-} from '@metamask/approval-controller';
-import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import EventEmitter from 'events';
+import type { Patch } from 'immer';
+import { cloneDeep } from 'lodash';
 
 const controllerName = 'SignatureController';
 
@@ -387,23 +385,40 @@ export class SignatureController extends BaseControllerV2<
   }
 
   /**
+   * Called to update the message status as signed.
+   *
+   * @param messageId - The id of the Message to update.
+   * @param signature - The data to update the message with.
+   */
+  setDeferredSignSuccess(messageId: string, signature: any) {
+    this.#tryForEachMessageManager(
+      this.#trySetDeferredSignSuccess,
+      messageId,
+      signature,
+    );
+  }
+
+  /**
    * Called when the message metadata needs to be updated.
    *
    * @param messageId - The id of the message to update.
    * @param metadata - The data to update the metadata property in the message.
    */
   setMessageMetadata(messageId: string, metadata: Json) {
-    const messageManagers = [
-      this.#messageManager,
-      this.#personalMessageManager,
-      this.#typedMessageManager,
-    ];
+    this.#tryForEachMessageManager(
+      this.#trySetMessageMetadata,
+      messageId,
+      metadata,
+    );
+  }
 
-    for (const manager of messageManagers) {
-      if (this.#trySetMessageMetadata(manager, messageId, metadata)) {
-        return;
-      }
-    }
+  /**
+   * Called to cancel a signing message.
+   *
+   * @param messageId - The id of the Message to update.
+   */
+  setDeferredSignError(messageId: string) {
+    this.#tryForEachMessageManager(this.#trySetDeferredSignError, messageId);
   }
 
   setTypedMessageInProgress(messageId: string) {
@@ -565,6 +580,40 @@ export class SignatureController extends BaseControllerV2<
     );
   }
 
+  #tryForEachMessageManager(
+    callbackFn: (
+      messageManager: AbstractMessageManager<any, any, any>,
+      ...args: any[]
+    ) => boolean,
+    ...args: any
+  ) {
+    const messageManagers = [
+      this.#messageManager,
+      this.#personalMessageManager,
+      this.#typedMessageManager,
+    ];
+
+    for (const manager of messageManagers) {
+      if (callbackFn(manager, ...args)) {
+        return true;
+      }
+    }
+    throw new Error('Message not found');
+  }
+
+  #trySetDeferredSignSuccess(
+    messageManager: AbstractMessageManager<any, any, any>,
+    messageId: string,
+    signature: any,
+  ) {
+    try {
+      messageManager.setMessageStatusSigned(messageId, signature);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
   #trySetMessageMetadata(
     messageManager: AbstractMessageManager<any, any, any>,
     messageId: string,
@@ -572,6 +621,18 @@ export class SignatureController extends BaseControllerV2<
   ) {
     try {
       messageManager.setMetadata(messageId, metadata);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  #trySetDeferredSignError(
+    messageManager: AbstractMessageManager<any, any, any>,
+    messageId: string,
+  ) {
+    try {
+      messageManager.rejectMessage(messageId);
       return true;
     } catch (error) {
       return false;
@@ -739,7 +800,7 @@ export class SignatureController extends BaseControllerV2<
   }
 
   #normalizeMsgData(data: string) {
-    if (data.slice(0, 2) === '0x') {
+    if (data.startsWith('0x')) {
       // data is already hex
       return data;
     }

@@ -1,16 +1,15 @@
-import type { Patch } from 'immer';
-import { Mutex } from 'async-mutex';
-import { AbortController as WhatwgAbortController } from 'abort-controller';
-import type { Hex } from '@metamask/utils';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
-import {
+import type {
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
+import { AbortController as WhatwgAbortController } from 'abort-controller';
+import { Mutex } from 'async-mutex';
+import type { Patch } from 'immer';
+
 import {
   isTokenListSupportedForNetwork,
   formatAggregatorNames,
@@ -87,13 +86,13 @@ export class TokenListController extends BaseControllerV2<
   TokenListState,
   TokenListMessenger
 > {
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   private intervalId?: ReturnType<typeof setTimeout>;
 
-  private intervalDelay: number;
+  private readonly intervalDelay: number;
 
-  private cacheRefreshThreshold: number;
+  private readonly cacheRefreshThreshold: number;
 
   private chainId: Hex;
 

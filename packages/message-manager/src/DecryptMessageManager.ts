@@ -1,12 +1,13 @@
 import { v1 as random } from 'uuid';
-import { normalizeMessageData, validateDecryptedMessageData } from './utils';
-import {
-  AbstractMessageManager,
+
+import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
+import { normalizeMessageData, validateDecryptedMessageData } from './utils';
 
 /**
  * @type DecryptMessage
