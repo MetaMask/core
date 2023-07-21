@@ -1,7 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
-
-import type { TransactionMeta } from '../TransactionController';
-import { TransactionStatus } from '../TransactionController';
+import { TransactionMeta, TransactionStatus } from '../types';
 
 export const ethTxsMock = (ethTxHash: string) => [
   {

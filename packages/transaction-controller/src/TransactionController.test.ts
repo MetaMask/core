@@ -26,21 +26,17 @@ import {
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
 import type {
-  TransactionMeta,
   TransactionControllerMessenger,
   TransactionConfig,
 } from './TransactionController';
-import {
-  TransactionController,
-  TransactionStatus,
-  HARDFORK,
-} from './TransactionController';
+import { TransactionController, HARDFORK } from './TransactionController';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import type {
   AcceptResultCallbacks,
   AddResult,
 } from '../../approval-controller/src';
+import { TransactionMeta, TransactionStatus } from './types';
 
 const v1Stub = jest
   .fn()
