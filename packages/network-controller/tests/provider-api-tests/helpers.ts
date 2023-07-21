@@ -1,7 +1,7 @@
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
-import EthQuery from 'eth-query';
 import nock from 'nock';
 import type { Scope as NockScope } from 'nock';
 import sinon from 'sinon';

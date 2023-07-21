@@ -31,10 +31,10 @@
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/eth-query": "^3.0.1",
     "@metamask/network-controller": "workspace:^",
     "@metamask/utils": "^6.2.0",
     "@types/uuid": "^8.3.0",
-    "eth-query": "^2.1.2",
     "ethereumjs-util": "^7.0.10",
     "ethjs-unit": "^0.1.6",
     "immer": "^9.0.6",

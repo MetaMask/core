@@ -5,11 +5,11 @@ import {
   query,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
+import type { Provider } from '@metamask/eth-query';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import EthQuery from 'eth-query';
-import type { Provider } from 'eth-query';
 
 /**
  * @type AccountInformation
