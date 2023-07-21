@@ -60,7 +60,7 @@ const mockFlags: { [key: string]: any } = {
   getBlockByNumberValue: null,
 };
 
-jest.mock('eth-query', () =>
+jest.mock('@metamask/eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
       estimateGas: (_transaction: any, callback: any) => {
