@@ -9,7 +9,6 @@ import type {
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import EthQuery from 'eth-query';
-import nock from 'nock';
 import * as sinon from 'sinon';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
@@ -260,7 +259,6 @@ describe('GasFeeController', () => {
   }
 
   beforeEach(() => {
-    nock.disableNetConnect();
     clock = sinon.useFakeTimers();
     mockedDetermineGasFeeCalculations.mockResolvedValue(
       buildMockGasFeeStateFeeMarket(),
@@ -273,7 +271,6 @@ describe('GasFeeController', () => {
     blockTracker?.destroy();
     sinon.restore();
     jest.clearAllMocks();
-    nock.enableNetConnect();
   });
 
   describe('constructor', () => {

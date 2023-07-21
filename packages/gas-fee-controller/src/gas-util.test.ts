@@ -75,7 +75,6 @@ describe('gas utils', () => {
       const result = await fetchGasEstimates('https://not-a-real-url/');
       expect(result).toMatchObject(mockEIP1559ApiResponses[0]);
       scope.done();
-      nock.cleanAll();
     });
 
     it('should fetch external gasFeeEstimates with client id header when clientId arg is added', async () => {
@@ -87,7 +86,6 @@ describe('gas utils', () => {
       const result = await fetchGasEstimates('https://not-a-real-url/', 'test');
       expect(result).toMatchObject(mockEIP1559ApiResponses[0]);
       scope.done();
-      nock.cleanAll();
     });
 
     it('should fetch and normalize external gasFeeEstimates when data is has an invalid number of decimals', async () => {
@@ -120,7 +118,6 @@ describe('gas utils', () => {
       const result = await fetchGasEstimates('https://not-a-real-url/');
       expect(result).toMatchObject(expectedResult);
       scope.done();
-      nock.cleanAll();
     });
   });
 
@@ -143,7 +140,6 @@ describe('gas utils', () => {
         low: '22',
       });
       scope.done();
-      nock.cleanAll();
     });
 
     it('should fetch external gasPrices with client id header when clientId arg is passed', async () => {
@@ -166,7 +162,6 @@ describe('gas utils', () => {
         low: '22',
       });
       scope.done();
-      nock.cleanAll();
     });
   });
 

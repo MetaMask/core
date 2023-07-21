@@ -75,6 +75,12 @@ module.exports = {
       },
     },
     {
+      files: ['tests/setupAfterEnv/matchers.ts'],
+      parserOptions: {
+        sourceType: 'script',
+      },
+    },
+    {
       files: ['*.d.ts'],
       rules: {
         '@typescript-eslint/naming-convention': 'warn',
