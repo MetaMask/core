@@ -118,7 +118,7 @@ export class IncomingTransactionHelper {
         tx.chainId === currentChainId ||
         (!tx.chainId && tx.networkID === currentNetworkId);
 
-      const fromCurrentAccount =
+      const toCurrentAccount =
         tx.transaction.to?.toLowerCase() === address.toLowerCase();
 
       const currentBlockNumberValue = tx.blockNumber
@@ -131,7 +131,7 @@ export class IncomingTransactionHelper {
 
       if (
         onCurrentChain &&
-        fromCurrentAccount &&
+        toCurrentAccount &&
         latestBlockNumberValue < currentBlockNumberValue
       ) {
         latestBlockNumber = tx.blockNumber;
