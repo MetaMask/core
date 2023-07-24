@@ -3908,13 +3908,13 @@ describe('NetworkController', () => {
       );
     });
 
-    it(`updates state.selectedNetworkId, setting it to the new active networkConfigId`, async () => {
+    it('updates state.selectedNetworkClientId setting it to the networkConfiguration.id', async () => {
       const testNetworkClientId = 'testNetworkConfigurationId';
       await withController(
         {
           state: {
             networkConfigurations: {
-              testNetworkConfigurationId: {
+              [testNetworkClientId]: {
                 rpcUrl: 'https://mock-rpc-url',
                 chainId: toHex(111),
                 ticker: 'TEST',
