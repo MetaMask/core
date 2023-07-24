@@ -51,7 +51,6 @@ import {
   ESTIMATE_GAS_ERROR,
 } from './utils';
 import {
-  RemoteTransactionSource,
   Transaction,
   TransactionMeta,
   TransactionStatus,

@@ -17,14 +17,6 @@ import { errorCodes } from 'eth-rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
-import {
-  ethTxsMock,
-  tokenTxsMock,
-  txsInStateMock,
-  txsInStateWithOutdatedStatusMock,
-  txsInStateWithOutdatedGasDataMock,
-  txsInStateWithOutdatedStatusAndGasDataMock,
-} from './mocks/txsMock';
 import type {
   TransactionControllerMessenger,
   TransactionConfig,
@@ -37,6 +29,7 @@ import type {
   AddResult,
 } from '../../approval-controller/src';
 import { TransactionMeta, TransactionStatus } from './types';
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 
 const v1Stub = jest
   .fn()
@@ -117,34 +110,7 @@ jest.mock('eth-query', () =>
   }),
 );
 
-/**
- * Create a mock implementation of `fetch` that always returns the same data.
- *
- * @param data - The mock data to return.
- * @returns The mock `fetch` implementation.
- */
-function mockFetchWithStaticResponse(data: any) {
-  return jest
-    .spyOn(global, 'fetch')
-    .mockImplementation(() =>
-      Promise.resolve(new Response(JSON.stringify(data))),
-    );
-}
-
-/**
- * Mocks the global `fetch` to return the different mock data for each URL
- * requested.
- *
- * @param dataForUrl - A map of mock data, keyed by URL.
- * @returns The mock `fetch` implementation.
- */
-function mockFetchWithDynamicResponse(dataForUrl: any) {
-  return jest
-    .spyOn(global, 'fetch')
-    .mockImplementation((key) =>
-      Promise.resolve(new Response(JSON.stringify(dataForUrl[key.toString()]))),
-    );
-}
+jest.mock('./IncomingTransactionHelper');
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in
@@ -368,94 +334,14 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
   subscribe: () => undefined,
 };
 
-const TOKEN_TRANSACTION_HASH =
-  '0x01d1cebeab9da8d887b36000c25fa175737e150f193ea37d5bb66347d834e999';
-const ETHER_TRANSACTION_HASH =
-  '0xa9d17df83756011ea63e1f0ca50a6627df7cac9806809e36680fcf4e88cb9dae';
-
-const ETH_TRANSACTIONS = ethTxsMock(ETHER_TRANSACTION_HASH);
-
-const TOKEN_TRANSACTIONS = tokenTxsMock(TOKEN_TRANSACTION_HASH);
-
-const TRANSACTIONS_IN_STATE: TransactionMeta[] = txsInStateMock(
-  ETHER_TRANSACTION_HASH,
-  TOKEN_TRANSACTION_HASH,
-);
-
-const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS: TransactionMeta[] =
-  txsInStateWithOutdatedStatusMock(
-    ETHER_TRANSACTION_HASH,
-    TOKEN_TRANSACTION_HASH,
-  );
-
-const TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA: TransactionMeta[] =
-  txsInStateWithOutdatedGasDataMock(
-    ETHER_TRANSACTION_HASH,
-    TOKEN_TRANSACTION_HASH,
-  );
-
-const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS_AND_GAS_DATA: TransactionMeta[] =
-  txsInStateWithOutdatedStatusAndGasDataMock(
-    ETHER_TRANSACTION_HASH,
-    TOKEN_TRANSACTION_HASH,
-  );
-
-const ETH_TX_HISTORY_DATA = {
-  message: 'OK',
-  result: ETH_TRANSACTIONS,
-  status: '1',
-};
-
-const ETH_TX_HISTORY_DATA_FROM_BLOCK = {
-  message: 'OK',
-  result: [ETH_TRANSACTIONS[0], ETH_TRANSACTIONS[1]],
-  status: '1',
-};
-
-const TOKEN_TX_HISTORY_DATA = {
-  message: 'OK',
-  result: TOKEN_TRANSACTIONS,
-  status: '1',
-};
-
-const TOKEN_TX_HISTORY_DATA_FROM_BLOCK = {
-  message: 'OK',
-  result: [TOKEN_TRANSACTIONS[0]],
-  status: '1',
-};
-
-const ETH_TX_HISTORY_DATA_GOERLI_NO_TRANSACTIONS_FOUND = {
-  message: 'No transactions found',
-  result: [],
-  status: '0',
-};
-
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
-
-const MOCK_FETCH_TX_HISTORY_DATA_OK = {
-  [`https://api-goerli.etherscan.io/api?module=account&address=${ACCOUNT_MOCK}&offset=40&order=desc&action=tokentx&tag=latest&page=1`]:
-    ETH_TX_HISTORY_DATA_GOERLI_NO_TRANSACTIONS_FOUND,
-  [`https://api.etherscan.io/api?module=account&address=${ACCOUNT_MOCK}&offset=40&order=desc&action=tokentx&tag=latest&page=1`]:
-    TOKEN_TX_HISTORY_DATA,
-  [`https://api.etherscan.io/api?module=account&address=${ACCOUNT_MOCK}&startBlock=999&offset=40&order=desc&action=tokentx&tag=latest&page=1`]:
-    TOKEN_TX_HISTORY_DATA_FROM_BLOCK,
-  [`https://api.etherscan.io/api?module=account&address=${ACCOUNT_MOCK}&offset=40&order=desc&action=txlist&tag=latest&page=1`]:
-    ETH_TX_HISTORY_DATA,
-  [`https://api-goerli.etherscan.io/api?module=account&address=${ACCOUNT_MOCK}&offset=40&order=desc&action=txlist&tag=latest&page=1`]:
-    ETH_TX_HISTORY_DATA,
-  [`https://api.etherscan.io/api?module=account&address=${ACCOUNT_MOCK}&startBlock=999&offset=40&order=desc&action=txlist&tag=latest&page=1`]:
-    ETH_TX_HISTORY_DATA_FROM_BLOCK,
-  [`https://api-goerli.etherscan.io/api?module=account&address=${ACCOUNT_MOCK}&offset=2&order=desc&action=tokentx&tag=latest&page=1`]:
-    ETH_TX_HISTORY_DATA_GOERLI_NO_TRANSACTIONS_FOUND,
-  [`https://api-goerli.etherscan.io/api?module=account&address=${ACCOUNT_MOCK}&offset=2&order=desc&action=txlist&tag=latest&page=1`]:
-    ETH_TX_HISTORY_DATA,
-};
-
-const MOCK_FETCH_TX_HISTORY_DATA_ERROR = {
-  status: '0',
-};
-
 const NONCE_MOCK = 12;
+const BLOCK_NUMBER_MOCK = '999';
+const ETHERSCAN_API_KEY_MOCK = 'testApiKey';
+
+const TRANSACTION_META_MOCK = {
+  transaction: { from: ACCOUNT_MOCK },
+} as TransactionMeta;
 
 describe('TransactionController', () => {
   let resultCallbacksMock: AcceptResultCallbacks;
@@ -805,33 +691,6 @@ describe('TransactionController', () => {
       await expect(
         controller.addTransaction({ from: 'foo' } as any),
       ).rejects.toThrow('Invalid "from" address');
-    });
-
-    it('limits transaction state to a length of 2', async () => {
-      mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
-
-      const controller = newController({
-        config: {
-          interval: 5000,
-          txHistoryLimit: 2,
-        },
-      });
-
-      await controller.fetchAll(ACCOUNT_MOCK);
-
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        nonce: '55555',
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
-
-      expect(controller.state.transactions).toHaveLength(2);
-      expect(controller.state.transactions[0].transaction.gasPrice).toBe(
-        '0x4a817c800',
-      );
     });
 
     it('increments nonce when adding a new non-cancel non-speedup transaction', async () => {
@@ -1251,177 +1110,86 @@ describe('TransactionController', () => {
   });
 
   describe('fetchAll', () => {
-    it.each([
-      ['goerli', MOCK_NETWORK, 4],
-      ['mainnet', MOCK_MAINNET_NETWORK, 17],
-    ])(
-      'retrieves all transactions from %s matching an address',
-      async (_networkName, network, transactionCount) => {
-        mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    const mockIncomingTransactionHelperConstructor =
+      IncomingTransactionHelper as jest.MockedClass<
+        typeof IncomingTransactionHelper
+      >;
 
-        const controller = newController({ network });
+    const mockIncomingTransactionHelper = {
+      reconcile: jest.fn(),
+    } as unknown as jest.Mocked<IncomingTransactionHelper>;
 
-        controller.wipeTransactions();
-        expect(controller.state.transactions).toHaveLength(0);
-
-        const latestBlock = await controller.fetchAll(ACCOUNT_MOCK);
-
-        const { transactions } = controller.state;
-        expect(transactions).toHaveLength(transactionCount);
-        expect(latestBlock).toBe('4535101');
-        expect(transactions[0].transaction.to).toBe(ACCOUNT_MOCK);
-      },
-    );
-
-    it('retrieves all transactions matching an address from a specified block', async () => {
-      mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
-
-      const controller = newController({ network: MOCK_MAINNET_NETWORK });
-
-      controller.wipeTransactions();
-      expect(controller.state.transactions).toHaveLength(0);
-
-      const latestBlock = await controller.fetchAll(ACCOUNT_MOCK, {
-        fromBlock: '999',
+    beforeEach(() => {
+      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
+        updateRequired: false,
+        transactions: [],
       });
 
-      expect(controller.state.transactions).toHaveLength(3);
-      expect(latestBlock).toBe('4535101');
-      expect(controller.state.transactions[0].transaction.to).toBe(
-        ACCOUNT_MOCK,
+      mockIncomingTransactionHelperConstructor.mockReturnValueOnce(
+        mockIncomingTransactionHelper,
       );
     });
 
-    it('does not modify transactions that have the same data in local and remote', async () => {
-      mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    it('reconciles incoming transactions using helper', async () => {
+      const controller = newController();
+      controller.state.transactions = [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK];
 
-      const controller = newController({ network: MOCK_MAINNET_NETWORK });
+      controller.fetchAll(ACCOUNT_MOCK, {
+        fromBlock: BLOCK_NUMBER_MOCK,
+        etherscanApiKey: ETHERSCAN_API_KEY_MOCK,
+      });
 
-      controller.wipeTransactions();
-      controller.state.transactions = TRANSACTIONS_IN_STATE;
-
-      await controller.fetchAll(ACCOUNT_MOCK);
-
-      const { transactions } = controller.state;
-      expect(transactions).toHaveLength(17);
-
-      const tokenTransaction = transactions.find(
-        ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
-      ) || { id: '' };
-
-      const ethTransaction = transactions.find(
-        ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
-      ) || { id: '' };
-
-      expect(tokenTransaction?.id).toBe('token-transaction-id');
-      expect(ethTransaction?.id).toBe('eth-transaction-id');
+      expect(mockIncomingTransactionHelper.reconcile).toHaveBeenCalledTimes(1);
+      expect(mockIncomingTransactionHelper.reconcile).toHaveBeenCalledWith({
+        address: ACCOUNT_MOCK,
+        apiKey: ETHERSCAN_API_KEY_MOCK,
+        fromBlock: BLOCK_NUMBER_MOCK,
+        localTransactions: [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK],
+      });
     });
 
-    it('updates all transactions with outdated status using remote data', async () => {
-      mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
-
-      const controller = newController({ network: MOCK_MAINNET_NETWORK });
-
-      controller.wipeTransactions();
-      expect(controller.state.transactions).toHaveLength(0);
-
-      controller.state.transactions =
-        TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS;
-
-      await controller.fetchAll(ACCOUNT_MOCK);
-
-      const { transactions } = controller.state;
-      expect(transactions).toHaveLength(17);
-
-      const tokenTransaction = transactions.find(
-        ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
-      ) || { status: TransactionStatus.failed };
-
-      const ethTransaction = transactions.find(
-        ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
-      ) || { status: TransactionStatus.failed };
-
-      expect(tokenTransaction?.status).toStrictEqual(
-        TransactionStatus.confirmed,
-      );
-      expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
-    });
-
-    it('updates all transactions with outdated gas using remote data', async () => {
-      mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
-
-      const controller = newController({ network: MOCK_MAINNET_NETWORK });
-
-      controller.wipeTransactions();
-      expect(controller.state.transactions).toHaveLength(0);
-
-      controller.state.transactions =
-        TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA;
-
-      await controller.fetchAll(ACCOUNT_MOCK);
-
-      const { transactions } = controller.state;
-      expect(transactions).toHaveLength(17);
-
-      const tokenTransaction = transactions.find(
-        ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
-      ) || { transaction: { gasUsed: '0' } };
-
-      const ethTransaction = transactions.find(
-        ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
-      ) || { transaction: { gasUsed: '0x0' } };
-
-      expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
-      expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
-    });
-
-    it('updates all transactions with outdated status and gas data using remote data', async () => {
-      mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
-
-      const controller = newController({ network: MOCK_MAINNET_NETWORK });
-
-      controller.wipeTransactions();
-      expect(controller.state.transactions).toHaveLength(0);
-
-      controller.state.transactions =
-        TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS_AND_GAS_DATA;
-
-      await controller.fetchAll(ACCOUNT_MOCK);
-
-      const { transactions } = controller.state;
-      expect(transactions).toHaveLength(17);
-
-      const tokenTransaction = transactions.find(
-        ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
-      ) || { status: TransactionStatus.failed, transaction: { gasUsed: '0' } };
-
-      const ethTransaction = transactions.find(
-        ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
-      ) || {
-        status: TransactionStatus.failed,
-        transaction: { gasUsed: '0x0' },
-      };
-
-      expect(tokenTransaction?.status).toStrictEqual(
-        TransactionStatus.confirmed,
-      );
-      expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
-      expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
-      expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
-    });
-
-    it('returns undefined if no matching transactions', async () => {
-      mockFetchWithStaticResponse(MOCK_FETCH_TX_HISTORY_DATA_ERROR);
+    it('updates state with transactions from helper if update is required', async () => {
+      mockIncomingTransactionHelper.reconcile.mockReset();
+      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
+        updateRequired: true,
+        transactions: [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK],
+      });
 
       const controller = newController();
 
-      controller.wipeTransactions();
-      expect(controller.state.transactions).toHaveLength(0);
+      await controller.fetchAll(ACCOUNT_MOCK);
 
-      const result = await controller.fetchAll(ACCOUNT_MOCK);
+      expect(controller.state.transactions).toStrictEqual([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_MOCK,
+      ]);
+    });
 
-      expect(controller.state.transactions).toHaveLength(0);
-      expect(result).toBeUndefined();
+    it('does not updates state if update is not required', async () => {
+      mockIncomingTransactionHelper.reconcile.mockReset();
+      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
+        updateRequired: false,
+        transactions: [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK],
+      });
+
+      const controller = newController();
+
+      await controller.fetchAll(ACCOUNT_MOCK);
+
+      expect(controller.state.transactions).toStrictEqual([]);
+    });
+
+    it('returns latest block number from helper', async () => {
+      mockIncomingTransactionHelper.reconcile.mockReset();
+      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
+        updateRequired: false,
+        transactions: [],
+        latestBlockNumber: BLOCK_NUMBER_MOCK,
+      });
+
+      const latestBlockNumber = await newController().fetchAll(ACCOUNT_MOCK);
+
+      expect(latestBlockNumber).toBe(BLOCK_NUMBER_MOCK);
     });
   });
 
