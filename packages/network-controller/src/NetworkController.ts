@@ -318,6 +318,17 @@ function validateCustomProviderConfig(
     throw new Error('rpcUrl must be provided for custom RPC endpoints');
   }
 }
+/**
+ * The string that uniquely identifies an Infura network client.
+ */
+type BuiltInNetworkClientId = InfuraNetworkType;
+
+/**
+ * The string that uniquely identifies a custom network client.
+ */
+type CustomNetworkClientId = string;
+
+type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 
 /**
  * The network ID of a network.
@@ -334,6 +345,7 @@ export type NetworkId = `${number}`;
  * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
  */
 export type NetworkState = {
+  selectedNetworkClientId: NetworkClientId;
   networkId: NetworkId | null;
   networkStatus: NetworkStatus;
   providerConfig: ProviderConfig;
@@ -450,6 +462,7 @@ export type NetworkControllerOptions = {
 };
 
 export const defaultState: NetworkState = {
+  selectedNetworkClientId: NetworkType.mainnet,
   networkId: null,
   networkStatus: NetworkStatus.Unknown,
   providerConfig: {
@@ -477,16 +490,6 @@ type MetaMetricsEventPayload = {
 };
 
 type NetworkConfigurationId = string;
-
-/**
- * The string that uniquely identifies an Infura network client.
- */
-type BuiltInNetworkClientId = InfuraNetworkType;
-
-/**
- * The string that uniquely identifies a custom network client.
- */
-type CustomNetworkClientId = string;
 
 /**
  * The collection of auto-managed network clients that map to Infura networks.
@@ -546,6 +549,10 @@ export class NetworkController extends BaseControllerV2<
     super({
       name,
       metadata: {
+        selectedNetworkClientId: {
+          persist: true,
+          anonymous: false,
+        },
         networkId: {
           persist: true,
           anonymous: false,
@@ -827,6 +834,7 @@ export class NetworkController extends BaseControllerV2<
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.update((state) => {
+      state.selectedNetworkClientId = type;
       state.providerConfig.type = type;
       state.providerConfig.ticker = ticker;
       state.providerConfig.chainId = ChainId[type];
@@ -858,6 +866,7 @@ export class NetworkController extends BaseControllerV2<
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.update((state) => {
+      state.selectedNetworkClientId = networkConfigurationId;
       state.providerConfig.type = NetworkType.rpc;
       state.providerConfig.rpcUrl = targetNetwork.rpcUrl;
       state.providerConfig.chainId = targetNetwork.chainId;
