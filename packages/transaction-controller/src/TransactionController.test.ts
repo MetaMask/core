@@ -280,6 +280,7 @@ const MOCK_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
+    selectedNetworkClientId: NetworkType.goerli,
     networkId: '5',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -296,6 +297,7 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
   provider: GOERLI_PROVIDER,
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
+    selectedNetworkClientId: NetworkType.goerli,
     networkId: '5',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -310,6 +312,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
+    selectedNetworkClientId: NetworkType.mainnet,
     networkId: '1',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -327,6 +330,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
+    selectedNetworkClientId: NetworkType['linea-mainnet'],
     networkId: '59144',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -344,6 +348,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
+    selectedNetworkClientId: NetworkType['linea-mainnet'],
     networkId: '59140',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -361,6 +366,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
+    selectedNetworkClientId: 'uuid-1',
     networkId: '11297108109',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
