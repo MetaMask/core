@@ -1,11 +1,7 @@
 import { expectAssignable, expectNotAssignable, expectType } from 'tsd';
 
-import {
-  isObject,
-  hasProperty,
-  getKnownPropertyNames,
-  RuntimeObject,
-} from './misc';
+import type { RuntimeObject } from './misc';
+import { isObject, hasProperty, getKnownPropertyNames } from './misc';
 
 //=============================================================================
 // isObject

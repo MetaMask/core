@@ -5,10 +5,11 @@ import {
   valid as validSemVerVersion,
   validRange as validSemVerRange,
 } from 'semver';
-import { is, refine, string, Struct } from 'superstruct';
+import type { Struct } from 'superstruct';
+import { is, refine, string } from 'superstruct';
 
 import { assertStruct } from './assert';
-import { Opaque } from './opaque';
+import type { Opaque } from './opaque';
 
 /**
  * {@link https://codemix.com/opaque-types-in-javascript/ Opaque} type for SemVer ranges.

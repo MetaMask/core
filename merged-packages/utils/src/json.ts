@@ -1,3 +1,4 @@
+import type { Infer, Struct } from 'superstruct';
 import {
   any,
   array,
@@ -5,7 +6,6 @@ import {
   coerce,
   create,
   define,
-  Infer,
   integer,
   is,
   lazy,
@@ -17,12 +17,12 @@ import {
   optional,
   record,
   string,
-  Struct,
   union,
   unknown,
 } from 'superstruct';
 
-import { AssertionErrorConstructor, assertStruct } from './assert';
+import type { AssertionErrorConstructor } from './assert';
+import { assertStruct } from './assert';
 
 /**
  * Any JSON-compatible value.

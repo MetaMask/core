@@ -1,4 +1,5 @@
-import debug, { Debugger } from 'debug';
+import type { Debugger } from 'debug';
+import debug from 'debug';
 
 const globalLogger = debug('metamask');
 

@@ -1,10 +1,10 @@
+import type { RuntimeObject } from '.';
 import {
   isNonEmptyArray,
   isNullOrUndefined,
   isObject,
   hasProperty,
   getKnownPropertyNames,
-  RuntimeObject,
   isPlainObject,
   calculateNumberSize,
   isASCII,

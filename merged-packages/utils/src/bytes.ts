@@ -1,5 +1,6 @@
 import { assert } from './assert';
-import { add0x, assertIsHexString, Hex, remove0x } from './hex';
+import type { Hex } from './hex';
+import { add0x, assertIsHexString, remove0x } from './hex';
 
 // '0'.charCodeAt(0) === 48
 const HEX_MINIMUM_NUMBER_CHARACTER = 48;

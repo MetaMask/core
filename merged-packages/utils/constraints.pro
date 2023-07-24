@@ -67,12 +67,17 @@ gen_enforced_field(WorkspaceCwd, 'license').
 
 % The type definitions entrypoint the package must be `./dist/types/index.d.ts`.
 gen_enforced_field(WorkspaceCwd, 'types', './dist/types/index.d.ts').
+gen_enforced_field(WorkspaceCwd, 'exports["."].types', './dist/types/index.d.ts').
 
 % The entrypoint for the package must be `./dist/cjs/index.js`.
 gen_enforced_field(WorkspaceCwd, 'main', './dist/cjs/index.js').
+gen_enforced_field(WorkspaceCwd, 'exports["."].require', './dist/cjs/index.js').
 
 % The module entrypoint for the package must be `./dist/esm/index.js`.
 gen_enforced_field(WorkspaceCwd, 'module', './dist/esm/index.js').
+gen_enforced_field(WorkspaceCwd, 'exports["."].import', './dist/esm/index.js').
+
+gen_enforced_field(WorkspaceCwd, 'exports["./package.json"]', './package.json').
 
 % The list of files included in the package must only include files generated
 % during the build step.

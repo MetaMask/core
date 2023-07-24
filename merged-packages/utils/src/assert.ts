@@ -1,4 +1,5 @@
-import { assert as assertSuperstruct, Struct } from 'superstruct';
+import type { Struct } from 'superstruct';
+import { assert as assertSuperstruct } from 'superstruct';
 
 export type AssertionErrorConstructor =
   | (new (args: { message: string }) => Error)
@@ -116,13 +117,13 @@ export function assert(
  * Defaults to {@link AssertionError}.
  * @throws If the value is not valid.
  */
-export function assertStruct<T, S>(
+export function assertStruct<Type, Schema>(
   value: unknown,
-  struct: Struct<T, S>,
+  struct: Struct<Type, Schema>,
   errorPrefix = 'Assertion failed',
   // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper: AssertionErrorConstructor = AssertionError,
-): asserts value is T {
+): asserts value is Type {
   try {
     assertSuperstruct(value, struct);
   } catch (error) {

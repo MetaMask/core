@@ -1,6 +1,7 @@
 import { is, size, string } from 'superstruct';
 
-import { base64, Base64Options } from './base64';
+import type { Base64Options } from './base64';
+import { base64 } from './base64';
 
 describe('base64', () => {
   it.each([

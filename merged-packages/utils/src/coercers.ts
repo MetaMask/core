@@ -1,8 +1,8 @@
+import type { Infer } from 'superstruct';
 import {
   bigint,
   coerce,
   create,
-  Infer,
   instance,
   number,
   string,
@@ -12,7 +12,8 @@ import {
 
 import { assert } from './assert';
 import { bytesToHex, hexToBytes } from './bytes';
-import { Hex, StrictHexStruct } from './hex';
+import type { Hex } from './hex';
+import { StrictHexStruct } from './hex';
 
 const NumberLikeStruct = union([number(), bigint(), string(), StrictHexStruct]);
 const NumberCoercer = coerce(number(), NumberLikeStruct, Number);

@@ -1,4 +1,5 @@
-import { pattern, Struct } from 'superstruct';
+import type { Struct } from 'superstruct';
+import { pattern } from 'superstruct';
 
 import { assert } from './assert';
 
@@ -26,8 +27,8 @@ export type Base64Options = {
  * @param options - Optional options to specialize base64 validation. See {@link Base64Options} documentation.
  * @returns A superstruct validating base64.
  */
-export const base64 = <T extends string, S>(
-  struct: Struct<T, S>,
+export const base64 = <Type extends string, Schema>(
+  struct: Struct<Type, Schema>,
   options: Base64Options = {},
 ) => {
   const paddingRequired = options.paddingRequired ?? false;

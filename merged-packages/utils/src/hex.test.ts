@@ -1,5 +1,5 @@
+import type { Hex } from './hex';
 import {
-  Hex,
   add0x,
   assertIsHexString,
   assertIsStrictHexString,

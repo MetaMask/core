@@ -1,5 +1,6 @@
 import { keccak_256 as keccak256 } from '@noble/hashes/sha3';
-import { is, pattern, string, Struct } from 'superstruct';
+import type { Struct } from 'superstruct';
+import { is, pattern, string } from 'superstruct';
 
 import { assert } from './assert';
 import { bytesToHex } from './bytes';
