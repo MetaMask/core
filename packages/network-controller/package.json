@@ -33,7 +33,7 @@
     "@metamask/controller-utils": "workspace:^",
     "@metamask/eth-json-rpc-infura": "^8.1.1",
     "@metamask/eth-json-rpc-middleware": "^11.0.0",
-    "@metamask/eth-json-rpc-provider": "^1.0.0",
+    "@metamask/eth-json-rpc-provider": "^1.0.1",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/swappable-obj-proxy": "^2.1.0",
     "@metamask/utils": "^6.2.0",
