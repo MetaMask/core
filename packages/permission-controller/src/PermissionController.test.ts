@@ -1,4 +1,3 @@
-import assert from 'assert';
 import type {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -9,13 +8,16 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import type { Json } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
+import assert from 'assert';
 import { JsonRpcEngine } from 'json-rpc-engine';
 import type { PendingJsonRpcResponse } from 'json-rpc-engine';
-
-import * as errors from './errors';
-import type { EndowmentGetterParams } from './Permission';
-import { SubjectType } from './SubjectMetadataController';
-import type { GetSubjectMetadata } from './SubjectMetadataController';
+import {
+  CaveatMutatorOperation,
+  constructPermission,
+  MethodNames,
+  PermissionController,
+  PermissionType,
+} from '.';
 import type {
   AsyncRestrictedMethod,
   Caveat,
@@ -30,13 +32,10 @@ import type {
   RestrictedMethodParameters,
   ValidPermission,
 } from '.';
-import {
-  CaveatMutatorOperation,
-  constructPermission,
-  MethodNames,
-  PermissionController,
-  PermissionType,
-} from '.';
+import * as errors from './errors';
+import type { EndowmentGetterParams } from './Permission';
+import { SubjectType } from './SubjectMetadataController';
+import type { GetSubjectMetadata } from './SubjectMetadataController';
 
 // Caveat types and specifications
 
@@ -210,12 +209,12 @@ const PermissionKeys = {
 } as const;
 
 type NoopWithRequiredCaveat = ValidPermission<
-  typeof PermissionKeys['wallet_noopWithRequiredCaveat'],
+  (typeof PermissionKeys)['wallet_noopWithRequiredCaveat'],
   NoopCaveat
 >;
 
 type NoopWithFactoryPermission = ValidPermission<
-  typeof PermissionKeys['wallet_noopWithFactory'],
+  (typeof PermissionKeys)['wallet_noopWithFactory'],
   FilterArrayCaveat
 >;
 
@@ -619,8 +618,8 @@ function getDefaultPermissionController(
   opts = getPermissionControllerOptions(),
 ) {
   return new PermissionController<
-    typeof opts.permissionSpecifications[keyof typeof opts.permissionSpecifications],
-    typeof opts.caveatSpecifications[keyof typeof opts.caveatSpecifications]
+    (typeof opts.permissionSpecifications)[keyof typeof opts.permissionSpecifications],
+    (typeof opts.caveatSpecifications)[keyof typeof opts.caveatSpecifications]
   >(opts);
 }
 
@@ -5504,7 +5503,7 @@ describe('PermissionController', () => {
               snap_abc: getPermissionMatcher({
                 parentCapability: 'snap_abc',
                 invoker: origin,
-              }), 
+              }),
               snap_def: getPermissionMatcher({
                 parentCapability: 'snap_def',
                 invoker: origin,
