@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+### Changed
+- Bumped `@metamask/safe-event-emitter` from `^2.0.0` to `^3.0.0` ([#148](https://github.com/MetaMask/json-rpc-engine/pull/148))
+- Bumped `@metamask/utils` from `^5.0.1` to `^5.0.2` ([#151](https://github.com/MetaMask/json-rpc-engine/pull/151))
+
+### Fixed
+- Fixed handling of empty batch array in requests ([#153](https://github.com/MetaMask/json-rpc-engine/pull/153))
+
 ## [7.0.0]
 ### Added
 - Added JSON-RPC notification handling ([#104](https://github.com/MetaMask/json-rpc-engine/pull/104))
@@ -66,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/json-rpc-engine/compare/v7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/json-rpc-engine/compare/v7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/json-rpc-engine/compare/v7.0.0...v7.1.0
 [7.0.0]: https://github.com/MetaMask/json-rpc-engine/compare/v6.1.0...v7.0.0
 [6.1.0]: https://github.com/MetaMask/json-rpc-engine/compare/v6.0.0...v6.1.0
 [6.0.0]: https://github.com/MetaMask/json-rpc-engine/compare/v5.4.0...v6.0.0
