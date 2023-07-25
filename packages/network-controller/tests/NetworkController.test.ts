@@ -4129,50 +4129,41 @@ describe('NetworkController', () => {
         });
 
         describe('if the request for the latest block responds with null', () => {
-          it('sets the "1559" property to false', async () => {
+          const latestBlockRespondsNull = {
+            request: {
+              method: 'eth_getBlockByNumber',
+              params: ['latest', false],
+            },
+            response: {
+              result: null,
+            },
+          };
+          it('keeps the "1559" property as undefined', async () => {
             await withController(async ({ controller }) => {
               setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      result: null,
-                    },
-                  },
-                ],
+                stubs: [latestBlockRespondsNull],
                 stubLookupNetworkWhileSetting: true,
               });
 
               await controller.getEIP1559Compatibility();
 
-              expect(controller.state.networkDetails.EIPS[1559]).toBe(false);
+              expect(
+                controller.state.networkDetails.EIPS[1559],
+              ).toBeUndefined();
             });
           });
 
-          it('returns false', async () => {
+          it('returns undefined', async () => {
             await withController(async ({ controller }) => {
               setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      result: null,
-                    },
-                  },
-                ],
+                stubs: [latestBlockRespondsNull],
                 stubLookupNetworkWhileSetting: true,
               });
 
               const isEIP1559Compatible =
                 await controller.getEIP1559Compatibility();
 
-              expect(isEIP1559Compatible).toBe(false);
+              expect(isEIP1559Compatible).toBeUndefined();
             });
           });
         });
