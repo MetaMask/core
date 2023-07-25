@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+### Added
+- Add `getKnownPropertyNames` function ([#111](https://github.com/MetaMask/utils/pull/111))
+
+### Changed
+- **BREAKING:** Build the package as both CJS and ESM ([#115](https://github.com/MetaMask/utils/pull/115), [#124](https://github.com/MetaMask/utils/pull/124))
+  - It's no longer possible to import from the `dist` folder. Everything must be imported from `@metamask/utils`.
+- Bump `semver` to `^7.5.4` ([#123](https://github.com/MetaMask/utils/pull/123))
+
 ## [6.2.0]
 ### Added
 - Add address related utils ([#112](https://github.com/MetaMask/utils/pull/112))
@@ -165,7 +174,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v6.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/utils/compare/v6.2.0...v7.0.0
 [6.2.0]: https://github.com/MetaMask/utils/compare/v6.1.0...v6.2.0
 [6.1.0]: https://github.com/MetaMask/utils/compare/v6.0.1...v6.1.0
 [6.0.1]: https://github.com/MetaMask/utils/compare/v6.0.0...v6.0.1
