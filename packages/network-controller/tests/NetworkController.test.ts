@@ -191,6 +191,7 @@ describe('NetworkController', () => {
               "ticker": "ETH",
               "type": "mainnet",
             },
+            "selectedNetworkClientId": "mainnet",
           }
         `);
       });
@@ -232,6 +233,7 @@ describe('NetworkController', () => {
                 "ticker": "TEST",
                 "type": "rpc",
               },
+              "selectedNetworkClientId": "mainnet",
             }
           `);
         },
@@ -3585,6 +3587,20 @@ describe('NetworkController', () => {
           },
         );
       });
+
+      it(`updates state.selectedNetworkId, setting it to ${networkType}`, async () => {
+        await withController({}, async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+          await controller.setProviderType(networkType);
+
+          expect(controller.state.selectedNetworkClientId).toStrictEqual(
+            networkType,
+          );
+        });
+      });
     }
 
     describe('given a network type of "rpc"', () => {
@@ -3888,6 +3904,45 @@ describe('NetworkController', () => {
               blockExplorerUrl: 'https://test-block-explorer-2.com',
             },
           });
+        },
+      );
+    });
+
+    it('updates state.selectedNetworkClientId setting it to the networkConfiguration.id', async () => {
+      const testNetworkClientId = 'testNetworkConfigurationId';
+      await withController(
+        {
+          state: {
+            networkConfigurations: {
+              [testNetworkClientId]: {
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: toHex(111),
+                ticker: 'TEST',
+                nickname: 'something existing',
+                id: testNetworkClientId,
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer-2.com',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient()
+            .calledWith({
+              rpcUrl: 'https://mock-rpc-url',
+              chainId: toHex(111),
+              type: NetworkClientType.Custom,
+            })
+            .mockReturnValue(fakeNetworkClient);
+
+          await controller.setActiveNetwork(testNetworkClientId);
+
+          expect(controller.state.selectedNetworkClientId).toStrictEqual(
+            testNetworkClientId,
+          );
         },
       );
     });
