@@ -86,6 +86,7 @@ export class MessageManager extends AbstractMessageManager<
     const messageData: Message = {
       id: messageId,
       messageParams,
+      securityAlertResponse: req?.securityAlertResponse,
       status: 'unapproved',
       time: Date.now(),
       type: 'eth_sign',

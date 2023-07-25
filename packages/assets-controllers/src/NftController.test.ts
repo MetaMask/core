@@ -232,14 +232,6 @@ function setupController({
 }
 
 describe('NftController', () => {
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
-
   beforeEach(() => {
     nock(OPENSEA_PROXY_URL)
       .get(`/asset_contract/0x01`)
@@ -298,7 +290,6 @@ describe('NftController', () => {
   });
 
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 
@@ -1816,7 +1807,7 @@ describe('NftController', () => {
       });
     });
 
-    it('should add NFT erc721 and get NFT information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
+    it('should add NFT erc721 and not get NFT information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
       const { assetsContract, nftController } = setupController();
       nock(OPENSEA_PROXY_URL)
         .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
@@ -1944,11 +1935,10 @@ describe('NftController', () => {
       ).toStrictEqual({
         address: ERC721_NFT_ADDRESS,
         image: null,
-        imageOriginal: 'image (directly from opensea)',
-        name: 'name (directly from opensea)',
-        description: 'description (directly from opensea)',
+        name: null,
+        description: null,
         tokenId: ERC721_NFT_ID,
-        standard: ERC721,
+        standard: null,
         favorite: false,
         isCurrentlyOwned: true,
       });

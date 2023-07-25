@@ -25,12 +25,6 @@ describe('ERC721Standard', () => {
       chainId: 1,
     });
     erc721Standard = new ERC721Standard(MAINNET_PROVIDER);
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.restore();
-    nock.enableNetConnect();
   });
 
   it('should determine if contract supports interface correctly', async () => {

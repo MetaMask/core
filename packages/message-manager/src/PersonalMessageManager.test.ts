@@ -78,7 +78,10 @@ describe('PersonalMessageManager', () => {
       data: '0x123',
       from: fromMock,
     };
-    const originalRequest = { origin: 'origin' };
+    const originalRequest = {
+      origin: 'origin',
+      securityAlertResponse: { result_type: 'result_type', reason: 'reason' },
+    };
     const messageId = await controller.addUnapprovedMessage(
       messageParams,
       originalRequest,
@@ -93,6 +96,8 @@ describe('PersonalMessageManager', () => {
     expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
+    expect(message.securityAlertResponse?.result_type).toBe('result_type');
+    expect(message.securityAlertResponse?.reason).toBe('reason');
   });
 
   it('should throw when adding invalid message', async () => {
