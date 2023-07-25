@@ -428,7 +428,7 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
    * An array of associated permission names that fall under this "parent" permission. Target names would be limited to the
    * array of child permissions associated with this particular permission.
    */
-  children?: TargetName[];
+  children?: Readonly<TargetName[]>;
 };
 
 /**

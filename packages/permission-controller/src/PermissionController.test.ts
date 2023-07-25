@@ -1,3 +1,4 @@
+import assert from 'assert';
 import type {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -8,10 +9,13 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import type { Json } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
-import assert from 'assert';
 import { JsonRpcEngine } from 'json-rpc-engine';
 import type { PendingJsonRpcResponse } from 'json-rpc-engine';
 
+import * as errors from './errors';
+import type { EndowmentGetterParams } from './Permission';
+import { SubjectType } from './SubjectMetadataController';
+import type { GetSubjectMetadata } from './SubjectMetadataController';
 import type {
   AsyncRestrictedMethod,
   Caveat,
@@ -33,10 +37,6 @@ import {
   PermissionController,
   PermissionType,
 } from '.';
-import * as errors from './errors';
-import type { EndowmentGetterParams } from './Permission';
-import { SubjectType } from './SubjectMetadataController';
-import type { GetSubjectMetadata } from './SubjectMetadataController';
 
 // Caveat types and specifications
 
@@ -200,17 +200,22 @@ const PermissionKeys = {
   wallet_noopWithRequiredCaveat: 'wallet_noopWithRequiredCaveat',
   wallet_noopWithFactory: 'wallet_noopWithFactory',
   snap_foo: 'snap_foo',
+  snap_bar: 'snap_bar',
+  snap_baz: 'snap_baz',
+  snap_xyz: 'snap_xyz',
+  snap_abc: 'snap_abc',
+  snap_def: 'snap_def',
   endowmentAnySubject: 'endowmentAnySubject',
   endowmentSnapsOnly: 'endowmentSnapsOnly',
 } as const;
 
 type NoopWithRequiredCaveat = ValidPermission<
-  (typeof PermissionKeys)['wallet_noopWithRequiredCaveat'],
+  typeof PermissionKeys['wallet_noopWithRequiredCaveat'],
   NoopCaveat
 >;
 
 type NoopWithFactoryPermission = ValidPermission<
-  (typeof PermissionKeys)['wallet_noopWithFactory'],
+  typeof PermissionKeys['wallet_noopWithFactory'],
   FilterArrayCaveat
 >;
 
@@ -232,6 +237,11 @@ const PermissionNames = {
   wallet_noopWithRequiredCaveat: PermissionKeys.wallet_noopWithRequiredCaveat,
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
   snap_foo: PermissionKeys.snap_foo,
+  snap_bar: PermissionKeys.snap_bar,
+  snap_baz: PermissionKeys.snap_baz,
+  snap_xyz: PermissionKeys.snap_xyz,
+  snap_abc: PermissionKeys.snap_abc,
+  snap_def: PermissionKeys.snap_def,
   endowmentAnySubject: PermissionKeys.endowmentAnySubject,
   endowmentSnapsOnly: PermissionKeys.endowmentSnapsOnly,
 } as const;
@@ -419,6 +429,55 @@ function getDefaultPermissionSpecifications() {
         return null;
       },
       subjectTypes: [SubjectType.Snap],
+      children: [PermissionKeys.snap_bar],
+    },
+    [PermissionKeys.snap_bar]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_bar,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+      children: [PermissionKeys.snap_baz],
+    },
+    [PermissionKeys.snap_baz]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_baz,
+      allowedCaveats: [CaveatTypes.filterArrayResponse],
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+    },
+    [PermissionKeys.snap_xyz]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_xyz,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+      children: [PermissionKeys.snap_baz],
+    },
+    [PermissionKeys.snap_abc]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_abc,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
+      children: [PermissionKeys.snap_def],
+    },
+    [PermissionKeys.snap_def]: {
+      permissionType: PermissionType.RestrictedMethod,
+      targetName: PermissionKeys.snap_def,
+      allowedCaveats: null,
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
+        return null;
+      },
+      subjectTypes: [SubjectType.Snap],
     },
     [PermissionKeys.endowmentAnySubject]: {
       permissionType: PermissionType.Endowment,
@@ -560,8 +619,8 @@ function getDefaultPermissionController(
   opts = getPermissionControllerOptions(),
 ) {
   return new PermissionController<
-    (typeof opts.permissionSpecifications)[keyof typeof opts.permissionSpecifications],
-    (typeof opts.caveatSpecifications)[keyof typeof opts.caveatSpecifications]
+    typeof opts.permissionSpecifications[keyof typeof opts.permissionSpecifications],
+    typeof opts.caveatSpecifications[keyof typeof opts.caveatSpecifications]
   >(opts);
 }
 
@@ -612,6 +671,7 @@ describe('PermissionController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
   describe('constructor', () => {
     it('initializes a new PermissionController', () => {
       const controller = getDefaultPermissionController();
@@ -3844,12 +3904,13 @@ describe('PermissionController', () => {
         },
       ]);
 
-      expect(callActionSpy).toHaveBeenCalledTimes(4);
+      expect(callActionSpy).toHaveBeenCalledTimes(6);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         1,
         'SubjectMetadataController:getSubjectMetadata',
         origin,
       );
+
       expect(callActionSpy).toHaveBeenNthCalledWith(
         2,
         'ApprovalController:addRequest',
@@ -3864,11 +3925,13 @@ describe('PermissionController', () => {
         },
         true,
       );
+
       expect(callActionSpy).toHaveBeenNthCalledWith(
         3,
         'SubjectMetadataController:getSubjectMetadata',
         origin,
       );
+
       expect(callActionSpy).toHaveBeenNthCalledWith(
         4,
         'SubjectMetadataController:getSubjectMetadata',
@@ -5108,7 +5171,7 @@ describe('PermissionController', () => {
 
       const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
 
-      await messenger.call(
+      messenger.call(
         'PermissionController:updateCaveat',
         'metamask.io',
         'wallet_getSecretArray',
@@ -5336,5 +5399,210 @@ describe('PermissionController', () => {
       const { error }: any = await engine.handle(request);
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
+  });
+
+  describe('permission groups', () => {
+    it('are properly handled when a single permission group is granted', () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'npm:@metamask/test-snap-bip44';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementation(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Snap,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          snap_foo: {},
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: {
+              snap_foo: getPermissionMatcher({
+                parentCapability: 'snap_foo',
+                invoker: origin,
+              }),
+              snap_bar: getPermissionMatcher({
+                parentCapability: 'snap_bar',
+                invoker: origin,
+              }),
+              snap_baz: getPermissionMatcher({
+                parentCapability: 'snap_baz',
+                invoker: origin,
+              }),
+            },
+          },
+        },
+      });
+
+      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+    });
+
+    it('are properly handled when multiple permission groups are granted', () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'npm:@metamask/test-snap-bip44';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementation(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Snap,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          snap_foo: {},
+          snap_abc: {},
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: {
+              snap_foo: getPermissionMatcher({
+                parentCapability: 'snap_foo',
+                invoker: origin,
+              }),
+              snap_bar: getPermissionMatcher({
+                parentCapability: 'snap_bar',
+                invoker: origin,
+              }),
+              snap_baz: getPermissionMatcher({
+                parentCapability: 'snap_baz',
+                invoker: origin,
+              }),
+              snap_abc: getPermissionMatcher({
+                parentCapability: 'snap_abc',
+                invoker: origin,
+              }), 
+              snap_def: getPermissionMatcher({
+                parentCapability: 'snap_def',
+                invoker: origin,
+              }),
+            },
+          },
+        },
+      });
+
+      expect(callActionSpy).toHaveBeenCalledTimes(5);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+    });
+
+    it('are properly handled when overlapping permission groups are granted', () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'npm:@metamask/test-snap-bip44';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementation(() => {
+          return {
+            origin,
+            name: origin,
+            subjectType: SubjectType.Snap,
+            iconUrl: null,
+            extensionId: null,
+          };
+        });
+
+      const controller = getDefaultPermissionController(options);
+      const filterArrayResponse = {
+        type: 'filterArrayResponse',
+        value: ['foo'],
+      };
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          snap_foo: {},
+          snap_xyz: {},
+          snap_baz: {
+            caveats: [filterArrayResponse],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: {
+              snap_foo: getPermissionMatcher({
+                parentCapability: 'snap_foo',
+                invoker: origin,
+              }),
+              snap_bar: getPermissionMatcher({
+                parentCapability: 'snap_bar',
+                invoker: origin,
+              }),
+              snap_baz: getPermissionMatcher({
+                parentCapability: 'snap_baz',
+                caveats: [filterArrayResponse],
+                invoker: origin,
+              }),
+              snap_xyz: getPermissionMatcher({
+                parentCapability: 'snap_xyz',
+                invoker: origin,
+              }),
+            },
+          },
+        },
+      });
+
+      expect(callActionSpy).toHaveBeenCalledTimes(4);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'SubjectMetadataController:getSubjectMetadata',
+        origin,
+      );
+    });
+  });
+
+  it('are properly handled when child permissions are requested outside of their parent', () => {
+    const controller = getDefaultPermissionController();
+    const origin = 'npm:@metamask/example-snap';
+
+    expect(() =>
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          snap_baz: {},
+        },
+      }),
+    ).toThrow(
+      'Invalid permission request, child permissions must also have their parent permissions requested.',
+    );
   });
 });
