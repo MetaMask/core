@@ -5402,7 +5402,7 @@ describe('PermissionController', () => {
   });
 
   describe('permission groups', () => {
-    it('are properly handled when a single permission group is granted', () => {
+    it('grants the child permissions in a single permission group', () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
       const origin = 'npm:@metamask/test-snap-bip44';
@@ -5457,7 +5457,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('are properly handled when multiple permission groups are granted', () => {
+    it('grants the child permissions of multiple permission groups', () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
       const origin = 'npm:@metamask/test-snap-bip44';
@@ -5521,7 +5521,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('are properly handled when overlapping permission groups are granted', () => {
+    it('can handle when overlapping permission groups are granted', () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
       const origin = 'npm:@metamask/test-snap-bip44';
@@ -5590,7 +5590,7 @@ describe('PermissionController', () => {
     });
   });
 
-  it('are properly handled when child permissions are requested outside of their parent', () => {
+  it('throws when child permissions are requested outside of their parent group', () => {
     const controller = getDefaultPermissionController();
     const origin = 'npm:@metamask/example-snap';
 
