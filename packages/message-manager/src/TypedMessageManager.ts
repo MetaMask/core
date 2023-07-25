@@ -132,6 +132,7 @@ export class TypedMessageManager extends AbstractMessageManager<
     const messageData: TypedMessage = {
       id: messageId,
       messageParams,
+      securityAlertResponse: req?.securityAlertResponse,
       status: 'unapproved',
       time: Date.now(),
       type: 'eth_signTypedData',
