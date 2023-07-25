@@ -328,6 +328,9 @@ type BuiltInNetworkClientId = InfuraNetworkType;
  */
 type CustomNetworkClientId = string;
 
+/**
+ * The string that uniquely identifies a network client.
+ */
 type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 
 /**
