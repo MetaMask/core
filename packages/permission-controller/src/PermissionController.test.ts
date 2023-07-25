@@ -11,6 +11,7 @@ import { hasProperty } from '@metamask/utils';
 import assert from 'assert';
 import { JsonRpcEngine } from 'json-rpc-engine';
 import type { PendingJsonRpcResponse } from 'json-rpc-engine';
+
 import {
   CaveatMutatorOperation,
   constructPermission,
