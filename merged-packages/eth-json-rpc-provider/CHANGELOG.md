@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.1]
+## [1.0.1] [RETRACTED]
 ### Changed
 - Updated dependencies: ([#16](https://github.com/MetaMask/eth-json-rpc-provider/pull/16))
   - Switched json-rpc-engine@^6.1.0 -> @metamask/json-rpc-engine@^7.0.0
