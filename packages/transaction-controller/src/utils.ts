@@ -2,15 +2,10 @@ import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import {
   NetworkType,
   convertHexToDecimal,
-  handleFetch,
   isValidHexAddress,
 } from '@metamask/controller-utils';
-import {
-  Transaction,
-  FetchAllOptions,
-  GasPriceValue,
-  FeeMarketEIP1559Values,
-} from './TransactionController';
+import { GasPriceValue, FeeMarketEIP1559Values } from './TransactionController';
+import { Transaction } from './types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -147,68 +142,6 @@ export const isEIP1559Transaction = (transaction: Transaction): boolean => {
     hasOwnProp(transaction, 'maxPriorityFeePerGas')
   );
 };
-
-/**
- * Handles the fetch of incoming transactions.
- *
- * @param networkType - Network type of desired network.
- * @param address - Address to get the transactions from.
- * @param txHistoryLimit - The maximum number of transactions to fetch.
- * @param opt - Object that can contain fromBlock and Etherscan service API key.
- * @returns Responses for both ETH and ERC20 token transactions.
- */
-export async function handleTransactionFetch(
-  networkType: string,
-  address: string,
-  txHistoryLimit: number,
-  opt?: FetchAllOptions,
-): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
-  // transactions
-  const urlParams = {
-    module: 'account',
-    address,
-    startBlock: opt?.fromBlock,
-    apikey: opt?.etherscanApiKey,
-    offset: txHistoryLimit.toString(),
-    order: 'desc',
-  };
-  const etherscanTxUrl = getEtherscanApiUrl(networkType, {
-    ...urlParams,
-    action: 'txlist',
-  });
-  const etherscanTxResponsePromise = handleFetch(etherscanTxUrl);
-
-  // tokens
-  const etherscanTokenUrl = getEtherscanApiUrl(networkType, {
-    ...urlParams,
-    action: 'tokentx',
-  });
-  const etherscanTokenResponsePromise = handleFetch(etherscanTokenUrl);
-
-  let [etherscanTxResponse, etherscanTokenResponse] = await Promise.all([
-    etherscanTxResponsePromise,
-    etherscanTokenResponsePromise,
-  ]);
-
-  if (
-    etherscanTxResponse.status === '0' ||
-    etherscanTxResponse.result.length <= 0
-  ) {
-    etherscanTxResponse = { status: etherscanTxResponse.status, result: [] };
-  }
-
-  if (
-    etherscanTokenResponse.status === '0' ||
-    etherscanTokenResponse.result.length <= 0
-  ) {
-    etherscanTokenResponse = {
-      status: etherscanTokenResponse.status,
-      result: [],
-    };
-  }
-
-  return [etherscanTxResponse, etherscanTokenResponse];
-}
 
 export const validateGasValues = (
   gasValues: GasPriceValue | FeeMarketEIP1559Values,
