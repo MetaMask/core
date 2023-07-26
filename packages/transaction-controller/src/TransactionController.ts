@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events';
 import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
@@ -35,9 +34,14 @@ import MethodRegistry from 'eth-method-registry';
 import EthQuery from 'eth-query';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
+import { EventEmitter } from 'events';
 import NonceTracker from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
+import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import type { Transaction, TransactionMeta, WalletDevice } from './types';
+import { TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -50,14 +54,6 @@ import {
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
 } from './utils';
-import {
-  Transaction,
-  TransactionMeta,
-  TransactionStatus,
-  WalletDevice,
-} from './types';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 
 export const HARDFORK = Hardfork.London;
 

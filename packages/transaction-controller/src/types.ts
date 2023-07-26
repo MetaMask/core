@@ -1,5 +1,5 @@
-import { NetworkType } from '@metamask/controller-utils';
-import { Hex } from '@metamask/utils';
+import type { NetworkType } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 
 /**
  * @type TransactionMeta

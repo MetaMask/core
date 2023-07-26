@@ -1,13 +1,14 @@
+import { isSmartContractCode, query } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
-import EthQuery from 'eth-query';
-import {
+import type { Hex } from '@metamask/utils';
+import type EthQuery from 'eth-query';
+
+import type {
   RemoteTransactionSource,
   Transaction,
   TransactionMeta,
   TransactionStatus,
 } from './types';
-import { isSmartContractCode, query } from '@metamask/controller-utils';
-import { Hex } from '@metamask/utils';
 
 const SUPPORTED_NETWORK_IDS = [
   '1', // Mainnet
@@ -72,8 +73,8 @@ export class IncomingTransactionHelper {
         address,
         networkType,
         limit: this.#transactionLimit,
-        currentChainId: currentChainId,
-        currentNetworkId: currentNetworkId,
+        currentChainId,
+        currentNetworkId,
         fromBlock,
         apiKey,
       });

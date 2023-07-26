@@ -1,12 +1,10 @@
-import { NetworkState } from '@metamask/network-controller';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import {
-  RemoteTransactionSource,
-  TransactionMeta,
-  TransactionStatus,
-} from './types';
-import EthQuery from 'eth-query';
 import { NetworkType, isSmartContractCode } from '@metamask/controller-utils';
+import type { NetworkState } from '@metamask/network-controller';
+import type EthQuery from 'eth-query';
+
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import type { RemoteTransactionSource, TransactionMeta } from './types';
+import { TransactionStatus } from './types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

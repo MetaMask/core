@@ -17,19 +17,20 @@ import { errorCodes } from 'eth-rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   TransactionControllerMessenger,
   TransactionConfig,
 } from './TransactionController';
 import { TransactionController, HARDFORK } from './TransactionController';
+import type { TransactionMeta } from './types';
+import { TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import type {
   AcceptResultCallbacks,
   AddResult,
 } from '../../approval-controller/src';
-import { TransactionMeta, TransactionStatus } from './types';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 
 const v1Stub = jest
   .fn()
@@ -1132,7 +1133,10 @@ describe('TransactionController', () => {
 
     it('reconciles incoming transactions using helper', async () => {
       const controller = newController();
-      controller.state.transactions = [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK];
+      controller.state.transactions = [
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_MOCK,
+      ];
 
       controller.fetchAll(ACCOUNT_MOCK, {
         fromBlock: BLOCK_NUMBER_MOCK,

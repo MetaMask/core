@@ -4,9 +4,10 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './TransactionController';
+import type { Transaction, TransactionMeta } from './types';
+import { TransactionStatus } from './types';
 import * as util from './utils';
 import { getAndFormatTransactionsForNonceTracker } from './utils';
-import { Transaction, TransactionMeta, TransactionStatus } from './types';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
