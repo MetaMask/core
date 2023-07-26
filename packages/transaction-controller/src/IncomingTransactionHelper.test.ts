@@ -1,7 +1,6 @@
 import { NetworkType, isSmartContractCode } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import EthQuery from 'eth-query';
+import type EthQuery from 'eth-query';
 
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type { RemoteTransactionSource, TransactionMeta } from './types';

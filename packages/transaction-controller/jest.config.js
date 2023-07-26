@@ -24,6 +24,8 @@ module.exports = merge(baseConfig, {
     },
   },
 
+  modulePaths: ['<rootDir>'],
+
   // We rely on `XMLHttpRequest` to make requests
   testEnvironment: 'jsdom',
 });
