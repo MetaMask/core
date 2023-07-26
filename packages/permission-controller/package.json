@@ -32,7 +32,7 @@
     "@metamask/approval-controller": "workspace:^",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^7.0.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
     "eth-rpc-errors": "^4.0.2",
