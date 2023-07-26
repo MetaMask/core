@@ -520,7 +520,7 @@ function buildNetworkControllerStateWithProviderConfig(
     selectedNetworkClientId,
     providerConfig,
     networkId: '1',
-    networkMeta: {
+    networksMetadata: {
       [selectedNetworkClientId]: {
         details: { EIPS: {} },
         status: NetworkStatus.Available,
