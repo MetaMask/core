@@ -515,13 +515,16 @@ const getRestrictedMessenger = (
 function buildNetworkControllerStateWithProviderConfig(
   providerConfig: ProviderConfig,
 ): NetworkState {
+  const selectedNetworkClientId = providerConfig.type || 'uuid-1';
   return {
-    selectedNetworkClientId: providerConfig.type || 'uuid-1',
+    selectedNetworkClientId,
     providerConfig,
     networkId: '1',
-    networkStatus: NetworkStatus.Available,
-    networkDetails: {
-      EIPS: {},
+    networkMeta: {
+      [selectedNetworkClientId]: {
+        details: { EIPS: {} },
+        status: NetworkStatus.Available,
+      }
     },
     networkConfigurations: {},
   };

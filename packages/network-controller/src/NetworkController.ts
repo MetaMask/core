@@ -334,9 +334,20 @@ type CustomNetworkClientId = string;
 type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 
 /**
+ * Data related to a particular network.
+ */
+export type NetworkMeta = {
+  [networkClientId: NetworkClientId]: {
+    details: NetworkDetails,
+    status: NetworkStatus,
+  }
+};
+
+/**
  * The network ID of a network.
  */
 export type NetworkId = `${number}`;
+
 
 /**
  * @type NetworkState
@@ -350,10 +361,9 @@ export type NetworkId = `${number}`;
 export type NetworkState = {
   selectedNetworkClientId: NetworkClientId;
   networkId: NetworkId | null;
-  networkStatus: NetworkStatus;
   providerConfig: ProviderConfig;
-  networkDetails: NetworkDetails;
   networkConfigurations: NetworkConfigurations;
+  networkMeta: NetworkMeta;
 };
 
 const name = 'NetworkController';
@@ -467,15 +477,12 @@ export type NetworkControllerOptions = {
 export const defaultState: NetworkState = {
   selectedNetworkClientId: NetworkType.mainnet,
   networkId: null,
-  networkStatus: NetworkStatus.Unknown,
   providerConfig: {
     type: NetworkType.mainnet,
     chainId: ChainId.mainnet,
     ticker: NetworksTicker.mainnet,
   },
-  networkDetails: {
-    EIPS: {},
-  },
+  networkMeta: {},
   networkConfigurations: {},
 };
 
@@ -560,13 +567,9 @@ export class NetworkController extends BaseControllerV2<
           persist: true,
           anonymous: false,
         },
-        networkStatus: {
+        networkMeta: {
           persist: true,
-          anonymous: false,
-        },
-        networkDetails: {
-          persist: true,
-          anonymous: false,
+          anonymous: false
         },
         providerConfig: {
           persist: true,
@@ -600,6 +603,8 @@ export class NetworkController extends BaseControllerV2<
     );
 
     this.#previousProviderConfig = this.state.providerConfig;
+    // this.#ensureAutoManagedNetworkClientRegistryPopulated();
+    // this.#applyNetworkSelection();
   }
 
   /**
@@ -643,19 +648,14 @@ export class NetworkController extends BaseControllerV2<
    * Executes a series of steps to apply the changes to the provider config:
    *
    * 1. Notifies subscribers that the network is about to change.
-   * 2. Clears state associated with the current network.
-   * 3. Looks up a known and preinitialized network client matching the provider
+   * 2. Looks up a known and preinitialized network client matching the provider
    * config and re-points the provider and block tracker proxy to it.
-   * 4. Notifies subscribers that the network has changed.
+   * 3. Notifies subscribers that the network has changed.
    */
   async #refreshNetwork() {
     this.messagingSystem.publish('NetworkController:networkWillChange');
     this.update((state) => {
       state.networkId = null;
-      state.networkStatus = NetworkStatus.Unknown;
-      state.networkDetails = {
-        EIPS: {},
-      };
     });
     this.#applyNetworkSelection();
     this.messagingSystem.publish('NetworkController:networkDidChange');
@@ -788,11 +788,12 @@ export class NetworkController extends BaseControllerV2<
 
     this.update((state) => {
       state.networkId = updatedNetworkId;
-      state.networkStatus = updatedNetworkStatus;
+      const meta = state.networkMeta[state.selectedNetworkClientId];
+      meta.status = updatedNetworkStatus;
       if (updatedIsEIP1559Compatible === undefined) {
-        delete state.networkDetails.EIPS[1559];
+        delete meta.details.EIPS[1559];
       } else {
-        state.networkDetails.EIPS[1559] = updatedIsEIP1559Compatible;
+        meta.details.EIPS[1559] = updatedIsEIP1559Compatible;
       }
     });
 
@@ -837,7 +838,6 @@ export class NetworkController extends BaseControllerV2<
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.update((state) => {
-      state.selectedNetworkClientId = type;
       state.providerConfig.type = type;
       state.providerConfig.ticker = ticker;
       state.providerConfig.chainId = ChainId[type];
@@ -869,7 +869,6 @@ export class NetworkController extends BaseControllerV2<
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.update((state) => {
-      state.selectedNetworkClientId = networkConfigurationId;
       state.providerConfig.type = NetworkType.rpc;
       state.providerConfig.rpcUrl = targetNetwork.rpcUrl;
       state.providerConfig.chainId = targetNetwork.chainId;
@@ -917,20 +916,22 @@ export class NetworkController extends BaseControllerV2<
    * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
   async getEIP1559Compatibility() {
-    const { EIPS } = this.state.networkDetails;
+    if (!this.#ethQuery) {
+      return false;
+    }
+
+    const { EIPS } = this.state.networkMeta[this.state.selectedNetworkClientId].details;
 
     if (EIPS[1559] !== undefined) {
       return EIPS[1559];
     }
 
-    if (!this.#ethQuery) {
-      return false;
-    }
-
     const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
     this.update((state) => {
       if (isEIP1559Compatible !== undefined) {
-        state.networkDetails.EIPS[1559] = isEIP1559Compatible;
+        state.networkMeta[
+          state.selectedNetworkClientId
+        ].details.EIPS[1559] = isEIP1559Compatible;
       }
     });
     return isEIP1559Compatible;
@@ -1354,12 +1355,13 @@ export class NetworkController extends BaseControllerV2<
 
     let autoManagedNetworkClient: AutoManagedNetworkClient<NetworkClientConfiguration>;
 
+    let networkClientId: NetworkClientId;
     if (isInfuraProviderConfig(providerConfig)) {
       const networkClientType = NetworkClientType.Infura;
-      const networkClientId = buildInfuraNetworkClientId(providerConfig);
+      networkClientId = buildInfuraNetworkClientId(providerConfig);
       const builtInNetworkClientRegistry =
         this.#autoManagedNetworkClientRegistry[networkClientType];
-      autoManagedNetworkClient = builtInNetworkClientRegistry[networkClientId];
+      autoManagedNetworkClient = builtInNetworkClientRegistry[networkClientId as BuiltInNetworkClientId];
       if (!autoManagedNetworkClient) {
         throw new Error(
           `Could not find custom network matching ${networkClientId}`,
@@ -1368,7 +1370,7 @@ export class NetworkController extends BaseControllerV2<
     } else if (isCustomProviderConfig(providerConfig)) {
       validateCustomProviderConfig(providerConfig);
       const networkClientType = NetworkClientType.Custom;
-      const networkClientId = buildCustomNetworkClientId(
+      networkClientId = buildCustomNetworkClientId(
         providerConfig,
         this.state.networkConfigurations,
       );
@@ -1383,6 +1385,18 @@ export class NetworkController extends BaseControllerV2<
     } else {
       throw new Error('Could not determine type of provider config');
     }
+
+    this.update((state) => {
+      state.selectedNetworkClientId = networkClientId;
+      if (state.networkMeta[networkClientId] === undefined) {
+        state.networkMeta[networkClientId] = {
+          status: NetworkStatus.Unknown,
+          details: {
+            EIPS: {}
+          }
+        };
+      }
+    });
 
     const { provider, blockTracker } = autoManagedNetworkClient;
 

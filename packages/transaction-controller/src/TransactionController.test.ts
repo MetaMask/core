@@ -282,8 +282,12 @@ const MOCK_NETWORK: MockNetwork = {
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networkId: '5',
-    networkStatus: NetworkStatus.Available,
-    networkDetails: { EIPS: { 1559: false } },
+    networkMeta: {
+      [NetworkType.goerli]: {
+        details: { EIPS: { 1559: false } },
+        status: NetworkStatus.Available,
+      }
+    },
     providerConfig: {
       type: NetworkType.goerli,
       chainId: ChainId.goerli,
@@ -299,8 +303,12 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networkId: '5',
-    networkStatus: NetworkStatus.Available,
-    networkDetails: { EIPS: { 1559: false } },
+    networkMeta: {
+      [NetworkType.goerli]: {
+        details: { EIPS: { 1559: false } },
+        status: NetworkStatus.Available,
+      }
+    },
     providerConfig: {
       type: NetworkType.goerli,
     } as NetworkState['providerConfig'],
@@ -314,8 +322,12 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
   state: {
     selectedNetworkClientId: NetworkType.mainnet,
     networkId: '1',
-    networkStatus: NetworkStatus.Available,
-    networkDetails: { EIPS: { 1559: false } },
+    networkMeta: {
+      [NetworkType.mainnet]: {
+        details: { EIPS: { 1559: false } },
+        status: NetworkStatus.Available,
+      }
+    },
     providerConfig: {
       type: NetworkType.mainnet,
       chainId: ChainId.mainnet,
@@ -332,8 +344,12 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
     networkId: '59144',
-    networkStatus: NetworkStatus.Available,
-    networkDetails: { EIPS: { 1559: false } },
+    networkMeta: {
+      [NetworkType['linea-mainnet']]: {
+        details: { EIPS: { 1559: false } },
+        status: NetworkStatus.Available,
+      }
+    },
     providerConfig: {
       type: NetworkType['linea-mainnet'],
       chainId: toHex(59144),
@@ -348,14 +364,18 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
-    selectedNetworkClientId: NetworkType['linea-mainnet'],
+    selectedNetworkClientId: NetworkType['linea-goerli'],
     networkId: '59140',
-    networkStatus: NetworkStatus.Available,
-    networkDetails: { EIPS: { 1559: false } },
+    networkMeta: {
+      [NetworkType['linea-goerli']]: {
+        details: { EIPS: { 1559: false } },
+        status: NetworkStatus.Available,
+      }
+    },
     providerConfig: {
       type: NetworkType['linea-goerli'],
       chainId: toHex(59140),
-      ticker: NetworksTicker['linea-mainnet'],
+      ticker: NetworksTicker['linea-goerli'],
     },
     networkConfigurations: {},
   },
@@ -368,8 +388,12 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
   state: {
     selectedNetworkClientId: 'uuid-1',
     networkId: '11297108109',
-    networkStatus: NetworkStatus.Available,
-    networkDetails: { EIPS: { 1559: false } },
+    networkMeta: {
+      'uuid-1': {
+        details: { EIPS: { 1559: false } },
+        status: NetworkStatus.Available,
+      }
+    },
     providerConfig: {
       type: NetworkType.rpc,
       chainId: toHex(11297108109),
