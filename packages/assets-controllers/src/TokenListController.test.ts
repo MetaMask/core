@@ -524,7 +524,7 @@ function buildNetworkControllerStateWithProviderConfig(
       [selectedNetworkClientId]: {
         details: { EIPS: {} },
         status: NetworkStatus.Available,
-      }
+      },
     },
     networkConfigurations: {},
   };

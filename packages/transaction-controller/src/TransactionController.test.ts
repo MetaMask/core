@@ -286,7 +286,7 @@ const MOCK_NETWORK: MockNetwork = {
       [NetworkType.goerli]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
-      }
+      },
     },
     providerConfig: {
       type: NetworkType.goerli,
@@ -307,7 +307,7 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
       [NetworkType.goerli]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
-      }
+      },
     },
     providerConfig: {
       type: NetworkType.goerli,
@@ -326,7 +326,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
       [NetworkType.mainnet]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
-      }
+      },
     },
     providerConfig: {
       type: NetworkType.mainnet,
@@ -348,7 +348,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
       [NetworkType['linea-mainnet']]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
-      }
+      },
     },
     providerConfig: {
       type: NetworkType['linea-mainnet'],
@@ -370,7 +370,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
       [NetworkType['linea-goerli']]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
-      }
+      },
     },
     providerConfig: {
       type: NetworkType['linea-goerli'],
@@ -392,7 +392,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
       'uuid-1': {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
-      }
+      },
     },
     providerConfig: {
       type: NetworkType.rpc,

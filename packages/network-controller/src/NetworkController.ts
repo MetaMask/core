@@ -338,16 +338,15 @@ type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
  */
 export type NetworksMetadata = {
   [networkClientId: NetworkClientId]: {
-    details: NetworkDetails,
-    status: NetworkStatus,
-  }
+    details: NetworkDetails;
+    status: NetworkStatus;
+  };
 };
 
 /**
  * The network ID of a network.
  */
 export type NetworkId = `${number}`;
-
 
 /**
  * @type NetworkState
@@ -569,7 +568,7 @@ export class NetworkController extends BaseControllerV2<
         },
         networksMetadata: {
           persist: true,
-          anonymous: false
+          anonymous: false,
         },
         providerConfig: {
           persist: true,
@@ -603,8 +602,6 @@ export class NetworkController extends BaseControllerV2<
     );
 
     this.#previousProviderConfig = this.state.providerConfig;
-    // this.#ensureAutoManagedNetworkClientRegistryPopulated();
-    // this.#applyNetworkSelection();
   }
 
   /**
@@ -920,7 +917,8 @@ export class NetworkController extends BaseControllerV2<
       return false;
     }
 
-    const { EIPS } = this.state.networksMetadata[this.state.selectedNetworkClientId].details;
+    const { EIPS } =
+      this.state.networksMetadata[this.state.selectedNetworkClientId].details;
 
     if (EIPS[1559] !== undefined) {
       return EIPS[1559];
@@ -1361,7 +1359,8 @@ export class NetworkController extends BaseControllerV2<
       networkClientId = buildInfuraNetworkClientId(providerConfig);
       const builtInNetworkClientRegistry =
         this.#autoManagedNetworkClientRegistry[networkClientType];
-      autoManagedNetworkClient = builtInNetworkClientRegistry[networkClientId as BuiltInNetworkClientId];
+      autoManagedNetworkClient =
+        builtInNetworkClientRegistry[networkClientId as BuiltInNetworkClientId];
       if (!autoManagedNetworkClient) {
         throw new Error(
           `Could not find custom network matching ${networkClientId}`,
@@ -1392,8 +1391,8 @@ export class NetworkController extends BaseControllerV2<
         state.networksMetadata[networkClientId] = {
           status: NetworkStatus.Unknown,
           details: {
-            EIPS: {}
-          }
+            EIPS: {},
+          },
         };
       }
     });
