@@ -1,6 +1,6 @@
 import { NetworkType, isSmartContractCode } from '@metamask/controller-utils';
+import type EthQuery from '@metamask/eth-query';
 import type { NetworkState } from '@metamask/network-controller';
-import type EthQuery from 'eth-query';
 
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type { RemoteTransactionSource, TransactionMeta } from './types';
