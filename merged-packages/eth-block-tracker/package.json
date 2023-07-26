@@ -27,9 +27,9 @@
   "dependencies": {
     "@metamask/eth-json-rpc-provider": "^1.0.0",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^5.0.1",
+    "@metamask/utils": "^5.0.2",
     "json-rpc-random-id": "^1.0.1",
-    "pify": "^3.0.0"
+    "pify": "^5.0.0"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",
