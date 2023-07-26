@@ -282,7 +282,7 @@ const MOCK_NETWORK: MockNetwork = {
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networkId: '5',
-    networkMeta: {
+    networksMetadata: {
       [NetworkType.goerli]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
@@ -303,7 +303,7 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networkId: '5',
-    networkMeta: {
+    networksMetadata: {
       [NetworkType.goerli]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
@@ -322,7 +322,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
   state: {
     selectedNetworkClientId: NetworkType.mainnet,
     networkId: '1',
-    networkMeta: {
+    networksMetadata: {
       [NetworkType.mainnet]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
@@ -344,7 +344,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
     networkId: '59144',
-    networkMeta: {
+    networksMetadata: {
       [NetworkType['linea-mainnet']]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
@@ -366,7 +366,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   state: {
     selectedNetworkClientId: NetworkType['linea-goerli'],
     networkId: '59140',
-    networkMeta: {
+    networksMetadata: {
       [NetworkType['linea-goerli']]: {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,
@@ -388,7 +388,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
   state: {
     selectedNetworkClientId: 'uuid-1',
     networkId: '11297108109',
-    networkMeta: {
+    networksMetadata: {
       'uuid-1': {
         details: { EIPS: { 1559: false } },
         status: NetworkStatus.Available,

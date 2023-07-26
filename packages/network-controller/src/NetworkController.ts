@@ -336,7 +336,7 @@ type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 /**
  * Data related to a particular network.
  */
-export type NetworkMeta = {
+export type NetworksMetadata = {
   [networkClientId: NetworkClientId]: {
     details: NetworkDetails,
     status: NetworkStatus,
@@ -363,7 +363,7 @@ export type NetworkState = {
   networkId: NetworkId | null;
   providerConfig: ProviderConfig;
   networkConfigurations: NetworkConfigurations;
-  networkMeta: NetworkMeta;
+  networksMetadata: NetworksMetadata;
 };
 
 const name = 'NetworkController';
@@ -482,7 +482,7 @@ export const defaultState: NetworkState = {
     chainId: ChainId.mainnet,
     ticker: NetworksTicker.mainnet,
   },
-  networkMeta: {},
+  networksMetadata: {},
   networkConfigurations: {},
 };
 
@@ -567,7 +567,7 @@ export class NetworkController extends BaseControllerV2<
           persist: true,
           anonymous: false,
         },
-        networkMeta: {
+        networksMetadata: {
           persist: true,
           anonymous: false
         },
@@ -788,7 +788,7 @@ export class NetworkController extends BaseControllerV2<
 
     this.update((state) => {
       state.networkId = updatedNetworkId;
-      const meta = state.networkMeta[state.selectedNetworkClientId];
+      const meta = state.networksMetadata[state.selectedNetworkClientId];
       meta.status = updatedNetworkStatus;
       if (updatedIsEIP1559Compatible === undefined) {
         delete meta.details.EIPS[1559];
@@ -920,7 +920,7 @@ export class NetworkController extends BaseControllerV2<
       return false;
     }
 
-    const { EIPS } = this.state.networkMeta[this.state.selectedNetworkClientId].details;
+    const { EIPS } = this.state.networksMetadata[this.state.selectedNetworkClientId].details;
 
     if (EIPS[1559] !== undefined) {
       return EIPS[1559];
@@ -929,7 +929,7 @@ export class NetworkController extends BaseControllerV2<
     const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
     this.update((state) => {
       if (isEIP1559Compatible !== undefined) {
-        state.networkMeta[
+        state.networksMetadata[
           state.selectedNetworkClientId
         ].details.EIPS[1559] = isEIP1559Compatible;
       }
@@ -1388,8 +1388,8 @@ export class NetworkController extends BaseControllerV2<
 
     this.update((state) => {
       state.selectedNetworkClientId = networkClientId;
-      if (state.networkMeta[networkClientId] === undefined) {
-        state.networkMeta[networkClientId] = {
+      if (state.networksMetadata[networkClientId] === undefined) {
+        state.networksMetadata[networkClientId] = {
           status: NetworkStatus.Unknown,
           details: {
             EIPS: {}
