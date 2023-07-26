@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { addHexPrefix, bufferToHex, BN } from 'ethereumjs-util';
+import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import MethodRegistry from 'eth-method-registry';
 import EthQuery from 'eth-query';
@@ -23,7 +23,6 @@ import {
   fractionBN,
   hexToBN,
   safelyExecute,
-  isSmartContractCode,
   query,
   NetworkType,
   RPC,
@@ -38,7 +37,6 @@ import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
   validateTransaction,
-  handleTransactionFetch,
   getIncreasedPriceFromExisting,
   isEIP1559Transaction,
   isGasPriceValue,
@@ -47,6 +45,14 @@ import {
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
 } from './utils';
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+import {
+  Transaction,
+  TransactionMeta,
+  TransactionStatus,
+  WalletDevice,
+} from './types';
 
 const HARDFORK = 'london';
 
@@ -70,36 +76,6 @@ export interface FetchAllOptions {
   etherscanApiKey?: string;
 }
 
-/**
- * @type Transaction
- *
- * Transaction representation
- * @property chainId - Network ID as per EIP-155
- * @property data - Data to pass with this transaction
- * @property from - Address to send this transaction from
- * @property gas - Gas to send with this transaction
- * @property gasPrice - Price of gas with this transaction
- * @property gasUsed -  Gas used in the transaction
- * @property nonce - Unique number to prevent replay attacks
- * @property to - Address to send this transaction to
- * @property value - Value associated with this transaction
- */
-export interface Transaction {
-  chainId?: number;
-  data?: string;
-  from: string;
-  gas?: string;
-  gasPrice?: string;
-  gasUsed?: string;
-  nonce?: string;
-  to?: string;
-  value?: string;
-  maxFeePerGas?: string;
-  maxPriorityFeePerGas?: string;
-  estimatedBaseFee?: string;
-  estimateGasError?: string;
-}
-
 export interface GasPriceValue {
   gasPrice: string;
 }
@@ -107,119 +83,6 @@ export interface GasPriceValue {
 export interface FeeMarketEIP1559Values {
   maxFeePerGas: string;
   maxPriorityFeePerGas: string;
-}
-
-/**
- * The status of the transaction. Each status represents the state of the transaction internally
- * in the wallet. Some of these correspond with the state of the transaction on the network, but
- * some are wallet-specific.
- */
-export enum TransactionStatus {
-  approved = 'approved',
-  cancelled = 'cancelled',
-  confirmed = 'confirmed',
-  failed = 'failed',
-  rejected = 'rejected',
-  signed = 'signed',
-  submitted = 'submitted',
-  unapproved = 'unapproved',
-}
-
-/**
- * Options for wallet device.
- */
-export enum WalletDevice {
-  MM_MOBILE = 'metamask_mobile',
-  MM_EXTENSION = 'metamask_extension',
-  OTHER = 'other_device',
-}
-
-type TransactionMetaBase = {
-  isTransfer?: boolean;
-  transferInformation?: {
-    symbol: string;
-    contractAddress: string;
-    decimals: number;
-  };
-  id: string;
-  networkID?: string;
-  chainId?: string;
-  origin?: string;
-  rawTransaction?: string;
-  time: number;
-  toSmartContract?: boolean;
-  transaction: Transaction;
-  transactionHash?: string;
-  blockNumber?: string;
-  deviceConfirmedOn?: WalletDevice;
-  verifiedOnBlockchain?: boolean;
-};
-
-/**
- * @type TransactionMeta
- *
- * TransactionMeta representation
- * @property error - Synthesized error information for failed transactions
- * @property id - Generated UUID associated with this transaction
- * @property networkID - Network code as per EIP-155 for this transaction
- * @property origin - Origin this transaction was sent from
- * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
- * @property rawTransaction - Hex representation of the underlying transaction
- * @property status - String status of this transaction
- * @property time - Timestamp associated with this transaction
- * @property toSmartContract - Whether transaction recipient is a smart contract
- * @property transaction - Underlying Transaction object
- * @property transactionHash - Hash of a successful transaction
- * @property blockNumber - Number of the block where the transaction has been included
- */
-export type TransactionMeta =
-  | ({
-      status: Exclude<TransactionStatus, TransactionStatus.failed>;
-    } & TransactionMetaBase)
-  | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
-
-/**
- * @type EtherscanTransactionMeta
- *
- * EtherscanTransactionMeta representation
- * @property blockNumber - Number of the block where the transaction has been included
- * @property timeStamp - Timestamp associated with this transaction
- * @property hash - Hash of a successful transaction
- * @property nonce - Nonce of the transaction
- * @property blockHash - Hash of the block where the transaction has been included
- * @property transactionIndex - Etherscan internal index for this transaction
- * @property from - Address to send this transaction from
- * @property to - Address to send this transaction to
- * @property gas - Gas to send with this transaction
- * @property gasPrice - Price of gas with this transaction
- * @property isError - Synthesized error information for failed transactions
- * @property txreceipt_status - Receipt status for this transaction
- * @property input - input of the transaction
- * @property contractAddress - Address of the contract
- * @property cumulativeGasUsed - Amount of gas used
- * @property confirmations - Number of confirmations
- */
-export interface EtherscanTransactionMeta {
-  blockNumber: string;
-  timeStamp: string;
-  hash: string;
-  nonce: string;
-  blockHash: string;
-  transactionIndex: string;
-  from: string;
-  to: string;
-  value: string;
-  gas: string;
-  gasPrice: string;
-  cumulativeGasUsed: string;
-  gasUsed: string;
-  isError: string;
-  txreceipt_status: string;
-  input: string;
-  contractAddress: string;
-  confirmations: string;
-  tokenDecimal: string;
-  tokenSymbol: string;
 }
 
 /**
@@ -314,6 +177,8 @@ export class TransactionController extends BaseController<
 
   private messagingSystem: TransactionControllerMessenger;
 
+  private incomingTransactionHelper: IncomingTransactionHelper;
+
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
       ...transactionMeta,
@@ -329,101 +194,6 @@ export class TransactionController extends BaseController<
     const parsedRegistryMethod = this.registry.parse(registryMethod);
     return { registryMethod, parsedRegistryMethod };
   }
-
-  /**
-   * Normalizes the transaction information from etherscan
-   * to be compatible with the TransactionMeta interface.
-   *
-   * @param txMeta - The transaction.
-   * @param currentNetworkID - The current network ID.
-   * @param currentChainId - The current chain ID.
-   * @returns The normalized transaction.
-   */
-  private normalizeTx(
-    txMeta: EtherscanTransactionMeta,
-    currentNetworkID: string,
-    currentChainId: string,
-  ): TransactionMeta {
-    const time = parseInt(txMeta.timeStamp, 10) * 1000;
-    const normalizedTransactionBase = {
-      blockNumber: txMeta.blockNumber,
-      id: random({ msecs: time }),
-      networkID: currentNetworkID,
-      chainId: currentChainId,
-      time,
-      transaction: {
-        data: txMeta.input,
-        from: txMeta.from,
-        gas: BNToHex(new BN(txMeta.gas)),
-        gasPrice: BNToHex(new BN(txMeta.gasPrice)),
-        gasUsed: BNToHex(new BN(txMeta.gasUsed)),
-        nonce: BNToHex(new BN(txMeta.nonce)),
-        to: txMeta.to,
-        value: BNToHex(new BN(txMeta.value)),
-      },
-      transactionHash: txMeta.hash,
-      verifiedOnBlockchain: false,
-    };
-
-    /* istanbul ignore else */
-    if (txMeta.isError === '0') {
-      return {
-        ...normalizedTransactionBase,
-        status: TransactionStatus.confirmed,
-      };
-    }
-
-    /* istanbul ignore next */
-    return {
-      ...normalizedTransactionBase,
-      error: new Error('Transaction failed'),
-      status: TransactionStatus.failed,
-    };
-  }
-
-  private normalizeTokenTx = (
-    txMeta: EtherscanTransactionMeta,
-    currentNetworkID: string,
-    currentChainId: string,
-  ): TransactionMeta => {
-    const time = parseInt(txMeta.timeStamp, 10) * 1000;
-    const {
-      to,
-      from,
-      gas,
-      gasPrice,
-      gasUsed,
-      hash,
-      contractAddress,
-      tokenDecimal,
-      tokenSymbol,
-      value,
-    } = txMeta;
-    return {
-      id: random({ msecs: time }),
-      isTransfer: true,
-      networkID: currentNetworkID,
-      chainId: currentChainId,
-      status: TransactionStatus.confirmed,
-      time,
-      transaction: {
-        chainId: 1,
-        from,
-        gas,
-        gasPrice,
-        gasUsed,
-        to,
-        value,
-      },
-      transactionHash: hash,
-      transferInformation: {
-        contractAddress,
-        decimals: Number(tokenDecimal),
-        symbol: tokenSymbol,
-      },
-      verifiedOnBlockchain: false,
-    };
-  };
 
   /**
    * EventEmitter instance used to listen to specific transactional events
@@ -505,6 +275,12 @@ export class TransactionController extends BaseController<
     });
 
     this.messagingSystem = messenger;
+    this.incomingTransactionHelper = new IncomingTransactionHelper({
+      getNetworkState,
+      getEthQuery: () => this.ethQuery,
+      transactionLimit: this.config.txHistoryLimit,
+      remoteTransactionSource: new EtherscanRemoteTransactionSource(),
+    });
     onNetworkStateChange(() => {
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
@@ -1053,87 +829,23 @@ export class TransactionController extends BaseController<
     address: string,
     opt?: FetchAllOptions,
   ): Promise<string | void> {
-    const { providerConfig, networkId: currentNetworkID } =
-      this.getNetworkState();
-    const { chainId: currentChainId, type: networkType } = providerConfig;
-    const { transactions } = this.state;
+    const { transactions: localTransactions } = this.state;
 
-    const supportedNetworkIds = ['1', '5', '11155111'];
-    /* istanbul ignore next */
-    if (
-      currentNetworkID === null ||
-      supportedNetworkIds.indexOf(currentNetworkID) === -1
-    ) {
-      return undefined;
-    }
-
-    const [etherscanTxResponse, etherscanTokenResponse] =
-      await handleTransactionFetch(
-        networkType,
+    const { updateRequired, transactions, latestBlockNumber } =
+      await this.incomingTransactionHelper.reconcile({
         address,
-        this.config.txHistoryLimit,
-        opt,
-      );
+        localTransactions,
+        fromBlock: opt?.fromBlock,
+        apiKey: opt?.etherscanApiKey,
+      });
 
-    const normalizedTxs = etherscanTxResponse.result.map(
-      (tx: EtherscanTransactionMeta) =>
-        this.normalizeTx(tx, currentNetworkID, currentChainId),
-    );
-    const normalizedTokenTxs = etherscanTokenResponse.result.map(
-      (tx: EtherscanTransactionMeta) =>
-        this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
-    );
-
-    const [updateRequired, allTxs] = this.etherscanTransactionStateReconciler(
-      [...normalizedTxs, ...normalizedTokenTxs],
-      transactions,
-    );
-
-    allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
-
-    let latestIncomingTxBlockNumber: string | undefined;
-    allTxs.forEach(async (tx) => {
-      /* istanbul ignore next */
-      if (
-        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-        (tx.chainId === currentChainId ||
-          (!tx.chainId && tx.networkID === currentNetworkID)) &&
-        tx.transaction.to &&
-        tx.transaction.to.toLowerCase() === address.toLowerCase()
-      ) {
-        if (
-          tx.blockNumber &&
-          (!latestIncomingTxBlockNumber ||
-            parseInt(latestIncomingTxBlockNumber, 10) <
-              parseInt(tx.blockNumber, 10))
-        ) {
-          latestIncomingTxBlockNumber = tx.blockNumber;
-        }
-      }
-
-      /* istanbul ignore else */
-      if (tx.toSmartContract === undefined) {
-        // If not `to` is a contract deploy, if not `data` is send eth
-        if (
-          tx.transaction.to &&
-          (!tx.transaction.data || tx.transaction.data !== '0x')
-        ) {
-          const code = await query(this.ethQuery, 'getCode', [
-            tx.transaction.to,
-          ]);
-          tx.toSmartContract = isSmartContractCode(code);
-        } else {
-          tx.toSmartContract = false;
-        }
-      }
-    });
-
-    // Update state only if new transactions were fetched or
-    // the status or gas data of a transaction has changed
     if (updateRequired) {
-      this.update({ transactions: this.trimTransactionsForState(allTxs) });
+      this.update({
+        transactions: this.trimTransactionsForState(transactions),
+      });
     }
-    return latestIncomingTxBlockNumber;
+
+    return latestBlockNumber;
   }
 
   /**
@@ -1277,139 +989,6 @@ export class TransactionController extends BaseController<
       return false;
     }
     return Number(txReceipt.status) === 0;
-  }
-
-  /**
-   * Method to verify the state of transactions using Etherscan as a source of truth.
-   *
-   * @param remoteTxs - Transactions to reconcile that are from a remote source.
-   * @param localTxs - Transactions to reconcile that are local.
-   * @returns A tuple containing a boolean indicating whether or not an update was required, and the updated transaction.
-   */
-  private etherscanTransactionStateReconciler(
-    remoteTxs: TransactionMeta[],
-    localTxs: TransactionMeta[],
-  ): [boolean, TransactionMeta[]] {
-    const updatedTxs: TransactionMeta[] = this.getUpdatedTransactions(
-      remoteTxs,
-      localTxs,
-    );
-
-    const newTxs: TransactionMeta[] = this.getNewTransactions(
-      remoteTxs,
-      localTxs,
-    );
-
-    const updatedLocalTxs = localTxs.map((tx: TransactionMeta) => {
-      const txIdx = updatedTxs.findIndex(
-        ({ transactionHash }) => transactionHash === tx.transactionHash,
-      );
-      return txIdx === -1 ? tx : updatedTxs[txIdx];
-    });
-
-    const updateRequired = newTxs.length > 0 || updatedLocalTxs.length > 0;
-
-    return [updateRequired, [...newTxs, ...updatedLocalTxs]];
-  }
-
-  /**
-   * Get all transactions that are in the remote transactions array
-   * but not in the local transactions array.
-   *
-   * @param remoteTxs - Array of transactions from remote source.
-   * @param localTxs - Array of transactions stored locally.
-   * @returns The new transactions.
-   */
-  private getNewTransactions(
-    remoteTxs: TransactionMeta[],
-    localTxs: TransactionMeta[],
-  ): TransactionMeta[] {
-    return remoteTxs.filter((tx) => {
-      const alreadyInTransactions = localTxs.find(
-        ({ transactionHash }) => transactionHash === tx.transactionHash,
-      );
-      return !alreadyInTransactions;
-    });
-  }
-
-  /**
-   * Get all the transactions that are locally outdated with respect
-   * to a remote source (etherscan or blockchain). The returned array
-   * contains the transactions with the updated data.
-   *
-   * @param remoteTxs - Array of transactions from remote source.
-   * @param localTxs - Array of transactions stored locally.
-   * @returns The updated transactions.
-   */
-  private getUpdatedTransactions(
-    remoteTxs: TransactionMeta[],
-    localTxs: TransactionMeta[],
-  ): TransactionMeta[] {
-    return remoteTxs.filter((remoteTx) => {
-      const isTxOutdated = localTxs.find((localTx) => {
-        return (
-          remoteTx.transactionHash === localTx.transactionHash &&
-          this.isTransactionOutdated(remoteTx, localTx)
-        );
-      });
-      return isTxOutdated;
-    });
-  }
-
-  /**
-   * Verifies if a local transaction is outdated with respect to the remote transaction.
-   *
-   * @param remoteTx - The remote transaction from Etherscan.
-   * @param localTx - The local transaction.
-   * @returns Whether the transaction is outdated.
-   */
-  private isTransactionOutdated(
-    remoteTx: TransactionMeta,
-    localTx: TransactionMeta,
-  ): boolean {
-    const statusOutdated = this.isStatusOutdated(
-      remoteTx.transactionHash,
-      localTx.transactionHash,
-      remoteTx.status,
-      localTx.status,
-    );
-    const gasDataOutdated = this.isGasDataOutdated(
-      remoteTx.transaction.gasUsed,
-      localTx.transaction.gasUsed,
-    );
-    return statusOutdated || gasDataOutdated;
-  }
-
-  /**
-   * Verifies if the status of a local transaction is outdated with respect to the remote transaction.
-   *
-   * @param remoteTxHash - Remote transaction hash.
-   * @param localTxHash - Local transaction hash.
-   * @param remoteTxStatus - Remote transaction status.
-   * @param localTxStatus - Local transaction status.
-   * @returns Whether the status is outdated.
-   */
-  private isStatusOutdated(
-    remoteTxHash: string | undefined,
-    localTxHash: string | undefined,
-    remoteTxStatus: TransactionStatus,
-    localTxStatus: TransactionStatus,
-  ): boolean {
-    return remoteTxHash === localTxHash && remoteTxStatus !== localTxStatus;
-  }
-
-  /**
-   * Verifies if the gas data of a local transaction is outdated with respect to the remote transaction.
-   *
-   * @param remoteGasUsed - Remote gas used in the transaction.
-   * @param localGasUsed - Local gas used in the transaction.
-   * @returns Whether the gas data is outdated.
-   */
-  private isGasDataOutdated(
-    remoteGasUsed: string | undefined,
-    localGasUsed: string | undefined,
-  ): boolean {
-    return remoteGasUsed !== localGasUsed;
   }
 
   private async processApproval(
