@@ -1,5 +1,6 @@
 import { NetworkType, handleFetch } from '@metamask/controller-utils';
-import {
+
+import type {
   EtherscanTransactionMeta,
   EtherscanTransactionRequest,
   EtherscanTransactionResponse,
@@ -21,7 +22,7 @@ const REQUEST_MOCK: EtherscanTransactionRequest = {
   apiKey: 'testApiKey',
 };
 
-const RESPONSE_MOCK: EtherscanTransactionResponse = {
+const RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> = {
   status: '1',
   result: [
     { from: ADDERSS_MOCK, nonce: '0x1' } as EtherscanTransactionMeta,
@@ -45,9 +46,7 @@ describe('Etherscan', () => {
     it('returns fetched response', async () => {
       handleFetchMock.mockResolvedValueOnce(RESPONSE_MOCK);
 
-      const result = await Etherscan[method as keyof typeof Etherscan](
-        REQUEST_MOCK,
-      );
+      const result = await (Etherscan as any)[method](REQUEST_MOCK);
 
       expect(result).toStrictEqual(RESPONSE_MOCK);
     });
@@ -55,7 +54,7 @@ describe('Etherscan', () => {
     it('fetches from Etherscan URL', async () => {
       handleFetchMock.mockResolvedValueOnce(RESPONSE_MOCK);
 
-      await Etherscan[method as keyof typeof Etherscan](REQUEST_MOCK);
+      await (Etherscan as any)[method](REQUEST_MOCK);
 
       expect(handleFetchMock).toHaveBeenCalledTimes(1);
       expect(handleFetchMock).toHaveBeenCalledWith(
@@ -77,9 +76,7 @@ describe('Etherscan', () => {
         status: '0',
       });
 
-      const result = await Etherscan[method as keyof typeof Etherscan](
-        REQUEST_MOCK,
-      );
+      const result = await (Etherscan as any)[method](REQUEST_MOCK);
 
       expect(result).toStrictEqual({
         status: '0',
@@ -94,9 +91,7 @@ describe('Etherscan', () => {
         error: 'testError',
       });
 
-      const result = await Etherscan[method as keyof typeof Etherscan](
-        REQUEST_MOCK,
-      );
+      const result = await (Etherscan as any)[method](REQUEST_MOCK);
 
       expect(result).toStrictEqual({
         status: '0',
@@ -107,7 +102,7 @@ describe('Etherscan', () => {
     it('does not include empty values in fetched URL', async () => {
       handleFetchMock.mockResolvedValueOnce(RESPONSE_MOCK);
 
-      await Etherscan[method as keyof typeof Etherscan]({
+      await (Etherscan as any)[method]({
         ...REQUEST_MOCK,
         fromBlock: undefined,
         apiKey: undefined,

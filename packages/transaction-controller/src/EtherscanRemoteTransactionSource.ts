@@ -1,18 +1,23 @@
-import { BNToHex, NetworkType, handleFetch } from '@metamask/controller-utils';
-import { v1 as random } from 'uuid';
+import { BNToHex } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
 import { BN } from 'ethereumjs-util';
-import { Hex } from '@metamask/utils';
-import {
-  RemoteTransactionSource,
-  RemoteTransactionSourceRequest,
-  TransactionMeta,
-  TransactionStatus,
-} from './types';
-import {
+import { v1 as random } from 'uuid';
+
+import type {
+  EtherscanTokenTransactionMeta,
   EtherscanTransactionMeta,
+  EtherscanTransactionMetaBase,
+} from './etherscan';
+import {
   fetchEtherscanTokenTransactions,
   fetchEtherscanTransactions,
 } from './etherscan';
+import type {
+  RemoteTransactionSource,
+  RemoteTransactionSourceRequest,
+  TransactionMeta,
+} from './types';
+import { TransactionStatus } from './types';
 
 export class EtherscanRemoteTransactionSource
   implements RemoteTransactionSource
@@ -27,11 +32,15 @@ export class EtherscanRemoteTransactionSource
       ]);
 
     const transactions = etherscanTransactions.result.map((tx) =>
-      this.#normalizeTx(tx, request.currentNetworkId, request.currentChainId),
+      this.#normalizeTransaction(
+        tx,
+        request.currentNetworkId,
+        request.currentChainId,
+      ),
     );
 
     const tokenTransactions = etherscanTokenTransactions.result.map((tx) =>
-      this.#normalizeTokenTx(
+      this.#normalizeTokenTransaction(
         tx,
         request.currentNetworkId,
         request.currentChainId,
@@ -41,21 +50,69 @@ export class EtherscanRemoteTransactionSource
     return [...transactions, ...tokenTransactions];
   }
 
-  #normalizeTx(
+  #normalizeTransaction(
     txMeta: EtherscanTransactionMeta,
+    currentNetworkId: string,
+    currentChainId: Hex,
+  ): TransactionMeta {
+    const base = this.#normalizeTransactionBase(
+      txMeta,
+      currentNetworkId,
+      currentChainId,
+    );
+
+    return {
+      ...base,
+      transaction: {
+        ...base.transaction,
+        data: txMeta.input,
+      },
+      ...(txMeta.isError === '0'
+        ? { status: TransactionStatus.confirmed }
+        : {
+            error: new Error('Transaction failed'),
+            status: TransactionStatus.failed,
+          }),
+    };
+  }
+
+  #normalizeTokenTransaction(
+    txMeta: EtherscanTokenTransactionMeta,
+    currentNetworkId: string,
+    currentChainId: Hex,
+  ): TransactionMeta {
+    const base = this.#normalizeTransactionBase(
+      txMeta,
+      currentNetworkId,
+      currentChainId,
+    );
+
+    return {
+      ...base,
+      isTransfer: true,
+      transferInformation: {
+        contractAddress: txMeta.contractAddress,
+        decimals: Number(txMeta.tokenDecimal),
+        symbol: txMeta.tokenSymbol,
+      },
+    };
+  }
+
+  #normalizeTransactionBase(
+    txMeta: EtherscanTransactionMetaBase,
     currentNetworkId: string,
     currentChainId: Hex,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
 
-    const normalizedTransactionBase = {
+    return {
       blockNumber: txMeta.blockNumber,
+      chainId: currentChainId,
       id: random({ msecs: time }),
       networkID: currentNetworkId,
-      chainId: currentChainId,
+      status: TransactionStatus.confirmed,
       time,
       transaction: {
-        data: txMeta.input,
         from: txMeta.from,
         gas: BNToHex(new BN(txMeta.gas)),
         gasPrice: BNToHex(new BN(txMeta.gasPrice)),
@@ -65,65 +122,6 @@ export class EtherscanRemoteTransactionSource
         value: BNToHex(new BN(txMeta.value)),
       },
       transactionHash: txMeta.hash,
-      verifiedOnBlockchain: false,
-    };
-
-    if (txMeta.isError === '0') {
-      return {
-        ...normalizedTransactionBase,
-        status: TransactionStatus.confirmed,
-      };
-    }
-
-    return {
-      ...normalizedTransactionBase,
-      error: new Error('Transaction failed'),
-      status: TransactionStatus.failed,
-    };
-  }
-
-  #normalizeTokenTx(
-    txMeta: EtherscanTransactionMeta,
-    currentNetworkId: string,
-    currentChainId: Hex,
-  ): TransactionMeta {
-    const time = parseInt(txMeta.timeStamp, 10) * 1000;
-
-    const {
-      to,
-      from,
-      gas,
-      gasPrice,
-      gasUsed,
-      hash,
-      contractAddress,
-      tokenDecimal,
-      tokenSymbol,
-      value,
-    } = txMeta;
-
-    return {
-      id: random({ msecs: time }),
-      isTransfer: true,
-      networkID: currentNetworkId,
-      chainId: currentChainId,
-      status: TransactionStatus.confirmed,
-      time,
-      transaction: {
-        chainId: currentChainId,
-        from,
-        gas,
-        gasPrice,
-        gasUsed,
-        to,
-        value,
-      },
-      transactionHash: hash,
-      transferInformation: {
-        contractAddress,
-        decimals: Number(tokenDecimal),
-        symbol: tokenSymbol,
-      },
       verifiedOnBlockchain: false,
     };
   }

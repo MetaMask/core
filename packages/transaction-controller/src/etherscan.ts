@@ -1,49 +1,43 @@
 import { NetworkType, handleFetch } from '@metamask/controller-utils';
 
-/**
- * @property blockNumber - Number of the block where the transaction has been included
- * @property timeStamp - Timestamp associated with this transaction
- * @property hash - Hash of a successful transaction
- * @property nonce - Nonce of the transaction
- * @property blockHash - Hash of the block where the transaction has been included
- * @property transactionIndex - Etherscan internal index for this transaction
- * @property from - Address to send this transaction from
- * @property to - Address to send this transaction to
- * @property gas - Gas to send with this transaction
- * @property gasPrice - Price of gas with this transaction
- * @property isError - Synthesized error information for failed transactions
- * @property txreceipt_status - Receipt status for this transaction
- * @property input - input of the transaction
- * @property contractAddress - Address of the contract
- * @property cumulativeGasUsed - Amount of gas used
- * @property confirmations - Number of confirmations
- */
-export interface EtherscanTransactionMeta {
+export interface EtherscanTransactionMetaBase {
   blockNumber: string;
-  timeStamp: string;
-  hash: string;
-  nonce: string;
   blockHash: string;
-  transactionIndex: string;
+  confirmations: string;
+  contractAddress: string;
+  cumulativeGasUsed: string;
   from: string;
-  to: string;
-  value: string;
   gas: string;
   gasPrice: string;
-  cumulativeGasUsed: string;
   gasUsed: string;
-  isError: string;
-  txreceipt_status: string;
+  hash: string;
+  nonce: string;
+  timeStamp: string;
+  to: string;
+  transactionIndex: string;
+  value: string;
+}
+
+export interface EtherscanTransactionMeta extends EtherscanTransactionMetaBase {
+  functionName: string;
   input: string;
-  contractAddress: string;
-  confirmations: string;
+  isError: string;
+  methodId: string;
+  txreceipt_status: string;
+}
+
+export interface EtherscanTokenTransactionMeta
+  extends EtherscanTransactionMetaBase {
   tokenDecimal: string;
+  tokenName: string;
   tokenSymbol: string;
 }
 
-export interface EtherscanTransactionResponse {
-  status: string;
-  result: EtherscanTransactionMeta[];
+export interface EtherscanTransactionResponse<
+  T extends EtherscanTransactionMetaBase,
+> {
+  status: '0' | '1';
+  result: T[];
 }
 
 export interface EtherscanTransactionRequest {
@@ -71,7 +65,9 @@ export async function fetchEtherscanTransactions({
   limit,
   apiKey,
   fromBlock,
-}: EtherscanTransactionRequest): Promise<EtherscanTransactionResponse> {
+}: EtherscanTransactionRequest): Promise<
+  EtherscanTransactionResponse<EtherscanTransactionMeta>
+> {
   return await fetchTransactions('txlist', {
     address,
     networkType,
@@ -98,7 +94,9 @@ export async function fetchEtherscanTokenTransactions({
   limit,
   apiKey,
   fromBlock,
-}: EtherscanTransactionRequest): Promise<EtherscanTransactionResponse> {
+}: EtherscanTransactionRequest): Promise<
+  EtherscanTransactionResponse<EtherscanTokenTransactionMeta>
+> {
   return await fetchTransactions('tokentx', {
     address,
     networkType,
@@ -120,7 +118,7 @@ export async function fetchEtherscanTokenTransactions({
  * @param options.fromBlock - Block number to start fetching transactions from.
  * @returns An object containing the request status and an array of transaction data.
  */
-async function fetchTransactions(
+async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
   action: string,
   {
     address,
@@ -135,7 +133,7 @@ async function fetchTransactions(
     fromBlock?: string;
     apiKey?: string;
   },
-): Promise<EtherscanTransactionResponse> {
+): Promise<EtherscanTransactionResponse<T>> {
   const urlParams = {
     module: 'account',
     address,
@@ -152,7 +150,7 @@ async function fetchTransactions(
 
   const response = (await handleFetch(
     etherscanTxUrl,
-  )) as EtherscanTransactionResponse;
+  )) as EtherscanTransactionResponse<T>;
 
   if (response.status === '0' || response.result.length <= 0) {
     return { status: response.status, result: [] };
