@@ -24,6 +24,7 @@ import {
   ORIGIN_METAMASK,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
 import type {
   BlockTracker,
   NetworkState,
@@ -31,7 +32,6 @@ import type {
 } from '@metamask/network-controller';
 import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
-import EthQuery from 'eth-query';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';

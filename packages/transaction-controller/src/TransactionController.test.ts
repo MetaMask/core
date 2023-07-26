@@ -12,7 +12,7 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
-import { NetworkStatus } from '@metamask/network-controller';
+import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
 import { errorCodes } from 'eth-rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
@@ -27,6 +27,7 @@ import type { TransactionMeta } from './types';
 import { TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { mockNetwork } from '../../../tests/mock-network';
 import type {
   AcceptResultCallbacks,
   AddResult,
@@ -49,7 +50,7 @@ const mockFlags: { [key: string]: any } = {
   getBlockByNumberValue: null,
 };
 
-jest.mock('eth-query', () =>
+jest.mock('@metamask/eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
       estimateGas: (_transaction: any, callback: any) => {
@@ -220,14 +221,15 @@ function waitForTransactionFinished(
 }
 
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
+const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
 const GOERLI_PROVIDER = new HttpProvider(
-  'https://goerli.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
 const MAINNET_PROVIDER = new HttpProvider(
-  'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
 const PALM_PROVIDER = new HttpProvider(
-  'https://palm-mainnet.infura.io/v3/3a961d6501e54add9a41aa53f15de99b',
+  `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
 
 type MockNetwork = {
@@ -241,6 +243,7 @@ const MOCK_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
+    selectedNetworkClientId: NetworkType.goerli,
     networkId: '5',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -257,6 +260,7 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
   provider: GOERLI_PROVIDER,
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
+    selectedNetworkClientId: NetworkType.goerli,
     networkId: '5',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -271,6 +275,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
+    selectedNetworkClientId: NetworkType.mainnet,
     networkId: '1',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -288,6 +293,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
+    selectedNetworkClientId: NetworkType['linea-mainnet'],
     networkId: '59144',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -305,6 +311,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
+    selectedNetworkClientId: NetworkType['linea-mainnet'],
     networkId: '59140',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -322,6 +329,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
+    selectedNetworkClientId: 'uuid-1',
     networkId: '11297108109',
     networkStatus: NetworkStatus.Available,
     networkDetails: { EIPS: { 1559: false } },
@@ -1200,6 +1208,31 @@ describe('TransactionController', () => {
   describe('handleMethodData', () => {
     it('loads method data from registry', async () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
+      mockNetwork({
+        networkClientConfiguration: {
+          type: NetworkClientType.Infura,
+          network: 'mainnet',
+          infuraProjectId: INFURA_PROJECT_ID,
+        },
+        mocks: [
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
+                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+            },
+          },
+        ],
+      });
       const registry = await controller.handleMethodData('0xf39b5b9b');
 
       expect(registry.parsedRegistryMethod).toStrictEqual({
@@ -1213,6 +1246,31 @@ describe('TransactionController', () => {
 
     it('skips reading registry if already cached in state', async () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
+      mockNetwork({
+        networkClientConfiguration: {
+          type: NetworkClientType.Infura,
+          network: 'mainnet',
+          infuraProjectId: INFURA_PROJECT_ID,
+        },
+        mocks: [
+          {
+            request: {
+              method: 'eth_call',
+              params: [
+                {
+                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
+                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
+                },
+                'latest',
+              ],
+            },
+            response: {
+              result:
+                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
+            },
+          },
+        ],
+      });
 
       await controller.handleMethodData('0xf39b5b9b');
 
@@ -1343,12 +1401,16 @@ describe('TransactionController', () => {
       ['linea-goerli', MOCK_LINEA_GOERLI_NETWORK, 59140],
     ])(
       'should get a custom network configuration for %s',
-      async (_, mockNetwork: MockNetwork, chainId: number) => {
+      async (
+        _,
+        { state, subscribe, provider, blockTracker }: MockNetwork,
+        chainId: number,
+      ) => {
         const controller = new TransactionController({
-          getNetworkState: () => mockNetwork.state,
-          onNetworkStateChange: mockNetwork.subscribe,
-          provider: mockNetwork.provider,
-          blockTracker: mockNetwork.blockTracker,
+          getNetworkState: () => state,
+          onNetworkStateChange: subscribe,
+          provider,
+          blockTracker,
           messenger: messengerMock,
         });
 

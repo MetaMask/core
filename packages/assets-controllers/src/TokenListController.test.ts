@@ -516,6 +516,7 @@ function buildNetworkControllerStateWithProviderConfig(
   providerConfig: ProviderConfig,
 ): NetworkState {
   return {
+    selectedNetworkClientId: providerConfig.type || 'uuid-1',
     providerConfig,
     networkId: '1',
     networkStatus: NetworkStatus.Available,
@@ -528,7 +529,6 @@ function buildNetworkControllerStateWithProviderConfig(
 
 describe('TokenListController', () => {
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 

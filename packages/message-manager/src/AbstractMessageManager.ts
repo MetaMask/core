@@ -11,6 +11,7 @@ import { EventEmitter } from 'events';
  */
 export interface OriginalRequest {
   origin?: string;
+  securityAlertResponse?: Record<string, Json>;
 }
 
 /**
@@ -31,6 +32,7 @@ export interface AbstractMessage {
   type: string;
   rawSig?: string;
   securityProviderResponse?: Record<string, Json>;
+  securityAlertResponse?: Record<string, Json>;
   metadata?: Json;
   error?: string;
 }

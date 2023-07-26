@@ -9,6 +9,7 @@ import {
   NetworkType,
   isSafeChainId,
 } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
@@ -19,7 +20,6 @@ import {
   isStrictHexString,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
-import EthQuery from 'eth-query';
 import { errorCodes } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 import { v4 as random } from 'uuid';
@@ -318,6 +318,20 @@ function validateCustomProviderConfig(
     throw new Error('rpcUrl must be provided for custom RPC endpoints');
   }
 }
+/**
+ * The string that uniquely identifies an Infura network client.
+ */
+type BuiltInNetworkClientId = InfuraNetworkType;
+
+/**
+ * The string that uniquely identifies a custom network client.
+ */
+type CustomNetworkClientId = string;
+
+/**
+ * The string that uniquely identifies a network client.
+ */
+type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 
 /**
  * The network ID of a network.
@@ -334,6 +348,7 @@ export type NetworkId = `${number}`;
  * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
  */
 export type NetworkState = {
+  selectedNetworkClientId: NetworkClientId;
   networkId: NetworkId | null;
   networkStatus: NetworkStatus;
   providerConfig: ProviderConfig;
@@ -450,6 +465,7 @@ export type NetworkControllerOptions = {
 };
 
 export const defaultState: NetworkState = {
+  selectedNetworkClientId: NetworkType.mainnet,
   networkId: null,
   networkStatus: NetworkStatus.Unknown,
   providerConfig: {
@@ -477,16 +493,6 @@ type MetaMetricsEventPayload = {
 };
 
 type NetworkConfigurationId = string;
-
-/**
- * The string that uniquely identifies an Infura network client.
- */
-type BuiltInNetworkClientId = InfuraNetworkType;
-
-/**
- * The string that uniquely identifies a custom network client.
- */
-type CustomNetworkClientId = string;
 
 /**
  * The collection of auto-managed network clients that map to Infura networks.
@@ -546,6 +552,10 @@ export class NetworkController extends BaseControllerV2<
     super({
       name,
       metadata: {
+        selectedNetworkClientId: {
+          persist: true,
+          anonymous: false,
+        },
         networkId: {
           persist: true,
           anonymous: false,
@@ -827,6 +837,7 @@ export class NetworkController extends BaseControllerV2<
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.update((state) => {
+      state.selectedNetworkClientId = type;
       state.providerConfig.type = type;
       state.providerConfig.ticker = ticker;
       state.providerConfig.chainId = ChainId[type];
@@ -858,6 +869,7 @@ export class NetworkController extends BaseControllerV2<
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.update((state) => {
+      state.selectedNetworkClientId = networkConfigurationId;
       state.providerConfig.type = NetworkType.rpc;
       state.providerConfig.rpcUrl = targetNetwork.rpcUrl;
       state.providerConfig.chainId = targetNetwork.chainId;
@@ -902,7 +914,7 @@ export class NetworkController extends BaseControllerV2<
    * appropriately.
    *
    * @returns A promise that resolves to true if the network supports EIP-1559
-   * and false otherwise.
+   * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
   async getEIP1559Compatibility() {
     const { EIPS } = this.state.networkDetails;
@@ -917,22 +929,29 @@ export class NetworkController extends BaseControllerV2<
 
     const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
     this.update((state) => {
-      state.networkDetails.EIPS[1559] = isEIP1559Compatible;
+      if (isEIP1559Compatible !== undefined) {
+        state.networkDetails.EIPS[1559] = isEIP1559Compatible;
+      }
     });
     return isEIP1559Compatible;
   }
 
   /**
-   * Retrieves the latest block from the currently selected network; if the
-   * block has a `baseFeePerGas` property, then we know that the network
-   * supports EIP-1559; otherwise it doesn't.
+   * Retrieves and checks the latest block from the currently selected
+   * network; if the block has a `baseFeePerGas` property, then we know
+   * that the network supports EIP-1559; otherwise it doesn't.
    *
-   * @returns A promise that resolves to true if the network supports EIP-1559
-   * and false otherwise.
+   * @returns A promise that resolves to `true` if the network supports EIP-1559,
+   * `false` otherwise, or `undefined` if unable to retrieve the last block.
    */
-  async #determineEIP1559Compatibility(): Promise<boolean> {
+  async #determineEIP1559Compatibility(): Promise<boolean | undefined> {
     const latestBlock = await this.#getLatestBlock();
-    return latestBlock?.baseFeePerGas !== undefined;
+
+    if (!latestBlock) {
+      return undefined;
+    }
+
+    return latestBlock.baseFeePerGas !== undefined;
   }
 
   /**

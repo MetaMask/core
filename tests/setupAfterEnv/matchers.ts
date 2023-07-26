@@ -107,7 +107,3 @@ expect.extend({
         };
   },
 });
-
-// Export something so that TypeScript thinks that we are performing type
-// augmentation
-export {};

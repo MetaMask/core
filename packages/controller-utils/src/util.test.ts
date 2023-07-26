@@ -9,10 +9,6 @@ const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
 describe('util', () => {
-  beforeEach(() => {
-    nock.cleanAll();
-  });
-
   it('isSafeChainId', () => {
     expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID + 1))).toBe(false);
     expect(util.isSafeChainId(util.toHex(MAX_SAFE_CHAIN_ID))).toBe(true);

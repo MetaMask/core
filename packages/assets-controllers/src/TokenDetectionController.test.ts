@@ -213,7 +213,6 @@ describe('TokenDetectionController', () => {
   });
 
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
     tokenDetection.stop();
     tokenList.destroy();

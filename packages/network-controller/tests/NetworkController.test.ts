@@ -11,7 +11,6 @@ import assert from 'assert';
 import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
-import nock from 'nock';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 } from 'uuid';
 
@@ -151,14 +150,10 @@ const GENERIC_JSON_RPC_ERROR = ethErrors.rpc.internal(
 
 describe('NetworkController', () => {
   beforeEach(() => {
-    // Disable all requests, even those to localhost
-    nock.disableNetConnect();
     jest.resetAllMocks();
   });
 
   afterEach(() => {
-    nock.enableNetConnect('localhost');
-    nock.cleanAll();
     resetAllWhenMocks();
   });
 
@@ -196,6 +191,7 @@ describe('NetworkController', () => {
               "ticker": "ETH",
               "type": "mainnet",
             },
+            "selectedNetworkClientId": "mainnet",
           }
         `);
       });
@@ -237,6 +233,7 @@ describe('NetworkController', () => {
                 "ticker": "TEST",
                 "type": "rpc",
               },
+              "selectedNetworkClientId": "mainnet",
             }
           `);
         },
@@ -3590,6 +3587,20 @@ describe('NetworkController', () => {
           },
         );
       });
+
+      it(`updates state.selectedNetworkId, setting it to ${networkType}`, async () => {
+        await withController({}, async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+          await controller.setProviderType(networkType);
+
+          expect(controller.state.selectedNetworkClientId).toStrictEqual(
+            networkType,
+          );
+        });
+      });
     }
 
     describe('given a network type of "rpc"', () => {
@@ -3896,6 +3907,45 @@ describe('NetworkController', () => {
         },
       );
     });
+
+    it('updates state.selectedNetworkClientId setting it to the networkConfiguration.id', async () => {
+      const testNetworkClientId = 'testNetworkConfigurationId';
+      await withController(
+        {
+          state: {
+            networkConfigurations: {
+              [testNetworkClientId]: {
+                rpcUrl: 'https://mock-rpc-url',
+                chainId: toHex(111),
+                ticker: 'TEST',
+                nickname: 'something existing',
+                id: testNetworkClientId,
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://test-block-explorer-2.com',
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          const fakeProvider = buildFakeProvider();
+          const fakeNetworkClient = buildFakeClient(fakeProvider);
+          mockCreateNetworkClient()
+            .calledWith({
+              rpcUrl: 'https://mock-rpc-url',
+              chainId: toHex(111),
+              type: NetworkClientType.Custom,
+            })
+            .mockReturnValue(fakeNetworkClient);
+
+          await controller.setActiveNetwork(testNetworkClientId);
+
+          expect(controller.state.selectedNetworkClientId).toStrictEqual(
+            testNetworkClientId,
+          );
+        },
+      );
+    });
   });
 
   describe('getEIP1559Compatibility', () => {
@@ -4079,50 +4129,41 @@ describe('NetworkController', () => {
         });
 
         describe('if the request for the latest block responds with null', () => {
-          it('sets the "1559" property to false', async () => {
+          const latestBlockRespondsNull = {
+            request: {
+              method: 'eth_getBlockByNumber',
+              params: ['latest', false],
+            },
+            response: {
+              result: null,
+            },
+          };
+          it('keeps the "1559" property as undefined', async () => {
             await withController(async ({ controller }) => {
               setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      result: null,
-                    },
-                  },
-                ],
+                stubs: [latestBlockRespondsNull],
                 stubLookupNetworkWhileSetting: true,
               });
 
               await controller.getEIP1559Compatibility();
 
-              expect(controller.state.networkDetails.EIPS[1559]).toBe(false);
+              expect(
+                controller.state.networkDetails.EIPS[1559],
+              ).toBeUndefined();
             });
           });
 
-          it('returns false', async () => {
+          it('returns undefined', async () => {
             await withController(async ({ controller }) => {
               setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                      params: ['latest', false],
-                    },
-                    response: {
-                      result: null,
-                    },
-                  },
-                ],
+                stubs: [latestBlockRespondsNull],
                 stubLookupNetworkWhileSetting: true,
               });
 
               const isEIP1559Compatible =
                 await controller.getEIP1559Compatibility();
 
-              expect(isEIP1559Compatible).toBe(false);
+              expect(isEIP1559Compatible).toBeUndefined();
             });
           });
         });

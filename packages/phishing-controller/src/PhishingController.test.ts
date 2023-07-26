@@ -14,16 +14,7 @@ const defaultHotlistRefreshInterval = 30 * 60;
 const defaultStalelistRefreshInterval = 4 * 24 * 60 * 60;
 
 describe('PhishingController', () => {
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
-
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 
