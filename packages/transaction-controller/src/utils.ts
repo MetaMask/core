@@ -1,16 +1,10 @@
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import {
-  MAINNET,
   convertHexToDecimal,
-  handleFetch,
   isValidHexAddress,
 } from '@metamask/controller-utils';
-import {
-  Transaction,
-  FetchAllOptions,
-  GasPriceValue,
-  FeeMarketEIP1559Values,
-} from './TransactionController';
+import { GasPriceValue, FeeMarketEIP1559Values } from './TransactionController';
+import { Transaction } from './types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -28,33 +22,6 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
   estimatedBaseFee: (maxPriorityFeePerGas: string) =>
     addHexPrefix(maxPriorityFeePerGas),
 };
-
-/**
- * Return a URL that can be used to fetch ETH transactions.
- *
- * @param networkType - Network type of desired network.
- * @param urlParams - The parameters used to construct the URL.
- * @returns URL to fetch the access the endpoint.
- */
-export function getEtherscanApiUrl(
-  networkType: string,
-  urlParams: any,
-): string {
-  let etherscanSubdomain = 'api';
-  if (networkType !== MAINNET) {
-    etherscanSubdomain = `api-${networkType}`;
-  }
-  const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
-  let url = `${apiUrl}/api?`;
-
-  for (const paramKey in urlParams) {
-    if (urlParams[paramKey]) {
-      url += `${paramKey}=${urlParams[paramKey]}&`;
-    }
-  }
-  url += 'tag=latest&page=1';
-  return url;
-}
 
 /**
  * Normalizes properties on a Transaction object.
@@ -147,68 +114,6 @@ export const isEIP1559Transaction = (transaction: Transaction): boolean => {
     hasOwnProp(transaction, 'maxPriorityFeePerGas')
   );
 };
-
-/**
- * Handles the fetch of incoming transactions.
- *
- * @param networkType - Network type of desired network.
- * @param address - Address to get the transactions from.
- * @param txHistoryLimit - The maximum number of transactions to fetch.
- * @param opt - Object that can contain fromBlock and Etherscan service API key.
- * @returns Responses for both ETH and ERC20 token transactions.
- */
-export async function handleTransactionFetch(
-  networkType: string,
-  address: string,
-  txHistoryLimit: number,
-  opt?: FetchAllOptions,
-): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
-  // transactions
-  const urlParams = {
-    module: 'account',
-    address,
-    startBlock: opt?.fromBlock,
-    apikey: opt?.etherscanApiKey,
-    offset: txHistoryLimit.toString(),
-    order: 'desc',
-  };
-  const etherscanTxUrl = getEtherscanApiUrl(networkType, {
-    ...urlParams,
-    action: 'txlist',
-  });
-  const etherscanTxResponsePromise = handleFetch(etherscanTxUrl);
-
-  // tokens
-  const etherscanTokenUrl = getEtherscanApiUrl(networkType, {
-    ...urlParams,
-    action: 'tokentx',
-  });
-  const etherscanTokenResponsePromise = handleFetch(etherscanTokenUrl);
-
-  let [etherscanTxResponse, etherscanTokenResponse] = await Promise.all([
-    etherscanTxResponsePromise,
-    etherscanTokenResponsePromise,
-  ]);
-
-  if (
-    etherscanTxResponse.status === '0' ||
-    etherscanTxResponse.result.length <= 0
-  ) {
-    etherscanTxResponse = { status: etherscanTxResponse.status, result: [] };
-  }
-
-  if (
-    etherscanTokenResponse.status === '0' ||
-    etherscanTokenResponse.result.length <= 0
-  ) {
-    etherscanTokenResponse = {
-      status: etherscanTokenResponse.status,
-      result: [],
-    };
-  }
-
-  return [etherscanTxResponse, etherscanTokenResponse];
-}
 
 export const validateGasValues = (
   gasValues: GasPriceValue | FeeMarketEIP1559Values,
