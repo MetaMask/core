@@ -8,10 +8,9 @@ import {
   ProviderConfig,
 } from '@metamask/network-controller';
 import {
-  ChainId,
+  BuiltInCaipChainId,
   NetworkType,
-  convertHexToDecimal,
-  toHex,
+  getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
 import {
   TokenListController,
@@ -290,7 +289,7 @@ const sampleSingleChainState = {
     },
   },
   tokensChainsCache: {
-    [toHex(1)]: {
+    'eip155:1': {
       timestamp,
       data: sampleMainnetTokensChainsCache,
     },
@@ -342,11 +341,11 @@ const sampleTwoChainState = {
     },
   },
   tokensChainsCache: {
-    [toHex(1)]: {
+    'eip155:1': {
       timestamp,
       data: sampleMainnetTokensChainsCache,
     },
-    [toHex(56)]: {
+    'eip155:56': {
       timestamp: timestamp + 150,
       data: sampleBinanceTokensChainsCache,
     },
@@ -379,7 +378,7 @@ const existingState = {
     },
   },
   tokensChainsCache: {
-    [toHex(1)]: {
+    'eip155:1': {
       timestamp,
       data: sampleMainnetTokensChainsCache,
     },
@@ -413,7 +412,7 @@ const outdatedExistingState = {
     },
   },
   tokensChainsCache: {
-    [toHex(1)]: {
+    'eip155:1': {
       timestamp,
       data: sampleMainnetTokensChainsCache,
     },
@@ -447,7 +446,7 @@ const expiredCacheExistingState: TokenListState = {
     },
   },
   tokensChainsCache: {
-    [toHex(1)]: {
+    'eip155:1': {
       timestamp: timestamp - 86400000,
       data: {
         '0x514910771af9ca656af840dff83e8264ecf986ca': {
@@ -534,7 +533,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
     });
@@ -555,7 +554,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: existingState,
@@ -586,7 +585,7 @@ describe('TokenListController', () => {
         },
       },
       tokensChainsCache: {
-        [toHex(1)]: {
+        'eip155:1': {
           timestamp,
           data: sampleMainnetTokensChainsCache,
         },
@@ -604,7 +603,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       messenger,
     });
 
@@ -621,7 +620,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -635,7 +634,11 @@ describe('TokenListController', () => {
 
   it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -643,7 +646,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger(controllerMessenger);
     let onNetworkStateChangeCallback!: (state: NetworkState) => void;
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       onNetworkStateChange: (cb) => (onNetworkStateChangeCallback = cb),
       preventPollingOnNetworkRestart: false,
       interval: 100,
@@ -656,7 +659,7 @@ describe('TokenListController', () => {
     );
     onNetworkStateChangeCallback(
       buildNetworkControllerStateWithProviderConfig({
-        chainId: ChainId.goerli,
+        caipChainId: BuiltInCaipChainId.goerli,
         type: NetworkType.goerli,
       }),
     );
@@ -675,7 +678,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -700,7 +703,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -728,7 +731,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger(controllerMessenger);
 
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -758,7 +761,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -780,7 +783,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.sepolia,
+      caipChainId: BuiltInCaipChainId.sepolia,
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
@@ -797,14 +800,18 @@ describe('TokenListController', () => {
 
   it('should update token list from api', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       interval: 750,
@@ -817,15 +824,18 @@ describe('TokenListController', () => {
       );
 
       expect(
-        controller.state.tokensChainsCache[ChainId.mainnet].data,
+        controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
       ).toStrictEqual(
-        sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
+        sampleSingleChainState.tokensChainsCache[BuiltInCaipChainId.mainnet]
+          .data,
       );
 
       expect(
-        controller.state.tokensChainsCache[ChainId.mainnet].timestamp,
+        controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet]
+          .timestamp,
       ).toBeGreaterThanOrEqual(
-        sampleSingleChainState.tokensChainsCache[ChainId.mainnet].timestamp,
+        sampleSingleChainState.tokensChainsCache[BuiltInCaipChainId.mainnet]
+          .timestamp,
       );
       controller.destroy();
     } finally {
@@ -835,19 +845,27 @@ describe('TokenListController', () => {
 
   it('should update the cache before threshold time if the current data is undefined', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .once()
       .reply(200, undefined);
 
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       interval: 100,
@@ -859,8 +877,8 @@ describe('TokenListController', () => {
       sampleSingleChainState.tokenList,
     );
 
-    expect(controller.state.tokensChainsCache[toHex(1)].data).toStrictEqual(
-      sampleSingleChainState.tokensChainsCache[toHex(1)].data,
+    expect(controller.state.tokensChainsCache['eip155:1'].data).toStrictEqual(
+      sampleSingleChainState.tokensChainsCache['eip155:1'].data,
     );
     controller.destroy();
   });
@@ -869,7 +887,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: existingState,
@@ -881,23 +899,27 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
+      controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     ).toStrictEqual(
-      sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
+      sampleSingleChainState.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     );
     controller.destroy();
   });
 
   it('should update token list after removing data with duplicate symbols', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .reply(200, sampleWithDuplicateSymbols)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
     });
@@ -926,21 +948,25 @@ describe('TokenListController', () => {
     });
 
     expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
+      controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     ).toStrictEqual(sampleWithDuplicateSymbolsTokensChainsCache);
     controller.destroy();
   });
 
   it('should update token list after removing data less than 3 occurrences', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .reply(200, sampleWithLessThan3OccurencesResponse)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
     });
@@ -950,21 +976,25 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
+      controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     ).toStrictEqual(sampleWith3OrMoreOccurrences);
     controller.destroy();
   });
 
   it('should update token list when the token property changes', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: outdatedExistingState,
@@ -976,23 +1006,27 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
+      controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     ).toStrictEqual(
-      sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
+      sampleSingleChainState.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     );
     controller.destroy();
   });
 
   it('should update the cache when the timestamp expires', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .reply(200, sampleMainnetTokenList)
       .persist();
 
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: expiredCacheExistingState,
@@ -1000,24 +1034,31 @@ describe('TokenListController', () => {
     expect(controller.state).toStrictEqual(expiredCacheExistingState);
     await controller.start();
     expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].timestamp,
+      controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].timestamp,
     ).toBeGreaterThan(
-      sampleSingleChainState.tokensChainsCache[ChainId.mainnet].timestamp,
+      sampleSingleChainState.tokensChainsCache[BuiltInCaipChainId.mainnet]
+        .timestamp,
     );
 
     expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
+      controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     ).toStrictEqual(
-      sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
+      sampleSingleChainState.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     );
     controller.destroy();
   });
 
-  it('should update token list when the chainId change', async () => {
+  it('should update token list when the caipChainId change', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(BuiltInCaipChainId.goerli)}`,
+      )
       .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56`)
       .reply(200, sampleBinanceTokenList)
@@ -1026,7 +1067,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: existingState,
@@ -1039,16 +1080,16 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
+      controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     ).toStrictEqual(
-      sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
+      sampleTwoChainState.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     );
 
     controllerMessenger.publish(
       'NetworkController:stateChange',
       buildNetworkControllerStateWithProviderConfig({
         type: NetworkType.goerli,
-        chainId: ChainId.goerli,
+        caipChainId: BuiltInCaipChainId.goerli,
       }),
       [],
     );
@@ -1057,16 +1098,16 @@ describe('TokenListController', () => {
 
     expect(controller.state.tokenList).toStrictEqual({});
     expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
+      controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     ).toStrictEqual(
-      sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
+      sampleTwoChainState.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     );
 
     controllerMessenger.publish(
       'NetworkController:stateChange',
       buildNetworkControllerStateWithProviderConfig({
         type: NetworkType.rpc,
-        chainId: toHex(56),
+        caipChainId: 'eip155:56',
         rpcUrl: 'http://localhost:8545',
       }),
       [],
@@ -1078,13 +1119,13 @@ describe('TokenListController', () => {
     );
 
     expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
+      controller.state.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     ).toStrictEqual(
-      sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
+      sampleTwoChainState.tokensChainsCache[BuiltInCaipChainId.mainnet].data,
     );
 
-    expect(controller.state.tokensChainsCache[toHex(56)].data).toStrictEqual(
-      sampleTwoChainState.tokensChainsCache[toHex(56)].data,
+    expect(controller.state.tokensChainsCache['eip155:56'].data).toStrictEqual(
+      sampleTwoChainState.tokensChainsCache['eip155:56'].data,
     );
 
     controller.destroy();
@@ -1094,7 +1135,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       messenger,
       state: existingState,
@@ -1110,9 +1151,15 @@ describe('TokenListController', () => {
 
   it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(
+          BuiltInCaipChainId.mainnet,
+        )}`,
+      )
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
+      .get(
+        `/tokens/${getEthChainIdDecFromCaipChainId(BuiltInCaipChainId.goerli)}`,
+      )
       .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56`)
       .reply(200, sampleBinanceTokenList)
@@ -1121,7 +1168,7 @@ describe('TokenListController', () => {
     const controllerMessenger = getControllerMessenger();
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.goerli,
+      caipChainId: BuiltInCaipChainId.goerli,
       preventPollingOnNetworkRestart: true,
       messenger,
       interval: 100,
@@ -1131,7 +1178,7 @@ describe('TokenListController', () => {
       'NetworkController:stateChange',
       buildNetworkControllerStateWithProviderConfig({
         type: NetworkType.mainnet,
-        chainId: ChainId.mainnet,
+        caipChainId: BuiltInCaipChainId.mainnet,
       }),
       [],
     );
@@ -1162,8 +1209,10 @@ describe('TokenListController', () => {
         );
 
         expect(
-          controller.state.tokensChainsCache[toHex(56)].data,
-        ).toStrictEqual(sampleTwoChainState.tokensChainsCache[toHex(56)].data);
+          controller.state.tokensChainsCache['eip155:56'].data,
+        ).toStrictEqual(
+          sampleTwoChainState.tokensChainsCache['eip155:56'].data,
+        );
         messenger.clearEventSubscriptions('TokenListController:stateChange');
         controller.destroy();
         controllerMessenger.clearEventSubscriptions(
@@ -1176,7 +1225,7 @@ describe('TokenListController', () => {
         'NetworkController:stateChange',
         buildNetworkControllerStateWithProviderConfig({
           type: NetworkType.rpc,
-          chainId: toHex(56),
+          caipChainId: 'eip155:56',
           rpcUrl: 'http://localhost:8545',
         }),
         [],

@@ -1,3 +1,4 @@
+// I'm not certain this file should be converted to use caip chain id. It is Eth specific.
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,

@@ -212,7 +212,7 @@ describe('createAutoManagedNetworkClient', () => {
     {
       type: NetworkClientType.Custom,
       rpcUrl: 'https://test.chain',
-      chainId: '0x1337',
+      caipChainId: 'eip155:1337',
     } as const,
     {
       type: NetworkClientType.Infura,

@@ -1,7 +1,7 @@
 import { TypedMessageManager } from './TypedMessageManager';
 
 let controller: TypedMessageManager;
-const getCurrentChainIdStub = jest.fn();
+const getCurrentCaipChainIdStub = jest.fn();
 
 const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 
@@ -57,7 +57,7 @@ describe('TypedMessageManager', () => {
       undefined,
       undefined,
       undefined,
-      getCurrentChainIdStub,
+      getCurrentCaipChainIdStub,
     );
   });
 
@@ -144,7 +144,7 @@ describe('TypedMessageManager', () => {
   });
 
   it('should add a valid V3 unapproved message as a JSON-parseable string', async () => {
-    getCurrentChainIdStub.mockImplementation(() => 1);
+    getCurrentCaipChainIdStub.mockImplementation(() => 'eip155:1');
     const messageStatus = 'unapproved';
     const messageType = 'eth_signTypedData';
     const version = 'V3';
@@ -172,7 +172,7 @@ describe('TypedMessageManager', () => {
   });
 
   it('should add a valid V3 unapproved message as an object', async () => {
-    getCurrentChainIdStub.mockImplementation(() => 1);
+    getCurrentCaipChainIdStub.mockImplementation(() => 'eip155:1');
     const messageStatus = 'unapproved';
     const messageType = 'eth_signTypedData';
     const version = 'V3';

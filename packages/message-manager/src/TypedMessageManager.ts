@@ -108,7 +108,7 @@ export class TypedMessageManager extends AbstractMessageManager<
     }
 
     if (version === 'V3' || version === 'V4') {
-      const currentChainId = this.getCurrentCaipChainId?.();
+      const currentChainId = this.getCurrentCaipChainId?.(); // rename this
       validateTypedSignMessageDataV3V4(messageParams, currentChainId);
     }
 

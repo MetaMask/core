@@ -1,6 +1,5 @@
 import HttpProvider from 'ethjs-provider-http';
 import {
-  ChainId,
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
@@ -49,7 +48,7 @@ const setupControllers = () => {
   });
   const preferences = new PreferencesController();
   const assetsContract = new AssetsContractController({
-    chainId: ChainId.mainnet,
+    caipChainId: SupportedTokenDetectionNetworks.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       messenger.subscribe('NetworkController:stateChange', listener),
@@ -62,7 +61,7 @@ describe('AssetsContractController', () => {
   it('should set default config', () => {
     const { assetsContract, messenger } = setupControllers();
     expect(assetsContract.config).toStrictEqual({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      caipChainId: SupportedTokenDetectionNetworks.mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       provider: undefined,
     });
@@ -72,7 +71,7 @@ describe('AssetsContractController', () => {
   it('should update the ipfsGateWay config value when this value is changed in the preferences controller', () => {
     const { assetsContract, messenger, preferences } = setupControllers();
     expect(assetsContract.config).toStrictEqual({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      caipChainId: SupportedTokenDetectionNetworks.mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       provider: undefined,
     });
@@ -80,7 +79,7 @@ describe('AssetsContractController', () => {
     preferences.setIpfsGateway('newIPFSGateWay');
     expect(assetsContract.config).toStrictEqual({
       ipfsGateway: 'newIPFSGateWay',
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      caipChainId: SupportedTokenDetectionNetworks.mainnet,
       provider: undefined,
     });
 

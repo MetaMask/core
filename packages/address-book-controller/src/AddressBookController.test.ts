@@ -1,4 +1,3 @@
-import { toHex } from '@metamask/controller-utils';
 import { AddressBookController, AddressType } from './AddressBookController';
 
 describe('AddressBookController', () => {
@@ -13,10 +12,10 @@ describe('AddressBookController', () => {
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: '',
             name: 'foo',
@@ -27,22 +26,22 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should add a contact entry with chainId and memo', () => {
+  it('should add a contact entry with caipChainId and memo', () => {
     const controller = new AddressBookController();
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      toHex(1),
+      'eip155:1',
       'account 1',
       AddressType.externallyOwnedAccounts,
     );
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: 'account 1',
             name: 'foo',
@@ -58,17 +57,17 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      toHex(1),
+      'eip155:1',
       'account 1',
       AddressType.contractAccounts,
     );
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: 'account 1',
             name: 'foo',
@@ -84,17 +83,17 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      toHex(1),
+      'eip155:1',
       'account 1',
       AddressType.nonAccounts,
     );
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: 'account 1',
             name: 'foo',
@@ -110,33 +109,33 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      toHex(1),
+      'eip155:1',
       'account 2',
     );
 
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      toHex(2),
+      'eip155:2',
       'account 2',
     );
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: 'account 2',
             name: 'foo',
             addressType: undefined,
           },
         },
-        [toHex(2)]: {
+        'eip155:2': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(2),
+            caipChainId: 'eip155:2',
             isEns: false,
             memo: 'account 2',
             name: 'foo',
@@ -155,10 +154,10 @@ describe('AddressBookController', () => {
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: '',
             name: 'bar',
@@ -179,7 +178,7 @@ describe('AddressBookController', () => {
   it('should remove one contact entry', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-    controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
+    controller.delete('eip155:1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
 
     expect(controller.state).toStrictEqual({ addressBook: {} });
   });
@@ -189,14 +188,14 @@ describe('AddressBookController', () => {
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
-    controller.delete(toHex(1), '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d');
+    controller.delete('eip155:1', '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d');
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: '',
             name: 'foo',
@@ -207,7 +206,7 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should add two contact entries with the same chainId', () => {
+  it('should add two contact entries with the same caipChainId', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
@@ -215,10 +214,10 @@ describe('AddressBookController', () => {
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: '',
             name: 'foo',
@@ -226,7 +225,7 @@ describe('AddressBookController', () => {
           },
           '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D': {
             address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: '',
             name: 'bar',
@@ -246,10 +245,10 @@ describe('AddressBookController', () => {
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: true,
             memo: '',
             name: 'metamask.eth',
@@ -289,14 +288,17 @@ describe('AddressBookController', () => {
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     expect(
-      controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'),
+      controller.delete(
+        'eip155:1',
+        '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      ),
     ).toStrictEqual(true);
   });
 
   it('should return false to indicate an address book entry has NOT been deleted', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', '0x00');
-    expect(controller.delete(toHex(1), '0x01')).toStrictEqual(false);
+    expect(controller.delete('eip155:1', '0x01')).toStrictEqual(false);
   });
 
   it('should normalize addresses so adding and removing entries work across casings', () => {
@@ -305,13 +307,13 @@ describe('AddressBookController', () => {
 
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
 
-    controller.delete(toHex(1), '0xC38BF1AD06EF69F0C04E29DBEB4152B4175F0A8D');
+    controller.delete('eip155:1', '0xC38BF1AD06EF69F0C04E29DBEB4152B4175F0A8D');
     expect(controller.state).toStrictEqual({
       addressBook: {
-        [toHex(1)]: {
+        'eip155:1': {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: toHex(1),
+            caipChainId: 'eip155:1',
             isEns: false,
             memo: '',
             name: 'foo',

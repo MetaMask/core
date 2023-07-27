@@ -1,6 +1,6 @@
 import nock from 'nock';
 import * as sinon from 'sinon';
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkController,
@@ -10,7 +10,7 @@ import {
   NetworkState,
 } from '@metamask/network-controller';
 import EthQuery from 'eth-query';
-import { NetworkType, toHex } from '@metamask/controller-utils';
+import { NetworkType } from '@metamask/controller-utils';
 import {
   GAS_ESTIMATE_TYPES,
   GasFeeController,
@@ -206,7 +206,7 @@ describe('GasFeeController', () => {
    * tests along with mocks for fetch* functions passed to GasFeeController.
    *
    * @param options - The options.
-   * @param options.getChainId - Sets getChainId on the GasFeeController.
+   * @param options.getCaipChainId - Sets getCaipChainId on the GasFeeController.
    * @param options.getIsEIP1559Compatible - Sets getCurrentNetworkEIP1559Compatibility on the
    * GasFeeController.
    * @param options.getCurrentNetworkLegacyGasAPICompatibility - Sets
@@ -226,11 +226,11 @@ describe('GasFeeController', () => {
     legacyAPIEndpoint = 'http://legacy.endpoint/<chain_id>',
     EIP1559APIEndpoint = 'http://eip-1559.endpoint/<chain_id>',
     clientId,
-    getChainId,
+    getCaipChainId,
     networkControllerState = {},
     interval,
   }: {
-    getChainId?: jest.Mock<Hex>;
+    getCaipChainId?: jest.Mock<CaipChainId>;
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
     legacyAPIEndpoint?: string;
@@ -248,7 +248,7 @@ describe('GasFeeController', () => {
     const messenger = getRestrictedMessenger(controllerMessenger);
     gasFeeController = new GasFeeController({
       getProvider: jest.fn(),
-      getChainId,
+      getCaipChainId,
       messenger,
       getCurrentNetworkLegacyGasAPICompatibility,
       getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkDetails.state.networkDetails.isEIP1559Compatible ???
@@ -315,7 +315,7 @@ describe('GasFeeController', () => {
             networkControllerState: {
               providerConfig: {
                 type: NetworkType.rpc,
-                chainId: toHex(1337),
+                caipChainId: 'eip155:1337',
                 rpcUrl: 'http://some/url',
               },
             },
@@ -370,7 +370,7 @@ describe('GasFeeController', () => {
             networkControllerState: {
               providerConfig: {
                 type: NetworkType.rpc,
-                chainId: toHex(1337),
+                caipChainId: 'eip155:1337',
                 rpcUrl: 'http://some/url',
               },
             },
@@ -680,7 +680,7 @@ describe('GasFeeController', () => {
           networkControllerState: {
             providerConfig: {
               type: NetworkType.rpc,
-              chainId: toHex(1337),
+              caipChainId: 'eip155:1337',
               rpcUrl: 'http://some/url',
             },
           },
@@ -722,43 +722,11 @@ describe('GasFeeController', () => {
         expect(estimateData).toMatchObject(mockDetermineGasFeeCalculations);
       });
 
-      it('should call determineGasFeeCalculations correctly when getChainId returns a number input', async () => {
+      it('should call determineGasFeeCalculations correctly when getCaipChainId returns a caip chain id input', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
           legacyAPIEndpoint: 'http://legacy.endpoint/<chain_id>',
-          getChainId: jest.fn().mockReturnValue(1),
-        });
-
-        await gasFeeController._fetchGasFeeEstimateData();
-
-        expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
-          expect.objectContaining({
-            fetchLegacyGasPriceEstimatesUrl: 'http://legacy.endpoint/1',
-          }),
-        );
-      });
-
-      it('should call determineGasFeeCalculations correctly when getChainId returns a hexstring input', async () => {
-        await setupGasFeeController({
-          ...defaultConstructorOptions,
-          legacyAPIEndpoint: 'http://legacy.endpoint/<chain_id>',
-          getChainId: jest.fn().mockReturnValue('0x1'),
-        });
-
-        await gasFeeController._fetchGasFeeEstimateData();
-
-        expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
-          expect.objectContaining({
-            fetchLegacyGasPriceEstimatesUrl: 'http://legacy.endpoint/1',
-          }),
-        );
-      });
-
-      it('should call determineGasFeeCalculations correctly when getChainId returns a numeric string input', async () => {
-        await setupGasFeeController({
-          ...defaultConstructorOptions,
-          legacyAPIEndpoint: 'http://legacy.endpoint/<chain_id>',
-          getChainId: jest.fn().mockReturnValue('1'),
+          getCaipChainId: jest.fn().mockReturnValue('eip155:1'),
         });
 
         await gasFeeController._fetchGasFeeEstimateData();
@@ -791,7 +759,7 @@ describe('GasFeeController', () => {
           networkControllerState: {
             providerConfig: {
               type: NetworkType.rpc,
-              chainId: toHex(1337),
+              caipChainId: 'eip155:1337',
               rpcUrl: 'http://some/url',
             },
           },
@@ -837,7 +805,7 @@ describe('GasFeeController', () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
           EIP1559APIEndpoint: 'http://eip-1559.endpoint/<chain_id>',
-          getChainId: jest.fn().mockReturnValue('0x1'),
+          getCaipChainId: jest.fn().mockReturnValue('eip155:1'),
         });
 
         await gasFeeController._fetchGasFeeEstimateData();

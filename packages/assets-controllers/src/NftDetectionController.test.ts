@@ -1,7 +1,10 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
+import {
+  OPENSEA_PROXY_URL,
+  BuiltInCaipChainId,
+} from '@metamask/controller-utils';
 import { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { NftController, NftControllerMessenger } from './NftController';
@@ -41,13 +44,13 @@ describe('NftDetectionController', () => {
   beforeEach(async () => {
     preferences = new PreferencesController();
     assetsContract = new AssetsContractController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: networkStateChangeNoop,
     });
 
     nftController = new NftController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: networkStateChangeNoop,
       getERC721AssetName:
@@ -65,7 +68,7 @@ describe('NftDetectionController', () => {
     });
 
     nftDetection = new NftDetectionController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       onNftsStateChange: (listener) => nftController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: networkStateChangeNoop,
@@ -217,7 +220,7 @@ describe('NftDetectionController', () => {
     preferences.setUseNftDetection(false);
     expect(nftDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
-      chainId: toHex(1),
+      caipChainId: 'eip155:1',
       selectedAddress: '',
       disabled: true,
     });
@@ -231,7 +234,7 @@ describe('NftDetectionController', () => {
       );
       const nftsDetectionController = new NftDetectionController(
         {
-          chainId: ChainId.mainnet,
+          caipChainId: BuiltInCaipChainId.mainnet,
           onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
@@ -253,9 +256,9 @@ describe('NftDetectionController', () => {
   });
 
   it('should detect mainnet correctly', () => {
-    nftDetection.configure({ chainId: ChainId.mainnet });
+    nftDetection.configure({ caipChainId: BuiltInCaipChainId.mainnet });
     expect(nftDetection.isMainnet()).toStrictEqual(true);
-    nftDetection.configure({ chainId: ChainId.goerli });
+    nftDetection.configure({ caipChainId: BuiltInCaipChainId.goerli });
     expect(nftDetection.isMainnet()).toStrictEqual(false);
   });
 
@@ -267,7 +270,7 @@ describe('NftDetectionController', () => {
       );
       new NftDetectionController(
         {
-          chainId: ChainId.goerli,
+          caipChainId: BuiltInCaipChainId.goerli,
           onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
@@ -276,7 +279,7 @@ describe('NftDetectionController', () => {
           addNft: nftController.addNft.bind(nftController),
           getNftState: () => nftController.state,
         },
-        { interval: 10, chainId: ChainId.goerli },
+        { interval: 10, caipChainId: BuiltInCaipChainId.goerli },
       );
       expect(mockNfts.called).toBe(false);
       resolve('');
@@ -287,18 +290,18 @@ describe('NftDetectionController', () => {
     const selectedAddress = '0x1';
 
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress,
     });
 
     nftController.configure({
       selectedAddress,
     });
-    const { chainId } = nftDetection.config;
+    const { caipChainId } = nftDetection.config;
 
     await nftDetection.detectNfts();
 
-    const nfts = nftController.state.allNfts[selectedAddress][chainId];
+    const nfts = nftController.state.allNfts[selectedAddress][caipChainId];
     expect(nfts).toStrictEqual([
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -317,7 +320,7 @@ describe('NftDetectionController', () => {
     const selectedAddress = '0x1';
 
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress,
     });
 
@@ -341,12 +344,12 @@ describe('NftDetectionController', () => {
   it('should detect, add NFTs and do nor remove not detected NFTs correctly', async () => {
     const selectedAddress = '0x1';
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress,
     });
     nftController.configure({ selectedAddress });
 
-    const { chainId } = nftDetection.config;
+    const { caipChainId } = nftDetection.config;
 
     await nftController.addNft(
       '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -361,7 +364,7 @@ describe('NftDetectionController', () => {
 
     await nftDetection.detectNfts();
 
-    const nfts = nftController.state.allNfts[selectedAddress][chainId];
+    const nfts = nftController.state.allNfts[selectedAddress][caipChainId];
 
     expect(nfts).toStrictEqual([
       {
@@ -390,17 +393,17 @@ describe('NftDetectionController', () => {
   it('should not autodetect NFTs that exist in the ignoreList', async () => {
     const selectedAddress = '0x2';
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress: '0x2',
     });
     nftController.configure({ selectedAddress });
 
-    const { chainId } = nftDetection.config;
+    const { caipChainId } = nftDetection.config;
 
     await nftDetection.detectNfts();
-    expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
-      1,
-    );
+    expect(
+      nftController.state.allNfts[selectedAddress][caipChainId],
+    ).toHaveLength(1);
     expect(nftController.state.ignoredNfts).toHaveLength(0);
     nftController.removeAndIgnoreNft(
       '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
@@ -409,29 +412,29 @@ describe('NftDetectionController', () => {
 
     expect(nftController.state.ignoredNfts).toHaveLength(1);
     await nftDetection.detectNfts();
-    expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
-      0,
-    );
+    expect(
+      nftController.state.allNfts[selectedAddress][caipChainId],
+    ).toHaveLength(0);
   });
 
   it('should not detect and add NFTs if there is no selectedAddress', async () => {
     const selectedAddress = '';
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress,
     });
-    const { chainId } = nftDetection.config;
+    const { caipChainId } = nftDetection.config;
     await nftDetection.detectNfts();
     const { allNfts } = nftController.state;
-    expect(allNfts[selectedAddress]?.[chainId]).toBeUndefined();
+    expect(allNfts[selectedAddress]?.[caipChainId]).toBeUndefined();
   });
 
   it('should not detect and add NFTs to the wrong selectedAddress', async () => {
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress: '0x9',
     });
-    const { chainId } = nftDetection.config;
+    const { caipChainId } = nftDetection.config;
 
     nftController.configure({ selectedAddress: '0x9' });
     nftDetection.detectNfts();
@@ -442,7 +445,7 @@ describe('NftDetectionController', () => {
 
     expect(
       nftController.state.allNfts[nftDetection.config.selectedAddress]?.[
-        chainId
+        caipChainId
       ],
     ).toBeUndefined();
   });
@@ -451,13 +454,13 @@ describe('NftDetectionController', () => {
     preferences.setUseNftDetection(false);
     const selectedAddress = '0x9';
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress,
     });
-    const { chainId } = nftController.config;
+    const { caipChainId } = nftController.config;
     nftDetection.detectNfts();
     expect(
-      nftController.state.allNfts[selectedAddress]?.[chainId],
+      nftController.state.allNfts[selectedAddress]?.[caipChainId],
     ).toBeUndefined();
   });
 
@@ -465,13 +468,13 @@ describe('NftDetectionController', () => {
     preferences.setOpenSeaEnabled(false);
     const selectedAddress = '0x9';
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress,
     });
-    const { chainId } = nftController.config;
+    const { caipChainId } = nftController.config;
     nftDetection.detectNfts();
     expect(
-      nftController.state.allNfts[selectedAddress]?.[chainId],
+      nftController.state.allNfts[selectedAddress]?.[caipChainId],
     ).toBeUndefined();
   });
 
@@ -534,22 +537,22 @@ describe('NftDetectionController', () => {
     const selectedAddress = '0x1';
     nftDetection.configure({
       selectedAddress,
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
     });
 
     nftController.configure({
       selectedAddress,
     });
 
-    const { chainId } = nftDetection.config;
+    const { caipChainId } = nftDetection.config;
     await nftDetection.detectNfts();
     // First fetch to API, only gets information from contract ending in HH
-    expect(nftController.state.allNfts[selectedAddress][chainId]).toStrictEqual(
-      [nftHH2574],
-    );
+    expect(
+      nftController.state.allNfts[selectedAddress][caipChainId],
+    ).toStrictEqual([nftHH2574]);
 
     expect(
-      nftController.state.allNftContracts[selectedAddress][chainId],
+      nftController.state.allNftContracts[selectedAddress][caipChainId],
     ).toStrictEqual([nftContractHH]);
     // During next call of assets detection, API succeds returning contract ending in gg information
 
@@ -629,12 +632,12 @@ describe('NftDetectionController', () => {
     // Now user should have respective NFTs
     await nftDetection.detectNfts();
     expect(
-      nftController.state.allNftContracts[selectedAddress][chainId],
+      nftController.state.allNftContracts[selectedAddress][caipChainId],
     ).toStrictEqual([nftContractHH, nftContractII, nftContractGG]);
 
-    expect(nftController.state.allNfts[selectedAddress][chainId]).toStrictEqual(
-      [nftHH2574, nftII2577, nftGG2574],
-    );
+    expect(
+      nftController.state.allNfts[selectedAddress][caipChainId],
+    ).toStrictEqual([nftHH2574, nftII2577, nftGG2574]);
   });
 
   it('should fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
@@ -701,7 +704,7 @@ describe('NftDetectionController', () => {
       });
 
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress,
     });
 
@@ -709,11 +712,11 @@ describe('NftDetectionController', () => {
       selectedAddress,
     });
 
-    const { chainId } = nftDetection.config;
+    const { caipChainId } = nftDetection.config;
 
     await nftDetection.detectNfts();
 
-    const nfts = nftController.state.allNfts[selectedAddress][chainId];
+    const nfts = nftController.state.allNfts[selectedAddress][caipChainId];
     expect(nfts).toStrictEqual([
       {
         address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
@@ -738,7 +741,7 @@ describe('NftDetectionController', () => {
       .replyWithError(new Error('UNEXPECTED ERROR'));
 
     nftDetection.configure({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       selectedAddress,
     });
 

@@ -4,7 +4,7 @@ import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 import { errorCodes } from 'eth-rpc-errors';
 import Common from '@ethereumjs/common';
-import { ChainId, NetworkType, toHex } from '@metamask/controller-utils';
+import { BuiltInCaipChainId, NetworkType } from '@metamask/controller-utils';
 import type {
   BlockTracker,
   NetworkState,
@@ -275,13 +275,13 @@ const MOCK_NETWORK: MockNetwork = {
     networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType.goerli,
-      chainId: ChainId.goerli,
+      caipChainId: BuiltInCaipChainId.goerli,
     },
     networkConfigurations: {},
   },
   subscribe: () => undefined,
 };
-const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
+const MOCK_NETWORK_WITHOUT_CAIP_CHAIN_ID: MockNetwork = {
   provider: GOERLI_PROVIDER,
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
@@ -304,7 +304,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
     networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType.mainnet,
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
     },
     networkConfigurations: {},
   },
@@ -320,7 +320,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
     networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType['linea-mainnet'],
-      chainId: toHex(59144),
+      caipChainId: 'eip155:59144',
     },
     networkConfigurations: {},
   },
@@ -336,7 +336,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
     networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType['linea-goerli'],
-      chainId: toHex(59140),
+      caipChainId: 'eip155:59140',
     },
     networkConfigurations: {},
   },
@@ -352,7 +352,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
     networkDetails: { EIPS: { 1559: false } },
     providerConfig: {
       type: NetworkType.rpc,
-      chainId: toHex(11297108109),
+      caipChainId: 'eip155:11297108109',
     },
     networkConfigurations: {},
   },
@@ -736,8 +736,8 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].networkID).toBe(
         MOCK_NETWORK.state.networkId,
       );
-      expect(controller.state.transactions[0].chainId).toBe(
-        MOCK_NETWORK.state.providerConfig.chainId,
+      expect(controller.state.transactions[0].caipChainId).toBe(
+        MOCK_NETWORK.state.providerConfig.caipChainId,
       );
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
@@ -782,8 +782,8 @@ describe('TransactionController', () => {
         expect(controller.state.transactions[0].networkID).toBe(
           newNetwork.state.networkId,
         );
-        expect(controller.state.transactions[0].chainId).toBe(
-          newNetwork.state.providerConfig.chainId,
+        expect(controller.state.transactions[0].caipChainId).toBe(
+          newNetwork.state.providerConfig.caipChainId,
         );
         expect(controller.state.transactions[0].status).toBe(
           TransactionStatus.unapproved,
@@ -1018,13 +1018,13 @@ describe('TransactionController', () => {
           await expectTransactionToFail(controller, 'No sign method defined');
         });
 
-        it('if no chainId defined', async () => {
+        it('if no caipChainId defined', async () => {
           const controller = newController({
             approve: true,
-            network: MOCK_NETWORK_WITHOUT_CHAIN_ID,
+            network: MOCK_NETWORK_WITHOUT_CAIP_CHAIN_ID,
           });
 
-          await expectTransactionToFail(controller, 'No chainId defined');
+          await expectTransactionToFail(controller, 'No caipChainId defined');
         });
 
         it('if unexpected status', async () => {
@@ -1129,9 +1129,9 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(0);
     });
 
-    // This tests the fallback to networkId only when there is no chainId present.
+    // This tests the fallback to networkId only when there is no caipChainId present.
     // It should be removed when networkID is completely removed.
-    it('removes all transactions with matching networkId when there is no chainId', async () => {
+    it('removes all transactions with matching networkId when there is no caipChainId', async () => {
       const controller = newController();
 
       controller.wipeTransactions();
@@ -1158,7 +1158,7 @@ describe('TransactionController', () => {
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
-        chainId: toHex(5),
+        caipChainId: 'eip155:5',
         status: TransactionStatus.submitted,
         transactionHash: '1337',
       } as any);
@@ -1175,9 +1175,9 @@ describe('TransactionController', () => {
       expect(status).toBe(TransactionStatus.confirmed);
     });
 
-    // This tests the fallback to networkId only when there is no chainId present.
+    // This tests the fallback to networkId only when there is no caipChainId present.
     // It should be removed when networkId is completely removed.
-    it('uses networkId only when there is no chainId', async () => {
+    it('uses networkId only when there is no caipChainId', async () => {
       const controller = newController();
 
       controller.state.transactions.push({
@@ -1224,7 +1224,7 @@ describe('TransactionController', () => {
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
-        chainId: toHex(5),
+        caipChainId: 'eip155:5',
         status: TransactionStatus.confirmed,
         transactionHash: '1337',
         verifiedOnBlockchain: false,

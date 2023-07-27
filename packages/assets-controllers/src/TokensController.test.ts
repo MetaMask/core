@@ -6,12 +6,11 @@ import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
   ApprovalType,
-  ChainId,
+  BuiltInCaipChainId,
   ERC20,
   NetworkType,
   ORIGIN_METAMASK,
-  convertHexToDecimal,
-  toHex,
+  getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
 import {
   NetworkState,
@@ -40,8 +39,11 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   });
 };
 
-const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
-const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
+const SEPOLIA = {
+  caipChainId: 'eip155:11155111',
+  type: NetworkType.sepolia,
+} as const;
+const GOERLI = { caipChainId: 'eip155:5', type: NetworkType.goerli } as const;
 
 const controllerName = 'TokensController' as const;
 
@@ -75,7 +77,7 @@ describe('TokensController', () => {
     const defaultSelectedAddress = '0x1';
     preferences = new PreferencesController();
     tokensController = new TokensController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         (onNetworkStateChangeListener = listener),
@@ -436,7 +438,7 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(3);
       expect(tokensController.state.ignoredTokens).toHaveLength(1);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [SEPOLIA.chainId]: {
+        [SEPOLIA.caipChainId]: {
           [selectedAddress]: ['0xFAa'],
         },
       });
@@ -448,7 +450,7 @@ describe('TokensController', () => {
       tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [SEPOLIA.chainId]: {
+        [SEPOLIA.caipChainId]: {
           [defaultSelectedAddress]: ['0x01'],
         },
       });
@@ -486,10 +488,10 @@ describe('TokensController', () => {
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x03']);
 
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [SEPOLIA.chainId]: {
+        [SEPOLIA.caipChainId]: {
           [selectedAddress1]: ['0x01'],
         },
-        [GOERLI.chainId]: {
+        [GOERLI.caipChainId]: {
           [selectedAddress1]: ['0x02'],
           [selectedAddress2]: ['0x03'],
         },
@@ -702,8 +704,8 @@ describe('TokensController', () => {
       const fullErrorMessage = `TokenService Error: ${error}`;
       nock(TOKEN_END_POINT_API)
         .get(
-          `/token/${convertHexToDecimal(
-            ChainId.mainnet,
+          `/token/${getEthChainIdDecFromCaipChainId(
+            BuiltInCaipChainId.mainnet,
           )}?address=${dummyTokenAddress}`,
         )
         .reply(200, { error })
@@ -749,11 +751,11 @@ describe('TokensController', () => {
       stub.restore();
     });
 
-    it('should add tokens to the correct chainId/selectedAddress on which they were detected even if its not the currently configured chainId/selectedAddress', async () => {
+    it('should add tokens to the correct caipChainId/selectedAddress on which they were detected even if its not the currently configured caipChainId/selectedAddress', async () => {
       const stub = stubCreateEthers(tokensController, false);
 
       const DETECTED_ADDRESS = '0xDetectedAddress';
-      const DETECTED_CHAINID = '0xDetectedChainId';
+      const DETECTED_CAIP_CHAIN_ID = 'eip155:1';
 
       const CONFIGURED_ADDRESS = '0xabc';
       preferences.update({ selectedAddress: CONFIGURED_ADDRESS });
@@ -784,10 +786,10 @@ describe('TokensController', () => {
       // detectionDetails object is passed as second arg with details about where token was detected
       await tokensController.addDetectedTokens([detectedToken], {
         selectedAddress: DETECTED_ADDRESS,
-        chainId: DETECTED_CHAINID,
+        caipChainId: DETECTED_CAIP_CHAIN_ID,
       });
 
-      // will add token to currently configured chainId/selectedAddress
+      // will add token to currently configured caipChainId/selectedAddress
       await tokensController.addToken(
         directlyAddedToken.address,
         directlyAddedToken.symbol,
@@ -796,13 +798,13 @@ describe('TokensController', () => {
       );
 
       expect(tokensController.state.allDetectedTokens).toStrictEqual({
-        [DETECTED_CHAINID]: {
+        [DETECTED_CAIP_CHAIN_ID]: {
           [DETECTED_ADDRESS]: [detectedToken],
         },
       });
 
       expect(tokensController.state.allTokens).toStrictEqual({
-        [SEPOLIA.chainId]: {
+        [SEPOLIA.caipChainId]: {
           [CONFIGURED_ADDRESS]: [directlyAddedToken],
         },
       });
@@ -869,26 +871,28 @@ describe('TokensController', () => {
     it('should nest newTokens under chain ID and selected address when provided with newTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: ChainId.mainnet,
+        caipChainId: BuiltInCaipChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
         newTokens: dummyTokens,
       });
       expect(
-        processedTokens.newAllTokens[ChainId.mainnet][dummySelectedAddress],
+        processedTokens.newAllTokens[BuiltInCaipChainId.mainnet][
+          dummySelectedAddress
+        ],
       ).toStrictEqual(dummyTokens);
     });
 
     it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: ChainId.mainnet,
+        caipChainId: BuiltInCaipChainId.mainnet,
       });
       const processedTokens = tokensController._getNewAllTokensState({
         newDetectedTokens: dummyTokens,
       });
       expect(
-        processedTokens.newAllDetectedTokens[ChainId.mainnet][
+        processedTokens.newAllDetectedTokens[BuiltInCaipChainId.mainnet][
           dummySelectedAddress
         ],
       ).toStrictEqual(dummyTokens);
@@ -897,14 +901,14 @@ describe('TokensController', () => {
     it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
-        chainId: ChainId.mainnet,
+        caipChainId: BuiltInCaipChainId.mainnet,
       });
       const dummyIgnoredTokens = [dummyTokens[0].address];
       const processedTokens = tokensController._getNewAllTokensState({
         newIgnoredTokens: dummyIgnoredTokens,
       });
       expect(
-        processedTokens.newAllIgnoredTokens[ChainId.mainnet][
+        processedTokens.newAllIgnoredTokens[BuiltInCaipChainId.mainnet][
           dummySelectedAddress
         ],
       ).toStrictEqual(dummyIgnoredTokens);
@@ -1074,10 +1078,14 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.tokens).toStrictEqual([]);
       expect(
-        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
+        tokensController.state.allTokens[BuiltInCaipChainId.mainnet][
+          interactingAddress
+        ],
       ).toHaveLength(1);
       expect(
-        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
+        tokensController.state.allTokens[BuiltInCaipChainId.mainnet][
+          interactingAddress
+        ],
       ).toStrictEqual([
         {
           isERC721: false,
@@ -1280,26 +1288,28 @@ describe('TokensController', () => {
     it('should clear nest allTokens under chain ID and selected address when an added token is ignored', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: ChainId.mainnet,
+        caipChainId: BuiltInCaipChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
       tokensController.ignoreTokens(['0x01']);
       expect(
-        tokensController.state.allTokens[ChainId.mainnet][selectedAddress],
+        tokensController.state.allTokens[BuiltInCaipChainId.mainnet][
+          selectedAddress
+        ],
       ).toStrictEqual([]);
     });
 
     it('should clear nest allIgnoredTokens under chain ID and selected address when an ignored token is re-added', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: ChainId.mainnet,
+        caipChainId: BuiltInCaipChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
       tokensController.ignoreTokens([tokenAddress]);
       await tokensController.addTokens(dummyTokens);
 
       expect(
-        tokensController.state.allIgnoredTokens[ChainId.mainnet][
+        tokensController.state.allIgnoredTokens[BuiltInCaipChainId.mainnet][
           selectedAddress
         ],
       ).toStrictEqual([]);
@@ -1308,13 +1318,13 @@ describe('TokensController', () => {
     it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
       tokensController.configure({
         selectedAddress,
-        chainId: ChainId.mainnet,
+        caipChainId: BuiltInCaipChainId.mainnet,
       });
       await tokensController.addDetectedTokens(dummyTokens);
       await tokensController.addTokens(dummyTokens);
 
       expect(
-        tokensController.state.allDetectedTokens[ChainId.mainnet][
+        tokensController.state.allDetectedTokens[BuiltInCaipChainId.mainnet][
           selectedAddress
         ],
       ).toStrictEqual([]);

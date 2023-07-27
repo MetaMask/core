@@ -1,6 +1,6 @@
 import nock from 'nock';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
-import { toHex } from '@metamask/controller-utils';
+import { CaipChainId } from '@metamask/utils';
 import {
   fetchTokenList,
   fetchTokenMetadata,
@@ -134,7 +134,7 @@ const sampleToken = {
 };
 
 const sampleDecimalChainId = 1;
-const sampleChainId = toHex(sampleDecimalChainId);
+const sampleCaipChainId: CaipChainId = `eip155:${sampleDecimalChainId}`;
 
 describe('Token service', () => {
   beforeAll(() => {
@@ -157,7 +157,7 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      const tokens = await fetchTokenList(sampleChainId, signal);
+      const tokens = await fetchTokenList(sampleCaipChainId, signal);
 
       expect(tokens).toStrictEqual(sampleTokenList);
     });
@@ -172,7 +172,7 @@ describe('Token service', () => {
         .persist();
 
       const fetchPromise = fetchTokenList(
-        sampleChainId,
+        sampleCaipChainId,
         abortController.signal,
       );
       abortController.abort();
@@ -187,7 +187,7 @@ describe('Token service', () => {
         .replyWithError('Example network error')
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal);
+      const result = await fetchTokenList(sampleCaipChainId, signal);
 
       expect(result).toBeUndefined();
     });
@@ -199,7 +199,7 @@ describe('Token service', () => {
         .reply(500)
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal);
+      const result = await fetchTokenList(sampleCaipChainId, signal);
 
       expect(result).toBeUndefined();
     });
@@ -213,7 +213,7 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal, {
+      const result = await fetchTokenList(sampleCaipChainId, signal, {
         timeout: ONE_MILLISECOND,
       });
 
@@ -232,7 +232,7 @@ describe('Token service', () => {
         .persist();
 
       const token = await fetchTokenMetadata(
-        sampleChainId,
+        sampleCaipChainId,
         '0x514910771af9ca656af840dff83e8264ecf986ca',
         signal,
       );
@@ -250,7 +250,7 @@ describe('Token service', () => {
         .persist();
 
       const fetchPromise = fetchTokenMetadata(
-        sampleChainId,
+        sampleCaipChainId,
         '0x514910771af9ca656af840dff83e8264ecf986ca',
         abortController.signal,
       );
@@ -267,7 +267,7 @@ describe('Token service', () => {
         .persist();
 
       const tokenMetadata = await fetchTokenMetadata(
-        sampleChainId,
+        sampleCaipChainId,
         '0x514910771af9ca656af840dff83e8264ecf986ca',
         signal,
       );
@@ -283,7 +283,7 @@ describe('Token service', () => {
         .persist();
 
       const tokenMetadata = await fetchTokenMetadata(
-        sampleChainId,
+        sampleCaipChainId,
         '0x514910771af9ca656af840dff83e8264ecf986ca',
         signal,
       );
@@ -301,7 +301,7 @@ describe('Token service', () => {
         .persist();
 
       const tokenMetadata = await fetchTokenMetadata(
-        sampleChainId,
+        sampleCaipChainId,
         '0x514910771af9ca656af840dff83e8264ecf986ca',
         signal,
         { timeout: ONE_MILLISECOND },
@@ -314,7 +314,7 @@ describe('Token service', () => {
       const { signal } = new WhatwgAbortController();
       await expect(
         fetchTokenMetadata(
-          toHex(5),
+          'eip155:5',
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
         ),
@@ -329,7 +329,7 @@ describe('Token service', () => {
       .reply(404, undefined)
       .persist();
 
-    const tokens = await fetchTokenList(sampleChainId, signal);
+    const tokens = await fetchTokenList(sampleCaipChainId, signal);
 
     expect(tokens).toBeUndefined();
   });

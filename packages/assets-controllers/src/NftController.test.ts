@@ -16,11 +16,10 @@ import {
   ERC1155,
   OPENSEA_API_URL,
   ERC721,
-  ChainId,
   NetworkType,
-  toHex,
   ApprovalType,
   ERC20,
+  BuiltInCaipChainId,
 } from '@metamask/controller-utils';
 import {
   AddApprovalRequest,
@@ -59,8 +58,11 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
   true,
 );
 
-const SEPOLIA = { chainId: toHex(11155111), type: NetworkType.sepolia };
-const GOERLI = { chainId: toHex(5), type: NetworkType.goerli };
+const SEPOLIA = {
+  caipChainId: 'eip155:11155111',
+  type: NetworkType.sepolia,
+} as const;
+const GOERLI = { caipChainId: 'eip155:5', type: NetworkType.goerli } as const;
 
 type ApprovalActions = AddApprovalRequest;
 type ApprovalEvents = ApprovalStateChange;
@@ -161,7 +163,7 @@ function setupController({
   });
 
   const assetsContract = new AssetsContractController({
-    chainId: ChainId.mainnet,
+    caipChainId: BuiltInCaipChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
@@ -179,7 +181,7 @@ function setupController({
   });
 
   const nftController = new NftController({
-    chainId: ChainId.mainnet,
+    caipChainId: BuiltInCaipChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
@@ -528,7 +530,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should add the NFT to the correct chainId/selectedAddress in state even if the user changes network and account before accepting the request', async function () {
+    it('should add the NFT to the correct caipChainId/selectedAddress in state even if the user changes network and account before accepting the request', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -573,7 +575,7 @@ describe('NftController', () => {
 
       const acceptedRequest = new Promise<void>((resolve) => {
         nftController.subscribe((state) => {
-          if (state.allNfts?.[OWNER_ADDRESS]?.[GOERLI.chainId].length) {
+          if (state.allNfts?.[OWNER_ADDRESS]?.[GOERLI.caipChainId].length) {
             resolve();
           }
         });
@@ -598,15 +600,15 @@ describe('NftController', () => {
       approvalController.accept(requestId);
       await acceptedRequest;
 
-      // check that the NFT was added to the correct chainId/selectedAddress in state
+      // check that the NFT was added to the correct caipChainId/selectedAddress in state
       const {
         state: { allNfts },
       } = nftController;
       expect(allNfts).toStrictEqual({
         // this is the selectedAddress when the request was made
         [OWNER_ADDRESS]: {
-          // this is the chainId when the request was made
-          [GOERLI.chainId]: [
+          // this is the caipChainId when the request was made
+          [GOERLI.caipChainId]: [
             {
               ...ERC721_NFT,
               favorite: false,
@@ -777,7 +779,7 @@ describe('NftController', () => {
     it('should add NFT and NFT contract', async () => {
       const { nftController } = setupController();
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft('0x01', '1', {
         name: 'name',
         image: 'image',
@@ -787,7 +789,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -800,7 +802,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId][0],
+        nftController.state.allNftContracts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'Description',
@@ -849,7 +851,7 @@ describe('NftController', () => {
           standard: 'ERC721',
           favorite: false,
         },
-        { userAddress: detectedUserAddress, chainId: toHex(2) },
+        { userAddress: detectedUserAddress, caipChainId: 'eip155:2' },
         Source.Detected,
       );
 
@@ -864,7 +866,7 @@ describe('NftController', () => {
 
     it('should add NFT by selected address', async () => {
       const { nftController, preferences } = setupController();
-      const { chainId } = nftController.config;
+      const { caipChainId } = nftController.config;
       const firstAddress = '0x123';
       const secondAddress = '0x321';
 
@@ -877,7 +879,7 @@ describe('NftController', () => {
       await nftController.addNft('0x02', '4321');
       preferences.update({ selectedAddress: firstAddress });
       expect(
-        nftController.state.allNfts[firstAddress][chainId][0],
+        nftController.state.allNfts[firstAddress][caipChainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -891,7 +893,7 @@ describe('NftController', () => {
 
     it('should update NFT if image is different', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
         name: 'name',
@@ -902,7 +904,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -923,7 +925,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -938,7 +940,7 @@ describe('NftController', () => {
 
     it('should not duplicate NFT nor NFT contract if already added', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft('0x01', '1', {
         name: 'name',
         image: 'image',
@@ -956,21 +958,21 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toHaveLength(1);
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId],
+        nftController.state.allNftContracts[selectedAddress][caipChainId],
       ).toHaveLength(1);
     });
 
     it('should add NFT and get information from OpenSea', async () => {
       const { nftController } = setupController();
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'Description',
@@ -1090,7 +1092,7 @@ describe('NftController', () => {
         });
 
       assetsContract.configure({ provider: MAINNET_PROVIDER });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       sinon
         .stub(nftController, 'getNftContractInformationFromApi' as any)
         .returns(undefined);
@@ -1098,7 +1100,7 @@ describe('NftController', () => {
       await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
         image: 'Kudos Image (directly from tokenURI)',
@@ -1112,7 +1114,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId][0],
+        nftController.state.allNftContracts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
         name: 'KudosToken',
@@ -1214,14 +1216,14 @@ describe('NftController', () => {
         });
 
       assetsContract.configure({ provider: MAINNET_PROVIDER });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
 
       expect(nftController.openSeaApiKey).toBeUndefined();
 
       await nftController.addNft(ERC1155_NFT_ADDRESS, ERC1155_NFT_ID);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: ERC1155_NFT_ADDRESS,
         image: 'image (directly from tokenURI)',
@@ -1321,7 +1323,7 @@ describe('NftController', () => {
         });
 
       assetsContract.configure({ provider: MAINNET_PROVIDER });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       sinon
         .stub(nftController, 'getNftContractInformationFromApi' as any)
         .returns(undefined);
@@ -1333,7 +1335,7 @@ describe('NftController', () => {
       await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
         image: 'Kudos Image (directly from tokenURI)',
@@ -1346,7 +1348,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId][0],
+        nftController.state.allNftContracts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
         name: 'KudosToken',
@@ -1367,11 +1369,15 @@ describe('NftController', () => {
       changeNetwork(SEPOLIA);
 
       expect(
-        nftController.state.allNfts[selectedAddress]?.[ChainId[GOERLI.type]],
+        nftController.state.allNfts[selectedAddress]?.[
+          BuiltInCaipChainId.goerli
+        ],
       ).toBeUndefined();
 
       expect(
-        nftController.state.allNfts[selectedAddress][ChainId[SEPOLIA.type]][0],
+        nftController.state.allNfts[selectedAddress][
+          BuiltInCaipChainId.sepolia
+        ][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -1387,7 +1393,7 @@ describe('NftController', () => {
       const { nftController, onNftAddedSpy } = setupController({
         includeOnNftAdded: true,
       });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       sinon.stub(nftController, 'getNftContractInformation' as any).returns({
         asset_contract_type: null,
         created_date: null,
@@ -1409,7 +1415,7 @@ describe('NftController', () => {
 
       expect(nftController.state.allNftContracts).toStrictEqual({
         [selectedAddress]: {
-          [chainId]: [
+          [caipChainId]: [
             {
               address: '0x01234abcdefg',
             },
@@ -1419,7 +1425,7 @@ describe('NftController', () => {
 
       expect(nftController.state.allNfts).toStrictEqual({
         [selectedAddress]: {
-          [chainId]: [
+          [caipChainId]: [
             {
               address: '0x01234abcdefg',
               description: 'description',
@@ -1468,13 +1474,13 @@ describe('NftController', () => {
         '0x01234abcdefg',
         '1234',
         undefined,
-        { chainId: GOERLI.chainId, userAddress: '0x123' },
+        { caipChainId: GOERLI.caipChainId, userAddress: '0x123' },
         Source.Dapp,
       );
 
       expect(nftController.state.allNftContracts).toStrictEqual({
         '0x123': {
-          [GOERLI.chainId]: [
+          [GOERLI.caipChainId]: [
             {
               address: '0x01234abcdefg',
             },
@@ -1484,7 +1490,7 @@ describe('NftController', () => {
 
       expect(nftController.state.allNfts).toStrictEqual({
         '0x123': {
-          [GOERLI.chainId]: [
+          [GOERLI.caipChainId]: [
             {
               address: '0x01234abcdefg',
               description: 'description',
@@ -1532,24 +1538,24 @@ describe('NftController', () => {
           },
         });
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
         undefined,
         {
           userAddress: selectedAddress,
-          chainId,
+          caipChainId,
         },
         Source.Detected,
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress]?.[chainId],
+        nftController.state.allNfts[selectedAddress]?.[caipChainId],
       ).toBeUndefined();
 
       expect(
-        nftController.state.allNftContracts[selectedAddress]?.[chainId],
+        nftController.state.allNftContracts[selectedAddress]?.[caipChainId],
       ).toBeUndefined();
 
       await nftController.addNft(
@@ -1558,13 +1564,13 @@ describe('NftController', () => {
         undefined,
         {
           userAddress: selectedAddress,
-          chainId,
+          caipChainId,
         },
         Source.Detected,
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toStrictEqual([
         {
           address: ERC721_KUDOSADDRESS,
@@ -1580,7 +1586,7 @@ describe('NftController', () => {
       ]);
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId],
+        nftController.state.allNftContracts[selectedAddress][caipChainId],
       ).toStrictEqual([
         {
           address: ERC721_KUDOSADDRESS,
@@ -1618,14 +1624,14 @@ describe('NftController', () => {
         .get(`/asset_contract/${ERC721_KUDOSADDRESS}`)
         .replyWithError(new Error('Failed to fetch'));
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
         undefined,
         {
           userAddress: selectedAddress,
-          chainId,
+          caipChainId,
         },
         Source.Detected,
       );
@@ -1636,7 +1642,7 @@ describe('NftController', () => {
         undefined,
         {
           userAddress: selectedAddress,
-          chainId,
+          caipChainId,
         },
         Source.Detected,
       );
@@ -1650,7 +1656,7 @@ describe('NftController', () => {
 
     it('should not add duplicate NFTs to the ignoredNfts list', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
         name: 'name',
@@ -1667,13 +1673,13 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toHaveLength(2);
       expect(nftController.state.ignoredNfts).toHaveLength(0);
 
       nftController.removeAndIgnoreNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toHaveLength(1);
       expect(nftController.state.ignoredNfts).toHaveLength(1);
 
@@ -1685,13 +1691,13 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toHaveLength(2);
       expect(nftController.state.ignoredNfts).toHaveLength(1);
 
       nftController.removeAndIgnoreNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toHaveLength(1);
       expect(nftController.state.ignoredNfts).toHaveLength(1);
     });
@@ -1778,14 +1784,14 @@ describe('NftController', () => {
       nftController.configure({
         ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
       );
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId][0],
+        nftController.state.allNftContracts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: ERC721_DEPRESSIONIST_ADDRESS,
         name: "Maltjik.jpg's Depressionists",
@@ -1793,7 +1799,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: ERC721_DEPRESSIONIST_ADDRESS,
         tokenId: '36',
@@ -1922,7 +1928,7 @@ describe('NftController', () => {
         ]);
 
       assetsContract.configure({ provider: MAINNET_PROVIDER });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
 
       nftController.setApiKey('fake-api-key');
       expect(nftController.openSeaApiKey).toBe('fake-api-key');
@@ -1930,7 +1936,7 @@ describe('NftController', () => {
       await nftController.addNft(ERC721_NFT_ADDRESS, ERC721_NFT_ID);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual({
         address: ERC721_NFT_ADDRESS,
         image: null,
@@ -1950,7 +1956,7 @@ describe('NftController', () => {
       const { nftController, preferences } = setupController();
       const firstAddress = '0x123';
       const secondAddress = '0x321';
-      const { chainId } = nftController.config;
+      const { caipChainId } = nftController.config;
 
       sinon.stub(nftController, 'isNftOwner' as any).returns(true);
 
@@ -1963,7 +1969,7 @@ describe('NftController', () => {
       await nftController.addNftVerifyOwnership('0x02', '4321');
       preferences.update({ selectedAddress: firstAddress });
       expect(
-        nftController.state.allNfts[firstAddress][chainId][0],
+        nftController.state.allNfts[firstAddress][caipChainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -1990,7 +1996,7 @@ describe('NftController', () => {
   describe('removeNft', () => {
     it('should remove NFT and NFT contract', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
         name: 'name',
@@ -2000,17 +2006,17 @@ describe('NftController', () => {
       });
       nftController.removeNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toHaveLength(0);
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId],
+        nftController.state.allNftContracts[selectedAddress][caipChainId],
       ).toHaveLength(0);
     });
 
     it('should not remove NFT contract if NFT still exists', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
         name: 'name',
@@ -2027,17 +2033,17 @@ describe('NftController', () => {
       });
       nftController.removeNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toHaveLength(1);
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId],
+        nftController.state.allNftContracts[selectedAddress][caipChainId],
       ).toHaveLength(1);
     });
 
     it('should remove NFT by selected address', async () => {
       const { nftController, preferences } = setupController();
-      const { chainId } = nftController.config;
+      const { caipChainId } = nftController.config;
       sinon
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
@@ -2048,12 +2054,12 @@ describe('NftController', () => {
       preferences.update({ selectedAddress: secondAddress });
       await nftController.addNft('0x01', '1234');
       nftController.removeNft('0x01', '1234');
-      expect(nftController.state.allNfts[secondAddress][chainId]).toHaveLength(
-        0,
-      );
+      expect(
+        nftController.state.allNfts[secondAddress][caipChainId],
+      ).toHaveLength(0);
       preferences.update({ selectedAddress: firstAddress });
       expect(
-        nftController.state.allNfts[firstAddress][chainId][0],
+        nftController.state.allNfts[firstAddress][caipChainId][0],
       ).toStrictEqual({
         address: '0x02',
         description: 'description',
@@ -2079,13 +2085,13 @@ describe('NftController', () => {
       // nftController.removeToken('0x01');
       nftController.removeNft('0x01', '1234');
       expect(
-        nftController.state.allNfts[selectedAddress][GOERLI.chainId],
+        nftController.state.allNfts[selectedAddress][GOERLI.caipChainId],
       ).toHaveLength(0);
 
       changeNetwork(SEPOLIA);
 
       expect(
-        nftController.state.allNfts[selectedAddress][SEPOLIA.chainId][0],
+        nftController.state.allNfts[selectedAddress][SEPOLIA.caipChainId][0],
       ).toStrictEqual({
         address: '0x02',
         description: 'description',
@@ -2100,7 +2106,7 @@ describe('NftController', () => {
 
   it('should be able to clear the ignoredNfts list', async () => {
     const { nftController } = setupController();
-    const { selectedAddress, chainId } = nftController.config;
+    const { selectedAddress, caipChainId } = nftController.config;
 
     await nftController.addNft('0x02', '1', {
       name: 'name',
@@ -2110,15 +2116,15 @@ describe('NftController', () => {
       favorite: false,
     });
 
-    expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
-      1,
-    );
+    expect(
+      nftController.state.allNfts[selectedAddress][caipChainId],
+    ).toHaveLength(1);
     expect(nftController.state.ignoredNfts).toHaveLength(0);
 
     nftController.removeAndIgnoreNft('0x02', '1');
-    expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
-      0,
-    );
+    expect(
+      nftController.state.allNfts[selectedAddress][caipChainId],
+    ).toHaveLength(0);
     expect(nftController.state.ignoredNfts).toHaveLength(1);
 
     nftController.clearIgnoredNfts();
@@ -2309,7 +2315,7 @@ describe('NftController', () => {
     it('should set NFT as favorite', async () => {
       const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
@@ -2322,7 +2328,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2335,7 +2341,7 @@ describe('NftController', () => {
     it('should set NFT as favorite and then unset it', async () => {
       const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
@@ -2348,7 +2354,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2364,7 +2370,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2377,7 +2383,7 @@ describe('NftController', () => {
     it('should keep the favorite status as true after updating metadata', async () => {
       const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
@@ -2390,7 +2396,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2411,7 +2417,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           image: 'new_image',
@@ -2425,21 +2431,21 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toHaveLength(1);
     });
 
     it('should keep the favorite status as false after updating metadata', async () => {
       const { assetsContract, nftController } = setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
-      const { selectedAddress, chainId } = nftController.config;
+      const { selectedAddress, caipChainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2460,7 +2466,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           image: 'new_image',
@@ -2474,17 +2480,17 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[selectedAddress][caipChainId],
       ).toHaveLength(1);
     });
 
     describe('checkAndUpdateNftsOwnershipStatus', () => {
       describe('checkAndUpdateAllNftsOwnershipStatus', () => {
-        it('should check whether NFTs for the current selectedAddress/chainId combination are still owned by the selectedAddress and update the isCurrentlyOwned value to false when NFT is not still owned', async () => {
+        it('should check whether NFTs for the current selectedAddress/caipChainId combination are still owned by the selectedAddress and update the isCurrentlyOwned value to false when NFT is not still owned', async () => {
           const { nftController } = setupController();
           sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
-          const { selectedAddress, chainId } = nftController.config;
+          const { selectedAddress, caipChainId } = nftController.config;
           await nftController.addNft('0x02', '1', {
             name: 'name',
             image: 'image',
@@ -2494,23 +2500,23 @@ describe('NftController', () => {
           });
 
           expect(
-            nftController.state.allNfts[selectedAddress][chainId][0]
+            nftController.state.allNfts[selectedAddress][caipChainId][0]
               .isCurrentlyOwned,
           ).toBe(true);
 
           await nftController.checkAndUpdateAllNftsOwnershipStatus();
           expect(
-            nftController.state.allNfts[selectedAddress][chainId][0]
+            nftController.state.allNfts[selectedAddress][caipChainId][0]
               .isCurrentlyOwned,
           ).toBe(false);
         });
       });
 
-      it('should check whether NFTs for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave/set the isCurrentlyOwned value to true when NFT is still owned', async () => {
+      it('should check whether NFTs for the current selectedAddress/caipChainId combination are still owned by the selectedAddress and leave/set the isCurrentlyOwned value to true when NFT is still owned', async () => {
         const { nftController } = setupController();
         sinon.stub(nftController, 'isNftOwner' as any).returns(true);
 
-        const { selectedAddress, chainId } = nftController.config;
+        const { selectedAddress, caipChainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
           name: 'name',
           image: 'image',
@@ -2520,24 +2526,24 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[selectedAddress][caipChainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
         await nftController.checkAndUpdateAllNftsOwnershipStatus();
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[selectedAddress][caipChainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
       });
 
-      it('should check whether NFTs for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave the isCurrentlyOwned value as is when NFT ownership check fails', async () => {
+      it('should check whether NFTs for the current selectedAddress/caipChainId combination are still owned by the selectedAddress and leave the isCurrentlyOwned value as is when NFT ownership check fails', async () => {
         const { nftController } = setupController();
         sinon
           .stub(nftController, 'isNftOwner' as any)
           .throws(new Error('Unable to verify ownership'));
 
-        const { selectedAddress, chainId } = nftController.config;
+        const { selectedAddress, caipChainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
           name: 'name',
           image: 'image',
@@ -2547,21 +2553,21 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[selectedAddress][caipChainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
         await nftController.checkAndUpdateAllNftsOwnershipStatus();
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[selectedAddress][caipChainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
       });
 
       describe('checkAndUpdateSingleNftOwnershipStatus', () => {
-        it('should check whether the passed NFT is still owned by the the current selectedAddress/chainId combination and update its isCurrentlyOwned property in state if batch is false and isNftOwner returns false', async () => {
+        it('should check whether the passed NFT is still owned by the the current selectedAddress/caipChainId combination and update its isCurrentlyOwned property in state if batch is false and isNftOwner returns false', async () => {
           const { nftController } = setupController();
-          const { selectedAddress, chainId } = nftController.config;
+          const { selectedAddress, caipChainId } = nftController.config;
           const nft = {
             address: '0x02',
             tokenId: '1',
@@ -2575,7 +2581,7 @@ describe('NftController', () => {
           await nftController.addNft(nft.address, nft.tokenId, nft);
 
           expect(
-            nftController.state.allNfts[selectedAddress][chainId][0]
+            nftController.state.allNfts[selectedAddress][caipChainId][0]
               .isCurrentlyOwned,
           ).toBe(true);
 
@@ -2587,15 +2593,15 @@ describe('NftController', () => {
           );
 
           expect(
-            nftController.state.allNfts[selectedAddress][chainId][0]
+            nftController.state.allNfts[selectedAddress][caipChainId][0]
               .isCurrentlyOwned,
           ).toBe(false);
         });
       });
 
-      it('should check whether the passed NFT is still owned by the the current selectedAddress/chainId combination and return the updated NFT object without updating state if batch is true', async () => {
+      it('should check whether the passed NFT is still owned by the the current selectedAddress/caipChainId combination and return the updated NFT object without updating state if batch is true', async () => {
         const { nftController } = setupController();
-        const { selectedAddress, chainId } = nftController.config;
+        const { selectedAddress, caipChainId } = nftController.config;
         const nft = {
           address: '0x02',
           tokenId: '1',
@@ -2609,7 +2615,7 @@ describe('NftController', () => {
         await nftController.addNft(nft.address, nft.tokenId, nft);
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[selectedAddress][caipChainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
@@ -2619,20 +2625,20 @@ describe('NftController', () => {
           await nftController.checkAndUpdateSingleNftOwnershipStatus(nft, true);
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[selectedAddress][caipChainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
         expect(updatedNft.isCurrentlyOwned).toBe(false);
       });
 
-      it('should check whether the passed NFT is still owned by the the selectedAddress/chainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/chainId are different from those passed', async () => {
+      it('should check whether the passed NFT is still owned by the the selectedAddress/caipChainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/caipChainId are different from those passed', async () => {
         const { nftController, changeNetwork, preferences } = setupController();
 
         preferences.update({ selectedAddress: OWNER_ADDRESS });
         changeNetwork(SEPOLIA);
 
-        const { selectedAddress, chainId } = nftController.config;
+        const { selectedAddress, caipChainId } = nftController.config;
         const nft = {
           address: '0x02',
           tokenId: '1',
@@ -2646,7 +2652,7 @@ describe('NftController', () => {
         await nftController.addNft(nft.address, nft.tokenId, nft);
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[selectedAddress][caipChainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
@@ -2657,11 +2663,11 @@ describe('NftController', () => {
 
         await nftController.checkAndUpdateSingleNftOwnershipStatus(nft, false, {
           userAddress: OWNER_ADDRESS,
-          chainId: SEPOLIA.chainId,
+          caipChainId: SEPOLIA.caipChainId,
         });
 
         expect(
-          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId][0]
+          nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.caipChainId][0]
             .isCurrentlyOwned,
         ).toBe(false);
       });
@@ -2679,7 +2685,7 @@ describe('NftController', () => {
       favorite: false,
     };
     const { nftController } = setupController();
-    const { selectedAddress, chainId } = nftController.config;
+    const { selectedAddress, caipChainId } = nftController.config;
 
     it('should return null if the NFT does not exist in the state', async () => {
       expect(
@@ -2687,14 +2693,14 @@ describe('NftController', () => {
           mockNft.address,
           mockNft.tokenId,
           selectedAddress,
-          chainId,
+          caipChainId,
         ),
       ).toBeNull();
     });
 
     it('should return the NFT by the address and tokenId', () => {
       nftController.state.allNfts = {
-        [selectedAddress]: { [chainId]: [mockNft] },
+        [selectedAddress]: { [caipChainId]: [mockNft] },
       };
 
       expect(
@@ -2702,7 +2708,7 @@ describe('NftController', () => {
           mockNft.address,
           mockNft.tokenId,
           selectedAddress,
-          chainId,
+          caipChainId,
         ),
       ).toStrictEqual({ nft: mockNft, index: 0 });
     });
@@ -2733,11 +2739,11 @@ describe('NftController', () => {
       transactionId: mockTransactionId,
     };
 
-    const { selectedAddress, chainId } = nftController.config;
+    const { selectedAddress, caipChainId } = nftController.config;
 
     it('should update the NFT if the NFT exist', async () => {
       nftController.state.allNfts = {
-        [selectedAddress]: { [chainId]: [mockNft] },
+        [selectedAddress]: { [caipChainId]: [mockNft] },
       };
 
       nftController.updateNft(
@@ -2746,11 +2752,11 @@ describe('NftController', () => {
           transactionId: mockTransactionId,
         },
         selectedAddress,
-        chainId,
+        caipChainId,
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[selectedAddress][caipChainId][0],
       ).toStrictEqual(expectedMockNft);
     });
 
@@ -2762,7 +2768,7 @@ describe('NftController', () => {
             transactionId: mockTransactionId,
           },
           selectedAddress,
-          chainId,
+          caipChainId,
         ),
       ).toBeUndefined();
     });
@@ -2785,37 +2791,39 @@ describe('NftController', () => {
       transactionId: mockTransactionId,
     };
 
-    const { selectedAddress, chainId } = nftController.config;
+    const { selectedAddress, caipChainId } = nftController.config;
 
     it('should not update any NFT state and should return false when passed a transaction id that does not match that of any NFT', async () => {
       expect(
         nftController.resetNftTransactionStatusByTransactionId(
           nonExistTransactionId,
           selectedAddress,
-          chainId,
+          caipChainId,
         ),
       ).toBe(false);
     });
 
     it('should set the transaction id of an NFT in state to undefined, and return true when it has successfully updated this state', async () => {
       nftController.state.allNfts = {
-        [selectedAddress]: { [chainId]: [mockNft] },
+        [selectedAddress]: { [caipChainId]: [mockNft] },
       };
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0].transactionId,
+        nftController.state.allNfts[selectedAddress][caipChainId][0]
+          .transactionId,
       ).toBe(mockTransactionId);
 
       expect(
         nftController.resetNftTransactionStatusByTransactionId(
           mockTransactionId,
           selectedAddress,
-          chainId,
+          caipChainId,
         ),
       ).toBe(true);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0].transactionId,
+        nftController.state.allNfts[selectedAddress][caipChainId][0]
+          .transactionId,
       ).toBeUndefined();
     });
   });

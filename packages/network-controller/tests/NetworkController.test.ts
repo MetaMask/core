@@ -7,10 +7,11 @@ import nock from 'nock';
 import { ethErrors } from 'eth-rpc-errors';
 import {
   BUILT_IN_NETWORKS,
-  ChainId,
+  BuiltInCaipChainId,
   InfuraNetworkType,
   MAX_SAFE_CHAIN_ID,
   NetworkType,
+  getCaipChainIdFromEthChainId,
   toHex,
 } from '@metamask/controller-utils';
 import { when, resetAllWhenMocks } from 'jest-when';
@@ -88,31 +89,31 @@ const BLOCK: Block = POST_1559_BLOCK;
 const INFURA_NETWORKS = [
   {
     networkType: NetworkType['linea-goerli'],
-    chainId: toHex(59140),
+    caipChainId: 'eip155:59140',
     ticker: 'LineaETH',
     blockExplorerUrl: 'https://explorer.goerli.linea.build',
   },
   {
     networkType: NetworkType['linea-mainnet'],
-    chainId: toHex(59144),
+    caipChainId: 'eip155:59144',
     ticker: 'ETH',
     blockExplorerUrl: 'https://lineascan.build',
   },
   {
     networkType: NetworkType.mainnet,
-    chainId: toHex(1),
+    caipChainId: 'eip155:1',
     ticker: 'ETH',
     blockExplorerUrl: 'https://etherscan.io',
   },
   {
     networkType: NetworkType.goerli,
-    chainId: toHex(5),
+    caipChainId: 'eip155:5',
     ticker: 'GoerliETH',
     blockExplorerUrl: 'https://goerli.etherscan.io',
   },
   {
     networkType: NetworkType.sepolia,
-    chainId: toHex(11155111),
+    caipChainId: 'eip155:11155111',
     ticker: 'SepoliaETH',
     blockExplorerUrl: 'https://sepolia.etherscan.io',
   },
@@ -192,7 +193,7 @@ describe('NetworkController', () => {
             "networkId": null,
             "networkStatus": "unknown",
             "providerConfig": Object {
-              "chainId": "0x1",
+              "caipChainId": "eip155:1",
               "type": "mainnet",
             },
           }
@@ -207,7 +208,7 @@ describe('NetworkController', () => {
             providerConfig: {
               type: 'rpc',
               rpcUrl: 'http://example-custom-rpc.metamask.io',
-              chainId: '0x9999' as const,
+              caipChainId: 'eip155:9999' as const,
               nickname: 'Test initial state',
             },
             networkDetails: {
@@ -229,7 +230,7 @@ describe('NetworkController', () => {
               "networkId": null,
               "networkStatus": "unknown",
               "providerConfig": Object {
-                "chainId": "0x9999",
+                "caipChainId": "eip155:9999",
                 "nickname": "Test initial state",
                 "rpcUrl": "http://example-custom-rpc.metamask.io",
                 "type": "rpc",
@@ -380,7 +381,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: NetworkType.rpc,
-                  chainId: toHex(2),
+                  caipChainId: 'eip155:2',
                   rpcUrl: 'https://test.network.2',
                   id: 'AAAA-AAAA-AAAA-AAAA',
                 },
@@ -388,7 +389,7 @@ describe('NetworkController', () => {
                   'AAAA-AAAA-AAAA-AAAA': {
                     id: 'AAAA-AAAA-AAAA-AAAA',
                     rpcUrl: 'https://test.network.1',
-                    chainId: toHex(1),
+                    caipChainId: 'eip155:1',
                     ticker: 'TEST',
                   },
                 },
@@ -412,7 +413,7 @@ describe('NetworkController', () => {
               await controller.initializeProvider();
 
               expect(createNetworkClientMock).toHaveBeenCalledWith({
-                chainId: toHex(1),
+                caipChainId: 'eip155:1',
                 rpcUrl: 'https://test.network.1',
                 type: NetworkClientType.Custom,
               });
@@ -427,7 +428,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: NetworkType.rpc,
-                  chainId: toHex(2),
+                  caipChainId: 'eip155:2',
                   rpcUrl: 'https://test.network.2',
                   id: 'AAAA-AAAA-AAAA-AAAA',
                 },
@@ -435,7 +436,7 @@ describe('NetworkController', () => {
                   'AAAA-AAAA-AAAA-AAAA': {
                     id: 'AAAA-AAAA-AAAA-AAAA',
                     rpcUrl: 'https://test.network.1',
-                    chainId: toHex(1),
+                    caipChainId: 'eip155:1',
                     ticker: 'TEST',
                   },
                 },
@@ -482,14 +483,14 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: NetworkType.rpc,
-                  chainId: toHex(2),
+                  caipChainId: 'eip155:2',
                   rpcUrl: 'https://test.network',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
                     id: 'AAAA-AAAA-AAAA-AAAA',
                     rpcUrl: 'https://test.network',
-                    chainId: toHex(1),
+                    caipChainId: 'eip155:1',
                     ticker: 'TEST',
                   },
                 },
@@ -513,7 +514,7 @@ describe('NetworkController', () => {
               await controller.initializeProvider();
 
               expect(createNetworkClientMock).toHaveBeenCalledWith({
-                chainId: toHex(1),
+                caipChainId: 'eip155:1',
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
               });
@@ -528,14 +529,14 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: NetworkType.rpc,
-                  chainId: toHex(2),
+                  caipChainId: 'eip155:2',
                   rpcUrl: 'https://test.network',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
                     id: 'AAAA-AAAA-AAAA-AAAA',
                     rpcUrl: 'https://test.network',
-                    chainId: toHex(1),
+                    caipChainId: 'eip155:1',
                     ticker: 'TEST',
                   },
                 },
@@ -582,14 +583,14 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: NetworkType.rpc,
-                  chainId: toHex(2),
+                  caipChainId: 'eip155:2',
                   rpcUrl: 'HTTPS://TEST.NETWORK',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
                     id: 'AAAA-AAAA-AAAA-AAAA',
                     rpcUrl: 'https://test.network',
-                    chainId: toHex(1),
+                    caipChainId: 'eip155:1',
                     ticker: 'TEST',
                   },
                 },
@@ -613,7 +614,7 @@ describe('NetworkController', () => {
               await controller.initializeProvider();
 
               expect(createNetworkClientMock).toHaveBeenCalledWith({
-                chainId: toHex(1),
+                caipChainId: 'eip155:1',
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
               });
@@ -628,14 +629,14 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: NetworkType.rpc,
-                  chainId: toHex(2),
+                  caipChainId: 'eip155:2',
                   rpcUrl: 'HTTPS://TEST.NETWORK',
                 },
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
                     id: 'AAAA-AAAA-AAAA-AAAA',
                     rpcUrl: 'https://test.network',
-                    chainId: toHex(1),
+                    caipChainId: 'eip155:1',
                     ticker: 'TEST',
                   },
                 },
@@ -683,7 +684,7 @@ describe('NetworkController', () => {
                 state: {
                   providerConfig: {
                     type: NetworkType.rpc,
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     rpcUrl: 'http://example.com',
                   },
                 },
@@ -706,7 +707,7 @@ describe('NetworkController', () => {
                 await controller.initializeProvider();
 
                 expect(createNetworkClientMock).toHaveBeenCalledWith({
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'http://example.com',
                   type: NetworkClientType.Custom,
                 });
@@ -721,7 +722,7 @@ describe('NetworkController', () => {
                 state: {
                   providerConfig: {
                     type: NetworkType.rpc,
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     rpcUrl: 'http://example.com',
                   },
                 },
@@ -781,7 +782,7 @@ describe('NetworkController', () => {
                 state: {
                   providerConfig: buildProviderConfig({
                     type: NetworkType.rpc,
-                    chainId: undefined,
+                    caipChainId: undefined,
                   }),
                 },
               },
@@ -793,7 +794,7 @@ describe('NetworkController', () => {
                 await expect(() =>
                   controller.initializeProvider(),
                 ).rejects.toThrow(
-                  'chainId must be provided for custom RPC endpoints',
+                  'caipChainId must be provided for custom RPC endpoints',
                 );
               },
             );
@@ -805,7 +806,7 @@ describe('NetworkController', () => {
                 state: {
                   providerConfig: buildProviderConfig({
                     type: NetworkType.rpc,
-                    chainId: undefined,
+                    caipChainId: undefined,
                   }),
                 },
               },
@@ -924,7 +925,7 @@ describe('NetworkController', () => {
                 providerConfig: {
                   type: 'rpc',
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  caipChainId: 'eip155:1337',
                 },
               },
               infuraProjectId: 'some-infura-project-id',
@@ -958,7 +959,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: '0x1337',
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -1008,12 +1009,12 @@ describe('NetworkController', () => {
                 type: 'goerli',
                 // NOTE: This doesn't need to match the logical chain ID of
                 // the network selected, it just needs to exist
-                chainId: '0x9999999',
+                caipChainId: 'eip155:9999999',
               },
               networkConfigurations: {
                 testNetworkConfigurationId: {
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: '0x1337',
+                  caipChainId: 'eip155:1337',
                   ticker: 'ABC',
                   id: 'testNetworkConfigurationId',
                 },
@@ -1056,7 +1057,7 @@ describe('NetworkController', () => {
               })
               .mockReturnValue(fakeNetworkClients[0])
               .calledWith({
-                chainId: '0x1337',
+                caipChainId: 'eip155:1337',
                 rpcUrl: 'https://mock-rpc-url',
                 type: NetworkClientType.Custom,
               })
@@ -1171,13 +1172,13 @@ describe('NetworkController', () => {
                 'AAAA-AAAA-AAAA-AAAA': {
                   id: 'AAAA-AAAA-AAAA-AAAA',
                   rpcUrl: 'https://test.network.1',
-                  chainId: toHex(1),
+                  caipChainId: 'eip155:1',
                   ticker: 'TEST1',
                 },
                 'BBBB-BBBB-BBBB-BBBB': {
                   id: 'BBBB-BBBB-BBBB-BBBB',
                   rpcUrl: 'https://test.network.2',
-                  chainId: toHex(2),
+                  caipChainId: 'eip155:2',
                   ticker: 'TEST2',
                 },
               },
@@ -1208,7 +1209,7 @@ describe('NetworkController', () => {
                 'AAAA-AAAA-AAAA-AAAA',
                 {
                   type: NetworkClientType.Custom,
-                  chainId: toHex(1),
+                  caipChainId: 'eip155:1',
                   rpcUrl: 'https://test.network.1',
                 },
               ],
@@ -1216,7 +1217,7 @@ describe('NetworkController', () => {
                 'BBBB-BBBB-BBBB-BBBB',
                 {
                   type: NetworkClientType.Custom,
-                  chainId: toHex(2),
+                  caipChainId: 'eip155:2',
                   rpcUrl: 'https://test.network.2',
                 },
               ],
@@ -1279,7 +1280,7 @@ describe('NetworkController', () => {
             state: {
               providerConfig: {
                 type: NetworkType.mainnet,
-                chainId: ChainId.mainnet,
+                caipChainId: BuiltInCaipChainId.mainnet,
               },
             },
             infuraProjectId: 'some-infura-project-id',
@@ -1359,14 +1360,14 @@ describe('NetworkController', () => {
                 state: {
                   providerConfig: {
                     type: NetworkType.rpc,
-                    chainId: toHex(2),
+                    caipChainId: 'eip155:2',
                     rpcUrl: 'HTTPS://TEST.NETWORK.2',
                   },
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
                       id: 'AAAA-AAAA-AAAA-AAAA',
                       rpcUrl: 'https://test.network.1',
-                      chainId: toHex(1),
+                      caipChainId: 'eip155:1',
                       ticker: 'TEST',
                     },
                   },
@@ -1399,7 +1400,7 @@ describe('NetworkController', () => {
                     'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
-                      chainId: toHex(1),
+                      caipChainId: 'eip155:1',
                       rpcUrl: 'https://test.network.1',
                     },
                   ],
@@ -1415,7 +1416,7 @@ describe('NetworkController', () => {
                     'https://test.network.2',
                     {
                       type: NetworkClientType.Custom,
-                      chainId: toHex(2),
+                      caipChainId: 'eip155:2',
                       rpcUrl: 'HTTPS://TEST.NETWORK.2',
                     },
                   ],
@@ -1464,14 +1465,14 @@ describe('NetworkController', () => {
                 state: {
                   providerConfig: {
                     type: NetworkType.rpc,
-                    chainId: toHex(2),
+                    caipChainId: 'eip155:2',
                     rpcUrl: 'https://test.network',
                   },
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
                       id: 'AAAA-AAAA-AAAA-AAAA',
                       rpcUrl: 'https://test.network',
-                      chainId: toHex(1),
+                      caipChainId: 'eip155:1',
                       ticker: 'TEST',
                     },
                   },
@@ -1504,7 +1505,7 @@ describe('NetworkController', () => {
                     'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
-                      chainId: '0x1',
+                      caipChainId: 'eip155:1',
                       rpcUrl: 'https://test.network',
                     },
                   ],
@@ -1561,14 +1562,14 @@ describe('NetworkController', () => {
                 state: {
                   providerConfig: {
                     type: NetworkType.rpc,
-                    chainId: toHex(2),
+                    caipChainId: 'eip155:2',
                     rpcUrl: 'https://TEST.NETWORK',
                   },
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
                       id: 'AAAA-AAAA-AAAA-AAAA',
                       rpcUrl: 'https://test.network',
-                      chainId: toHex(1),
+                      caipChainId: 'eip155:1',
                       ticker: 'TEST',
                     },
                   },
@@ -1601,7 +1602,7 @@ describe('NetworkController', () => {
                     'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
-                      chainId: toHex(1),
+                      caipChainId: 'eip155:1',
                       rpcUrl: 'https://test.network',
                     },
                   ],
@@ -1659,7 +1660,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: {
                   type: NetworkType.rpc,
-                  chainId: toHex(2),
+                  caipChainId: 'eip155:2',
                   rpcUrl: 'https://test.network.2',
                   id: 'AAAA-AAAA-AAAA-AAAA',
                 },
@@ -1667,7 +1668,7 @@ describe('NetworkController', () => {
                   'AAAA-AAAA-AAAA-AAAA': {
                     id: 'AAAA-AAAA-AAAA-AAAA',
                     rpcUrl: 'https://test.network.1',
-                    chainId: toHex(1),
+                    caipChainId: 'eip155:1',
                     ticker: 'TEST',
                   },
                 },
@@ -1700,7 +1701,7 @@ describe('NetworkController', () => {
                   'AAAA-AAAA-AAAA-AAAA',
                   {
                     type: NetworkClientType.Custom,
-                    chainId: toHex(1),
+                    caipChainId: 'eip155:1',
                     rpcUrl: 'https://test.network.1',
                   },
                 ],
@@ -1781,7 +1782,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
+                        caipChainId: 'eip155:1337',
                         ticker: 'ABC',
                       },
                     },
@@ -1847,7 +1848,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -1877,7 +1878,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
+                        caipChainId: 'eip155:1337',
                         ticker: 'ABC',
                       },
                     },
@@ -1949,7 +1950,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -1985,7 +1986,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
+                        caipChainId: 'eip155:1337',
                         ticker: 'ABC',
                       },
                     },
@@ -2069,7 +2070,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -2107,7 +2108,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
+                        caipChainId: 'eip155:1337',
                         ticker: 'ABC',
                       },
                     },
@@ -2179,7 +2180,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -2226,7 +2227,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
+                        caipChainId: 'eip155:1337',
                         ticker: 'ABC',
                       },
                     },
@@ -2292,7 +2293,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -2322,7 +2323,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
+                        caipChainId: 'eip155:1337',
                         ticker: 'ABC',
                       },
                     },
@@ -2394,7 +2395,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -2430,7 +2431,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
+                        caipChainId: 'eip155:1337',
                         ticker: 'ABC',
                       },
                     },
@@ -2514,7 +2515,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -2552,7 +2553,7 @@ describe('NetworkController', () => {
                       testNetworkConfigurationId: {
                         id: 'testNetworkConfigurationId',
                         rpcUrl: 'https://mock-rpc-url',
-                        chainId: toHex(1337),
+                        caipChainId: 'eip155:1337',
                         ticker: 'ABC',
                       },
                     },
@@ -2624,7 +2625,7 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[0])
                     .calledWith({
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       rpcUrl: 'https://mock-rpc-url',
                       type: NetworkClientType.Custom,
                     })
@@ -2682,7 +2683,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -2739,7 +2740,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -2772,7 +2773,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -2835,7 +2836,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -2874,7 +2875,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -2949,7 +2950,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -2990,7 +2991,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -3053,7 +3054,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -3098,7 +3099,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -3155,7 +3156,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -3188,7 +3189,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -3251,7 +3252,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -3290,7 +3291,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -3365,7 +3366,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -3406,7 +3407,7 @@ describe('NetworkController', () => {
               state: {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                 }),
               },
@@ -3469,7 +3470,7 @@ describe('NetworkController', () => {
               ];
               mockCreateNetworkClient()
                 .calledWith({
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   rpcUrl: 'https://mock-rpc-url',
                   type: NetworkClientType.Custom,
                 })
@@ -3522,7 +3523,7 @@ describe('NetworkController', () => {
   describe('setProviderType', () => {
     for (const {
       networkType,
-      chainId,
+      caipChainId,
       ticker,
       blockExplorerUrl,
     } of INFURA_NETWORKS) {
@@ -3537,14 +3538,14 @@ describe('NetworkController', () => {
         });
       });
 
-      it(`overwrites the provider configuration using a predetermined chainId, ticker, and blockExplorerUrl for "${networkType}", clearing id, rpcUrl, and nickname`, async () => {
+      it(`overwrites the provider configuration using a predetermined caipChainId, ticker, and blockExplorerUrl for "${networkType}", clearing id, rpcUrl, and nickname`, async () => {
         await withController(
           {
             state: {
               providerConfig: {
                 type: 'rpc',
                 rpcUrl: 'https://mock-rpc-url',
-                chainId: '0x1337',
+                caipChainId: 'eip155:1337',
                 nickname: 'test-chain',
                 ticker: 'TEST',
                 rpcPrefs: {
@@ -3563,7 +3564,7 @@ describe('NetworkController', () => {
             expect(controller.state.providerConfig).toStrictEqual({
               type: networkType,
               rpcUrl: undefined,
-              chainId,
+              caipChainId,
               ticker,
               nickname: undefined,
               rpcPrefs: { blockExplorerUrl },
@@ -3582,7 +3583,7 @@ describe('NetworkController', () => {
               providerConfig: {
                 type: NetworkType.rpc,
                 rpcUrl: 'http://somethingexisting.com',
-                chainId: toHex(99999),
+                caipChainId: 'eip155:99999',
                 ticker: 'something existing',
                 nickname: 'something existing',
               },
@@ -3667,7 +3668,7 @@ describe('NetworkController', () => {
     refreshNetworkTests({
       expectedProviderConfig: {
         rpcUrl: 'https://mock-rpc-url',
-        chainId: toHex(111),
+        caipChainId: 'eip155:111',
         ticker: 'TEST',
         nickname: 'something existing',
         id: 'testNetworkConfigurationId',
@@ -3678,7 +3679,7 @@ describe('NetworkController', () => {
         networkConfigurations: {
           testNetworkConfigurationId: {
             rpcUrl: 'https://mock-rpc-url',
-            chainId: toHex(111),
+            caipChainId: 'eip155:111',
             ticker: 'TEST',
             nickname: 'something existing',
             id: 'testNetworkConfigurationId',
@@ -3699,7 +3700,7 @@ describe('NetworkController', () => {
               networkConfigurations: {
                 testNetworkConfigurationId: {
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'TEST',
                   id: 'testNetworkConfigurationId',
                 },
@@ -3732,7 +3733,7 @@ describe('NetworkController', () => {
               providerConfig: {
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 ticker: 'TEST',
                 nickname: 'something existing',
                 rpcPrefs: undefined,
@@ -3740,7 +3741,7 @@ describe('NetworkController', () => {
               networkConfigurations: {
                 testNetworkConfigurationId1: {
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'TEST',
                   nickname: 'something existing',
                   id: 'testNetworkConfigurationId1',
@@ -3748,7 +3749,7 @@ describe('NetworkController', () => {
                 },
                 testNetworkConfigurationId2: {
                   rpcUrl: undefined,
-                  chainId: toHex(222),
+                  caipChainId: 'eip155:222',
                   ticker: 'something existing',
                   nickname: 'something existing',
                   id: 'testNetworkConfigurationId2',
@@ -3787,7 +3788,7 @@ describe('NetworkController', () => {
               providerConfig: {
                 type: NetworkType.rpc,
                 rpcUrl: 'https://mock-rpc-url',
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 ticker: 'TEST',
                 nickname: 'something existing',
                 rpcPrefs: undefined,
@@ -3795,7 +3796,7 @@ describe('NetworkController', () => {
               networkConfigurations: {
                 testNetworkConfigurationId1: {
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'TEST',
                   nickname: 'something existing',
                   id: 'testNetworkConfigurationId1',
@@ -3803,7 +3804,7 @@ describe('NetworkController', () => {
                 },
                 testNetworkConfigurationId2: {
                   rpcUrl: 'http://somethingexisting.com',
-                  chainId: undefined,
+                  caipChainId: undefined,
                   ticker: 'something existing',
                   nickname: 'something existing',
                   id: 'testNetworkConfigurationId2',
@@ -3820,7 +3821,7 @@ describe('NetworkController', () => {
             await expect(() =>
               controller.setActiveNetwork('testNetworkConfigurationId2'),
             ).rejects.toThrow(
-              'chainId must be provided for custom RPC endpoints',
+              'caipChainId must be provided for custom RPC endpoints',
             );
 
             expect(createNetworkClientMock).not.toHaveBeenCalled();
@@ -3840,7 +3841,7 @@ describe('NetworkController', () => {
             networkConfigurations: {
               testNetworkConfigurationId: {
                 rpcUrl: 'https://mock-rpc-url',
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 ticker: 'TEST',
                 nickname: 'something existing',
                 id: 'testNetworkConfigurationId',
@@ -3857,7 +3858,7 @@ describe('NetworkController', () => {
           mockCreateNetworkClient()
             .calledWith({
               rpcUrl: 'https://mock-rpc-url',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               type: NetworkClientType.Custom,
             })
             .mockReturnValue(fakeNetworkClient);
@@ -3867,7 +3868,7 @@ describe('NetworkController', () => {
           expect(controller.state.providerConfig).toStrictEqual({
             type: 'rpc',
             rpcUrl: 'https://mock-rpc-url',
-            chainId: toHex(111),
+            caipChainId: 'eip155:111',
             ticker: 'TEST',
             nickname: 'something existing',
             id: 'testNetworkConfigurationId',
@@ -4251,7 +4252,7 @@ describe('NetworkController', () => {
               networkConfigurations: {
                 'AAAA-AAAA-AAAA-AAAA': {
                   rpcUrl: 'https://test.network.1',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'TICKER1',
                   id: 'AAAA-AAAA-AAAA-AAAA',
                 },
@@ -4264,7 +4265,7 @@ describe('NetworkController', () => {
             await controller.upsertNetworkConfiguration(
               {
                 rpcUrl: 'https://test.network.2',
-                chainId: toHex(222),
+                caipChainId: 'eip155:222',
                 ticker: 'TICKER2',
                 nickname: 'test network 2',
                 rpcPrefs: {
@@ -4280,13 +4281,13 @@ describe('NetworkController', () => {
             expect(controller.state.networkConfigurations).toStrictEqual({
               'AAAA-AAAA-AAAA-AAAA': {
                 rpcUrl: 'https://test.network.1',
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 ticker: 'TICKER1',
                 id: 'AAAA-AAAA-AAAA-AAAA',
               },
               'BBBB-BBBB-BBBB-BBBB': {
                 rpcUrl: 'https://test.network.2',
-                chainId: toHex(222),
+                caipChainId: 'eip155:222',
                 ticker: 'TICKER2',
                 nickname: 'test network 2',
                 rpcPrefs: {
@@ -4306,7 +4307,7 @@ describe('NetworkController', () => {
           await controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test.network',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
               nickname: 'test network',
               rpcPrefs: {
@@ -4324,7 +4325,7 @@ describe('NetworkController', () => {
           expect(controller.state.networkConfigurations).toStrictEqual({
             'AAAA-AAAA-AAAA-AAAA': {
               rpcUrl: 'https://test.network',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
               nickname: 'test network',
               rpcPrefs: {
@@ -4346,7 +4347,7 @@ describe('NetworkController', () => {
               infuraProjectId: 'some-infura-project-id',
             })
               .calledWith({
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
               })
@@ -4355,7 +4356,7 @@ describe('NetworkController', () => {
             await controller.upsertNetworkConfiguration(
               {
                 rpcUrl: 'https://test.network',
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 ticker: 'TICKER',
               },
               {
@@ -4369,7 +4370,7 @@ describe('NetworkController', () => {
             expect(networkClientsById).toMatchObject({
               'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                 configuration: {
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   rpcUrl: 'https://test.network',
                   type: NetworkClientType.Custom,
                 },
@@ -4384,10 +4385,10 @@ describe('NetworkController', () => {
           const originalProvider = {
             type: NetworkType.rpc,
             rpcUrl: 'https://mock-rpc-url',
-            chainId: toHex(111),
+            caipChainId: 'eip155:111',
             ticker: 'TICKER',
             id: 'testNetworkConfigurationId',
-          };
+          } as const;
 
           await withController(
             {
@@ -4401,7 +4402,7 @@ describe('NetworkController', () => {
               await controller.upsertNetworkConfiguration(
                 {
                   rpcUrl: 'https://test.network',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'TICKER',
                 },
                 {
@@ -4455,7 +4456,7 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               })
                 .calledWith({
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   rpcUrl: 'https://test.network',
                   type: NetworkClientType.Custom,
                 })
@@ -4466,7 +4467,7 @@ describe('NetworkController', () => {
               await controller.upsertNetworkConfiguration(
                 {
                   rpcUrl: 'https://test.network',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'TICKER',
                 },
                 {
@@ -4497,10 +4498,10 @@ describe('NetworkController', () => {
           const originalProvider = {
             type: NetworkType.rpc,
             rpcUrl: 'https://mock-rpc-url',
-            chainId: toHex(111),
+            caipChainId: 'eip155:111',
             ticker: 'TICKER',
             id: 'testNetworkConfigurationId',
-          };
+          } as const;
 
           await withController(
             {
@@ -4514,7 +4515,7 @@ describe('NetworkController', () => {
               await controller.upsertNetworkConfiguration(
                 {
                   rpcUrl: 'https://test.network',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'TICKER',
                 },
                 {
@@ -4569,7 +4570,7 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               })
                 .calledWith({
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   rpcUrl: 'https://test.network',
                   type: NetworkClientType.Custom,
                 })
@@ -4580,7 +4581,7 @@ describe('NetworkController', () => {
               await controller.upsertNetworkConfiguration(
                 {
                   rpcUrl: 'https://test.network',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'TICKER',
                 },
                 {
@@ -4614,7 +4615,7 @@ describe('NetworkController', () => {
             const newCustomNetworkClient = buildFakeClient();
             mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients()
               .calledWith({
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
               })
@@ -4623,7 +4624,7 @@ describe('NetworkController', () => {
             await controller.upsertNetworkConfiguration(
               {
                 rpcUrl: 'https://test.network',
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 ticker: 'TICKER',
                 nickname: 'test network',
                 rpcPrefs: {
@@ -4640,7 +4641,7 @@ describe('NetworkController', () => {
             expect(controller.state.providerConfig).toStrictEqual({
               type: NetworkType.rpc,
               rpcUrl: 'https://test.network',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
               nickname: 'test network',
               rpcPrefs: {
@@ -4655,7 +4656,7 @@ describe('NetworkController', () => {
           expectedProviderConfig: {
             type: NetworkType.rpc,
             rpcUrl: 'https://some.other.network',
-            chainId: toHex(222),
+            caipChainId: 'eip155:222',
             ticker: 'TICKER2',
             id: 'BBBB-BBBB-BBBB-BBBB',
             nickname: undefined,
@@ -4665,7 +4666,7 @@ describe('NetworkController', () => {
             networkConfigurations: {
               'AAAA-AAAA-AAAA-AAAA': {
                 rpcUrl: 'https://test.network',
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 ticker: 'TICKER1',
                 id: 'AAAA-AAAA-AAAA-AAAA',
               },
@@ -4677,7 +4678,7 @@ describe('NetworkController', () => {
             await controller.upsertNetworkConfiguration(
               {
                 rpcUrl: 'https://some.other.network',
-                chainId: toHex(222),
+                caipChainId: 'eip155:222',
                 ticker: 'TICKER2',
               },
               {
@@ -4703,7 +4704,7 @@ describe('NetworkController', () => {
             await controller.upsertNetworkConfiguration(
               {
                 rpcUrl: 'https://test.network',
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 ticker: 'TICKER',
               },
               {
@@ -4719,7 +4720,7 @@ describe('NetworkController', () => {
                 url: 'https://test-dapp.com',
               },
               properties: {
-                chain_id: toHex(111),
+                chain_id: '0x6f',
                 symbol: 'TICKER',
                 source: 'dapp',
               },
@@ -4742,13 +4743,13 @@ describe('NetworkController', () => {
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
                     rpcUrl: 'https://test.network.1',
-                    chainId: toHex(111),
+                    caipChainId: 'eip155:111',
                     ticker: 'TICKER1',
                     id: 'AAAA-AAAA-AAAA-AAAA',
                   },
                   'BBBB-BBBB-BBBB-BBBB': {
                     rpcUrl: oldRpcUrl,
-                    chainId: toHex(222),
+                    caipChainId: 'eip155:222',
                     ticker: 'TICKER2',
                     id: 'BBBB-BBBB-BBBB-BBBB',
                   },
@@ -4759,7 +4760,7 @@ describe('NetworkController', () => {
               await controller.upsertNetworkConfiguration(
                 {
                   rpcUrl: newRpcUrl,
-                  chainId: toHex(999),
+                  caipChainId: 'eip155:999',
                   ticker: 'NEW_TICKER',
                   nickname: 'test network 2',
                   rpcPrefs: {
@@ -4775,13 +4776,13 @@ describe('NetworkController', () => {
               expect(controller.state.networkConfigurations).toStrictEqual({
                 'AAAA-AAAA-AAAA-AAAA': {
                   rpcUrl: 'https://test.network.1',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'TICKER1',
                   id: 'AAAA-AAAA-AAAA-AAAA',
                 },
                 'BBBB-BBBB-BBBB-BBBB': {
                   rpcUrl: newRpcUrl,
-                  chainId: toHex(999),
+                  caipChainId: 'eip155:999',
                   ticker: 'NEW_TICKER',
                   nickname: 'test network 2',
                   rpcPrefs: {
@@ -4801,7 +4802,7 @@ describe('NetworkController', () => {
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
                     rpcUrl: oldRpcUrl,
-                    chainId: toHex(111),
+                    caipChainId: 'eip155:111',
                     ticker: 'TICKER',
                     id: 'AAAA-AAAA-AAAA-AAAA',
                   },
@@ -4812,7 +4813,7 @@ describe('NetworkController', () => {
               await controller.upsertNetworkConfiguration(
                 {
                   rpcUrl: newRpcUrl,
-                  chainId: toHex(999),
+                  caipChainId: 'eip155:999',
                   ticker: 'NEW_TICKER',
                   nickname: 'test network',
                   rpcPrefs: {
@@ -4830,7 +4831,7 @@ describe('NetworkController', () => {
               expect(controller.state.networkConfigurations).toStrictEqual({
                 'AAAA-AAAA-AAAA-AAAA': {
                   rpcUrl: newRpcUrl,
-                  chainId: toHex(999),
+                  caipChainId: 'eip155:999',
                   ticker: 'NEW_TICKER',
                   nickname: 'test network',
                   rpcPrefs: {
@@ -4851,7 +4852,7 @@ describe('NetworkController', () => {
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
                       rpcUrl: oldRpcUrl,
-                      chainId: toHex(111),
+                      caipChainId: 'eip155:111',
                       ticker: 'TICKER',
                       id: 'AAAA-AAAA-AAAA-AAAA',
                     },
@@ -4865,7 +4866,7 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                 })
                   .calledWith({
-                    chainId: toHex(111),
+                    caipChainId: 'eip155:111',
                     rpcUrl: 'https://test.network',
                     type: NetworkClientType.Custom,
                   })
@@ -4875,7 +4876,7 @@ describe('NetworkController', () => {
                 ).find(({ configuration }) => {
                   return (
                     configuration.type === NetworkClientType.Custom &&
-                    configuration.chainId === toHex(111) &&
+                    configuration.caipChainId === 'eip155:111' &&
                     configuration.rpcUrl === 'https://test.network'
                   );
                 });
@@ -4885,7 +4886,7 @@ describe('NetworkController', () => {
                 await controller.upsertNetworkConfiguration(
                   {
                     rpcUrl: newRpcUrl,
-                    chainId: toHex(999),
+                    caipChainId: 'eip155:999',
                     ticker: 'TICKER',
                   },
                   {
@@ -4900,7 +4901,7 @@ describe('NetworkController', () => {
                 expect(networkClientsById).not.toMatchObject({
                   [oldRpcUrl]: expect.objectContaining({
                     configuration: {
-                      chainId: toHex(111),
+                      caipChainId: 'eip155:111',
                       rpcUrl: oldRpcUrl,
                       type: NetworkClientType.Custom,
                     },
@@ -4917,7 +4918,7 @@ describe('NetworkController', () => {
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
                       rpcUrl: oldRpcUrl,
-                      chainId: toHex(111),
+                      caipChainId: 'eip155:111',
                       ticker: 'TICKER',
                       id: 'AAAA-AAAA-AAAA-AAAA',
                     },
@@ -4931,7 +4932,7 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                 })
                   .calledWith({
-                    chainId: toHex(999),
+                    caipChainId: 'eip155:999',
                     rpcUrl: newRpcUrl,
                     type: NetworkClientType.Custom,
                   })
@@ -4940,7 +4941,7 @@ describe('NetworkController', () => {
                 await controller.upsertNetworkConfiguration(
                   {
                     rpcUrl: newRpcUrl,
-                    chainId: toHex(999),
+                    caipChainId: 'eip155:999',
                     ticker: 'TICKER',
                   },
                   {
@@ -4954,7 +4955,7 @@ describe('NetworkController', () => {
                 expect(networkClientsById).toMatchObject({
                   'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                     configuration: {
-                      chainId: toHex(999),
+                      caipChainId: 'eip155:999',
                       rpcUrl: newRpcUrl,
                       type: NetworkClientType.Custom,
                     },
@@ -4973,7 +4974,7 @@ describe('NetworkController', () => {
                   networkConfigurations: {
                     'AAAA-AAAA-AAAA-AAAA': {
                       rpcUrl: oldRpcUrl,
-                      chainId: toHex(111),
+                      caipChainId: 'eip155:111',
                       ticker: 'TICKER',
                       id: 'AAAA-AAAA-AAAA-AAAA',
                     },
@@ -4987,7 +4988,7 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                 })
                   .calledWith({
-                    chainId: toHex(111),
+                    caipChainId: 'eip155:111',
                     rpcUrl: 'https://test.network',
                     type: NetworkClientType.Custom,
                   })
@@ -4997,7 +4998,7 @@ describe('NetworkController', () => {
                 await controller.upsertNetworkConfiguration(
                   {
                     rpcUrl: newRpcUrl,
-                    chainId: toHex(111),
+                    caipChainId: 'eip155:111',
                     ticker: 'NEW_TICKER',
                   },
                   {
@@ -5022,7 +5023,7 @@ describe('NetworkController', () => {
                 networkConfigurations: {
                   'AAAA-AAAA-AAAA-AAAA': {
                     rpcUrl: oldRpcUrl,
-                    chainId: toHex(111),
+                    caipChainId: 'eip155:111',
                     ticker: 'TICKER',
                     id: 'AAAA-AAAA-AAAA-AAAA',
                   },
@@ -5035,7 +5036,7 @@ describe('NetworkController', () => {
               await controller.upsertNetworkConfiguration(
                 {
                   rpcUrl: newRpcUrl,
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   ticker: 'NEW_TICKER',
                 },
                 {
@@ -5058,7 +5059,7 @@ describe('NetworkController', () => {
             {
               rpcUrl: 'https://test.network',
               // @ts-expect-error We are intentionally passing bad input.
-              chainId: '1',
+              caipChainId: '1',
               ticker: 'TICKER',
             },
             {
@@ -5078,7 +5079,9 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test.network',
-              chainId: toHex(MAX_SAFE_CHAIN_ID + 1),
+              caipChainId: getCaipChainIdFromEthChainId(
+                (MAX_SAFE_CHAIN_ID + 1).toString(),
+              ),
               ticker: 'TICKER',
             },
             {
@@ -5101,7 +5104,7 @@ describe('NetworkController', () => {
             {
               // @ts-expect-error We are intentionally passing bad input.
               rpcUrl: false,
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
             },
             {
@@ -5123,7 +5126,7 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             // @ts-expect-error We are intentionally passing bad input.
             {
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
             },
             {
@@ -5145,7 +5148,7 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'test',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
             },
             {
@@ -5163,7 +5166,7 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test.network',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
             },
             {
@@ -5186,7 +5189,7 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test.network',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
             },
             // @ts-expect-error We are intentionally passing bad input.
@@ -5208,7 +5211,7 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test.network',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
             },
             {
@@ -5231,7 +5234,7 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test.network',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               ticker: 'TICKER',
             },
             // @ts-expect-error We are intentionally passing bad input.
@@ -5253,7 +5256,7 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test.network',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
               // @ts-expect-error We are intentionally passing bad input.
               ticker: false,
             },
@@ -5277,7 +5280,7 @@ describe('NetworkController', () => {
             // @ts-expect-error We are intentionally passing bad input.
             {
               rpcUrl: 'https://test.network',
-              chainId: toHex(111),
+              caipChainId: 'eip155:111',
             },
             {
               referrer: 'https://test-dapp.com',
@@ -5303,7 +5306,7 @@ describe('NetworkController', () => {
                 'AAAA-AAAA-AAAA-AAAA': {
                   rpcUrl: 'https://test.network',
                   ticker: 'TICKER',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   id: 'AAAA-AAAA-AAAA-AAAA',
                 },
               },
@@ -5325,7 +5328,7 @@ describe('NetworkController', () => {
                 'AAAA-AAAA-AAAA-AAAA': {
                   rpcUrl: 'https://test.network',
                   ticker: 'TICKER',
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   id: 'AAAA-AAAA-AAAA-AAAA',
                 },
               },
@@ -5334,7 +5337,7 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients()
               .calledWith({
-                chainId: toHex(111),
+                caipChainId: 'eip155:111',
                 rpcUrl: 'https://test.network',
                 type: NetworkClientType.Custom,
               })
@@ -5344,7 +5347,7 @@ describe('NetworkController', () => {
             ).find(({ configuration }) => {
               return (
                 configuration.type === NetworkClientType.Custom &&
-                configuration.chainId === toHex(111) &&
+                configuration.caipChainId === 'eip155:111' &&
                 configuration.rpcUrl === 'https://test.network'
               );
             });
@@ -5357,7 +5360,7 @@ describe('NetworkController', () => {
             expect(controller.getNetworkClientsById()).not.toMatchObject({
               'https://test.network': expect.objectContaining({
                 configuration: {
-                  chainId: toHex(111),
+                  caipChainId: 'eip155:111',
                   rpcUrl: 'https://test.network',
                   type: NetworkClientType.Custom,
                 },
@@ -5447,7 +5450,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                       nickname: 'test network',
                       rpcPrefs: {
@@ -5489,7 +5492,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                       nickname: 'test network',
                       rpcPrefs: {
@@ -5531,7 +5534,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                       nickname: 'test network',
                       rpcPrefs: {
@@ -5554,7 +5557,7 @@ describe('NetworkController', () => {
                 mockCreateNetworkClient()
                   .calledWith({
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(fakeNetworkClients[0])
@@ -5569,7 +5572,7 @@ describe('NetworkController', () => {
                   type: 'rpc',
                   id: 'testNetworkConfiguration',
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   ticker: 'TEST',
                   nickname: 'test network',
                   rpcPrefs: {
@@ -5599,7 +5602,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                     },
                   },
@@ -5631,7 +5634,7 @@ describe('NetworkController', () => {
                 mockCreateNetworkClient()
                   .calledWith({
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(fakeNetworkClients[0])
@@ -5674,7 +5677,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                     },
                   },
@@ -5702,7 +5705,7 @@ describe('NetworkController', () => {
                 mockCreateNetworkClient()
                   .calledWith({
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(fakeNetworkClients[0])
@@ -5751,7 +5754,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                     },
                   },
@@ -5779,7 +5782,7 @@ describe('NetworkController', () => {
                 mockCreateNetworkClient()
                   .calledWith({
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(fakeNetworkClients[0])
@@ -5819,7 +5822,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                     },
                   },
@@ -5838,7 +5841,7 @@ describe('NetworkController', () => {
                 mockCreateNetworkClient()
                   .calledWith({
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(fakeNetworkClients[0])
@@ -5872,7 +5875,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                     },
                   },
@@ -5898,7 +5901,7 @@ describe('NetworkController', () => {
                 mockCreateNetworkClient()
                   .calledWith({
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(fakeNetworkClients[0])
@@ -5941,7 +5944,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                     },
                   },
@@ -5974,7 +5977,7 @@ describe('NetworkController', () => {
                 mockCreateNetworkClient()
                   .calledWith({
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(fakeNetworkClients[0])
@@ -6010,7 +6013,7 @@ describe('NetworkController', () => {
                     testNetworkConfiguration: {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
+                      caipChainId: 'eip155:1337',
                       ticker: 'TEST',
                     },
                   },
@@ -6047,7 +6050,7 @@ describe('NetworkController', () => {
                 mockCreateNetworkClient()
                   .calledWith({
                     rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
+                    caipChainId: 'eip155:1337',
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(fakeNetworkClients[0])
@@ -6153,7 +6156,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   nickname: 'network',
                   ticker: 'TEST',
                   rpcPrefs: {
@@ -6178,7 +6181,7 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -6186,7 +6189,7 @@ describe('NetworkController', () => {
               expect(controller.state.providerConfig).toStrictEqual({
                 type: 'goerli',
                 rpcUrl: undefined,
-                chainId: toHex(5),
+                caipChainId: 'eip155:5',
                 ticker: 'GoerliETH',
                 nickname: undefined,
                 rpcPrefs: {
@@ -6200,7 +6203,7 @@ describe('NetworkController', () => {
                 buildProviderConfig({
                   type: 'rpc',
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   nickname: 'network',
                   ticker: 'TEST',
                   rpcPrefs: {
@@ -6219,7 +6222,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                 }),
               },
               infuraProjectId: 'some-infura-project-id',
@@ -6255,7 +6258,7 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -6288,7 +6291,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                 }),
               },
               infuraProjectId: 'some-infura-project-id',
@@ -6320,7 +6323,7 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -6359,7 +6362,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                 }),
               },
               infuraProjectId: 'some-infura-project-id',
@@ -6391,7 +6394,7 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -6421,7 +6424,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                 }),
               },
               infuraProjectId: 'some-infura-project-id',
@@ -6441,7 +6444,7 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -6465,7 +6468,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                 }),
               },
               infuraProjectId: 'some-infura-project-id',
@@ -6485,7 +6488,7 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -6511,7 +6514,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                 }),
               },
               infuraProjectId: 'some-infura-project-id',
@@ -6554,7 +6557,7 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -6574,7 +6577,7 @@ describe('NetworkController', () => {
                 providerConfig: buildProviderConfig({
                   type: NetworkType.rpc,
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                 }),
               },
               infuraProjectId: 'some-infura-project-id',
@@ -6615,7 +6618,7 @@ describe('NetworkController', () => {
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
                   rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
+                  caipChainId: 'eip155:1337',
                   type: NetworkClientType.Custom,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -6648,7 +6651,7 @@ describe('NetworkController', () => {
               networkConfigurationId1: {
                 id: 'networkConfigurationId1',
                 rpcUrl: 'https://rpc-url1.com',
-                chainId: toHex(1),
+                caipChainId: 'eip155:1',
                 ticker: 'TEST1',
               },
             },
@@ -6660,7 +6663,7 @@ describe('NetworkController', () => {
               networkConfigurationId2: {
                 id: 'networkConfigurationId2',
                 rpcUrl: 'https://rpc-url2.com',
-                chainId: toHex(2),
+                caipChainId: 'eip155:2',
                 ticker: 'TEST2',
               },
             },
@@ -6670,13 +6673,13 @@ describe('NetworkController', () => {
             networkConfigurationId1: {
               id: 'networkConfigurationId1',
               rpcUrl: 'https://rpc-url1.com',
-              chainId: toHex(1),
+              caipChainId: 'eip155:1',
               ticker: 'TEST1',
             },
             networkConfigurationId2: {
               id: 'networkConfigurationId2',
               rpcUrl: 'https://rpc-url2.com',
-              chainId: toHex(2),
+              caipChainId: 'eip155:2',
               ticker: 'TEST2',
             },
           });
@@ -7005,7 +7008,7 @@ function refreshNetworkTests({
                 method: 'eth_chainId',
               },
               response: {
-                result: toHex(111),
+                result: 'eip155:111',
               },
             },
           ]);
@@ -7015,7 +7018,7 @@ function refreshNetworkTests({
           await operation(controller);
 
           expect(createNetworkClientMock).toHaveBeenCalledWith({
-            chainId: expectedProviderConfig.chainId,
+            caipChainId: expectedProviderConfig.caipChainId,
             rpcUrl: expectedProviderConfig.rpcUrl,
             type: NetworkClientType.Custom,
           });
@@ -7030,7 +7033,7 @@ function refreshNetworkTests({
             method: 'eth_chainId',
             params: [],
           });
-          expect(chainIdResult.result).toBe(toHex(111));
+          expect(chainIdResult.result).toBe('eip155:111');
         },
       );
     });
@@ -7048,7 +7051,7 @@ function refreshNetworkTests({
                 method: 'eth_chainId',
               },
               response: {
-                result: toHex(1337),
+                result: 'eip155:1337',
               },
             },
           ]);
@@ -7073,7 +7076,7 @@ function refreshNetworkTests({
             method: 'eth_chainId',
             params: [],
           });
-          expect(chainIdResult.result).toBe(toHex(1337));
+          expect(chainIdResult.result).toBe('eip155:1337');
         },
       );
     });
@@ -7096,7 +7099,7 @@ function refreshNetworkTests({
         >[0] =
           controller.state.providerConfig.type === NetworkType.rpc
             ? {
-                chainId: toHex(controller.state.providerConfig.chainId),
+                caipChainId: controller.state.providerConfig.caipChainId,
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 rpcUrl: controller.state.providerConfig.rpcUrl!,
                 type: NetworkClientType.Custom,
@@ -7111,7 +7114,7 @@ function refreshNetworkTests({
         >[0] =
           expectedProviderConfig.type === NetworkType.rpc
             ? {
-                chainId: toHex(expectedProviderConfig.chainId),
+                caipChainId: expectedProviderConfig.caipChainId,
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 rpcUrl: expectedProviderConfig.rpcUrl!,
                 type: NetworkClientType.Custom,
@@ -7163,7 +7166,7 @@ function lookupNetworkTests({
   operation: (controller: NetworkController) => Promise<void>;
 }) {
   describe('if the network ID and network details requests resolve successfully', () => {
-    const validNetworkIds = [12345, '12345', toHex(12345)];
+    const validNetworkIds = [12345, '12345', toHex(12345)]; // ?
     for (const networkId of validNetworkIds) {
       describe(`with a network id of '${networkId}'`, () => {
         describe('if the current network is different from the network in state', () => {
@@ -8805,7 +8808,7 @@ function buildProviderConfig(
   }
   return {
     type: NetworkType.rpc,
-    chainId: toHex(1337),
+    caipChainId: 'eip155:1337',
     rpcUrl: 'http://doesntmatter.com',
     ...config,
   };
@@ -8823,7 +8826,7 @@ function buildFakeClient(
   return {
     configuration: {
       type: NetworkClientType.Custom,
-      chainId: '0x1',
+      caipChainId: 'eip155:1',
       rpcUrl: 'https://test.network',
     },
     provider,

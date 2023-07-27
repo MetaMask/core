@@ -1,8 +1,7 @@
 import {
   GANACHE_CAIP_CHAIN_ID,
-  ChainId,
-  convertHexToDecimal,
-  toHex,
+  BuiltInCaipChainId,
+  getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
 import * as assetsUtil from './assetsUtil';
 import { Nft, NftMetadata } from './NftController';
@@ -120,11 +119,11 @@ describe('assetsUtil', () => {
     it('should format icon url with Codefi proxy correctly', () => {
       const linkTokenAddress = '0x514910771af9ca656af840dff83e8264ecf986ca';
       const formattedIconUrl = assetsUtil.formatIconUrlWithProxy({
-        chainId: ChainId.mainnet,
+        caipChainId: BuiltInCaipChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${convertHexToDecimal(
-        ChainId.mainnet,
+      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${getEthChainIdDecFromCaipChainId(
+        BuiltInCaipChainId.mainnet,
       )}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
@@ -270,7 +269,7 @@ describe('assetsUtil', () => {
     });
 
     it('returns false for testnets such as Goerli', () => {
-      expect(assetsUtil.isTokenDetectionSupportedForNetwork(toHex(5))).toBe(
+      expect(assetsUtil.isTokenDetectionSupportedForNetwork('eip155:5')).toBe(
         false,
       );
     });
@@ -300,9 +299,9 @@ describe('assetsUtil', () => {
     });
 
     it('returns false for testnets such as Goerli', () => {
-      expect(assetsUtil.isTokenListSupportedForNetwork(ChainId.goerli)).toBe(
-        false,
-      );
+      expect(
+        assetsUtil.isTokenListSupportedForNetwork(BuiltInCaipChainId.goerli),
+      ).toBe(false);
     });
   });
 

@@ -26,15 +26,15 @@ export function isEthCaipChainId(caipChainId: CaipChainId): boolean {
  * @param ethChainId - The eth chain ID in 0x prefixed hex or decimal string.
  * @returns a valid caip chain ID for an Ethereum chain.
  */
-export function getCaipChainIdFromEthChainId(ethChainId: string): string {
+export function getCaipChainIdFromEthChainId(ethChainId: string): CaipChainId {
   const chainIdDecimal = ethChainId.startsWith('0x') // need to handle 0X?
     ? parseInt(ethChainId, 16).toString(10)
     : ethChainId;
 
   if (Number.isNaN(parseInt(chainIdDecimal, 10))) {
-    return '';
+    return 'eip155:0'; // does this make sense?
   }
-  return getCaipChainIdString('eip155', chainIdDecimal);
+  return getCaipChainIdString('eip155', chainIdDecimal) as CaipChainId; // remove this when fixed in utils
 }
 
 /**

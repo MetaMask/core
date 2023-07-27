@@ -8,10 +8,10 @@ import {
   ProviderConfig,
 } from '@metamask/network-controller';
 import {
-  ChainId,
+  BuiltInCaipChainId,
   NetworkType,
-  convertHexToDecimal,
-  toHex,
+  getCaipChainIdFromEthChainId,
+  getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
@@ -115,7 +115,7 @@ const setupTokenListController = (
   });
 
   const tokenList = new TokenListController({
-    chainId: ChainId.mainnet,
+    caipChainId: BuiltInCaipChainId.mainnet,
     preventPollingOnNetworkRestart: false,
     messenger: tokenListMessenger,
   });
@@ -144,25 +144,20 @@ describe('TokenDetectionController', () => {
     });
   };
   const mainnet = {
-    chainId: ChainId.mainnet,
+    caipChainId: BuiltInCaipChainId.mainnet,
     type: NetworkType.mainnet,
   };
 
   beforeEach(async () => {
+    const chainIdDecimal = getEthChainIdDecFromCaipChainId(
+      BuiltInCaipChainId.mainnet,
+    );
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
+      .get(`/tokens/${chainIdDecimal}`)
       .reply(200, sampleTokenList)
-      .get(
-        `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
-          tokenAFromList.address
-        }`,
-      )
+      .get(`/token/${chainIdDecimal}?address=${tokenAFromList.address}`)
       .reply(200, tokenAFromList)
-      .get(
-        `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
-          tokenBFromList.address
-        }`,
-      )
+      .get(`/token/${chainIdDecimal}?address=${tokenBFromList.address}`)
       .reply(200, tokenBFromList)
       .persist();
 
@@ -173,7 +168,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     tokensController = new TokensController({
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         onNetworkStateChangeListeners.push(listener),
@@ -226,7 +221,7 @@ describe('TokenDetectionController', () => {
       interval: DEFAULT_INTERVAL,
       selectedAddress: '',
       disabled: true,
-      chainId: ChainId.mainnet,
+      caipChainId: BuiltInCaipChainId.mainnet,
       isDetectionEnabledForNetwork: true,
       isDetectionEnabledFromPreferences: true,
     });
@@ -250,26 +245,28 @@ describe('TokenDetectionController', () => {
 
   it('should detect supported networks correctly', () => {
     tokenDetection.configure({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      caipChainId: SupportedTokenDetectionNetworks.mainnet,
     });
 
     expect(
-      isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
+      isTokenDetectionSupportedForNetwork(tokenDetection.config.caipChainId),
     ).toStrictEqual(true);
-    tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.bsc });
+    tokenDetection.configure({
+      caipChainId: SupportedTokenDetectionNetworks.bsc,
+    });
     expect(
-      isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
+      isTokenDetectionSupportedForNetwork(tokenDetection.config.caipChainId),
     ).toStrictEqual(true);
-    tokenDetection.configure({ chainId: ChainId.goerli });
+    tokenDetection.configure({ caipChainId: BuiltInCaipChainId.goerli });
     expect(
-      isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
+      isTokenDetectionSupportedForNetwork(tokenDetection.config.caipChainId),
     ).toStrictEqual(false);
   });
 
   it('should not autodetect while not on supported networks', async () => {
     tokenDetection.configure({
       selectedAddress: '0x1',
-      chainId: ChainId.goerli,
+      caipChainId: BuiltInCaipChainId.goerli,
       isDetectionEnabledForNetwork: false,
     });
 
@@ -293,7 +290,7 @@ describe('TokenDetectionController', () => {
 
   it('should detect tokens correctly on the Aurora network', async () => {
     const auroraMainnet = {
-      chainId: ChainId.aurora,
+      caipChainId: BuiltInCaipChainId.aurora,
       type: NetworkType.mainnet,
     };
     preferences.update({ selectedAddress: '0x1' });
@@ -456,7 +453,7 @@ describe('TokenDetectionController', () => {
         isDetectionEnabledForNetwork: true,
         isDetectionEnabledFromPreferences: true,
         selectedAddress: '0x1',
-        chainId: ChainId.mainnet,
+        caipChainId: BuiltInCaipChainId.mainnet,
       },
     );
 
@@ -468,7 +465,9 @@ describe('TokenDetectionController', () => {
     tokenDetection.stop();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkStateChangeListener!({
-      providerConfig: { chainId: toHex(polygonDecimalChainId) },
+      providerConfig: {
+        caipChainId: getCaipChainIdFromEthChainId(polygonDecimalChainId),
+      },
     });
 
     expect(getBalancesInSingleCallMock.called).toBe(false);
@@ -542,7 +541,7 @@ describe('TokenDetectionController', () => {
     expect(getBalancesInSingleCallMock.called).toBe(true);
   });
 
-  it('should call getBalancesInSingleCall if onNetworkStateChange is called with a chainId that supports token detection and is changed', async () => {
+  it('should call getBalancesInSingleCall if onNetworkStateChange is called with a caipChainId that supports token detection and is changed', async () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
     let networkStateChangeListener: (state: any) => void;
@@ -564,7 +563,7 @@ describe('TokenDetectionController', () => {
       {
         disabled: false,
         isDetectionEnabledFromPreferences: true,
-        chainId: SupportedTokenDetectionNetworks.polygon,
+        caipChainId: SupportedTokenDetectionNetworks.polygon,
         isDetectionEnabledForNetwork: true,
         selectedAddress: '0x1',
       },
@@ -572,7 +571,7 @@ describe('TokenDetectionController', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkStateChangeListener!({
-      providerConfig: { chainId: ChainId.mainnet },
+      providerConfig: { caipChainId: BuiltInCaipChainId.mainnet },
     });
 
     expect(getBalancesInSingleCallMock.called).toBe(true);

@@ -3,7 +3,7 @@ import sinon from 'sinon';
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import EthQuery from 'eth-query';
-import { Hex } from '@metamask/utils';
+import { CaipChainId } from '@metamask/utils';
 import { createNetworkClient } from '../../src/create-network-client';
 import { NetworkClientType } from '../../src/types';
 
@@ -281,7 +281,7 @@ export type MockOptions = {
   infuraNetwork?: InfuraNetworkType;
   providerType: ProviderType;
   customRpcUrl?: string;
-  customChainId?: Hex;
+  customCaipChainId?: CaipChainId;
 };
 
 export type MockCommunications = {
@@ -406,8 +406,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  * assuming that `providerType` is "infura" (default: "mainnet").
  * @param options.customRpcUrl - The URL of the custom RPC endpoint, assuming
  * that `providerType` is "custom".
- * @param options.customChainId - The chain id belonging to the custom RPC
- * endpoint, assuming that `providerType` is "custom" (default: "0x1").
+ * @param options.customCaipChainId - The caip chain id belonging to the custom RPC
+ * endpoint, assuming that `providerType` is "custom" (default: "eip155:1").
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
  * @returns The return value of the given function.
@@ -417,7 +417,7 @@ export async function withNetworkClient(
     providerType,
     infuraNetwork = 'mainnet',
     customRpcUrl = MOCK_RPC_URL,
-    customChainId = '0x1',
+    customCaipChainId = 'eip155:1',
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<any>,
 ) {
@@ -444,7 +444,7 @@ export async function withNetworkClient(
           type: NetworkClientType.Infura,
         })
       : createNetworkClient({
-          chainId: customChainId,
+          caipChainId: customCaipChainId,
           rpcUrl: customRpcUrl,
           type: NetworkClientType.Custom,
         });
