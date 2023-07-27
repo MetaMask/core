@@ -78,6 +78,10 @@ export type NetworkDetails = {
   EIPS: {
     [eipNumber: number]: boolean;
   };
+  /**
+   * Indicates the availability of the network
+   */
+  status: NetworkStatus;
 };
 
 /**
@@ -337,10 +341,7 @@ type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
  * Data related to a particular network.
  */
 export type NetworksMetadata = {
-  [networkClientId: NetworkClientId]: {
-    details: NetworkDetails;
-    status: NetworkStatus;
-  };
+  [networkClientId: NetworkClientId]: NetworkDetails;
 };
 
 /**
@@ -788,9 +789,9 @@ export class NetworkController extends BaseControllerV2<
       const meta = state.networksMetadata[state.selectedNetworkClientId];
       meta.status = updatedNetworkStatus;
       if (updatedIsEIP1559Compatible === undefined) {
-        delete meta.details.EIPS[1559];
+        delete meta.EIPS[1559];
       } else {
-        meta.details.EIPS[1559] = updatedIsEIP1559Compatible;
+        meta.EIPS[1559] = updatedIsEIP1559Compatible;
       }
     });
 
@@ -918,7 +919,7 @@ export class NetworkController extends BaseControllerV2<
     }
 
     const { EIPS } =
-      this.state.networksMetadata[this.state.selectedNetworkClientId].details;
+      this.state.networksMetadata[this.state.selectedNetworkClientId];
 
     if (EIPS[1559] !== undefined) {
       return EIPS[1559];
@@ -927,9 +928,8 @@ export class NetworkController extends BaseControllerV2<
     const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
     this.update((state) => {
       if (isEIP1559Compatible !== undefined) {
-        state.networksMetadata[
-          state.selectedNetworkClientId
-        ].details.EIPS[1559] = isEIP1559Compatible;
+        state.networksMetadata[state.selectedNetworkClientId].EIPS[1559] =
+          isEIP1559Compatible;
       }
     });
     return isEIP1559Compatible;
@@ -1390,9 +1390,7 @@ export class NetworkController extends BaseControllerV2<
       if (state.networksMetadata[networkClientId] === undefined) {
         state.networksMetadata[networkClientId] = {
           status: NetworkStatus.Unknown,
-          details: {
-            EIPS: {},
-          },
+          EIPS: {},
         };
       }
     });
