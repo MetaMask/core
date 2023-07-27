@@ -3701,7 +3701,7 @@ describe('NetworkController', () => {
       });
 
       it('does not update networksMetadata[...].EIPS in state', async () => {
-        await withController(async ({ controller, messenger }) => {
+        await withController(async ({ controller }) => {
           const fakeProvider = buildFakeProvider([
             {
               request: {
@@ -3718,21 +3718,24 @@ describe('NetworkController', () => {
           const fakeNetworkClient = buildFakeClient(fakeProvider);
           createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
-          const promiseForNoStateChanges = await waitForStateChanges({
-            messenger,
-            propertyPath: ['networksMetadata', NetworkType.rpc, 'EIPS', '1559'],
-            count: 0,
-            operation: async () => {
-              try {
-                // @ts-expect-error Intentionally passing invalid type
-                await controller.setProviderType(NetworkType.rpc);
-              } catch {
-                // catch the rejection (it is tested above)
-              }
-            },
-          });
+          const detailsPre =
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ];
 
-          expect(Boolean(promiseForNoStateChanges)).toBe(true);
+          try {
+            // @ts-expect-error Intentionally passing invalid type
+            await controller.setProviderType(NetworkType.rpc);
+          } catch {
+            // catch the rejection (it is tested above)
+          }
+
+          const detailsPost =
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ];
+
+          expect(detailsPost).toBe(detailsPre);
         });
       });
     });
