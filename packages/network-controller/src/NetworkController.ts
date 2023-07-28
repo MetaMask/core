@@ -336,7 +336,6 @@ type CustomNetworkClientId = string;
  */
 type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 
-
 /**
  * Information about networks not held by any other part of state.
  */
