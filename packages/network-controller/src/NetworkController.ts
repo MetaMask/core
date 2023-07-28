@@ -338,7 +338,7 @@ type CustomNetworkClientId = string;
 type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 
 /**
- * Data related to a particular network.
+ * Information about networks not held by any other part of state.
  */
 export type NetworksMetadata = {
   [networkClientId: NetworkClientId]: NetworkDetails;
