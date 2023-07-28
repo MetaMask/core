@@ -148,7 +148,6 @@ type TransactionMetaBase = {
     decimals: number;
   };
   id: string;
-  networkID?: string;
   chainId?: Hex;
   origin?: string;
   rawTransaction?: string;
@@ -167,7 +166,6 @@ type TransactionMetaBase = {
  * TransactionMeta representation
  * @property error - Synthesized error information for failed transactions
  * @property id - Generated UUID associated with this transaction
- * @property networkID - Network code as per EIP-155 for this transaction
  * @property origin - Origin this transaction was sent from
  * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
  * @property rawTransaction - Hex representation of the underlying transaction
@@ -341,20 +339,17 @@ export class TransactionController extends BaseController<
    * to be compatible with the TransactionMeta interface.
    *
    * @param txMeta - The transaction.
-   * @param currentNetworkID - The current network ID.
    * @param currentChainId - The current chain ID.
    * @returns The normalized transaction.
    */
   private normalizeTx(
     txMeta: EtherscanTransactionMeta,
-    currentNetworkID: string,
     currentChainId: Hex,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const normalizedTransactionBase = {
       blockNumber: txMeta.blockNumber,
       id: random({ msecs: time }),
-      networkID: currentNetworkID,
       chainId: currentChainId,
       time,
       transaction: {
@@ -389,7 +384,6 @@ export class TransactionController extends BaseController<
 
   private readonly normalizeTokenTx = (
     txMeta: EtherscanTransactionMeta,
-    currentNetworkID: string,
     currentChainId: Hex,
   ): TransactionMeta => {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
@@ -408,7 +402,6 @@ export class TransactionController extends BaseController<
     return {
       id: random({ msecs: time }),
       isTransfer: true,
-      networkID: currentNetworkID,
       chainId: currentChainId,
       status: TransactionStatus.confirmed,
       time,
@@ -573,14 +566,13 @@ export class TransactionController extends BaseController<
     origin?: string,
     deviceConfirmedOn?: WalletDevice,
   ): Promise<Result> {
-    const { providerConfig, networkId } = this.getNetworkState();
+    const { providerConfig } = this.getNetworkState();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
     const transactionMeta: TransactionMeta = {
       id: random(),
-      networkID: networkId ?? undefined,
       chainId: providerConfig.chainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
@@ -628,7 +620,6 @@ export class TransactionController extends BaseController<
 
   getCommonConfiguration(): Common {
     const {
-      networkId,
       providerConfig: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
@@ -643,7 +634,6 @@ export class TransactionController extends BaseController<
     const customChainParams: Partial<ChainConfig> = {
       name,
       chainId: parseInt(chainId, 16),
-      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
       defaultHardfork: HARDFORK,
     };
 
@@ -964,18 +954,14 @@ export class TransactionController extends BaseController<
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const { providerConfig, networkId: currentNetworkID } =
+    const { providerConfig } =
       this.getNetworkState();
     const { chainId: currentChainId } = providerConfig;
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          // Using fallback to networkID only when there is no chainId present.
-          // Should be removed when networkID is completely removed.
-          const txBelongsToCurrentChain =
-            meta.chainId === currentChainId ||
-            (!meta.chainId && meta.networkID === currentNetworkID);
+          const txBelongsToCurrentChain = meta.chainId === currentChainId
 
           if (!meta.verifiedOnBlockchain && txBelongsToCurrentChain) {
             const [reconciledTx, updateRequired] =
@@ -1025,15 +1011,12 @@ export class TransactionController extends BaseController<
       this.update({ transactions: [] });
       return;
     }
-    const { providerConfig, networkId: currentNetworkID } =
+    const { providerConfig } =
       this.getNetworkState();
     const { chainId: currentChainId } = providerConfig;
     const newTransactions = this.state.transactions.filter(
-      ({ networkID, chainId }) => {
-        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-        const isCurrentNetwork =
-          chainId === currentChainId ||
-          (!chainId && networkID === currentNetworkID);
+      ({ chainId }) => {
+        const isCurrentNetwork = chainId === currentChainId
         return !isCurrentNetwork;
       },
     );
@@ -1056,19 +1039,10 @@ export class TransactionController extends BaseController<
     address: string,
     opt?: FetchAllOptions,
   ): Promise<string | void> {
-    const { providerConfig, networkId: currentNetworkID } =
+    const { providerConfig } =
       this.getNetworkState();
     const { chainId: currentChainId, type: networkType } = providerConfig;
     const { transactions } = this.state;
-
-    const supportedNetworkIds = ['1', '5', '11155111'];
-    /* istanbul ignore next */
-    if (
-      currentNetworkID === null ||
-      !supportedNetworkIds.includes(currentNetworkID)
-    ) {
-      return undefined;
-    }
 
     const [etherscanTxResponse, etherscanTokenResponse] =
       await handleTransactionFetch(
@@ -1080,11 +1054,11 @@ export class TransactionController extends BaseController<
 
     const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
-        this.normalizeTx(tx, currentNetworkID, currentChainId),
+        this.normalizeTx(tx, currentChainId),
     );
     const normalizedTokenTxs = etherscanTokenResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
-        this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
+        this.normalizeTokenTx(tx, currentChainId),
     );
 
     const [updateRequired, allTxs] = this.etherscanTransactionStateReconciler(
@@ -1098,9 +1072,7 @@ export class TransactionController extends BaseController<
     allTxs.forEach(async (tx) => {
       /* istanbul ignore next */
       if (
-        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-        (tx.chainId === currentChainId ||
-          (!tx.chainId && tx.networkID === currentNetworkID)) &&
+        tx.chainId === currentChainId &&
         tx.transaction.to &&
         tx.transaction.to.toLowerCase() === address.toLowerCase()
       ) {
@@ -1337,11 +1309,9 @@ export class TransactionController extends BaseController<
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
     const txsToKeep = transactions.reverse().filter((tx) => {
-      const { chainId, networkID, status, transaction, time } = tx;
+      const { chainId, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${
-          chainId ? convertHexToDecimal(chainId) : networkID
-        }-${new Date(time).toDateString()}`;
+        const key = `${transaction.nonce}-${convertHexToDecimal(chainId)}-${new Date(time).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (

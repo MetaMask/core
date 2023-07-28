@@ -1,5 +1,5 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
-import { ChainId, NetworkId } from '@metamask/controller-utils';
+import { ChainId } from '@metamask/controller-utils';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
@@ -153,7 +153,6 @@ function createNetworkAndChainIdMiddleware({
 }) {
   return createScaffoldMiddleware({
     eth_chainId: ChainId[network],
-    net_version: NetworkId[network],
   });
 }
 

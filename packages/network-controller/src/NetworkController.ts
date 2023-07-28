@@ -175,25 +175,6 @@ function pick<Obj extends Record<any, any>, Keys extends keyof Obj>(
 }
 
 /**
- * Convert the given value into a valid network ID. The ID is accepted
- * as either a number, a decimal string, or a 0x-prefixed hex string.
- *
- * @param value - The network ID to convert, in an unknown format.
- * @returns A valid network ID (as a decimal string)
- * @throws If the given value cannot be safely parsed.
- */
-function convertNetworkId(value: unknown): NetworkId {
-  if (typeof value === 'number' && !Number.isNaN(value)) {
-    return `${value}`;
-  } else if (isStrictHexString(value)) {
-    return `${convertHexToDecimal(value)}`;
-  } else if (typeof value === 'string' && /^\d+$/u.test(value)) {
-    return value as NetworkId;
-  }
-  throw new Error(`Cannot parse as a valid network ID: '${value}'`);
-}
-
-/**
  * Type guard for determining whether the given value is an error object with a
  * `code` property, such as an instance of Error.
  *
@@ -344,11 +325,6 @@ export type NetworksMetadata = {
 };
 
 /**
- * The network ID of a network.
- */
-export type NetworkId = `${number}`;
-
-/**
  * @type NetworkState
  *
  * Network controller state
@@ -359,7 +335,6 @@ export type NetworkId = `${number}`;
  */
 export type NetworkState = {
   selectedNetworkClientId: NetworkClientId;
-  networkId: NetworkId | null;
   providerConfig: ProviderConfig;
   networkConfigurations: NetworkConfigurations;
   networksMetadata: NetworksMetadata;
@@ -475,7 +450,6 @@ export type NetworkControllerOptions = {
 
 export const defaultState: NetworkState = {
   selectedNetworkClientId: NetworkType.mainnet,
-  networkId: null,
   providerConfig: {
     type: NetworkType.mainnet,
     chainId: ChainId.mainnet,
@@ -559,10 +533,6 @@ export class NetworkController extends BaseControllerV2<
       name,
       metadata: {
         selectedNetworkClientId: {
-          persist: true,
-          anonymous: false,
-        },
-        networkId: {
           persist: true,
           anonymous: false,
         },
@@ -651,9 +621,6 @@ export class NetworkController extends BaseControllerV2<
    */
   async #refreshNetwork() {
     this.messagingSystem.publish('NetworkController:networkWillChange');
-    this.update((state) => {
-      state.networkId = null;
-    });
     this.#applyNetworkSelection();
     this.messagingSystem.publish('NetworkController:networkDidChange');
     await this.lookupNetwork();
@@ -668,35 +635,6 @@ export class NetworkController extends BaseControllerV2<
 
     this.#applyNetworkSelection();
     await this.lookupNetwork();
-  }
-
-  /**
-   * Fetches the network ID for the network, ensuring that it is a hex string.
-   *
-   * @returns A promise that either resolves to the network ID, or rejects with
-   * an error.
-   * @throws If the network ID of the network is not a valid hex string.
-   */
-  async #getNetworkId(): Promise<NetworkId> {
-    const possibleNetworkId = await new Promise<string>((resolve, reject) => {
-      if (!this.#ethQuery) {
-        throw new Error('Provider has not been initialized');
-      }
-
-      this.#ethQuery.sendAsync(
-        { method: 'net_version' },
-        (error: unknown, result?: unknown) => {
-          if (error) {
-            reject(error);
-          } else {
-            // TODO: Validate this type
-            resolve(result as string);
-          }
-        },
-      );
-    });
-
-    return convertNetworkId(possibleNetworkId);
   }
 
   /**
@@ -731,16 +669,11 @@ export class NetworkController extends BaseControllerV2<
     );
 
     let updatedNetworkStatus: NetworkStatus;
-    let updatedNetworkId: NetworkId | null = null;
     let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
-      const [networkId, isEIP1559Compatible] = await Promise.all([
-        this.#getNetworkId(),
-        this.#determineEIP1559Compatibility(),
-      ]);
+      const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
       updatedNetworkStatus = NetworkStatus.Available;
-      updatedNetworkId = networkId;
       updatedIsEIP1559Compatible = isEIP1559Compatible;
     } catch (error) {
       if (isErrorWithCode(error)) {
@@ -784,7 +717,6 @@ export class NetworkController extends BaseControllerV2<
     );
 
     this.update((state) => {
-      state.networkId = updatedNetworkId;
       const meta = state.networksMetadata[state.selectedNetworkClientId];
       meta.status = updatedNetworkStatus;
       if (updatedIsEIP1559Compatible === undefined) {
