@@ -794,7 +794,7 @@ export class NetworkController extends BaseControllerV2<
     try {
       const [networkId, isEIP1559Compatible] = await Promise.all([
         this.#getNetworkId(),
-        this.#determineEIP1559Compatibility(),
+        this.#determineEIP1559Compatibility(this.state.selectedNetworkClientId),
       ]);
       updatedNetworkStatus = NetworkStatus.Available;
       updatedNetworkId = networkId;
@@ -938,16 +938,23 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Fetches the latest block for the network.
    *
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check the latest block.
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(): Promise<Block> {
+  #getLatestBlock(networkClientId: NetworkClientId): Promise<Block> {
+    let ethQuery = this.#ethQuery;
     return new Promise((resolve, reject) => {
-      if (!this.#ethQuery) {
+      if (networkClientId) {
+        const networkClient = this.getNetworkClientsById()[networkClientId];
+        ethQuery = new EthQuery(networkClient.provider);
+      }
+
+      if (!ethQuery) {
         throw new Error('Provider has not been initialized');
       }
 
-      this.#ethQuery.sendAsync(
+      ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
           if (error) {
@@ -966,14 +973,16 @@ export class NetworkController extends BaseControllerV2<
    * latest block has a `baseFeePerGas` property, then updates state
    * appropriately.
    *
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check 1559 compatibility.
    * @returns A promise that resolves to true if the network supports EIP-1559
    * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
-  async getEIP1559Compatibility() {
-    if (!this.#ethQuery) {
+  async getEIP1559Compatibility(networkClientId?: NetworkClientId) {
+    if (!this.#ethQuery && !networkClientId) {
       return false;
     }
-
+    const networkClientIdToCheck =
+      networkClientId || this.state.selectedNetworkClientId;
     const { EIPS } =
       this.state.networksMetadata[this.state.selectedNetworkClientId];
 
@@ -981,7 +990,9 @@ export class NetworkController extends BaseControllerV2<
       return EIPS[1559];
     }
 
-    const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
+    const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
+      networkClientIdToCheck,
+    );
     this.update((state) => {
       if (isEIP1559Compatible !== undefined) {
         state.networksMetadata[state.selectedNetworkClientId].EIPS[1559] =
@@ -996,11 +1007,14 @@ export class NetworkController extends BaseControllerV2<
    * network; if the block has a `baseFeePerGas` property, then we know
    * that the network supports EIP-1559; otherwise it doesn't.
    *
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check 1559 compatibility
    * @returns A promise that resolves to `true` if the network supports EIP-1559,
    * `false` otherwise, or `undefined` if unable to retrieve the last block.
    */
-  async #determineEIP1559Compatibility(): Promise<boolean | undefined> {
-    const latestBlock = await this.#getLatestBlock();
+  async #determineEIP1559Compatibility(
+    networkClientId: NetworkClientId,
+  ): Promise<boolean | undefined> {
+    const latestBlock = await this.#getLatestBlock(networkClientId);
 
     if (!latestBlock) {
       return undefined;
