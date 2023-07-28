@@ -20,21 +20,6 @@ import { toASCII } from 'punycode/';
 
 const log = createProjectLogger('ens-controller');
 
-/**
- * Checks whether the given string is a known network ID.
- *
- * @param networkId - Network id.
- * @returns Boolean indicating if the network ID is recognized.
- */
-function isKnownNetworkId(
-  networkId: string | null,
-): networkId is keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP {
-  return (
-    networkId !== null &&
-    hasProperty(NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP, networkId)
-  );
-}
-
 const name = 'EnsController';
 
 /**
@@ -119,7 +104,7 @@ export class EnsController extends BaseControllerV2<
     provider?: ExternalProvider | JsonRpcFetchFunc;
     onNetworkStateChange?: (
       listener: (
-        networkState: Pick<NetworkState, 'networkId' | 'providerConfig'>,
+        networkState: Pick<NetworkState, 'providerConfig'>,
       ) => void,
     ) => void;
   }) {
@@ -136,6 +121,7 @@ export class EnsController extends BaseControllerV2<
     if (provider && onNetworkStateChange) {
       onNetworkStateChange((networkState) => {
         this.resetState();
+        // should be checking chainid, not networkId
         const currentNetwork = networkState.networkId;
         if (
           isKnownNetworkId(currentNetwork) &&
