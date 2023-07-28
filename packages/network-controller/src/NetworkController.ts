@@ -642,16 +642,56 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Returns the network client for a given network client id.
+   * Returns the Infura network client with the given ID.
    *
-   * @param networkClientId - The network client id for which to retrieve the network client.
-   * @returns The network client.
+   * @param infuraNetworkClientId - An Infura network client ID.
+   * @returns The Infura network client.
+   * @throws If an Infura network client does not exist with the given ID.
    */
+  getNetworkClientById(
+    infuraNetworkClientId: BuiltInNetworkClientId,
+  ): AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
+
+  /**
+   * Returns the custom network client with the given ID.
+   *
+   * @param customNetworkClientId - A custom network client ID.
+   * @returns The custom network client.
+   * @throws If a custom network client does not exist with the given ID.
+   */
+  getNetworkClientById(
+    customNetworkClientId: CustomNetworkClientId,
+  ): AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+
   getNetworkClientById(
     networkClientId: NetworkClientId,
   ): AutoManagedNetworkClient<NetworkClientConfiguration> {
-    const networkClients = this.getNetworkClients();
-    return networkClients[networkClientId];
+    const autoManagedNetworkClientRegistry =
+      this.#ensureAutoManagedNetworkClientRegistryPopulated();
+
+    if (isInfuraProviderType(networkClientId)) {
+      const infuraNetworkClient =
+        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
+          networkClientId
+        ];
+      if (!infuraNetworkClient) {
+        throw new Error(
+          `No Infura network client was found with the ID "${networkClientId}".`,
+        );
+      }
+      return infuraNetworkClient;
+    }
+
+    const customNetworkClient =
+      autoManagedNetworkClientRegistry[NetworkClientType.Custom][
+        networkClientId
+      ];
+    if (!customNetworkClient) {
+      throw new Error(
+        `No custom network client was found with the ID "${networkClientId}".`,
+      );
+    }
+    return customNetworkClient;
   }
 
   /**
