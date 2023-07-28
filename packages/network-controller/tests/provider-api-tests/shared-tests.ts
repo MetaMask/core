@@ -1,10 +1,7 @@
 import { testsForRpcMethodsThatCheckForBlockHashInResponse } from './block-hash-in-response';
 import { testsForRpcMethodSupportingBlockParam } from './block-param';
-import {
-  ProviderType,
-  withMockedCommunications,
-  withNetworkClient,
-} from './helpers';
+import type { ProviderType } from './helpers';
+import { withMockedCommunications, withNetworkClient } from './helpers';
 import { testsForRpcMethodAssumingNoBlockParam } from './no-block-param';
 import { testsForRpcMethodNotHandledByMiddleware } from './not-handled-by-middleware';
 
@@ -230,7 +227,7 @@ export function testsForProviderType(providerType: ProviderType) {
               { providerType },
               async ({ makeRpcCall, blockTracker }) => {
                 await makeRpcCall(request);
-                expect(blockTracker.getCurrentBlock()).toStrictEqual('0x300');
+                expect(blockTracker.getCurrentBlock()).toBe('0x300');
               },
             );
           });
@@ -260,7 +257,7 @@ export function testsForProviderType(providerType: ProviderType) {
               { providerType },
               async ({ makeRpcCall, blockTracker }) => {
                 await makeRpcCall(request);
-                expect(blockTracker.getCurrentBlock()).toStrictEqual('0x300');
+                expect(blockTracker.getCurrentBlock()).toBe('0x300');
               },
             );
           });
@@ -276,7 +273,7 @@ export function testsForProviderType(providerType: ProviderType) {
             },
           );
 
-          expect(networkId).toStrictEqual('0x1');
+          expect(networkId).toBe('0x1');
         });
       });
     });
@@ -331,7 +328,7 @@ export function testsForProviderType(providerType: ProviderType) {
                 });
               },
             );
-            expect(networkId).toStrictEqual('5');
+            expect(networkId).toBe('5');
           });
         } else {
           it('hits the RPC endpoint', async () => {
@@ -352,7 +349,7 @@ export function testsForProviderType(providerType: ProviderType) {
                   },
                 );
 
-                expect(networkId).toStrictEqual('1');
+                expect(networkId).toBe('1');
               },
             );
           });

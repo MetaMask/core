@@ -1,15 +1,16 @@
-import { rpcErrors } from '@metamask/rpc-errors';
-import { CID } from 'multiformats/cid';
-import type { CaipChainId } from '@metamask/utils';
+import type { BigNumber } from '@ethersproject/bignumber';
 import {
   isValidHexAddress,
   GANACHE_CAIP_CHAIN_ID,
   getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
-import { BigNumber } from '@ethersproject/bignumber';
+import { rpcErrors } from '@metamask/rpc-errors';
+import type { CaipChainId } from '@metamask/utils';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
-import { Nft, NftMetadata } from './NftController';
-import { Token } from './TokenRatesController';
+import { CID } from 'multiformats/cid';
+
+import type { Nft, NftMetadata } from './NftController';
+import type { Token } from './TokenRatesController';
 
 /**
  * Compares nft metadata entries to any nft entry.

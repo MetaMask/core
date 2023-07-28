@@ -1,19 +1,11 @@
-import { EventEmitter } from 'events';
-import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { isAddress } from '@ethersproject/address';
-import { Mutex } from 'async-mutex';
-import type { CaipChainId } from '@metamask/utils';
-import { v4 as random } from 'uuid';
-import { rpcErrors } from '@metamask/rpc-errors';
-import {
-  BaseController,
+import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type {
   BaseConfig,
   BaseState,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
-import type { NetworkState } from '@metamask/network-controller';
-import { AddApprovalRequest } from '@metamask/approval-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   safelyExecute,
   handleFetch,
@@ -27,15 +19,24 @@ import {
   OPENSEA_PROXY_URL,
   ApprovalType,
 } from '@metamask/controller-utils';
+import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import { rpcErrors } from '@metamask/rpc-errors';
+import type { CaipChainId } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
+import { BN, stripHexPrefix } from 'ethereumjs-util';
+import { EventEmitter } from 'events';
+import { v4 as random } from 'uuid';
+
+import type { AssetsContractController } from './AssetsContractController';
+import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
+import { Source } from './constants';
 import type {
   ApiNft,
   ApiNftCreator,
   ApiNftContract,
   ApiNftLastSale,
 } from './NftDetectionController';
-import type { AssetsContractController } from './AssetsContractController';
-import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
-import { Source } from './constants';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
 
@@ -208,22 +209,18 @@ export type NftControllerMessenger = RestrictedControllerMessenger<
  * Controller that stores assets and exposes convenience methods
  */
 export class NftController extends BaseController<NftConfig, NftState> {
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
-  private messagingSystem: NftControllerMessenger;
+  private readonly messagingSystem: NftControllerMessenger;
 
   private getNftApi({
     contractAddress,
     tokenId,
-    useProxy,
   }: {
     contractAddress: string;
     tokenId: string;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`
-      : `${OPENSEA_API_URL}/asset/${contractAddress}/${tokenId}`;
+    return `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`;
   }
 
   private getNftContractInformationApi({
@@ -284,29 +281,12 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenId: string,
   ): Promise<NftMetadata> {
     // Attempt to fetch the data with the proxy
-    let nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
+    const nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
       url: this.getNftApi({
         contractAddress,
         tokenId,
-        useProxy: true,
       }),
     });
-
-    // if an openSeaApiKey is set we should attempt to refetch calling directly to OpenSea
-    if (!nftInformation && this.openSeaApiKey) {
-      nftInformation = await fetchWithErrorHandling({
-        url: this.getNftApi({
-          contractAddress,
-          tokenId,
-          useProxy: false,
-        }),
-        options: {
-          headers: { 'X-API-KEY': this.openSeaApiKey },
-        },
-        // catch 403 errors (in case API key is down we don't want to blow up)
-        errorCodesToCatch: [403],
-      });
-    }
 
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
     if (!nftInformation) {
@@ -768,7 +748,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           if (k === 'collection') {
             return v?.name === null && v?.image_url === null;
           }
-          return Boolean(v) === false;
+          return !v;
         })
       ) {
         return nftContracts;
@@ -891,19 +871,19 @@ export class NftController extends BaseController<NftConfig, NftState> {
    */
   override name = 'NftController';
 
-  private getERC721AssetName: AssetsContractController['getERC721AssetName'];
+  private readonly getERC721AssetName: AssetsContractController['getERC721AssetName'];
 
-  private getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
+  private readonly getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
 
-  private getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
+  private readonly getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
 
-  private getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
+  private readonly getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
 
-  private getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
+  private readonly getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
 
-  private getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
+  private readonly getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
-  private onNftAdded?: (data: {
+  private readonly onNftAdded?: (data: {
     address: string;
     symbol: string | undefined;
     tokenId: string;
@@ -1300,7 +1280,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     nft.isCurrentlyOwned = isOwned;
 
-    if (batch === true) {
+    if (batch) {
       return nft;
     }
 

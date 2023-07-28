@@ -1,10 +1,6 @@
-import { enablePatches, produceWithPatches, applyPatches } from 'immer';
-
-// Imported separately because only the type is used
-// eslint-disable-next-line no-duplicate-imports
-import type { Draft, Patch } from 'immer';
-
 import type { Json } from '@metamask/utils';
+import { enablePatches, produceWithPatches, applyPatches } from 'immer';
+import type { Draft, Patch } from 'immer';
 
 import type {
   RestrictedControllerMessenger,
@@ -252,15 +248,28 @@ function deriveStateFromMetadata<S extends Record<string, Json>>(
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
   return Object.keys(state).reduce((persistedState, key) => {
-    const propertyMetadata = metadata[key as keyof S][metadataProperty];
-    const stateProperty = state[key];
-    if (typeof propertyMetadata === 'function') {
-      persistedState[key as string] = propertyMetadata(
-        stateProperty as S[keyof S],
-      );
-    } else if (propertyMetadata) {
-      persistedState[key as string] = stateProperty;
+    try {
+      const stateMetadata = metadata[key as keyof S];
+      if (!stateMetadata) {
+        throw new Error(`No metadata found for '${key}'`);
+      }
+      const propertyMetadata = stateMetadata[metadataProperty];
+      const stateProperty = state[key];
+      if (typeof propertyMetadata === 'function') {
+        persistedState[key as string] = propertyMetadata(
+          stateProperty as S[keyof S],
+        );
+      } else if (propertyMetadata) {
+        persistedState[key as string] = stateProperty;
+      }
+      return persistedState;
+    } catch (error) {
+      // Throw error after timeout so that it is captured as a console error
+      // (and by Sentry) without interrupting state-related operations
+      setTimeout(() => {
+        throw error;
+      });
+      return persistedState;
     }
-    return persistedState;
   }, {} as Record<string, Json>);
 }

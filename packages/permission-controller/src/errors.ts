@@ -1,5 +1,6 @@
 import { errorCodes, ethErrors, EthereumRpcError } from 'eth-rpc-errors';
-import { PermissionType } from './Permission';
+
+import type { PermissionType } from './Permission';
 
 type UnauthorizedArg = {
   data?: Record<string, unknown>;

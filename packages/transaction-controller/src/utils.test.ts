@@ -1,12 +1,13 @@
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
-import {
+
+import { TransactionStatus } from './TransactionController';
+import type {
+  TransactionMeta,
   Transaction,
   GasPriceValue,
   FeeMarketEIP1559Values,
-  TransactionStatus,
 } from './TransactionController';
 import * as util from './utils';
-import type { TransactionMeta } from './TransactionController';
 import { getAndFormatTransactionsForNonceTracker } from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
@@ -246,17 +247,15 @@ describe('utils', () => {
 
   describe('getIncreasedPriceHex', () => {
     it('should get increased price from number as hex', () => {
-      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toStrictEqual(
-        '0x5916a6d6',
-      );
+      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toBe('0x5916a6d6');
     });
   });
 
   describe('getIncreasedPriceFromExisting', () => {
     it('should get increased price from hex as hex', () => {
-      expect(
-        util.getIncreasedPriceFromExisting('0x50fd51da', 1.1),
-      ).toStrictEqual('0x5916a6d6');
+      expect(util.getIncreasedPriceFromExisting('0x50fd51da', 1.1)).toBe(
+        '0x5916a6d6',
+      );
     });
   });
 

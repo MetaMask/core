@@ -1,29 +1,28 @@
-import type { Patch } from 'immer';
-import EthQuery from 'eth-query';
-import { v1 as random } from 'uuid';
-import type { CaipChainId } from '@metamask/utils';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import {
   getEthChainIdDecFromCaipChainId,
   safelyExecute,
 } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
+import type { CaipChainId } from '@metamask/utils';
+import type { Patch } from 'immer';
+import { v1 as random } from 'uuid';
+
+import determineGasFeeCalculations from './determineGasFeeCalculations';
+import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
 } from './gas-util';
-import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
@@ -236,25 +235,25 @@ export class GasFeeController extends BaseControllerV2<
 > {
   private intervalId?: ReturnType<typeof setTimeout>;
 
-  private intervalDelay;
+  private readonly intervalDelay;
 
-  private pollTokens: Set<string>;
+  private readonly pollTokens: Set<string>;
 
-  private legacyAPIEndpoint: string;
+  private readonly legacyAPIEndpoint: string;
 
-  private EIP1559APIEndpoint: string;
+  private readonly EIP1559APIEndpoint: string;
 
-  private getCurrentNetworkEIP1559Compatibility;
+  private readonly getCurrentNetworkEIP1559Compatibility;
 
-  private getCurrentNetworkLegacyGasAPICompatibility;
+  private readonly getCurrentNetworkLegacyGasAPICompatibility;
 
-  private getCurrentAccountEIP1559Compatibility;
+  private readonly getCurrentAccountEIP1559Compatibility;
 
   private currentCaipChainId: CaipChainId;
 
   private ethQuery?: EthQuery;
 
-  private clientId?: string;
+  private readonly clientId?: string;
 
   #getProvider: () => ProviderProxy;
 

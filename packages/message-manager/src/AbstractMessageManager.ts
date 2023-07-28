@@ -1,11 +1,10 @@
-import { EventEmitter } from 'events';
-import type { CaipChainId } from '@metamask/utils';
-import {
-  BaseController,
+import type {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import { Json } from '@metamask/utils';
+import { BaseController } from '@metamask/base-controller';
+import type { CaipChainId, Json } from '@metamask/utils';
+import { EventEmitter } from 'events';
 
 /**
  * @type OriginalRequest
@@ -15,6 +14,7 @@ import { Json } from '@metamask/utils';
  */
 export interface OriginalRequest {
   origin?: string;
+  securityAlertResponse?: Record<string, Json>;
 }
 
 /**
@@ -35,6 +35,7 @@ export interface AbstractMessage {
   type: string;
   rawSig?: string;
   securityProviderResponse?: Record<string, Json>;
+  securityAlertResponse?: Record<string, Json>;
   metadata?: Json;
   error?: string;
 }
@@ -101,9 +102,9 @@ export abstract class AbstractMessageManager<
 
   protected getCurrentCaipChainId: getCurrentCaipChainId | undefined;
 
-  private securityProviderRequest: SecurityProviderRequest | undefined;
+  private readonly securityProviderRequest: SecurityProviderRequest | undefined;
 
-  private additionalFinishStatuses: string[];
+  private readonly additionalFinishStatuses: string[];
 
   /**
    * Saves the unapproved messages, and their count to state.

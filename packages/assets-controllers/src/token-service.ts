@@ -1,8 +1,9 @@
-import type { CaipChainId } from '@metamask/utils';
 import {
   getEthChainIdDecFromCaipChainId,
   timeoutFetch,
 } from '@metamask/controller-utils';
+import type { CaipChainId } from '@metamask/utils';
+
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
 export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';

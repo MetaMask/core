@@ -1,6 +1,11 @@
-import { ControllerMessenger } from '@metamask/base-controller';
-import { NetworkType, toChecksumHexAddress } from '@metamask/controller-utils';
 import * as providersModule from '@ethersproject/providers';
+import { ControllerMessenger } from '@metamask/base-controller';
+import {
+  NetworkType,
+  NetworksTicker,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
+
 import { EnsController } from './EnsController';
 
 jest.mock('@ethersproject/providers', () => {
@@ -63,7 +68,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         'eip155:1': {
@@ -117,6 +122,7 @@ describe('EnsController', () => {
           providerConfig: {
             caipChainId: 'eip155:1',
             type: NetworkType.mainnet,
+            ticker: NetworksTicker.mainnet,
           },
         });
       },
@@ -130,7 +136,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, null)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, null)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         'eip155:1': {
@@ -150,8 +156,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
-    expect(controller.set('eip155:1', name1, address2)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
+    expect(controller.set('eip155:1', name1, address2)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         'eip155:1': {
@@ -171,8 +177,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
-    expect(controller.set('eip155:1', name1, null)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
+    expect(controller.set('eip155:1', name1, null)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         'eip155:1': {
@@ -192,8 +198,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(false);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(false);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         'eip155:1': {
@@ -213,8 +219,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, null)).toStrictEqual(true);
-    expect(controller.set('eip155:1', name1, null)).toStrictEqual(false);
+    expect(controller.set('eip155:1', name1, null)).toBe(true);
+    expect(controller.set('eip155:1', name1, null)).toBe(false);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         'eip155:1': {
@@ -234,10 +240,10 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
-    expect(controller.set('eip155:1', name2, address2)).toStrictEqual(true);
-    expect(controller.set('eip155:2', name1, address1)).toStrictEqual(true);
-    expect(controller.set('eip155:1', name1, address3)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
+    expect(controller.set('eip155:1', name2, address2)).toBe(true);
+    expect(controller.set('eip155:2', name1, address1)).toBe(true);
+    expect(controller.set('eip155:1', name1, address3)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         'eip155:1': {
@@ -269,8 +275,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
-    expect(controller.get('eip155:1', name1)).toStrictEqual({
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
+    expect(controller.get('eip155:1', name1)).toBe({
       address: address1Checksum,
       caipChainId: 'eip155:1',
       ensName: name1,
@@ -282,7 +288,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
     expect(controller.get('eip155:1', name2)).toBeNull();
   });
 
@@ -291,7 +297,7 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
     expect(controller.get('eip155:2', name1)).toBeNull();
   });
 
@@ -347,8 +353,8 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
-    expect(controller.delete('eip155:1', name1)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
+    expect(controller.delete('eip155:1', name1)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {},
       ensResolutionsByAddress: {},
@@ -361,8 +367,8 @@ describe('EnsController', () => {
       messenger,
     });
     controller.set('eip155:1', name1, address1);
-    expect(controller.delete('eip155:1', 'bar')).toStrictEqual(false);
-    expect(controller.delete('eip155:2', 'bar')).toStrictEqual(false);
+    expect(controller.delete('eip155:1', 'bar')).toBe(false);
+    expect(controller.delete('eip155:2', 'bar')).toBe(false);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         'eip155:1': {
@@ -382,10 +388,10 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
-    expect(controller.set('eip155:1', name2, address2)).toStrictEqual(true);
-    expect(controller.set('eip155:2', name1, address1)).toStrictEqual(true);
-    expect(controller.delete('eip155:1', name1)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
+    expect(controller.set('eip155:1', name2, address2)).toBe(true);
+    expect(controller.set('eip155:2', name1, address1)).toBe(true);
+    expect(controller.delete('eip155:1', name1)).toBe(true);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         'eip155:1': {
@@ -412,9 +418,9 @@ describe('EnsController', () => {
     const controller = new EnsController({
       messenger,
     });
-    expect(controller.set('eip155:1', name1, address1)).toStrictEqual(true);
-    expect(controller.set('eip155:1', name2, address2)).toStrictEqual(true);
-    expect(controller.set('eip155:2', name1, address1)).toStrictEqual(true);
+    expect(controller.set('eip155:1', name1, address1)).toBe(true);
+    expect(controller.set('eip155:1', name2, address2)).toBe(true);
+    expect(controller.set('eip155:2', name1, address1)).toBe(true);
     controller.clear();
     expect(controller.state).toStrictEqual({
       ensEntries: {},
@@ -442,6 +448,7 @@ describe('EnsController', () => {
             providerConfig: {
               caipChainId: 'eip155:1',
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -460,6 +467,7 @@ describe('EnsController', () => {
             providerConfig: {
               caipChainId: 'eip155:1',
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -485,17 +493,14 @@ describe('EnsController', () => {
             providerConfig: {
               caipChainId: 'eip155:1',
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
       });
 
-      expect(await ens.reverseResolveAddress(address1)).toStrictEqual(
-        'peaksignal.eth',
-      );
-      expect(await ens.reverseResolveAddress(address1)).toStrictEqual(
-        'peaksignal.eth',
-      );
+      expect(await ens.reverseResolveAddress(address1)).toBe('peaksignal.eth');
+      expect(await ens.reverseResolveAddress(address1)).toBe('peaksignal.eth');
     });
 
     it('should fail if lookupAddress through an error', async () => {
@@ -512,6 +517,7 @@ describe('EnsController', () => {
             providerConfig: {
               caipChainId: 'eip155:1',
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -534,6 +540,7 @@ describe('EnsController', () => {
             providerConfig: {
               caipChainId: 'eip155:1',
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -559,6 +566,7 @@ describe('EnsController', () => {
             providerConfig: {
               caipChainId: 'eip155:1',
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -584,6 +592,7 @@ describe('EnsController', () => {
             providerConfig: {
               caipChainId: 'eip155:1',
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -611,6 +620,7 @@ describe('EnsController', () => {
             providerConfig: {
               caipChainId: 'eip155:1',
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },
@@ -637,6 +647,7 @@ describe('EnsController', () => {
             providerConfig: {
               caipChainId: 'eip155:1',
               type: NetworkType.mainnet,
+              ticker: NetworksTicker.mainnet,
             },
           });
         },

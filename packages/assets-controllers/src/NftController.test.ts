@@ -1,14 +1,9 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import { BN } from 'ethereumjs-util';
-import { v4 } from 'uuid';
-import HttpProvider from 'ethjs-provider-http';
-import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkState,
-  ProviderConfig,
-  defaultState as defaultNetworkState,
-} from '@metamask/network-controller';
+import type { Network } from '@ethersproject/providers';
+import type {
+  AddApprovalRequest,
+  ApprovalStateChange,
+} from '@metamask/approval-controller';
+import { ApprovalController } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
@@ -20,17 +15,24 @@ import {
   ApprovalType,
   ERC20,
   BuiltInCaipChainId,
+  NetworksTicker,
 } from '@metamask/controller-utils';
-import {
-  AddApprovalRequest,
-  ApprovalController,
-  ApprovalStateChange,
-} from '@metamask/approval-controller';
-import { Network } from '@ethersproject/providers';
+import type {
+  NetworkState,
+  ProviderConfig,
+} from '@metamask/network-controller';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
+import { BN } from 'ethereumjs-util';
+import HttpProvider from 'ethjs-provider-http';
+import nock from 'nock';
+import * as sinon from 'sinon';
+import { v4 } from 'uuid';
+
 import { AssetsContractController } from './AssetsContractController';
-import { NftController } from './NftController';
 import { getFormattedIpfsUrl } from './assetsUtil';
 import { Source } from './constants';
+import { NftController } from './NftController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -61,8 +63,13 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
 const SEPOLIA = {
   caipChainId: 'eip155:11155111',
   type: NetworkType.sepolia,
+  ticker: NetworksTicker.sepolia,
 } as const;
-const GOERLI = { caipChainId: 'eip155:5', type: NetworkType.goerli } as const;
+const GOERLI = {
+  caipChainId: 'eip155:5',
+  type: NetworkType.goerli,
+  ticker: NetworksTicker.goerli,
+} as const;
 
 type ApprovalActions = AddApprovalRequest;
 type ApprovalEvents = ApprovalStateChange;
@@ -224,14 +231,6 @@ function setupController({
 }
 
 describe('NftController', () => {
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
-
   beforeEach(() => {
     nock(OPENSEA_PROXY_URL)
       .get(`/asset_contract/0x01`)
@@ -290,7 +289,6 @@ describe('NftController', () => {
   });
 
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 
@@ -1812,7 +1810,7 @@ describe('NftController', () => {
       });
     });
 
-    it('should add NFT erc721 and get NFT information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
+    it('should add NFT erc721 and not get NFT information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
       const { assetsContract, nftController } = setupController();
       nock(OPENSEA_PROXY_URL)
         .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
@@ -1940,11 +1938,10 @@ describe('NftController', () => {
       ).toStrictEqual({
         address: ERC721_NFT_ADDRESS,
         image: null,
-        imageOriginal: 'image (directly from opensea)',
-        name: 'name (directly from opensea)',
-        description: 'description (directly from opensea)',
+        name: null,
+        description: null,
         tokenId: ERC721_NFT_ID,
-        standard: ERC721,
+        standard: null,
         favorite: false,
         isCurrentlyOwned: true,
       });

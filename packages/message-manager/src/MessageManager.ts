@@ -1,11 +1,12 @@
 import { v1 as random } from 'uuid';
-import {
-  AbstractMessageManager,
+
+import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
 import { normalizeMessageData, validateSignMessageData } from './utils';
 
 /**
@@ -85,6 +86,7 @@ export class MessageManager extends AbstractMessageManager<
     const messageData: Message = {
       id: messageId,
       messageParams,
+      securityAlertResponse: req?.securityAlertResponse,
       status: 'unapproved',
       time: Date.now(),
       type: 'eth_sign',

@@ -1,12 +1,15 @@
-import * as sinon from 'sinon';
-import type { Patch } from 'immer';
-import {
-  BaseController,
+import type {
   BaseState,
-  BaseControllerV2,
-  ControllerMessenger,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+import {
+  BaseController,
+  BaseControllerV2,
+  ControllerMessenger,
+} from '@metamask/base-controller';
+import type { Patch } from 'immer';
+import * as sinon from 'sinon';
+
 import { ComposableController } from './ComposableController';
 
 // Mock BaseControllerV2 classes

@@ -1,15 +1,16 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import { PreferencesController } from '@metamask/preferences-controller';
+import type { AddApprovalRequest } from '@metamask/approval-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
   BuiltInCaipChainId,
 } from '@metamask/controller-utils';
-import { AddApprovalRequest } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { NftController, NftControllerMessenger } from './NftController';
+import { PreferencesController } from '@metamask/preferences-controller';
+import nock from 'nock';
+import * as sinon from 'sinon';
 
 import { AssetsContractController } from './AssetsContractController';
+import type { NftControllerMessenger } from './NftController';
+import { NftController } from './NftController';
 import { NftDetectionController } from './NftDetectionController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -25,13 +26,6 @@ describe('NftDetectionController', () => {
   let assetsContract: AssetsContractController;
   const networkStateChangeNoop = jest.fn();
   const getOpenSeaApiKeyStub = jest.fn();
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
 
   const messenger = new ControllerMessenger<
     ApprovalActions,
@@ -212,7 +206,6 @@ describe('NftDetectionController', () => {
   });
 
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 
@@ -257,9 +250,9 @@ describe('NftDetectionController', () => {
 
   it('should detect mainnet correctly', () => {
     nftDetection.configure({ caipChainId: BuiltInCaipChainId.mainnet });
-    expect(nftDetection.isMainnet()).toStrictEqual(true);
+    expect(nftDetection.isMainnet()).toBe(true);
     nftDetection.configure({ caipChainId: BuiltInCaipChainId.goerli });
-    expect(nftDetection.isMainnet()).toStrictEqual(false);
+    expect(nftDetection.isMainnet()).toBe(false);
   });
 
   it('should not autodetect while not on mainnet', async () => {
@@ -441,7 +434,7 @@ describe('NftDetectionController', () => {
     nftDetection.configure({ selectedAddress: '0x12' });
     nftController.configure({ selectedAddress: '0x12' });
     await new Promise((res) => setTimeout(() => res(true), 1000));
-    expect(nftDetection.config.selectedAddress).toStrictEqual('0x12');
+    expect(nftDetection.config.selectedAddress).toBe('0x12');
 
     expect(
       nftController.state.allNfts[nftDetection.config.selectedAddress]?.[
@@ -640,7 +633,7 @@ describe('NftDetectionController', () => {
     ).toStrictEqual([nftHH2574, nftII2577, nftGG2574]);
   });
 
-  it('should fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
+  it('should not fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
     const selectedAddress = '0x3';
 
     getOpenSeaApiKeyStub.mockImplementation(() => 'FAKE API KEY');
@@ -712,23 +705,9 @@ describe('NftDetectionController', () => {
       selectedAddress,
     });
 
-    const { caipChainId } = nftDetection.config;
-
     await nftDetection.detectNfts();
 
-    const nfts = nftController.state.allNfts[selectedAddress][caipChainId];
-    expect(nfts).toStrictEqual([
-      {
-        address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
-        description: 'DESCRIPTION: DIRECT FROM OPENSEA',
-        imageOriginal: 'DIRECT FROM OPENSEA.jpg',
-        name: 'NAME: DIRECT FROM OPENSEA',
-        standard: 'ERC721',
-        tokenId: '2577',
-        favorite: false,
-        isCurrentlyOwned: true,
-      },
-    ]);
+    expect(nftController.state.allNfts[selectedAddress]).toBeUndefined();
   });
 
   it('should rethrow error when OpenSea proxy server fails with error other than fetch failure', async () => {

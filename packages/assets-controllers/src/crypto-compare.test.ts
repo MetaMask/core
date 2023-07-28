@@ -1,21 +1,10 @@
 import nock from 'nock';
+
 import { fetchExchangeRate } from './crypto-compare';
 
 const cryptoCompareHost = 'https://min-api.cryptocompare.com';
 
 describe('CryptoCompare', () => {
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
-
-  afterEach(() => {
-    nock.cleanAll();
-  });
-
   it('should return CAD conversion rate', async () => {
     nock(cryptoCompareHost)
       .get('/data/price?fsym=ETH&tsyms=CAD')
@@ -23,7 +12,7 @@ describe('CryptoCompare', () => {
 
     const { conversionRate } = await fetchExchangeRate('CAD', 'ETH');
 
-    expect(conversionRate).toStrictEqual(2000.42);
+    expect(conversionRate).toBe(2000.42);
   });
 
   it('should return CAD conversion rate given lower-cased currency', async () => {
@@ -33,7 +22,7 @@ describe('CryptoCompare', () => {
 
     const { conversionRate } = await fetchExchangeRate('cad', 'ETH');
 
-    expect(conversionRate).toStrictEqual(2000.42);
+    expect(conversionRate).toBe(2000.42);
   });
 
   it('should return CAD conversion rate given lower-cased native currency', async () => {
@@ -43,7 +32,7 @@ describe('CryptoCompare', () => {
 
     const { conversionRate } = await fetchExchangeRate('CAD', 'eth');
 
-    expect(conversionRate).toStrictEqual(2000.42);
+    expect(conversionRate).toBe(2000.42);
   });
 
   it('should not return USD conversion rate when fetching just CAD conversion rate', async () => {
@@ -67,8 +56,8 @@ describe('CryptoCompare', () => {
       false,
     );
 
-    expect(conversionRate).toStrictEqual(1000.42);
-    expect(usdConversionRate).toStrictEqual(1000.42);
+    expect(conversionRate).toBe(1000.42);
+    expect(usdConversionRate).toBe(1000.42);
   });
 
   it('should return USD conversion rate for USD when includeUSD is enabled', async () => {
@@ -82,8 +71,8 @@ describe('CryptoCompare', () => {
       true,
     );
 
-    expect(conversionRate).toStrictEqual(1000.42);
-    expect(usdConversionRate).toStrictEqual(1000.42);
+    expect(conversionRate).toBe(1000.42);
+    expect(usdConversionRate).toBe(1000.42);
   });
 
   it('should return CAD and USD conversion rate', async () => {
@@ -97,8 +86,8 @@ describe('CryptoCompare', () => {
       true,
     );
 
-    expect(conversionRate).toStrictEqual(2000.42);
-    expect(usdConversionRate).toStrictEqual(1000.42);
+    expect(conversionRate).toBe(2000.42);
+    expect(usdConversionRate).toBe(1000.42);
   });
 
   it('should throw if fetch throws', async () => {

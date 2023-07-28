@@ -1,39 +1,39 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import { BN } from 'ethereumjs-util';
-import {
-  NetworkControllerStateChangeEvent,
-  defaultState as defaultNetworkState,
-  NetworkState,
-  ProviderConfig,
-} from '@metamask/network-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   BuiltInCaipChainId,
   NetworkType,
+  NetworksTicker,
   getCaipChainIdFromEthChainId,
   getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import type {
+  NetworkControllerStateChangeEvent,
+  NetworkState,
+  ProviderConfig,
+} from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  TokensController,
-  TokensControllerMessenger,
-} from './TokensController';
-import { TokenDetectionController } from './TokenDetectionController';
-import {
-  TokenListController,
-  GetTokenListState,
-  TokenListStateChange,
-  TokenListToken,
-} from './TokenListController';
-import { AssetsContractController } from './AssetsContractController';
+import { BN } from 'ethereumjs-util';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
+import type { AssetsContractController } from './AssetsContractController';
 import {
   formatAggregatorNames,
   isTokenDetectionSupportedForNetwork,
   SupportedTokenDetectionNetworks,
 } from './assetsUtil';
-import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
+import { TokenDetectionController } from './TokenDetectionController';
+import { TokenListController } from './TokenListController';
+import type {
+  GetTokenListState,
+  TokenListStateChange,
+  TokenListToken,
+} from './TokenListController';
+import type { Token } from './TokenRatesController';
+import { TokensController } from './TokensController';
+import type { TokensControllerMessenger } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -146,6 +146,7 @@ describe('TokenDetectionController', () => {
   const mainnet = {
     caipChainId: BuiltInCaipChainId.mainnet,
     type: NetworkType.mainnet,
+    ticker: NetworksTicker.mainnet,
   };
 
   beforeEach(async () => {
@@ -207,7 +208,6 @@ describe('TokenDetectionController', () => {
   });
 
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
     tokenDetection.stop();
     tokenList.destroy();
@@ -250,17 +250,17 @@ describe('TokenDetectionController', () => {
 
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.caipChainId),
-    ).toStrictEqual(true);
+    ).toBe(true);
     tokenDetection.configure({
       caipChainId: SupportedTokenDetectionNetworks.bsc,
     });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.caipChainId),
-    ).toStrictEqual(true);
+    ).toBe(true);
     tokenDetection.configure({ caipChainId: BuiltInCaipChainId.goerli });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.caipChainId),
-    ).toStrictEqual(false);
+    ).toBe(false);
   });
 
   it('should not autodetect while not on supported networks', async () => {
@@ -292,6 +292,7 @@ describe('TokenDetectionController', () => {
     const auroraMainnet = {
       caipChainId: BuiltInCaipChainId.aurora,
       type: NetworkType.mainnet,
+      ticker: 'Aurora ETH',
     };
     preferences.update({ selectedAddress: '0x1' });
     changeNetwork(auroraMainnet);

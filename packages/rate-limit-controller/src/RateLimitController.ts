@@ -1,9 +1,7 @@
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
 import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
-import {
-  BaseControllerV2 as BaseController,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
 
 /**
  * @type RateLimitedApi
@@ -76,11 +74,11 @@ export class RateLimitController<
   RateLimitState<RateLimitedApis>,
   RateLimitMessenger<RateLimitedApis>
 > {
-  private implementations;
+  private readonly implementations;
 
-  private rateLimitTimeout;
+  private readonly rateLimitTimeout;
 
-  private rateLimitCount;
+  private readonly rateLimitCount;
 
   /**
    * Creates a RateLimitController instance.

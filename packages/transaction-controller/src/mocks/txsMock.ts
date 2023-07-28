@@ -1,4 +1,5 @@
-import { TransactionMeta, TransactionStatus } from '../TransactionController';
+import type { TransactionMeta } from '../TransactionController';
+import { TransactionStatus } from '../TransactionController';
 
 export const ethTxsMock = (ethTxHash: string) => [
   {

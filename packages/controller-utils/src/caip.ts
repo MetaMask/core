@@ -1,9 +1,7 @@
+import type { CaipChainId, Hex } from '@metamask/utils';
 import {
-  CaipChainId,
-  getCaipChainIdString,
-  parseCaipChainIdString,
-  isCaipChainIdString,
-  Hex,
+  parseCaipChainId,
+  isCaipChainId,
 } from '@metamask/utils';
 
 /**
@@ -13,10 +11,10 @@ import {
  * @returns Whether the given caip chain ID is valid for Ethereum chains.
  */
 export function isEthCaipChainId(caipChainId: CaipChainId): boolean {
-  if (!isCaipChainIdString(caipChainId)) {
+  if (!isCaipChainId(caipChainId)) {
     return false;
   }
-  const { namespace } = parseCaipChainIdString(caipChainId);
+  const { namespace } = parseCaipChainId(caipChainId);
   return namespace === 'eip155';
 }
 
@@ -34,7 +32,7 @@ export function getCaipChainIdFromEthChainId(ethChainId: string): CaipChainId {
   if (Number.isNaN(parseInt(chainIdDecimal, 10))) {
     return 'eip155:0'; // does this make sense?
   }
-  return getCaipChainIdString('eip155', chainIdDecimal) as CaipChainId; // remove this when fixed in utils
+  return `eip155:${chainIdDecimal}` as CaipChainId;
 }
 
 /**
@@ -46,7 +44,7 @@ export function getCaipChainIdFromEthChainId(ethChainId: string): CaipChainId {
 export function getEthChainIdDecFromCaipChainId(
   caipChainId: CaipChainId,
 ): string {
-  const { reference } = parseCaipChainIdString(caipChainId);
+  const { reference } = parseCaipChainId(caipChainId);
   return reference;
 }
 
@@ -57,7 +55,7 @@ export function getEthChainIdDecFromCaipChainId(
  * @returns a hex string for the eth chain id.
  */
 export function getEthChainIdHexFromCaipChainId(caipChainId: CaipChainId): Hex {
-  const { reference } = parseCaipChainIdString(caipChainId);
+  const { reference } = parseCaipChainId(caipChainId);
   return `0x${parseInt(reference, 10).toString(16)}`;
 }
 
@@ -70,6 +68,6 @@ export function getEthChainIdHexFromCaipChainId(caipChainId: CaipChainId): Hex {
 export function getEthChainIdIntFromCaipChainId(
   caipChainId: CaipChainId,
 ): number {
-  const { reference } = parseCaipChainIdString(caipChainId);
+  const { reference } = parseCaipChainId(caipChainId);
   return parseInt(reference, 10);
 }

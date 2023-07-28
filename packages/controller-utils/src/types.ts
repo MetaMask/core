@@ -10,7 +10,7 @@ export const InfuraNetworkType = {
 } as const;
 
 export type InfuraNetworkType =
-  typeof InfuraNetworkType[keyof typeof InfuraNetworkType];
+  (typeof InfuraNetworkType)[keyof typeof InfuraNetworkType];
 
 /**
  * The "network type"; either the name of a built-in network, or "rpc" for custom networks.
@@ -20,7 +20,7 @@ export const NetworkType = {
   rpc: 'rpc',
 } as const;
 
-export type NetworkType = typeof NetworkType[keyof typeof NetworkType];
+export type NetworkType = (typeof NetworkType)[keyof typeof NetworkType];
 
 /**
  * A helper to determine whether a given input is NetworkType.
@@ -70,7 +70,7 @@ export const InfuraNetworkId = {
   [InfuraNetworkType['linea-mainnet']]: '59144',
 } as const;
 export type InfuraNetworkId =
-  typeof InfuraNetworkId[keyof typeof InfuraNetworkId];
+  (typeof InfuraNetworkId)[keyof typeof InfuraNetworkId];
 
 export enum NetworksTicker {
   mainnet = 'ETH',

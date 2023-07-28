@@ -1,5 +1,10 @@
-import { createNetworkClient, NetworkClient } from './create-network-client';
-import { BlockTracker, NetworkClientConfiguration, Provider } from './types';
+import type { NetworkClient } from './create-network-client';
+import { createNetworkClient } from './create-network-client';
+import type {
+  BlockTracker,
+  NetworkClientConfiguration,
+  Provider,
+} from './types';
 
 /**
  * The name of the method on both the provider and block tracker proxy which can

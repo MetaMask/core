@@ -1,17 +1,20 @@
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import type {
+  AbstractMessage,
+  OriginalRequest,
+} from '@metamask/message-manager';
 import {
   MessageManager,
   PersonalMessageManager,
   TypedMessageManager,
-  AbstractMessage,
-  OriginalRequest,
 } from '@metamask/message-manager';
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { EthereumProviderError } from 'eth-rpc-errors';
-import {
-  SignatureController,
+
+import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
 } from './SignatureController';
+import { SignatureController } from './SignatureController';
 
 jest.mock('@metamask/message-manager', () => ({
   MessageManager: jest.fn(),
@@ -103,6 +106,7 @@ const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
     setMessageStatusErrored: jest.fn(),
     setMessageStatusInProgress: jest.fn(),
     rejectMessage: jest.fn(),
+    cancelAbstractMessage: jest.fn(),
     subscribe: jest.fn(),
     update: jest.fn(),
     setMetadata: jest.fn(),
@@ -148,7 +152,7 @@ describe('SignatureController', () => {
   const getAllStateMock = jest.fn();
   const securityProviderRequestMock = jest.fn();
   const isEthSignEnabledMock = jest.fn();
-  const getCurrentChainIdMock = jest.fn();
+  const getCurrentCaipChainIdMock = jest.fn();
   const keyringErrorMessageMock = 'Keyring Error';
   const keyringErrorMock = new Error(keyringErrorMessageMock);
 
@@ -176,7 +180,7 @@ describe('SignatureController', () => {
       getAllState: getAllStateMock,
       securityProviderRequest: securityProviderRequestMock,
       isEthSignEnabled: isEthSignEnabledMock,
-      getCurrentChainId: getCurrentChainIdMock,
+      getCurrentCaipChainId: getCurrentCaipChainIdMock,
     } as SignatureControllerOptions);
   });
 
@@ -496,6 +500,12 @@ describe('SignatureController', () => {
 
   describe('newUnsignedTypedMessage', () => {
     it('adds message to typed message manager', async () => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      signatureController.update(() => ({
+        unapprovedTypedMessages: { [messageIdMock]: stateMessageMock } as any,
+      }));
+
       await signatureController.newUnsignedTypedMessage(
         messageParamsMock,
         requestMock,
@@ -681,6 +691,101 @@ describe('SignatureController', () => {
         messageIdMock,
         messageParamsWithoutIdMock.data,
       );
+    });
+  });
+
+  describe('setDeferredSignSuccess', () => {
+    it('sets a message status as signed in a message manager', () => {
+      signatureController.setDeferredSignSuccess(
+        messageParamsMock.metamaskId,
+        messageParamsMock.data,
+      );
+
+      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
+
+      expect(
+        personalMessageManagerMock.setMessageStatusSigned,
+      ).not.toHaveBeenCalled();
+      expect(
+        typedMessageManagerMock.setMessageStatusSigned,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should return false when an error occurs', () => {
+      jest
+        .spyOn(messageManagerMock, 'setMessageStatusSigned')
+        .mockImplementation(() => {
+          throw new Error('mocked error');
+        });
+
+      const result = signatureController.setDeferredSignSuccess(
+        messageParamsMock.metamaskId,
+        messageParamsMock.data,
+      );
+
+      expect(result).toBeUndefined();
+      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledWith(
+        messageIdMock,
+        messageParamsWithoutIdMock.data,
+      );
+    });
+  });
+
+  describe('trySetDeferredSignError', () => {
+    it('rejects a message by calling rejectMessage', () => {
+      signatureController.setDeferredSignError(messageParamsMock.metamaskId);
+
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
+      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
+        messageIdMock,
+      );
+
+      expect(personalMessageManagerMock.rejectMessage).not.toHaveBeenCalled();
+      expect(typedMessageManagerMock.rejectMessage).not.toHaveBeenCalled();
+    });
+
+    it('rejects message on next message manager if first throws', () => {
+      jest.spyOn(messageManagerMock, 'rejectMessage').mockImplementation(() => {
+        throw new Error('mocked error');
+      });
+      jest
+        .spyOn(personalMessageManagerMock, 'rejectMessage')
+        .mockImplementation(() => {
+          throw new Error('mocked error');
+        });
+
+      expect(() =>
+        signatureController.setDeferredSignError(messageParamsMock.metamaskId),
+      ).not.toThrow();
+    });
+
+    it('should throw an error when tryForEachMessageManager fails', () => {
+      jest.spyOn(messageManagerMock, 'rejectMessage').mockImplementation(() => {
+        throw new Error('mocked error');
+      });
+      jest
+        .spyOn(personalMessageManagerMock, 'rejectMessage')
+        .mockImplementation(() => {
+          throw new Error('mocked error');
+        });
+      jest
+        .spyOn(typedMessageManagerMock, 'rejectMessage')
+        .mockImplementation(() => {
+          throw new Error('mocked error');
+        });
+
+      expect(() =>
+        signatureController.setDeferredSignError(messageParamsMock.metamaskId),
+      ).toThrow('Message not found');
     });
   });
 

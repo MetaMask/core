@@ -1,5 +1,5 @@
+import type { ProviderType } from './helpers';
 import {
-  ProviderType,
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
   withNetworkClient,
@@ -434,7 +434,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           },
         );
 
-        expect(result).toStrictEqual('the result');
+        expect(result).toBe('the result');
       });
     });
 
@@ -506,7 +506,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
         },
       );
 
-      expect(result).toStrictEqual('the result');
+      expect(result).toBe('the result');
     });
   });
 
@@ -612,7 +612,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           },
         );
 
-        expect(result).toStrictEqual('the result');
+        expect(result).toBe('the result');
       });
     });
 
@@ -717,7 +717,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           },
         );
 
-        expect(result).toStrictEqual('the result');
+        expect(result).toBe('the result');
       });
     });
 
@@ -837,7 +837,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           },
         );
 
-        expect(result).toStrictEqual('the result');
+        expect(result).toBe('the result');
       });
     });
 
@@ -933,7 +933,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           },
         );
 
-        expect(result).toStrictEqual('the result');
+        expect(result).toBe('the result');
       });
     });
 

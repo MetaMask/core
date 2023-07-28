@@ -3,8 +3,9 @@ import {
   BuiltInCaipChainId,
   getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
+
 import * as assetsUtil from './assetsUtil';
-import { Nft, NftMetadata } from './NftController';
+import type { Nft, NftMetadata } from './NftController';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
@@ -48,7 +49,7 @@ describe('assetsUtil', () => {
         externalLink: 'externalLink',
       };
       const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
-      expect(different).toStrictEqual(true);
+      expect(different).toBe(true);
     });
 
     it('should resolve true if any key is different as always as metadata is not undefined', () => {
@@ -70,7 +71,7 @@ describe('assetsUtil', () => {
         externalLink: 'externalLink',
       };
       const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
-      expect(different).toStrictEqual(false);
+      expect(different).toBe(false);
     });
 
     it('should resolve false if no key is different', () => {
@@ -103,7 +104,7 @@ describe('assetsUtil', () => {
         externalLink: 'externalLink',
       };
       const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
-      expect(different).toStrictEqual(false);
+      expect(different).toBe(false);
     });
 
     it('should format aggregator names', () => {
@@ -311,7 +312,7 @@ describe('assetsUtil', () => {
         assetsUtil.removeIpfsProtocolPrefix(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}/test`,
         ),
-      ).toStrictEqual(`${IPFS_CID_V0}/test`);
+      ).toBe(`${IPFS_CID_V0}/test`);
     });
 
     it('should return content identifier string from default ipfs url format if no path preset', () => {
@@ -379,7 +380,7 @@ describe('assetsUtil', () => {
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
           true,
         ),
-      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
+      ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
     it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', () => {
@@ -389,7 +390,7 @@ describe('assetsUtil', () => {
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
           true,
         ),
-      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
+      ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
     it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a path at the end of the url, and subdomainSupported argument set to true', () => {
@@ -399,7 +400,7 @@ describe('assetsUtil', () => {
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           true,
         ),
-      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}/test`);
+      ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}/test`);
     });
 
     it('should return a correctly formatted non-subdomained ipfs url when passed ipfsGateway with no "/ipfs/" appended, a path at the end of the url, and subdomainSupported argument set to false', () => {
@@ -409,7 +410,7 @@ describe('assetsUtil', () => {
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           false,
         ),
-      ).toStrictEqual(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
+      ).toBe(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
     });
 
     it('should return a correctly formatted non-subdomained ipfs url when passed an ipfsGateway with "/ipfs/" appended, a path at the end of the url, subdomainSupported argument set to false', () => {
@@ -419,13 +420,13 @@ describe('assetsUtil', () => {
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           false,
         ),
-      ).toStrictEqual(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
+      ).toBe(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
     });
   });
 
   describe('addUrlProtocolPrefix', () => {
     it('should return a URL with https:// prepended if input URL does not already have it', () => {
-      expect(assetsUtil.addUrlProtocolPrefix(IFPS_GATEWAY)).toStrictEqual(
+      expect(assetsUtil.addUrlProtocolPrefix(IFPS_GATEWAY)).toBe(
         `https://${IFPS_GATEWAY}`,
       );
     });

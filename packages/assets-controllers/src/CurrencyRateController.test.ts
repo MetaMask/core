@@ -1,11 +1,12 @@
-import nock from 'nock';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { TESTNET_TICKER_SYMBOLS } from '@metamask/controller-utils';
-import {
-  CurrencyRateController,
+import nock from 'nock';
+
+import type {
   CurrencyRateStateChange,
   GetCurrencyRateState,
 } from './CurrencyRateController';
+import { CurrencyRateController } from './CurrencyRateController';
 
 const name = 'CurrencyRateController';
 
@@ -49,8 +50,6 @@ describe('CurrencyRateController', () => {
 
   afterEach(() => {
     jest.useRealTimers();
-
-    nock.cleanAll();
   });
 
   it('should set default state', () => {
@@ -194,11 +193,11 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    expect(controller.state.conversionRate).toStrictEqual(0);
+    expect(controller.state.conversionRate).toBe(0);
 
     await controller.start();
 
-    expect(controller.state.conversionRate).toStrictEqual(10);
+    expect(controller.state.conversionRate).toBe(10);
 
     controller.destroy();
   });
@@ -226,16 +225,16 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    expect(controller.state.conversionRate).toStrictEqual(0);
+    expect(controller.state.conversionRate).toBe(0);
 
     await controller.start();
     await controller.setNativeCurrency('DAI');
 
-    expect(controller.state.conversionRate).toStrictEqual(1);
+    expect(controller.state.conversionRate).toBe(1);
 
     await controller.setNativeCurrency(TESTNET_TICKER_SYMBOLS.GOERLI);
 
-    expect(controller.state.conversionRate).toStrictEqual(10);
+    expect(controller.state.conversionRate).toBe(10);
 
     controller.destroy();
   });
@@ -251,15 +250,15 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    expect(controller.state.currentCurrency).toStrictEqual('usd');
+    expect(controller.state.currentCurrency).toBe('usd');
 
     await controller.start();
 
-    expect(controller.state.currentCurrency).toStrictEqual('usd');
+    expect(controller.state.currentCurrency).toBe('usd');
 
     await controller.setCurrentCurrency('CAD');
 
-    expect(controller.state.currentCurrency).toStrictEqual('CAD');
+    expect(controller.state.currentCurrency).toBe('CAD');
 
     controller.destroy();
   });
@@ -275,15 +274,15 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    expect(controller.state.nativeCurrency).toStrictEqual('ETH');
+    expect(controller.state.nativeCurrency).toBe('ETH');
 
     await controller.start();
 
-    expect(controller.state.nativeCurrency).toStrictEqual('ETH');
+    expect(controller.state.nativeCurrency).toBe('ETH');
 
     await controller.setNativeCurrency('xDAI');
 
-    expect(controller.state.nativeCurrency).toStrictEqual('xDAI');
+    expect(controller.state.nativeCurrency).toBe('xDAI');
 
     controller.destroy();
   });
@@ -320,7 +319,7 @@ describe('CurrencyRateController', () => {
     });
     await controller.start();
 
-    expect(controller.state.conversionRate).toStrictEqual(2000.42);
+    expect(controller.state.conversionRate).toBe(2000.42);
 
     controller.destroy();
   });

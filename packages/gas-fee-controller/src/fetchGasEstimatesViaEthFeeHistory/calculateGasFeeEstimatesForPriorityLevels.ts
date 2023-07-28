@@ -1,12 +1,13 @@
+import { GWEI } from '@metamask/controller-utils';
 import { BN } from 'ethereumjs-util';
 import { fromWei } from 'ethjs-unit';
-import { GWEI } from '@metamask/controller-utils';
-import { Eip1559GasFee, GasFeeEstimates } from '../GasFeeController';
-import { FeeHistoryBlock } from '../fetchBlockFeeHistory';
-import medianOf from './medianOf';
 
-export type PriorityLevel = typeof PRIORITY_LEVELS[number];
-export type Percentile = typeof PRIORITY_LEVEL_PERCENTILES[number];
+import medianOf from './medianOf';
+import type { FeeHistoryBlock } from '../fetchBlockFeeHistory';
+import type { Eip1559GasFee, GasFeeEstimates } from '../GasFeeController';
+
+export type PriorityLevel = (typeof PRIORITY_LEVELS)[number];
+export type Percentile = (typeof PRIORITY_LEVEL_PERCENTILES)[number];
 
 const PRIORITY_LEVELS = ['low', 'medium', 'high'] as const;
 const PRIORITY_LEVEL_PERCENTILES = [10, 20, 30] as const;

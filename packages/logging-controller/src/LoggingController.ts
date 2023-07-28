@@ -1,9 +1,8 @@
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import { v1 as random } from 'uuid';
-import { Log } from './logTypes';
+
+import type { Log } from './logTypes';
 
 /**
  * LogEntry is the entry that will be added to the logging controller state.

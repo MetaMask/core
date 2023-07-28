@@ -1,14 +1,5 @@
-import { strict as assert } from 'assert';
-import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
-import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
-import EthQuery from 'eth-query';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { v4 as random } from 'uuid';
-import type { Patch } from 'immer';
-import { errorCodes } from 'eth-rpc-errors';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   convertHexToDecimal,
@@ -19,27 +10,36 @@ import {
   BuiltInCaipChainId,
   getEthChainIdHexFromCaipChainId,
 } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
+import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
+import type { CaipChainId } from '@metamask/utils';
 import {
-  CaipChainId,
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
   isStrictHexString,
 } from '@metamask/utils';
+import { strict as assert } from 'assert';
+import { errorCodes } from 'eth-rpc-errors';
+import type { Patch } from 'immer';
+import { v4 as random } from 'uuid';
+
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import type {
+  AutoManagedNetworkClient,
+  ProxyWithAccessibleTarget,
+} from './create-auto-managed-network-client';
+import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import { projectLogger, createModuleLogger } from './logger';
-import {
+import { NetworkClientType } from './types';
+import type {
+  BlockTracker,
+  Provider,
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
-  NetworkClientType,
 } from './types';
-import type { BlockTracker, Provider } from './types';
-import {
-  AutoManagedNetworkClient,
-  createAutoManagedNetworkClient,
-  ProxyWithAccessibleTarget,
-} from './create-auto-managed-network-client';
 
 const log = createModuleLogger(projectLogger, 'NetworkController');
 
@@ -58,7 +58,7 @@ export type ProviderConfig = {
   rpcUrl?: string;
   type: NetworkType;
   caipChainId: CaipChainId;
-  ticker?: string;
+  ticker: string;
   nickname?: string;
   rpcPrefs?: { blockExplorerUrl?: string };
   id?: NetworkConfigurationId;
@@ -69,16 +69,19 @@ export type Block = {
 };
 
 /**
- * Information about the network not held by any other part of state. Currently
- * only used to capture whether a network supports EIP-1559.
+ * Information about a network not held by any other part of state.
  */
-export type NetworkDetails = {
+export type NetworkMetadata = {
   /**
    * EIPs supported by the network.
    */
   EIPS: {
     [eipNumber: number]: boolean;
   };
+  /**
+   * Indicates the availability of the network
+   */
+  status: NetworkStatus;
 };
 
 /**
@@ -319,6 +322,27 @@ function validateCustomProviderConfig(
     throw new Error('rpcUrl must be provided for custom RPC endpoints');
   }
 }
+/**
+ * The string that uniquely identifies an Infura network client.
+ */
+type BuiltInNetworkClientId = InfuraNetworkType;
+
+/**
+ * The string that uniquely identifies a custom network client.
+ */
+type CustomNetworkClientId = string;
+
+/**
+ * The string that uniquely identifies a network client.
+ */
+type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
+
+/**
+ * Information about networks not held by any other part of state.
+ */
+export type NetworksMetadata = {
+  [networkClientId: NetworkClientId]: NetworkMetadata;
+};
 
 /**
  * The network ID of a network.
@@ -335,11 +359,11 @@ export type NetworkId = `${number}`;
  * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
  */
 export type NetworkState = {
+  selectedNetworkClientId: NetworkClientId;
   networkId: NetworkId | null;
-  networkStatus: NetworkStatus;
   providerConfig: ProviderConfig;
-  networkDetails: NetworkDetails;
   networkConfigurations: NetworkConfigurations;
+  networksMetadata: NetworksMetadata;
 };
 
 const name = 'NetworkController';
@@ -451,15 +475,14 @@ export type NetworkControllerOptions = {
 };
 
 export const defaultState: NetworkState = {
+  selectedNetworkClientId: NetworkType.mainnet,
   networkId: null,
-  networkStatus: NetworkStatus.Unknown,
   providerConfig: {
     type: NetworkType.mainnet,
     caipChainId: BuiltInCaipChainId.mainnet,
+    ticker: NetworksTicker.mainnet,
   },
-  networkDetails: {
-    EIPS: {},
-  },
+  networksMetadata: {},
   networkConfigurations: {},
 };
 
@@ -477,16 +500,6 @@ type MetaMetricsEventPayload = {
 };
 
 type NetworkConfigurationId = string;
-
-/**
- * The string that uniquely identifies an Infura network client.
- */
-type BuiltInNetworkClientId = InfuraNetworkType;
-
-/**
- * The string that uniquely identifies a custom network client.
- */
-type CustomNetworkClientId = string;
 
 /**
  * The collection of auto-managed network clients that map to Infura networks.
@@ -546,15 +559,15 @@ export class NetworkController extends BaseControllerV2<
     super({
       name,
       metadata: {
+        selectedNetworkClientId: {
+          persist: true,
+          anonymous: false,
+        },
         networkId: {
           persist: true,
           anonymous: false,
         },
-        networkStatus: {
-          persist: true,
-          anonymous: false,
-        },
-        networkDetails: {
+        networksMetadata: {
           persist: true,
           anonymous: false,
         },
@@ -633,19 +646,14 @@ export class NetworkController extends BaseControllerV2<
    * Executes a series of steps to apply the changes to the provider config:
    *
    * 1. Notifies subscribers that the network is about to change.
-   * 2. Clears state associated with the current network.
-   * 3. Looks up a known and preinitialized network client matching the provider
+   * 2. Looks up a known and preinitialized network client matching the provider
    * config and re-points the provider and block tracker proxy to it.
-   * 4. Notifies subscribers that the network has changed.
+   * 3. Notifies subscribers that the network has changed.
    */
   async #refreshNetwork() {
     this.messagingSystem.publish('NetworkController:networkWillChange');
     this.update((state) => {
       state.networkId = null;
-      state.networkStatus = NetworkStatus.Unknown;
-      state.networkDetails = {
-        EIPS: {},
-      };
     });
     this.#applyNetworkSelection();
     this.messagingSystem.publish('NetworkController:networkDidChange');
@@ -778,11 +786,12 @@ export class NetworkController extends BaseControllerV2<
 
     this.update((state) => {
       state.networkId = updatedNetworkId;
-      state.networkStatus = updatedNetworkStatus;
+      const meta = state.networksMetadata[state.selectedNetworkClientId];
+      meta.status = updatedNetworkStatus;
       if (updatedIsEIP1559Compatible === undefined) {
-        delete state.networkDetails.EIPS[1559];
+        delete meta.EIPS[1559];
       } else {
-        state.networkDetails.EIPS[1559] = updatedIsEIP1559Compatible;
+        meta.EIPS[1559] = updatedIsEIP1559Compatible;
       }
     });
 
@@ -902,37 +911,46 @@ export class NetworkController extends BaseControllerV2<
    * appropriately.
    *
    * @returns A promise that resolves to true if the network supports EIP-1559
-   * and false otherwise.
+   * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
   async getEIP1559Compatibility() {
-    const { EIPS } = this.state.networkDetails;
+    if (!this.#ethQuery) {
+      return false;
+    }
+
+    const { EIPS } =
+      this.state.networksMetadata[this.state.selectedNetworkClientId];
 
     if (EIPS[1559] !== undefined) {
       return EIPS[1559];
     }
 
-    if (!this.#ethQuery) {
-      return false;
-    }
-
     const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
     this.update((state) => {
-      state.networkDetails.EIPS[1559] = isEIP1559Compatible;
+      if (isEIP1559Compatible !== undefined) {
+        state.networksMetadata[state.selectedNetworkClientId].EIPS[1559] =
+          isEIP1559Compatible;
+      }
     });
     return isEIP1559Compatible;
   }
 
   /**
-   * Retrieves the latest block from the currently selected network; if the
-   * block has a `baseFeePerGas` property, then we know that the network
-   * supports EIP-1559; otherwise it doesn't.
+   * Retrieves and checks the latest block from the currently selected
+   * network; if the block has a `baseFeePerGas` property, then we know
+   * that the network supports EIP-1559; otherwise it doesn't.
    *
-   * @returns A promise that resolves to true if the network supports EIP-1559
-   * and false otherwise.
+   * @returns A promise that resolves to `true` if the network supports EIP-1559,
+   * `false` otherwise, or `undefined` if unable to retrieve the last block.
    */
-  async #determineEIP1559Compatibility(): Promise<boolean> {
+  async #determineEIP1559Compatibility(): Promise<boolean | undefined> {
     const latestBlock = await this.#getLatestBlock();
-    return latestBlock?.baseFeePerGas !== undefined;
+
+    if (!latestBlock) {
+      return undefined;
+    }
+
+    return latestBlock.baseFeePerGas !== undefined;
   }
 
   /**
@@ -1341,12 +1359,14 @@ export class NetworkController extends BaseControllerV2<
 
     let autoManagedNetworkClient: AutoManagedNetworkClient<NetworkClientConfiguration>;
 
+    let networkClientId: NetworkClientId;
     if (isInfuraProviderConfig(providerConfig)) {
       const networkClientType = NetworkClientType.Infura;
-      const networkClientId = buildInfuraNetworkClientId(providerConfig);
+      networkClientId = buildInfuraNetworkClientId(providerConfig);
       const builtInNetworkClientRegistry =
         this.#autoManagedNetworkClientRegistry[networkClientType];
-      autoManagedNetworkClient = builtInNetworkClientRegistry[networkClientId];
+      autoManagedNetworkClient =
+        builtInNetworkClientRegistry[networkClientId as BuiltInNetworkClientId];
       if (!autoManagedNetworkClient) {
         throw new Error(
           `Could not find custom network matching ${networkClientId}`,
@@ -1355,7 +1375,7 @@ export class NetworkController extends BaseControllerV2<
     } else if (isCustomProviderConfig(providerConfig)) {
       validateCustomProviderConfig(providerConfig);
       const networkClientType = NetworkClientType.Custom;
-      const networkClientId = buildCustomNetworkClientId(
+      networkClientId = buildCustomNetworkClientId(
         providerConfig,
         this.state.networkConfigurations,
       );
@@ -1370,6 +1390,16 @@ export class NetworkController extends BaseControllerV2<
     } else {
       throw new Error('Could not determine type of provider config');
     }
+
+    this.update((state) => {
+      state.selectedNetworkClientId = networkClientId;
+      if (state.networksMetadata[networkClientId] === undefined) {
+        state.networksMetadata[networkClientId] = {
+          status: NetworkStatus.Unknown,
+          EIPS: {},
+        };
+      }
+    });
 
     const { provider, blockTracker } = autoManagedNetworkClient;
 

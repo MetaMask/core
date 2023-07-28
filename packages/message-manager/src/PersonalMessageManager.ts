@@ -1,13 +1,15 @@
+import type { SIWEMessage } from '@metamask/controller-utils';
+import { detectSIWE } from '@metamask/controller-utils';
 import { v1 as random } from 'uuid';
-import { detectSIWE, SIWEMessage } from '@metamask/controller-utils';
-import { normalizeMessageData, validateSignMessageData } from './utils';
-import {
-  AbstractMessageManager,
+
+import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
+import { normalizeMessageData, validateSignMessageData } from './utils';
 
 /**
  * @type Message
@@ -92,6 +94,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
     const messageData: PersonalMessage = {
       id: messageId,
       messageParams: finalMsgParams,
+      securityAlertResponse: req?.securityAlertResponse,
       status: 'unapproved',
       time: Date.now(),
       type: 'personal_sign',

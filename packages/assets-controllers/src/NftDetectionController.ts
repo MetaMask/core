@@ -1,20 +1,17 @@
-import type { CaipChainId } from '@metamask/utils';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
-import type { NetworkState } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
-  OPENSEA_API_URL,
   fetchWithErrorHandling,
   toChecksumHexAddress,
   BuiltInCaipChainId,
 } from '@metamask/controller-utils';
-import type { NftController, NftState, NftMetadata } from './NftController';
+import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import type { CaipChainId } from '@metamask/utils';
+
 import { Source } from './constants';
+import type { NftController, NftState, NftMetadata } from './NftController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -140,43 +137,24 @@ export class NftDetectionController extends BaseController<
   private getOwnerNftApi({
     address,
     offset,
-    useProxy,
   }: {
     address: string;
     offset: number;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`
-      : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
+    return `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
   private async getOwnerNfts(address: string) {
     let nftApiResponse: { assets: ApiNft[] };
     let nfts: ApiNft[] = [];
-    const openSeaApiKey = this.getOpenSeaApiKey();
     let offset = 0;
     let pagingFinish = false;
     /* istanbul ignore if */
     do {
       nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, offset, useProxy: true }),
+        url: this.getOwnerNftApi({ address, offset }),
         timeout: 15000,
       });
-
-      if (openSeaApiKey && !nftApiResponse) {
-        nftApiResponse = await fetchWithErrorHandling({
-          url: this.getOwnerNftApi({
-            address,
-            offset,
-            useProxy: false,
-          }),
-          options: { headers: { 'X-API-KEY': openSeaApiKey } },
-          timeout: 15000,
-          // catch 403 errors (in case API key is down we don't want to blow up)
-          errorCodesToCatch: [403],
-        });
-      }
 
       if (!nftApiResponse) {
         return nfts;
@@ -196,11 +174,11 @@ export class NftDetectionController extends BaseController<
    */
   override name = 'NftDetectionController';
 
-  private getOpenSeaApiKey: () => string | undefined;
+  private readonly getOpenSeaApiKey: () => string | undefined;
 
-  private addNft: NftController['addNft'];
+  private readonly addNft: NftController['addNft'];
 
-  private getNftState: () => NftState;
+  private readonly getNftState: () => NftState;
 
   /**
    * Creates an NftDetectionController instance.

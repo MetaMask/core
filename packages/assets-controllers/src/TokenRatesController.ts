@@ -1,9 +1,5 @@
-import type { CaipChainId } from '@metamask/utils';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   safelyExecute,
   handleFetch,
@@ -12,9 +8,11 @@ import {
   getEthChainIdIntFromCaipChainId,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import type { CaipChainId } from '@metamask/utils';
+
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
 import type { TokensState } from './TokensController';
-import type { CurrencyRateState } from './CurrencyRateController';
 
 /**
  * @type CoinGeckoResponse
@@ -72,7 +70,9 @@ export interface TokenRatesConfig extends BaseConfig {
   interval: number;
   nativeCurrency: string;
   caipChainId: CaipChainId;
-  tokens: Token[];
+  selectedAddress: string;
+  allTokens: { [caipChainId: CaipChainId]: { [key: string]: Token[] } };
+  allDetectedTokens: { [caipChainId: CaipChainId]: { [key: string]: Token[] } };
   threshold: number;
 }
 
@@ -88,6 +88,11 @@ interface SupportedChainsCache {
 interface SupportedVsCurrenciesCache {
   timestamp: number;
   data: string[];
+}
+
+enum PollState {
+  Active = 'Active',
+  Inactive = 'Inactive',
 }
 
 /**
@@ -156,6 +161,8 @@ export class TokenRatesController extends BaseController<
     data: [],
   };
 
+  #pollState = PollState.Inactive;
+
   /**
    * Name of this controller used during composition
    */
@@ -166,8 +173,10 @@ export class TokenRatesController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.caipChainId - The caip chain ID of the current network.
+   * @param options.ticker - The ticker for the current network.
+   * @param options.selectedAddress - The current selected address.
+   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
-   * @param options.onCurrencyRateStateChange - Allows subscribing to currency rate controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network state changes.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -175,16 +184,20 @@ export class TokenRatesController extends BaseController<
   constructor(
     {
       caipChainId: initialCaipChainId,
+      ticker: initialTicker,
+      selectedAddress: initialSelectedAddress,
+      onPreferencesStateChange,
       onTokensStateChange,
-      onCurrencyRateStateChange,
       onNetworkStateChange,
     }: {
       caipChainId: CaipChainId;
+      ticker: string;
+      selectedAddress: string;
+      onPreferencesStateChange: (
+        listener: (preferencesState: PreferencesState) => void,
+      ) => void;
       onTokensStateChange: (
         listener: (tokensState: TokensState) => void,
-      ) => void;
-      onCurrencyRateStateChange: (
-        listener: (currencyRateState: CurrencyRateState) => void,
       ) => void;
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
@@ -197,9 +210,11 @@ export class TokenRatesController extends BaseController<
     this.defaultConfig = {
       disabled: false,
       interval: 3 * 60 * 1000,
-      nativeCurrency: 'eth',
+      nativeCurrency: initialTicker,
       caipChainId: initialCaipChainId,
-      tokens: [],
+      selectedAddress: initialSelectedAddress,
+      allTokens: {}, // TODO: initialize these correctly, maybe as part of BaseControllerV2 migration
+      allDetectedTokens: {},
       threshold: 6 * 60 * 60 * 1000,
     };
 
@@ -210,66 +225,96 @@ export class TokenRatesController extends BaseController<
     if (config?.disabled) {
       this.configure({ disabled: true }, false, false);
     }
+    this.#updateTokenList();
 
-    onTokensStateChange(({ tokens, detectedTokens }) => {
-      this.configure({ tokens: [...tokens, ...detectedTokens] });
+    onPreferencesStateChange(async ({ selectedAddress }) => {
+      if (this.config.selectedAddress !== selectedAddress) {
+        this.configure({ selectedAddress });
+        this.#updateTokenList();
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates();
+        }
+      }
     });
 
-    onCurrencyRateStateChange((currencyRateState) => {
-      this.configure({ nativeCurrency: currencyRateState.nativeCurrency });
+    onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
+      // These two state properties are assumed to be immutable
+      if (
+        this.config.allTokens !== allTokens ||
+        this.config.allDetectedTokens !== allDetectedTokens
+      ) {
+        this.configure({ allTokens, allDetectedTokens });
+        this.#updateTokenList();
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates();
+        }
+      }
     });
 
-    onNetworkStateChange(({ providerConfig }) => {
-      const { caipChainId } = providerConfig;
-      this.update({ contractExchangeRates: {} });
-      this.configure({ caipChainId });
+    onNetworkStateChange(async ({ providerConfig }) => {
+      const { caipChainId, ticker } = providerConfig;
+      if (
+        this.config.caipChainId !== caipChainId ||
+        this.config.nativeCurrency !== ticker
+      ) {
+        this.update({ contractExchangeRates: {} });
+        this.configure({ caipChainId, nativeCurrency: ticker });
+        this.#updateTokenList();
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates();
+        }
+      }
     });
-    this.poll();
+  }
+
+  #updateTokenList() {
+    const { allTokens, allDetectedTokens } = this.config;
+    const tokens =
+      allTokens[this.config.caipChainId]?.[this.config.selectedAddress] || [];
+    const detectedTokens =
+      allDetectedTokens[this.config.caipChainId]?.[
+        this.config.selectedAddress
+      ] || [];
+    this.tokenList = [...tokens, ...detectedTokens];
   }
 
   /**
-   * Sets a new polling interval.
-   *
-   * @param interval - Polling interval used to fetch new token rates.
+   * Start (or restart) polling.
    */
-  async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+  async start() {
+    this.#stopPoll();
+    this.#pollState = PollState.Active;
+    await this.#poll();
+  }
+
+  /**
+   * Stop polling.
+   */
+  stop() {
+    this.#stopPoll();
+    this.#pollState = PollState.Inactive;
+  }
+
+  /**
+   * Clear the active polling timer, if present.
+   */
+  #stopPoll() {
+    if (this.handle) {
+      clearTimeout(this.handle);
+    }
+  }
+
+  /**
+   * Poll for exchange rate updates.
+   */
+  async #poll() {
     await safelyExecute(() => this.updateExchangeRates());
+
+    // Poll using recursive `setTimeout` instead of `setInterval` so that
+    // requests don't stack if they take longer than the polling interval
     this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
+      this.#poll();
     }, this.config.interval);
-  }
-
-  /**
-   * Sets a new caipChainId.
-   *
-   * TODO: Replace this with a method.
-   *
-   * @param _caipChainId - The current caip chain ID.
-   */
-  set caipChainId(_caipChainId: CaipChainId) {
-    !this.disabled && safelyExecute(() => this.updateExchangeRates());
-  }
-
-  get caipChainId() {
-    throw new Error('Property only used for setting');
-  }
-
-  /**
-   * Sets a new token list to track prices.
-   *
-   * TODO: Replace this with a method.
-   *
-   * @param tokens - List of tokens to track exchange rates for.
-   */
-  set tokens(tokens: Token[]) {
-    this.tokenList = tokens;
-    !this.disabled && safelyExecute(() => this.updateExchangeRates());
-  }
-
-  get tokens() {
-    throw new Error('Property only used for setting');
   }
 
   /**

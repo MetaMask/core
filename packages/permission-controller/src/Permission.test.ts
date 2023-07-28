@@ -1,5 +1,6 @@
+import type { CaveatConstraint, PermissionConstraint } from '.';
+import { constructPermission } from '.';
 import { findCaveat } from './Permission';
-import { constructPermission, CaveatConstraint, PermissionConstraint } from '.';
 
 describe('constructPermission', () => {
   it('constructs a permission', () => {

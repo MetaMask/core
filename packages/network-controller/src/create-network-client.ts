@@ -1,10 +1,10 @@
+import type { InfuraNetworkType } from '@metamask/controller-utils';
 import {
-  createAsyncMiddleware,
-  createScaffoldMiddleware,
-  JsonRpcEngine,
-  mergeMiddleware,
-  JsonRpcMiddleware,
-} from 'json-rpc-engine';
+  BuiltInCaipChainId,
+  InfuraNetworkId,
+  getEthChainIdHexFromCaipChainId,
+} from '@metamask/controller-utils';
+import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
   createBlockRefMiddleware,
@@ -14,26 +14,27 @@ import {
   createFetchMiddleware,
   createRetryOnEmptyMiddleware,
 } from '@metamask/eth-json-rpc-middleware';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import {
   providerFromEngine,
   providerFromMiddleware,
-  SafeEventEmitterProvider,
 } from '@metamask/eth-json-rpc-provider';
-import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
+import type { CaipChainId } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import {
-  InfuraNetworkType,
-  InfuraNetworkId,
-  BuiltInCaipChainId,
-  getEthChainIdHexFromCaipChainId,
-} from '@metamask/controller-utils';
-import { CaipChainId } from '@metamask/utils';
-import {
+  createAsyncMiddleware,
+  createScaffoldMiddleware,
+  JsonRpcEngine,
+  mergeMiddleware,
+} from 'json-rpc-engine';
+import type { JsonRpcMiddleware } from 'json-rpc-engine';
+
+import type {
   BlockTracker,
   NetworkClientConfiguration,
-  NetworkClientType,
   Provider,
 } from './types';
+import { NetworkClientType } from './types';
 
 const SECOND = 1000;
 
@@ -74,7 +75,7 @@ export function createNetworkClient(
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
   const blockTrackerOpts =
-    // eslint-disable-next-line node/no-process-env
+    // eslint-disable-next-line n/no-process-env
     process.env.IN_TEST && networkConfig.type === 'custom'
       ? { pollingInterval: SECOND }
       : {};
@@ -190,7 +191,7 @@ function createCustomNetworkMiddleware({
   caipChainId: CaipChainId;
   rpcApiMiddleware: any;
 }) {
-  // eslint-disable-next-line node/no-process-env
+  // eslint-disable-next-line n/no-process-env
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];

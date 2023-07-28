@@ -1,28 +1,28 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import { AddApprovalRequest } from '@metamask/approval-controller';
+import type { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
-import { PreferencesController } from '@metamask/preferences-controller';
 import {
   ApprovalType,
   BuiltInCaipChainId,
   ERC20,
   NetworkType,
+  NetworksTicker,
   ORIGIN_METAMASK,
   getEthChainIdDecFromCaipChainId,
 } from '@metamask/controller-utils';
-import {
+import type {
   NetworkState,
   ProviderConfig,
-  defaultState as defaultNetworkState,
 } from '@metamask/network-controller';
-import {
-  TokensController,
-  TokensControllerMessenger,
-} from './TokensController';
-import { Token } from './TokenRatesController';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
 import { TOKEN_END_POINT_API } from './token-service';
+import type { Token } from './TokenRatesController';
+import { TokensController } from './TokensController';
+import type { TokensControllerMessenger } from './TokensController';
 
 jest.mock('uuid', () => {
   return {
@@ -42,8 +42,13 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
 const SEPOLIA = {
   caipChainId: 'eip155:11155111',
   type: NetworkType.sepolia,
+  ticker: NetworksTicker.sepolia,
 } as const;
-const GOERLI = { caipChainId: 'eip155:5', type: NetworkType.goerli } as const;
+const GOERLI = {
+  caipChainId: 'eip155:5',
+  type: NetworkType.goerli,
+  ticker: NetworksTicker.goerli,
+} as const;
 
 const controllerName = 'TokensController' as const;
 
