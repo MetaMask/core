@@ -629,7 +629,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @returns The list of known network clients.
    */
-  getNetworkClientsById(): AutoManagedBuiltInNetworkClientRegistry &
+  getNetworkClients(): AutoManagedBuiltInNetworkClientRegistry &
     AutoManagedCustomNetworkClientRegistry {
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
@@ -639,6 +639,19 @@ export class NetworkController extends BaseControllerV2<
       autoManagedNetworkClientRegistry[NetworkClientType.Infura],
       autoManagedNetworkClientRegistry[NetworkClientType.Custom],
     );
+  }
+
+  /**
+   * Returns the network client for a given network client id.
+   *
+   * @param networkClientId - The network client id for which to retrieve the network client.
+   * @returns The network client.
+   */
+  getNetworkClientById(
+    networkClientId: NetworkClientId,
+  ): AutoManagedNetworkClient<NetworkClientConfiguration> {
+    const networkClients = this.getNetworkClients();
+    return networkClients[networkClientId];
   }
 
   /**
