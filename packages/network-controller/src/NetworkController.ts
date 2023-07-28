@@ -68,10 +68,9 @@ export type Block = {
 };
 
 /**
- * Information about the network not held by any other part of state. Currently
- * only used to capture whether a network supports EIP-1559.
+ * Information about a network not held by any other part of state.
  */
-export type NetworkDetails = {
+export type NetworkMetadata = {
   /**
    * EIPs supported by the network.
    */
@@ -337,11 +336,12 @@ type CustomNetworkClientId = string;
  */
 type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 
+
 /**
  * Information about networks not held by any other part of state.
  */
 export type NetworksMetadata = {
-  [networkClientId: NetworkClientId]: NetworkDetails;
+  [networkClientId: NetworkClientId]: NetworkMetadata;
 };
 
 /**
