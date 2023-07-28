@@ -5121,7 +5121,8 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(newCustomNetworkClient);
-                const networkClientsBefore = controller.getNetworkClientRegistry();
+                const networkClientsBefore =
+                  controller.getNetworkClientRegistry();
 
                 await controller.upsertNetworkConfiguration(
                   {
@@ -5135,7 +5136,8 @@ describe('NetworkController', () => {
                   },
                 );
 
-                const networkClientsAfter = controller.getNetworkClientRegistry();
+                const networkClientsAfter =
+                  controller.getNetworkClientRegistry();
                 expect(networkClientsBefore).toStrictEqual(networkClientsAfter);
               },
             );
@@ -5519,7 +5521,9 @@ describe('NetworkController', () => {
             // ignore error (it is tested elsewhere)
           }
 
-          expect(controller.getNetworkClientRegistry()).toStrictEqual(networkClients);
+          expect(controller.getNetworkClientRegistry()).toStrictEqual(
+            networkClients,
+          );
         });
       });
     });
