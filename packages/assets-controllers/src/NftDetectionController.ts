@@ -5,6 +5,7 @@ import {
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
+  logRejection,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -240,7 +241,7 @@ export class NftDetectionController extends BaseController<
 
       if (useNftDetection !== undefined) {
         if (useNftDetection) {
-          this.start();
+          logRejection(this.start());
         } else {
           this.stop();
         }
@@ -289,9 +290,10 @@ export class NftDetectionController extends BaseController<
     interval && this.configure({ interval }, false, false);
     this.stopPolling();
     await this.detectNfts();
-    this.intervalId = setInterval(async () => {
-      await this.detectNfts();
-    }, this.config.interval);
+    this.intervalId = setInterval(
+      () => logRejection(this.detectNfts()),
+      this.config.interval,
+    );
   }
 
   /**

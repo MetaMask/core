@@ -6,6 +6,7 @@ import {
   NetworkType,
   NetworksTicker,
   toHex,
+  logRejection,
 } from '@metamask/controller-utils';
 import type {
   BlockTracker,
@@ -634,7 +635,7 @@ describe('TransactionController', () => {
       const controller = newController({ config: { interval: 1337 } });
 
       await wait(100);
-      controller.poll(1338);
+      logRejection(controller.poll(1338));
       expect(mock).toHaveBeenCalled();
     });
 

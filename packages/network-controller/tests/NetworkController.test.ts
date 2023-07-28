@@ -3,6 +3,7 @@ import {
   BUILT_IN_NETWORKS,
   ChainId,
   InfuraNetworkType,
+  logRejection,
   MAX_SAFE_CHAIN_ID,
   NetworkType,
   toHex,
@@ -1828,8 +1829,10 @@ describe('NetworkController', () => {
                         beforeCompleting: () => {
                           // Intentionally not awaited because don't want this to
                           // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
+                          logRejection(
+                            controller.setActiveNetwork(
+                              'testNetworkConfigurationId',
+                            ),
                           );
                         },
                       },
@@ -1938,8 +1941,10 @@ describe('NetworkController', () => {
                         beforeCompleting: async () => {
                           // Intentionally not awaited because don't want this to
                           // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
+                          logRejection(
+                            controller.setActiveNetwork(
+                              'testNetworkConfigurationId',
+                            ),
                           );
                         },
                       },
@@ -2048,8 +2053,10 @@ describe('NetworkController', () => {
                         beforeCompleting: () => {
                           // Intentionally not awaited because don't want this to
                           // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
+                          logRejection(
+                            controller.setActiveNetwork(
+                              'testNetworkConfigurationId',
+                            ),
                           );
                         },
                       },
@@ -2165,8 +2172,10 @@ describe('NetworkController', () => {
                         beforeCompleting: () => {
                           // Intentionally not awaited because don't want this to
                           // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
+                          logRejection(
+                            controller.setActiveNetwork(
+                              'testNetworkConfigurationId',
+                            ),
                           );
                         },
                       },
@@ -2294,8 +2303,10 @@ describe('NetworkController', () => {
                         beforeCompleting: () => {
                           // Intentionally not awaited because don't want this to
                           // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
+                          logRejection(
+                            controller.setActiveNetwork(
+                              'testNetworkConfigurationId',
+                            ),
                           );
                         },
                       },
@@ -2404,8 +2415,10 @@ describe('NetworkController', () => {
                         beforeCompleting: async () => {
                           // Intentionally not awaited because don't want this to
                           // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
+                          logRejection(
+                            controller.setActiveNetwork(
+                              'testNetworkConfigurationId',
+                            ),
                           );
                         },
                       },
@@ -2516,8 +2529,10 @@ describe('NetworkController', () => {
                         beforeCompleting: () => {
                           // Intentionally not awaited because don't want this to
                           // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
+                          logRejection(
+                            controller.setActiveNetwork(
+                              'testNetworkConfigurationId',
+                            ),
                           );
                         },
                       },
@@ -2631,8 +2646,10 @@ describe('NetworkController', () => {
                         beforeCompleting: () => {
                           // Intentionally not awaited because don't want this to
                           // block the `net_version` request
-                          controller.setActiveNetwork(
-                            'testNetworkConfigurationId',
+                          logRejection(
+                            controller.setActiveNetwork(
+                              'testNetworkConfigurationId',
+                            ),
                           );
                         },
                       },
@@ -2758,7 +2775,9 @@ describe('NetworkController', () => {
                     beforeCompleting: () => {
                       // Intentionally not awaited because don't want this to
                       // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
+                      logRejection(
+                        controller.setProviderType(NetworkType.goerli),
+                      );
                     },
                   },
                   {
@@ -2861,7 +2880,9 @@ describe('NetworkController', () => {
                     beforeCompleting: async () => {
                       // Intentionally not awaited because don't want this to
                       // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
+                      logRejection(
+                        controller.setProviderType(NetworkType.goerli),
+                      );
                     },
                   },
                   {
@@ -2965,7 +2986,9 @@ describe('NetworkController', () => {
                     beforeCompleting: () => {
                       // Intentionally not awaited because don't want this to
                       // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
+                      logRejection(
+                        controller.setProviderType(NetworkType.goerli),
+                      );
                     },
                   },
                   {
@@ -3073,7 +3096,9 @@ describe('NetworkController', () => {
                     beforeCompleting: () => {
                       // Intentionally not awaited because don't want this to
                       // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
+                      logRejection(
+                        controller.setProviderType(NetworkType.goerli),
+                      );
                     },
                   },
                   {
@@ -3187,7 +3212,9 @@ describe('NetworkController', () => {
                     beforeCompleting: () => {
                       // Intentionally not awaited because don't want this to
                       // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
+                      logRejection(
+                        controller.setProviderType(NetworkType.goerli),
+                      );
                     },
                   },
                 ]),
@@ -3290,7 +3317,9 @@ describe('NetworkController', () => {
                     beforeCompleting: async () => {
                       // Intentionally not awaited because don't want this to
                       // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
+                      logRejection(
+                        controller.setProviderType(NetworkType.goerli),
+                      );
                     },
                   },
                 ]),
@@ -3396,7 +3425,9 @@ describe('NetworkController', () => {
                     beforeCompleting: () => {
                       // Intentionally not awaited because don't want this to
                       // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
+                      logRejection(
+                        controller.setProviderType(NetworkType.goerli),
+                      );
                     },
                   },
                 ]),
@@ -3506,7 +3537,9 @@ describe('NetworkController', () => {
                     beforeCompleting: () => {
                       // Intentionally not awaited because don't want this to
                       // block the `net_version` request
-                      controller.setProviderType(NetworkType.goerli);
+                      logRejection(
+                        controller.setProviderType(NetworkType.goerli),
+                      );
                     },
                   },
                 ]),
@@ -4052,7 +4085,7 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller, messenger }) => {
-            setFakeProvider(controller, {
+            await setFakeProvider(controller, {
               stubLookupNetworkWhileSetting: true,
             });
             const promiseForNoStateChanges = waitForStateChanges({
@@ -4083,7 +4116,7 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            setFakeProvider(controller, {
+            await setFakeProvider(controller, {
               stubLookupNetworkWhileSetting: true,
             });
 
@@ -4101,7 +4134,7 @@ describe('NetworkController', () => {
         describe('if the latest block has a "baseFeePerGas" property', () => {
           it('sets the "1559" property to true', async () => {
             await withController(async ({ controller }) => {
-              setFakeProvider(controller, {
+              await setFakeProvider(controller, {
                 stubs: [
                   {
                     request: {
@@ -4128,7 +4161,7 @@ describe('NetworkController', () => {
 
           it('returns true', async () => {
             await withController(async ({ controller }) => {
-              setFakeProvider(controller, {
+              await setFakeProvider(controller, {
                 stubs: [
                   {
                     request: {
@@ -4154,7 +4187,7 @@ describe('NetworkController', () => {
         describe('if the latest block does not have a "baseFeePerGas" property', () => {
           it('sets the "1559" property to false', async () => {
             await withController(async ({ controller }) => {
-              setFakeProvider(controller, {
+              await setFakeProvider(controller, {
                 stubs: [
                   {
                     request: {
@@ -4181,7 +4214,7 @@ describe('NetworkController', () => {
 
           it('returns false', async () => {
             await withController(async ({ controller }) => {
-              setFakeProvider(controller, {
+              await setFakeProvider(controller, {
                 stubs: [
                   {
                     request: {
@@ -4214,9 +4247,10 @@ describe('NetworkController', () => {
               result: null,
             },
           };
+
           it('keeps the "1559" property as undefined', async () => {
             await withController(async ({ controller }) => {
-              setFakeProvider(controller, {
+              await setFakeProvider(controller, {
                 stubs: [latestBlockRespondsNull],
                 stubLookupNetworkWhileSetting: true,
               });
@@ -4233,7 +4267,7 @@ describe('NetworkController', () => {
 
           it('returns undefined', async () => {
             await withController(async ({ controller }) => {
-              setFakeProvider(controller, {
+              await setFakeProvider(controller, {
                 stubs: [latestBlockRespondsNull],
                 stubLookupNetworkWhileSetting: true,
               });
@@ -4250,7 +4284,7 @@ describe('NetworkController', () => {
       describe('if the request for the latest block is unsuccessful', () => {
         it('does not make any state changes', async () => {
           await withController(async ({ controller, messenger }) => {
-            setFakeProvider(controller, {
+            await setFakeProvider(controller, {
               stubs: [
                 {
                   request: {
@@ -5606,7 +5640,7 @@ describe('NetworkController', () => {
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
-                    controller.rollbackToPreviousProvider();
+                    logRejection(controller.rollbackToPreviousProvider());
                   },
                 });
 
@@ -5648,7 +5682,7 @@ describe('NetworkController', () => {
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
-                    controller.rollbackToPreviousProvider();
+                    logRejection(controller.rollbackToPreviousProvider());
                   },
                 });
 
@@ -5794,7 +5828,7 @@ describe('NetworkController', () => {
                   operation: () => {
                     // Intentionally not awaited because we want to check state
                     // while this operation is in-progress
-                    controller.rollbackToPreviousProvider();
+                    logRejection(controller.rollbackToPreviousProvider());
                   },
                   beforeResolving: () => {
                     expect(
@@ -6181,7 +6215,7 @@ describe('NetworkController', () => {
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
-                  controller.rollbackToPreviousProvider();
+                  logRejection(controller.rollbackToPreviousProvider());
                 },
               });
 
@@ -6211,7 +6245,7 @@ describe('NetworkController', () => {
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
-                  controller.rollbackToPreviousProvider();
+                  logRejection(controller.rollbackToPreviousProvider());
                 },
               });
 
@@ -6353,7 +6387,7 @@ describe('NetworkController', () => {
                 operation: () => {
                   // Intentionally not awaited because we want to check state
                   // while this operation is in-progress
-                  controller.rollbackToPreviousProvider();
+                  logRejection(controller.rollbackToPreviousProvider());
                 },
                 beforeResolving: () => {
                   expect(
@@ -6806,7 +6840,7 @@ function refreshNetworkTests({
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
-            operation(controller);
+            logRejection(operation(controller));
           },
         });
 
@@ -6831,7 +6865,7 @@ function refreshNetworkTests({
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
-            operation(controller);
+            logRejection(operation(controller));
           },
         });
 
@@ -6884,7 +6918,7 @@ function refreshNetworkTests({
           operation: () => {
             // Intentionally not awaited because we want to check state
             // partway through the operation
-            operation(controller);
+            logRejection(operation(controller));
           },
         });
 
@@ -8739,7 +8773,7 @@ async function withController<ReturnValue>(
     return await fn({ controller, messenger });
   } finally {
     const { blockTracker } = controller.getProviderAndBlockTracker();
-    blockTracker?.destroy();
+    await blockTracker?.destroy();
   }
 }
 
@@ -8943,7 +8977,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
           interestingEventPayloads.push(payload);
           if (interestingEventPayloads.length === expectedNumberOfEvents) {
             stopTimer();
-            end();
+            logRejection(end());
           } else {
             resetTimer();
           }
@@ -8992,7 +9026,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
       function resetTimer() {
         stopTimer();
         timer = setTimeout(() => {
-          end();
+          logRejection(end());
         }, timeBeforeAssumingNoMoreEvents);
       }
 

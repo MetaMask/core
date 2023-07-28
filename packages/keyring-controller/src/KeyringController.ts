@@ -5,6 +5,7 @@ import {
 } from '@keystonehq/metamask-airgapped-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
+import { logRejection } from '@metamask/controller-utils';
 import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
 import type {
   PersonalMessageParams,
@@ -680,12 +681,14 @@ export class KeyringController extends BaseControllerV2<
     )!;
 
     const hdKeyring = hdKeyringBuilder();
-    // @ts-expect-error @metamask/eth-hd-keyring correctly handles
-    // Uint8Array seed phrases in the `deserialize` method.
-    hdKeyring.deserialize({
-      mnemonic: seedWords,
-      numberOfAccounts: accounts.length,
-    });
+    logRejection(
+      // @ts-expect-error @metamask/eth-hd-keyring correctly handles
+      // Uint8Array seed phrases in the `deserialize` method.
+      hdKeyring.deserialize({
+        mnemonic: seedWords,
+        numberOfAccounts: accounts.length,
+      }),
+    );
     const testAccounts = await hdKeyring.getAccounts();
     /* istanbul ignore if */
     if (testAccounts.length !== accounts.length) {

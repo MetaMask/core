@@ -1,6 +1,7 @@
 /* eslint-disable jest/expect-expect */
 
 import { ControllerMessenger } from '@metamask/base-controller';
+import { logRejection } from '@metamask/controller-utils';
 import { errorCodes, EthereumRpcError } from 'eth-rpc-errors';
 
 import type {
@@ -461,13 +462,15 @@ describe('approval controller', () => {
   });
 
   describe('get', () => {
-    it('gets entry', () => {
-      approvalController.add({
-        id: 'foo',
-        origin: 'bar.baz',
-        type: 'myType',
-        expectsResult: true,
-      });
+    it('gets entry', async () => {
+      logRejection(
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+          expectsResult: true,
+        }),
+      );
 
       expect(approvalController.get('foo')).toStrictEqual({
         id: 'foo',
@@ -480,8 +483,14 @@ describe('approval controller', () => {
       });
     });
 
-    it('returns undefined for non-existing entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+    it('returns undefined for non-existing entry', async () => {
+      logRejection(
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'type',
+        }),
+      );
 
       expect(approvalController.get('fizz')).toBeUndefined();
 
@@ -492,13 +501,6 @@ describe('approval controller', () => {
   });
 
   describe('getApprovalCount', () => {
-    let addWithCatch: (args: any) => void;
-
-    beforeEach(() => {
-      addWithCatch = (args: any) =>
-        approvalController.add(args).catch(() => undefined);
-    });
-
     it('validates input', () => {
       expect(() => approvalController.getApprovalCount()).toThrow(
         getApprovalCountParamsError(),
@@ -518,9 +520,15 @@ describe('approval controller', () => {
     });
 
     it('gets the count when specifying origin and type', () => {
-      addWithCatch({ id: '1', origin: 'origin1', type: TYPE });
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+      logRejection(
+        approvalController.add({ id: '1', origin: 'origin1', type: TYPE }),
+      );
+      logRejection(
+        approvalController.add({ id: '2', origin: 'origin1', type: 'type1' }),
+      );
+      logRejection(
+        approvalController.add({ id: '3', origin: 'origin2', type: 'type1' }),
+      );
 
       expect(
         approvalController.getApprovalCount({ origin: 'origin1', type: TYPE }),
@@ -578,9 +586,15 @@ describe('approval controller', () => {
     });
 
     it('gets the count when specifying origin only', () => {
-      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+      logRejection(
+        approvalController.add({ id: '1', origin: 'origin1', type: 'type0' }),
+      );
+      logRejection(
+        approvalController.add({ id: '2', origin: 'origin1', type: 'type1' }),
+      );
+      logRejection(
+        approvalController.add({ id: '3', origin: 'origin2', type: 'type1' }),
+      );
 
       expect(approvalController.getApprovalCount({ origin: 'origin1' })).toBe(
         2,
@@ -596,9 +610,15 @@ describe('approval controller', () => {
     });
 
     it('gets the count when specifying type only', () => {
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
-      addWithCatch({ id: '4', origin: 'origin2', type: 'type2' });
+      logRejection(
+        approvalController.add({ id: '2', origin: 'origin1', type: 'type1' }),
+      );
+      logRejection(
+        approvalController.add({ id: '3', origin: 'origin2', type: 'type1' }),
+      );
+      logRejection(
+        approvalController.add({ id: '4', origin: 'origin2', type: 'type2' }),
+      );
 
       expect(approvalController.getApprovalCount({ type: 'type1' })).toBe(2);
 
@@ -614,8 +634,12 @@ describe('approval controller', () => {
         typesExcludedFromRateLimiting: [TYPE],
       });
 
-      addWithCatch({ id: '1', origin: 'origin1', type: TYPE });
-      addWithCatch({ id: '2', origin: 'origin1', type: TYPE });
+      logRejection(
+        approvalController.add({ id: '1', origin: 'origin1', type: TYPE }),
+      );
+      logRejection(
+        approvalController.add({ id: '2', origin: 'origin1', type: TYPE }),
+      );
 
       expect(
         approvalController.getApprovalCount({ origin: 'origin1', type: TYPE }),
@@ -627,16 +651,19 @@ describe('approval controller', () => {
     it('gets the total approval count', () => {
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      const addWithCatch = (args: any) =>
-        approvalController.add(args).catch(() => undefined);
-
-      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
+      logRejection(
+        approvalController.add({ id: '1', origin: 'origin1', type: 'type0' }),
+      );
       expect(approvalController.getTotalApprovalCount()).toBe(1);
 
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      logRejection(
+        approvalController.add({ id: '2', origin: 'origin1', type: 'type1' }),
+      );
       expect(approvalController.getTotalApprovalCount()).toBe(2);
 
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+      logRejection(
+        approvalController.add({ id: '3', origin: 'origin2', type: 'type1' }),
+      );
       expect(approvalController.getTotalApprovalCount()).toBe(3);
 
       approvalController.reject('2', new Error('foo'));
@@ -654,13 +681,14 @@ describe('approval controller', () => {
       });
       expect(approvalController.getTotalApprovalCount()).toBe(0);
 
-      const addWithCatch = (args: any) =>
-        approvalController.add(args).catch(() => undefined);
-
-      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
+      logRejection(
+        approvalController.add({ id: '1', origin: 'origin1', type: 'type0' }),
+      );
       expect(approvalController.getTotalApprovalCount()).toBe(1);
 
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type0' });
+      logRejection(
+        approvalController.add({ id: '2', origin: 'origin1', type: 'type0' }),
+      );
       expect(approvalController.getTotalApprovalCount()).toBe(2);
 
       approvalController.reject('2', new Error('foo'));
@@ -699,19 +727,29 @@ describe('approval controller', () => {
     });
 
     it('returns true for existing entry by id', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+      logRejection(
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
+      );
 
       expect(approvalController.has({ id: 'foo' })).toBe(true);
     });
 
     it('returns true for existing entry by origin', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+      logRejection(
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
+      );
 
       expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
     });
 
     it('returns true for existing entry by origin and type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+      logRejection(
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      );
 
       expect(
         approvalController.has({ origin: 'bar.baz', type: 'myType' }),
@@ -719,25 +757,37 @@ describe('approval controller', () => {
     });
 
     it('returns true for existing type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+      logRejection(
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      );
 
       expect(approvalController.has({ type: 'myType' })).toBe(true);
     });
 
     it('returns false for non-existing entry by id', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+      logRejection(
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
+      );
 
       expect(approvalController.has({ id: 'fizz' })).toBe(false);
     });
 
     it('returns false for non-existing entry by origin', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+      logRejection(
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
+      );
 
       expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
     });
 
     it('returns false for non-existing entry by existing origin and non-existing type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+      logRejection(
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
+      );
 
       expect(
         approvalController.has({ origin: 'bar.baz', type: 'myType' }),
@@ -745,7 +795,13 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by non-existing origin and existing type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+      logRejection(
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      );
 
       expect(
         approvalController.has({ origin: 'fizz.buzz', type: 'myType' }),
@@ -753,7 +809,13 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType1' });
+      logRejection(
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType1',
+        }),
+      );
 
       expect(approvalController.has({ type: 'myType2' })).toBe(false);
     });
@@ -766,7 +828,7 @@ describe('approval controller', () => {
         origin: 'bar.baz',
         type: 'myType',
       });
-      approvalController.accept('foo', 'success');
+      logRejection(approvalController.accept('foo', 'success'));
 
       const result = await approvalPromise;
       expect(result).toBe('success');
@@ -784,12 +846,12 @@ describe('approval controller', () => {
         type: 'myType2',
       });
 
-      approvalController.accept('foo2', 'success2');
+      logRejection(approvalController.accept('foo2', 'success2'));
 
       let result = await approvalPromise2;
       expect(result).toBe('success2');
 
-      approvalController.accept('foo1', 'success1');
+      logRejection(approvalController.accept('foo1', 'success1'));
 
       result = await approvalPromise1;
       expect(result).toBe('success1');
@@ -851,7 +913,7 @@ describe('approval controller', () => {
         expectsResult: true,
       });
 
-      approvalController.accept(ID_MOCK, VALUE_MOCK);
+      logRejection(approvalController.accept(ID_MOCK, VALUE_MOCK));
 
       expect(await approvalPromise).toStrictEqual({
         resultCallbacks: undefined,
@@ -860,11 +922,13 @@ describe('approval controller', () => {
     });
 
     it('throws if accept wants to wait but request does not expect result', async () => {
-      approvalController.add({
-        id: ID_MOCK,
-        origin: ORIGIN_MOCK,
-        type: TYPE,
-      });
+      logRejection(
+        approvalController.add({
+          id: ID_MOCK,
+          origin: ORIGIN_MOCK,
+          type: TYPE,
+        }),
+      );
 
       await expect(
         approvalController.accept(ID_MOCK, VALUE_MOCK, {
@@ -874,9 +938,11 @@ describe('approval controller', () => {
     });
 
     it('deletes entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+      logRejection(
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' }),
+      );
 
-      approvalController.accept('foo');
+      logRejection(approvalController.accept('foo'));
 
       expect(
         !approvalController.has({ id: 'foo' }) &&
@@ -887,10 +953,18 @@ describe('approval controller', () => {
     });
 
     it('deletes one entry out of many without side-effects', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
-      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
+      logRejection(
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' }),
+      );
+      logRejection(
+        approvalController.add({
+          id: 'fizz',
+          origin: 'bar.baz',
+          type: 'type2',
+        }),
+      );
 
-      approvalController.accept('fizz');
+      logRejection(approvalController.accept('fizz'));
 
       expect(
         !approvalController.has({ id: 'fizz' }) &&
@@ -999,7 +1073,7 @@ describe('approval controller', () => {
         type: 'myType4',
       });
 
-      approvalController.accept('foo2', 'success2');
+      logRejection(approvalController.accept('foo2', 'success2'));
 
       let result = await promise2;
       expect(result).toBe('success2');
@@ -1013,7 +1087,7 @@ describe('approval controller', () => {
       expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
       expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
 
-      approvalController.accept('foo1', 'success1');
+      logRejection(approvalController.accept('foo1', 'success1'));
 
       result = await promise1;
       expect(result).toBe('success1');
@@ -1117,10 +1191,12 @@ describe('approval controller', () => {
         showApprovalRequest,
       });
 
-      messenger.call(
-        'ApprovalController:addRequest',
-        { id: 'foo', origin: 'bar.baz', type: TYPE },
-        true,
+      logRejection(
+        messenger.call(
+          'ApprovalController:addRequest',
+          { id: 'foo', origin: 'bar.baz', type: TYPE },
+          true,
+        ),
       );
       expect(showApprovalRequest).toHaveBeenCalledTimes(1);
       expect(approvalController.has({ id: 'foo' })).toBe(true);
@@ -1139,10 +1215,12 @@ describe('approval controller', () => {
         showApprovalRequest,
       });
 
-      messenger.call(
-        'ApprovalController:addRequest',
-        { id: 'foo', origin: 'bar.baz', type: TYPE },
-        false,
+      logRejection(
+        messenger.call(
+          'ApprovalController:addRequest',
+          { id: 'foo', origin: 'bar.baz', type: TYPE },
+          false,
+        ),
       );
       expect(showApprovalRequest).toHaveBeenCalledTimes(0);
       expect(approvalController.has({ id: 'foo' })).toBe(true);
@@ -1161,12 +1239,14 @@ describe('approval controller', () => {
         showApprovalRequest,
       });
 
-      approvalController.add({
-        id: 'foo',
-        origin: 'bar.baz',
-        type: 'type1',
-        requestState: { foo: 'bar' },
-      });
+      logRejection(
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'type1',
+          requestState: { foo: 'bar' },
+        }),
+      );
 
       messenger.call('ApprovalController:updateRequestState', {
         id: 'foo',
@@ -1315,7 +1395,7 @@ describe('approval controller', () => {
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
       )[0].id;
 
-      approvalController.accept(resultRequestId);
+      logRejection(approvalController.accept(resultRequestId));
       await promise;
 
       expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
@@ -1333,10 +1413,10 @@ describe('approval controller', () => {
     ) {
       jest.spyOn(global.console, 'info');
 
-      methodCallback();
+      logRejection(methodCallback());
 
       // Second call will fail as mocked nanoid will generate the same ID.
-      methodCallback();
+      logRejection(methodCallback());
 
       expect(console.info).toHaveBeenCalledTimes(1);
       expect(console.info).toHaveBeenCalledWith(
@@ -1363,7 +1443,7 @@ describe('approval controller', () => {
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
       )[0].id;
 
-      approvalController.accept(resultRequestId);
+      logRejection(approvalController.accept(resultRequestId));
       await promise;
 
       expect(console.info).toHaveBeenCalledTimes(1);
@@ -1375,12 +1455,12 @@ describe('approval controller', () => {
 
     describe('success', () => {
       it('adds request with result success approval type', async () => {
-        approvalController.success(SUCCESS_OPTIONS_MOCK);
+        logRejection(approvalController.success(SUCCESS_OPTIONS_MOCK));
         expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, SUCCESS_OPTIONS_MOCK);
       });
 
       it('adds request with no options', async () => {
-        approvalController.success();
+        logRejection(approvalController.success());
 
         expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, {
           message: undefined,
@@ -1402,7 +1482,7 @@ describe('approval controller', () => {
       });
 
       it('shows approval request', async () => {
-        approvalController.success(SUCCESS_OPTIONS_MOCK);
+        logRejection(approvalController.success(SUCCESS_OPTIONS_MOCK));
         expect(showApprovalRequest).toHaveBeenCalledTimes(1);
       });
 
@@ -1416,7 +1496,7 @@ describe('approval controller', () => {
       });
 
       it('does not throw if adding request fails', async () => {
-        doesNotThrowIfAddingRequestFails(() =>
+        await doesNotThrowIfAddingRequestFails(() =>
           approvalController.success(SUCCESS_OPTIONS_MOCK),
         );
       });
@@ -1433,12 +1513,12 @@ describe('approval controller', () => {
 
     describe('error', () => {
       it('adds request with result error approval type', async () => {
-        approvalController.error(ERROR_OPTIONS_MOCK);
+        logRejection(approvalController.error(ERROR_OPTIONS_MOCK));
         expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, ERROR_OPTIONS_MOCK);
       });
 
       it('adds request with no options', async () => {
-        approvalController.error();
+        logRejection(approvalController.error());
 
         expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, {
           error: undefined,
@@ -1460,7 +1540,7 @@ describe('approval controller', () => {
       });
 
       it('shows approval request', async () => {
-        approvalController.error(ERROR_OPTIONS_MOCK);
+        logRejection(approvalController.error(ERROR_OPTIONS_MOCK));
         expect(showApprovalRequest).toHaveBeenCalledTimes(1);
       });
 
@@ -1474,7 +1554,7 @@ describe('approval controller', () => {
       });
 
       it('does not throw if adding request fails', async () => {
-        doesNotThrowIfAddingRequestFails(() =>
+        await doesNotThrowIfAddingRequestFails(() =>
           approvalController.error(ERROR_OPTIONS_MOCK),
         );
       });

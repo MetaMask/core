@@ -235,14 +235,17 @@ describe('KeyringController', () => {
 
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
-            withController({ cacheEncryptionKey }, async ({ controller }) => {
-              await controller.createNewVaultAndRestore(
-                password,
-                uint8ArraySeed,
-              );
-              expect(controller.state.encryptionKey).toBeDefined();
-              expect(controller.state.encryptionSalt).toBeDefined();
-            });
+            await withController(
+              { cacheEncryptionKey },
+              async ({ controller }) => {
+                await controller.createNewVaultAndRestore(
+                  password,
+                  uint8ArraySeed,
+                );
+                expect(controller.state.encryptionKey).toBeDefined();
+                expect(controller.state.encryptionSalt).toBeDefined();
+              },
+            );
           });
       }),
     );
@@ -320,10 +323,13 @@ describe('KeyringController', () => {
 
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
-            withController({ cacheEncryptionKey }, async ({ initialState }) => {
-              expect(initialState.encryptionKey).toBeDefined();
-              expect(initialState.encryptionSalt).toBeDefined();
-            });
+            await withController(
+              { cacheEncryptionKey },
+              async ({ initialState }) => {
+                expect(initialState.encryptionKey).toBeDefined();
+                expect(initialState.encryptionSalt).toBeDefined();
+              },
+            );
           });
       }),
     );
@@ -334,7 +340,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         expect(controller.isUnlocked()).toBe(true);
         expect(controller.state.isUnlocked).toBe(true);
-        controller.setLocked();
+        await controller.setLocked();
         expect(controller.isUnlocked()).toBe(false);
         expect(controller.state.isUnlocked).toBe(false);
       });
@@ -1157,11 +1163,14 @@ describe('KeyringController', () => {
 
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
-            withController({ cacheEncryptionKey }, async ({ controller }) => {
-              await controller.submitPassword(password);
-              expect(controller.state.encryptionKey).toBeDefined();
-              expect(controller.state.encryptionSalt).toBeDefined();
-            });
+            await withController(
+              { cacheEncryptionKey },
+              async ({ controller }) => {
+                await controller.submitPassword(password);
+                expect(controller.state.encryptionKey).toBeDefined();
+                expect(controller.state.encryptionSalt).toBeDefined();
+              },
+            );
           });
       }),
     );

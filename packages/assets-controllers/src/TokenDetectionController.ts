@@ -1,6 +1,7 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
+  logRejection,
   safelyExecute,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
@@ -131,7 +132,7 @@ export class TokenDetectionController extends BaseController<
       const hasTokens = Object.keys(tokenList).length;
 
       if (hasTokens) {
-        this.detectTokens();
+        logRejection(this.detectTokens());
       }
     });
 
@@ -154,7 +155,7 @@ export class TokenDetectionController extends BaseController<
         useTokenDetection &&
         (isSelectedAddressChanged || isDetectionChangedFromPreferences)
       ) {
-        this.detectTokens();
+        logRejection(this.detectTokens());
       }
     });
 
@@ -170,7 +171,7 @@ export class TokenDetectionController extends BaseController<
       });
 
       if (isDetectionEnabledForNetwork && isChainIdChanged) {
-        this.detectTokens();
+        logRejection(this.detectTokens());
       }
     });
   }
@@ -206,8 +207,8 @@ export class TokenDetectionController extends BaseController<
     interval && this.configure({ interval }, false, false);
     this.stopPolling();
     await this.detectTokens();
-    this.intervalId = setInterval(async () => {
-      await this.detectTokens();
+    this.intervalId = setInterval(() => {
+      logRejection(this.detectTokens());
     }, this.config.interval);
   }
 

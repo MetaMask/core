@@ -2,6 +2,7 @@ import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
   BNToHex,
+  logRejection,
   query,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
@@ -124,9 +125,9 @@ export class AccountTrackerController extends BaseController<
     this.getSelectedAddress = getSelectedAddress;
     this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
     onPreferencesStateChange(() => {
-      this.refresh();
+      logRejection(this.refresh());
     });
-    this.poll();
+    logRejection(this.poll());
   }
 
   /**
@@ -156,7 +157,7 @@ export class AccountTrackerController extends BaseController<
     await this.refresh();
     this.handle = setTimeout(() => {
       releaseLock();
-      this.poll(this.config.interval);
+      logRejection(this.poll(this.config.interval));
     }, this.config.interval);
   }
 

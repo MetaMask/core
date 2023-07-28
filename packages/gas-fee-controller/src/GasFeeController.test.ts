@@ -1,5 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { NetworkType, toHex } from '@metamask/controller-utils';
+import { logRejection, NetworkType, toHex } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import { NetworkController } from '@metamask/network-controller';
 import type {
@@ -76,7 +76,7 @@ const setupNetworkController = async ({
   });
   // Call this without awaiting to simulate what the extension or mobile app
   // might do
-  networkController.initializeProvider();
+  logRejection(networkController.initializeProvider());
   // Ensure that the request for net_version that the network controller makes
   // goes through
   await clock.nextAsync();
@@ -265,10 +265,10 @@ describe('GasFeeController', () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     gasFeeController.destroy();
     const { blockTracker } = networkController.getProviderAndBlockTracker();
-    blockTracker?.destroy();
+    await blockTracker?.destroy();
     sinon.restore();
     jest.clearAllMocks();
   });

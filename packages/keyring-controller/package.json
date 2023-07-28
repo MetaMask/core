@@ -45,6 +45,7 @@
     "@ethereumjs/tx": "^4.2.0",
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
     "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/controller-utils": "workspace:^",
     "@metamask/eth-sig-util": "^6.0.0",
     "@metamask/scure-bip39": "^2.1.0",
     "@types/jest": "^27.4.1",
