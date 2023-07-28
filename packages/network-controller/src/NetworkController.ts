@@ -629,7 +629,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @returns The list of known network clients.
    */
-  getNetworkClients(): AutoManagedBuiltInNetworkClientRegistry &
+  getNetworkClientRegistry(): AutoManagedBuiltInNetworkClientRegistry &
     AutoManagedCustomNetworkClientRegistry {
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
@@ -1230,7 +1230,7 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Before accessing or switching the network, the registry of network clients
    * needs to be populated. Otherwise, `#applyNetworkSelection` and
-   * `getNetworkClients` will throw an error. This method checks to see if the
+   * `getNetworkClientRegistry` will throw an error. This method checks to see if the
    * population step has happened yet, and if not, makes it happen.
    *
    * @returns The populated network client registry.
