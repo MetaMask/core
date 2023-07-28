@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 ### Changed
-- Adding blockaid validation response to messages ([#1541](https://github.com/MetaMask/core/pull/1541))
+- Add Blockaid validation response to messages ([#1541](https://github.com/MetaMask/core/pull/1541))
 
 ## [7.2.0]
 ### Changed
