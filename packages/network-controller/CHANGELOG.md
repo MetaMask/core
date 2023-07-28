@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+### Uncategorized
+- Network meta ([#1559](https://github.com/MetaMask/core/pull/1559))
+- Added selectedNetworkClientId to network controller ([#1548](https://github.com/MetaMask/core/pull/1548))
+- Fix EIP-1559 network compatibility check ([#1457](https://github.com/MetaMask/core/pull/1457))
+- eth-query ^2.1.2 -> @metamask/eth-query ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
+- Mock all network requests ([#1499](https://github.com/MetaMask/core/pull/1499))
+- Extract `mockNetwork` from tests ([#1508](https://github.com/MetaMask/core/pull/1508))
+
 ## [11.0.0]
 ### Changed
 - **BREAKING**: Require `ticker` to be included in the `providerConfig` state ([#1495](https://github.com/MetaMask/core/pull/1495))
@@ -214,7 +223,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@11.0.0...@metamask/network-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.1...@metamask/network-controller@11.0.0
 [10.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.0...@metamask/network-controller@10.3.1
 [10.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.2.0...@metamask/network-controller@10.3.0
