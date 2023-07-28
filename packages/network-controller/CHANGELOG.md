@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [12.0.0]
-### Uncategorized
-- Network meta ([#1559](https://github.com/MetaMask/core/pull/1559))
-- Added selectedNetworkClientId to network controller ([#1548](https://github.com/MetaMask/core/pull/1548))
-- Fix EIP-1559 network compatibility check ([#1457](https://github.com/MetaMask/core/pull/1457))
-- eth-query ^2.1.2 -> @metamask/eth-query ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
-- Mock all network requests ([#1499](https://github.com/MetaMask/core/pull/1499))
-- Extract `mockNetwork` from tests ([#1508](https://github.com/MetaMask/core/pull/1508))
+### Changed
+- **BREAKING:** Remove `NetworkDetails` type in favor of `NetworkMetadata` ([#1559](https://github.com/MetaMask/core/pull/1559))
+  - This new type includes `NetworkDetails` plus a `status` property
+- **BREAKING:** Add `networksMetadata` to state ([#1559](https://github.com/MetaMask/core/pull/1559))
+  - Consumers will need to add a migration. The data for this property can be constructed by looping over the values in `InfuraNetworkType` from `@metamask/controller-utils` plus the network configuration IDs in the state property `networkConfigurations` and setting each value to `{ status: "unknown", EIPS: {} }`.
+- **BREAKING:** Add `selectedNetworkClientId` to state ([#1548](https://github.com/MetaMask/core/pull/1548))
+  - Consumers will need to add a migration. This property should be set to either `providerConfig.type` or `providerConfig.id`.
+- Update `getEIP1559Compatibility` to return `undefined` when the latest block is unavailable ([#1457](https://github.com/MetaMask/core/pull/1457))
+- Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
+
+### Added
+- Add `NetworksMetadata` type ([#1559](https://github.com/MetaMask/core/pull/1559))
+
+### Removed
+- **BREAKING:** Remove `networkDetails` from state ([#1559](https://github.com/MetaMask/core/pull/1559))
+  - The data in this state property has been merged into the new `networksMetadata` state property; each value in this object contains an `EIPS` property.
 
 ## [11.0.0]
 ### Changed
@@ -22,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
 - Bump @metamask/eth-json-rpc-infura from 8.1.0 to 8.1.1 ([#1517](https://github.com/MetaMask/core/pull/1517))
 - Remove unnecessary `babel-runtime` dependency ([#1504](https://github.com/MetaMask/core/pull/1504))
-
 
 ## [10.3.1]
 ### Changed

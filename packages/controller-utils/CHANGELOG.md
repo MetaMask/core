@@ -6,11 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [5.0.0]
-### Uncategorized
-- Update controller-utils changelog with breaking change ([#1553](https://github.com/MetaMask/core/pull/1553))
-- eth-query ^2.1.2 -> @metamask/eth-query ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
-- Mock all network requests ([#1499](https://github.com/MetaMask/core/pull/1499))
+## [4.3.1]
+### Changed
+- Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
 
 ## [4.3.0]
 ### Changed
@@ -145,8 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.0...HEAD
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.0...@metamask/controller-utils@5.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.1...HEAD
+[4.3.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.0...@metamask/controller-utils@4.3.1
 [4.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.2.0...@metamask/controller-utils@4.3.0
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.1.0...@metamask/controller-utils@4.2.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.0.1...@metamask/controller-utils@4.1.0
