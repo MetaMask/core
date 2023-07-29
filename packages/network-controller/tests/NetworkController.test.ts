@@ -1101,6 +1101,95 @@ describe('NetworkController', () => {
     });
   });
 
+  describe('getNetworkClientById', () => {
+    describe('If passed an existing networkClientId', () => {
+      it('returns a valid built-in Infura NetworkClient', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            const networkClientRegistry = controller.getNetworkClientRegistry();
+            const networkClient = controller.getNetworkClientById(
+              NetworkType.mainnet,
+            );
+
+            expect(networkClient).toBe(
+              networkClientRegistry[NetworkType.mainnet],
+            );
+          },
+        );
+      });
+
+      it('returns a valid custom NetworkClient', async () => {
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                testNetworkConfigurationId: {
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: '0x1337',
+                  ticker: 'ABC',
+                  id: 'testNetworkConfigurationId',
+                },
+              },
+            },
+            infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            const networkClientRegistry = controller.getNetworkClientRegistry();
+            const networkClient = controller.getNetworkClientById(
+              'testNetworkConfigurationId',
+            );
+
+            expect(networkClient).toBe(
+              networkClientRegistry.testNetworkConfigurationId,
+            );
+          },
+        );
+      });
+    });
+
+    describe('If passed a networkClientId that does not match a NetworkClient in the registry', () => {
+      it('throws an error', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            expect(() =>
+              controller.getNetworkClientById('non-existent-network-id'),
+            ).toThrow(
+              'No custom network client was found with the ID "non-existent-network-id',
+            );
+          },
+        );
+      });
+    });
+
+    describe('If not passed a networkClientId', () => {
+      it('throws an error', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            expect(() =>
+              // @ts-expect-error Intentionally passing invalid type
+              controller.getNetworkClientById(),
+            ).toThrow('No network client ID was provided.');
+          },
+        );
+      });
+    });
+  });
+
   describe('getNetworkClientRegistry', () => {
     describe('if neither a provider config nor network configurations are present in state', () => {
       it('returns the built-in Infura networks by default', async () => {

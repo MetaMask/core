@@ -666,6 +666,10 @@ export class NetworkController extends BaseControllerV2<
   getNetworkClientById(
     networkClientId: NetworkClientId,
   ): AutoManagedNetworkClient<NetworkClientConfiguration> {
+    if (!networkClientId) {
+      throw new Error('No network client ID was provided.');
+    }
+
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
