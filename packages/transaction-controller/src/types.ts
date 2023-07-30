@@ -100,16 +100,50 @@ export interface Transaction {
   estimateGasError?: string;
 }
 
+/**
+ * The configuration required to fetch transaction data from a RemoteTransactionSource.
+ */
 export interface RemoteTransactionSourceRequest {
+  /**
+   * The address of the account to fetch transactions for.
+   */
   address: string;
-  networkType: NetworkType;
-  limit: number;
-  currentChainId: Hex;
-  currentNetworkId: string;
-  fromBlock?: string;
+
+  /**
+   * API key if required by the remote source.
+   */
   apiKey?: string;
+
+  /**
+   * The chainId of the current network.
+   */
+  currentChainId: Hex;
+
+  /**
+   * The networkId of the current network.
+   */
+  currentNetworkId: string;
+
+  /**
+   * Block number to start fetching transactions from.
+   */
+  fromBlock?: string;
+
+  /**
+   * Maximum number of transactions to retrieve.
+   */
+  limit: number;
+
+  /**
+   * The type of the current network.
+   */
+  networkType: NetworkType;
 }
 
+/**
+ * An object capable of fetching transaction data from a remote source.
+ * Used by the IncomingTransactionHelper to retrieve remote transaction data.
+ */
 export interface RemoteTransactionSource {
   fetchTransactions: (
     request: RemoteTransactionSourceRequest,

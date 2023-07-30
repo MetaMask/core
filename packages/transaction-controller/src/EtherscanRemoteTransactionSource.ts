@@ -19,9 +19,18 @@ import type {
 } from './types';
 import { TransactionStatus } from './types';
 
+/**
+ * A RemoteTransactionSource that fetches transaction data from Etherscan.
+ */
 export class EtherscanRemoteTransactionSource
   implements RemoteTransactionSource
 {
+  /**
+   * Retrieve transaction data from Etherscan.
+   *
+   * @param request - The configuration required to fetch Etherscan transaction data.
+   * @returns An array of transaction metadata.
+   */
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {

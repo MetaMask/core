@@ -54,7 +54,7 @@ export interface EtherscanTransactionRequest {
  * @param request - Configuration required to fetch transactions.
  * @param request.address - Address to retrieve transactions for.
  * @param request.networkType - Current network type used to determine the Etherscan subdomain.
- * @param request.limit - Number of transactions to retrieve.
+ * @param request.limit - Maximum number of transactions to retrieve.
  * @param request.apiKey - Etherscan API key.
  * @param request.fromBlock - Block number to start fetching transactions from.
  * @returns An Etherscan response object containing the request status and an array of token transaction data.
@@ -83,7 +83,7 @@ export async function fetchEtherscanTransactions({
  * @param request - Configuration required to fetch token transactions.
  * @param request.address - Address to retrieve token transactions for.
  * @param request.networkType - Current network type used to determine the Etherscan subdomain.
- * @param request.limit - Number of token transactions to retrieve.
+ * @param request.limit - Maximum number of token transactions to retrieve.
  * @param request.apiKey - Etherscan API key.
  * @param request.fromBlock - Block number to start fetching token transactions from.
  * @returns An Etherscan response object containing the request status and an array of token transaction data.
@@ -113,7 +113,7 @@ export async function fetchEtherscanTokenTransactions({
  * @param options - Options bag.
  * @param options.address - Address to retrieve transactions for.
  * @param options.networkType - Current network type used to determine the Etherscan subdomain.
- * @param options.limit - Number of transactions to retrieve.
+ * @param options.limit - Maximum number of transactions to retrieve.
  * @param options.apiKey - Etherscan API key.
  * @param options.fromBlock - Block number to start fetching transactions from.
  * @returns An object containing the request status and an array of transaction data.
