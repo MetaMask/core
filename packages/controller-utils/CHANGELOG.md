@@ -51,17 +51,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Remove the entry for localhost from `BUILT_IN_NETWORKS`, `NetworkType`, `ChainId`, and `NetworksTicker`
 - **BREAKING:** Remove `hasProperty` function ([#1275](https://github.com/MetaMask/core/pull/1275))
   - Use the `hasProperty` function from `@metamask/utils` instead
+- **BREAKING:** Remove constants `MAINNET` and `TESTNET_TICKER_SYMBOLS` ([#1132](https://github.com/MetaMask/core/pull/1132))
+  - These were actually removed in v3.1.0, but are listed here again because that release (and the minor releases following it) have been deprecated due to the breaking change
+  - We didn't discover this until many releases later, which is why this happened in a minor release
 
-## [3.4.0]
+## [3.4.0] [DEPRECATED]
 ### Added
 - add WalletConnect in approval type ([#1240](https://github.com/MetaMask/core/pull/1240))
 
-## [3.3.0]
+## [3.3.0] [DEPRECATED]
 ### Added
 - Add Sign-in-with-Ethereum origin validation ([#1163](https://github.com/MetaMask/core/pull/1163))
 - Add `NetworkId` enum and `NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP` constant that includes entries for each built-in Infura network ([#1170](https://github.com/MetaMask/core/pull/1170))
 
-## [3.2.0]
+## [3.2.0] [DEPRECATED]
 ### Added
 - Add `ORIGIN_METAMASK` constant ([#1166](https://github.com/MetaMask/core/pull/1166))
 - Add `ApprovalType` enum ([#1174](https://github.com/MetaMask/core/pull/1174))
@@ -69,11 +72,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Improve return type of `toHex` ([#1195](https://github.com/MetaMask/core/pull/1195))
 
-## [3.1.0]
+## [3.1.0] [DEPRECATED]
 ### Added
 - Add SIWE detection support for PersonalMessageManager ([#1139](https://github.com/MetaMask/core/pull/1139))
 - Add `NetworkType` ([#1132](https://github.com/MetaMask/core/pull/1132))
 - Add `isSafeChainId` ([#1064](https://github.com/MetaMask/core/pull/1064))
+
+### Removed
+- **BREAKING:** Remove constants `MAINNET` and `TESTNET_TICKER_SYMBOLS` ([#1132](https://github.com/MetaMask/core/pull/1132))
+  - We didn't discover this until many releases later, which is why this happened in a minor release
 
 ## [3.0.0]
 ### Removed
