@@ -1541,7 +1541,6 @@ export class PermissionController<
    * @param options.preserveExistingPermissions - Whether to preserve the
    * subject's existing permissions.
    * @param options.subject - The subject to grant permissions to.
-   * @param options.runSideEffects - Boolean that determines if associated side effects will be ran.
    * @returns The granted permissions.
    */
   async grantPermissions({

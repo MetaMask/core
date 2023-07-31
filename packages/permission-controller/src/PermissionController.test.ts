@@ -2547,8 +2547,8 @@ describe('PermissionController', () => {
           approvedPermissions: {
             wallet_getSecretArray: {},
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
       expect(error).toStrictEqual(new errors.InvalidSubjectIdentifierError(''));
@@ -2559,8 +2559,8 @@ describe('PermissionController', () => {
           approvedPermissions: {
             wallet_getSecretArray: {},
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2576,11 +2576,13 @@ describe('PermissionController', () => {
           approvedPermissions: {
             wallet_getSecretFalafel: {},
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
-      expect(error).toStrictEqual(errors.methodNotFound('wallet_getSecretFalafel'));
+      expect(error).toStrictEqual(
+        errors.methodNotFound('wallet_getSecretFalafel'),
+      );
     });
 
     it('throws if an approved permission is malformed', async () => {
@@ -2596,8 +2598,8 @@ describe('PermissionController', () => {
               parentCapability: 'wallet_getSecretObject',
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
       expect(error).toStrictEqual(
@@ -2621,7 +2623,7 @@ describe('PermissionController', () => {
             },
           },
         });
-      } catch(err) {
+      } catch (err) {
         error = err;
       }
 
@@ -2650,8 +2652,8 @@ describe('PermissionController', () => {
               ],
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2676,8 +2678,8 @@ describe('PermissionController', () => {
               caveats: [[]] as any,
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2697,8 +2699,8 @@ describe('PermissionController', () => {
               caveats: ['foo'] as any,
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2728,8 +2730,8 @@ describe('PermissionController', () => {
               ] as any,
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2762,8 +2764,8 @@ describe('PermissionController', () => {
               ] as any,
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2791,8 +2793,8 @@ describe('PermissionController', () => {
               caveats: [{ type: 'fooType', value: 'bar' }],
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2822,8 +2824,8 @@ describe('PermissionController', () => {
               ] as any,
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2862,8 +2864,8 @@ describe('PermissionController', () => {
               ],
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2891,8 +2893,8 @@ describe('PermissionController', () => {
               ],
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2920,8 +2922,8 @@ describe('PermissionController', () => {
               ],
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2934,14 +2936,14 @@ describe('PermissionController', () => {
           origin,
           PermissionNames.wallet_getSecretArray,
         ),
-      );      
+      );
     });
 
     it('throws if caveat validation fails', async () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
       let error;
-      try { 
+      try {
         await controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
@@ -2954,8 +2956,8 @@ describe('PermissionController', () => {
               ],
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -2979,8 +2981,8 @@ describe('PermissionController', () => {
               ],
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -3010,8 +3012,8 @@ describe('PermissionController', () => {
               ],
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
@@ -3038,12 +3040,14 @@ describe('PermissionController', () => {
               ],
             },
           },
-        })
-      } catch(err) {
+        });
+      } catch (err) {
         error = err;
       }
 
-      expect(error).toStrictEqual(new Error('noop permission validation failed'));
+      expect(error).toStrictEqual(
+        new Error('noop permission validation failed'),
+      );
     });
   });
 
@@ -5223,10 +5227,13 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      const result = await messenger.call('PermissionController:grantPermissions', {
-        subject: { origin: 'foo' },
-        approvedPermissions: { wallet_getSecretArray: {} },
-      });
+      const result = await messenger.call(
+        'PermissionController:grantPermissions',
+        {
+          subject: { origin: 'foo' },
+          approvedPermissions: { wallet_getSecretArray: {} },
+        },
+      );
 
       expect(result.permissions).toHaveProperty('wallet_getSecretArray');
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
@@ -5722,13 +5729,15 @@ describe('PermissionController', () => {
         approvedPermissions: {
           snap_baz: {},
         },
-      })
-    } catch(err) {
+      });
+    } catch (err) {
       error = err;
     }
 
     expect(error).toStrictEqual(
-      new Error('Invalid permission request, child permissions must also have their parent permissions requested.'),
+      new Error(
+        'Invalid permission request, child permissions must also have their parent permissions requested.',
+      ),
     );
   });
 });
