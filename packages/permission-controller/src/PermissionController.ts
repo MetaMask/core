@@ -1541,9 +1541,10 @@ export class PermissionController<
    * @param options.preserveExistingPermissions - Whether to preserve the
    * subject's existing permissions.
    * @param options.subject - The subject to grant permissions to.
+   * @param options.runSideEffects - Boolean that determines if associated side effects will be ran.
    * @returns The granted permissions.
    */
-  grantPermissions({
+  async grantPermissions({
     approvedPermissions,
     requestData,
     preserveExistingPermissions = true,
@@ -1553,12 +1554,15 @@ export class PermissionController<
     subject: PermissionSubjectMetadata;
     preserveExistingPermissions?: boolean;
     requestData?: Record<string, unknown>;
-  }): SubjectPermissions<
-    ExtractPermission<
-      ControllerPermissionSpecification,
-      ControllerCaveatSpecification
-    >
-  > {
+  }): Promise<{
+    permissions: SubjectPermissions<
+      ExtractPermission<
+        ControllerPermissionSpecification,
+        ControllerCaveatSpecification
+      >
+    >;
+    data?: Record<string, unknown>;
+  }> {
     const { origin } = subject;
 
     if (!origin || typeof origin !== 'string') {
@@ -1580,6 +1584,21 @@ export class PermissionController<
 
     const populatedRequest =
       this.permissionTree.getPopulatedRequest(approvedPermissions);
+
+    const sideEffects = this.getSideEffects(populatedRequest);
+
+    let data;
+
+    if (Object.values(sideEffects.permittedHandlers).length > 0) {
+      const sideEffectsData = await this.executeSideEffects(sideEffects, {
+        permissions: populatedRequest,
+        metadata: requestData as PermissionsRequestMetadata,
+      });
+      data = Object.keys(sideEffects.permittedHandlers).reduce(
+        (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
+        {},
+      );
+    }
 
     for (const [requestedTarget, approvedPermission] of Object.entries(
       populatedRequest,
@@ -1646,7 +1665,7 @@ export class PermissionController<
     }
 
     this.setValidatedPermissions(origin, permissions);
-    return permissions;
+    return { permissions, data };
   }
 
   /**
@@ -1896,38 +1915,14 @@ export class PermissionController<
     const { permissions: approvedPermissions, ...requestData } =
       approvedRequest;
 
-    const sideEffects = this.getSideEffects(approvedPermissions);
+    const { permissions, data } = await this.grantPermissions({
+      subject,
+      approvedPermissions,
+      preserveExistingPermissions,
+      requestData,
+    });
 
-    if (Object.values(sideEffects.permittedHandlers).length > 0) {
-      const sideEffectsData = await this.executeSideEffects(
-        sideEffects,
-        approvedRequest,
-      );
-      const mappedData = Object.keys(sideEffects.permittedHandlers).reduce(
-        (acc, permission, i) => ({ [permission]: sideEffectsData[i], ...acc }),
-        {},
-      );
-
-      return [
-        this.grantPermissions({
-          subject,
-          approvedPermissions,
-          preserveExistingPermissions,
-          requestData,
-        }),
-        { data: mappedData, ...metadata },
-      ];
-    }
-
-    return [
-      this.grantPermissions({
-        subject,
-        approvedPermissions,
-        preserveExistingPermissions,
-        requestData,
-      }),
-      metadata,
-    ];
+    return [permissions, { data, ...metadata }];
   }
 
   /**
