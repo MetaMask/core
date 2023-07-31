@@ -515,12 +515,16 @@ const getRestrictedMessenger = (
 function buildNetworkControllerStateWithProviderConfig(
   providerConfig: ProviderConfig,
 ): NetworkState {
+  const selectedNetworkClientId = providerConfig.type || 'uuid-1';
   return {
+    selectedNetworkClientId,
     providerConfig,
     networkId: '1',
-    networkStatus: NetworkStatus.Available,
-    networkDetails: {
-      EIPS: {},
+    networksMetadata: {
+      [selectedNetworkClientId]: {
+        EIPS: {},
+        status: NetworkStatus.Available,
+      },
     },
     networkConfigurations: {},
   };
@@ -528,7 +532,6 @@ function buildNetworkControllerStateWithProviderConfig(
 
 describe('TokenListController', () => {
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 

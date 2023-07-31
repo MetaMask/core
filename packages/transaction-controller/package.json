@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "7.1.0",
+  "version": "8.0.1",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -34,11 +34,11 @@
     "@metamask/approval-controller": "workspace:^",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/eth-query": "^3.0.1",
     "@metamask/network-controller": "workspace:^",
     "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
     "eth-method-registry": "1.1.0",
-    "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
     "nonce-tracker": "^1.1.0",

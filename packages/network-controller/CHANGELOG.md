@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+### Added
+- Add `NetworksMetadata` type ([#1559](https://github.com/MetaMask/core/pull/1559))
+
+### Changed
+- **BREAKING:** Remove `NetworkDetails` type in favor of `NetworkMetadata` ([#1559](https://github.com/MetaMask/core/pull/1559))
+  - This new type includes `NetworkDetails` plus a `status` property
+- **BREAKING:** Add `networksMetadata` to state ([#1559](https://github.com/MetaMask/core/pull/1559))
+  - Consumers will need to add a migration. The data for this property can be constructed by looping over the values in `InfuraNetworkType` from `@metamask/controller-utils` plus the network configuration IDs in the state property `networkConfigurations` and setting each value to `{ status: "unknown", EIPS: {} }`.
+- **BREAKING:** Add `selectedNetworkClientId` to state ([#1548](https://github.com/MetaMask/core/pull/1548))
+  - Consumers will need to add a migration. This property should be set to either `providerConfig.type` or `providerConfig.id`.
+- Update `getEIP1559Compatibility` to return `undefined` when the latest block is unavailable ([#1457](https://github.com/MetaMask/core/pull/1457))
+- Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
+
+### Removed
+- **BREAKING:** Remove `networkDetails` from state ([#1559](https://github.com/MetaMask/core/pull/1559))
+  - The data in this state property has been merged into the new `networksMetadata` state property; each value in this object contains an `EIPS` property.
+
+## [11.0.0]
+### Changed
+- **BREAKING**: Require `ticker` to be included in the `providerConfig` state ([#1495](https://github.com/MetaMask/core/pull/1495))
+  - This requires a state migration, setting `providerConfig.ticker` to `ETH` if it's missing.
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- Bump @metamask/eth-json-rpc-infura from 8.1.0 to 8.1.1 ([#1517](https://github.com/MetaMask/core/pull/1517))
+- Remove unnecessary `babel-runtime` dependency ([#1504](https://github.com/MetaMask/core/pull/1504))
+
 ## [10.3.1]
 ### Changed
 - Bump `@metamask/eth-json-rpc-infura` dependency from ^8.0.0 to ^8.1.0
@@ -205,7 +231,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@11.0.0...@metamask/network-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.1...@metamask/network-controller@11.0.0
 [10.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.0...@metamask/network-controller@10.3.1
 [10.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.2.0...@metamask/network-controller@10.3.0
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.1.0...@metamask/network-controller@10.2.0
