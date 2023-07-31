@@ -1101,7 +1101,96 @@ describe('NetworkController', () => {
     });
   });
 
-  describe('getNetworkClientsById', () => {
+  describe('getNetworkClientById', () => {
+    describe('If passed an existing networkClientId', () => {
+      it('returns a valid built-in Infura NetworkClient', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            const networkClientRegistry = controller.getNetworkClientRegistry();
+            const networkClient = controller.getNetworkClientById(
+              NetworkType.mainnet,
+            );
+
+            expect(networkClient).toBe(
+              networkClientRegistry[NetworkType.mainnet],
+            );
+          },
+        );
+      });
+
+      it('returns a valid custom NetworkClient', async () => {
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                testNetworkConfigurationId: {
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: '0x1337',
+                  ticker: 'ABC',
+                  id: 'testNetworkConfigurationId',
+                },
+              },
+            },
+            infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            const networkClientRegistry = controller.getNetworkClientRegistry();
+            const networkClient = controller.getNetworkClientById(
+              'testNetworkConfigurationId',
+            );
+
+            expect(networkClient).toBe(
+              networkClientRegistry.testNetworkConfigurationId,
+            );
+          },
+        );
+      });
+    });
+
+    describe('If passed a networkClientId that does not match a NetworkClient in the registry', () => {
+      it('throws an error', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            expect(() =>
+              controller.getNetworkClientById('non-existent-network-id'),
+            ).toThrow(
+              'No custom network client was found with the ID "non-existent-network-id',
+            );
+          },
+        );
+      });
+    });
+
+    describe('If not passed a networkClientId', () => {
+      it('throws an error', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            expect(() =>
+              // @ts-expect-error Intentionally passing invalid type
+              controller.getNetworkClientById(),
+            ).toThrow('No network client ID was provided.');
+          },
+        );
+      });
+    });
+  });
+
+  describe('getNetworkClientRegistry', () => {
     describe('if neither a provider config nor network configurations are present in state', () => {
       it('returns the built-in Infura networks by default', async () => {
         await withController(
@@ -1110,8 +1199,8 @@ describe('NetworkController', () => {
             const fakeNetworkClient = buildFakeClient();
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-            const networkClientsById = controller.getNetworkClientsById();
-            const simplifiedNetworkClients = Object.entries(networkClientsById)
+            const networkClients = controller.getNetworkClientRegistry();
+            const simplifiedNetworkClients = Object.entries(networkClients)
               .map(
                 ([networkClientId, networkClient]) =>
                   [networkClientId, networkClient.configuration] as const,
@@ -1198,8 +1287,8 @@ describe('NetworkController', () => {
             const fakeNetworkClient = buildFakeClient();
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-            const networkClientsById = controller.getNetworkClientsById();
-            const simplifiedNetworkClients = Object.entries(networkClientsById)
+            const networkClients = controller.getNetworkClientRegistry();
+            const simplifiedNetworkClients = Object.entries(networkClients)
               .map(
                 ([networkClientId, networkClient]) =>
                   [networkClientId, networkClient.configuration] as const,
@@ -1271,7 +1360,7 @@ describe('NetworkController', () => {
                 },
               ],
             ]);
-            for (const networkClient of Object.values(networkClientsById)) {
+            for (const networkClient of Object.values(networkClients)) {
               expect(networkClient.provider).toHaveProperty('sendAsync');
               expect(networkClient.blockTracker).toHaveProperty(
                 'checkForLatestBlock',
@@ -1299,8 +1388,8 @@ describe('NetworkController', () => {
             const fakeNetworkClient = buildFakeClient();
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-            const networkClientsById = controller.getNetworkClientsById();
-            const simplifiedNetworkClients = Object.entries(networkClientsById)
+            const networkClients = controller.getNetworkClientRegistry();
+            const simplifiedNetworkClients = Object.entries(networkClients)
               .map(
                 ([networkClientId, networkClient]) =>
                   [networkClientId, networkClient.configuration] as const,
@@ -1389,10 +1478,8 @@ describe('NetworkController', () => {
                 const fakeNetworkClient = buildFakeClient();
                 mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-                const networkClientsById = controller.getNetworkClientsById();
-                const simplifiedNetworkClients = Object.entries(
-                  networkClientsById,
-                )
+                const networkClients = controller.getNetworkClientRegistry();
+                const simplifiedNetworkClients = Object.entries(networkClients)
                   .map(
                     ([networkClientId, networkClient]) =>
                       [networkClientId, networkClient.configuration] as const,
@@ -1495,10 +1582,8 @@ describe('NetworkController', () => {
                 const fakeNetworkClient = buildFakeClient();
                 mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-                const networkClientsById = controller.getNetworkClientsById();
-                const simplifiedNetworkClients = Object.entries(
-                  networkClientsById,
-                )
+                const networkClients = controller.getNetworkClientRegistry();
+                const simplifiedNetworkClients = Object.entries(networkClients)
                   .map(
                     ([networkClientId, networkClient]) =>
                       [networkClientId, networkClient.configuration] as const,
@@ -1593,10 +1678,8 @@ describe('NetworkController', () => {
                 const fakeNetworkClient = buildFakeClient();
                 mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-                const networkClientsById = controller.getNetworkClientsById();
-                const simplifiedNetworkClients = Object.entries(
-                  networkClientsById,
-                )
+                const networkClients = controller.getNetworkClientRegistry();
+                const simplifiedNetworkClients = Object.entries(networkClients)
                   .map(
                     ([networkClientId, networkClient]) =>
                       [networkClientId, networkClient.configuration] as const,
@@ -1693,10 +1776,8 @@ describe('NetworkController', () => {
               const fakeNetworkClient = buildFakeClient();
               mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-              const networkClientsById = controller.getNetworkClientsById();
-              const simplifiedNetworkClients = Object.entries(
-                networkClientsById,
-              )
+              const networkClients = controller.getNetworkClientRegistry();
+              const simplifiedNetworkClients = Object.entries(networkClients)
                 .map(
                   ([networkClientId, networkClient]) =>
                     [networkClientId, networkClient.configuration] as const,
@@ -4501,9 +4582,9 @@ describe('NetworkController', () => {
               },
             );
 
-            const networkClientsById = controller.getNetworkClientsById();
-            expect(Object.keys(networkClientsById)).toHaveLength(6);
-            expect(networkClientsById).toMatchObject({
+            const networkClients = controller.getNetworkClientRegistry();
+            expect(Object.keys(networkClients)).toHaveLength(6);
+            expect(networkClients).toMatchObject({
               'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                 configuration: {
                   chainId: toHex(111),
@@ -5008,7 +5089,7 @@ describe('NetworkController', () => {
                   })
                   .mockReturnValue(newCustomNetworkClient);
                 const networkClientToDestroy = Object.values(
-                  controller.getNetworkClientsById(),
+                  controller.getNetworkClientRegistry(),
                 ).find(({ configuration }) => {
                   return (
                     configuration.type === NetworkClientType.Custom &&
@@ -5031,10 +5112,10 @@ describe('NetworkController', () => {
                   },
                 );
 
-                const networkClientsById = controller.getNetworkClientsById();
+                const networkClients = controller.getNetworkClientRegistry();
                 expect(networkClientToDestroy.destroy).toHaveBeenCalled();
-                expect(Object.keys(networkClientsById)).toHaveLength(6);
-                expect(networkClientsById).not.toMatchObject({
+                expect(Object.keys(networkClients)).toHaveLength(6);
+                expect(networkClients).not.toMatchObject({
                   [oldRpcUrl]: expect.objectContaining({
                     configuration: {
                       chainId: toHex(111),
@@ -5086,9 +5167,9 @@ describe('NetworkController', () => {
                   },
                 );
 
-                const networkClientsById = controller.getNetworkClientsById();
-                expect(Object.keys(networkClientsById)).toHaveLength(6);
-                expect(networkClientsById).toMatchObject({
+                const networkClients = controller.getNetworkClientRegistry();
+                expect(Object.keys(networkClients)).toHaveLength(6);
+                expect(networkClients).toMatchObject({
                   'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                     configuration: {
                       chainId: toHex(999),
@@ -5129,7 +5210,8 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(newCustomNetworkClient);
-                const networkClientsBefore = controller.getNetworkClientsById();
+                const networkClientsBefore =
+                  controller.getNetworkClientRegistry();
 
                 await controller.upsertNetworkConfiguration(
                   {
@@ -5143,7 +5225,8 @@ describe('NetworkController', () => {
                   },
                 );
 
-                const networkClientsAfter = controller.getNetworkClientsById();
+                const networkClientsAfter =
+                  controller.getNetworkClientRegistry();
                 expect(networkClientsBefore).toStrictEqual(networkClientsAfter);
               },
             );
@@ -5477,7 +5560,7 @@ describe('NetworkController', () => {
               })
               .mockReturnValue(buildFakeClient());
             const networkClientToDestroy = Object.values(
-              controller.getNetworkClientsById(),
+              controller.getNetworkClientRegistry(),
             ).find(({ configuration }) => {
               return (
                 configuration.type === NetworkClientType.Custom &&
@@ -5491,7 +5574,7 @@ describe('NetworkController', () => {
             controller.removeNetworkConfiguration('AAAA-AAAA-AAAA-AAAA');
 
             expect(networkClientToDestroy.destroy).toHaveBeenCalled();
-            expect(controller.getNetworkClientsById()).not.toMatchObject({
+            expect(controller.getNetworkClientRegistry()).not.toMatchObject({
               'https://test.network': expect.objectContaining({
                 configuration: {
                   chainId: toHex(111),
@@ -5519,7 +5602,7 @@ describe('NetworkController', () => {
       it('does not update the network client registry', async () => {
         await withController(async ({ controller }) => {
           mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients();
-          const networkClientsById = controller.getNetworkClientsById();
+          const networkClients = controller.getNetworkClientRegistry();
 
           try {
             controller.removeNetworkConfiguration('NONEXISTENT');
@@ -5527,8 +5610,8 @@ describe('NetworkController', () => {
             // ignore error (it is tested elsewhere)
           }
 
-          expect(controller.getNetworkClientsById()).toStrictEqual(
-            networkClientsById,
+          expect(controller.getNetworkClientRegistry()).toStrictEqual(
+            networkClients,
           );
         });
       });
