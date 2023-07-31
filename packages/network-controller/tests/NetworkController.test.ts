@@ -181,11 +181,8 @@ describe('NetworkController', () => {
         expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "networkConfigurations": Object {},
-            "networkDetails": Object {
-              "EIPS": Object {},
-            },
             "networkId": null,
-            "networkStatus": "unknown",
+            "networksMetadata": Object {},
             "providerConfig": Object {
               "chainId": "0x1",
               "ticker": "ETH",
@@ -208,9 +205,10 @@ describe('NetworkController', () => {
               nickname: 'Test initial state',
               ticker: 'TEST',
             },
-            networkDetails: {
-              EIPS: {
-                1559: true,
+            networksMetadata: {
+              mainnet: {
+                EIPS: { 1559: true },
+                status: NetworkStatus.Unknown,
               },
             },
           },
@@ -219,13 +217,15 @@ describe('NetworkController', () => {
           expect(controller.state).toMatchInlineSnapshot(`
             Object {
               "networkConfigurations": Object {},
-              "networkDetails": Object {
-                "EIPS": Object {
-                  "1559": true,
+              "networkId": null,
+              "networksMetadata": Object {
+                "mainnet": Object {
+                  "EIPS": Object {
+                    "1559": true,
+                  },
+                  "status": "unknown",
                 },
               },
-              "networkId": null,
-              "networkStatus": "unknown",
               "providerConfig": Object {
                 "chainId": "0x9999",
                 "nickname": "Test initial state",
@@ -1101,7 +1101,96 @@ describe('NetworkController', () => {
     });
   });
 
-  describe('getNetworkClientsById', () => {
+  describe('getNetworkClientById', () => {
+    describe('If passed an existing networkClientId', () => {
+      it('returns a valid built-in Infura NetworkClient', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            const networkClientRegistry = controller.getNetworkClientRegistry();
+            const networkClient = controller.getNetworkClientById(
+              NetworkType.mainnet,
+            );
+
+            expect(networkClient).toBe(
+              networkClientRegistry[NetworkType.mainnet],
+            );
+          },
+        );
+      });
+
+      it('returns a valid custom NetworkClient', async () => {
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                testNetworkConfigurationId: {
+                  rpcUrl: 'https://mock-rpc-url',
+                  chainId: '0x1337',
+                  ticker: 'ABC',
+                  id: 'testNetworkConfigurationId',
+                },
+              },
+            },
+            infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            const networkClientRegistry = controller.getNetworkClientRegistry();
+            const networkClient = controller.getNetworkClientById(
+              'testNetworkConfigurationId',
+            );
+
+            expect(networkClient).toBe(
+              networkClientRegistry.testNetworkConfigurationId,
+            );
+          },
+        );
+      });
+    });
+
+    describe('If passed a networkClientId that does not match a NetworkClient in the registry', () => {
+      it('throws an error', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            expect(() =>
+              controller.getNetworkClientById('non-existent-network-id'),
+            ).toThrow(
+              'No custom network client was found with the ID "non-existent-network-id',
+            );
+          },
+        );
+      });
+    });
+
+    describe('If not passed a networkClientId', () => {
+      it('throws an error', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+            expect(() =>
+              // @ts-expect-error Intentionally passing invalid type
+              controller.getNetworkClientById(),
+            ).toThrow('No network client ID was provided.');
+          },
+        );
+      });
+    });
+  });
+
+  describe('getNetworkClientRegistry', () => {
     describe('if neither a provider config nor network configurations are present in state', () => {
       it('returns the built-in Infura networks by default', async () => {
         await withController(
@@ -1110,8 +1199,8 @@ describe('NetworkController', () => {
             const fakeNetworkClient = buildFakeClient();
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-            const networkClientsById = controller.getNetworkClientsById();
-            const simplifiedNetworkClients = Object.entries(networkClientsById)
+            const networkClients = controller.getNetworkClientRegistry();
+            const simplifiedNetworkClients = Object.entries(networkClients)
               .map(
                 ([networkClientId, networkClient]) =>
                   [networkClientId, networkClient.configuration] as const,
@@ -1198,8 +1287,8 @@ describe('NetworkController', () => {
             const fakeNetworkClient = buildFakeClient();
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-            const networkClientsById = controller.getNetworkClientsById();
-            const simplifiedNetworkClients = Object.entries(networkClientsById)
+            const networkClients = controller.getNetworkClientRegistry();
+            const simplifiedNetworkClients = Object.entries(networkClients)
               .map(
                 ([networkClientId, networkClient]) =>
                   [networkClientId, networkClient.configuration] as const,
@@ -1271,7 +1360,7 @@ describe('NetworkController', () => {
                 },
               ],
             ]);
-            for (const networkClient of Object.values(networkClientsById)) {
+            for (const networkClient of Object.values(networkClients)) {
               expect(networkClient.provider).toHaveProperty('sendAsync');
               expect(networkClient.blockTracker).toHaveProperty(
                 'checkForLatestBlock',
@@ -1299,8 +1388,8 @@ describe('NetworkController', () => {
             const fakeNetworkClient = buildFakeClient();
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-            const networkClientsById = controller.getNetworkClientsById();
-            const simplifiedNetworkClients = Object.entries(networkClientsById)
+            const networkClients = controller.getNetworkClientRegistry();
+            const simplifiedNetworkClients = Object.entries(networkClients)
               .map(
                 ([networkClientId, networkClient]) =>
                   [networkClientId, networkClient.configuration] as const,
@@ -1389,10 +1478,8 @@ describe('NetworkController', () => {
                 const fakeNetworkClient = buildFakeClient();
                 mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-                const networkClientsById = controller.getNetworkClientsById();
-                const simplifiedNetworkClients = Object.entries(
-                  networkClientsById,
-                )
+                const networkClients = controller.getNetworkClientRegistry();
+                const simplifiedNetworkClients = Object.entries(networkClients)
                   .map(
                     ([networkClientId, networkClient]) =>
                       [networkClientId, networkClient.configuration] as const,
@@ -1495,10 +1582,8 @@ describe('NetworkController', () => {
                 const fakeNetworkClient = buildFakeClient();
                 mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-                const networkClientsById = controller.getNetworkClientsById();
-                const simplifiedNetworkClients = Object.entries(
-                  networkClientsById,
-                )
+                const networkClients = controller.getNetworkClientRegistry();
+                const simplifiedNetworkClients = Object.entries(networkClients)
                   .map(
                     ([networkClientId, networkClient]) =>
                       [networkClientId, networkClient.configuration] as const,
@@ -1593,10 +1678,8 @@ describe('NetworkController', () => {
                 const fakeNetworkClient = buildFakeClient();
                 mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-                const networkClientsById = controller.getNetworkClientsById();
-                const simplifiedNetworkClients = Object.entries(
-                  networkClientsById,
-                )
+                const networkClients = controller.getNetworkClientRegistry();
+                const simplifiedNetworkClients = Object.entries(networkClients)
                   .map(
                     ([networkClientId, networkClient]) =>
                       [networkClientId, networkClient.configuration] as const,
@@ -1693,10 +1776,8 @@ describe('NetworkController', () => {
               const fakeNetworkClient = buildFakeClient();
               mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-              const networkClientsById = controller.getNetworkClientsById();
-              const simplifiedNetworkClients = Object.entries(
-                networkClientsById,
-              )
+              const networkClients = controller.getNetworkClientRegistry();
+              const simplifiedNetworkClients = Object.entries(networkClients)
                 .map(
                   ([networkClientId, networkClient]) =>
                     [networkClientId, networkClient.configuration] as const,
@@ -1868,17 +1949,27 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
-                  expect(controller.state.networkStatus).toBe('available');
+                  expect(
+                    controller.state.networksMetadata[networkType].status,
+                  ).toBe('available');
 
                   await waitForStateChanges({
                     messenger,
-                    propertyPath: ['networkStatus'],
+                    propertyPath: [
+                      'networksMetadata',
+                      'testNetworkConfigurationId',
+                      'status',
+                    ],
                     operation: async () => {
                       await controller.lookupNetwork();
                     },
                   });
 
-                  expect(controller.state.networkStatus).toBe('unknown');
+                  expect(
+                    controller.state.networksMetadata[
+                      controller.state.selectedNetworkClientId
+                    ].status,
+                  ).toBe('unknown');
                 },
               );
             });
@@ -2090,25 +2181,26 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
-                  expect(controller.state.networkDetails).toStrictEqual({
-                    EIPS: {
-                      1559: true,
-                    },
-                  });
+                  expect(
+                    controller.state.networksMetadata[networkType].EIPS[1559],
+                  ).toBe(true);
 
                   await waitForStateChanges({
                     messenger,
-                    propertyPath: ['networkDetails'],
+                    propertyPath: [
+                      'networksMetadata',
+                      'testNetworkConfigurationId',
+                      'EIPS',
+                    ],
                     operation: async () => {
                       await controller.lookupNetwork();
                     },
                   });
 
-                  expect(controller.state.networkDetails).toStrictEqual({
-                    EIPS: {
-                      1559: false,
-                    },
-                  });
+                  expect(
+                    controller.state.networksMetadata.testNetworkConfigurationId
+                      .EIPS[1559],
+                  ).toBe(false);
                 },
               );
             });
@@ -2214,7 +2306,11 @@ describe('NetworkController', () => {
 
                   await waitForStateChanges({
                     messenger,
-                    propertyPath: ['networkStatus'],
+                    propertyPath: [
+                      'networksMetadata',
+                      'testNetworkConfigurationId',
+                      'status',
+                    ],
                     operation: async () => {
                       await controller.lookupNetwork();
                     },
@@ -2313,17 +2409,27 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
-                  expect(controller.state.networkStatus).toBe('available');
+                  expect(
+                    controller.state.networksMetadata[networkType].status,
+                  ).toBe('available');
 
                   await waitForStateChanges({
                     messenger,
-                    propertyPath: ['networkStatus'],
+                    propertyPath: [
+                      'networksMetadata',
+                      'testNetworkConfigurationId',
+                      'status',
+                    ],
                     operation: async () => {
                       await controller.lookupNetwork();
                     },
                   });
 
-                  expect(controller.state.networkStatus).toBe('unknown');
+                  expect(
+                    controller.state.networksMetadata[
+                      controller.state.selectedNetworkClientId
+                    ].status,
+                  ).toBe('unknown');
                 },
               );
             });
@@ -2535,25 +2641,26 @@ describe('NetworkController', () => {
                     })
                     .mockReturnValue(fakeNetworkClients[1]);
                   await controller.initializeProvider();
-                  expect(controller.state.networkDetails).toStrictEqual({
-                    EIPS: {
-                      1559: true,
-                    },
-                  });
+                  expect(
+                    controller.state.networksMetadata[networkType].EIPS[1559],
+                  ).toBe(true);
 
                   await waitForStateChanges({
                     messenger,
-                    propertyPath: ['networkDetails'],
+                    propertyPath: [
+                      'networksMetadata',
+                      'testNetworkConfigurationId',
+                      'EIPS',
+                    ],
                     operation: async () => {
                       await controller.lookupNetwork();
                     },
                   });
 
-                  expect(controller.state.networkDetails).toStrictEqual({
-                    EIPS: {
-                      1559: false,
-                    },
-                  });
+                  expect(
+                    controller.state.networksMetadata.testNetworkConfigurationId
+                      .EIPS[1559],
+                  ).toBe(false);
                 },
               );
             });
@@ -2659,7 +2766,11 @@ describe('NetworkController', () => {
 
                   await waitForStateChanges({
                     messenger,
-                    propertyPath: ['networkStatus'],
+                    propertyPath: [
+                      'networksMetadata',
+                      'testNetworkConfigurationId',
+                      'status',
+                    ],
                     operation: async () => {
                       await controller.lookupNetwork();
                     },
@@ -2766,17 +2877,26 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
-              expect(controller.state.networkStatus).toBe('available');
+              expect(
+                controller.state.networksMetadata['https://mock-rpc-url']
+                  .status,
+              ).toBe('available');
 
               await waitForStateChanges({
                 messenger,
-                propertyPath: ['networkStatus'],
+                propertyPath: [
+                  'networksMetadata',
+                  NetworkType.goerli,
+                  'status',
+                ],
                 operation: async () => {
                   await controller.lookupNetwork();
                 },
               });
 
-              expect(controller.state.networkStatus).toBe('unknown');
+              expect(
+                controller.state.networksMetadata[NetworkType.goerli].status,
+              ).toBe('unknown');
             },
           );
         });
@@ -2976,25 +3096,23 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
-              expect(controller.state.networkDetails).toStrictEqual({
-                EIPS: {
-                  1559: true,
-                },
-              });
+              expect(
+                controller.state.networksMetadata['https://mock-rpc-url']
+                  .EIPS[1559],
+              ).toBe(true);
 
               await waitForStateChanges({
                 messenger,
-                propertyPath: ['networkDetails'],
+                propertyPath: ['networksMetadata', NetworkType.goerli, 'EIPS'],
                 operation: async () => {
                   await controller.lookupNetwork();
                 },
               });
 
-              expect(controller.state.networkDetails).toStrictEqual({
-                EIPS: {
-                  1559: false,
-                },
-              });
+              expect(
+                controller.state.networksMetadata[NetworkType.goerli]
+                  .EIPS[1559],
+              ).toBe(false);
             },
           );
         });
@@ -3093,7 +3211,7 @@ describe('NetworkController', () => {
 
               await waitForStateChanges({
                 messenger,
-                propertyPath: ['networkStatus'],
+                propertyPath: ['networksMetadata', 'goerli', 'status'],
                 operation: async () => {
                   await controller.lookupNetwork();
                 },
@@ -3182,17 +3300,26 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
-              expect(controller.state.networkStatus).toBe('available');
+              expect(
+                controller.state.networksMetadata['https://mock-rpc-url']
+                  .status,
+              ).toBe('available');
 
               await waitForStateChanges({
                 messenger,
-                propertyPath: ['networkStatus'],
+                propertyPath: [
+                  'networksMetadata',
+                  NetworkType.goerli,
+                  'status',
+                ],
                 operation: async () => {
                   await controller.lookupNetwork();
                 },
               });
 
-              expect(controller.state.networkStatus).toBe('unknown');
+              expect(
+                controller.state.networksMetadata[NetworkType.goerli].status,
+              ).toBe('unknown');
             },
           );
         });
@@ -3392,25 +3519,27 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
-              expect(controller.state.networkDetails).toStrictEqual({
-                EIPS: {
-                  1559: true,
-                },
-              });
+              expect(
+                controller.state.networksMetadata['https://mock-rpc-url']
+                  .EIPS[1559],
+              ).toBe(true);
 
               await waitForStateChanges({
                 messenger,
-                propertyPath: ['networkDetails'],
+                propertyPath: ['networksMetadata', NetworkType.goerli, 'EIPS'],
                 operation: async () => {
                   await controller.lookupNetwork();
                 },
               });
 
-              expect(controller.state.networkDetails).toStrictEqual({
-                EIPS: {
-                  1559: false,
-                },
-              });
+              expect(
+                controller.state.networksMetadata[NetworkType.goerli]
+                  .EIPS[1559],
+              ).toBe(false);
+              expect(
+                controller.state.networksMetadata['https://mock-rpc-url']
+                  .EIPS[1559],
+              ).toBe(true);
             },
           );
         });
@@ -3509,7 +3638,11 @@ describe('NetworkController', () => {
 
               await waitForStateChanges({
                 messenger,
-                propertyPath: ['networkStatus'],
+                propertyPath: [
+                  'networksMetadata',
+                  NetworkType.goerli,
+                  'status',
+                ],
                 operation: async () => {
                   await controller.lookupNetwork();
                 },
@@ -3648,7 +3781,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('does not update networkDetails.EIPS in state', async () => {
+      it('does not update networksMetadata[...].EIPS in state', async () => {
         await withController(async ({ controller }) => {
           const fakeProvider = buildFakeProvider([
             {
@@ -3666,6 +3799,11 @@ describe('NetworkController', () => {
           const fakeNetworkClient = buildFakeClient(fakeProvider);
           createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
+          const detailsPre =
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ];
+
           try {
             // @ts-expect-error Intentionally passing invalid type
             await controller.setProviderType(NetworkType.rpc);
@@ -3673,7 +3811,12 @@ describe('NetworkController', () => {
             // catch the rejection (it is tested above)
           }
 
-          expect(controller.state.networkDetails.EIPS[1559]).toBeUndefined();
+          const detailsPost =
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ];
+
+          expect(detailsPost).toBe(detailsPre);
         });
       });
     });
@@ -3974,14 +4117,17 @@ describe('NetworkController', () => {
       });
     });
 
-    describe('if a provider has been set but networkDetails.EIPS in state already has a "1559" property', () => {
+    describe('if a provider has been set but networksMetadata[selectedNetworkId].EIPS in state already has a "1559" property', () => {
       it('does not make any state changes', async () => {
         await withController(
           {
             state: {
-              networkDetails: {
-                EIPS: {
-                  1559: true,
+              networksMetadata: {
+                mainnet: {
+                  EIPS: {
+                    1559: true,
+                  },
+                  status: NetworkStatus.Unknown,
                 },
               },
             },
@@ -4007,9 +4153,12 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              networkDetails: {
-                EIPS: {
-                  1559: true,
+              networksMetadata: {
+                mainnet: {
+                  EIPS: {
+                    1559: true,
+                  },
+                  status: NetworkStatus.Unknown,
                 },
               },
             },
@@ -4028,7 +4177,7 @@ describe('NetworkController', () => {
       });
     });
 
-    describe('if a provider has been set and networkDetails.EIPS in state does not already have a "1559" property', () => {
+    describe('if a provider has been set and networksMetadata[selectedNetworkId].EIPS in state does not already have a "1559" property', () => {
       describe('if the request for the latest block is successful', () => {
         describe('if the latest block has a "baseFeePerGas" property', () => {
           it('sets the "1559" property to true', async () => {
@@ -4050,7 +4199,11 @@ describe('NetworkController', () => {
 
               await controller.getEIP1559Compatibility();
 
-              expect(controller.state.networkDetails.EIPS[1559]).toBe(true);
+              expect(
+                controller.state.networksMetadata[
+                  controller.state.selectedNetworkClientId
+                ].EIPS[1559],
+              ).toBe(true);
             });
           });
 
@@ -4099,7 +4252,11 @@ describe('NetworkController', () => {
 
               await controller.getEIP1559Compatibility();
 
-              expect(controller.state.networkDetails.EIPS[1559]).toBe(false);
+              expect(
+                controller.state.networksMetadata[
+                  controller.state.selectedNetworkClientId
+                ].EIPS[1559],
+              ).toBe(false);
             });
           });
 
@@ -4148,7 +4305,9 @@ describe('NetworkController', () => {
               await controller.getEIP1559Compatibility();
 
               expect(
-                controller.state.networkDetails.EIPS[1559],
+                controller.state.networksMetadata[
+                  controller.state.selectedNetworkClientId
+                ].EIPS[1559],
               ).toBeUndefined();
             });
           });
@@ -4423,9 +4582,9 @@ describe('NetworkController', () => {
               },
             );
 
-            const networkClientsById = controller.getNetworkClientsById();
-            expect(Object.keys(networkClientsById)).toHaveLength(6);
-            expect(networkClientsById).toMatchObject({
+            const networkClients = controller.getNetworkClientRegistry();
+            expect(Object.keys(networkClients)).toHaveLength(6);
+            expect(networkClients).toMatchObject({
               'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                 configuration: {
                   chainId: toHex(111),
@@ -4930,7 +5089,7 @@ describe('NetworkController', () => {
                   })
                   .mockReturnValue(newCustomNetworkClient);
                 const networkClientToDestroy = Object.values(
-                  controller.getNetworkClientsById(),
+                  controller.getNetworkClientRegistry(),
                 ).find(({ configuration }) => {
                   return (
                     configuration.type === NetworkClientType.Custom &&
@@ -4953,10 +5112,10 @@ describe('NetworkController', () => {
                   },
                 );
 
-                const networkClientsById = controller.getNetworkClientsById();
+                const networkClients = controller.getNetworkClientRegistry();
                 expect(networkClientToDestroy.destroy).toHaveBeenCalled();
-                expect(Object.keys(networkClientsById)).toHaveLength(6);
-                expect(networkClientsById).not.toMatchObject({
+                expect(Object.keys(networkClients)).toHaveLength(6);
+                expect(networkClients).not.toMatchObject({
                   [oldRpcUrl]: expect.objectContaining({
                     configuration: {
                       chainId: toHex(111),
@@ -5008,9 +5167,9 @@ describe('NetworkController', () => {
                   },
                 );
 
-                const networkClientsById = controller.getNetworkClientsById();
-                expect(Object.keys(networkClientsById)).toHaveLength(6);
-                expect(networkClientsById).toMatchObject({
+                const networkClients = controller.getNetworkClientRegistry();
+                expect(Object.keys(networkClients)).toHaveLength(6);
+                expect(networkClients).toMatchObject({
                   'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
                     configuration: {
                       chainId: toHex(999),
@@ -5051,7 +5210,8 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Custom,
                   })
                   .mockReturnValue(newCustomNetworkClient);
-                const networkClientsBefore = controller.getNetworkClientsById();
+                const networkClientsBefore =
+                  controller.getNetworkClientRegistry();
 
                 await controller.upsertNetworkConfiguration(
                   {
@@ -5065,7 +5225,8 @@ describe('NetworkController', () => {
                   },
                 );
 
-                const networkClientsAfter = controller.getNetworkClientsById();
+                const networkClientsAfter =
+                  controller.getNetworkClientRegistry();
                 expect(networkClientsBefore).toStrictEqual(networkClientsAfter);
               },
             );
@@ -5399,7 +5560,7 @@ describe('NetworkController', () => {
               })
               .mockReturnValue(buildFakeClient());
             const networkClientToDestroy = Object.values(
-              controller.getNetworkClientsById(),
+              controller.getNetworkClientRegistry(),
             ).find(({ configuration }) => {
               return (
                 configuration.type === NetworkClientType.Custom &&
@@ -5413,7 +5574,7 @@ describe('NetworkController', () => {
             controller.removeNetworkConfiguration('AAAA-AAAA-AAAA-AAAA');
 
             expect(networkClientToDestroy.destroy).toHaveBeenCalled();
-            expect(controller.getNetworkClientsById()).not.toMatchObject({
+            expect(controller.getNetworkClientRegistry()).not.toMatchObject({
               'https://test.network': expect.objectContaining({
                 configuration: {
                   chainId: toHex(111),
@@ -5441,7 +5602,7 @@ describe('NetworkController', () => {
       it('does not update the network client registry', async () => {
         await withController(async ({ controller }) => {
           mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients();
-          const networkClientsById = controller.getNetworkClientsById();
+          const networkClients = controller.getNetworkClientRegistry();
 
           try {
             controller.removeNetworkConfiguration('NONEXISTENT');
@@ -5449,8 +5610,8 @@ describe('NetworkController', () => {
             // ignore error (it is tested elsewhere)
           }
 
-          expect(controller.getNetworkClientsById()).toStrictEqual(
-            networkClientsById,
+          expect(controller.getNetworkClientRegistry()).toStrictEqual(
+            networkClients,
           );
         });
       });
@@ -5701,11 +5862,15 @@ describe('NetworkController', () => {
                   })
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
-                expect(controller.state.networkStatus).toBe('available');
+                expect(
+                  controller.state.networksMetadata[
+                    controller.state.selectedNetworkClientId
+                  ].status,
+                ).toBe('available');
 
                 await waitForStateChanges({
                   messenger,
-                  propertyPath: ['networkStatus'],
+                  propertyPath: ['networksMetadata', networkType, 'status'],
                   // We only care about the first state change, because it
                   // happens before networkDidChange
                   count: 1,
@@ -5715,84 +5880,11 @@ describe('NetworkController', () => {
                     controller.rollbackToPreviousProvider();
                   },
                   beforeResolving: () => {
-                    expect(controller.state.networkStatus).toBe('unknown');
-                  },
-                });
-              },
-            );
-          });
-
-          it('clears EIP-1559 support for the network from state before updating the provider', async () => {
-            await withController(
-              {
-                state: {
-                  providerConfig: buildProviderConfig({
-                    type: networkType,
-                  }),
-                  networkConfigurations: {
-                    testNetworkConfiguration: {
-                      id: 'testNetworkConfiguration',
-                      rpcUrl: 'https://mock-rpc-url',
-                      chainId: toHex(1337),
-                      ticker: 'TEST',
-                    },
-                  },
-                },
-                infuraProjectId: 'some-infura-project-id',
-              },
-              async ({ controller, messenger }) => {
-                const fakeProviders = [
-                  buildFakeProvider([
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                      },
-                      response: {
-                        result: POST_1559_BLOCK,
-                      },
-                    },
-                  ]),
-                  buildFakeProvider(),
-                ];
-                const fakeNetworkClients = [
-                  buildFakeClient(fakeProviders[0]),
-                  buildFakeClient(fakeProviders[1]),
-                ];
-                mockCreateNetworkClient()
-                  .calledWith({
-                    rpcUrl: 'https://mock-rpc-url',
-                    chainId: toHex(1337),
-                    type: NetworkClientType.Custom,
-                  })
-                  .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    network: networkType,
-                    infuraProjectId: 'some-infura-project-id',
-                    type: NetworkClientType.Infura,
-                  })
-                  .mockReturnValue(fakeNetworkClients[1]);
-                await controller.setActiveNetwork('testNetworkConfiguration');
-                expect(controller.state.networkDetails).toStrictEqual({
-                  EIPS: {
-                    1559: true,
-                  },
-                });
-
-                await waitForStateChanges({
-                  messenger,
-                  propertyPath: ['networkDetails'],
-                  // We only care about the first state change, because it
-                  // happens before networkDidChange
-                  count: 1,
-                  operation: () => {
-                    // Intentionally not awaited because we want to check state
-                    // while this operation is in-progress
-                    controller.rollbackToPreviousProvider();
-                  },
-                  beforeResolving: () => {
-                    expect(controller.state.networkDetails).toStrictEqual({
-                      EIPS: {},
-                    });
+                    expect(
+                      controller.state.networksMetadata[
+                        controller.state.selectedNetworkClientId
+                      ].status,
+                    ).toBe('unknown');
                   },
                 });
               },
@@ -6044,16 +6136,24 @@ describe('NetworkController', () => {
                   })
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
-                expect(controller.state.networkStatus).toBe('unavailable');
+                expect(
+                  controller.state.networksMetadata[
+                    controller.state.selectedNetworkClientId
+                  ].status,
+                ).toBe('unavailable');
 
                 await waitForStateChanges({
                   messenger,
-                  propertyPath: ['networkStatus'],
+                  propertyPath: ['networksMetadata', networkType, 'status'],
                   operation: async () => {
                     await controller.rollbackToPreviousProvider();
                   },
                 });
-                expect(controller.state.networkStatus).toBe('available');
+                expect(
+                  controller.state.networksMetadata[
+                    controller.state.selectedNetworkClientId
+                  ].status,
+                ).toBe('available');
               },
             );
           });
@@ -6117,27 +6217,25 @@ describe('NetworkController', () => {
                   })
                   .mockReturnValue(fakeNetworkClients[1]);
                 await controller.setActiveNetwork('testNetworkConfiguration');
-                expect(controller.state.networkDetails).toStrictEqual({
-                  EIPS: {
-                    1559: false,
-                  },
-                });
+                expect(
+                  controller.state.networksMetadata[
+                    controller.state.selectedNetworkClientId
+                  ].EIPS[1559],
+                ).toBe(false);
 
                 await waitForStateChanges({
                   messenger,
-                  propertyPath: ['networkDetails'],
-                  // rollbackToPreviousProvider clears networkDetails first, and
-                  // then updates it to what we expect it to be
+                  propertyPath: ['networksMetadata', networkType, 'EIPS'],
                   count: 2,
                   operation: async () => {
                     await controller.rollbackToPreviousProvider();
                   },
                 });
-                expect(controller.state.networkDetails).toStrictEqual({
-                  EIPS: {
-                    1559: true,
-                  },
-                });
+                expect(
+                  controller.state.networksMetadata[
+                    controller.state.selectedNetworkClientId
+                  ].EIPS[1559],
+                ).toBe(true);
               },
             );
           });
@@ -6319,11 +6417,19 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
-              expect(controller.state.networkStatus).toBe('available');
+              expect(
+                controller.state.networksMetadata[
+                  controller.state.selectedNetworkClientId
+                ].status,
+              ).toBe('available');
 
               await waitForStateChanges({
                 messenger,
-                propertyPath: ['networkStatus'],
+                propertyPath: [
+                  'networksMetadata',
+                  'https://mock-rpc-url',
+                  'status',
+                ],
                 // We only care about the first state change, because it
                 // happens before networkDidChange
                 count: 1,
@@ -6333,78 +6439,11 @@ describe('NetworkController', () => {
                   controller.rollbackToPreviousProvider();
                 },
                 beforeResolving: () => {
-                  expect(controller.state.networkStatus).toBe('unknown');
-                },
-              });
-            },
-          );
-        });
-
-        it('clears EIP-1559 support for the network from state before updating the provider', async () => {
-          await withController(
-            {
-              state: {
-                providerConfig: buildProviderConfig({
-                  type: NetworkType.rpc,
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
-                }),
-              },
-              infuraProjectId: 'some-infura-project-id',
-            },
-            async ({ controller, messenger }) => {
-              const fakeProviders = [
-                buildFakeProvider([
-                  {
-                    request: {
-                      method: 'eth_getBlockByNumber',
-                    },
-                    response: {
-                      result: POST_1559_BLOCK,
-                    },
-                  },
-                ]),
-                buildFakeProvider(),
-              ];
-              const fakeNetworkClients = [
-                buildFakeClient(fakeProviders[0]),
-                buildFakeClient(fakeProviders[1]),
-              ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  network: InfuraNetworkType.goerli,
-                  infuraProjectId: 'some-infura-project-id',
-                  type: NetworkClientType.Infura,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  rpcUrl: 'https://mock-rpc-url',
-                  chainId: toHex(1337),
-                  type: NetworkClientType.Custom,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
-              await controller.setProviderType('goerli');
-              expect(controller.state.networkDetails).toStrictEqual({
-                EIPS: {
-                  1559: true,
-                },
-              });
-
-              await waitForStateChanges({
-                messenger,
-                propertyPath: ['networkDetails'],
-                // We only care about the first state change, because it
-                // happens before networkDidChange
-                count: 1,
-                operation: () => {
-                  // Intentionally not awaited because we want to check state
-                  // while this operation is in-progress
-                  controller.rollbackToPreviousProvider();
-                },
-                beforeResolving: () => {
-                  expect(controller.state.networkDetails).toStrictEqual({
-                    EIPS: {},
-                  });
+                  expect(
+                    controller.state.networksMetadata[
+                      controller.state.selectedNetworkClientId
+                    ].status,
+                  ).toBe('unknown');
                 },
               });
             },
@@ -6618,10 +6657,18 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
-              expect(controller.state.networkStatus).toBe('unavailable');
+              expect(
+                controller.state.networksMetadata[
+                  controller.state.selectedNetworkClientId
+                ].status,
+              ).toBe('unavailable');
 
               await controller.rollbackToPreviousProvider();
-              expect(controller.state.networkStatus).toBe('available');
+              expect(
+                controller.state.networksMetadata[
+                  controller.state.selectedNetworkClientId
+                ].status,
+              ).toBe('available');
             },
           );
         });
@@ -6679,18 +6726,18 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.setProviderType('goerli');
-              expect(controller.state.networkDetails).toStrictEqual({
-                EIPS: {
-                  1559: false,
-                },
-              });
+              expect(
+                controller.state.networksMetadata[
+                  controller.state.selectedNetworkClientId
+                ].EIPS[1559],
+              ).toBe(false);
 
               await controller.rollbackToPreviousProvider();
-              expect(controller.state.networkDetails).toStrictEqual({
-                EIPS: {
-                  1559: true,
-                },
-              });
+              expect(
+                controller.state.networksMetadata[
+                  controller.state.selectedNetworkClientId
+                ].EIPS[1559],
+              ).toBe(true);
             },
           );
         });
@@ -6913,7 +6960,7 @@ function refreshNetworkTests({
 
         await waitForStateChanges({
           messenger,
-          propertyPath: ['networkDetails'],
+          propertyPath: ['networkId'],
           // We only care about the first state change, because it
           // happens before the network lookup
           count: 1,
@@ -6925,127 +6972,6 @@ function refreshNetworkTests({
         });
 
         expect(controller.state.networkId).toBeNull();
-      },
-    );
-  });
-
-  it('clears network status from state', async () => {
-    await withController(
-      {
-        infuraProjectId: 'infura-project-id',
-        state: initialState,
-      },
-      async ({ controller, messenger }) => {
-        const fakeProvider = buildFakeProvider([
-          // Called during provider initialization
-          {
-            request: {
-              method: 'net_version',
-            },
-            response: SUCCESSFUL_NET_VERSION_RESPONSE,
-          },
-          {
-            request: {
-              method: 'eth_getBlockByNumber',
-            },
-            response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-          },
-          // Called during network lookup after resetting connection.
-          // Delayed to ensure that we can check the network status
-          // before this resolves.
-          {
-            delay: 1,
-            request: {
-              method: 'net_version',
-            },
-            response: SUCCESSFUL_NET_VERSION_RESPONSE,
-          },
-          {
-            delay: 1,
-            request: {
-              method: 'eth_getBlockByNumber',
-            },
-            response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
-          },
-        ]);
-        const fakeNetworkClient = buildFakeClient(fakeProvider);
-        createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-        await controller.initializeProvider();
-        expect(controller.state.networkStatus).toBe(NetworkStatus.Available);
-
-        await waitForStateChanges({
-          messenger,
-          propertyPath: ['networkStatus'],
-          // We only care about the first state change, because it
-          // happens before the network lookup
-          count: 1,
-          operation: () => {
-            // Intentionally not awaited because we want to check state
-            // partway through the operation
-            operation(controller);
-          },
-        });
-
-        expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
-      },
-    );
-  });
-
-  it('clears network details from state', async () => {
-    await withController(
-      {
-        infuraProjectId: 'infura-project-id',
-        state: initialState,
-      },
-      async ({ controller, messenger }) => {
-        const fakeProvider = buildFakeProvider([
-          // Called during provider initialization
-          {
-            request: {
-              method: 'eth_getBlockByNumber',
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-          // Called during network lookup after resetting connection.
-          // Delayed to ensure that we can check the network details
-          // before this resolves.
-          {
-            delay: 1,
-            request: {
-              method: 'eth_getBlockByNumber',
-            },
-            response: {
-              result: '0x1',
-            },
-          },
-        ]);
-        const fakeNetworkClient = buildFakeClient(fakeProvider);
-        createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-        await controller.initializeProvider();
-        expect(controller.state.networkDetails).toStrictEqual({
-          EIPS: {
-            1559: false,
-          },
-        });
-
-        await waitForStateChanges({
-          messenger,
-          propertyPath: ['networkDetails'],
-          // We only care about the first state change, because it
-          // happens before the network lookup
-          count: 1,
-          operation: () => {
-            // Intentionally not awaited because we want to check state
-            // partway through the operation
-            operation(controller);
-          },
-        });
-
-        expect(controller.state.networkDetails).toStrictEqual({
-          EIPS: {},
-        });
       },
     );
   });
@@ -7317,11 +7243,11 @@ function lookupNetworkTests({
 
                 await operation(controller);
 
-                await expect(controller.state.networkDetails).toStrictEqual({
-                  EIPS: {
-                    1559: true,
-                  },
-                });
+                expect(
+                  controller.state.networksMetadata[
+                    controller.state.selectedNetworkClientId
+                  ].EIPS[1559],
+                ).toBe(true);
               },
             );
           });
@@ -7335,9 +7261,10 @@ function lookupNetworkTests({
           {
             state: {
               ...initialState,
-              networkDetails: {
-                EIPS: {
-                  1559: false,
+              networksMetadata: {
+                mainnet: {
+                  EIPS: { 1559: false },
+                  status: NetworkStatus.Unknown,
                 },
               },
             },
@@ -7362,11 +7289,11 @@ function lookupNetworkTests({
 
             await operation(controller);
 
-            expect(controller.state.networkDetails).toStrictEqual({
-              EIPS: {
-                1559: true,
-              },
-            });
+            expect(
+              controller.state.networksMetadata[
+                controller.state.selectedNetworkClientId
+              ].EIPS[1559],
+            ).toBe(true);
           },
         );
       });
@@ -7378,9 +7305,10 @@ function lookupNetworkTests({
           {
             state: {
               ...initialState,
-              networkDetails: {
-                EIPS: {
-                  1559: true,
+              networksMetadata: {
+                mainnet: {
+                  EIPS: { 1559: true },
+                  status: NetworkStatus.Unknown,
                 },
               },
             },
@@ -7405,11 +7333,11 @@ function lookupNetworkTests({
 
             await operation(controller);
 
-            expect(controller.state.networkDetails).toStrictEqual({
-              EIPS: {
-                1559: true,
-              },
-            });
+            expect(
+              controller.state.networksMetadata[
+                controller.state.selectedNetworkClientId
+              ].EIPS[1559],
+            ).toBe(true);
           },
         );
       });
@@ -7482,9 +7410,11 @@ function lookupNetworkTests({
 
           await operation(controller);
 
-          expect(controller.state.networkStatus).toBe(
-            NetworkStatus.Unavailable,
-          );
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].status,
+          ).toBe(NetworkStatus.Unavailable);
         },
       );
     });
@@ -7527,16 +7457,20 @@ function lookupNetworkTests({
               },
             ],
           });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS[1559],
+          ).toBe(false);
 
           await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS,
+          ).toStrictEqual({});
         },
       );
     });
@@ -7653,7 +7587,11 @@ function lookupNetworkTests({
 
             await operation(controller);
 
-            expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
+            expect(
+              controller.state.networksMetadata[
+                controller.state.selectedNetworkClientId
+              ].status,
+            ).toBe(NetworkStatus.Unknown);
           },
         );
       });
@@ -7735,7 +7673,11 @@ function lookupNetworkTests({
 
             await operation(controller);
 
-            expect(controller.state.networkStatus).toBe(NetworkStatus.Blocked);
+            expect(
+              controller.state.networksMetadata[
+                controller.state.selectedNetworkClientId
+              ].status,
+            ).toBe(NetworkStatus.Blocked);
           },
         );
       });
@@ -7838,16 +7780,20 @@ function lookupNetworkTests({
               },
             ],
           });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS[1559],
+          ).toBe(false);
 
           await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS,
+          ).toStrictEqual({});
         },
       );
     });
@@ -7872,7 +7818,11 @@ function lookupNetworkTests({
 
           await operation(controller);
 
-          expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].status,
+          ).toBe(NetworkStatus.Unknown);
         },
       );
     });
@@ -7915,16 +7865,20 @@ function lookupNetworkTests({
               },
             ],
           });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS[1559],
+          ).toBe(false);
 
           await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS,
+          ).toStrictEqual({});
         },
       );
     });
@@ -8040,7 +7994,11 @@ function lookupNetworkTests({
 
           await operation(controller);
 
-          expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].status,
+          ).toBe(NetworkStatus.Unknown);
         },
       );
     });
@@ -8083,16 +8041,19 @@ function lookupNetworkTests({
               },
             ],
           });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS[1559],
+          ).toBe(false);
 
           await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS,
+          ).toStrictEqual({});
         },
       );
     });
@@ -8211,9 +8172,11 @@ function lookupNetworkTests({
 
           await operation(controller);
 
-          expect(controller.state.networkStatus).toBe(
-            NetworkStatus.Unavailable,
-          );
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].status,
+          ).toBe(NetworkStatus.Unavailable);
         },
       );
     });
@@ -8246,16 +8209,19 @@ function lookupNetworkTests({
               },
             ],
           });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS[1559],
+          ).toBe(false);
 
           await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS,
+          ).toStrictEqual({});
         },
       );
     });
@@ -8384,7 +8350,11 @@ function lookupNetworkTests({
 
             await operation(controller);
 
-            expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
+            expect(
+              controller.state.networksMetadata[
+                controller.state.selectedNetworkClientId
+              ].status,
+            ).toBe(NetworkStatus.Unknown);
           },
         );
       });
@@ -8475,7 +8445,11 @@ function lookupNetworkTests({
 
             await operation(controller);
 
-            expect(controller.state.networkStatus).toBe(NetworkStatus.Blocked);
+            expect(
+              controller.state.networksMetadata[
+                controller.state.selectedNetworkClientId
+              ].status,
+            ).toBe(NetworkStatus.Blocked);
           },
         );
       });
@@ -8574,16 +8548,19 @@ function lookupNetworkTests({
               },
             ],
           });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS[1559],
+          ).toBe(false);
 
           await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS,
+          ).toStrictEqual({});
         },
       );
     });
@@ -8611,7 +8588,11 @@ function lookupNetworkTests({
 
           await operation(controller);
 
-          expect(controller.state.networkStatus).toBe(NetworkStatus.Unknown);
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].status,
+          ).toBe(NetworkStatus.Unknown);
         },
       );
     });
@@ -8644,16 +8625,19 @@ function lookupNetworkTests({
               },
             ],
           });
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {
-              1559: false,
-            },
-          });
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS[1559],
+          ).toBe(false);
 
           await operation(controller);
-          expect(controller.state.networkDetails).toStrictEqual({
-            EIPS: {},
-          });
+
+          expect(
+            controller.state.networksMetadata[
+              controller.state.selectedNetworkClientId
+            ].EIPS,
+          ).toStrictEqual({});
         },
       );
     });
