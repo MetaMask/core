@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [12.0.0]
+### Added
+- Add `NetworksMetadata` type ([#1559](https://github.com/MetaMask/core/pull/1559))
+
 ### Changed
 - **BREAKING:** Remove `NetworkDetails` type in favor of `NetworkMetadata` ([#1559](https://github.com/MetaMask/core/pull/1559))
   - This new type includes `NetworkDetails` plus a `status` property
@@ -16,9 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consumers will need to add a migration. This property should be set to either `providerConfig.type` or `providerConfig.id`.
 - Update `getEIP1559Compatibility` to return `undefined` when the latest block is unavailable ([#1457](https://github.com/MetaMask/core/pull/1457))
 - Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
-
-### Added
-- Add `NetworksMetadata` type ([#1559](https://github.com/MetaMask/core/pull/1559))
 
 ### Removed
 - **BREAKING:** Remove `networkDetails` from state ([#1559](https://github.com/MetaMask/core/pull/1559))
