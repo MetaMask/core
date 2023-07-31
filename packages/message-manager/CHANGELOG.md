@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.0]
+### Changed
+- Add Blockaid validation response to messages ([#1541](https://github.com/MetaMask/core/pull/1541))
+
 ## [7.2.0]
 ### Changed
 - Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
@@ -96,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.0...HEAD
+[7.3.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.2.0...@metamask/message-manager@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.1.0...@metamask/message-manager@7.2.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.2...@metamask/message-manager@7.1.0
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.1...@metamask/message-manager@7.0.2
