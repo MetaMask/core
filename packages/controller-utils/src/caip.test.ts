@@ -1,5 +1,3 @@
-import { CaipChainId } from '@metamask/utils';
-
 import {
   isEthCaipChainId,
   getCaipChainIdFromEthChainId,
@@ -22,20 +20,22 @@ describe('caip', () => {
 
   describe('getCaipChainIdFromEthChainId', () => {
     describe('valid hex chain id', () => {
-      it('returns a caip chain id string for eip155 with chain id in decimal', () => {
+      it('returns a caip chain id string for eip155', () => {
         expect(getCaipChainIdFromEthChainId('0x1')).toBe('eip155:1');
-        expect(getCaipChainIdFromEthChainId('0x1337')).toBe('eip155:1337');
+        expect(getCaipChainIdFromEthChainId('0x539')).toBe('eip155:1337');
       });
     });
 
     describe('invalid hex chain id', () => {
       it('returns an empty string', () => {
-        expect(getCaipChainIdFromEthChainId('0xZZZ')).toBe('');
+        expect(() => getCaipChainIdFromEthChainId('0xZZZ')).toThrow(
+          'Invalid chain ID "0xZZZ"',
+        );
       });
     });
 
     describe('decimal chain id', () => {
-      it('returns a caip chain id string for eip155 with chain id in decimal', () => {
+      it('returns a caip chain id string for eip155', () => {
         expect(getCaipChainIdFromEthChainId('1')).toBe('eip155:1');
         expect(getCaipChainIdFromEthChainId('1337')).toBe('eip155:1337');
       });
@@ -43,7 +43,9 @@ describe('caip', () => {
 
     describe('invalid decimal chain id', () => {
       it('returns an empty string', () => {
-        expect(getCaipChainIdFromEthChainId('ZZZ')).toBe('');
+        expect(() => getCaipChainIdFromEthChainId('ZZZ')).toThrow(
+          'Invalid chain ID "ZZZ"',
+        );
       });
     });
   });
