@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^7.1.0",
     "eth-rpc-errors": "^4.0.2",
     "immer": "^9.0.6",
     "nanoid": "^3.1.31"
