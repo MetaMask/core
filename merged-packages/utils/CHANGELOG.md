@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+### Added
+- CAIP-2 and CAIP-10 Types ([#116](https://github.com/MetaMask/utils/pull/116))
+
 ## [7.0.0]
 ### Added
 - Add `getKnownPropertyNames` function ([#111](https://github.com/MetaMask/utils/pull/111))
@@ -174,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/utils/compare/v7.0.0...v7.1.0
 [7.0.0]: https://github.com/MetaMask/utils/compare/v6.2.0...v7.0.0
 [6.2.0]: https://github.com/MetaMask/utils/compare/v6.1.0...v6.2.0
 [6.1.0]: https://github.com/MetaMask/utils/compare/v6.0.1...v6.1.0
