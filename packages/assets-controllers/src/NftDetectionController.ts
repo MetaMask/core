@@ -184,7 +184,7 @@ export class NftDetectionController extends BaseController<
    * Creates an NftDetectionController instance.
    *
    * @param options - The controller options.
-   * @param options.caipChainId - The caip chain ID of the current network.
+   * @param options.caipChainId - The CAIP chain ID of the current network.
    * @param options.onNftsStateChange - Allows subscribing to assets controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.

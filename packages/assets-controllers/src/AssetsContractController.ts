@@ -17,7 +17,7 @@ import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
 /**
  * Check if token detection is enabled for certain networks
  *
- * @param caipChainId - Caip chain id of network
+ * @param caipChainId - CAIP chain ID of network
  * @returns Whether the current network supports token detection
  */
 export const SINGLE_CALL_BALANCES_ADDRESS_BY_CAIP_CHAIN_ID: Record<

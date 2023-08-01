@@ -267,7 +267,7 @@ export class GasFeeController extends BaseControllerV2<
    * current network is compatible with the legacy gas price API.
    * @param options.getCurrentAccountEIP1559Compatibility - Determines whether or not the current
    * account is EIP-1559 compatible.
-   * @param options.getCaipChainId - Returns the current caip chain ID.
+   * @param options.getCaipChainId - Returns the current CAIP chain ID.
    * @param options.getProvider - Returns a network provider for the current network.
    * @param options.onNetworkStateChange - A function for registering an event handler for the
    * network state change event.

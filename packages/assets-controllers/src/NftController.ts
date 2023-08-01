@@ -895,7 +895,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * Creates an NftController instance.
    *
    * @param options - The controller options.
-   * @param options.caipChainId - The caip chain ID of the current network.
+   * @param options.caipChainId - The CAIP chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getERC721AssetName - Gets the name of the asset at the given address.
@@ -1357,7 +1357,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param address - Hex address of the NFT contract.
    * @param tokenId - Number that represents the id of the token.
    * @param selectedAddress - Hex address of the user account.
-   * @param caipChainId - Caip chain id of the current network.
+   * @param caipChainId - CAIP chain ID of the current network.
    * @returns Object containing the NFT and its position in the array
    */
   findNftByAddressAndTokenId(
@@ -1387,7 +1387,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param nft - NFT object to find the right NFT to updates.
    * @param updates - NFT partial object to update properties of the NFT.
    * @param selectedAddress - Hex address of the user account.
-   * @param caipChainId - Caip chain id of the current network.
+   * @param caipChainId - CAIP chain ID of the current network.
    */
   updateNft(
     nft: Nft,
@@ -1427,7 +1427,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    *
    * @param transactionId - NFT transaction id.
    * @param selectedAddress - Hex address of the user account.
-   * @param caipChainId - Caip chain id of the current network.
+   * @param caipChainId - CAIP chain ID of the current network.
    * @returns a boolean indicating if the reset was well succeded or not
    */
   resetNftTransactionStatusByTransactionId(

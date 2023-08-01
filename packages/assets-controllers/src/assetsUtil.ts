@@ -88,7 +88,7 @@ export const formatAggregatorNames = (aggregators: string[]) => {
  * Format token list assets to use image proxy from Codefi.
  *
  * @param params - Object that contains caipChainId and tokenAddress.
- * @param params.caipChainId - Caip chain id of network
+ * @param params.caipChainId - CAIP chain ID of network
  * @param params.tokenAddress - Address of token in mixed or lowercase.
  * @returns Formatted image url
  */
@@ -151,7 +151,7 @@ export enum SupportedTokenDetectionNetworks {
 /**
  * Check if token detection is enabled for certain networks.
  *
- * @param caipChainId - The caip chain id of the network
+ * @param caipChainId - The CAIP chain ID of the network
  * @returns Whether the current network supports token detection
  */
 export function isTokenDetectionSupportedForNetwork(
@@ -166,7 +166,7 @@ export function isTokenDetectionSupportedForNetwork(
  * Check if token list polling is enabled for a given network.
  * Currently this method is used to support e2e testing for consumers of this package.
  *
- * @param caipChainId - Caip chain id of network
+ * @param caipChainId - CAIP chain ID of network
  * @returns Whether the current network supports tokenlists
  */
 export function isTokenListSupportedForNetwork(

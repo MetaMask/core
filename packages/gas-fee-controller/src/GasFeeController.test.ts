@@ -722,7 +722,7 @@ describe('GasFeeController', () => {
         expect(estimateData).toMatchObject(mockDetermineGasFeeCalculations);
       });
 
-      it('should call determineGasFeeCalculations correctly when getCaipChainId returns a caip chain id input', async () => {
+      it('should call determineGasFeeCalculations correctly when getCaipChainId returns a CAIP chain ID input', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
           legacyAPIEndpoint: 'http://legacy.endpoint/<chain_id>',

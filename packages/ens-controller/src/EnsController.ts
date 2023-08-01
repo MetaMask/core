@@ -1,4 +1,4 @@
-// I'm not certain this file should be converted to use caip chain id. It is Eth specific.
+// I'm not certain this file should be converted to use CAIP chain ID. It is Eth specific.
 import type {
   ExternalProvider,
   JsonRpcFetchFunc,
@@ -43,7 +43,7 @@ const name = 'EnsController';
  * @type EnsEntry
  *
  * ENS entry representation
- * @property caipChainId - caip chain id of the associated chain
+ * @property caipChainId - CAIP chain ID of the associated chain
  * @property ensName - The ENS name
  * @property address - Hex address with the ENS name, or null
  */
@@ -178,7 +178,7 @@ export class EnsController extends BaseControllerV2<
   /**
    * Delete an ENS entry.
    *
-   * @param caipChainId - Parent caip chain id of the ENS entry to delete.
+   * @param caipChainId - Parent CAIP chain ID of the ENS entry to delete.
    * @param ensName - Name of the ENS entry to delete.
    * @returns Boolean indicating if the entry was deleted.
    */
@@ -205,7 +205,7 @@ export class EnsController extends BaseControllerV2<
   /**
    * Retrieve a DNS entry.
    *
-   * @param caipChainId - Parent caip chain id of the ENS entry to retrieve.
+   * @param caipChainId - Parent CAIP chain ID of the ENS entry to retrieve.
    * @param ensName - Name of the ENS entry to retrieve.
    * @returns The EnsEntry or null if it does not exist.
    */
@@ -224,7 +224,7 @@ export class EnsController extends BaseControllerV2<
    *
    * A null address indicates that the ENS name does not resolve.
    *
-   * @param caipChainId - Caip chain id of the associated chain.
+   * @param caipChainId - CAIP chain ID of the associated chain.
    * @param ensName - The ENS name.
    * @param address - Associated address (or null) to add or update.
    * @returns Boolean indicating if the entry was set.

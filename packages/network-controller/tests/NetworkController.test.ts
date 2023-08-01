@@ -5272,7 +5272,7 @@ describe('NetworkController', () => {
       },
     );
 
-    it('throws if the given chain ID is not a 0x-prefixed hex number', async () => {
+    it('throws if the given CAIP chain ID is not valid', async () => {
       await withController(async ({ controller }) => {
         await expect(
           controller.upsertNetworkConfiguration(
@@ -5287,10 +5287,7 @@ describe('NetworkController', () => {
               source: 'dapp',
             },
           ),
-        ).rejects.toThrow(
-          // this throws "Invalid CAIP chain ID." now. thoughts?
-          new Error('Value must be a hexadecimal string, starting with "0x".'),
-        );
+        ).rejects.toThrow(new Error('Invalid CAIP chain ID.'));
       });
     });
 

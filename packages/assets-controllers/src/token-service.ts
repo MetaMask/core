@@ -10,7 +10,7 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
 /**
  * Get the tokens URL for a specific network.
  *
- * @param caipChainId - The caip chain ID of the network the tokens requested are on.
+ * @param caipChainId - The CAIP chain ID of the network the tokens requested are on.
  * @returns The tokens URL.
  */
 function getTokensURL(caipChainId: CaipChainId) {
@@ -20,7 +20,7 @@ function getTokensURL(caipChainId: CaipChainId) {
 /**
  * Get the token metadata URL for the given network and token.
  *
- * @param caipChainId - The caip chain ID of the network the token is on.
+ * @param caipChainId - The CAIP chain ID of the network the token is on.
  * @param tokenAddress - The token address.
  * @returns The token metadata URL.
  */
@@ -40,7 +40,7 @@ const defaultTimeout = tenSecondsInMilliseconds;
  * Fetch the list of token metadata for a given network. This request is cancellable using the
  * abort signal passed in.
  *
- * @param caipChainId - The caip chain ID of the network the requested tokens are on.
+ * @param caipChainId - The CAIP chain ID of the network the requested tokens are on.
  * @param abortSignal - The abort signal used to cancel the request if necessary.
  * @param options - Additional fetch options.
  * @param options.timeout - The fetch timeout.
@@ -63,7 +63,7 @@ export async function fetchTokenList(
  * Fetch metadata for the token address provided for a given network. This request is cancellable
  * using the abort signal passed in.
  *
- * @param caipChainId - The caip chain ID of the network the token is on.
+ * @param caipChainId - The CAIP chain ID of the network the token is on.
  * @param tokenAddress - The address of the token to fetch metadata for.
  * @param abortSignal - The abort signal used to cancel the request if necessary.
  * @param options - Additional fetch options.

@@ -178,7 +178,7 @@ const createChainIdMiddleware = (
  *
  * @param args - The arguments.
  * @param args.blockTracker - The block tracker to use.
- * @param args.caipChainId - The caip chain id to use.
+ * @param args.caipChainId - The CAIP chain ID to use.
  * @param args.rpcApiMiddleware - Additional middleware.
  * @returns The collection of middleware that makes up the Infura client.
  */

@@ -170,7 +170,7 @@ export class TokensController extends BaseController<
    * Creates a TokensController instance.
    *
    * @param options - The controller options.
-   * @param options.caipChainId - The caip chain ID of the current network.
+   * @param options.caipChainId - The CAIP chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.

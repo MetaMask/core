@@ -97,7 +97,7 @@ export function validateTypedSignMessageDataV1(
  * the event of any validation error for eth_signTypedMessage_V3.
  *
  * @param messageData - TypedMessageParams object to validate.
- * @param currentCaipChainId - The current caip chain id.
+ * @param currentCaipChainId - The current CAIP chain ID.
  */
 export function validateTypedSignMessageDataV3V4(
   messageData: TypedMessageParams,

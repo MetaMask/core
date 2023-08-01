@@ -22,7 +22,7 @@ const DEFAULT_INTERVAL = 180000;
  * TokenDetection configuration
  * @property interval - Polling interval used to fetch new token rates
  * @property selectedAddress - Vault selected address
- * @property caipChainId - The caip chain ID of the current network
+ * @property caipChainId - The CAIP chain ID of the current network
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */

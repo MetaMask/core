@@ -407,7 +407,7 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  * assuming that `providerType` is "infura" (default: "mainnet").
  * @param options.customRpcUrl - The URL of the custom RPC endpoint, assuming
  * that `providerType` is "custom".
- * @param options.customCaipChainId - The caip chain id belonging to the custom RPC
+ * @param options.customCaipChainId - The CAIP chain ID belonging to the custom RPC
  * endpoint, assuming that `providerType` is "custom" (default: "eip155:1").
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.

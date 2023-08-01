@@ -102,7 +102,7 @@ export class TokenListController extends BaseControllerV2<
    * Creates a TokenListController instance.
    *
    * @param options - The controller options.
-   * @param options.caipChainId - The caip chain ID of the current network.
+   * @param options.caipChainId - The CAIP chain ID of the current network.
    * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.

@@ -209,7 +209,7 @@ describe('IncomingTransactionHelper', () => {
     });
 
     describe('returns latest block number', () => {
-      it('of transactions with matching caip chain ID and to address', async () => {
+      it('of transactions with matching CAIP chain ID and to address', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           remoteTransactionSource: createRemoteTransactionSourceMock([
@@ -228,7 +228,7 @@ describe('IncomingTransactionHelper', () => {
         );
       });
 
-      it('of transactions with matching network ID if no caip chain ID', async () => {
+      it('of transactions with matching network ID if no CAIP chain ID', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           remoteTransactionSource: createRemoteTransactionSourceMock([

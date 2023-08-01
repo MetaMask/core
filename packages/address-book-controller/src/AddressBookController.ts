@@ -33,7 +33,7 @@ export enum AddressType {
  * AddressBookEntry representation
  * @property address - Hex address of a recipient account
  * @property name - Nickname associated with this address
- * @property caipChainId - Caip chain id identifies the current chain
+ * @property caipChainId - CAIP chain ID identifies the current chain
  * @property memo - User's note about address
  * @property isEns - is the entry an ENS name
  * @property addressType - is the type of this address
@@ -95,7 +95,7 @@ export class AddressBookController extends BaseController<
   /**
    * Remove a contract entry by address.
    *
-   * @param caipChainId - Caip chain id identifies the current chain.
+   * @param caipChainId - CAIP chain ID identifies the current chain.
    * @param address - Recipient address to delete.
    * @returns Whether the entry was deleted.
    */
@@ -125,7 +125,7 @@ export class AddressBookController extends BaseController<
    *
    * @param address - Recipient address to add or update.
    * @param name - Nickname to associate with this address.
-   * @param caipChainId - Caip chain id identifies the current chain.
+   * @param caipChainId - CAIP chain ID identifies the current chain.
    * @param memo - User's note about address.
    * @param addressType - Contact's address type.
    * @returns Boolean indicating if the address was successfully set.
