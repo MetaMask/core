@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.1.0]
 ### Added
-- CAIP-2 and CAIP-10 Types ([#116](https://github.com/MetaMask/utils/pull/116))
+- Add CAIP-2 and CAIP-10 types ([#116](https://github.com/MetaMask/utils/pull/116))
 
 ## [7.0.0]
 ### Added
