@@ -1,3 +1,4 @@
+import { CaipChainId } from '@metamask/utils';
 import {
   isEthCaipChainId,
   getCaipChainIdFromEthChainId,

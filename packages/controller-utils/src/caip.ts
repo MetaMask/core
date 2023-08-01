@@ -10,12 +10,13 @@ import {
  * @param caipChainId - The caip chain ID to check for safety.
  * @returns Whether the given caip chain ID is valid for Ethereum chains.
  */
-export function isEthCaipChainId(caipChainId: CaipChainId): boolean {
+export function isEthCaipChainId(caipChainId: unknown): caipChainId is CaipChainId {
   if (!isCaipChainId(caipChainId)) {
     return false;
   }
-  const { namespace } = parseCaipChainId(caipChainId);
-  return namespace === 'eip155';
+  const { namespace, reference } = parseCaipChainId(caipChainId);
+  const chainId = parseInt(reference, 10)
+  return namespace === 'eip155' && Number.isFinite(chainId);
 }
 
 /**
