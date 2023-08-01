@@ -17,7 +17,7 @@ export function isEthCaipChainId(
   }
   const { namespace, reference } = parseCaipChainId(caipChainId);
   const chainId = parseInt(reference, 10);
-  return namespace === 'eip155' && Number.isFinite(chainId);
+  return namespace === 'eip155' && !Number.isNaN(chainId);
 }
 
 /**
