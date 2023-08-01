@@ -630,7 +630,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @returns The list of known network clients.
    */
-  getNetworkClientsById(): AutoManagedBuiltInNetworkClientRegistry &
+  getNetworkClientRegistry(): AutoManagedBuiltInNetworkClientRegistry &
     AutoManagedCustomNetworkClientRegistry {
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
@@ -640,6 +640,63 @@ export class NetworkController extends BaseControllerV2<
       autoManagedNetworkClientRegistry[NetworkClientType.Infura],
       autoManagedNetworkClientRegistry[NetworkClientType.Custom],
     );
+  }
+
+  /**
+   * Returns the Infura network client with the given ID.
+   *
+   * @param infuraNetworkClientId - An Infura network client ID.
+   * @returns The Infura network client.
+   * @throws If an Infura network client does not exist with the given ID.
+   */
+  getNetworkClientById(
+    infuraNetworkClientId: BuiltInNetworkClientId,
+  ): AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
+
+  /**
+   * Returns the custom network client with the given ID.
+   *
+   * @param customNetworkClientId - A custom network client ID.
+   * @returns The custom network client.
+   * @throws If a custom network client does not exist with the given ID.
+   */
+  getNetworkClientById(
+    customNetworkClientId: CustomNetworkClientId,
+  ): AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+
+  getNetworkClientById(
+    networkClientId: NetworkClientId,
+  ): AutoManagedNetworkClient<NetworkClientConfiguration> {
+    if (!networkClientId) {
+      throw new Error('No network client ID was provided.');
+    }
+
+    const autoManagedNetworkClientRegistry =
+      this.#ensureAutoManagedNetworkClientRegistryPopulated();
+
+    if (isInfuraProviderType(networkClientId)) {
+      const infuraNetworkClient =
+        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
+          networkClientId
+        ];
+      if (!infuraNetworkClient) {
+        throw new Error(
+          `No Infura network client was found with the ID "${networkClientId}".`,
+        );
+      }
+      return infuraNetworkClient;
+    }
+
+    const customNetworkClient =
+      autoManagedNetworkClientRegistry[NetworkClientType.Custom][
+        networkClientId
+      ];
+    if (!customNetworkClient) {
+      throw new Error(
+        `No custom network client was found with the ID "${networkClientId}".`,
+      );
+    }
+    return customNetworkClient;
   }
 
   /**
@@ -1182,7 +1239,7 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Before accessing or switching the network, the registry of network clients
    * needs to be populated. Otherwise, `#applyNetworkSelection` and
-   * `getNetworkClients` will throw an error. This method checks to see if the
+   * `getNetworkClientRegistry` will throw an error. This method checks to see if the
    * population step has happened yet, and if not, makes it happen.
    *
    * @returns The populated network client registry.
