@@ -115,9 +115,9 @@ export interface RemoteTransactionSourceRequest {
   apiKey?: string;
 
   /**
-   * The chainId of the current network.
+   * The caipChainId of the current network.
    */
-  currentChainId: Hex;
+  currentCaipChainId: CaipChainId;
 
   /**
    * The networkId of the current network.

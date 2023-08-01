@@ -1,8 +1,4 @@
-import {
-  parseEthCaipChainIdHex,
-  isSmartContractCode,
-  query,
-} from '@metamask/controller-utils';
+import { isSmartContractCode, query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { NetworkState } from '@metamask/network-controller';
 import type { CaipChainId } from '@metamask/utils';
@@ -78,7 +74,7 @@ export class IncomingTransactionHelper {
         address,
         networkType,
         limit: this.#transactionLimit,
-        currentChainId: parseEthCaipChainIdHex(currentCaipChainId),
+        currentCaipChainId,
         currentNetworkId,
         fromBlock,
         apiKey,

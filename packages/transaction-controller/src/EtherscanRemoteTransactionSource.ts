@@ -1,5 +1,5 @@
-import { BNToHex, buildEthCaipChainId } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import { BNToHex } from '@metamask/controller-utils';
+import type { CaipChainId } from '@metamask/utils';
 import { BN } from 'ethereumjs-util';
 import { v1 as random } from 'uuid';
 
@@ -44,7 +44,7 @@ export class EtherscanRemoteTransactionSource
       this.#normalizeTransaction(
         tx,
         request.currentNetworkId,
-        request.currentChainId,
+        request.currentCaipChainId,
       ),
     );
 
@@ -52,7 +52,7 @@ export class EtherscanRemoteTransactionSource
       this.#normalizeTokenTransaction(
         tx,
         request.currentNetworkId,
-        request.currentChainId,
+        request.currentCaipChainId,
       ),
     );
 
@@ -62,12 +62,12 @@ export class EtherscanRemoteTransactionSource
   #normalizeTransaction(
     txMeta: EtherscanTransactionMeta,
     currentNetworkId: string,
-    currentChainId: Hex,
+    currentCaipChainId: CaipChainId,
   ): TransactionMeta {
     const base = this.#normalizeTransactionBase(
       txMeta,
       currentNetworkId,
-      currentChainId,
+      currentCaipChainId,
     );
 
     return {
@@ -88,12 +88,12 @@ export class EtherscanRemoteTransactionSource
   #normalizeTokenTransaction(
     txMeta: EtherscanTokenTransactionMeta,
     currentNetworkId: string,
-    currentChainId: Hex,
+    currentCaipChainId: CaipChainId,
   ): TransactionMeta {
     const base = this.#normalizeTransactionBase(
       txMeta,
       currentNetworkId,
-      currentChainId,
+      currentCaipChainId,
     );
 
     return {
@@ -110,15 +110,13 @@ export class EtherscanRemoteTransactionSource
   #normalizeTransactionBase(
     txMeta: EtherscanTransactionMetaBase,
     currentNetworkId: string,
-    currentChainId?: Hex,
+    currentCaipChainId?: CaipChainId,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
 
     return {
       blockNumber: txMeta.blockNumber,
-      caipChainId: currentChainId
-        ? buildEthCaipChainId(currentChainId)
-        : undefined,
+      caipChainId: currentCaipChainId,
       id: random({ msecs: time }),
       networkID: currentNetworkId,
       status: TransactionStatus.confirmed,

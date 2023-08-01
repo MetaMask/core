@@ -1061,7 +1061,6 @@ export class NetworkController extends BaseControllerV2<
     const { rpcUrl, caipChainId, ticker } = sanitizedNetworkConfiguration;
 
     const chainId = parseEthCaipChainIdHex(caipChainId);
-    // not sure how to handle these checks
 
     assertIsStrictHexString(chainId);
     if (!isSafeChainId(chainId)) {
