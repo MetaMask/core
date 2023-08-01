@@ -11,7 +11,7 @@ import {
   isValidHexAddress,
   toChecksumHexAddress,
   NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
-  getEthChainIdIntFromCaipChainId,
+  parseEthCaipChainIdInt,
   isEthCaipChainId,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
@@ -144,7 +144,7 @@ export class EnsController extends BaseControllerV2<
           this.#getNetworkEnsSupport(currentNetwork)
         ) {
           this.#ethProvider = new Web3Provider(provider, {
-            chainId: getEthChainIdIntFromCaipChainId(
+            chainId: parseEthCaipChainIdInt(
               networkState.providerConfig.caipChainId,
             ),
             name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[currentNetwork],

@@ -3,8 +3,8 @@ import {
   BuiltInCaipChainId,
   NetworkType,
   NetworksTicker,
-  getCaipChainIdFromEthChainId,
-  getEthChainIdDecFromCaipChainId,
+  buildEthCaipChainId,
+  parseEthCaipChainId,
 } from '@metamask/controller-utils';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import type {
@@ -150,9 +150,7 @@ describe('TokenDetectionController', () => {
   };
 
   beforeEach(async () => {
-    const chainIdDecimal = getEthChainIdDecFromCaipChainId(
-      BuiltInCaipChainId.mainnet,
-    );
+    const chainIdDecimal = parseEthCaipChainId(BuiltInCaipChainId.mainnet);
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${chainIdDecimal}`)
       .reply(200, sampleTokenList)
@@ -467,7 +465,7 @@ describe('TokenDetectionController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkStateChangeListener!({
       providerConfig: {
-        caipChainId: getCaipChainIdFromEthChainId(polygonDecimalChainId),
+        caipChainId: buildEthCaipChainId(polygonDecimalChainId),
       },
     });
 

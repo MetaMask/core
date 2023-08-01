@@ -2,7 +2,7 @@ import type { BigNumber } from '@ethersproject/bignumber';
 import {
   isValidHexAddress,
   GANACHE_CAIP_CHAIN_ID,
-  getEthChainIdDecFromCaipChainId,
+  parseEthCaipChainId,
 } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { CaipChainId } from '@metamask/utils';
@@ -99,7 +99,7 @@ export const formatIconUrlWithProxy = ({
   caipChainId: CaipChainId;
   tokenAddress: string;
 }) => {
-  const chainIdDecimal = getEthChainIdDecFromCaipChainId(caipChainId);
+  const chainIdDecimal = parseEthCaipChainId(caipChainId);
   return `https://static.metafi.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 

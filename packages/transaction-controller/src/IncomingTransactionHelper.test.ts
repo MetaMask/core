@@ -1,6 +1,6 @@
 import {
   NetworkType,
-  getEthChainIdHexFromCaipChainId,
+  parseEthCaipChainIdHex,
   isSmartContractCode,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
@@ -92,7 +92,7 @@ describe('IncomingTransactionHelper', () => {
         expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
           address: RECONCILE_ARGS_MOCK.address,
           apiKey: RECONCILE_ARGS_MOCK.apiKey,
-          currentChainId: getEthChainIdHexFromCaipChainId(
+          currentChainId: parseEthCaipChainIdHex(
             NETWORK_STATE_MOCK.providerConfig.caipChainId,
           ),
           currentNetworkId: NETWORK_STATE_MOCK.networkId,

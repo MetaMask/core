@@ -1,9 +1,6 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import {
-  getEthChainIdDecFromCaipChainId,
-  safelyExecute,
-} from '@metamask/controller-utils';
+import { parseEthCaipChainId, safelyExecute } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkControllerGetStateAction,
@@ -392,9 +389,7 @@ export class GasFeeController extends BaseControllerV2<
     const isLegacyGasAPICompatible =
       this.getCurrentNetworkLegacyGasAPICompatibility();
 
-    const decimalChainId = getEthChainIdDecFromCaipChainId(
-      this.currentCaipChainId,
-    );
+    const decimalChainId = parseEthCaipChainId(this.currentCaipChainId);
 
     try {
       isEIP1559Compatible = await this.getEIP1559Compatibility();

@@ -1,4 +1,4 @@
-import { getEthChainIdDecFromCaipChainId } from '@metamask/controller-utils';
+import { parseEthCaipChainId } from '@metamask/controller-utils';
 
 import * as util from './utils';
 
@@ -218,7 +218,7 @@ describe('utils', () => {
           unexpectedChainId,
         ),
       ).toThrow(
-        `Cannot sign messages for chainId "${getEthChainIdDecFromCaipChainId(
+        `Cannot sign messages for chainId "${parseEthCaipChainId(
           mockedCurrentCaipChainId,
         )}", because MetaMask is switching networks.`,
       );
@@ -235,9 +235,9 @@ describe('utils', () => {
           caipChainId,
         ),
       ).toThrow(
-        `Provided chainId "${getEthChainIdDecFromCaipChainId(
+        `Provided chainId "${parseEthCaipChainId(
           mockedCurrentCaipChainId,
-        )}" must match the active chainId "${getEthChainIdDecFromCaipChainId(
+        )}" must match the active chainId "${parseEthCaipChainId(
           caipChainId,
         )}"`,
       );

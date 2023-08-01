@@ -1,7 +1,7 @@
 import {
   GANACHE_CAIP_CHAIN_ID,
   BuiltInCaipChainId,
-  getEthChainIdDecFromCaipChainId,
+  parseEthCaipChainId,
 } from '@metamask/controller-utils';
 
 import * as assetsUtil from './assetsUtil';
@@ -123,7 +123,7 @@ describe('assetsUtil', () => {
         caipChainId: BuiltInCaipChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${getEthChainIdDecFromCaipChainId(
+      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${parseEthCaipChainId(
         BuiltInCaipChainId.mainnet,
       )}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
