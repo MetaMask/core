@@ -276,7 +276,7 @@ describe('EnsController', () => {
       messenger,
     });
     expect(controller.set('eip155:1', name1, address1)).toBe(true);
-    expect(controller.get('eip155:1', name1)).toBe({
+    expect(controller.get('eip155:1', name1)).toStrictEqual({
       address: address1Checksum,
       caipChainId: 'eip155:1',
       ensName: name1,
