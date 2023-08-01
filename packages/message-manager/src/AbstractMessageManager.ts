@@ -1,7 +1,4 @@
-import type {
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { CaipChainId, Json } from '@metamask/utils';
 import { EventEmitter } from 'events';

@@ -1,8 +1,5 @@
 import type { CaipChainId, Hex } from '@metamask/utils';
-import {
-  parseCaipChainId,
-  isCaipChainId,
-} from '@metamask/utils';
+import { parseCaipChainId, isCaipChainId } from '@metamask/utils';
 
 /**
  * Checks whether the given value is a valid caip chain id string for Ethereum.
@@ -10,12 +7,14 @@ import {
  * @param caipChainId - The caip chain ID to check for safety.
  * @returns Whether the given caip chain ID is valid for Ethereum chains.
  */
-export function isEthCaipChainId(caipChainId: unknown): caipChainId is CaipChainId {
+export function isEthCaipChainId(
+  caipChainId: unknown,
+): caipChainId is CaipChainId {
   if (!isCaipChainId(caipChainId)) {
     return false;
   }
   const { namespace, reference } = parseCaipChainId(caipChainId);
-  const chainId = parseInt(reference, 10)
+  const chainId = parseInt(reference, 10);
   return namespace === 'eip155' && Number.isFinite(chainId);
 }
 
@@ -25,7 +24,7 @@ export function isEthCaipChainId(caipChainId: unknown): caipChainId is CaipChain
  * @param ethChainId - The eth chain ID in 0x prefixed hex or decimal string.
  * @returns a valid caip chain ID for an Ethereum chain.
  */
-export function getCaipChainIdFromEthChainId(ethChainId: string = ""): CaipChainId {
+export function getCaipChainIdFromEthChainId(ethChainId = ''): CaipChainId {
   const chainIdDecimal = ethChainId.startsWith('0x') // need to handle 0X?
     ? parseInt(ethChainId, 16).toString(10)
     : ethChainId;

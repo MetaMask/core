@@ -1,7 +1,11 @@
-import { getEthChainIdHexFromCaipChainId, isSmartContractCode, query } from '@metamask/controller-utils';
+import {
+  getEthChainIdHexFromCaipChainId,
+  isSmartContractCode,
+  query,
+} from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { NetworkState } from '@metamask/network-controller';
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 
 import type {
   RemoteTransactionSource,
@@ -59,7 +63,8 @@ export class IncomingTransactionHelper {
   }> {
     const { providerConfig, networkId: currentNetworkId } =
       this.#getNetworkState();
-    const { caipChainId: currentCaipChainId, type: networkType } = providerConfig;
+    const { caipChainId: currentCaipChainId, type: networkType } =
+      providerConfig;
 
     if (
       currentNetworkId === null ||

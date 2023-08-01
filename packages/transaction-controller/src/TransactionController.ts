@@ -31,7 +31,6 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
-import type { CaipChainId } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';

@@ -1,4 +1,7 @@
-import { BNToHex, getCaipChainIdFromEthChainId } from '@metamask/controller-utils';
+import {
+  BNToHex,
+  getCaipChainIdFromEthChainId,
+} from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { BN } from 'ethereumjs-util';
 import { v1 as random } from 'uuid';
@@ -114,10 +117,11 @@ export class EtherscanRemoteTransactionSource
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
 
-
     return {
       blockNumber: txMeta.blockNumber,
-      caipChainId: currentChainId ? getCaipChainIdFromEthChainId(currentChainId) : undefined,
+      caipChainId: currentChainId
+        ? getCaipChainIdFromEthChainId(currentChainId)
+        : undefined,
       id: random({ msecs: time }),
       networkID: currentNetworkId,
       status: TransactionStatus.confirmed,
