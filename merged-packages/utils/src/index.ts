@@ -1,6 +1,7 @@
 export * from './assert';
 export * from './base64';
 export * from './bytes';
+export * from './caip-types';
 export * from './checksum';
 export * from './coercers';
 export * from './collections';
