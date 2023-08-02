@@ -1,6 +1,6 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { safelyExecute } from '@metamask/controller-utils';
+import { logRejection, safelyExecute } from '@metamask/controller-utils';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
 
@@ -86,11 +86,11 @@ export class TokenBalancesController extends BaseController<
     this.initialize();
     onTokensStateChange(({ tokens, detectedTokens }) => {
       this.configure({ tokens: [...tokens, ...detectedTokens] });
-      this.updateBalances();
+      logRejection(this.updateBalances());
     });
     this.getSelectedAddress = getSelectedAddress;
     this.getERC20BalanceOf = getERC20BalanceOf;
-    this.poll();
+    logRejection(this.poll());
   }
 
   /**
@@ -103,7 +103,7 @@ export class TokenBalancesController extends BaseController<
     this.handle && clearTimeout(this.handle);
     await safelyExecute(() => this.updateBalances());
     this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
+      logRejection(this.poll(this.config.interval));
     }, this.config.interval);
   }
 

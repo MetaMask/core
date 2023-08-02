@@ -23,6 +23,7 @@ import {
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
+  logRejection,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
@@ -286,7 +287,7 @@ export class TransactionController extends BaseController<
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
-    this.poll();
+    logRejection(this.poll());
   }
 
   /**
@@ -299,7 +300,7 @@ export class TransactionController extends BaseController<
     this.handle && clearTimeout(this.handle);
     await safelyExecute(() => this.queryTransactionStatuses());
     this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
+      logRejection(this.poll(this.config.interval));
     }, this.config.interval);
   }
 

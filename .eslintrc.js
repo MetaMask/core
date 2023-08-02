@@ -58,7 +58,6 @@ module.exports = {
         // TODO: re-enble most of these rules
         '@typescript-eslint/await-thenable': 'warn',
         '@typescript-eslint/naming-convention': 'off',
-        '@typescript-eslint/no-floating-promises': 'warn',
         '@typescript-eslint/no-for-in-array': 'warn',
         '@typescript-eslint/no-loss-of-precision': 'warn',
         '@typescript-eslint/no-misused-promises': 'warn',

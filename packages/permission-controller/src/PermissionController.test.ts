@@ -4280,8 +4280,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        .mockImplementationOnce((..._args: any) => true)
-        .mockImplementationOnce((..._args: any) => undefined);
+        .mockImplementationOnce((..._args: any) => Promise.resolve(true))
+        .mockImplementationOnce((..._args: any) => Promise.resolve(undefined));
 
       const controller = getDefaultPermissionController(options);
 

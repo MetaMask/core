@@ -1,6 +1,11 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
+import {
+  OPENSEA_PROXY_URL,
+  ChainId,
+  toHex,
+  logRejection,
+} from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
@@ -218,10 +223,9 @@ describe('NftDetectionController', () => {
 
   it('should poll and detect NFTs on interval while on mainnet', async () => {
     await new Promise((resolve) => {
-      const mockNfts = sinon.stub(
-        NftDetectionController.prototype,
-        'detectNfts',
-      );
+      const mockNfts = sinon
+        .stub(NftDetectionController.prototype, 'detectNfts')
+        .resolves();
       const nftsDetectionController = new NftDetectionController(
         {
           chainId: ChainId.mainnet,
@@ -236,7 +240,9 @@ describe('NftDetectionController', () => {
         { interval: 10 },
       );
       nftsDetectionController.configure({ disabled: false });
-      nftsDetectionController.start();
+      // TODO: Mock timers to ensure that NFT detection is stopped after
+      // starting
+      logRejection(nftsDetectionController.start());
       expect(mockNfts.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockNfts.calledTwice).toBe(true);
@@ -427,7 +433,7 @@ describe('NftDetectionController', () => {
     const { chainId } = nftDetection.config;
 
     nftController.configure({ selectedAddress: '0x9' });
-    nftDetection.detectNfts();
+    logRejection(nftDetection.detectNfts());
     nftDetection.configure({ selectedAddress: '0x12' });
     nftController.configure({ selectedAddress: '0x12' });
     await new Promise((res) => setTimeout(() => res(true), 1000));
@@ -448,7 +454,7 @@ describe('NftDetectionController', () => {
       selectedAddress,
     });
     const { chainId } = nftController.config;
-    nftDetection.detectNfts();
+    logRejection(nftDetection.detectNfts());
     expect(
       nftController.state.allNfts[selectedAddress]?.[chainId],
     ).toBeUndefined();
@@ -462,7 +468,7 @@ describe('NftDetectionController', () => {
       selectedAddress,
     });
     const { chainId } = nftController.config;
-    nftDetection.detectNfts();
+    logRejection(nftDetection.detectNfts());
     expect(
       nftController.state.allNfts[selectedAddress]?.[chainId],
     ).toBeUndefined();

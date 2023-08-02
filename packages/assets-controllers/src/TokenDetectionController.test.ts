@@ -234,7 +234,7 @@ describe('TokenDetectionController', () => {
 
   it('should poll and detect tokens on interval while on supported networks', async () => {
     await new Promise(async (resolve) => {
-      const mockTokens = sinon.stub(tokenDetection, 'detectTokens');
+      const mockTokens = sinon.stub(tokenDetection, 'detectTokens').resolves();
       tokenDetection.configure({
         interval: 10,
       });

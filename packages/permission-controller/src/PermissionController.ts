@@ -14,6 +14,7 @@ import type {
 import { BaseControllerV2 } from '@metamask/base-controller';
 import type { NonEmptyArray } from '@metamask/controller-utils';
 import {
+  logRejection,
   isNonEmptyArray,
   isPlainObject,
   isValidJson,
@@ -2185,10 +2186,12 @@ export class PermissionController<
     }
 
     try {
-      this.messagingSystem.call(
-        'ApprovalController:acceptRequest',
-        id,
-        request,
+      logRejection(
+        this.messagingSystem.call(
+          'ApprovalController:acceptRequest',
+          id,
+          request,
+        ),
       );
     } catch (error) {
       // If accepting unexpectedly fails, reject the request and re-throw the

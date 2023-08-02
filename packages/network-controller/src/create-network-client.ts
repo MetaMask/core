@@ -1,5 +1,5 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
-import { ChainId, NetworkId } from '@metamask/controller-utils';
+import { logRejection, ChainId, NetworkId } from '@metamask/controller-utils';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
@@ -100,8 +100,9 @@ export function createNetworkClient(
 
   const provider = providerFromEngine(engine);
 
+  // TODO: Update this to be async in the next major version
   const destroy = () => {
-    blockTracker.destroy();
+    logRejection(blockTracker.destroy());
   };
 
   return { configuration: networkConfig, provider, blockTracker, destroy };

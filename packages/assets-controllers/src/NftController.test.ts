@@ -17,6 +17,7 @@ import {
   ApprovalType,
   ERC20,
   NetworksTicker,
+  logRejection,
 } from '@metamask/controller-utils';
 import type {
   NetworkState,
@@ -587,7 +588,9 @@ describe('NftController', () => {
       preferences.setSelectedAddress(OWNER_ADDRESS);
       changeNetwork(GOERLI);
 
-      nftController.watchNft(ERC721_NFT, ERC721, 'https://etherscan.io');
+      logRejection(
+        nftController.watchNft(ERC721_NFT, ERC721, 'https://etherscan.io'),
+      );
 
       await pendingRequest;
 
@@ -596,7 +599,7 @@ describe('NftController', () => {
       changeNetwork(SEPOLIA);
 
       // now accept the request
-      approvalController.accept(requestId);
+      logRejection(approvalController.accept(requestId));
       await acceptedRequest;
 
       // check that the NFT was added to the correct chainId/selectedAddress in state

@@ -1,5 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { toHex } from '@metamask/controller-utils';
+import { logRejection, toHex } from '@metamask/controller-utils';
 import type { NetworkControllerMessenger } from '@metamask/network-controller';
 import { NetworkController } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
@@ -113,7 +113,7 @@ describe('TokenBalancesController', () => {
     );
     await new Promise<void>((resolve) => {
       setTimeout(() => {
-        tokenBalances.poll(1338);
+        logRejection(tokenBalances.poll(1338));
         expect(mock.called).toBe(true);
         resolve();
       }, 100);
@@ -254,7 +254,9 @@ describe('TokenBalancesController', () => {
       },
       { interval: 1337 },
     );
-    const updateBalances = sinon.stub(tokenBalances, 'updateBalances');
+    const updateBalances = sinon
+      .stub(tokenBalances, 'updateBalances')
+      .resolves();
     await tokensController.addToken('0x00', 'FOO', 18);
     const { tokens } = tokensController.state;
     const found = tokens.filter((token: Token) => token.address === '0x00');

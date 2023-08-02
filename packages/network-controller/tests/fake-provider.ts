@@ -1,3 +1,4 @@
+import { logRejection } from '@metamask/controller-utils';
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider/dist/safe-event-emitter-provider';
 import type { JsonRpcRequest, JsonRpcResponse } from 'json-rpc-engine';
 import { JsonRpcEngine } from 'json-rpc-engine';
@@ -161,10 +162,10 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
       if (stub.delay) {
         originalSetTimeout(() => {
-          this.#handleRequest(stub, callback);
+          logRejection(this.#handleRequest(stub, callback));
         }, stub.delay);
       } else {
-        this.#handleRequest(stub, callback);
+        logRejection(this.#handleRequest(stub, callback));
       }
 
       this.calledStubs.push({ ...stub });

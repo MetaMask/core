@@ -6,6 +6,7 @@ import {
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
   toHex,
+  logRejection,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -314,7 +315,7 @@ export class TokenRatesController extends BaseController<
     // Poll using recursive `setTimeout` instead of `setInterval` so that
     // requests don't stack if they take longer than the polling interval
     this.handle = setTimeout(() => {
-      this.#poll();
+      logRejection(this.#poll());
     }, this.config.interval);
   }
 

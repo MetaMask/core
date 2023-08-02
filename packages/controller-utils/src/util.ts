@@ -539,3 +539,16 @@ function logOrRethrowError(error: any, codesToCatch: number[] = []) {
     throw error;
   }
 }
+
+/**
+ * Sometimes we want to call an async method, but we don't need to wait for it
+ * to complete before continuing. However, if the resulting promise fails
+ * unexpectedly, we also want to know about it. This function makes that
+ * possible by logging the rejection value that the promise may produce, but
+ * otherwise does not handle its resolved value.
+ *
+ * @param promise - A promise.
+ */
+export function logRejection(promise: Promise<any>): void {
+  promise.catch((error) => console.error(error));
+}
