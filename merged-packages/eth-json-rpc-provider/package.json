@@ -37,7 +37,7 @@
     "@metamask/eslint-config-nodejs": "^11.0.1",
     "@metamask/eslint-config-typescript": "^11.0.0",
     "@types/jest": "^28.1.6",
-    "@types/node": "^17.0.23",
+    "@types/node": "^16.18.39",
     "@typescript-eslint/eslint-plugin": "^5.43.0",
     "@typescript-eslint/parser": "^5.43.0",
     "depcheck": "^1.4.3",
@@ -60,7 +60,7 @@
   },
   "packageManager": "yarn@3.2.1",
   "engines": {
-    "node": ">=14.0.0"
+    "node": "^16.20 || ^18.16 || >=20"
   },
   "publishConfig": {
     "access": "public",
