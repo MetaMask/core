@@ -1,4 +1,5 @@
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
+
 import * as util from './utils';
 
 describe('utils', () => {
@@ -7,10 +8,10 @@ describe('utils', () => {
       '879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
     );
     const secondNormalized = util.normalizeMessageData('somedata');
-    expect(firstNormalized).toStrictEqual(
+    expect(firstNormalized).toBe(
       '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
     );
-    expect(secondNormalized).toStrictEqual('0x736f6d6564617461');
+    expect(secondNormalized).toBe('0x736f6d6564617461');
   });
 
   describe('validateSignMessageData', () => {
@@ -257,6 +258,18 @@ describe('utils', () => {
         util.validateTypedSignMessageDataV3V4(
           {
             data: dataTyped.replace(`"chainId":1`, `"chainId":"1"`),
+            from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          } as any,
+          mockedCurrentChainId,
+        ),
+      ).not.toThrow();
+    });
+
+    it('should not throw if data is correct (object format)', () => {
+      expect(() =>
+        util.validateTypedSignMessageDataV3V4(
+          {
+            data: JSON.parse(dataTyped),
             from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           } as any,
           mockedCurrentChainId,

@@ -1,10 +1,6 @@
-import {
-  createAsyncMiddleware,
-  createScaffoldMiddleware,
-  JsonRpcEngine,
-  mergeMiddleware,
-  JsonRpcMiddleware,
-} from 'json-rpc-engine';
+import type { InfuraNetworkType } from '@metamask/controller-utils';
+import { ChainId, NetworkId } from '@metamask/controller-utils';
+import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
   createBlockRefMiddleware,
@@ -14,49 +10,39 @@ import {
   createFetchMiddleware,
   createRetryOnEmptyMiddleware,
 } from '@metamask/eth-json-rpc-middleware';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import {
   providerFromEngine,
   providerFromMiddleware,
-  SafeEventEmitterProvider,
 } from '@metamask/eth-json-rpc-provider';
-import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import type { Hex } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
 import {
-  InfuraNetworkType,
-  ChainId,
-  NetworkId,
-} from '@metamask/controller-utils';
-import type { BlockTracker, Provider } from './types';
+  createAsyncMiddleware,
+  createScaffoldMiddleware,
+  JsonRpcEngine,
+  mergeMiddleware,
+} from 'json-rpc-engine';
+import type { JsonRpcMiddleware } from 'json-rpc-engine';
+
+import type {
+  BlockTracker,
+  NetworkClientConfiguration,
+  Provider,
+} from './types';
+import { NetworkClientType } from './types';
 
 const SECOND = 1000;
 
 /**
- * The type of network client that can be created.
+ * The pair of provider / block tracker that can be used to interface with the
+ * network and respond to new activity.
  */
-export enum NetworkClientType {
-  Custom = 'custom',
-  Infura = 'infura',
-}
-
-/**
- * A configuration object that can be used to create a provider engine for a
- * custom network.
- */
-type CustomNetworkConfiguration = {
-  chainId: Hex;
-  rpcUrl: string;
-  type: NetworkClientType.Custom;
-};
-
-/**
- * A configuration object that can be used to create a provider engine for an
- * Infura network.
- */
-type InfuraNetworkConfiguration = {
-  network: InfuraNetworkType;
-  infuraProjectId: string;
-  type: NetworkClientType.Infura;
+export type NetworkClient = {
+  configuration: NetworkClientConfiguration;
+  provider: Provider;
+  blockTracker: BlockTracker;
+  destroy: () => void;
 };
 
 /**
@@ -66,8 +52,8 @@ type InfuraNetworkConfiguration = {
  * @returns The network client.
  */
 export function createNetworkClient(
-  networkConfig: CustomNetworkConfiguration | InfuraNetworkConfiguration,
-): { provider: Provider; blockTracker: BlockTracker } {
+  networkConfig: NetworkClientConfiguration,
+): NetworkClient {
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
@@ -85,7 +71,7 @@ export function createNetworkClient(
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
   const blockTrackerOpts =
-    // eslint-disable-next-line node/no-process-env
+    // eslint-disable-next-line n/no-process-env
     process.env.IN_TEST && networkConfig.type === 'custom'
       ? { pollingInterval: SECOND }
       : {};
@@ -114,7 +100,11 @@ export function createNetworkClient(
 
   const provider = providerFromEngine(engine);
 
-  return { provider, blockTracker };
+  const destroy = () => {
+    blockTracker.destroy();
+  };
+
+  return { configuration: networkConfig, provider, blockTracker, destroy };
 }
 
 /**
@@ -197,7 +187,7 @@ function createCustomNetworkMiddleware({
   chainId: Hex;
   rpcApiMiddleware: any;
 }) {
-  // eslint-disable-next-line node/no-process-env
+  // eslint-disable-next-line n/no-process-env
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];

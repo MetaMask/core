@@ -1,4 +1,4 @@
-import { BN } from 'ethereumjs-util';
+import type { BN } from 'ethereumjs-util';
 
 export type EthBlock = {
   number: BN;

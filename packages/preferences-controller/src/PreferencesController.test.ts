@@ -16,6 +16,7 @@ describe('PreferencesController', () => {
         eth_sign: false,
       },
       isMultiAccountBalancesEnabled: true,
+      showTestNetworks: false,
     });
   });
 
@@ -23,8 +24,8 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     controller.addIdentities(['0x00']);
     controller.addIdentities(['0x00']);
-    expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
+    expect(controller.state.identities['0x00'].address).toBe('0x00');
+    expect(controller.state.identities['0x00'].name).toBe('Account 1');
     expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
@@ -54,32 +55,32 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     controller.addIdentities(['0x00', '0x01']);
     controller.syncIdentities(['0x00', '0x01']);
-    expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
+    expect(controller.state.identities['0x00'].address).toBe('0x00');
+    expect(controller.state.identities['0x00'].name).toBe('Account 1');
     expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
-    expect(controller.state.identities['0x01'].address).toStrictEqual('0x01');
-    expect(controller.state.identities['0x01'].name).toStrictEqual('Account 2');
+    expect(controller.state.identities['0x01'].address).toBe('0x01');
+    expect(controller.state.identities['0x01'].name).toBe('Account 2');
     expect(controller.state.identities['0x01'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
     controller.syncIdentities(['0x00']);
-    expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
+    expect(controller.state.identities['0x00'].address).toBe('0x00');
+    expect(controller.state.identities['0x00'].name).toBe('Account 1');
     expect(controller.state.selectedAddress).toBe('0x00');
   });
 
   it('should add new identities', () => {
     const controller = new PreferencesController();
     controller.updateIdentities(['0x00', '0x01']);
-    expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
+    expect(controller.state.identities['0x00'].address).toBe('0x00');
+    expect(controller.state.identities['0x00'].name).toBe('Account 1');
     expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
-    expect(controller.state.identities['0x01'].address).toStrictEqual('0x01');
-    expect(controller.state.identities['0x01'].name).toStrictEqual('Account 2');
+    expect(controller.state.identities['0x01'].address).toBe('0x01');
+    expect(controller.state.identities['0x01'].name).toBe('Account 2');
     expect(controller.state.identities['0x01'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
@@ -91,15 +92,13 @@ describe('PreferencesController', () => {
       { identities: { '0x01': { address: '0x01', name: 'Custom name' } } },
     );
     controller.updateIdentities(['0x00', '0x01']);
-    expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
+    expect(controller.state.identities['0x00'].address).toBe('0x00');
+    expect(controller.state.identities['0x00'].name).toBe('Account 1');
     expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
-    expect(controller.state.identities['0x01'].address).toStrictEqual('0x01');
-    expect(controller.state.identities['0x01'].name).toStrictEqual(
-      'Custom name',
-    );
+    expect(controller.state.identities['0x01'].address).toBe('0x01');
+    expect(controller.state.identities['0x01'].name).toBe('Custom name');
     expect(controller.state.identities['0x01'].importTime).toBeUndefined();
   });
 
@@ -131,7 +130,7 @@ describe('PreferencesController', () => {
       },
     );
     controller.updateIdentities(['0x00', '0x01']);
-    expect(controller.state.selectedAddress).toStrictEqual('0x01');
+    expect(controller.state.selectedAddress).toBe('0x01');
   });
 
   it('should update selected address to first identity if it was removed from identities', () => {
@@ -147,21 +146,19 @@ describe('PreferencesController', () => {
       },
     );
     controller.updateIdentities(['0x00', '0x01']);
-    expect(controller.state.selectedAddress).toStrictEqual('0x00');
+    expect(controller.state.selectedAddress).toBe('0x00');
   });
 
   it('should set IPFS gateway', () => {
     const controller = new PreferencesController();
     controller.setIpfsGateway('https://ipfs.infura.io/ipfs/');
-    expect(controller.state.ipfsGateway).toStrictEqual(
-      'https://ipfs.infura.io/ipfs/',
-    );
+    expect(controller.state.ipfsGateway).toBe('https://ipfs.infura.io/ipfs/');
   });
 
   it('should update selected address as checksummed', () => {
     const controller = new PreferencesController();
     controller.setSelectedAddress('0x95d2bc047b0ddec1e4a178eeb64d59f5e735cd0a');
-    expect(controller.state.selectedAddress).toStrictEqual(
+    expect(controller.state.selectedAddress).toBe(
       '0x95D2bC047B0dDEc1E4A178EeB64d59F5E735cd0A',
     );
   });
@@ -169,27 +166,31 @@ describe('PreferencesController', () => {
   it('should set useTokenDetection', () => {
     const controller = new PreferencesController();
     controller.setUseTokenDetection(true);
-    expect(controller.state.useTokenDetection).toStrictEqual(true);
+    expect(controller.state.useTokenDetection).toBe(true);
   });
 
   it('should set useNftDetection', () => {
     const controller = new PreferencesController();
     controller.setOpenSeaEnabled(true);
     controller.setUseNftDetection(true);
-    expect(controller.state.useNftDetection).toStrictEqual(true);
+    expect(controller.state.useNftDetection).toBe(true);
   });
 
   it('should set disabledRpcMethodPreferences', () => {
     const controller = new PreferencesController();
     controller.setDisabledRpcMethodPreference('eth_sign', true);
-    expect(
-      controller.state.disabledRpcMethodPreferences.eth_sign,
-    ).toStrictEqual(true);
+    expect(controller.state.disabledRpcMethodPreferences.eth_sign).toBe(true);
   });
 
   it('should set isMultiAccountBalancesEnabled', () => {
     const controller = new PreferencesController();
     controller.setIsMultiAccountBalancesEnabled(true);
-    expect(controller.state.isMultiAccountBalancesEnabled).toStrictEqual(true);
+    expect(controller.state.isMultiAccountBalancesEnabled).toBe(true);
+  });
+
+  it('should set showTestNetworks', () => {
+    const controller = new PreferencesController();
+    controller.setShowTestNetworks(true);
+    expect(controller.state.showTestNetworks).toBe(true);
   });
 });

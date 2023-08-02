@@ -1,13 +1,15 @@
-import { inspect, isDeepStrictEqual } from 'util';
-import {
-  JsonRpcEngine,
-  JsonRpcRequest,
-  JsonRpcResponse,
-} from 'json-rpc-engine';
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider/dist/safe-event-emitter-provider';
+import type { JsonRpcRequest, JsonRpcResponse } from 'json-rpc-engine';
+import { JsonRpcEngine } from 'json-rpc-engine';
+import { inspect, isDeepStrictEqual } from 'util';
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
+
+/**
+ * Represents the type of the `response` property in a fake provider stub.
+ */
+export type FakeProviderResponse = { result: any } | { error: string };
 
 /**
  * An object that allows specifying the behavior of a specific invocation of
@@ -42,14 +44,14 @@ const originalSetTimeout = global.setTimeout;
 export type FakeProviderStub = {
   request: {
     method: string;
-    params?: unknown[];
+    params?: any[];
   };
   delay?: number;
   discardAfterMatching?: boolean;
   beforeCompleting?: () => void | Promise<void>;
 } & (
   | {
-      response: { result: any } | { error: string };
+      response: FakeProviderResponse;
     }
   | {
       error: unknown;

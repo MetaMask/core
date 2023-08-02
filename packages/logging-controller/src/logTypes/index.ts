@@ -1,5 +1,5 @@
-import { EthSignLog } from './EthSignLog';
-import { GenericLog } from './GenericLog';
+import type { EthSignLog } from './EthSignLog';
+import type { GenericLog } from './GenericLog';
 
 /**
  * Union of all possible log data structures.

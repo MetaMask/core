@@ -1,12 +1,12 @@
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
-import {
-  Transaction,
+
+import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
-  TransactionStatus,
 } from './TransactionController';
+import type { Transaction, TransactionMeta } from './types';
+import { TransactionStatus } from './types';
 import * as util from './utils';
-import type { TransactionMeta } from './TransactionController';
 import { getAndFormatTransactionsForNonceTracker } from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
@@ -16,44 +16,6 @@ const FAIL = 'lol';
 const PASS = '0x1';
 
 describe('utils', () => {
-  describe('getEtherscanApiUrl', () => {
-    const networkType = 'mainnet';
-    const address = '0xC7D3BFDeA106B446Cf9f2Db354D496e6Dd8b2525';
-    const action = 'txlist';
-
-    it('should return a correctly structured url', () => {
-      const url = util.getEtherscanApiUrl(networkType, { address, action });
-      expect(url.indexOf(`&action=${action}`)).toBeGreaterThan(0);
-    });
-
-    it('should return a correctly structured url with from block', () => {
-      const fromBlock = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, {
-        address,
-        action,
-        startBlock: fromBlock,
-      });
-      expect(url.indexOf(`&startBlock=${fromBlock}`)).toBeGreaterThan(0);
-    });
-
-    it('should return a correctly structured url with testnet subdomain', () => {
-      const goerli = 'goerli';
-      const url = util.getEtherscanApiUrl(goerli, { address, action });
-      expect(url.indexOf(`https://api-${goerli}`)).toBe(0);
-    });
-
-    it('should return a correctly structured url with apiKey', () => {
-      const apiKey = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, {
-        address,
-        action,
-        startBlock: 'xxxxxx',
-        apikey: apiKey,
-      });
-      expect(url.indexOf(`&apikey=${apiKey}`)).toBeGreaterThan(0);
-    });
-  });
-
   it('normalizeTransaction', () => {
     const normalized = util.normalizeTransaction({
       data: 'data',
@@ -246,17 +208,15 @@ describe('utils', () => {
 
   describe('getIncreasedPriceHex', () => {
     it('should get increased price from number as hex', () => {
-      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toStrictEqual(
-        '0x5916a6d6',
-      );
+      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toBe('0x5916a6d6');
     });
   });
 
   describe('getIncreasedPriceFromExisting', () => {
     it('should get increased price from hex as hex', () => {
-      expect(
-        util.getIncreasedPriceFromExisting('0x50fd51da', 1.1),
-      ).toStrictEqual('0x5916a6d6');
+      expect(util.getIncreasedPriceFromExisting('0x50fd51da', 1.1)).toBe(
+        '0x5916a6d6',
+      );
     });
   });
 

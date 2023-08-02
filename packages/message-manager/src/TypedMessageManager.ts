@@ -1,15 +1,16 @@
 import { v1 as random } from 'uuid';
-import {
-  validateTypedSignMessageDataV1,
-  validateTypedSignMessageDataV3V4,
-} from './utils';
-import {
-  AbstractMessageManager,
+
+import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
+import {
+  validateTypedSignMessageDataV1,
+  validateTypedSignMessageDataV3V4,
+} from './utils';
 
 /**
  * @type TypedMessage
@@ -33,6 +34,13 @@ export interface TypedMessage extends AbstractMessage {
   rawSig?: string;
 }
 
+export type SignTypedDataMessageV3V4 = {
+  types: Record<string, unknown>;
+  domain: Record<string, unknown>;
+  primaryType: string;
+  message: unknown;
+};
+
 /**
  * @type TypedMessageParams
  *
@@ -43,7 +51,7 @@ export interface TypedMessage extends AbstractMessage {
  * @property origin? - Added for request origin identification
  */
 export interface TypedMessageParams extends AbstractMessageParams {
-  data: Record<string, unknown>[] | string;
+  data: Record<string, unknown>[] | string | SignTypedDataMessageV3V4;
 }
 
 /**
@@ -61,7 +69,7 @@ export interface TypedMessageParams extends AbstractMessageParams {
  */
 export interface TypedMessageParamsMetamask
   extends AbstractMessageParamsMetamask {
-  data: Record<string, unknown>[] | string;
+  data: TypedMessageParams['data'];
   metamaskId?: string;
   error?: string;
   version?: string;
@@ -105,6 +113,13 @@ export class TypedMessageManager extends AbstractMessageManager<
       validateTypedSignMessageDataV3V4(messageParams, currentChainId);
     }
 
+    if (
+      typeof messageParams.data !== 'string' &&
+      (version === 'V3' || version === 'V4')
+    ) {
+      messageParams.data = JSON.stringify(messageParams.data);
+    }
+
     const messageId = random();
     const messageParamsMetamask = {
       ...messageParams,
@@ -117,11 +132,12 @@ export class TypedMessageManager extends AbstractMessageManager<
     const messageData: TypedMessage = {
       id: messageId,
       messageParams,
+      securityAlertResponse: req?.securityAlertResponse,
       status: 'unapproved',
       time: Date.now(),
       type: 'eth_signTypedData',
     };
-    this.addMessage(messageData);
+    await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, messageParamsMetamask);
     return messageId;
   }

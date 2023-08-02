@@ -1,32 +1,39 @@
-import { bufferToHex } from 'ethereumjs-util';
+import { Chain, Common, Hardfork } from '@ethereumjs/common';
+import { TransactionFactory } from '@ethereumjs/tx';
+import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
+import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
+import { ControllerMessenger } from '@metamask/base-controller';
+import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import {
   normalize,
   recoverPersonalSignature,
   recoverTypedSignature,
   SignTypedDataVersion,
 } from '@metamask/eth-sig-util';
-import * as sinon from 'sinon';
-import Common from '@ethereumjs/common';
-import { TransactionFactory } from '@ethereumjs/tx';
-import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
-import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
-import * as uuid from 'uuid';
-import { isValidHexAddress, NetworkType } from '@metamask/controller-utils';
-import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import { ControllerMessenger } from '@metamask/base-controller';
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
 import {
-  AccountImportStrategy,
-  KeyringController,
-  KeyringObject,
+  isValidHexAddress,
+  type Hex,
+  type Keyring,
+  type Json,
+} from '@metamask/utils';
+import { bufferToHex } from 'ethereumjs-util';
+import * as sinon from 'sinon';
+import * as uuid from 'uuid';
+
+import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
   KeyringControllerState,
-  KeyringTypes,
   KeyringControllerOptions,
   KeyringControllerActions,
 } from './KeyringController';
+import {
+  AccountImportStrategy,
+  KeyringController,
+  KeyringTypes,
+} from './KeyringController';
+import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
 
 jest.mock('uuid', () => {
   return {
@@ -52,7 +59,7 @@ const privateKey =
   '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';
 const password = 'password123';
 
-const commonConfig = { chain: 'goerli', hardfork: 'berlin' };
+const commonConfig = { chain: Chain.Goerli, hardfork: Hardfork.Berlin };
 
 describe('KeyringController', () => {
   afterEach(() => {
@@ -269,7 +276,7 @@ describe('KeyringController', () => {
                 expect(initialSeedWord).not.toBe(currentSeedWord);
                 expect(
                   isValidHexAddress(
-                    cleanKeyringController.state.keyrings[0].accounts[0],
+                    cleanKeyringController.state.keyrings[0].accounts[0] as Hex,
                   ),
                 ).toBe(true);
                 expect(controller.state.vault).toBeDefined();
@@ -282,7 +289,7 @@ describe('KeyringController', () => {
               expect(controller.state.keyrings).not.toStrictEqual([]);
               const keyring = controller.state.keyrings[0];
               expect(keyring.accounts).not.toStrictEqual([]);
-              expect(keyring.type).toStrictEqual('HD Key Tree');
+              expect(keyring.type).toBe('HD Key Tree');
               expect(controller.state.vault).toBeDefined();
             });
           });
@@ -344,24 +351,42 @@ describe('KeyringController', () => {
   });
 
   describe('exportSeedPhrase', () => {
-    describe('when correct password is provided', () => {
-      it('should export seed phrase', async () => {
+    describe('when mnemonic is not exportable', () => {
+      it('should throw error', async () => {
         await withController(async ({ controller }) => {
-          const seed = await controller.exportSeedPhrase(password);
-          expect(seed).not.toBe('');
+          const primaryKeyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as Keyring<Json> & { mnemonic: string };
+
+          primaryKeyring.mnemonic = '';
+
+          await expect(controller.exportSeedPhrase(password)).rejects.toThrow(
+            "Can't get mnemonic bytes from keyring",
+          );
         });
       });
     });
 
-    describe('when wrong password is provided', () => {
-      it('should export seed phrase', async () => {
-        await withController(async ({ controller, encryptor }) => {
-          sinon
-            .stub(encryptor, 'decrypt')
-            .throws(new Error('Invalid password'));
-          await expect(controller.exportSeedPhrase('')).rejects.toThrow(
-            'Invalid password',
-          );
+    describe('when mnemonic is exportable', () => {
+      describe('when correct password is provided', () => {
+        it('should export seed phrase', async () => {
+          await withController(async ({ controller }) => {
+            const seed = await controller.exportSeedPhrase(password);
+            expect(seed).not.toBe('');
+          });
+        });
+      });
+
+      describe('when wrong password is provided', () => {
+        it('should export seed phrase', async () => {
+          await withController(async ({ controller, encryptor }) => {
+            sinon
+              .stub(encryptor, 'decrypt')
+              .throws(new Error('Invalid password'));
+            await expect(controller.exportSeedPhrase('')).rejects.toThrow(
+              'Invalid password',
+            );
+          });
         });
       });
     });
@@ -387,7 +412,9 @@ describe('KeyringController', () => {
           await withController(async ({ controller }) => {
             await expect(
               controller.exportAccount(password, ''),
-            ).rejects.toThrow(/^No keyring found for the requested account./u);
+            ).rejects.toThrow(
+              'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            );
           });
         });
       });
@@ -432,8 +459,9 @@ describe('KeyringController', () => {
           const normalizedInitialAccounts =
             controller.state.keyrings[0].accounts.map(normalize);
           const keyring = (await controller.getKeyringForAccount(
-            normalizedInitialAccounts[0],
-          )) as KeyringObject;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            normalizedInitialAccounts[0]!,
+          )) as Keyring<Json>;
           expect(keyring.type).toBe('HD Key Tree');
           expect(keyring.getAccounts()).toStrictEqual(
             normalizedInitialAccounts,
@@ -445,8 +473,12 @@ describe('KeyringController', () => {
     describe('when non-existing account is provided', () => {
       it('should throw error', async () => {
         await withController(async ({ controller }) => {
-          await expect(controller.getKeyringForAccount('0x0')).rejects.toThrow(
-            'No keyring found for the requested account. Error info: There are keyrings, but none match the address',
+          await expect(
+            controller.getKeyringForAccount(
+              '0x0000000000000000000000000000000000000000',
+            ),
+          ).rejects.toThrow(
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -459,7 +491,7 @@ describe('KeyringController', () => {
         await withController(async ({ controller }) => {
           const keyrings = controller.getKeyringsByType(
             KeyringTypes.hd,
-          ) as KeyringObject[];
+          ) as Keyring<Json>[];
           expect(keyrings).toHaveLength(1);
           expect(keyrings[0].type).toBe(KeyringTypes.hd);
           expect(keyrings[0].getAccounts()).toStrictEqual(
@@ -655,7 +687,7 @@ describe('KeyringController', () => {
      */
     it('should remove HD Key Tree keyring from state when single account associated with it is deleted', async () => {
       await withController(async ({ controller, initialState }) => {
-        const account = initialState.keyrings[0].accounts[0];
+        const account = initialState.keyrings[0].accounts[0] as Hex;
         await controller.removeAccount(account);
         expect(controller.state.keyrings).toHaveLength(0);
       });
@@ -697,12 +729,16 @@ describe('KeyringController', () => {
           [privateKey],
         );
 
-        await expect(controller.removeAccount('')).rejects.toThrow(
-          /^No keyring found for the requested account/u,
+        await expect(
+          controller.removeAccount(
+            '0x0000000000000000000000000000000000000000',
+          ),
+        ).rejects.toThrow(
+          'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
         );
 
-        await expect(controller.removeAccount('DUMMY_INPUT')).rejects.toThrow(
-          /^No keyring found for the requested account/u,
+        await expect(controller.removeAccount('0xDUMMY_INPUT')).rejects.toThrow(
+          'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
         );
       });
     });
@@ -741,7 +777,7 @@ describe('KeyringController', () => {
             from: '',
           }),
         ).rejects.toThrow(
-          'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
+          'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
         );
       });
     });
@@ -785,7 +821,7 @@ describe('KeyringController', () => {
             from: '',
           }),
         ).rejects.toThrow(
-          'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
+          'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
         );
       });
     });
@@ -794,6 +830,7 @@ describe('KeyringController', () => {
   describe('signTypedMessage', () => {
     it('should throw when given invalid version', async () => {
       await withController(
+        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
         { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
         async ({ controller, initialState }) => {
           const typedMsgParams = [
@@ -823,6 +860,7 @@ describe('KeyringController', () => {
 
     it('should sign typed message V1', async () => {
       await withController(
+        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
         { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
         async ({ controller, initialState }) => {
           const typedMsgParams = [
@@ -854,6 +892,7 @@ describe('KeyringController', () => {
 
     it('should sign typed message V3', async () => {
       await withController(
+        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
         { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
         async ({ controller, initialState }) => {
           const msgParams = {
@@ -910,6 +949,7 @@ describe('KeyringController', () => {
 
     it('should sign typed message V4', async () => {
       await withController(
+        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
         { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
         async ({ controller, initialState }) => {
           const msgParams = {
@@ -1045,7 +1085,7 @@ describe('KeyringController', () => {
           unsignedEthTx,
           account,
         );
-        expect(signedTx.v).not.toBeUndefined();
+        expect(signedTx.v).toBeDefined();
         expect(signedTx).not.toBe('');
       });
     });
@@ -1070,7 +1110,7 @@ describe('KeyringController', () => {
           expect(unsignedEthTx.v).toBeUndefined();
           await controller.signTransaction(unsignedEthTx, '');
         }).rejects.toThrow(
-          'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
+          'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
         );
       });
     });
@@ -1083,6 +1123,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller, initialState }) => {
         await expect(async () => {
           const account = initialState.keyrings[0].accounts[0];
+          // @ts-expect-error invalid transaction
           await controller.signTransaction({}, account);
         }).rejects.toThrow('tx.sign is not a function');
       });
@@ -1155,6 +1196,20 @@ describe('KeyringController', () => {
         expect(seedPhrase).toBeInstanceOf(Uint8Array);
       });
     });
+
+    it('should throw if mnemonic is not defined', async () => {
+      await withController(async ({ controller }) => {
+        const primaryKeyring = controller.getKeyringsByType(
+          KeyringTypes.hd,
+        )[0] as Keyring<Json> & { mnemonic: string };
+
+        primaryKeyring.mnemonic = '';
+
+        await expect(controller.verifySeedPhrase()).rejects.toThrow(
+          "Can't get mnemonic bytes from keyring",
+        );
+      });
+    });
   });
 
   describe('verifyPassword', () => {
@@ -1218,6 +1273,7 @@ describe('KeyringController', () => {
 
     beforeEach(async () => {
       signProcessKeyringController = await withController(
+        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
         { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
         ({ controller }) => controller,
       );
@@ -1454,22 +1510,19 @@ describe('KeyringController', () => {
             type: 2,
           },
           {
-            common: Common.forCustomChain(
-              NetworkType.mainnet,
-              {
-                name: 'goerli',
-                chainId: parseInt('5'),
-                networkId: parseInt('5'),
-              },
-              'london',
-            ),
+            common: Common.custom({
+              name: 'goerli',
+              chainId: parseInt('5'),
+              networkId: parseInt('5'),
+              defaultHardfork: 'london',
+            }),
           },
         );
         const signedTx = await signProcessKeyringController.signTransaction(
           tx,
           account,
         );
-        expect(signedTx.v).not.toBeUndefined();
+        expect(signedTx.v).toBeDefined();
         expect(signedTx).not.toBe('');
       });
     });
@@ -1730,7 +1783,6 @@ async function withController<ReturnValue>(
   const messenger = buildKeyringControllerMessenger();
   const controller = new KeyringController({
     encryptor,
-    cacheEncryptionKey: false,
     messenger,
     ...preferences,
     ...rest,

@@ -1,7 +1,8 @@
+import { Web3Provider } from '@ethersproject/providers';
+import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
-import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
-import { Web3Provider } from '@ethersproject/providers';
+
 import { ERC721Standard } from './ERC721Standard';
 
 const MAINNET_PROVIDER_HTTP = new HttpProvider(
@@ -24,12 +25,6 @@ describe('ERC721Standard', () => {
       chainId: 1,
     });
     erc721Standard = new ERC721Standard(MAINNET_PROVIDER);
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.restore();
-    nock.enableNetConnect();
   });
 
   it('should determine if contract supports interface correctly', async () => {

@@ -1,20 +1,18 @@
-import { BN } from 'ethereumjs-util';
-import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { Hex } from '@metamask/utils';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
-import { NetworkState } from '@metamask/network-controller';
+import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
+import type { BN } from 'ethereumjs-util';
+import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
+
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
-import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
+import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
 
 /**
  * Check if token detection is enabled for certain networks
@@ -176,6 +174,19 @@ export class AssetsContractController extends BaseController<
       throw new Error(MISSING_PROVIDER_ERROR);
     }
     return await this.erc20Standard.getTokenDecimals(address);
+  }
+
+  /**
+   * Query for the name for a given ERC20 asset.
+   *
+   * @param address - ERC20 asset contract address.
+   * @returns Promise resolving to the 'decimals'.
+   */
+  async getERC20TokenName(address: string): Promise<string> {
+    if (this.erc20Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
+    return await this.erc20Standard.getTokenName(address);
   }
 
   /**

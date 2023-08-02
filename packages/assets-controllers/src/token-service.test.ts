@@ -1,6 +1,7 @@
-import nock from 'nock';
-import { AbortController as WhatwgAbortController } from 'abort-controller';
 import { toHex } from '@metamask/controller-utils';
+import { AbortController as WhatwgAbortController } from 'abort-controller';
+import nock from 'nock';
+
 import {
   fetchTokenList,
   fetchTokenMetadata,
@@ -137,18 +138,6 @@ const sampleDecimalChainId = 1;
 const sampleChainId = toHex(sampleDecimalChainId);
 
 describe('Token service', () => {
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
-
-  afterEach(() => {
-    nock.cleanAll();
-  });
-
   describe('fetchTokenList', () => {
     it('should call the tokens api and return the list of tokens', async () => {
       const { signal } = new WhatwgAbortController();

@@ -1,22 +1,19 @@
-import * as sinon from 'sinon';
-import { BN } from 'ethereumjs-util';
-import { toHex } from '@metamask/controller-utils';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  TokensController,
-  TokensControllerMessenger,
-} from './TokensController';
-import { Token } from './TokenRatesController';
+import { toHex } from '@metamask/controller-utils';
+import type { NetworkControllerMessenger } from '@metamask/network-controller';
+import { NetworkController } from '@metamask/network-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
+import { BN } from 'ethereumjs-util';
+import * as sinon from 'sinon';
+
 import { AssetsContractController } from './AssetsContractController';
 import {
   BN as exportedBn,
   TokenBalancesController,
 } from './TokenBalancesController';
+import type { Token } from './TokenRatesController';
+import type { TokensControllerMessenger } from './TokensController';
+import { TokensController } from './TokensController';
 
 const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
@@ -147,6 +144,8 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      onTokenListStateChange: sinon.stub(),
+      getERC20TokenName: sinon.stub(),
       messenger: undefined as unknown as TokensControllerMessenger,
     });
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
@@ -184,6 +183,8 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      onTokenListStateChange: sinon.stub(),
+      getERC20TokenName: sinon.stub(),
       messenger: undefined as unknown as TokensControllerMessenger,
     });
     const errorMsg = 'Failed to get balance';
@@ -208,9 +209,7 @@ describe('TokenBalancesController', () => {
     const mytoken = getToken(tokenBalances, address);
     expect(mytoken?.balanceError).toBeInstanceOf(Error);
     expect(mytoken?.balanceError).toHaveProperty('message', errorMsg);
-    expect(
-      tokenBalances.state.contractBalances[address].toNumber(),
-    ).toStrictEqual(0);
+    expect(tokenBalances.state.contractBalances[address].toNumber()).toBe(0);
 
     getERC20BalanceOfStub.returns(new BN(1));
     await tokenBalances.updateBalances();
@@ -239,6 +238,8 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      onTokenListStateChange: sinon.stub(),
+      getERC20TokenName: sinon.stub(),
       messenger: undefined as unknown as TokensControllerMessenger,
     });
 

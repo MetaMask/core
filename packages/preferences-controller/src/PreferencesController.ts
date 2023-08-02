@@ -1,8 +1,5 @@
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 /**
@@ -40,6 +37,7 @@ export interface PreferencesState extends BaseState {
   disabledRpcMethodPreferences: {
     [methodName: string]: boolean;
   };
+  showTestNetworks: boolean;
 }
 
 /**
@@ -75,6 +73,7 @@ export class PreferencesController extends BaseController<
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
+      showTestNetworks: false,
     };
     this.initialize();
   }
@@ -160,7 +159,7 @@ export class PreferencesController extends BaseController<
     const newlyLost: { [address: string]: ContactEntry } = {};
 
     for (const identity in identities) {
-      if (addresses.indexOf(identity) === -1) {
+      if (!addresses.includes(identity)) {
         newlyLost[identity] = identities[identity];
         delete identities[identity];
       }
@@ -178,7 +177,7 @@ export class PreferencesController extends BaseController<
     });
     this.addIdentities(addresses);
 
-    if (addresses.indexOf(this.state.selectedAddress) === -1) {
+    if (!addresses.includes(this.state.selectedAddress)) {
       this.update({ selectedAddress: addresses[0] });
     }
 
@@ -290,6 +289,15 @@ export class PreferencesController extends BaseController<
    */
   setIsMultiAccountBalancesEnabled(isMultiAccountBalancesEnabled: boolean) {
     this.update({ isMultiAccountBalancesEnabled });
+  }
+
+  /**
+   * A setter for the user have the test networks visible/hidden.
+   *
+   * @param showTestNetworks - true to show test networks, false to hidden.
+   */
+  setShowTestNetworks(showTestNetworks: boolean) {
+    this.update({ showTestNetworks });
   }
 }
 

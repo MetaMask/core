@@ -1,14 +1,13 @@
-import { Mutex } from 'async-mutex';
-import type { Patch } from 'immer';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import {
   TESTNET_TICKER_SYMBOLS,
   FALL_BACK_VS_CURRENCY,
   safelyExecute,
 } from '@metamask/controller-utils';
+import { Mutex } from 'async-mutex';
+import type { Patch } from 'immer';
+
 import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare';
 
 /**
@@ -80,15 +79,15 @@ export class CurrencyRateController extends BaseControllerV2<
   CurrencyRateState,
   CurrencyRateMessenger
 > {
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   private intervalId?: ReturnType<typeof setTimeout>;
 
-  private intervalDelay;
+  private readonly intervalDelay;
 
-  private fetchExchangeRate;
+  private readonly fetchExchangeRate;
 
-  private includeUsdRate;
+  private readonly includeUsdRate;
 
   /**
    * A boolean that controls whether or not network requests can be made by the controller

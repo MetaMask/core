@@ -6,6 +6,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.1]
+### Changed
+- Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
+
+## [11.0.0]
+### Added
+- Add a `stop` method to stop polling
+
+### Changed
+- **BREAKING**: New required constructor parameters for the `TokenRatesController` ([#1497](https://github.com/MetaMask/core/pull/1497), [#1511](https://github.com/MetaMask/core/pull/1511))
+  - The new required parameters are `ticker`, `onSelectedAddress`, and `onPreferencesStateChange`
+- **BREAKING**: Remove `onCurrencyRateStateChange` constructor parameter from `TokenRatesController` ([#1496](https://github.com/MetaMask/core/pull/1496))
+- **BREAKING**: Disable `TokenRatesController` automatic polling ([#1501](https://github.com/MetaMask/core/pull/1501))
+  - Polling must be started explicitly by calling the `start` method
+  - The token rates are not updated upon state changes when polling is disabled.
+- **BREAKING**: Replace the `poll` method with `start` ([#1501](https://github.com/MetaMask/core/pull/1501))
+  - The `start` method does not offer a way to change the interval. That must be done by calling `.configure` instead
+- **BREAKING**: Remove `TokenRatecontroller` setter for `chainId` and `tokens` properties ([#1505](https://github.com/MetaMask/core/pull/1505))
+- Bump @metamask/abi-utils from 1.2.0 to 2.0.1 ([#1525](https://github.com/MetaMask/core/pull/1525))
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- Remove unnecessary `babel-runtime` dependency ([#1504](https://github.com/MetaMask/core/pull/1504))
+
+### Fixed
+- Fix bug where token rates were incorrect after first update if initialized with a non-Ethereum selected network ([#1497](https://github.com/MetaMask/core/pull/1497))
+- Fix bug where token rates would be invalid if event handlers were triggered in the wrong order ([#1496](https://github.com/MetaMask/core/pull/1496), [#1511](https://github.com/MetaMask/core/pull/1511))
+- Prevent redundant token rate updates ([#1512](https://github.com/MetaMask/core/pull/1512))
+
+## [10.0.0]
+### Added
+- The method `getERC20TokenName` has been added to `AssetsContractController` ([#1127](https://github.com/MetaMask/core/pull/1127))
+  - This method gets the token name from the token contract
+
+### Changed
+- **BREAKING:** The tokens controller now requires `onTokenListStateChange` and `getERC20TokenName` as constructor parameters ([#1127](https://github.com/MetaMask/core/pull/1127))
+  - The `getERC20TokenName` method is used to get the token name for tokens added via `wallet_watchAsset`
+  - The `onTokenListStateChange` method is used to trigger a name update when the token list changes. On each change, token names are copied from the token list if they're missing from token controller state.
+- **BREAKING:** The signature of the tokens controller method `addToken` has changed
+  - The fourth and fifth positional parameters (`image` and `interactingAddress`) have been replaced by an `options` object 
+  - The new options parameter includes the `image` and `interactingAddress` properties, and a new `name` property
+- The token detection controller now sets the token name when new tokens are detected ([#1127](https://github.com/MetaMask/core/pull/1127))
+- The `Token` type now includes an optional `name` field ([#1127](https://github.com/MetaMask/core/pull/1127))
+
+## [9.2.0]
+### Added
+- Add validation that the nft standard matches the type argument of a `wallet_watchAsset` request when type is 'ERC721' or 'ERC1155' ([#1455](https://github.com/MetaMask/core/pull/1455))
+
 ## [9.1.0]
 ### Added
 - Add a fifth argument, `source`, to NftController's `addNft` method ([#1417](https://github.com/MetaMask/core/pull/1417))
@@ -168,7 +214,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.1...HEAD
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.0...@metamask/assets-controllers@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@10.0.0...@metamask/assets-controllers@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.2.0...@metamask/assets-controllers@10.0.0
+[9.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.1.0...@metamask/assets-controllers@9.2.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.0.0...@metamask/assets-controllers@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@8.0.0...@metamask/assets-controllers@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@7.0.0...@metamask/assets-controllers@8.0.0

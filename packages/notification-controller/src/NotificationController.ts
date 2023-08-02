@@ -1,10 +1,8 @@
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import { hasProperty } from '@metamask/utils';
 import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
-import { hasProperty } from '@metamask/utils';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
 
 /**
  * @typedef NotificationControllerState
