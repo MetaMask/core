@@ -311,6 +311,7 @@ describe('NetworkController', () => {
                 network: networkType,
                 infuraProjectId: 'some-infura-project-id',
                 type: NetworkClientType.Infura,
+                chainId: BUILT_IN_NETWORKS[networkType].chainId
               });
               expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
             },
@@ -976,6 +977,7 @@ describe('NetworkController', () => {
                   network: networkType,
                   infuraProjectId: 'some-infura-project-id',
                   type: NetworkClientType.Infura,
+                  chainId: BUILT_IN_NETWORKS[networkType].chainId
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
               await controller.initializeProvider();
@@ -1063,6 +1065,7 @@ describe('NetworkController', () => {
                 network: NetworkType.goerli,
                 infuraProjectId: 'some-infura-project-id',
                 type: NetworkClientType.Infura,
+                chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId
               })
               .mockReturnValue(fakeNetworkClients[0])
               .calledWith({

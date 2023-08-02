@@ -1231,6 +1231,17 @@ export class NetworkController extends BaseControllerV2<
     });
   }
 
+  findNetworkClientIdByChainId(chainId: ChainId) {
+    const networkClients = this.getNetworkClientRegistry();
+    const networkConfigurationIndex = Object.values(networkClients).findIndex(
+      (networkClient) => {
+        return networkClient.configuration.chainId === chainId;
+      },
+    );
+    if (networkConfigurationIndex === -1) { return null; }
+    return Object.keys(networkClients)[networkConfigurationIndex];
+  }
+
   /**
    * Before accessing or switching the network, the registry of network clients
    * needs to be populated. Otherwise, `#applyNetworkSelection` and
@@ -1302,6 +1313,7 @@ export class NetworkController extends BaseControllerV2<
         type: NetworkClientType.Infura,
         network,
         infuraProjectId: this.#infuraProjectId,
+        chainId: BUILT_IN_NETWORKS[network].chainId
       };
       return [
         NetworkClientType.Infura,
