@@ -147,6 +147,8 @@ export enum SupportedTokenDetectionNetworks {
   avax = '0xa86a', // decimal: 43114
   aurora = '0x4e454152', // decimal: 1313161554
   europa_skale = '0x79f99296', // decimal: 2046399126
+  calypso_skale = '0x5d456c62', // decimal: 1564830818
+  nebula_skale = '0x585eb4b1', // decimal: 1482601649
 }
 
 /**
