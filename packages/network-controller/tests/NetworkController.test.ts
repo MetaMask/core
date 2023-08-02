@@ -1112,7 +1112,8 @@ describe('NetworkController', () => {
           const fakeNetworkClient = buildFakeClient();
           mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-          const networkClientId = controller.findNetworkClientIdByChainId("0x1");
+          const networkClientId =
+            controller.findNetworkClientIdByChainId('0x1');
           expect(networkClientId).toBe('mainnet');
         },
       );
@@ -1124,13 +1125,13 @@ describe('NetworkController', () => {
         async ({ controller }) => {
           const fakeNetworkClient = buildFakeClient();
           mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-          expect(() => controller.findNetworkClientIdByChainId("0xdeadbeef")).toThrowError(
-            "Couldn't find networkClientId for chainId"
-          );
+          expect(() =>
+            controller.findNetworkClientIdByChainId('0xdeadbeef'),
+          ).toThrow("Couldn't find networkClientId for chainId");
         },
       );
     });
-  })
+  });
 
   describe('getNetworkClientById', () => {
     describe('If passed an existing networkClientId', () => {
@@ -1166,7 +1167,9 @@ describe('NetworkController', () => {
             );
 
             expect(networkClient.configuration.chainId).toBe('0x1');
-            expect(networkClientRegistry.mainnet.configuration.chainId).toBe('0x1');
+            expect(networkClientRegistry.mainnet.configuration.chainId).toBe(
+              '0x1',
+            );
           },
         );
       });

@@ -1233,7 +1233,8 @@ export class NetworkController extends BaseControllerV2<
 
   /**
    * Searches for a network configuration ID with the given ChainID and returns it.
-   * @param chainId ChainId to search for
+   *
+   * @param chainId - ChainId to search for
    * @returns networkClientId of the network configuration with the given chainId
    */
   findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
