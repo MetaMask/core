@@ -1231,14 +1231,21 @@ export class NetworkController extends BaseControllerV2<
     });
   }
 
-  findNetworkClientIdByChainId(chainId: ChainId) {
+  /**
+   * Searches for a network configuration ID with the given ChainID and returns it.
+   * @param chainId ChainId to search for
+   * @returns networkClientId of the network configuration with the given chainId
+   */
+  findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
     const networkClients = this.getNetworkClientRegistry();
     const networkConfigurationIndex = Object.values(networkClients).findIndex(
       (networkClient) => {
         return networkClient.configuration.chainId === chainId;
       },
     );
-    if (networkConfigurationIndex === -1) { return null; }
+    if (networkConfigurationIndex === -1) {
+      throw new Error("Couldn't find networkClientId for chainId");
+    }
     return Object.keys(networkClients)[networkConfigurationIndex];
   }
 
@@ -1313,7 +1320,7 @@ export class NetworkController extends BaseControllerV2<
         type: NetworkClientType.Infura,
         network,
         infuraProjectId: this.#infuraProjectId,
-        chainId: BUILT_IN_NETWORKS[network].chainId
+        chainId: BUILT_IN_NETWORKS[network].chainId,
       };
       return [
         NetworkClientType.Infura,

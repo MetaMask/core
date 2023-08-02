@@ -1104,6 +1104,34 @@ describe('NetworkController', () => {
     });
   });
 
+  describe('findNetworkConfigurationByChainId', () => {
+    it('returns the network configuration for the given chainId', async () => {
+      await withController(
+        { infuraProjectId: 'some-infura-project-id' },
+        async ({ controller }) => {
+          const fakeNetworkClient = buildFakeClient();
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+
+          const networkClientId = controller.findNetworkClientIdByChainId("0x1");
+          expect(networkClientId).toBe('mainnet');
+        },
+      );
+    });
+
+    it('throws if the chainId doesnt exist in the configuration', async () => {
+      await withController(
+        { infuraProjectId: 'some-infura-project-id' },
+        async ({ controller }) => {
+          const fakeNetworkClient = buildFakeClient();
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+          expect(() => controller.findNetworkClientIdByChainId("0xdeadbeef")).toThrowError(
+            "Couldn't find networkClientId for chainId"
+          );
+        },
+      );
+    });
+  })
+
   describe('getNetworkClientById', () => {
     describe('If passed an existing networkClientId', () => {
       it('returns a valid built-in Infura NetworkClient', async () => {
@@ -1137,9 +1165,8 @@ describe('NetworkController', () => {
               NetworkType.mainnet,
             );
 
-            expect(networkClient.configuration.chainId).toBe(
-              '0x1',
-            );
+            expect(networkClient.configuration.chainId).toBe('0x1');
+            expect(networkClientRegistry.mainnet.configuration.chainId).toBe('0x1');
           },
         );
       });
@@ -1251,7 +1278,8 @@ describe('NetworkController', () => {
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[NetworkType['linea-goerli']].chainId,
+                  chainId:
+                    BUILT_IN_NETWORKS[NetworkType['linea-goerli']].chainId,
                   network: InfuraNetworkType['linea-goerli'],
                 },
               ],
@@ -1260,7 +1288,8 @@ describe('NetworkController', () => {
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[NetworkType['linea-mainnet']].chainId,
+                  chainId:
+                    BUILT_IN_NETWORKS[NetworkType['linea-mainnet']].chainId,
                   network: InfuraNetworkType['linea-mainnet'],
                 },
               ],
@@ -1360,7 +1389,8 @@ describe('NetworkController', () => {
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[NetworkType['linea-goerli']].chainId,
+                  chainId:
+                    BUILT_IN_NETWORKS[NetworkType['linea-goerli']].chainId,
                   network: InfuraNetworkType['linea-goerli'],
                 },
               ],
@@ -1369,7 +1399,8 @@ describe('NetworkController', () => {
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[NetworkType['linea-mainnet']].chainId,
+                  chainId:
+                    BUILT_IN_NETWORKS[NetworkType['linea-mainnet']].chainId,
                   network: InfuraNetworkType['linea-mainnet'],
                 },
               ],
@@ -1450,7 +1481,9 @@ describe('NetworkController', () => {
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']].chainId,
+                  chainId:
+                    BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
+                      .chainId,
                   network: InfuraNetworkType['linea-goerli'],
                 },
               ],
@@ -1459,7 +1492,9 @@ describe('NetworkController', () => {
                 {
                   type: NetworkClientType.Infura,
                   infuraProjectId: 'some-infura-project-id',
-                  chainId: BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']].chainId,
+                  chainId:
+                    BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
+                      .chainId,
                   network: InfuraNetworkType['linea-mainnet'],
                 },
               ],
@@ -1544,7 +1579,8 @@ describe('NetworkController', () => {
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
-                      chainId: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
+                      chainId:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
                       network: InfuraNetworkType.goerli,
                     },
                   ],
@@ -1561,7 +1597,9 @@ describe('NetworkController', () => {
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
-                      chainId: BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']].chainId,
+                      chainId:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
+                          .chainId,
                       network: InfuraNetworkType['linea-goerli'],
                     },
                   ],
@@ -1570,7 +1608,9 @@ describe('NetworkController', () => {
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
-                      chainId: BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']].chainId,
+                      chainId:
+                        BUILT_IN_NETWORKS[InfuraNetworkType['linea-mainnet']]
+                          .chainId,
                       network: InfuraNetworkType['linea-mainnet'],
                     },
                   ],
@@ -1579,7 +1619,8 @@ describe('NetworkController', () => {
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
-                      chainId: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
+                      chainId:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
                       network: InfuraNetworkType.mainnet,
                     },
                   ],
@@ -1588,7 +1629,8 @@ describe('NetworkController', () => {
                     {
                       type: NetworkClientType.Infura,
                       infuraProjectId: 'some-infura-project-id',
-                      chainId: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
+                      chainId:
+                        BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
                       network: InfuraNetworkType.sepolia,
                     },
                   ],
