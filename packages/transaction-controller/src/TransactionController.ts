@@ -53,6 +53,7 @@ import {
   validateGasValues,
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
+  transactionMatchesNetwork,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -384,6 +385,29 @@ export class TransactionController extends BaseController<
     return TransactionFactory.fromTxData(txParams, {
       common: this.getCommonConfiguration(),
       freeze: false,
+    });
+  }
+
+  /**
+   * Creates approvals for all unapproved transactions persisted.
+   */
+  initApprovals() {
+    const {
+      networkId,
+      providerConfig: { chainId },
+    } = this.getNetworkState();
+    const unapprovedTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.status === TransactionStatus.unapproved &&
+        transactionMatchesNetwork(transaction, chainId, networkId),
+    );
+
+    Object.values(unapprovedTxs).forEach((txMeta) => {
+      this.processApproval(txMeta, {
+        shouldShowRequest: false,
+      }).catch((error) => {
+        console.error('Error during persisted transaction approval', error);
+      });
     });
   }
 
@@ -848,12 +872,15 @@ export class TransactionController extends BaseController<
 
   private async processApproval(
     transactionMeta: TransactionMeta,
+    { shouldShowRequest = true } = {},
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      const acceptResult = await this.requestApproval(transactionMeta);
+      const acceptResult = await this.requestApproval(transactionMeta, {
+        shouldShowRequest,
+      });
       resultCallbacks = acceptResult.resultCallbacks;
 
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
@@ -1184,7 +1211,10 @@ export class TransactionController extends BaseController<
     return Number(txReceipt.status) === 0;
   }
 
-  private async requestApproval(txMeta: TransactionMeta): Promise<AddResult> {
+  private async requestApproval(
+    txMeta: TransactionMeta,
+    { shouldShowRequest } = { shouldShowRequest: true },
+  ): Promise<AddResult> {
     const id = this.getApprovalId(txMeta);
     const { origin } = txMeta;
     const type = ApprovalType.Transaction;
@@ -1199,7 +1229,7 @@ export class TransactionController extends BaseController<
         requestData,
         expectsResult: true,
       },
-      true,
+      shouldShowRequest,
     )) as Promise<AddResult>;
   }
 
