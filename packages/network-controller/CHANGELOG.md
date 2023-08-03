@@ -6,9 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [12.1.0]
+## [13.0.0]
 ### Added
 - Add `getNetworkClientById` ([#1562](https://github.com/MetaMask/core/pull/1562))
+- Add `findNetworkClientIdByChainId` ([#1571](https://github.com/MetaMask/core/pull/1571))
+
+### Changed
+- **BREAKING:** Add property `chainId` to `InfuraNetworkClientConfiguration` ([#1571](https://github.com/MetaMask/core/pull/1571))
 
 ## [12.0.0]
 ### Added
