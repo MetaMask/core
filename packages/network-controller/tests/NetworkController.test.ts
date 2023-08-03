@@ -1901,6 +1901,7 @@ describe('NetworkController', () => {
                     return networkClientId1.localeCompare(networkClientId2);
                   },
                 );
+
               expect(simplifiedNetworkClients).toStrictEqual([
                 [
                   'AAAA-AAAA-AAAA-AAAA',

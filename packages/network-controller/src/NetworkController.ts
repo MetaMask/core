@@ -1239,15 +1239,13 @@ export class NetworkController extends BaseControllerV2<
    */
   findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
     const networkClients = this.getNetworkClientRegistry();
-    const networkConfigurationIndex = Object.values(networkClients).findIndex(
-      (networkClient) => {
-        return networkClient.configuration.chainId === chainId;
-      },
+    const networkClientId = Object.entries(networkClients).find(
+      ([_, networkClient]) => networkClient.configuration.chainId === chainId,
     );
-    if (networkConfigurationIndex === -1) {
+    if (networkClientId === undefined) {
       throw new Error("Couldn't find networkClientId for chainId");
     }
-    return Object.keys(networkClients)[networkConfigurationIndex];
+    return networkClientId[0];
   }
 
   /**
