@@ -794,7 +794,7 @@ export class TransactionController extends BaseController<
    */
   wipeTransactions(ignoreNetwork?: boolean, address?: string) {
     /* istanbul ignore next */
-    if (ignoreNetwork) {
+    if (ignoreNetwork && !address) {
       this.update({ transactions: [] });
       return;
     }
@@ -808,7 +808,7 @@ export class TransactionController extends BaseController<
           chainId === currentChainId ||
           (!chainId && networkID === currentNetworkID);
         if (address) {
-          const isFromAddress = transaction.from === address;
+          const isFromAddress = transaction.from?.toLowerCase() === address.toLowerCase();
           return !(isCurrentNetwork && isFromAddress);
         }
         return !isCurrentNetwork;
