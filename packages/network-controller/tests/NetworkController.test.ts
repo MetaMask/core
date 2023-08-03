@@ -1797,7 +1797,7 @@ describe('NetworkController', () => {
                     'AAAA-AAAA-AAAA-AAAA',
                     {
                       type: NetworkClientType.Custom,
-                      chainId: '0x1',
+                      chainId: toHex(1),
                       rpcUrl: 'https://test.network',
                     },
                   ],
