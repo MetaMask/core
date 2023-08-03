@@ -1213,6 +1213,32 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
+   * Searches for a network configuration ID with the given ChainID and returns it.
+   *
+   * @param chainId - ChainId to search for
+   * @returns networkClientId of the network configuration with the given chainId
+   */
+  findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
+    const networkClients = this.getNetworkClientRegistry();
+    const networkClientEntry = Object.entries(networkClients).find(
+      ([_, networkClient]) => {
+        let networkConfigurationChainId;
+        if (networkClient.configuration.type === NetworkClientType.Custom) {
+          networkConfigurationChainId = networkClient.configuration.chainId;
+        } else {
+          networkConfigurationChainId =
+            BUILT_IN_NETWORKS[networkClient.configuration.network].chainId;
+        }
+        return networkConfigurationChainId === chainId;
+      },
+    );
+    if (networkClientEntry === undefined) {
+      throw new Error("Couldn't find networkClientId for chainId");
+    }
+    return networkClientEntry[0];
+  }
+
+  /**
    * Updates the controller using the given backup data.
    *
    * @param backup - The data that has been backed up.

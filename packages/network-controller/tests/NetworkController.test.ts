@@ -1101,6 +1101,34 @@ describe('NetworkController', () => {
     });
   });
 
+  describe('findNetworkConfigurationByChainId', () => {
+    it('returns the network configuration for the given chainId', async () => {
+      await withController(
+        { infuraProjectId: 'some-infura-project-id' },
+        async ({ controller }) => {
+          const fakeNetworkClient = buildFakeClient();
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+          const networkClientId =
+            controller.findNetworkClientIdByChainId('0x1');
+          expect(networkClientId).toBe('mainnet');
+        },
+      );
+    });
+
+    it('throws if the chainId doesnt exist in the configuration', async () => {
+      await withController(
+        { infuraProjectId: 'some-infura-project-id' },
+        async ({ controller }) => {
+          const fakeNetworkClient = buildFakeClient();
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+          expect(() =>
+            controller.findNetworkClientIdByChainId('0xdeadbeef'),
+          ).toThrow("Couldn't find networkClientId for chainId");
+        },
+      );
+    });
+  });
+
   describe('getNetworkClientById', () => {
     describe('If passed an existing networkClientId', () => {
       it('returns a valid built-in Infura NetworkClient', async () => {
