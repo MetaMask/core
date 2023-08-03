@@ -804,14 +804,19 @@ export class TransactionController extends BaseController<
     const newTransactions = this.state.transactions.filter(
       ({ networkID, chainId, transaction }) => {
         // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-        const isCurrentNetwork =
+        const isMatchingNetwork =
+          ignoreNetwork ||
           chainId === currentChainId ||
           (!chainId && networkID === currentNetworkID);
-        if (address) {
-          const isFromAddress = transaction.from?.toLowerCase() === address.toLowerCase();
-          return !(isCurrentNetwork && isFromAddress);
+
+        if (!isMatchingNetwork) {
+          return true;
         }
-        return !isCurrentNetwork;
+
+        const isMatchingAddress =
+          !address || transaction.from?.toLowerCase() === address.toLowerCase();
+
+        return !isMatchingAddress;
       },
     );
 
