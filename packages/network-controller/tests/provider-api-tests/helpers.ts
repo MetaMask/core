@@ -1,6 +1,5 @@
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
-import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
@@ -444,7 +443,6 @@ export async function withNetworkClient(
           network: infuraNetwork,
           infuraProjectId: MOCK_INFURA_PROJECT_ID,
           type: NetworkClientType.Infura,
-          chainId: BUILT_IN_NETWORKS[infuraNetwork].chainId,
         })
       : createNetworkClient({
           chainId: customChainId,

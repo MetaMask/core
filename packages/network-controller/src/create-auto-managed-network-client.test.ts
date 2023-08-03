@@ -1,4 +1,4 @@
-import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
+import { NetworkType } from '@metamask/controller-utils';
 import { promisify } from 'util';
 
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
@@ -23,7 +23,6 @@ describe('createAutoManagedNetworkClient', () => {
     {
       type: NetworkClientType.Infura,
       network: NetworkType.mainnet,
-      chainId: BUILT_IN_NETWORKS[NetworkType.mainnet].chainId,
       infuraProjectId: 'some-infura-project-id',
     } as const,
   ];

@@ -30,7 +30,6 @@ export type CustomNetworkClientConfiguration = {
  * network.
  */
 export type InfuraNetworkClientConfiguration = {
-  chainId: Hex;
   network: InfuraNetworkType;
   infuraProjectId: string;
   type: NetworkClientType.Infura;

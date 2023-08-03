@@ -1232,23 +1232,6 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Searches for a network configuration ID with the given ChainID and returns it.
-   *
-   * @param chainId - ChainId to search for
-   * @returns networkClientId of the network configuration with the given chainId
-   */
-  findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
-    const networkClients = this.getNetworkClientRegistry();
-    const networkClientEntry = Object.entries(networkClients).find(
-      ([_, networkClient]) => networkClient.configuration.chainId === chainId,
-    );
-    if (networkClientEntry === undefined) {
-      throw new Error("Couldn't find networkClientId for chainId");
-    }
-    return networkClientEntry[0];
-  }
-
-  /**
    * Before accessing or switching the network, the registry of network clients
    * needs to be populated. Otherwise, `#applyNetworkSelection` and
    * `getNetworkClientRegistry` will throw an error. This method checks to see if the
@@ -1319,7 +1302,6 @@ export class NetworkController extends BaseControllerV2<
         type: NetworkClientType.Infura,
         network,
         infuraProjectId: this.#infuraProjectId,
-        chainId: BUILT_IN_NETWORKS[network].chainId,
       };
       return [
         NetworkClientType.Infura,
