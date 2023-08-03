@@ -220,7 +220,7 @@ function waitForTransactionFinished(
   });
 }
 
-const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
+const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
 const GOERLI_PROVIDER = new HttpProvider(
   `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
@@ -1038,7 +1038,7 @@ describe('TransactionController', () => {
       controller.wipeTransactions();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1050,7 +1050,7 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(0);
     });
 
-    it('removes only txs from given address on current network', async () => {
+    it('removes only txs with given address on current network', async () => {
       const controller = newController();
 
       controller.wipeTransactions();
@@ -1111,7 +1111,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         chainId: toHex(5),
@@ -1137,7 +1137,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1160,7 +1160,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1177,7 +1177,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         chainId: toHex(5),
