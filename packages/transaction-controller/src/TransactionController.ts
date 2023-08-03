@@ -789,8 +789,10 @@ export class TransactionController extends BaseController<
    *
    * @param ignoreNetwork - Determines whether to wipe all transactions, or just those on the
    * current network. If `true`, all transactions are wiped.
+   * @param address - If specified, only transactions originating from this address will be
+   * wiped on current network.
    */
-  wipeTransactions(ignoreNetwork?: boolean) {
+  wipeTransactions(ignoreNetwork?: boolean, address?: string) {
     /* istanbul ignore next */
     if (ignoreNetwork) {
       this.update({ transactions: [] });
@@ -800,11 +802,15 @@ export class TransactionController extends BaseController<
       this.getNetworkState();
     const { chainId: currentChainId } = providerConfig;
     const newTransactions = this.state.transactions.filter(
-      ({ networkID, chainId }) => {
+      ({ networkID, chainId, transaction }) => {
         // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
         const isCurrentNetwork =
           chainId === currentChainId ||
           (!chainId && networkID === currentNetworkID);
+        if (address) {
+          const isFromAddress = transaction.from === address;
+          return !(isCurrentNetwork && isFromAddress);
+        }
         return !isCurrentNetwork;
       },
     );

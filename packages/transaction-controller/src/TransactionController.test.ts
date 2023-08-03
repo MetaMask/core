@@ -1049,6 +1049,61 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(0);
     });
+
+    it('removes only txs from given address on current network', async () => {
+      const controller = newController();
+
+      controller.wipeTransactions();
+
+      const mockFromAccount1 = '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockFromAccount2 = '0x2bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockDifferentChainId = toHex(1);
+      const mockCurrentChainId = toHex(5);
+
+      controller.state.transactions.push({
+        id: '1',
+        chainId: mockCurrentChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.state.transactions.push({
+        id: '2',
+        chainId: mockCurrentChainId,
+        transaction: {
+          from: mockFromAccount2,
+        },
+      } as any);
+
+      controller.state.transactions.push({
+        id: '3',
+        chainId: mockCurrentChainId,
+        transaction: {
+          from: mockFromAccount2,
+        },
+      } as any);
+
+      controller.state.transactions.push({
+        id: '4',
+        chainId: mockDifferentChainId,
+        transaction: {
+          from: mockFromAccount2,
+        },
+      } as any);
+
+      controller.wipeTransactions(false, mockFromAccount2);
+
+      const remainingTxsOnCurrentChain = controller.state.transactions.filter(
+        (tx) => tx.chainId === mockCurrentChainId,
+      );
+      const remainingTxsOnDifferentChain = controller.state.transactions.filter(
+        (tx) => tx.chainId === mockDifferentChainId,
+      );
+
+      expect(remainingTxsOnCurrentChain).toHaveLength(1);
+      expect(remainingTxsOnDifferentChain).toHaveLength(1);
+    });
   });
 
   describe('queryTransactionStatus', () => {
