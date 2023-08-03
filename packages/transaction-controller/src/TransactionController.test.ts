@@ -1450,4 +1450,29 @@ describe('TransactionController', () => {
       },
     );
   });
+
+  describe('initApprovals', () => {
+    it('creates approvals for all unapproved transaction', async () => {
+      const controller = newController();
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.unapproved,
+      );
+
+      controller.initApprovals();
+
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not create any approval when there is no unapproved transaction', async () => {
+      const controller = newController();
+      controller.initApprovals();
+
+      expect(delayMessengerMock.call).not.toHaveBeenCalled();
+    });
+  });
 });
