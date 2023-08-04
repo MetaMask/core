@@ -62,7 +62,6 @@ export const BuiltInCaipChainId = {
  * Decimal string network IDs of built-in Infura networks, by name.
  */
 export const InfuraNetworkId = {
-  // should these be eip'd?..
   [InfuraNetworkType.mainnet]: '1',
   [InfuraNetworkType.goerli]: '5',
   [InfuraNetworkType.sepolia]: '11155111',
