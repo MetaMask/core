@@ -17,6 +17,7 @@ describe('PreferencesController', () => {
       },
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
+      isIpfsGatewayEnabled: true,
     });
   });
 
