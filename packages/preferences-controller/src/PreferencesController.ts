@@ -38,6 +38,7 @@ export interface PreferencesState extends BaseState {
     [methodName: string]: boolean;
   };
   showTestNetworks: boolean;
+  isIpfsGatewayEnabled: boolean;
 }
 
 /**
@@ -74,6 +75,7 @@ export class PreferencesController extends BaseController<
         eth_sign: false,
       },
       showTestNetworks: false,
+      isIpfsGatewayEnabled: true,
     };
     this.initialize();
   }
@@ -298,6 +300,15 @@ export class PreferencesController extends BaseController<
    */
   setShowTestNetworks(showTestNetworks: boolean) {
     this.update({ showTestNetworks });
+  }
+
+  /**
+   * A setter for the user enable the IPFS gateway
+   *
+   * @param isIpfsGatewayEnabled - true to enable ipfs source
+   */
+  setIsIpfsGatewayEnabled(isIpfsGatewayEnabled: boolean) {
+    this.update({ isIpfsGatewayEnabled });
   }
 }
 

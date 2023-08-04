@@ -193,4 +193,9 @@ describe('PreferencesController', () => {
     controller.setShowTestNetworks(true);
     expect(controller.state.showTestNetworks).toBe(true);
   });
+  it('should set isIpfsGatewayEnabled', () => {
+    const controller = new PreferencesController();
+    controller.setIsIpfsGatewayEnabled(true);
+    expect(controller.state.showTestNetworks).toBe(true);
+  });
 });
