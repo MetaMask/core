@@ -223,8 +223,11 @@ export function transactionMatchesNetwork(
   chainId: Hex,
   networkId: string | null,
 ) {
-  if (typeof transaction.chainId !== 'undefined') {
+  if (transaction.chainId) {
     return transaction.chainId === chainId;
   }
-  return transaction.networkID === networkId;
+  if (transaction.networkID) {
+    return transaction.networkID === networkId;
+  }
+  return false;
 }

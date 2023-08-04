@@ -1456,29 +1456,42 @@ describe('TransactionController', () => {
 
   describe('initApprovals', () => {
     it('creates approvals for all unapproved transaction', async () => {
-      const controller = newController();
-      controller.state.transactions.push({
+      const transaction = {
         from: ACCOUNT_MOCK,
-        id: 'foo',
+        id: 'mocked',
         networkID: '5',
         status: TransactionStatus.unapproved,
         transactionHash: '1337',
+      };
+      const controller = newController();
+      controller.state.transactions.push(transaction as any);
+      controller.state.transactions.push({
+        ...transaction,
+        id: 'mocked1',
+        transactionHash: '1338',
       } as any);
-
-      expect(controller.state.transactions[0].status).toBe(
-        TransactionStatus.unapproved,
-      );
 
       controller.initApprovals();
 
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
       expect(delayMessengerMock.call).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
           expectsResult: true,
-          id: 'foo',
+          id: 'mocked',
           origin: 'metamask',
-          requestData: { txId: 'foo' },
+          requestData: { txId: 'mocked' },
+          type: 'transaction',
+        },
+        false,
+      );
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          expectsResult: true,
+          id: 'mocked1',
+          origin: 'metamask',
+          requestData: { txId: 'mocked1' },
           type: 'transaction',
         },
         false,

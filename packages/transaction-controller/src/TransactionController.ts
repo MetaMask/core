@@ -30,6 +30,7 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
@@ -345,7 +346,7 @@ export class TransactionController extends BaseController<
     origin?: string,
     deviceConfirmedOn?: WalletDevice,
   ): Promise<Result> {
-    const { providerConfig, networkId } = this.getNetworkState();
+    const { chainId, networkId } = this.getChainAndNetworkId();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
@@ -353,7 +354,7 @@ export class TransactionController extends BaseController<
     const transactionMeta: TransactionMeta = {
       id: random(),
       networkID: networkId ?? undefined,
-      chainId: providerConfig.chainId,
+      chainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
@@ -392,24 +393,21 @@ export class TransactionController extends BaseController<
    * Creates approvals for all unapproved transactions persisted.
    */
   initApprovals() {
-    const {
-      networkId,
-      providerConfig: { chainId },
-    } = this.getNetworkState();
+    const { networkId, chainId } = this.getChainAndNetworkId();
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
         transactionMatchesNetwork(transaction, chainId, networkId),
     );
 
-    Object.values(unapprovedTxs).forEach((txMeta) => {
+    for (const txMeta of unapprovedTxs) {
       this.processApproval(txMeta, {
         shouldShowRequest: false,
       }).catch((error) => {
         /* istanbul ignore next */
         console.error('Error during persisted transaction approval', error);
       });
-    });
+    }
   }
 
   /**
@@ -760,9 +758,8 @@ export class TransactionController extends BaseController<
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const { providerConfig, networkId: currentNetworkID } =
-      this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { chainId: currentChainId, networkId: currentNetworkID } =
+      this.getChainAndNetworkId();
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
@@ -821,9 +818,8 @@ export class TransactionController extends BaseController<
       this.update({ transactions: [] });
       return;
     }
-    const { providerConfig, networkId: currentNetworkID } =
-      this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { chainId: currentChainId, networkId: currentNetworkID } =
+      this.getChainAndNetworkId();
     const newTransactions = this.state.transactions.filter(
       ({ networkID, chainId }) => {
         // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
@@ -947,8 +943,7 @@ export class TransactionController extends BaseController<
   private async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
-    const { providerConfig } = this.getNetworkState();
-    const { chainId } = providerConfig;
+    const { chainId } = this.getChainAndNetworkId();
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
@@ -1214,7 +1209,7 @@ export class TransactionController extends BaseController<
 
   private async requestApproval(
     txMeta: TransactionMeta,
-    { shouldShowRequest } = { shouldShowRequest: true },
+    { shouldShowRequest }: { shouldShowRequest: boolean },
   ): Promise<AddResult> {
     const id = this.getApprovalId(txMeta);
     const { origin } = txMeta;
@@ -1256,6 +1251,16 @@ export class TransactionController extends BaseController<
     const isCompleted = this.isLocalFinalState(transaction.status);
 
     return { meta: transaction, isCompleted };
+  }
+
+  private getChainAndNetworkId(): {
+    networkId: string | null;
+    chainId: Hex;
+  } {
+    const { networkId, providerConfig } = this.getNetworkState();
+    const chainId = providerConfig?.chainId;
+
+    return { networkId, chainId };
   }
 }
 
