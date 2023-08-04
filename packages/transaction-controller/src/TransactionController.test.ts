@@ -1454,10 +1454,13 @@ describe('TransactionController', () => {
   describe('initApprovals', () => {
     it('creates approvals for all unapproved transaction', async () => {
       const controller = newController();
-      await controller.addTransaction({
+      controller.state.transactions.push({
         from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+        id: 'foo',
+        networkID: '5',
+        status: TransactionStatus.unapproved,
+        transactionHash: '1337',
+      } as any);
 
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
@@ -1465,7 +1468,18 @@ describe('TransactionController', () => {
 
       controller.initApprovals();
 
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          expectsResult: true,
+          id: 'foo',
+          origin: 'metamask',
+          requestData: { txId: 'foo' },
+          type: 'transaction',
+        },
+        false,
+      );
     });
 
     it('does not create any approval when there is no unapproved transaction', async () => {
