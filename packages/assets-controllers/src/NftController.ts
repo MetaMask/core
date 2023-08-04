@@ -158,6 +158,7 @@ export interface NftConfig extends BaseConfig {
   ipfsGateway: string;
   openSeaEnabled: boolean;
   useIPFSSubdomains: boolean;
+  isIpfsGatewayEnabled: boolean;
 }
 
 /**
@@ -352,12 +353,22 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
     tokenId: string,
   ): Promise<NftMetadata> {
-    const { ipfsGateway, useIPFSSubdomains } = this.config;
+    const { ipfsGateway, useIPFSSubdomains, isIpfsGatewayEnabled } =
+      this.config;
     const result = await this.getNftURIAndStandard(contractAddress, tokenId);
     let tokenURI = result[0];
     const standard = result[1];
 
     if (tokenURI.startsWith('ipfs://')) {
+      if (!isIpfsGatewayEnabled) {
+        return {
+          image: null,
+          name: null,
+          description: null,
+          standard: standard || null,
+          favorite: false,
+        };
+      }
       tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
     }
 
@@ -955,6 +966,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       openSeaEnabled: false,
       useIPFSSubdomains: true,
+      isIpfsGatewayEnabled: true,
     };
 
     this.defaultState = {
@@ -973,8 +985,18 @@ export class NftController extends BaseController<NftConfig, NftState> {
     this.messagingSystem = messenger;
 
     onPreferencesStateChange(
-      ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
-        this.configure({ selectedAddress, ipfsGateway, openSeaEnabled });
+      ({
+        selectedAddress,
+        ipfsGateway,
+        openSeaEnabled,
+        isIpfsGatewayEnabled,
+      }) => {
+        this.configure({
+          selectedAddress,
+          ipfsGateway,
+          openSeaEnabled,
+          isIpfsGatewayEnabled,
+        });
       },
     );
 
