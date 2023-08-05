@@ -29,7 +29,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:^",
+    "@metamask/base-controller": "^3.2.0",
     "eth-rpc-errors": "^4.0.2",
     "immer": "^9.0.6"
   },

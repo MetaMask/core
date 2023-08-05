@@ -29,8 +29,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:^",
-    "@metamask/controller-utils": "workspace:^",
+    "@metamask/base-controller": "^3.2.0",
+    "@metamask/controller-utils": "^4.3.1",
     "@metamask/eth-json-rpc-infura": "^8.1.1",
     "@metamask/eth-json-rpc-middleware": "^11.0.0",
     "@metamask/eth-json-rpc-provider": "^1.0.0",
