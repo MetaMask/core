@@ -18,7 +18,6 @@ import { errorCodes } from 'eth-rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   TransactionControllerMessenger,
   TransactionConfig,
@@ -370,12 +369,6 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const NONCE_MOCK = 12;
-const BLOCK_NUMBER_MOCK = '999';
-const ETHERSCAN_API_KEY_MOCK = 'testApiKey';
-
-const TRANSACTION_META_MOCK = {
-  transaction: { from: ACCOUNT_MOCK },
-} as TransactionMeta;
 
 describe('TransactionController', () => {
   let resultCallbacksMock: AcceptResultCallbacks;
@@ -422,11 +415,11 @@ describe('TransactionController', () => {
 
     return new TransactionController(
       {
+        blockTracker: finalNetwork.blockTracker,
         getNetworkState: () => finalNetwork.state,
+        messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
-        blockTracker: finalNetwork.blockTracker,
-        messenger,
         ...options,
       },
       {
@@ -1143,93 +1136,6 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('fetchAll', () => {
-    const mockIncomingTransactionHelperConstructor =
-      IncomingTransactionHelper as jest.MockedClass<
-        typeof IncomingTransactionHelper
-      >;
-
-    const mockIncomingTransactionHelper = {
-      reconcile: jest.fn(),
-    } as unknown as jest.Mocked<IncomingTransactionHelper>;
-
-    beforeEach(() => {
-      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
-        updateRequired: false,
-        transactions: [],
-      });
-
-      mockIncomingTransactionHelperConstructor.mockReturnValueOnce(
-        mockIncomingTransactionHelper,
-      );
-    });
-
-    it('reconciles incoming transactions using helper', async () => {
-      const controller = newController();
-      controller.state.transactions = [
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_MOCK,
-      ];
-
-      controller.fetchAll(ACCOUNT_MOCK, {
-        fromBlock: BLOCK_NUMBER_MOCK,
-        etherscanApiKey: ETHERSCAN_API_KEY_MOCK,
-      });
-
-      expect(mockIncomingTransactionHelper.reconcile).toHaveBeenCalledTimes(1);
-      expect(mockIncomingTransactionHelper.reconcile).toHaveBeenCalledWith({
-        address: ACCOUNT_MOCK,
-        apiKey: ETHERSCAN_API_KEY_MOCK,
-        fromBlock: BLOCK_NUMBER_MOCK,
-        localTransactions: [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK],
-      });
-    });
-
-    it('updates state with transactions from helper if update is required', async () => {
-      mockIncomingTransactionHelper.reconcile.mockReset();
-      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
-        updateRequired: true,
-        transactions: [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK],
-      });
-
-      const controller = newController();
-
-      await controller.fetchAll(ACCOUNT_MOCK);
-
-      expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_MOCK,
-      ]);
-    });
-
-    it('does not updates state if update is not required', async () => {
-      mockIncomingTransactionHelper.reconcile.mockReset();
-      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
-        updateRequired: false,
-        transactions: [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK],
-      });
-
-      const controller = newController();
-
-      await controller.fetchAll(ACCOUNT_MOCK);
-
-      expect(controller.state.transactions).toStrictEqual([]);
-    });
-
-    it('returns latest block number from helper', async () => {
-      mockIncomingTransactionHelper.reconcile.mockReset();
-      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
-        updateRequired: false,
-        transactions: [],
-        latestBlockNumber: BLOCK_NUMBER_MOCK,
-      });
-
-      const latestBlockNumber = await newController().fetchAll(ACCOUNT_MOCK);
-
-      expect(latestBlockNumber).toBe(BLOCK_NUMBER_MOCK);
-    });
-  });
-
   describe('handleMethodData', () => {
     it('loads method data from registry', async () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
@@ -1408,16 +1314,11 @@ describe('TransactionController', () => {
   });
 
   describe('getCommonConfiguration', () => {
-    it('should get the common  network configuration for mainnet', async () => {
-      const controller = new TransactionController({
-        getNetworkState: () => MOCK_MAINNET_NETWORK.state,
-        onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
-        provider: MOCK_MAINNET_NETWORK.provider,
-        blockTracker: MOCK_MAINNET_NETWORK.blockTracker,
-        messenger: messengerMock,
-      });
+    it('gets the common network configuration for mainnet', () => {
+      const controller = newController({ network: MOCK_MAINNET_NETWORK });
 
-      const config = await controller.getCommonConfiguration();
+      const config = controller.getCommonConfiguration();
+
       expect(config).toStrictEqual(
         new Common({ chain: 'mainnet', hardfork: HARDFORK }),
       );
@@ -1427,21 +1328,12 @@ describe('TransactionController', () => {
       ['linea-mainnet', MOCK_LINEA_MAINNET_NETWORK, 59144],
       ['linea-goerli', MOCK_LINEA_GOERLI_NETWORK, 59140],
     ])(
-      'should get a custom network configuration for %s',
-      async (
-        _,
-        { state, subscribe, provider, blockTracker }: MockNetwork,
-        chainId: number,
-      ) => {
-        const controller = new TransactionController({
-          getNetworkState: () => state,
-          onNetworkStateChange: subscribe,
-          provider,
-          blockTracker,
-          messenger: messengerMock,
-        });
+      'gets a custom network configuration for %s',
+      async (_, network: MockNetwork, chainId: number) => {
+        const controller = newController({ network });
 
         const config = controller.getCommonConfiguration();
+
         expect(config).toStrictEqual(
           Common.custom({
             name: undefined,
