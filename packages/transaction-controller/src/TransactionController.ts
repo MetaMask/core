@@ -66,16 +66,6 @@ export interface Result {
   transactionMeta: TransactionMeta;
 }
 
-/**
- * @type Fetch All Options
- * @property fromBlock - String containing a specific block decimal number
- * @property etherscanApiKey - API key to be used to fetch token transactions
- */
-export interface FetchAllOptions {
-  fromBlock?: string;
-  etherscanApiKey?: string;
-}
-
 export interface GasPriceValue {
   gasPrice: string;
 }
@@ -121,6 +111,7 @@ export interface MethodData {
 export interface TransactionState extends BaseState {
   transactions: TransactionMeta[];
   methodData: { [key: string]: MethodData };
+  lastFetchedBlockNumbers: { [key: string]: number };
 }
 
 /**
@@ -219,6 +210,12 @@ export class TransactionController extends BaseController<
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.getNetworkState - Gets the state of the network controller.
+   * @param options.getSelectedAddress - Gets the address of the currently selected account.
+   * @param options.incomingTransactions - Configuration options for incoming transaction support.
+   * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
+   * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
+   * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
+   * @param options.incomingTransactions.updateTransactions - Whether or not to update local transactions using remote transaction data.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
@@ -229,12 +226,21 @@ export class TransactionController extends BaseController<
     {
       blockTracker,
       getNetworkState,
+      getSelectedAddress,
+      incomingTransactions = {},
       messenger,
       onNetworkStateChange,
       provider,
     }: {
       blockTracker: BlockTrackerProxy;
       getNetworkState: () => NetworkState;
+      getSelectedAddress: () => string;
+      incomingTransactions: {
+        apiKey?: string;
+        includeTokenTransfers?: boolean;
+        isEnabled?: () => boolean;
+        updateTransactions?: boolean;
+      };
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: ProviderProxy;
@@ -243,6 +249,7 @@ export class TransactionController extends BaseController<
     state?: Partial<TransactionState>,
   ) {
     super(config, state);
+
     this.defaultConfig = {
       interval: 15000,
       txHistoryLimit: 40,
@@ -251,7 +258,9 @@ export class TransactionController extends BaseController<
     this.defaultState = {
       methodData: {},
       transactions: [],
+      lastFetchedBlockNumbers: {},
     };
+
     this.initialize();
     this.provider = provider;
     this.getNetworkState = getNetworkState;
@@ -277,16 +286,34 @@ export class TransactionController extends BaseController<
     });
 
     this.incomingTransactionHelper = new IncomingTransactionHelper({
+      blockTracker,
+      getCurrentAccount: getSelectedAddress,
       getNetworkState,
-      getEthQuery: () => this.ethQuery,
+      isEnabled: incomingTransactions.isEnabled,
+      lastFetchedBlockNumbers: this.state.lastFetchedBlockNumbers,
+      remoteTransactionSource: new EtherscanRemoteTransactionSource({
+        apiKey: incomingTransactions.apiKey,
+        includeTokenTransfers: incomingTransactions.includeTokenTransfers,
+      }),
       transactionLimit: this.config.txHistoryLimit,
-      remoteTransactionSource: new EtherscanRemoteTransactionSource(),
+      updateTransactions: incomingTransactions.updateTransactions,
     });
+
+    this.incomingTransactionHelper.hub.on(
+      'transactions',
+      this.onIncomingTransactions.bind(this),
+    );
+
+    this.incomingTransactionHelper.hub.on(
+      'updatedLastFetchedBlockNumbers',
+      this.onUpdatedLastFetchedBlockNumbers.bind(this),
+    );
 
     onNetworkStateChange(() => {
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
+
     this.poll();
   }
 
@@ -379,6 +406,18 @@ export class TransactionController extends BaseController<
       result: this.processApproval(transactionMeta),
       transactionMeta,
     };
+  }
+
+  startIncomingTransactionPolling() {
+    this.incomingTransactionHelper.start();
+  }
+
+  stopIncomingTransactionPolling() {
+    this.incomingTransactionHelper.stop();
+  }
+
+  async updateIncomingTransactions() {
+    await this.incomingTransactionHelper.update();
   }
 
   prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
@@ -819,38 +858,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Get transactions from Etherscan for the given address. By default all transactions are
-   * returned, but the `fromBlock` option can be given to filter just for transactions from a
-   * specific block onward.
-   *
-   * @param address - The address to fetch the transactions for.
-   * @param opt - Object containing optional data, fromBlock and Etherscan API key.
-   * @returns The block number of the latest incoming transaction.
-   */
-  async fetchAll(
-    address: string,
-    opt?: FetchAllOptions,
-  ): Promise<string | void> {
-    const { transactions: localTransactions } = this.state;
-
-    const { updateRequired, transactions, latestBlockNumber } =
-      await this.incomingTransactionHelper.reconcile({
-        address,
-        localTransactions,
-        fromBlock: opt?.fromBlock,
-        apiKey: opt?.etherscanApiKey,
-      });
-
-    if (updateRequired) {
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
-    }
-
-    return latestBlockNumber;
-  }
-
-  /**
    * Trim the amount of transactions that are set on the state. Checks
    * if the length of the tx history is longer then desired persistence
    * limit and then if it is removes the oldest confirmed or rejected tx.
@@ -1230,6 +1237,47 @@ export class TransactionController extends BaseController<
     const isCompleted = this.isLocalFinalState(transaction.status);
 
     return { meta: transaction, isCompleted };
+  }
+
+  private onIncomingTransactions({
+    added,
+    updated,
+  }: {
+    added: TransactionMeta[];
+    updated: TransactionMeta[];
+  }) {
+    const { transactions: currentTransactions } = this.state;
+
+    const updatedTransactions = [
+      ...added,
+      ...currentTransactions.map((originalTransaction) => {
+        const updatedTransaction = updated.find(
+          ({ transactionHash }) =>
+            transactionHash === originalTransaction.transactionHash,
+        );
+
+        return updatedTransaction ?? originalTransaction;
+      }),
+    ];
+
+    this.update({
+      transactions: this.trimTransactionsForState(updatedTransactions),
+    });
+
+    this.hub.emit('incomingTransactions', { added, updated });
+  }
+
+  private onUpdatedLastFetchedBlockNumbers({
+    lastFetchedBlockNumbers,
+    blockNumber,
+  }: {
+    lastFetchedBlockNumbers: {
+      [key: string]: number;
+    };
+    blockNumber: number;
+  }) {
+    this.update({ lastFetchedBlockNumbers });
+    this.hub.emit('incomingTransactionBlock', blockNumber);
   }
 }
 
