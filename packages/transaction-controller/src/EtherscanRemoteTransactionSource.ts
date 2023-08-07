@@ -16,12 +16,12 @@ import {
   fetchEtherscanTransactions,
 } from './etherscan';
 import { incomingTransactionsLogger as log } from './logger';
-import type {
-  RemoteTransactionSource,
-  RemoteTransactionSourceRequest,
-  TransactionMeta,
+import {
+  TransactionStatus,
+  type RemoteTransactionSource,
+  type RemoteTransactionSourceRequest,
+  type TransactionMeta,
 } from './types';
-import { TransactionStatus } from './types';
 
 /**
  * A RemoteTransactionSource that fetches transaction data from Etherscan.
