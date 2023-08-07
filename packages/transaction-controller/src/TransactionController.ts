@@ -31,6 +31,9 @@ import {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
+import { PollingBlockTracker as BlockTracker } from 'eth-block-tracker';
+import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import {
   normalizeTransaction,
   validateTransaction,
@@ -61,16 +64,6 @@ const HARDFORK = 'london';
 export interface Result {
   result: Promise<string>;
   transactionMeta: TransactionMeta;
-}
-
-/**
- * @type Fetch All Options
- * @property fromBlock - String containing a specific block decimal number
- * @property etherscanApiKey - API key to be used to fetch token transactions
- */
-export interface FetchAllOptions {
-  fromBlock?: string;
-  etherscanApiKey?: string;
 }
 
 export interface GasPriceValue {
@@ -118,6 +111,7 @@ export interface MethodData {
 export interface TransactionState extends BaseState {
   transactions: TransactionMeta[];
   methodData: { [key: string]: MethodData };
+  lastFetchedBlockNumbers: { [key: string]: number };
 }
 
 /**
@@ -140,6 +134,8 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   never
 >;
+
+export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
 
 /**
  * Multiplier used to determine a transaction's increased gas fee during cancellation
@@ -171,6 +167,8 @@ export class TransactionController extends BaseController<
   private messagingSystem: TransactionControllerMessenger;
 
   private incomingTransactionHelper: IncomingTransactionHelper;
+
+  private blockTracker: BlockTrackerProxy;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -211,28 +209,43 @@ export class TransactionController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.getNetworkState - Gets the state of the network controller.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getProvider - Returns a provider for the current network.
+   * @param options.getSelectedAddress - Gets the address of the currently selected account.
+   * @param options.incomingTransactions - Configuration options for incoming transaction support.
+   * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
+   * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
+   * @param options.incomingTransactions.updateTransactions - Whether or not to update local transactions using remote transaction data.
    * @param options.messenger - The controller messenger.
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
       getNetworkState,
-      onNetworkStateChange,
       getProvider,
+      getSelectedAddress,
+      incomingTransactions = {},
       messenger,
+      onNetworkStateChange,
     }: {
       getNetworkState: () => NetworkState;
-      onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       getProvider: () => NetworkController['provider'];
+      getSelectedAddress: () => string;
+      incomingTransactions: {
+        apiKey?: string;
+        includeTokenTransfers?: boolean;
+        isEnabled?: () => boolean;
+        updateTransactions?: boolean;
+      };
       messenger: TransactionControllerMessenger;
+      onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
   ) {
     super(config, state);
+
     this.defaultConfig = {
       interval: 15000,
       txHistoryLimit: 40,
@@ -241,24 +254,49 @@ export class TransactionController extends BaseController<
     this.defaultState = {
       methodData: {},
       transactions: [],
+      lastFetchedBlockNumbers: {},
     };
+
     this.initialize();
     const provider = getProvider();
+
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
     this.messagingSystem = messenger;
+    this.blockTracker = createEventEmitterProxy(new BlockTracker({ provider }));
+
     this.incomingTransactionHelper = new IncomingTransactionHelper({
+      blockTracker: this.blockTracker,
+      getCurrentAccount: getSelectedAddress,
       getNetworkState,
-      getEthQuery: () => this.ethQuery,
+      isEnabled: incomingTransactions.isEnabled,
+      lastFetchedBlockNumbers: this.state.lastFetchedBlockNumbers,
+      remoteTransactionSource: new EtherscanRemoteTransactionSource({
+        apiKey: incomingTransactions.apiKey,
+        includeTokenTransfers: incomingTransactions.includeTokenTransfers,
+      }),
       transactionLimit: this.config.txHistoryLimit,
-      remoteTransactionSource: new EtherscanRemoteTransactionSource(),
+      updateTransactions: incomingTransactions.updateTransactions,
     });
+
+    this.incomingTransactionHelper.hub.on(
+      'transactions',
+      this.onIncomingTransactions.bind(this),
+    );
+
+    this.incomingTransactionHelper.hub.on(
+      'updatedLastFetchedBlockNumbers',
+      this.onUpdatedLastFetchedBlockNumbers.bind(this),
+    );
+
     onNetworkStateChange(() => {
       const newProvider = getProvider();
       this.ethQuery = new EthQuery(newProvider);
       this.registry = new MethodRegistry({ provider: newProvider });
+      this.blockTracker.setTarget(new BlockTracker({ provider: newProvider }));
     });
+
     this.poll();
   }
 
@@ -361,6 +399,18 @@ export class TransactionController extends BaseController<
       }),
       transactionMeta,
     };
+  }
+
+  startIncomingTransactionPolling() {
+    this.incomingTransactionHelper.start();
+  }
+
+  stopIncomingTransactionPolling() {
+    this.incomingTransactionHelper.stop();
+  }
+
+  async updateIncomingTransactions() {
+    await this.incomingTransactionHelper.update();
   }
 
   prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
@@ -807,38 +857,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Get transactions from Etherscan for the given address. By default all transactions are
-   * returned, but the `fromBlock` option can be given to filter just for transactions from a
-   * specific block onward.
-   *
-   * @param address - The address to fetch the transactions for.
-   * @param opt - Object containing optional data, fromBlock and Etherscan API key.
-   * @returns The block number of the latest incoming transaction.
-   */
-  async fetchAll(
-    address: string,
-    opt?: FetchAllOptions,
-  ): Promise<string | void> {
-    const { transactions: localTransactions } = this.state;
-
-    const { updateRequired, transactions, latestBlockNumber } =
-      await this.incomingTransactionHelper.reconcile({
-        address,
-        localTransactions,
-        fromBlock: opt?.fromBlock,
-        apiKey: opt?.etherscanApiKey,
-      });
-
-    if (updateRequired) {
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
-    }
-
-    return latestBlockNumber;
-  }
-
-  /**
    * Trim the amount of transactions that are set on the state. Checks
    * if the length of the tx history is longer then desired persistence
    * limit and then if it is removes the oldest confirmed or rejected tx.
@@ -1220,6 +1238,47 @@ export class TransactionController extends BaseController<
     const isCompleted = this.isLocalFinalState(transaction.status);
 
     return { meta: transaction, isCompleted };
+  }
+
+  private onIncomingTransactions({
+    added,
+    updated,
+  }: {
+    added: TransactionMeta[];
+    updated: TransactionMeta[];
+  }) {
+    const { transactions: currentTransactions } = this.state;
+
+    const updatedTransactions = [
+      ...added,
+      ...currentTransactions.map((originalTransaction) => {
+        const updatedTransaction = updated.find(
+          ({ transactionHash }) =>
+            transactionHash === originalTransaction.transactionHash,
+        );
+
+        return updatedTransaction ?? originalTransaction;
+      }),
+    ];
+
+    this.update({
+      transactions: this.trimTransactionsForState(updatedTransactions),
+    });
+
+    this.hub.emit('incomingTransactions', { added, updated });
+  }
+
+  private onUpdatedLastFetchedBlockNumbers({
+    lastFetchedBlockNumbers,
+    blockNumber,
+  }: {
+    lastFetchedBlockNumbers: {
+      [key: string]: number;
+    };
+    blockNumber: number;
+  }) {
+    this.update({ lastFetchedBlockNumbers });
+    this.hub.emit('incomingTransactionBlock', blockNumber);
   }
 }
 
