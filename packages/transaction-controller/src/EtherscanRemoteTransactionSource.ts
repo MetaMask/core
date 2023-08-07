@@ -2,10 +2,13 @@ import { BNToHex } from '@metamask/controller-utils';
 import { BN } from 'ethereumjs-util';
 import { v1 as random } from 'uuid';
 
+import { ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
 import type {
   EtherscanTokenTransactionMeta,
   EtherscanTransactionMeta,
   EtherscanTransactionMetaBase,
+  EtherscanTransactionRequest,
+  EtherscanTransactionResponse,
 } from './etherscan';
 import {
   fetchEtherscanTokenTransactions,
@@ -18,23 +21,58 @@ import type {
 } from './types';
 import { TransactionStatus } from './types';
 
+/**
+ * A RemoteTransactionSource that fetches transaction data from Etherscan.
+ */
 export class EtherscanRemoteTransactionSource
   implements RemoteTransactionSource
 {
+  #apiKey?: string;
+
+  #includeTokenTransfers: boolean;
+
+  constructor({
+    apiKey,
+    includeTokenTransfers,
+  }: { apiKey?: string; includeTokenTransfers?: boolean } = {}) {
+    this.#apiKey = apiKey;
+    this.#includeTokenTransfers = includeTokenTransfers ?? true;
+  }
+
+  isSupportedNetwork(chainId: string, _networkId: string): boolean {
+    return Object.keys(ETHERSCAN_SUPPORTED_NETWORKS).includes(chainId);
+  }
+
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {
+    const etherscanRequest: EtherscanTransactionRequest = {
+      ...request,
+      apiKey: this.#apiKey,
+      chainId: request.currentChainId,
+    };
+
+    const transactionPromise = fetchEtherscanTransactions(etherscanRequest);
+
+    const tokenTransactionPromise = this.#includeTokenTransfers
+      ? fetchEtherscanTokenTransactions(etherscanRequest)
+      : Promise.resolve({
+          result: [] as EtherscanTokenTransactionMeta[],
+        } as EtherscanTransactionResponse<EtherscanTokenTransactionMeta>);
+
     const [etherscanTransactions, etherscanTokenTransactions] =
-      await Promise.all([
-        fetchEtherscanTransactions(request),
-        fetchEtherscanTokenTransactions(request),
-      ]);
+      await Promise.all([transactionPromise, tokenTransactionPromise]);
+
+    const chainIdDecimalString = parseInt(
+      request.currentChainId,
+      16,
+    ).toString();
 
     const transactions = etherscanTransactions.result.map((tx) =>
       this.#normalizeTransaction(
         tx,
         request.currentNetworkId,
-        request.currentChainId,
+        chainIdDecimalString,
       ),
     );
 
@@ -42,7 +80,7 @@ export class EtherscanRemoteTransactionSource
       this.#normalizeTokenTransaction(
         tx,
         request.currentNetworkId,
-        request.currentChainId,
+        chainIdDecimalString,
       ),
     );
 

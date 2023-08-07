@@ -1,4 +1,6 @@
-import { MAINNET, NetworkType, handleFetch } from '@metamask/controller-utils';
+import { handleFetch } from '@metamask/controller-utils';
+
+import { ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
 
 export interface EtherscanTransactionMetaBase {
   blockNumber: string;
@@ -36,16 +38,21 @@ export interface EtherscanTokenTransactionMeta
 export interface EtherscanTransactionResponse<
   T extends EtherscanTransactionMetaBase,
 > {
-  status: '0' | '1';
   result: T[];
 }
 
 export interface EtherscanTransactionRequest {
   address: string;
-  networkType: NetworkType;
-  limit: number;
-  fromBlock?: string;
   apiKey?: string;
+  chainId: string;
+  fromBlock?: number;
+  limit?: number;
+}
+
+interface RawEtherscanResponse<T extends EtherscanTransactionMetaBase> {
+  status: '0' | '1';
+  message: string;
+  result: string | T[];
 }
 
 /**
@@ -53,27 +60,27 @@ export interface EtherscanTransactionRequest {
  *
  * @param request - Configuration required to fetch transactions.
  * @param request.address - Address to retrieve transactions for.
- * @param request.networkType - Current network type used to determine the Etherscan subdomain.
- * @param request.limit - Number of transactions to retrieve.
  * @param request.apiKey - Etherscan API key.
+ * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching transactions from.
+ * @param request.limit - Number of transactions to retrieve.
  * @returns An Etherscan response object containing the request status and an array of token transaction data.
  */
 export async function fetchEtherscanTransactions({
   address,
-  networkType,
-  limit,
   apiKey,
+  chainId,
   fromBlock,
+  limit,
 }: EtherscanTransactionRequest): Promise<
   EtherscanTransactionResponse<EtherscanTransactionMeta>
 > {
   return await fetchTransactions('txlist', {
     address,
-    networkType,
-    limit,
-    fromBlock,
     apiKey,
+    chainId,
+    fromBlock,
+    limit,
   });
 }
 
@@ -82,27 +89,27 @@ export async function fetchEtherscanTransactions({
  *
  * @param request - Configuration required to fetch token transactions.
  * @param request.address - Address to retrieve token transactions for.
- * @param request.networkType - Current network type used to determine the Etherscan subdomain.
- * @param request.limit - Number of token transactions to retrieve.
  * @param request.apiKey - Etherscan API key.
+ * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching token transactions from.
+ * @param request.limit - Number of token transactions to retrieve.
  * @returns An Etherscan response object containing the request status and an array of token transaction data.
  */
 export async function fetchEtherscanTokenTransactions({
   address,
-  networkType,
-  limit,
   apiKey,
+  chainId,
   fromBlock,
+  limit,
 }: EtherscanTransactionRequest): Promise<
   EtherscanTransactionResponse<EtherscanTokenTransactionMeta>
 > {
   return await fetchTransactions('tokentx', {
     address,
-    networkType,
-    limit,
-    fromBlock,
     apiKey,
+    chainId,
+    fromBlock,
+    limit,
   });
 }
 
@@ -112,73 +119,76 @@ export async function fetchEtherscanTokenTransactions({
  * @param action - The Etherscan endpoint to use.
  * @param options - Options bag.
  * @param options.address - Address to retrieve transactions for.
- * @param options.networkType - Current network type used to determine the Etherscan subdomain.
- * @param options.limit - Number of transactions to retrieve.
  * @param options.apiKey - Etherscan API key.
+ * @param options.chainId - Current chain ID used to determine subdomain and domain.
  * @param options.fromBlock - Block number to start fetching transactions from.
+ * @param options.limit - Number of transactions to retrieve.
  * @returns An object containing the request status and an array of transaction data.
  */
 async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
   action: string,
   {
     address,
-    networkType,
-    limit,
     apiKey,
+    chainId,
     fromBlock,
+    limit,
   }: {
     address: string;
-    networkType: NetworkType;
-    limit: number;
-    fromBlock?: string;
     apiKey?: string;
+    chainId: string;
+    fromBlock?: number;
+    limit?: number;
   },
 ): Promise<EtherscanTransactionResponse<T>> {
   const urlParams = {
     module: 'account',
     address,
-    startBlock: fromBlock,
+    startBlock: fromBlock?.toString(),
     apikey: apiKey,
-    offset: limit.toString(),
+    offset: limit?.toString(),
     order: 'desc',
   };
 
-  const etherscanTxUrl = getEtherscanApiUrl(networkType, {
+  const etherscanTxUrl = getEtherscanApiUrl(chainId, {
     ...urlParams,
     action,
   });
 
   const response = (await handleFetch(
     etherscanTxUrl,
-  )) as EtherscanTransactionResponse<T>;
+  )) as RawEtherscanResponse<T>;
 
-  if (response.status === '0' || response.result.length <= 0) {
-    return { status: response.status, result: [] };
+  if (response.status === '0' && response.message === 'NOTOK') {
+    throw new Error(`Etherscan request failed - ${response.result}`);
   }
 
-  return response;
+  return { result: response.result as T[] };
 }
 
 /**
  * Return a URL that can be used to fetch data from Etherscan.
  *
- * @param networkType - Network type of desired network.
+ * @param chainId - Current chain ID used to determine subdomain and domain.
  * @param urlParams - The parameters used to construct the URL.
  * @returns URL to access Etherscan data.
  */
 function getEtherscanApiUrl(
-  networkType: string,
+  chainId: string,
   urlParams: Record<string, string | undefined>,
 ): string {
-  let etherscanSubdomain = 'api';
+  type SupportedChainId = keyof typeof ETHERSCAN_SUPPORTED_NETWORKS;
 
-  if (networkType !== MAINNET) {
-    etherscanSubdomain = `api-${networkType}`;
+  const networkInfo = ETHERSCAN_SUPPORTED_NETWORKS[chainId as SupportedChainId];
+
+  if (!networkInfo) {
+    throw new Error(`Etherscan does not support chain with ID: ${chainId}`);
   }
 
-  const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
+  const apiUrl = `https://${networkInfo.subdomain}.${networkInfo.domain}`;
   let url = `${apiUrl}/api?`;
 
+  // eslint-disable-next-line guard-for-in
   for (const paramKey in urlParams) {
     const value = urlParams[paramKey];
 

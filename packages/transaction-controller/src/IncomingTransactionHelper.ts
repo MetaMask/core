@@ -1,251 +1,283 @@
+import EventEmitter from 'events';
 import type { NetworkState } from '@metamask/network-controller';
-import { isSmartContractCode, query } from '@metamask/controller-utils';
-import {
-  RemoteTransactionSource,
-  Transaction,
-  TransactionMeta,
-  TransactionStatus,
-} from './types';
 
-const SUPPORTED_NETWORK_IDS = [
-  '1', // Mainnet
-  '5', // Goerli
-  '11155111', // Sepolia
+import { PollingBlockTracker as BlockTracker } from 'eth-block-tracker';
+import type { RemoteTransactionSource, TransactionMeta } from './types';
+import { Mutex } from 'async-mutex';
+
+const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
+  (txMeta) => txMeta.status,
+  (txMeta) => txMeta.transaction.gasUsed,
 ];
 
 export class IncomingTransactionHelper {
+  hub: EventEmitter;
+
+  #blockTracker: BlockTracker;
+
+  #getCurrentAccount: () => string;
+
+  #getLocalTransactions: () => TransactionMeta[];
+
   #getNetworkState: () => NetworkState;
 
-  #getEthQuery: () => any;
+  #isEnabled: () => boolean;
 
-  #transactionLimit: number;
+  #isRunning: boolean;
+
+  #lastFetchedBlockNumbers: Record<string, number>;
+
+  #mutex = new Mutex();
+
+  #onLatestBlock: (blockNumberHex: string) => Promise<void>;
 
   #remoteTransactionSource: RemoteTransactionSource;
 
+  #transactionLimit?: number;
+
+  #updateTransactions: boolean;
+
   constructor({
+    blockTracker,
+    getCurrentAccount,
+    getLocalTransactions,
     getNetworkState,
-    getEthQuery,
-    transactionLimit,
+    isEnabled,
+    lastFetchedBlockNumbers,
     remoteTransactionSource,
+    transactionLimit,
+    updateTransactions,
   }: {
+    blockTracker: BlockTracker;
+    getCurrentAccount: () => string;
     getNetworkState: () => NetworkState;
-    getEthQuery: () => any;
-    transactionLimit: number;
+    getLocalTransactions?: () => TransactionMeta[];
+    isEnabled?: () => boolean;
+    lastFetchedBlockNumbers?: Record<string, number>;
     remoteTransactionSource: RemoteTransactionSource;
+    transactionLimit?: number;
+    updateTransactions?: boolean;
   }) {
+    this.hub = new EventEmitter();
+
+    this.#blockTracker = blockTracker;
+    this.#getCurrentAccount = getCurrentAccount;
+    this.#getLocalTransactions = getLocalTransactions || (() => []);
     this.#getNetworkState = getNetworkState;
-    this.#getEthQuery = getEthQuery;
-    this.#transactionLimit = transactionLimit;
+    this.#isEnabled = isEnabled ?? (() => true);
+    this.#isRunning = false;
+    this.#lastFetchedBlockNumbers = lastFetchedBlockNumbers ?? {};
     this.#remoteTransactionSource = remoteTransactionSource;
-  }
+    this.#transactionLimit = transactionLimit;
+    this.#updateTransactions = updateTransactions ?? false;
 
-  async reconcile({
-    address,
-    localTransactions,
-    fromBlock,
-    apiKey,
-  }: {
-    address: string;
-    localTransactions: TransactionMeta[];
-    fromBlock?: string;
-    apiKey?: string;
-  }): Promise<{
-    updateRequired: boolean;
-    transactions: TransactionMeta[];
-    latestBlockNumber?: string;
-  }> {
-    const { providerConfig, network: currentNetworkId } =
-      this.#getNetworkState();
-    const { chainId: currentChainId, type: networkType } = providerConfig;
-
-    if (
-      currentNetworkId === null ||
-      !SUPPORTED_NETWORK_IDS.includes(currentNetworkId)
-    ) {
-      return { updateRequired: false, transactions: [] };
-    }
-
-    const remoteTransactions =
-      await this.#remoteTransactionSource.fetchTransactions({
-        address,
-        networkType,
-        limit: this.#transactionLimit,
-        currentChainId: currentChainId,
-        currentNetworkId: currentNetworkId,
-        fromBlock,
-        apiKey,
-      });
-
-    const [updateRequired, transactions] = this.#reconcileTransactions(
-      localTransactions,
-      remoteTransactions,
-    );
-
-    this.#sortTransactionsByTime(transactions);
-
-    const latestBlockNumber = this.#getLatestBlockNumber(
-      transactions,
-      address,
-      currentChainId,
-      currentNetworkId,
-    );
-
-    await this.#updateSmartContractProperty(transactions);
-
-    return { updateRequired, transactions, latestBlockNumber };
-  }
-
-  async #updateSmartContractProperty(transactions: TransactionMeta[]) {
-    await Promise.all(
-      transactions.map(async (tx) => {
-        tx.toSmartContract ??= await this.#isToSmartContract(tx.transaction);
-      }),
-    );
-  }
-
-  #getLatestBlockNumber(
-    transactions: TransactionMeta[],
-    address: string,
-    currentChainId: string,
-    currentNetworkId: string,
-  ): string | undefined {
-    let latestBlockNumber: string | undefined;
-
-    for (const tx of transactions) {
-      const onCurrentChain =
-        tx.chainId === currentChainId ||
-        (!tx.chainId && tx.networkID === currentNetworkId);
-
-      const toCurrentAccount =
-        tx.transaction.to?.toLowerCase() === address.toLowerCase();
-
-      const currentBlockNumberValue = tx.blockNumber
-        ? parseInt(tx.blockNumber, 10)
-        : -1;
-
-      const latestBlockNumberValue = latestBlockNumber
-        ? parseInt(latestBlockNumber, 10)
-        : -1;
-
-      if (
-        onCurrentChain &&
-        toCurrentAccount &&
-        latestBlockNumberValue < currentBlockNumberValue
-      ) {
-        latestBlockNumber = tx.blockNumber;
+    // Using a property instead of a method to provide a listener reference
+    // with the correct scope that we can remove later if stopped.
+    this.#onLatestBlock = async (blockNumberHex: string) => {
+      try {
+        await this.update(blockNumberHex);
+      } catch (error) {
+        console.error('Error while checking incoming transactions', error);
       }
-    }
-
-    return latestBlockNumber;
+    };
   }
 
-  async #isToSmartContract(transaction: Transaction): Promise<boolean> {
-    // Contract Deploy
-    if (!transaction.to) {
-      return false;
+  start() {
+    if (this.#isRunning) {
+      return;
     }
 
-    // Send
-    if (transaction.data === '0x') {
-      return false;
+    if (!this.#canStart()) {
+      return;
     }
 
-    const ethQuery = this.#getEthQuery();
-    const code = await query(ethQuery, 'getCode', [transaction.to]);
+    this.#blockTracker.addListener('latest', this.#onLatestBlock);
+    this.#isRunning = true;
+  }
 
-    return isSmartContractCode(code);
+  stop() {
+    this.#blockTracker.removeListener('latest', this.#onLatestBlock);
+    this.#isRunning = false;
+  }
+
+  async update(latestBlockNumberHex?: string): Promise<void> {
+    const releaseLock = await this.#mutex.acquire();
+
+    try {
+      if (!this.#canStart()) {
+        return;
+      }
+
+      const latestBlockNumber = parseInt(
+        latestBlockNumberHex || (await this.#blockTracker.getLatestBlock()),
+        16,
+      );
+
+      const fromBlock = this.#getFromBlock(latestBlockNumber);
+      const address = this.#getCurrentAccount();
+      const currentChainId = this.#getCurrentChainId();
+      const currentNetworkId = this.#getCurrentNetworkId();
+
+      let remoteTransactions = [];
+
+      try {
+        remoteTransactions =
+          await this.#remoteTransactionSource.fetchTransactions({
+            address,
+            currentChainId,
+            currentNetworkId,
+            fromBlock,
+            limit: this.#transactionLimit,
+          });
+      } catch (error: any) {
+        return;
+      }
+
+      if (!this.#updateTransactions) {
+        remoteTransactions = remoteTransactions.filter(
+          (tx) => tx.transaction.to?.toLowerCase() === address.toLowerCase(),
+        );
+      }
+
+      const localTransactions = !this.#updateTransactions
+        ? []
+        : this.#getLocalTransactions();
+
+      const newTransactions = this.#getNewTransactions(
+        remoteTransactions,
+        localTransactions,
+      );
+
+      const updatedTransactions = this.#getUpdatedTransactions(
+        remoteTransactions,
+        localTransactions,
+      );
+
+      if (newTransactions.length > 0 || updatedTransactions.length > 0) {
+        this.#sortTransactionsByTime(newTransactions);
+        this.#sortTransactionsByTime(updatedTransactions);
+
+        this.hub.emit('transactions', {
+          added: newTransactions,
+          updated: updatedTransactions,
+        });
+      }
+
+      this.#updateLastFetchedBlockNumber(remoteTransactions);
+    } finally {
+      releaseLock();
+    }
   }
 
   #sortTransactionsByTime(transactions: TransactionMeta[]) {
     transactions.sort((a, b) => (a.time < b.time ? -1 : 1));
   }
 
-  #reconcileTransactions(
-    localTxs: TransactionMeta[],
-    remoteTxs: TransactionMeta[],
-  ): [boolean, TransactionMeta[]] {
-    const updatedTxs: TransactionMeta[] = this.#getUpdatedTransactions(
-      remoteTxs,
-      localTxs,
-    );
-
-    const newTxs: TransactionMeta[] = this.#getNewTransactions(
-      remoteTxs,
-      localTxs,
-    );
-
-    const updatedLocalTxs = localTxs.map((tx: TransactionMeta) => {
-      const txIdx = updatedTxs.findIndex(
-        ({ transactionHash }) => transactionHash === tx.transactionHash,
-      );
-      return txIdx === -1 ? tx : updatedTxs[txIdx];
-    });
-
-    const updateRequired = newTxs.length > 0 || updatedTxs.length > 0;
-    const transactions = [...newTxs, ...updatedLocalTxs];
-
-    return [updateRequired, transactions];
-  }
-
   #getNewTransactions(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
   ): TransactionMeta[] {
-    return remoteTxs.filter((tx) => {
-      const alreadyInTransactions = localTxs.find(
-        ({ transactionHash }) => transactionHash === tx.transactionHash,
-      );
-      return !alreadyInTransactions;
-    });
+    return remoteTxs.filter(
+      (tx) =>
+        !localTxs.some(
+          ({ transactionHash }) => transactionHash === tx.transactionHash,
+        ),
+    );
   }
 
   #getUpdatedTransactions(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
   ): TransactionMeta[] {
-    return remoteTxs.filter((remoteTx) => {
-      const isTxOutdated = localTxs.find((localTx) => {
-        return (
+    return remoteTxs.filter((remoteTx) =>
+      localTxs.some(
+        (localTx) =>
           remoteTx.transactionHash === localTx.transactionHash &&
-          this.#isTransactionOutdated(remoteTx, localTx)
-        );
-      });
-      return isTxOutdated;
-    });
+          this.#isTransactionOutdated(remoteTx, localTx),
+      ),
+    );
   }
 
   #isTransactionOutdated(
     remoteTx: TransactionMeta,
     localTx: TransactionMeta,
   ): boolean {
-    const statusOutdated = this.#isStatusOutdated(
-      remoteTx.transactionHash,
-      localTx.transactionHash,
-      remoteTx.status,
-      localTx.status,
+    return UPDATE_CHECKS.some(
+      (getValue) => getValue(remoteTx) !== getValue(localTx),
     );
-
-    const gasDataOutdated = this.#isGasDataOutdated(
-      remoteTx.transaction.gasUsed,
-      localTx.transaction.gasUsed,
-    );
-
-    return statusOutdated || gasDataOutdated;
   }
 
-  #isStatusOutdated(
-    remoteTxHash: string | undefined,
-    localTxHash: string | undefined,
-    remoteTxStatus: TransactionStatus,
-    localTxStatus: TransactionStatus,
-  ): boolean {
-    return remoteTxHash === localTxHash && remoteTxStatus !== localTxStatus;
+  #getFromBlock(latestBlockNumber: number): number {
+    const lastFetchedKey = this.#getBlockNumberKey();
+
+    const lastFetchedBlockNumber =
+      this.#lastFetchedBlockNumbers[lastFetchedKey];
+
+    if (lastFetchedBlockNumber) {
+      return lastFetchedBlockNumber + 1;
+    }
+
+    // Avoid using latest block as remote transaction source
+    // may not have indexed it yet
+    return Math.max(latestBlockNumber - 10, 0);
   }
 
-  #isGasDataOutdated(
-    remoteGasUsed: string | undefined,
-    localGasUsed: string | undefined,
-  ): boolean {
-    return remoteGasUsed !== localGasUsed;
+  #updateLastFetchedBlockNumber(remoteTxs: TransactionMeta[]) {
+    let lastFetchedBlockNumber = -1;
+
+    for (const tx of remoteTxs) {
+      const currentBlockNumberValue = tx.blockNumber
+        ? parseInt(tx.blockNumber, 10)
+        : -1;
+
+      lastFetchedBlockNumber = Math.max(
+        lastFetchedBlockNumber,
+        currentBlockNumberValue,
+      );
+    }
+
+    if (lastFetchedBlockNumber === -1) {
+      return;
+    }
+
+    const lastFetchedKey = this.#getBlockNumberKey();
+    const previousValue = this.#lastFetchedBlockNumbers[lastFetchedKey];
+
+    if (previousValue === lastFetchedBlockNumber) {
+      return;
+    }
+
+    this.#lastFetchedBlockNumbers[lastFetchedKey] = lastFetchedBlockNumber;
+
+    this.hub.emit('updatedLastFetchedBlockNumbers', {
+      lastFetchedBlockNumbers: this.#lastFetchedBlockNumbers,
+      blockNumber: lastFetchedBlockNumber,
+    });
+  }
+
+  #getBlockNumberKey(): string {
+    return `${this.#getCurrentChainId()}#${this.#getCurrentAccount().toLowerCase()}`;
+  }
+
+  #canStart(): boolean {
+    const isEnabled = this.#isEnabled();
+    const currentChainId = this.#getCurrentChainId();
+    const currentNetworkId = this.#getCurrentNetworkId();
+
+    const isSupportedNetwork = this.#remoteTransactionSource.isSupportedNetwork(
+      currentChainId,
+      currentNetworkId,
+    );
+
+    return isEnabled && isSupportedNetwork;
+  }
+
+  #getCurrentChainId(): string {
+    const chainIdDecimalString = this.#getNetworkState().providerConfig.chainId;
+    return `0x${parseInt(chainIdDecimalString, 10).toString(16)}`;
+  }
+
+  #getCurrentNetworkId(): string {
+    return this.#getNetworkState().network;
   }
 }
