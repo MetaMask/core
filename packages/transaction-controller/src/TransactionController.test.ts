@@ -18,6 +18,7 @@ import { errorCodes } from 'eth-rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   TransactionControllerMessenger,
   TransactionConfig,
@@ -370,6 +371,24 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const NONCE_MOCK = 12;
 
+const TRANSACTION_META_MOCK = {
+  status: TransactionStatus.confirmed,
+  transaction: {
+    from: ACCOUNT_MOCK,
+  },
+  transactionHash: '0x1',
+  time: 123456789,
+} as TransactionMeta;
+
+const TRANSACTION_META_2_MOCK = {
+  status: TransactionStatus.confirmed,
+  transaction: {
+    from: '0x3',
+  },
+  transactionHash: '0x2',
+  time: 987654321,
+} as TransactionMeta;
+
 describe('TransactionController', () => {
   let resultCallbacksMock: AcceptResultCallbacks;
   let messengerMock: TransactionControllerMessenger;
@@ -377,6 +396,12 @@ describe('TransactionController', () => {
   let delayMessengerMock: TransactionControllerMessenger;
   let approveTransaction: () => void;
   let getNonceLockSpy: jest.Mock;
+  let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
+
+  const incomingTransactionHelperClassMock =
+    IncomingTransactionHelper as jest.MockedClass<
+      typeof IncomingTransactionHelper
+    >;
 
   /**
    * Create a new instance of the TransactionController.
@@ -467,6 +492,16 @@ describe('TransactionController', () => {
     });
 
     NonceTracker.prototype.getNonceLock = getNonceLockSpy;
+
+    incomingTransactionHelperMock = {
+      hub: {
+        on: jest.fn(),
+      },
+    } as any;
+
+    incomingTransactionHelperClassMock.mockReturnValue(
+      incomingTransactionHelperMock,
+    );
   });
 
   afterEach(() => {
@@ -479,6 +514,7 @@ describe('TransactionController', () => {
       expect(controller.state).toStrictEqual({
         methodData: {},
         transactions: [],
+        lastFetchedBlockNumbers: {},
       });
     });
 
@@ -1344,5 +1380,95 @@ describe('TransactionController', () => {
         );
       },
     );
+  });
+
+  describe('on incoming transaction helper transactions event', () => {
+    it('adds new transactions to state', async () => {
+      const controller = newController();
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
+        added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
+        updated: [],
+      });
+
+      expect(controller.state.transactions).toStrictEqual([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+    });
+
+    it('updates existing transactions in state', async () => {
+      const controller = newController();
+
+      controller.state.transactions = [
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ];
+
+      const updatedTransaction = {
+        ...TRANSACTION_META_MOCK,
+        status: 'failed',
+      };
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
+        added: [],
+        updated: [updatedTransaction],
+      });
+
+      expect(controller.state.transactions).toStrictEqual([
+        updatedTransaction,
+        TRANSACTION_META_2_MOCK,
+      ]);
+    });
+
+    it('limits max transactions when adding to state', async () => {
+      const controller = newController({ config: { txHistoryLimit: 1 } });
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
+        added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
+        updated: [],
+      });
+
+      expect(controller.state.transactions).toStrictEqual([
+        TRANSACTION_META_2_MOCK,
+      ]);
+    });
+  });
+
+  describe('on incoming transaction helper lastFetchedBlockNumbers event', () => {
+    it('updates state', async () => {
+      const controller = newController();
+
+      const lastFetchedBlockNumbers = {
+        key: 234,
+      };
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
+        lastFetchedBlockNumbers,
+        blockNumber: 123,
+      });
+
+      expect(controller.state.lastFetchedBlockNumbers).toStrictEqual(
+        lastFetchedBlockNumbers,
+      );
+    });
+
+    it('emits incomingTransactionBlock event', async () => {
+      const blockNumber = 123;
+      const listener = jest.fn();
+
+      const controller = newController();
+      controller.hub.on('incomingTransactionBlock', listener);
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
+        lastFetchedBlockNumbers: {
+          key: 234,
+        },
+        blockNumber,
+      });
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(blockNumber);
+    });
   });
 });

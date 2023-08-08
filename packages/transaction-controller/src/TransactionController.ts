@@ -122,6 +122,7 @@ export interface MethodData {
 export interface TransactionState extends BaseState {
   transactions: TransactionMeta[];
   methodData: { [key: string]: MethodData };
+  lastFetchedBlockNumbers: { [key: string]: number };
 }
 
 /**
@@ -222,6 +223,7 @@ export class TransactionController extends BaseController<
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
+   * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
    * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
    * @param options.incomingTransactions.updateTransactions - Whether or not to update local transactions using remote transaction data.
@@ -245,6 +247,7 @@ export class TransactionController extends BaseController<
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
+        apiKey?: string;
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
         updateTransactions?: boolean;
@@ -266,6 +269,7 @@ export class TransactionController extends BaseController<
     this.defaultState = {
       methodData: {},
       transactions: [],
+      lastFetchedBlockNumbers: {},
     };
 
     this.initialize();
@@ -299,11 +303,22 @@ export class TransactionController extends BaseController<
       getNetworkState,
       isEnabled: incomingTransactions.isEnabled,
       remoteTransactionSource: new EtherscanRemoteTransactionSource({
+        apiKey: incomingTransactions.apiKey,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
       }),
       transactionLimit: this.config.txHistoryLimit,
       updateTransactions: incomingTransactions.updateTransactions,
     });
+
+    this.incomingTransactionHelper.hub.on(
+      'transactions',
+      this.onIncomingTransactions.bind(this),
+    );
+
+    this.incomingTransactionHelper.hub.on(
+      'updatedLastFetchedBlockNumbers',
+      this.onUpdatedLastFetchedBlockNumbers.bind(this),
+    );
 
     onNetworkStateChange(() => {
       this.ethQuery = new EthQuery(this.provider);
@@ -402,6 +417,18 @@ export class TransactionController extends BaseController<
       result: this.processApproval(transactionMeta),
       transactionMeta,
     };
+  }
+
+  startIncomingTransactionPolling() {
+    this.incomingTransactionHelper.start();
+  }
+
+  stopIncomingTransactionPolling() {
+    this.incomingTransactionHelper.stop();
+  }
+
+  async updateIncomingTransactions() {
+    await this.incomingTransactionHelper.update();
   }
 
   prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
@@ -1225,6 +1252,45 @@ export class TransactionController extends BaseController<
     const isCompleted = this.isLocalFinalState(transaction.status);
 
     return { meta: transaction, isCompleted };
+  }
+
+  private onIncomingTransactions({
+    added,
+    updated,
+  }: {
+    added: TransactionMeta[];
+    updated: TransactionMeta[];
+  }) {
+    const { transactions: currentTransactions } = this.state;
+
+    const updatedTransactions = [
+      ...added,
+      ...currentTransactions.map((originalTransaction) => {
+        const updatedTransaction = updated.find(
+          ({ transactionHash }) =>
+            transactionHash === originalTransaction.transactionHash,
+        );
+
+        return updatedTransaction ?? originalTransaction;
+      }),
+    ];
+
+    this.update({
+      transactions: this.trimTransactionsForState(updatedTransactions),
+    });
+  }
+
+  private onUpdatedLastFetchedBlockNumbers({
+    lastFetchedBlockNumbers,
+    blockNumber,
+  }: {
+    lastFetchedBlockNumbers: {
+      [key: string]: number;
+    };
+    blockNumber: number;
+  }) {
+    this.update({ lastFetchedBlockNumbers });
+    this.hub.emit('incomingTransactionBlock', blockNumber);
   }
 }
 
