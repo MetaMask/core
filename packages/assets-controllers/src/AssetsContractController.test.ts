@@ -1,5 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
+  BUILT_IN_NETWORKS,
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
@@ -40,6 +41,7 @@ async function setupControllers() {
     type: NetworkClientType.Infura,
     network: 'mainnet',
     infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
+    caipChainId: BUILT_IN_NETWORKS.mainnet.caipChainId,
   } as const;
 
   const messenger: NetworkControllerMessenger =
@@ -816,6 +818,7 @@ describe('AssetsContractController', () => {
     });
     mockNetworkWithDefaultChainId({
       networkClientConfiguration: {
+        caipChainId: BUILT_IN_NETWORKS.sepolia.caipChainId,
         type: NetworkClientType.Infura,
         network: 'sepolia',
         infuraProjectId: networkClientConfiguration.infuraProjectId,

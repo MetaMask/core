@@ -5,6 +5,7 @@ import {
   BuiltInCaipChainId,
   NetworkType,
   NetworksTicker,
+  BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
 import type {
   BlockTracker,
@@ -23,7 +24,7 @@ import type {
 } from './TransactionController';
 import { TransactionController, HARDFORK } from './TransactionController';
 import type { TransactionMeta } from './types';
-import { TransactionStatus } from './types';
+import { WalletDevice, TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -219,7 +220,7 @@ function waitForTransactionFinished(
   });
 }
 
-const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
+const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
 const GOERLI_PROVIDER = new HttpProvider(
   `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
@@ -652,10 +653,19 @@ describe('TransactionController', () => {
     it('adds unapproved transaction to state', async () => {
       const controller = newController();
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      const mockDeviceConfirmedOn = WalletDevice.OTHER;
+      const mockOrigin = 'origin';
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+        },
+      );
 
       expect(controller.state.transactions[0].transaction.from).toBe(
         ACCOUNT_MOCK,
@@ -666,6 +676,10 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].caipChainId).toBe(
         MOCK_NETWORK.state.providerConfig.caipChainId,
       );
+      expect(controller.state.transactions[0].deviceConfirmedOn).toBe(
+        mockDeviceConfirmedOn,
+      );
+      expect(controller.state.transactions[0].origin).toBe(mockOrigin);
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
       );
@@ -1037,7 +1051,7 @@ describe('TransactionController', () => {
       controller.wipeTransactions();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1048,6 +1062,68 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(0);
     });
+
+    it('removes only txs with given address', async () => {
+      const controller = newController();
+
+      controller.wipeTransactions();
+
+      const mockFromAccount1 = '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockFromAccount2 = '0x2bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockCurrentCaipChainId = 'eip155:5';
+
+      controller.state.transactions.push({
+        id: '1',
+        caipChainId: mockCurrentCaipChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.state.transactions.push({
+        id: '2',
+        caipChainId: mockCurrentCaipChainId,
+        transaction: {
+          from: mockFromAccount2,
+        },
+      } as any);
+
+      controller.wipeTransactions(true, mockFromAccount2);
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0].id).toBe('1');
+    });
+
+    it('removes only txs with given address only on current network', async () => {
+      const controller = newController();
+
+      controller.wipeTransactions();
+
+      const mockFromAccount1 = '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockDifferentCaipChainId = 'eip155:1';
+      const mockCurrentCaipChainId = 'eip155:5';
+
+      controller.state.transactions.push({
+        id: '1',
+        caipChainId: mockCurrentCaipChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.state.transactions.push({
+        id: '4',
+        caipChainId: mockDifferentCaipChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.wipeTransactions(false, mockFromAccount1);
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0].id).toBe('4');
+    });
   });
 
   describe('queryTransactionStatus', () => {
@@ -1055,7 +1131,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         caipChainId: 'eip155:5',
@@ -1081,7 +1157,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1104,7 +1180,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1121,7 +1197,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         caipChainId: 'eip155:5',
@@ -1233,6 +1309,7 @@ describe('TransactionController', () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
       mockNetwork({
         networkClientConfiguration: {
+          caipChainId: BUILT_IN_NETWORKS.mainnet.caipChainId,
           type: NetworkClientType.Infura,
           network: 'mainnet',
           infuraProjectId: INFURA_PROJECT_ID,
@@ -1271,6 +1348,7 @@ describe('TransactionController', () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
       mockNetwork({
         networkClientConfiguration: {
+          caipChainId: BUILT_IN_NETWORKS.mainnet.caipChainId,
           type: NetworkClientType.Infura,
           network: 'mainnet',
           infuraProjectId: INFURA_PROJECT_ID,

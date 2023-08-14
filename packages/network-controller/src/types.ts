@@ -30,6 +30,7 @@ export type CustomNetworkClientConfiguration = {
  * network.
  */
 export type InfuraNetworkClientConfiguration = {
+  caipChainId: CaipChainId;
   network: InfuraNetworkType;
   infuraProjectId: string;
   type: NetworkClientType.Infura;

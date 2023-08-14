@@ -28,7 +28,7 @@ export function isEthCaipChainId(
  */
 export function toEthCaipChainId(chainId = ''): CaipChainId {
   if (isEthCaipChainId(chainId)) {
-    return chainId
+    return chainId;
   }
 
   const chainIdDecimal = chainId.startsWith('0x')

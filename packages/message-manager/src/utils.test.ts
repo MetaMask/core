@@ -237,9 +237,7 @@ describe('utils', () => {
       ).toThrow(
         `Provided chainId "${toEthChainId(
           mockedCurrentCaipChainId,
-        )}" must match the active chainId "${toEthChainId(
-          caipChainId,
-        )}"`,
+        )}" must match the active chainId "${toEthChainId(caipChainId)}"`,
       );
     });
 

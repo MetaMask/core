@@ -144,9 +144,7 @@ export class EnsController extends BaseControllerV2<
           this.#getNetworkEnsSupport(currentNetwork)
         ) {
           this.#ethProvider = new Web3Provider(provider, {
-            chainId: toEthChainIdInt(
-              networkState.providerConfig.caipChainId,
-            ),
+            chainId: toEthChainIdInt(networkState.providerConfig.caipChainId),
             name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[currentNetwork],
             ensAddress: ensNetworkMap[currentNetwork],
           });

@@ -1,7 +1,4 @@
-import {
-  toEthChainIdInt,
-  isValidHexAddress,
-} from '@metamask/controller-utils';
+import { toEthChainIdInt, isValidHexAddress } from '@metamask/controller-utils';
 import {
   TYPED_MESSAGE_SCHEMA,
   typedSignatureHash,

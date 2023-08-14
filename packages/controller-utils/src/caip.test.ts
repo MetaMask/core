@@ -58,9 +58,7 @@ describe('caip', () => {
 
     describe('invalid decimal chain id', () => {
       it('throws an error', () => {
-        expect(() => toEthCaipChainId('ZZZ')).toThrow(
-          'Invalid chain ID "ZZZ"',
-        );
+        expect(() => toEthCaipChainId('ZZZ')).toThrow('Invalid chain ID "ZZZ"');
       });
     });
   });
@@ -83,9 +81,7 @@ describe('caip', () => {
 
     describe('invalid CAIP chain ID', () => {
       it('throws an error', () => {
-        expect(() => toEthChainIdHex(':123')).toThrow(
-          'Invalid CAIP chain ID.',
-        );
+        expect(() => toEthChainIdHex(':123')).toThrow('Invalid CAIP chain ID.');
         expect(() => toEthChainIdHex('eip155:ABC')).toThrow(
           'Invalid character',
         ); // this comes from toHex(). What should we throw instead?

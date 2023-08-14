@@ -336,14 +336,20 @@ export class TransactionController extends BaseController<
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
    *
    * @param transaction - The transaction object to add.
-   * @param origin - The domain origin to append to the generated TransactionMeta.
-   * @param deviceConfirmedOn - An enum to indicate what device the transaction was confirmed to append to the generated TransactionMeta.
+   * @param opts - Additional options to control how the transaction is added.
+   * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
+   * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
     transaction: Transaction,
-    origin?: string,
-    deviceConfirmedOn?: WalletDevice,
+    {
+      deviceConfirmedOn,
+      origin,
+    }: {
+      deviceConfirmedOn?: WalletDevice;
+      origin?: string;
+    } = {},
   ): Promise<Result> {
     const { providerConfig, networkId } = this.getNetworkState();
     const { transactions } = this.state;
@@ -790,10 +796,12 @@ export class TransactionController extends BaseController<
    *
    * @param ignoreNetwork - Determines whether to wipe all transactions, or just those on the
    * current network. If `true`, all transactions are wiped.
+   * @param address - If specified, only transactions originating from this address will be
+   * wiped on current network.
    */
-  wipeTransactions(ignoreNetwork?: boolean) {
+  wipeTransactions(ignoreNetwork?: boolean, address?: string) {
     /* istanbul ignore next */
-    if (ignoreNetwork) {
+    if (ignoreNetwork && !address) {
       this.update({ transactions: [] });
       return;
     }
@@ -801,12 +809,21 @@ export class TransactionController extends BaseController<
       this.getNetworkState();
     const { caipChainId: currentCaipChainId } = providerConfig;
     const newTransactions = this.state.transactions.filter(
-      ({ networkID, caipChainId }) => {
+      ({ networkID, caipChainId, transaction }) => {
         // Using fallback to networkID only when there is no caipChainId present. Should be removed when networkID is completely removed.
-        const isCurrentNetwork =
+        const isMatchingNetwork =
+          ignoreNetwork ||
           caipChainId === currentCaipChainId ||
           (!caipChainId && networkID === currentNetworkID);
-        return !isCurrentNetwork;
+
+        if (!isMatchingNetwork) {
+          return true;
+        }
+
+        const isMatchingAddress =
+          !address || transaction.from?.toLowerCase() === address.toLowerCase();
+
+        return !isMatchingAddress;
       },
     );
 
