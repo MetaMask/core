@@ -342,7 +342,13 @@ export class TransactionController extends BaseController<
    */
   async addTransaction(
     transaction: Transaction,
-    { deviceConfirmedOn, origin } = {},
+    {
+      deviceConfirmedOn,
+      origin,
+    }: {
+      deviceConfirmedOn?: WalletDevice;
+      origin?: string;
+    } = {},
   ): Promise<Result> {
     const { providerConfig, networkId } = this.getNetworkState();
     const { transactions } = this.state;
