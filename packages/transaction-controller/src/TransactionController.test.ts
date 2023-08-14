@@ -25,7 +25,7 @@ import type {
 } from './TransactionController';
 import { TransactionController, HARDFORK } from './TransactionController';
 import type { TransactionMeta } from './types';
-import { TransactionStatus } from './types';
+import { WalletDevice, TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -654,10 +654,19 @@ describe('TransactionController', () => {
     it('adds unapproved transaction to state', async () => {
       const controller = newController();
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      const mockDeviceConfirmedOn = WalletDevice.OTHER;
+      const mockOrigin = 'origin';
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+        },
+      );
 
       expect(controller.state.transactions[0].transaction.from).toBe(
         ACCOUNT_MOCK,
@@ -668,6 +677,10 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].chainId).toBe(
         MOCK_NETWORK.state.providerConfig.chainId,
       );
+      expect(controller.state.transactions[0].deviceConfirmedOn).toBe(
+        mockDeviceConfirmedOn,
+      );
+      expect(controller.state.transactions[0].origin).toBe(mockOrigin);
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
       );
