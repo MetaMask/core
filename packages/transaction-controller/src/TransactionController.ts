@@ -335,7 +335,7 @@ export class TransactionController extends BaseController<
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
    *
    * @param transaction - The transaction object to add.
-   * @param opts - The options bag for addTransaction
+   * @param opts - Additional options to control how the transaction is added.
    * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @returns Object containing a promise resolving to the transaction hash if approved.
