@@ -809,6 +809,22 @@ describe('TransactionController', () => {
       );
     });
 
+    it('skip request for an approval using the approval controller', async () => {
+      const controller = newController();
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          requireApproval: false,
+        },
+      );
+
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(0);
+    });
+
     it.each([
       ['mainnet', MOCK_MAINNET_NETWORK],
       ['custom network', MOCK_CUSTOM_NETWORK],
