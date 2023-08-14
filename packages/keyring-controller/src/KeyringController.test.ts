@@ -452,6 +452,26 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('getEncryptionPublicKey', () => {
+    it('should return the correct encryption public key', async () => {
+      await withController(async ({ controller }) => {
+        const { importedAccountAddress } =
+          await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+
+        const encryptionPublicKey = await controller.getEncryptionPublicKey(
+          importedAccountAddress,
+        );
+
+        expect(encryptionPublicKey).toBe(
+          'ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=',
+        );
+      });
+    });
+  });
+
   describe('getKeyringForAccount', () => {
     describe('when existing account is provided', () => {
       it('should get correct keyring', async () => {
@@ -507,6 +527,21 @@ describe('KeyringController', () => {
           const keyrings = controller.getKeyringsByType('fake');
           expect(keyrings).toHaveLength(0);
         });
+      });
+    });
+  });
+
+  describe('persistAllKeyrings', () => {
+    it('should reflect changes made directly to a keyring into the KeyringController state', async () => {
+      await withController(async ({ controller }) => {
+        const primaryKeyring = controller.getKeyringsByType(
+          KeyringTypes.hd,
+        )[0] as Keyring<Json>;
+        const [addedAccount] = await primaryKeyring.addAccounts(1);
+
+        await controller.persistAllKeyrings();
+
+        expect(controller.state.keyrings[0].accounts[1]).toBe(addedAccount);
       });
     });
   });

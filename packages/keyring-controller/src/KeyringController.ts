@@ -428,6 +428,21 @@ export class KeyringController extends BaseControllerV2<
   }
 
   /**
+   * Get encryption public key.
+   *
+   * @param account - An account address.
+   * @param opts - Additional encryption options.
+   * @throws If the `account` does not exist or does not support the `getEncryptionPublicKey` method
+   * @returns Promise resolving to encyption public key of the `account` if one exists.
+   */
+  async getEncryptionPublicKey(
+    account: string,
+    opts?: Record<string, unknown>,
+  ): Promise<string> {
+    return this.#keyring.getEncryptionPublicKey(account, opts);
+  }
+
+  /**
    * Returns the currently initialized keyring that manages
    * the specified `address` if one exists.
    *
@@ -452,6 +467,16 @@ export class KeyringController extends BaseControllerV2<
    */
   getKeyringsByType(type: KeyringTypes | string): unknown[] {
     return this.#keyring.getKeyringsByType(type);
+  }
+
+  /**
+   * Persist all serialized keyrings in the vault.
+   *
+   * @returns Promise resolving with `true` value when the
+   * operation completes.
+   */
+  async persistAllKeyrings(): Promise<boolean> {
+    return this.#keyring.persistAllKeyrings();
   }
 
   /**
