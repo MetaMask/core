@@ -308,14 +308,20 @@ export class TransactionController extends BaseController<
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
    *
    * @param transaction - The transaction object to add.
-   * @param origin - The domain origin to append to the generated TransactionMeta.
-   * @param deviceConfirmedOn - An enum to indicate what device the transaction was confirmed to append to the generated TransactionMeta.
+   * @param opts - Additional options to control how the transaction is added.
+   * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
+   * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
     transaction: Transaction,
-    origin?: string,
-    deviceConfirmedOn?: WalletDevice,
+    {
+      deviceConfirmedOn,
+      origin,
+    }: {
+      deviceConfirmedOn?: WalletDevice;
+      origin?: string;
+    } = {},
   ): Promise<Result> {
     const { providerConfig, network } = this.getNetworkState();
     const { transactions } = this.state;
