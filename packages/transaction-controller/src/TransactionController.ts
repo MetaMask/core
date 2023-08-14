@@ -338,6 +338,7 @@ export class TransactionController extends BaseController<
    * @param opts - The options bag for addTransaction
    * @param opts.deviceConfirmedOn - An enum to indicate what device the transaction was confirmed.
    * @param opts.origin - The domain origin
+   * @param opts.requireApproval - Whether the transaction requires approval.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -345,10 +346,14 @@ export class TransactionController extends BaseController<
     {
       deviceConfirmedOn,
       origin,
+      requireApproval,
     }: {
       deviceConfirmedOn?: WalletDevice;
       origin?: string;
-    } = {},
+      requireApproval?: boolean;
+    } = {
+      requireApproval: true,
+    },
   ): Promise<Result> {
     const { providerConfig, networkId } = this.getNetworkState();
     const { transactions } = this.state;
@@ -381,7 +386,9 @@ export class TransactionController extends BaseController<
     this.hub.emit(`unapprovedTransaction`, transactionMeta);
 
     return {
-      result: this.processApproval(transactionMeta),
+      result: this.processApproval(transactionMeta, {
+        requireApproval: Boolean(requireApproval),
+      }),
       transactionMeta,
     };
   }
@@ -854,13 +861,16 @@ export class TransactionController extends BaseController<
 
   private async processApproval(
     transactionMeta: TransactionMeta,
+    { requireApproval }: { requireApproval: boolean },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      const acceptResult = await this.requestApproval(transactionMeta);
-      resultCallbacks = acceptResult.resultCallbacks;
+      if (requireApproval) {
+        const acceptResult = await this.requestApproval(transactionMeta);
+        resultCallbacks = acceptResult.resultCallbacks;
+      }
 
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
