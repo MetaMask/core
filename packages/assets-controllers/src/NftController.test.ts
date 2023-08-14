@@ -218,7 +218,6 @@ function setupController({
   preferences.update({
     selectedAddress: OWNER_ADDRESS,
     openSeaEnabled: true,
-    isIpfsGatewayEnabled: true,
   });
 
   return {
@@ -1807,114 +1806,6 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
       });
     });
-    it('should add NFT with null metadata if the ipfs gateway is disabled', async () => {
-      const { assetsContract, nftController, preferences } = setupController();
-      preferences.update({ isIpfsGatewayEnabled: false });
-      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
-          jsonrpc: '2.0',
-          id: 13,
-          method: 'eth_call',
-          params: [
-            {
-              to: ERC721_DEPRESSIONIST_ADDRESS.toLowerCase(),
-              data: '0x06fdde03',
-            },
-            'latest',
-          ],
-        })
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 13,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001c4d616c746a696b2e6a706727732044657072657373696f6e6973747300000000',
-        })
-        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
-          jsonrpc: '2.0',
-          id: 14,
-          method: 'eth_call',
-          params: [
-            {
-              to: ERC721_DEPRESSIONIST_ADDRESS.toLowerCase(),
-              data: '0x95d89b41',
-            },
-            'latest',
-          ],
-        })
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 14,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000444504e5300000000000000000000000000000000000000000000000000000000',
-        });
-
-      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
-          jsonrpc: '2.0',
-          id: 15,
-          method: 'eth_call',
-          params: [
-            {
-              to: ERC721_DEPRESSIONIST_ADDRESS.toLowerCase(),
-              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
-            },
-            'latest',
-          ],
-        })
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 15,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000001',
-        })
-        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
-          jsonrpc: '2.0',
-          id: 16,
-          method: 'eth_call',
-          params: [
-            {
-              to: ERC721_DEPRESSIONIST_ADDRESS.toLowerCase(),
-              data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000024',
-            },
-            'latest',
-          ],
-        })
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 16,
-          result:
-            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003a697066733a2f2f697066732f516d5643684e7453745a66507956384a664b70756265336569675168357255587159636850674c63393174574c4a000000000000',
-        });
-
-      assetsContract.configure({ provider: MAINNET_PROVIDER });
-      nftController.configure({
-        ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      });
-      const { selectedAddress, chainId } = nftController.config;
-      await nftController.addNft(
-        ERC721_DEPRESSIONIST_ADDRESS,
-        ERC721_DEPRESSIONIST_ID,
-      );
-
-      expect(
-        nftController.state.allNftContracts[selectedAddress][chainId][0],
-      ).toStrictEqual({
-        address: ERC721_DEPRESSIONIST_ADDRESS,
-      });
-
-      expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
-      ).toStrictEqual({
-        address: ERC721_DEPRESSIONIST_ADDRESS,
-        tokenId: '36',
-        image: null,
-        name: null,
-        description: null,
-        standard: null,
-        favorite: false,
-        isCurrentlyOwned: true,
-      });
-    });
 
     it('should add NFT erc721 and not get NFT information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
       const { assetsContract, nftController } = setupController();
@@ -2411,6 +2302,115 @@ describe('NftController', () => {
         );
       };
       await expect(result).rejects.toThrow(error);
+    });
+
+    it('should add NFT with null metadata if the ipfs gateway is disabled', async () => {
+      const { assetsContract, nftController, preferences } = setupController();
+      preferences.update({ isIpfsGatewayEnabled: false });
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 13,
+          method: 'eth_call',
+          params: [
+            {
+              to: ERC721_DEPRESSIONIST_ADDRESS.toLowerCase(),
+              data: '0x06fdde03',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 13,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001c4d616c746a696b2e6a706727732044657072657373696f6e6973747300000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 14,
+          method: 'eth_call',
+          params: [
+            {
+              to: ERC721_DEPRESSIONIST_ADDRESS.toLowerCase(),
+              data: '0x95d89b41',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 14,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000444504e5300000000000000000000000000000000000000000000000000000000',
+        });
+
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 15,
+          method: 'eth_call',
+          params: [
+            {
+              to: ERC721_DEPRESSIONIST_ADDRESS.toLowerCase(),
+              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 15,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 16,
+          method: 'eth_call',
+          params: [
+            {
+              to: ERC721_DEPRESSIONIST_ADDRESS.toLowerCase(),
+              data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000024',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 16,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003a697066733a2f2f697066732f516d5643684e7453745a66507956384a664b70756265336569675168357255587159636850674c63393174574c4a000000000000',
+        });
+
+      assetsContract.configure({ provider: MAINNET_PROVIDER });
+      nftController.configure({
+        ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
+      });
+      const { selectedAddress, chainId } = nftController.config;
+      await nftController.addNft(
+        ERC721_DEPRESSIONIST_ADDRESS,
+        ERC721_DEPRESSIONIST_ID,
+      );
+
+      expect(
+        nftController.state.allNftContracts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC721_DEPRESSIONIST_ADDRESS,
+      });
+
+      expect(
+        nftController.state.allNfts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC721_DEPRESSIONIST_ADDRESS,
+        tokenId: '36',
+        image: null,
+        name: null,
+        description: null,
+        standard: null,
+        favorite: false,
+        isCurrentlyOwned: true,
+      });
     });
   });
 
