@@ -470,6 +470,16 @@ export class KeyringController extends BaseControllerV2<
   }
 
   /**
+   * Persist all serialized keyrings in the vault.
+   *
+   * @returns Promise resolving with `true` value when the
+   * operation completes.
+   */
+  async persistAllKeyrings(): Promise<boolean> {
+    return this.#keyring.persistAllKeyrings();
+  }
+
+  /**
    * Imports an account with the specified import strategy.
    *
    * @param strategy - Import strategy name.

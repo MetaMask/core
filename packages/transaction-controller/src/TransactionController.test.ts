@@ -6,6 +6,7 @@ import {
   NetworkType,
   NetworksTicker,
   toHex,
+  BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
 import type {
   BlockTracker,
@@ -1296,6 +1297,7 @@ describe('TransactionController', () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
       mockNetwork({
         networkClientConfiguration: {
+          chainId: BUILT_IN_NETWORKS.mainnet.chainId,
           type: NetworkClientType.Infura,
           network: 'mainnet',
           infuraProjectId: INFURA_PROJECT_ID,
@@ -1334,6 +1336,7 @@ describe('TransactionController', () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
       mockNetwork({
         networkClientConfiguration: {
+          chainId: BUILT_IN_NETWORKS.mainnet.chainId,
           type: NetworkClientType.Infura,
           network: 'mainnet',
           infuraProjectId: INFURA_PROJECT_ID,

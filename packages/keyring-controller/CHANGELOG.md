@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+### Added
+- Add `getEncryptionPublicKey` method on KeyringController ([#1569](https://github.com/MetaMask/core/pull/1569))
+
 ## [7.0.0]
 ### Changed
 - **BREAKING**: Remove `keyringTypes` property from the KeyringController state ([#1441](https://github.com/MetaMask/core/pull/1441))
@@ -143,7 +147,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.0.0...@metamask/keyring-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.1.0...@metamask/keyring-controller@7.0.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.0.0...@metamask/keyring-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.1.0...@metamask/keyring-controller@6.0.0
