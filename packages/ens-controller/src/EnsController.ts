@@ -235,7 +235,7 @@ export class EnsController extends BaseControllerV2<
     address: string | null,
   ): boolean {
     if (
-      !isEthCaipChainId(caipChainId) || // is this right?
+      !isEthCaipChainId(caipChainId) ||
       !ensName ||
       typeof ensName !== 'string' ||
       (address && !isValidHexAddress(address))
