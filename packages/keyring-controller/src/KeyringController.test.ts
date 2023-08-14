@@ -531,6 +531,21 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('persistAllKeyrings', () => {
+    it('should reflect changes made directly to a keyring into the KeyringController state', async () => {
+      await withController(async ({ controller }) => {
+        const primaryKeyring = controller.getKeyringsByType(
+          KeyringTypes.hd,
+        )[0] as Keyring<Json>;
+        const [addedAccount] = await primaryKeyring.addAccounts(1);
+
+        await controller.persistAllKeyrings();
+
+        expect(controller.state.keyrings[0].accounts[1]).toBe(addedAccount);
+      });
+    });
+  });
+
   describe('importAccountWithStrategy', () => {
     describe('using strategy privateKey', () => {
       describe('when correct key is provided', () => {
