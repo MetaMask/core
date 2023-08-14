@@ -221,7 +221,7 @@ function waitForTransactionFinished(
   });
 }
 
-const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
+const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
 const GOERLI_PROVIDER = new HttpProvider(
   `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
@@ -1052,7 +1052,7 @@ describe('TransactionController', () => {
       controller.wipeTransactions();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1063,6 +1063,68 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(0);
     });
+
+    it('removes only txs with given address', async () => {
+      const controller = newController();
+
+      controller.wipeTransactions();
+
+      const mockFromAccount1 = '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockFromAccount2 = '0x2bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockCurrentChainId = toHex(5);
+
+      controller.state.transactions.push({
+        id: '1',
+        chainId: mockCurrentChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.state.transactions.push({
+        id: '2',
+        chainId: mockCurrentChainId,
+        transaction: {
+          from: mockFromAccount2,
+        },
+      } as any);
+
+      controller.wipeTransactions(true, mockFromAccount2);
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0].id).toBe('1');
+    });
+
+    it('removes only txs with given address only on current network', async () => {
+      const controller = newController();
+
+      controller.wipeTransactions();
+
+      const mockFromAccount1 = '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockDifferentChainId = toHex(1);
+      const mockCurrentChainId = toHex(5);
+
+      controller.state.transactions.push({
+        id: '1',
+        chainId: mockCurrentChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.state.transactions.push({
+        id: '4',
+        chainId: mockDifferentChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.wipeTransactions(false, mockFromAccount1);
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0].id).toBe('4');
+    });
   });
 
   describe('queryTransactionStatus', () => {
@@ -1070,7 +1132,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         chainId: toHex(5),
@@ -1096,7 +1158,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1119,7 +1181,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1136,7 +1198,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         chainId: toHex(5),
