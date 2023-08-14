@@ -1075,7 +1075,7 @@ describe('TransactionController', () => {
         },
       } as any);
 
-      controller.wipeTransactions(false, mockFromAccount2);
+      controller.wipeTransactions(true, mockFromAccount2);
 
       expect(controller.state.transactions).toHaveLength(1);
       expect(controller.state.transactions[0].id).toBe('1');
