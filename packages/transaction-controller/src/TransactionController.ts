@@ -125,18 +125,6 @@ export interface TransactionState extends BaseState {
 }
 
 /**
- * @type AddTransactionOptions
- *
- * Transaction controller addTransaction method options
- * @param origin - The domain origin to append to the generated TransactionMeta.
- * @param deviceConfirmedOn - An enum to indicate what device the transaction was confirmed to append to the generated TransactionMeta.
- */
-type AddTransactionOptions = {
-  origin?: string;
-  deviceConfirmedOn?: WalletDevice;
-};
-
-/**
  * Multiplier used to determine a transaction's increased gas fee during cancellation
  */
 export const CANCEL_RATE = 1.5;
@@ -347,12 +335,14 @@ export class TransactionController extends BaseController<
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
    *
    * @param transaction - The transaction object to add.
-   * @param opts - The options bag for addTransaction.
+   * @param opts - The options bag for addTransaction
+   * @param opts.deviceConfirmedOn - An enum to indicate what device the transaction was confirmed.
+   * @param opts.origin - The domain origin
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
     transaction: Transaction,
-    opts: AddTransactionOptions = {},
+    { deviceConfirmedOn, origin } = {},
   ): Promise<Result> {
     const { providerConfig, networkId } = this.getNetworkState();
     const { transactions } = this.state;
@@ -363,11 +353,11 @@ export class TransactionController extends BaseController<
       id: random(),
       networkID: networkId ?? undefined,
       chainId: providerConfig.chainId,
-      origin: opts.origin,
+      origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
       transaction,
-      deviceConfirmedOn: opts.deviceConfirmedOn,
+      deviceConfirmedOn,
       verifiedOnBlockchain: false,
     };
 
