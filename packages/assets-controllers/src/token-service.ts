@@ -1,4 +1,4 @@
-import { parseEthCaipChainId, timeoutFetch } from '@metamask/controller-utils';
+import { toEthChainId, timeoutFetch } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
@@ -14,7 +14,7 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(caipChainId: CaipChainId) {
-  return `${TOKEN_END_POINT_API}/tokens/${parseEthCaipChainId(caipChainId)}`;
+  return `${TOKEN_END_POINT_API}/tokens/${toEthChainId(caipChainId)}`;
 }
 
 /**
@@ -25,7 +25,7 @@ function getTokensURL(caipChainId: CaipChainId) {
  * @returns The token metadata URL.
  */
 function getTokenMetadataURL(caipChainId: CaipChainId, tokenAddress: string) {
-  return `${TOKEN_END_POINT_API}/token/${parseEthCaipChainId(
+  return `${TOKEN_END_POINT_API}/token/${toEthChainId(
     caipChainId,
   )}?address=${tokenAddress}`;
 }

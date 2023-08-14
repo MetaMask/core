@@ -8,7 +8,7 @@ import {
   NetworkType,
   isSafeChainId,
   BuiltInCaipChainId,
-  parseEthCaipChainIdHex,
+  toEthChainIdHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
@@ -1060,7 +1060,7 @@ export class NetworkController extends BaseControllerV2<
     );
     const { rpcUrl, caipChainId, ticker } = sanitizedNetworkConfiguration;
 
-    const chainId = parseEthCaipChainIdHex(caipChainId);
+    const chainId = toEthChainIdHex(caipChainId);
 
     assertIsStrictHexString(chainId);
     if (!isSafeChainId(chainId)) {

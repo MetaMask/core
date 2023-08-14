@@ -5,7 +5,7 @@ import {
   InfuraNetworkType,
   MAX_SAFE_CHAIN_ID,
   NetworkType,
-  buildEthCaipChainId,
+  toEthCaipChainId,
   toHex,
 } from '@metamask/controller-utils';
 import assert from 'assert';
@@ -5297,7 +5297,7 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test.network',
-              caipChainId: buildEthCaipChainId(
+              caipChainId: toEthCaipChainId(
                 (MAX_SAFE_CHAIN_ID + 1).toString(),
               ),
               ticker: 'TICKER',

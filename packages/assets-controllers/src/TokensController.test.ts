@@ -8,7 +8,7 @@ import {
   NetworkType,
   NetworksTicker,
   ORIGIN_METAMASK,
-  parseEthCaipChainId,
+  toEthChainId,
 } from '@metamask/controller-utils';
 import type {
   NetworkState,
@@ -709,7 +709,7 @@ describe('TokensController', () => {
       const fullErrorMessage = `TokenService Error: ${error}`;
       nock(TOKEN_END_POINT_API)
         .get(
-          `/token/${parseEthCaipChainId(
+          `/token/${toEthChainId(
             BuiltInCaipChainId.mainnet,
           )}?address=${dummyTokenAddress}`,
         )

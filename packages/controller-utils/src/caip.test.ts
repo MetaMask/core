@@ -1,9 +1,9 @@
 import {
   isEthCaipChainId,
-  buildEthCaipChainId,
-  parseEthCaipChainId,
-  parseEthCaipChainIdHex,
-  parseEthCaipChainIdInt,
+  toEthCaipChainId,
+  toEthChainId,
+  toEthChainIdHex,
+  toEthChainIdInt,
 } from './caip';
 
 describe('caip', () => {
@@ -18,17 +18,17 @@ describe('caip', () => {
     expect(isEthCaipChainId('eip155')).toBe(false);
   });
 
-  describe('buildEthCaipChainId', () => {
+  describe('toEthCaipChainId', () => {
     describe('valid ETH CAIP chain id', () => {
       it('returns the passed ETH CAIP chain ID string', () => {
-        expect(buildEthCaipChainId('eip155:1')).toBe('eip155:1');
-        expect(buildEthCaipChainId('eip155:1337')).toBe('eip155:1337');
+        expect(toEthCaipChainId('eip155:1')).toBe('eip155:1');
+        expect(toEthCaipChainId('eip155:1337')).toBe('eip155:1337');
       });
     });
 
     describe('valid non-ETH CAIP chain id', () => {
       it('throws an error', () => {
-        expect(() => buildEthCaipChainId('bip122:1')).toThrow(
+        expect(() => toEthCaipChainId('bip122:1')).toThrow(
           'Invalid chain ID "bip122:1"',
         );
       });
@@ -36,14 +36,14 @@ describe('caip', () => {
 
     describe('valid hex chain id', () => {
       it('returns a CAIP chain ID string for eip155', () => {
-        expect(buildEthCaipChainId('0x1')).toBe('eip155:1');
-        expect(buildEthCaipChainId('0x539')).toBe('eip155:1337');
+        expect(toEthCaipChainId('0x1')).toBe('eip155:1');
+        expect(toEthCaipChainId('0x539')).toBe('eip155:1337');
       });
     });
 
     describe('invalid hex chain id', () => {
       it('throws an error', () => {
-        expect(() => buildEthCaipChainId('0xZZZ')).toThrow(
+        expect(() => toEthCaipChainId('0xZZZ')).toThrow(
           'Invalid chain ID "0xZZZ"',
         );
       });
@@ -51,61 +51,61 @@ describe('caip', () => {
 
     describe('decimal chain id', () => {
       it('returns a CAIP chain ID string for eip155', () => {
-        expect(buildEthCaipChainId('1')).toBe('eip155:1');
-        expect(buildEthCaipChainId('1337')).toBe('eip155:1337');
+        expect(toEthCaipChainId('1')).toBe('eip155:1');
+        expect(toEthCaipChainId('1337')).toBe('eip155:1337');
       });
     });
 
     describe('invalid decimal chain id', () => {
       it('throws an error', () => {
-        expect(() => buildEthCaipChainId('ZZZ')).toThrow(
+        expect(() => toEthCaipChainId('ZZZ')).toThrow(
           'Invalid chain ID "ZZZ"',
         );
       });
     });
   });
 
-  describe('parseEthCaipChainId', () => {
+  describe('toEthChainId', () => {
     it('returns the reference as is', () => {
-      expect(parseEthCaipChainId('eip155:1')).toBe('1');
-      expect(parseEthCaipChainId('eip155:1337')).toBe('1337');
-      expect(parseEthCaipChainId('eip155:abc')).toBe('abc');
+      expect(toEthChainId('eip155:1')).toBe('1');
+      expect(toEthChainId('eip155:1337')).toBe('1337');
+      expect(toEthChainId('eip155:abc')).toBe('abc');
     });
   });
 
-  describe('parseEthCaipChainIdHex', () => {
+  describe('toEthChainIdHex', () => {
     describe('valid CAIP chain ID', () => {
       it('returns the reference parsed into hex string', () => {
-        expect(parseEthCaipChainIdHex('eip155:1')).toBe('0x1');
-        expect(parseEthCaipChainIdHex('eip155:1337')).toBe('0x539');
+        expect(toEthChainIdHex('eip155:1')).toBe('0x1');
+        expect(toEthChainIdHex('eip155:1337')).toBe('0x539');
       });
     });
 
     describe('invalid CAIP chain ID', () => {
       it('throws an error', () => {
-        expect(() => parseEthCaipChainIdHex(':123')).toThrow(
+        expect(() => toEthChainIdHex(':123')).toThrow(
           'Invalid CAIP chain ID.',
         );
-        expect(() => parseEthCaipChainIdHex('eip155:ABC')).toThrow(
+        expect(() => toEthChainIdHex('eip155:ABC')).toThrow(
           'Invalid character',
         ); // this comes from toHex(). What should we throw instead?
       });
     });
   });
 
-  describe('parseEthCaipChainIdInt', () => {
+  describe('toEthChainIdInt', () => {
     describe('valid CAIP chain ID', () => {
       it('returns the reference parsed into a number', () => {
-        expect(parseEthCaipChainIdInt('eip155:1')).toBe(1);
-        expect(parseEthCaipChainIdInt('eip155:1337')).toBe(1337);
+        expect(toEthChainIdInt('eip155:1')).toBe(1);
+        expect(toEthChainIdInt('eip155:1337')).toBe(1337);
       });
     });
 
     describe('invalid CAIP chain ID', () => {
       it('returns NaN', () => {
-        const invalidChainId = parseEthCaipChainIdInt(':123');
+        const invalidChainId = toEthChainIdInt(':123');
         expect(Number.isNaN(invalidChainId)).toBe(true);
-        const invalidChainIdReference = parseEthCaipChainIdInt('eip155:ABC');
+        const invalidChainIdReference = toEthChainIdInt('eip155:ABC');
         expect(Number.isNaN(invalidChainIdReference)).toBe(true);
       });
     });

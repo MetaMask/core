@@ -2,7 +2,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import {
   BuiltInCaipChainId,
   NetworkType,
-  parseEthCaipChainId,
+  toEthChainId,
   NetworksTicker,
 } from '@metamask/controller-utils';
 import type {
@@ -639,7 +639,7 @@ describe('TokenListController', () => {
 
   it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -802,7 +802,7 @@ describe('TokenListController', () => {
 
   it('should update token list from api', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -843,12 +843,12 @@ describe('TokenListController', () => {
 
   it('should update the cache before threshold time if the current data is undefined', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .once()
       .reply(200, undefined);
 
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -898,7 +898,7 @@ describe('TokenListController', () => {
 
   it('should update token list after removing data with duplicate symbols', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .reply(200, sampleWithDuplicateSymbols)
       .persist();
 
@@ -941,7 +941,7 @@ describe('TokenListController', () => {
 
   it('should update token list after removing data less than 3 occurrences', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .reply(200, sampleWithLessThan3OccurencesResponse)
       .persist();
 
@@ -965,7 +965,7 @@ describe('TokenListController', () => {
 
   it('should update token list when the token property changes', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -993,7 +993,7 @@ describe('TokenListController', () => {
 
   it('should update the cache when the timestamp expires', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
 
@@ -1024,9 +1024,9 @@ describe('TokenListController', () => {
 
   it('should update token list when the caipChainId change', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.goerli)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.goerli)}`)
       .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56`)
       .reply(200, sampleBinanceTokenList)
@@ -1121,9 +1121,9 @@ describe('TokenListController', () => {
 
   it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.mainnet)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/${parseEthCaipChainId(BuiltInCaipChainId.goerli)}`)
+      .get(`/tokens/${toEthChainId(BuiltInCaipChainId.goerli)}`)
       .reply(200, { error: 'ChainId 5 is not supported' })
       .get(`/tokens/56`)
       .reply(200, sampleBinanceTokenList)

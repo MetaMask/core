@@ -1,5 +1,5 @@
 import {
-  parseEthCaipChainIdInt,
+  toEthChainIdInt,
   isValidHexAddress,
 } from '@metamask/controller-utils';
 import {
@@ -144,7 +144,7 @@ export function validateTypedSignMessageDataV3V4(
       chainId = parseInt(chainId, chainId.startsWith('0x') ? 16 : 10);
     }
 
-    const activeChainId = parseEthCaipChainIdInt(currentCaipChainId);
+    const activeChainId = toEthChainIdInt(currentCaipChainId);
     if (Number.isNaN(activeChainId)) {
       throw new Error(
         `Cannot sign messages for chainId "${chainId}", because MetaMask is switching networks.`,

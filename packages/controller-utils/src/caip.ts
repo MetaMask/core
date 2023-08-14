@@ -26,7 +26,7 @@ export function isEthCaipChainId(
  * @param chainId - The chain ID in 0x prefixed hex or decimal string.
  * @returns a valid CAIP chain ID for an Ethereum chain.
  */
-export function buildEthCaipChainId(chainId = ''): CaipChainId {
+export function toEthCaipChainId(chainId = ''): CaipChainId {
   if (isEthCaipChainId(chainId)) {
     return chainId
   }
@@ -47,7 +47,7 @@ export function buildEthCaipChainId(chainId = ''): CaipChainId {
  * @param caipChainId - The Ethereum CAIP chain ID string.
  * @returns the chain ID as a decimal string.
  */
-export function parseEthCaipChainId(caipChainId: CaipChainId): string {
+export function toEthChainId(caipChainId: CaipChainId): string {
   const { reference } = parseCaipChainId(caipChainId);
   return reference;
 }
@@ -58,7 +58,7 @@ export function parseEthCaipChainId(caipChainId: CaipChainId): string {
  * @param caipChainId - The Ethereum CAIP chain ID string.
  * @returns the chain ID as a hex string.
  */
-export function parseEthCaipChainIdHex(caipChainId: CaipChainId): Hex {
+export function toEthChainIdHex(caipChainId: CaipChainId): Hex {
   const { reference } = parseCaipChainId(caipChainId);
   return toHex(reference);
 }
@@ -69,7 +69,7 @@ export function parseEthCaipChainIdHex(caipChainId: CaipChainId): Hex {
  * @param caipChainId - The Ethereum CAIP chain ID string.
  * @returns the chain ID as an integer.
  */
-export function parseEthCaipChainIdInt(caipChainId: CaipChainId): number {
+export function toEthChainIdInt(caipChainId: CaipChainId): number {
   try {
     const { reference } = parseCaipChainId(caipChainId);
     return parseInt(reference, 10);

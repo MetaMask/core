@@ -2,7 +2,7 @@ import type { InfuraNetworkType } from '@metamask/controller-utils';
 import {
   BuiltInCaipChainId,
   InfuraNetworkId,
-  parseEthCaipChainIdHex,
+  toEthChainIdHex,
 } from '@metamask/controller-utils';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
@@ -156,7 +156,7 @@ function createNetworkAndChainIdMiddleware({
   network: InfuraNetworkType;
 }) {
   return createScaffoldMiddleware({
-    eth_chainId: parseEthCaipChainIdHex(BuiltInCaipChainId[network]),
+    eth_chainId: toEthChainIdHex(BuiltInCaipChainId[network]),
     net_version: InfuraNetworkId[network],
   });
 }
@@ -166,7 +166,7 @@ const createChainIdMiddleware = (
 ): JsonRpcMiddleware<unknown, unknown> => {
   return (req, res, next, end) => {
     if (req.method === 'eth_chainId') {
-      res.result = parseEthCaipChainIdHex(caipChainId);
+      res.result = toEthChainIdHex(caipChainId);
       return end();
     }
     return next();

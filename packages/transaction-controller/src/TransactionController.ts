@@ -22,8 +22,8 @@ import {
   RPC,
   ApprovalType,
   ORIGIN_METAMASK,
-  parseEthCaipChainIdHex,
-  parseEthCaipChainIdInt,
+  toEthChainIdHex,
+  toEthChainIdInt,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
@@ -414,7 +414,7 @@ export class TransactionController extends BaseController<
 
     const customChainParams: Partial<ChainConfig> = {
       name,
-      chainId: parseEthCaipChainIdInt(caipChainId),
+      chainId: toEthChainIdInt(caipChainId),
       networkId: networkId === null ? NaN : parseInt(networkId, undefined),
       defaultHardfork: HARDFORK,
     };
@@ -956,7 +956,7 @@ export class TransactionController extends BaseController<
 
       transactionMeta.status = status;
       transactionMeta.transaction.nonce = nonceToUse;
-      transactionMeta.transaction.chainId = parseEthCaipChainIdHex(caipChainId);
+      transactionMeta.transaction.chainId = toEthChainIdHex(caipChainId);
 
       const baseTxParams = {
         ...transactionMeta.transaction,
