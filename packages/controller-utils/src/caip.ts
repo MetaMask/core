@@ -27,6 +27,10 @@ export function isEthCaipChainId(
  * @returns a valid CAIP chain ID for an Ethereum chain.
  */
 export function buildEthCaipChainId(chainId = ''): CaipChainId {
+  if (isEthCaipChainId(chainId)) {
+    return chainId
+  }
+
   const chainIdDecimal = chainId.startsWith('0x')
     ? parseInt(chainId, 16).toString(10)
     : chainId;

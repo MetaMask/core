@@ -19,6 +19,21 @@ describe('caip', () => {
   });
 
   describe('buildEthCaipChainId', () => {
+    describe('valid ETH CAIP chain id', () => {
+      it('returns the passed ETH CAIP chain ID string', () => {
+        expect(buildEthCaipChainId('eip155:1')).toBe('eip155:1');
+        expect(buildEthCaipChainId('eip155:1337')).toBe('eip155:1337');
+      });
+    });
+
+    describe('valid non-ETH CAIP chain id', () => {
+      it('throws an error', () => {
+        expect(() => buildEthCaipChainId('bip122:1')).toThrow(
+          'Invalid chain ID "bip122:1"',
+        );
+      });
+    });
+
     describe('valid hex chain id', () => {
       it('returns a CAIP chain ID string for eip155', () => {
         expect(buildEthCaipChainId('0x1')).toBe('eip155:1');
