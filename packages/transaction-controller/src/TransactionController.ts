@@ -337,7 +337,7 @@ export class TransactionController extends BaseController<
    * @param transaction - The transaction object to add.
    * @param opts - The options bag for addTransaction
    * @param opts.deviceConfirmedOn - An enum to indicate what device the transaction was confirmed.
-   * @param opts.origin - The domain origin
+   * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
