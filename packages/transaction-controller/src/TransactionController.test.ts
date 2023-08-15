@@ -809,7 +809,7 @@ describe('TransactionController', () => {
       );
     });
 
-    it('skip request for an approval using the approval controller', async () => {
+    it('skips request for an approval using the approval controller', async () => {
       const controller = newController();
 
       await controller.addTransaction(
