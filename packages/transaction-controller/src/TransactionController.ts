@@ -378,12 +378,25 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Get transaction with provided actionId.
+   *
+   * @param actionId - Unique ID to prevent duplicate requests
+   * @returns the filtered transaction
+   */
+  getTransactionWithActionId(actionId?: string) {
+    return this.state.transactions.find(
+      (transaction) => actionId && transaction.actionId === actionId,
+    );
+  }
+
+  /**
    * Add a new unapproved transaction to state. Parameters will be validated, a
    * unique transaction id will be generated, and gas and gasPrice will be calculated
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
    *
    * @param transaction - The transaction object to add.
    * @param opts - Additional options to control how the transaction is added.
+   * @param opts.actionId - Unique ID to prevent duplicate requests
    * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
@@ -393,11 +406,13 @@ export class TransactionController extends BaseController<
   async addTransaction(
     transaction: Transaction,
     {
+      actionId,
       deviceConfirmedOn,
       origin,
       requireApproval,
       securityAlertResponse,
     }: {
+      actionId?: string;
       deviceConfirmedOn?: WalletDevice;
       origin?: string;
       requireApproval?: boolean | undefined;
@@ -414,7 +429,14 @@ export class TransactionController extends BaseController<
       origin,
     );
 
-    const transactionMeta: TransactionMeta = {
+    const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
+      transaction,
+      origin,
+    );
+
+    const existingTransactionMeta = this.getTransactionWithActionId(actionId);
+    // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
+    const transactionMeta: TransactionMeta = existingTransactionMeta || {
       id: random(),
       networkID: networkId ?? undefined,
       chainId,
@@ -426,6 +448,8 @@ export class TransactionController extends BaseController<
       verifiedOnBlockchain: false,
       dappSuggestedGasFees,
       securityAlertResponse,
+      // Add actionId to txMeta to check if same actionId is seen again
+      actionId,
     };
 
     try {
@@ -436,10 +460,14 @@ export class TransactionController extends BaseController<
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
     }
-
-    transactions.push(transactionMeta);
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
-    this.hub.emit(`unapprovedTransaction`, transactionMeta);
+    // Checks if a transaction already exists with a given actionId
+    if (!existingTransactionMeta) {
+      transactions.push(transactionMeta);
+      this.update({
+        transactions: this.trimTransactionsForState(transactions),
+      });
+      this.hub.emit(`unapprovedTransaction`, transactionMeta);
+    }
 
     return {
       result: this.processApproval(transactionMeta, {
@@ -591,15 +619,24 @@ export class TransactionController extends BaseController<
    * Attempts to speed up a transaction increasing transaction gasPrice by ten percent.
    *
    * @param transactionID - The ID of the transaction to speed up.
-   * @param gasValues - The gas values to use for the speed up transation.
+   * @param gasValues - The gas values to use for the speed up transaction.
    * @param options - The options for the speed up transaction.
+   * @param options.actionId - Unique ID to prevent duplicate requests
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
    */
   async speedUpTransaction(
     transactionID: string,
     gasValues?: GasPriceValue | FeeMarketEIP1559Values,
-    { estimatedBaseFee }: { estimatedBaseFee?: string } = {},
+    {
+      actionId,
+      estimatedBaseFee,
+    }: { actionId?: string; estimatedBaseFee?: string } = {},
   ) {
+    // If transaction is found for same action id, do not create a new speed up transaction.
+    if (this.getTransactionWithActionId(actionId)) {
+      return;
+    }
+
     if (gasValues) {
       validateGasValues(gasValues);
     }
@@ -692,6 +729,7 @@ export class TransactionController extends BaseController<
       id: random(),
       time: Date.now(),
       transactionHash,
+      actionId,
     };
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
@@ -947,6 +985,7 @@ export class TransactionController extends BaseController<
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
+    const { actionId } = transactionMeta;
 
     try {
       if (requireApproval !== false) {
@@ -959,14 +998,14 @@ export class TransactionController extends BaseController<
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
       if (meta && !isCompleted) {
-        await this.approveTransaction(transactionId);
+        await this.approveTransaction(transactionId, actionId);
       }
     } catch (error: any) {
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
       if (meta && !isCompleted) {
         if (error.code === errorCodes.provider.userRejectedRequest) {
-          this.cancelTransaction(transactionId);
+          this.cancelTransaction(transactionId, { actionId });
 
           throw ethErrors.provider.userRejectedRequest(
             'User rejected the transaction',
@@ -1015,12 +1054,18 @@ export class TransactionController extends BaseController<
    * A `<tx.id>:finished` hub event is fired after success or failure.
    *
    * @param transactionID - The ID of the transaction to approve.
+   * @param actionId - Unique ID to prevent duplicate requests
    */
-  private async approveTransaction(transactionID: string) {
+  private async approveTransaction(transactionID: string, actionId?: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const { chainId } = this.getChainAndNetworkId();
-    const index = transactions.findIndex(({ id }) => transactionID === id);
+    const index = transactions.findIndex((transaction) => {
+      if (actionId) {
+        return this.getTransactionWithActionId(actionId);
+      }
+      return transaction.id === transactionID;
+    });
     const transactionMeta = transactions[index];
     const {
       transaction: { nonce, from },
@@ -1108,18 +1153,29 @@ export class TransactionController extends BaseController<
    * and emitting a `<tx.id>:finished` hub event.
    *
    * @param transactionID - The ID of the transaction to cancel.
+   * @param opts - Additional options to control how the transaction is added.
+   * @param opts.actionId - Unique ID to prevent duplicate requests
    */
-  private cancelTransaction(transactionID: string) {
-    const transactionMeta = this.state.transactions.find(
-      ({ id }) => id === transactionID,
-    );
+  private cancelTransaction(
+    transactionID: string,
+    opts: { actionId?: string } = {},
+  ) {
+    const { actionId } = opts;
+    const transactionMeta = this.state.transactions.find((transaction) => {
+      if (actionId) {
+        return this.getTransactionWithActionId(actionId);
+      }
+      return transaction.id === transactionID;
+    });
     if (!transactionMeta) {
       return;
     }
     transactionMeta.status = TransactionStatus.rejected;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     const transactions = this.state.transactions.filter(
-      ({ id }) => id !== transactionID,
+      (transaction) =>
+        transaction.id !== transactionID ||
+        (actionId && transaction.actionId !== actionId),
     );
     this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
@@ -1321,11 +1377,11 @@ export class TransactionController extends BaseController<
     return String(txMeta.id);
   }
 
-  private isTransactionCompleted(transactionid: string): {
+  private isTransactionCompleted(transactionID: string): {
     meta?: TransactionMeta;
     isCompleted: boolean;
   } {
-    const transaction = this.getTransaction(transactionid);
+    const transaction = this.getTransaction(transactionID);
 
     if (!transaction) {
       return { meta: undefined, isCompleted: false };

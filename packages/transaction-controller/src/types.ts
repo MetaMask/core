@@ -14,6 +14,11 @@ export type TransactionMeta =
  */
 type TransactionMetaBase = {
   /**
+   * Unique ID to prevent duplicate requests
+   */
+  actionId?: string;
+
+  /**
    * Base fee of the block as a hex value, introduced in EIP-1559.
    */
   baseFeePerGas?: Hex;

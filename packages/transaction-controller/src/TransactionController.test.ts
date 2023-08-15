@@ -803,6 +803,78 @@ describe('TransactionController', () => {
       });
     });
 
+    it('adds single unapproved transactions to state when called twice with same actionId', async () => {
+      const controller = newController();
+
+      const mockDeviceConfirmedOn = WalletDevice.OTHER;
+      const mockOrigin = 'origin';
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+          actionId: '123456',
+        },
+      );
+      const transactionCountFirstCall = controller.state.transactions.length;
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+          actionId: '123456',
+        },
+      );
+      const transactionCountSecondCall = controller.state.transactions.length;
+
+      expect(transactionCountFirstCall).toStrictEqual(
+        transactionCountSecondCall,
+      );
+    });
+
+    it('adds multiple unapproved transactions to state when called with different actionId', async () => {
+      const controller = newController();
+
+      const mockDeviceConfirmedOn = WalletDevice.OTHER;
+      const mockOrigin = 'origin';
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+          actionId: '123456',
+        },
+      );
+      const transactionCountFirstCall = controller.state.transactions.length;
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+          actionId: '00000',
+        },
+      );
+      const transactionCountSecondCall = controller.state.transactions.length;
+
+      expect(transactionCountFirstCall).toBeLessThan(
+        transactionCountSecondCall,
+      );
+    });
+
     it.each([
       ['mainnet', MOCK_MAINNET_NETWORK],
       ['custom network', MOCK_CUSTOM_NETWORK],
@@ -1493,6 +1565,52 @@ describe('TransactionController', () => {
       expect(transactions[1].transaction.gasPrice).toBe(
         '0x5916a6d6', // 1.1 * 0x50fd51da
       );
+    });
+
+    it('adds single transactions when called speed up specifying an actionId from a already existent transaction', async () => {
+      const controller = newController();
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          actionId: '123456',
+        },
+      );
+      await controller.speedUpTransaction(transactionMeta.id, undefined, {
+        actionId: '123456',
+      });
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(1);
+    });
+
+    it('adds multiple transactions when called speed up specifying an actionId from a non-existent transaction', async () => {
+      const controller = newController();
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          actionId: '123456',
+        },
+      );
+      await controller.speedUpTransaction(transactionMeta.id, undefined, {
+        actionId: '00000',
+      });
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
     });
 
     it('uses the same nonce', async () => {
