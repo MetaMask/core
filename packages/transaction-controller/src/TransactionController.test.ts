@@ -1,6 +1,4 @@
 /* eslint-disable jest/expect-expect */
-
-import { Common } from '@ethereumjs/common';
 import {
   ChainId,
   NetworkType,
@@ -23,7 +21,7 @@ import type {
   TransactionControllerMessenger,
   TransactionConfig,
 } from './TransactionController';
-import { TransactionController, HARDFORK } from './TransactionController';
+import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
 import { WalletDevice, TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
@@ -211,8 +209,7 @@ function waitForTransactionFinished(
 ): Promise<TransactionMeta> {
   return new Promise((resolve) => {
     controller.hub.once(
-      `${controller.state.transactions[0].id}:${
-        confirmed ? 'confirmed' : 'finished'
+      `${controller.state.transactions[0].id}:${confirmed ? 'confirmed' : 'finished'
       }`,
       (txMeta) => {
         resolve(txMeta);
@@ -434,15 +431,6 @@ describe('TransactionController', () => {
         ...config,
       },
     );
-  }
-
-  /**
-   * Wait for a specified number of milliseconds.
-   *
-   * @param ms - The number of milliseconds to wait.
-   */
-  async function wait(ms: number) {
-    await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   beforeEach(() => {
@@ -1386,7 +1374,9 @@ describe('TransactionController', () => {
 
   describe('stopTransaction', () => {
     it('rejects result promise', async () => {
-      const controller = newController();
+      const controller = newController({
+        network: MOCK_LINEA_GOERLI_NETWORK,
+      });
 
       const { result, transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1416,7 +1406,9 @@ describe('TransactionController', () => {
 
   describe('speedUpTransaction', () => {
     it('creates additional transaction with increased gas', async () => {
-      const controller = newController();
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
 
       const { transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1480,53 +1472,6 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(2);
     });
-  });
-
-  describe('getCommonConfiguration', () => {
-    it('should get the common  network configuration for mainnet', async () => {
-      const controller = new TransactionController({
-        getNetworkState: () => MOCK_MAINNET_NETWORK.state,
-        onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
-        provider: MOCK_MAINNET_NETWORK.provider,
-        blockTracker: MOCK_MAINNET_NETWORK.blockTracker,
-        messenger: messengerMock,
-      });
-
-      const config = await controller.getCommonConfiguration();
-      expect(config).toStrictEqual(
-        new Common({ chain: 'mainnet', hardfork: HARDFORK }),
-      );
-    });
-
-    it.each([
-      ['linea-mainnet', MOCK_LINEA_MAINNET_NETWORK, 59144],
-      ['linea-goerli', MOCK_LINEA_GOERLI_NETWORK, 59140],
-    ])(
-      'should get a custom network configuration for %s',
-      async (
-        _,
-        { state, subscribe, provider, blockTracker }: MockNetwork,
-        chainId: number,
-      ) => {
-        const controller = new TransactionController({
-          getNetworkState: () => state,
-          onNetworkStateChange: subscribe,
-          provider,
-          blockTracker,
-          messenger: messengerMock,
-        });
-
-        const config = controller.getCommonConfiguration();
-        expect(config).toStrictEqual(
-          Common.custom({
-            name: undefined,
-            chainId,
-            networkId: chainId,
-            defaultHardfork: HARDFORK,
-          }),
-        );
-      },
-    );
   });
 
   describe('initApprovals', () => {

@@ -417,40 +417,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * `@ethereumjs/tx` uses `@ethereumjs/common` as a configuration tool for
-   * specifying which chain, network, hardfork and EIPs to support for
-   * a transaction. By referencing this configuration, and analyzing the fields
-   * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
-   * transaction type to use.
-   *
-   * @returns {Common} common configuration object
-   */
-
-  getCommonConfiguration(): Common {
-    const {
-      networkId,
-      providerConfig: { type: chain, chainId, nickname: name },
-    } = this.getNetworkState();
-
-    if (
-      chain !== RPC &&
-      chain !== NetworkType['linea-goerli'] &&
-      chain !== NetworkType['linea-mainnet']
-    ) {
-      return new Common({ chain, hardfork: HARDFORK });
-    }
-
-    const customChainParams: Partial<ChainConfig> = {
-      name,
-      chainId: parseInt(chainId, 16),
-      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
-      defaultHardfork: HARDFORK,
-    };
-
-    return Common.custom(customChainParams);
-  }
-
-  /**
    * Attempts to cancel a transaction based on its ID by setting its status to "rejected"
    * and emitting a `<tx.id>:finished` hub event.
    *
@@ -1270,14 +1236,46 @@ export class TransactionController extends BaseController<
     return { meta: transaction, isCompleted };
   }
 
-  private getChainAndNetworkId(): {
-    networkId: string | null;
-    chainId: Hex;
-  } {
-    const { networkId, providerConfig } = this.getNetworkState();
-    const chainId = providerConfig?.chainId;
+  private prepareUnsignedEthTx(
+    txParams: Record<string, unknown>,
+  ): TypedTransaction {
+    return TransactionFactory.fromTxData(txParams, {
+      common: this.getCommonConfiguration(),
+      freeze: false,
+    });
+  }
 
-    return { networkId, chainId };
+  /**
+   * `@ethereumjs/tx` uses `@ethereumjs/common` as a configuration tool for
+   * specifying which chain, network, hardfork and EIPs to support for
+   * a transaction. By referencing this configuration, and analyzing the fields
+   * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
+   * transaction type to use.
+   *
+   * @returns common configuration object
+   */
+  private getCommonConfiguration(): Common {
+    const {
+      networkId,
+      providerConfig: { type: chain, chainId, nickname: name },
+    } = this.getNetworkState();
+
+    if (
+      chain !== RPC &&
+      chain !== NetworkType['linea-goerli'] &&
+      chain !== NetworkType['linea-mainnet']
+    ) {
+      return new Common({ chain, hardfork: HARDFORK });
+    }
+
+    const customChainParams: Partial<ChainConfig> = {
+      name,
+      chainId: parseInt(chainId, 16),
+      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
+      defaultHardfork: HARDFORK,
+    };
+
+    return Common.custom(customChainParams);
   }
 }
 
