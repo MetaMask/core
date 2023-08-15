@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [12.1.1]
-### Uncategorized
+### Added
 - Added an export for NetworkClientId in NetworkController ([#1583](https://github.com/MetaMask/core/pull/1583))
 
 ## [12.1.0]
