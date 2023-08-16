@@ -388,13 +388,6 @@ export class TransactionController extends BaseController<
     };
   }
 
-  prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
-    return TransactionFactory.fromTxData(txParams, {
-      common: this.getCommonConfiguration(),
-      freeze: false,
-    });
-  }
-
   /**
    * Creates approvals for all unapproved transactions persisted.
    */
@@ -1234,6 +1227,15 @@ export class TransactionController extends BaseController<
     const isCompleted = this.isLocalFinalState(transaction.status);
 
     return { meta: transaction, isCompleted };
+  }
+
+  private getChainAndNetworkId(): {
+    networkId: string | null;
+    chainId: Hex;
+  } {
+    const { networkId, providerConfig } = this.getNetworkState();
+    const chainId = providerConfig?.chainId;
+    return { networkId, chainId };
   }
 
   private prepareUnsignedEthTx(
