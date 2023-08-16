@@ -348,11 +348,11 @@ export class TransactionController extends BaseController<
     {
       deviceConfirmedOn,
       origin,
-      requireApproval = true,
+      requireApproval,
     }: {
       deviceConfirmedOn?: WalletDevice;
       origin?: string;
-      requireApproval?: boolean;
+      requireApproval?: boolean | undefined;
     } = {},
   ): Promise<Result> {
     const { chainId, networkId } = this.getChainAndNetworkId();
@@ -387,7 +387,7 @@ export class TransactionController extends BaseController<
 
     return {
       result: this.processApproval(transactionMeta, {
-        requireApproval: Boolean(requireApproval),
+        requireApproval,
       }),
       transactionMeta,
     };
@@ -891,13 +891,13 @@ export class TransactionController extends BaseController<
 
   private async processApproval(
     transactionMeta: TransactionMeta,
-    { requireApproval, shouldShowRequest = true }: { requireApproval: boolean },
+    { requireApproval, shouldShowRequest = true }: { requireApproval: boolean | undefined },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      if (requireApproval) {
+      if (requireApproval !== false) {
         const acceptResult = await this.requestApproval(transactionMeta, {
           shouldShowRequest,
         });
