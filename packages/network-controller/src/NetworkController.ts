@@ -334,7 +334,7 @@ type CustomNetworkClientId = string;
 /**
  * The string that uniquely identifies a network client.
  */
-type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
+export type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 
 /**
  * Information about networks not held by any other part of state.
