@@ -209,7 +209,8 @@ function waitForTransactionFinished(
 ): Promise<TransactionMeta> {
   return new Promise((resolve) => {
     controller.hub.once(
-      `${controller.state.transactions[0].id}:${confirmed ? 'confirmed' : 'finished'
+      `${controller.state.transactions[0].id}:${
+        confirmed ? 'confirmed' : 'finished'
       }`,
       (txMeta) => {
         resolve(txMeta);
