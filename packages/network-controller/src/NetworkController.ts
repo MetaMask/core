@@ -730,17 +730,23 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Fetches the network ID for the network, ensuring that it is a hex string.
    *
+   * @param networkClientId - The ID of the network client to fetch the network
    * @returns A promise that either resolves to the network ID, or rejects with
    * an error.
    * @throws If the network ID of the network is not a valid hex string.
    */
-  async #getNetworkId(): Promise<NetworkId> {
+  async #getNetworkId(networkClientId?: NetworkClientId): Promise<NetworkId> {
     const possibleNetworkId = await new Promise<string>((resolve, reject) => {
-      if (!this.#ethQuery) {
+      let ethQuery = this.#ethQuery;
+      if (networkClientId) {
+        const networkClient = this.getNetworkClientById(networkClientId);
+        ethQuery = new EthQuery(networkClient.provider);
+      }
+      if (!ethQuery) {
         throw new Error('Provider has not been initialized');
       }
 
-      this.#ethQuery.sendAsync(
+      ethQuery.sendAsync(
         { method: 'net_version' },
         (error: unknown, result?: unknown) => {
           if (error) {
@@ -946,7 +952,7 @@ export class NetworkController extends BaseControllerV2<
     let ethQuery = this.#ethQuery;
     return new Promise((resolve, reject) => {
       if (networkClientId) {
-        const networkClient = this.getNetworkClientsById()[networkClientId];
+        const networkClient = this.getNetworkClientById(networkClientId);
         ethQuery = new EthQuery(networkClient.provider);
       }
 
