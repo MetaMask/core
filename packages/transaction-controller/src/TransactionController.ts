@@ -891,7 +891,13 @@ export class TransactionController extends BaseController<
 
   private async processApproval(
     transactionMeta: TransactionMeta,
-    { requireApproval, shouldShowRequest = true }: { requireApproval: boolean | undefined },
+    {
+      requireApproval,
+      shouldShowRequest = true,
+    }: {
+      requireApproval?: boolean | undefined;
+      shouldShowRequest?: boolean;
+    },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
