@@ -1528,4 +1528,56 @@ describe('TransactionController', () => {
       },
     );
   });
+
+  describe('initApprovals', () => {
+    it('creates approvals for all unapproved transaction', async () => {
+      const transaction = {
+        from: ACCOUNT_MOCK,
+        id: 'mocked',
+        networkID: '5',
+        status: TransactionStatus.unapproved,
+        transactionHash: '1337',
+      };
+      const controller = newController();
+      controller.state.transactions.push(transaction as any);
+      controller.state.transactions.push({
+        ...transaction,
+        id: 'mocked1',
+        transactionHash: '1338',
+      } as any);
+
+      controller.initApprovals();
+
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          expectsResult: true,
+          id: 'mocked',
+          origin: 'metamask',
+          requestData: { txId: 'mocked' },
+          type: 'transaction',
+        },
+        false,
+      );
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          expectsResult: true,
+          id: 'mocked1',
+          origin: 'metamask',
+          requestData: { txId: 'mocked1' },
+          type: 'transaction',
+        },
+        false,
+      );
+    });
+
+    it('does not create any approval when there is no unapproved transaction', async () => {
+      const controller = newController();
+      controller.initApprovals();
+
+      expect(delayMessengerMock.call).not.toHaveBeenCalled();
+    });
+  });
 });
