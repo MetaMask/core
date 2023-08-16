@@ -433,6 +433,15 @@ describe('TransactionController', () => {
     );
   }
 
+  /**
+   * Wait for a specified number of milliseconds.
+   *
+   * @param ms - The number of milliseconds to wait.
+   */
+  async function wait(ms: number) {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   beforeEach(() => {
     for (const key in mockFlags) {
       mockFlags[key] = null;
