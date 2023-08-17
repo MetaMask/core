@@ -944,22 +944,23 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Fetches the latest block for the network.
    *
-   * @param networkClientId - The networkClientId to fetch the correct provider against which to check the latest block.
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check the latest block. Defaults to the selectedNetworkClientId.
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(networkClientId: NetworkClientId): Promise<Block> {
-    let ethQuery = this.#ethQuery;
+  #getLatestBlock(networkClientId?: NetworkClientId): Promise<Block> {
+    if (networkClientId === undefined) {
+      networkClientId = this.state.selectedNetworkClientId;
+    }
+
+    const networkClient = this.getNetworkClientById(networkClientId);
+    const ethQuery = new EthQuery(networkClient.provider);
+
+    if (!ethQuery) {
+      throw new Error('Provider has not been initialized');
+    }
+
     return new Promise((resolve, reject) => {
-      if (networkClientId) {
-        const networkClient = this.getNetworkClientById(networkClientId);
-        ethQuery = new EthQuery(networkClient.provider);
-      }
-
-      if (!ethQuery) {
-        throw new Error('Provider has not been initialized');
-      }
-
       ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
@@ -984,14 +985,16 @@ export class NetworkController extends BaseControllerV2<
    * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
   async getEIP1559Compatibility(networkClientId?: NetworkClientId) {
-    if (!this.#ethQuery && !networkClientId) {
-      return false;
-    }
     const networkClientIdToCheck =
       networkClientId || this.state.selectedNetworkClientId;
-    const { EIPS } =
-      this.state.networksMetadata[this.state.selectedNetworkClientId];
 
+    const metadata = this.state.networksMetadata[networkClientIdToCheck];
+    if (metadata === undefined) {
+      return false;
+    }
+    const { EIPS } = metadata;
+
+    // may want to include some 'freshness' value - something to make sure we refetch this from time to time
     if (EIPS[1559] !== undefined) {
       return EIPS[1559];
     }
@@ -1001,7 +1004,7 @@ export class NetworkController extends BaseControllerV2<
     );
     this.update((state) => {
       if (isEIP1559Compatible !== undefined) {
-        state.networksMetadata[state.selectedNetworkClientId].EIPS[1559] =
+        state.networksMetadata[networkClientIdToCheck].EIPS[1559] =
           isEIP1559Compatible;
       }
     });
