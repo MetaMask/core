@@ -799,7 +799,7 @@ export class NetworkController extends BaseControllerV2<
 
     try {
       const [networkId, isEIP1559Compatible] = await Promise.all([
-        this.#getNetworkId(),
+        this.#getNetworkId(this.state.selectedNetworkClientId),
         this.#determineEIP1559Compatibility(this.state.selectedNetworkClientId),
       ]);
       updatedNetworkStatus = NetworkStatus.Available;
