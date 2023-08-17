@@ -15,6 +15,7 @@ import type { Hex } from '@metamask/utils';
  * @property time - Timestamp associated with this transaction
  * @property toSmartContract - Whether transaction recipient is a smart contract
  * @property transaction - Underlying Transaction object
+ * @property txReceipt - Transaction receipt
  * @property transactionHash - Hash of a successful transaction
  * @property blockNumber - Number of the block where the transaction has been included
  */
