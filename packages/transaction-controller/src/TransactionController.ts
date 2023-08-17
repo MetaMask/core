@@ -340,6 +340,7 @@ export class TransactionController extends BaseController<
    * @param opts - Additional options to control how the transaction is added.
    * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
+   * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -347,9 +348,11 @@ export class TransactionController extends BaseController<
     {
       deviceConfirmedOn,
       origin,
+      requireApproval,
     }: {
       deviceConfirmedOn?: WalletDevice;
       origin?: string;
+      requireApproval?: boolean | undefined;
     } = {},
   ): Promise<Result> {
     const { chainId, networkId } = this.getChainAndNetworkId();
@@ -383,7 +386,9 @@ export class TransactionController extends BaseController<
     this.hub.emit(`unapprovedTransaction`, transactionMeta);
 
     return {
-      result: this.processApproval(transactionMeta),
+      result: this.processApproval(transactionMeta, {
+        requireApproval,
+      }),
       transactionMeta,
     };
   }
@@ -886,16 +891,24 @@ export class TransactionController extends BaseController<
 
   private async processApproval(
     transactionMeta: TransactionMeta,
-    { shouldShowRequest = true } = {},
+    {
+      requireApproval,
+      shouldShowRequest = true,
+    }: {
+      requireApproval?: boolean | undefined;
+      shouldShowRequest?: boolean;
+    },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      const acceptResult = await this.requestApproval(transactionMeta, {
-        shouldShowRequest,
-      });
-      resultCallbacks = acceptResult.resultCallbacks;
+      if (requireApproval !== false) {
+        const acceptResult = await this.requestApproval(transactionMeta, {
+          shouldShowRequest,
+        });
+        resultCallbacks = acceptResult.resultCallbacks;
+      }
 
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
