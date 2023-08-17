@@ -176,11 +176,11 @@ describe('SignatureController', () => {
 
     signatureController = new SignatureController({
       messenger: messengerMock,
-      keyringController: keyringControllerMock,
       getAllState: getAllStateMock,
       securityProviderRequest: securityProviderRequestMock,
       isEthSignEnabled: isEthSignEnabledMock,
       getCurrentChainId: getCurrentChainIdMock,
+      ...keyringControllerMock,
     } as SignatureControllerOptions);
   });
 

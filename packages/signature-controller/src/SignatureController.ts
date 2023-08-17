@@ -7,6 +7,10 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type {
+  KeyringController,
+  SignTypedDataVersion,
+} from '@metamask/keyring-controller';
+import type {
   MessageParams,
   MessageParamsMetamask,
   PersonalMessageParams,
@@ -100,20 +104,11 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-export interface KeyringController {
-  signMessage: (messsageParams: MessageParams) => Promise<string>;
-  signPersonalMessage: (
-    messsageParams: PersonalMessageParams,
-  ) => Promise<string>;
-  signTypedMessage: (
-    messsageParams: TypedMessageParams,
-    options: { version: string | undefined },
-  ) => Promise<string>;
-}
-
 export type SignatureControllerOptions = {
   messenger: SignatureControllerMessenger;
-  keyringController: KeyringController;
+  signMessage: KeyringController['signMessage'];
+  signPersonalMessage: KeyringController['signPersonalMessage'];
+  signTypedMessage: KeyringController['signTypedMessage'];
   isEthSignEnabled: () => boolean;
   getAllState: () => unknown;
   securityProviderRequest?: (
@@ -133,7 +128,11 @@ export class SignatureController extends BaseControllerV2<
 > {
   hub: EventEmitter;
 
-  #keyringController: KeyringController;
+  readonly #keyringControllerSignMessage: KeyringController['signMessage'];
+
+  readonly #keyringControllerSignPersonalMessage: KeyringController['signPersonalMessage'];
+
+  readonly #keyringControllerSignTypedMessage: KeyringController['signTypedMessage'];
 
   #isEthSignEnabled: () => boolean;
 
@@ -150,7 +149,9 @@ export class SignatureController extends BaseControllerV2<
    *
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the sign controller.
-   * @param options.keyringController - An instance of a keyring controller used to perform the signing operations.
+   * @param options.signMessage - The method for signing messages.
+   * @param options.signPersonalMessage - The method for signing personal messages.
+   * @param options.signTypedMessage - The method for signing typed messages.
    * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
    * @param options.getAllState - Callback to retrieve all user state.
    * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
@@ -158,7 +159,9 @@ export class SignatureController extends BaseControllerV2<
    */
   constructor({
     messenger,
-    keyringController,
+    signMessage,
+    signPersonalMessage,
+    signTypedMessage,
     isEthSignEnabled,
     getAllState,
     securityProviderRequest,
@@ -171,7 +174,10 @@ export class SignatureController extends BaseControllerV2<
       state: getDefaultState(),
     });
 
-    this.#keyringController = keyringController;
+    this.#keyringControllerSignMessage = signMessage;
+    this.#keyringControllerSignPersonalMessage = signPersonalMessage;
+    this.#keyringControllerSignTypedMessage = signTypedMessage;
+
     this.#isEthSignEnabled = isEthSignEnabled;
     this.#getAllState = getAllState;
 
@@ -525,7 +531,7 @@ export class SignatureController extends BaseControllerV2<
       ApprovalType.EthSign,
       msgParams,
       async (cleanMsgParams) =>
-        await this.#keyringController.signMessage(cleanMsgParams),
+        await this.#keyringControllerSignMessage(cleanMsgParams),
     );
   }
 
@@ -542,7 +548,7 @@ export class SignatureController extends BaseControllerV2<
       ApprovalType.PersonalSign,
       msgParams,
       async (cleanMsgParams) =>
-        await this.#keyringController.signPersonalMessage(cleanMsgParams),
+        await this.#keyringControllerSignPersonalMessage(cleanMsgParams),
     );
   }
 
@@ -570,11 +576,9 @@ export class SignatureController extends BaseControllerV2<
           ? this.#removeJsonData(cleanMsgParams, version as string)
           : cleanMsgParams;
 
-        return await this.#keyringController.signTypedMessage(
+        return await this.#keyringControllerSignTypedMessage(
           finalMessageParams,
-          {
-            version,
-          },
+          version as SignTypedDataVersion,
         );
       },
     );
