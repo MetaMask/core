@@ -43,6 +43,7 @@ type TransactionMetaBase = {
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
   verifiedOnBlockchain?: boolean;
+  txReceipt?: TransactionReceipt;
 };
 
 /**
@@ -98,6 +99,38 @@ export interface Transaction {
   maxPriorityFeePerGas?: string;
   estimatedBaseFee?: string;
   estimateGasError?: string;
+}
+
+/**
+ * @type TransactionReceipt
+ *
+ * TransactionReceipt representation
+ * @property effectiveGasPrice - Effective gas price the transaction was charged at
+ * @property gasUsed - Gas used in the transaction
+ * @property l1Fee - Total used gas in hex
+ * @property status - The status of the transaction
+ */
+export interface TransactionReceipt {
+  blockHash?: string;
+  blockNumber?: number;
+  effectiveGasPrice?: string;
+  gasUsed?: string;
+  l1Fee?: string;
+  logs?: Log[];
+  status?: string;
+  transactionIndex?: number;
+}
+
+/**
+ * @type Log
+ *
+ * Log representation
+ * @property address - Address of the contract that generated log
+ * @property topics - List of topics for log
+ */
+interface Log {
+  address?: string;
+  topics?: string;
 }
 
 /**
