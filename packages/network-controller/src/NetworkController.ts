@@ -763,6 +763,63 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
+   * Updates the network meta with EIP-1559 support and the network status
+   * based on the given network client ID.
+   *
+   * @param networkClientId - The ID of the network client to update.
+   */
+  async updateNetworkStatus(networkClientId: NetworkClientId) {
+    const isInfura = networkClientId in InfuraNetworkType;
+    let updatedNetworkStatus: NetworkStatus;
+    let updatedIsEIP1559Compatible: boolean | undefined;
+
+    try {
+      updatedIsEIP1559Compatible = await this.#determineEIP1559Compatibility(
+        networkClientId,
+      );
+      updatedNetworkStatus = NetworkStatus.Available;
+    } catch (error) {
+      if (isErrorWithCode(error)) {
+        let responseBody;
+        if (
+          isInfura &&
+          hasProperty(error, 'message') &&
+          typeof error.message === 'string'
+        ) {
+          try {
+            responseBody = JSON.parse(error.message);
+          } catch {
+            // error.message must not be JSON
+          }
+        }
+
+        if (
+          isPlainObject(responseBody) &&
+          responseBody.error === INFURA_BLOCKED_KEY
+        ) {
+          updatedNetworkStatus = NetworkStatus.Blocked;
+        } else if (error.code === errorCodes.rpc.internal) {
+          updatedNetworkStatus = NetworkStatus.Unknown;
+        } else {
+          updatedNetworkStatus = NetworkStatus.Unavailable;
+        }
+      } else {
+        log('NetworkController - could not determine network status', error);
+        updatedNetworkStatus = NetworkStatus.Unknown;
+      }
+    }
+    this.update((state) => {
+      const meta = state.networksMetadata[networkClientId];
+      meta.status = updatedNetworkStatus;
+      if (updatedIsEIP1559Compatible === undefined) {
+        delete meta.EIPS[1559];
+      } else {
+        meta.EIPS[1559] = updatedIsEIP1559Compatible;
+      }
+    });
+  }
+
+  /**
    * Performs side effects after switching to a network. If the network is
    * available, updates the network state with the network ID of the network and
    * stores whether the network supports EIP-1559; otherwise clears said
