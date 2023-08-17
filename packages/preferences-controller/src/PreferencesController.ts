@@ -303,7 +303,7 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * A setter for the user enable the IPFS gateway
+   * A setter for the user allow to be fetched IPFS content
    *
    * @param isIpfsGatewayEnabled - true to enable ipfs source
    */

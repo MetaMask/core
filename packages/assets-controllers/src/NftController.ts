@@ -139,6 +139,7 @@ export interface NftMetadata {
   creator?: ApiNftCreator;
   lastSale?: ApiNftLastSale;
   transactionId?: string;
+  tokenURI?: string | null;
 }
 
 interface AccountParams {
@@ -359,16 +360,18 @@ export class NftController extends BaseController<NftConfig, NftState> {
     let tokenURI = result[0];
     const standard = result[1];
 
-    if (tokenURI.startsWith('ipfs://')) {
-      if (!isIpfsGatewayEnabled) {
-        return {
-          image: null,
-          name: null,
-          description: null,
-          standard: standard || null,
-          favorite: false,
-        };
-      }
+    const hasIpfsTokenURI = tokenURI.startsWith('ipfs://');
+
+    if (hasIpfsTokenURI && !isIpfsGatewayEnabled) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+      };
+    }
+    if (hasIpfsTokenURI) {
       tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
     }
 
@@ -385,6 +388,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: object.description,
         standard,
         favorite: false,
+        tokenURI: tokenURI || null,
       };
     } catch {
       return {
@@ -393,6 +397,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: null,
         standard: standard || null,
         favorite: false,
+        tokenURI: tokenURI || null,
       };
     }
   }
@@ -470,6 +475,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       image: blockchainMetadata.image ?? openSeaMetadata?.image ?? null,
       standard:
         blockchainMetadata.standard ?? openSeaMetadata?.standard ?? null,
+      tokenURI: blockchainMetadata.tokenURI ?? null,
     };
   }
 
