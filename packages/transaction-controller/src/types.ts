@@ -105,44 +105,70 @@ export interface Transaction {
 /**
  * @type TransactionReceipt
  *
- * TransactionReceipt representation
+ * Following properties are not included in the type definition but are returned by the API:
  * @property byzantium - True if the block is in a post-Byzantium Hard Fork block.
  * @property contractAddress - Contract address
  * @property confirmations - The number of blocks that have been mined since this transaction
  * @property cumulativeGasUsed - Sum of the gas used by each transaction in the ordered list of transaction
- * @property blockHash - The block hash of the block that this transaction was included in
- * @property effectiveGasPrice - Effective gas price the transaction was charged at
  * @property from - The address this transaction is from
- * @property gasUsed - Gas used in the transaction
- * @property l1Fee - Total used gas in hex
- * @property logs - All the logs emitted by this transaction
  * @property logsBloom - A bloom-filter, which includes all the addresses and topics included in any log in this transaction
  * @property root - The intermediate state root of a receipt
- * @property status - The status of the transaction
  * @property to - The address this transaction is to
- * @property transactionIndex - The index of this transaction in the list of transactions included in the block this transaction was mined in
  * @property type - The EIP-2718 type of this transaction
  */
 export interface TransactionReceipt {
+  /**
+   * The block hash of the block that this transaction was included in
+   */
   blockHash?: string;
+
+  /**
+   * The block number of the block that this transaction was included in
+   */
   blockNumber?: number;
+
+  /**
+   * Effective gas price the transaction was charged at
+   */
   effectiveGasPrice?: string;
+
+  /**
+   * Gas used in the transaction
+   */
   gasUsed?: string;
+
+  /**
+   * Total used gas in hex
+   */
   l1Fee?: string;
+
+  /**
+   * All the logs emitted by this transaction
+   */
   logs?: Log[];
+
+  /**
+   * The status of the transaction
+   */
   status?: string;
+
+  /**
+   * The index of this transaction in the list of transactions included in the block this transaction was mined in
+   */
   transactionIndex?: number;
 }
 
 /**
  * @type Log
- *
- * Log representation
- * @property address - Address of the contract that generated log
- * @property topics - List of topics for log
  */
-interface Log {
+export interface Log {
+  /**
+   * Address of the contract that generated log
+   */
   address?: string;
+  /**
+   * List of topics for log
+   */
   topics?: string;
 }
 
