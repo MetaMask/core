@@ -998,14 +998,14 @@ export class TransactionController extends BaseController<
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
       if (meta && !isCompleted) {
-        await this.approveTransaction(transactionId, actionId);
+        await this.approveTransaction(transactionId);
       }
     } catch (error: any) {
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
       if (meta && !isCompleted) {
         if (error.code === errorCodes.provider.userRejectedRequest) {
-          this.cancelTransaction(transactionId, { actionId });
+          this.cancelTransaction(transactionId, actionId);
 
           throw ethErrors.provider.userRejectedRequest(
             'User rejected the transaction',
@@ -1054,16 +1054,12 @@ export class TransactionController extends BaseController<
    * A `<tx.id>:finished` hub event is fired after success or failure.
    *
    * @param transactionID - The ID of the transaction to approve.
-   * @param actionId - Unique ID to prevent duplicate requests
    */
-  private async approveTransaction(transactionID: string, actionId?: string) {
+  private async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const { chainId } = this.getChainAndNetworkId();
     const index = transactions.findIndex((transaction) => {
-      if (actionId) {
-        return this.getTransactionWithActionId(actionId);
-      }
       return transaction.id === transactionID;
     });
     const transactionMeta = transactions[index];
@@ -1153,14 +1149,9 @@ export class TransactionController extends BaseController<
    * and emitting a `<tx.id>:finished` hub event.
    *
    * @param transactionID - The ID of the transaction to cancel.
-   * @param opts - Additional options to control how the transaction is added.
-   * @param opts.actionId - Unique ID to prevent duplicate requests
+   * @param actionId - Unique ID to prevent duplicate requests
    */
-  private cancelTransaction(
-    transactionID: string,
-    opts: { actionId?: string } = {},
-  ) {
-    const { actionId } = opts;
+  private cancelTransaction(transactionID: string, actionId?: string) {
     const transactionMeta = this.state.transactions.find((transaction) => {
       if (actionId) {
         return this.getTransactionWithActionId(actionId);

@@ -1190,13 +1190,19 @@ describe('TransactionController', () => {
     });
 
     describe('on reject', () => {
-      it('cancels transaction', async () => {
+      it.each([
+        ['cancels transaction', {}], // Without actionId
+        ['cancels transaction with actionId', { actionId: ACTION_ID_MOCK }],
+      ])('%s', async (_, options) => {
         const controller = newController({ reject: true });
 
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          options,
+        );
 
         const finishedPromise = waitForTransactionFinished(controller);
 
