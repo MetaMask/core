@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.3.0]
-### Uncategorized
+### Added
 - Adding preference for security alerts ([#1589](https://github.com/MetaMask/core/pull/1589))
+### Changed
 - devDeps: update eslint packages ([#1498](https://github.com/MetaMask/core/pull/1498))
 
 ## [4.2.0]
