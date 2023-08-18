@@ -982,7 +982,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
-        tokenURI: null,
+        tokenURI: '',
       });
     });
 
@@ -1584,7 +1584,7 @@ describe('NftController', () => {
           tokenId: ERC721_KUDOS_TOKEN_ID,
           favorite: false,
           isCurrentlyOwned: true,
-          tokenURI: null,
+          tokenURI: '',
         },
       ]);
 
@@ -1951,7 +1951,7 @@ describe('NftController', () => {
         standard: null,
         favorite: false,
         isCurrentlyOwned: true,
-        tokenURI: null,
+        tokenURI: '',
       });
     });
   });
@@ -2421,7 +2421,7 @@ describe('NftController', () => {
         standard: null,
         favorite: false,
         isCurrentlyOwned: true,
-        tokenURI: null,
+        tokenURI: '',
       });
     });
   });

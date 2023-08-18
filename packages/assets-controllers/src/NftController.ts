@@ -369,6 +369,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: null,
         standard: standard || null,
         favorite: false,
+        tokenURI: tokenURI ?? null,
       };
     }
     if (hasIpfsTokenURI) {
@@ -388,7 +389,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: object.description,
         standard,
         favorite: false,
-        tokenURI: tokenURI || null,
+        tokenURI: tokenURI ?? null,
       };
     } catch {
       return {
@@ -397,7 +398,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: null,
         standard: standard || null,
         favorite: false,
-        tokenURI: tokenURI || null,
+        tokenURI: tokenURI ?? null,
       };
     }
   }
