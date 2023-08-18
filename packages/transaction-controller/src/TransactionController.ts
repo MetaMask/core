@@ -30,6 +30,7 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
@@ -53,6 +54,7 @@ import {
   validateGasValues,
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
+  transactionMatchesNetwork,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -335,16 +337,25 @@ export class TransactionController extends BaseController<
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
    *
    * @param transaction - The transaction object to add.
-   * @param origin - The domain origin to append to the generated TransactionMeta.
-   * @param deviceConfirmedOn - An enum to indicate what device the transaction was confirmed to append to the generated TransactionMeta.
+   * @param opts - Additional options to control how the transaction is added.
+   * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
+   * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
+   * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
     transaction: Transaction,
-    origin?: string,
-    deviceConfirmedOn?: WalletDevice,
+    {
+      deviceConfirmedOn,
+      origin,
+      requireApproval,
+    }: {
+      deviceConfirmedOn?: WalletDevice;
+      origin?: string;
+      requireApproval?: boolean | undefined;
+    } = {},
   ): Promise<Result> {
-    const { providerConfig, networkId } = this.getNetworkState();
+    const { chainId, networkId } = this.getChainAndNetworkId();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
@@ -352,7 +363,7 @@ export class TransactionController extends BaseController<
     const transactionMeta: TransactionMeta = {
       id: random(),
       networkID: networkId ?? undefined,
-      chainId: providerConfig.chainId,
+      chainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
@@ -375,50 +386,32 @@ export class TransactionController extends BaseController<
     this.hub.emit(`unapprovedTransaction`, transactionMeta);
 
     return {
-      result: this.processApproval(transactionMeta),
+      result: this.processApproval(transactionMeta, {
+        requireApproval,
+      }),
       transactionMeta,
     };
   }
 
-  prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
-    return TransactionFactory.fromTxData(txParams, {
-      common: this.getCommonConfiguration(),
-      freeze: false,
-    });
-  }
-
   /**
-   * `@ethereumjs/tx` uses `@ethereumjs/common` as a configuration tool for
-   * specifying which chain, network, hardfork and EIPs to support for
-   * a transaction. By referencing this configuration, and analyzing the fields
-   * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
-   * transaction type to use.
-   *
-   * @returns {Common} common configuration object
+   * Creates approvals for all unapproved transactions persisted.
    */
+  initApprovals() {
+    const { networkId, chainId } = this.getChainAndNetworkId();
+    const unapprovedTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.status === TransactionStatus.unapproved &&
+        transactionMatchesNetwork(transaction, chainId, networkId),
+    );
 
-  getCommonConfiguration(): Common {
-    const {
-      networkId,
-      providerConfig: { type: chain, chainId, nickname: name },
-    } = this.getNetworkState();
-
-    if (
-      chain !== RPC &&
-      chain !== NetworkType['linea-goerli'] &&
-      chain !== NetworkType['linea-mainnet']
-    ) {
-      return new Common({ chain, hardfork: HARDFORK });
+    for (const txMeta of unapprovedTxs) {
+      this.processApproval(txMeta, {
+        shouldShowRequest: false,
+      }).catch((error) => {
+        /* istanbul ignore next */
+        console.error('Error during persisted transaction approval', error);
+      });
     }
-
-    const customChainParams: Partial<ChainConfig> = {
-      name,
-      chainId: parseInt(chainId, 16),
-      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
-      defaultHardfork: HARDFORK,
-    };
-
-    return Common.custom(customChainParams);
   }
 
   /**
@@ -735,9 +728,8 @@ export class TransactionController extends BaseController<
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const { providerConfig, networkId: currentNetworkID } =
-      this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { chainId: currentChainId, networkId: currentNetworkID } =
+      this.getChainAndNetworkId();
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
@@ -789,23 +781,33 @@ export class TransactionController extends BaseController<
    *
    * @param ignoreNetwork - Determines whether to wipe all transactions, or just those on the
    * current network. If `true`, all transactions are wiped.
+   * @param address - If specified, only transactions originating from this address will be
+   * wiped on current network.
    */
-  wipeTransactions(ignoreNetwork?: boolean) {
+  wipeTransactions(ignoreNetwork?: boolean, address?: string) {
     /* istanbul ignore next */
-    if (ignoreNetwork) {
+    if (ignoreNetwork && !address) {
       this.update({ transactions: [] });
       return;
     }
-    const { providerConfig, networkId: currentNetworkID } =
-      this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { chainId: currentChainId, networkId: currentNetworkID } =
+      this.getChainAndNetworkId();
     const newTransactions = this.state.transactions.filter(
-      ({ networkID, chainId }) => {
+      ({ networkID, chainId, transaction }) => {
         // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-        const isCurrentNetwork =
+        const isMatchingNetwork =
+          ignoreNetwork ||
           chainId === currentChainId ||
           (!chainId && networkID === currentNetworkID);
-        return !isCurrentNetwork;
+
+        if (!isMatchingNetwork) {
+          return true;
+        }
+
+        const isMatchingAddress =
+          !address || transaction.from?.toLowerCase() === address.toLowerCase();
+
+        return !isMatchingAddress;
       },
     );
 
@@ -848,13 +850,24 @@ export class TransactionController extends BaseController<
 
   private async processApproval(
     transactionMeta: TransactionMeta,
+    {
+      requireApproval,
+      shouldShowRequest = true,
+    }: {
+      requireApproval?: boolean | undefined;
+      shouldShowRequest?: boolean;
+    },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      const acceptResult = await this.requestApproval(transactionMeta);
-      resultCallbacks = acceptResult.resultCallbacks;
+      if (requireApproval !== false) {
+        const acceptResult = await this.requestApproval(transactionMeta, {
+          shouldShowRequest,
+        });
+        resultCallbacks = acceptResult.resultCallbacks;
+      }
 
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
@@ -919,8 +932,7 @@ export class TransactionController extends BaseController<
   private async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
-    const { providerConfig } = this.getNetworkState();
-    const { chainId } = providerConfig;
+    const { chainId } = this.getChainAndNetworkId();
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
@@ -1184,7 +1196,10 @@ export class TransactionController extends BaseController<
     return Number(txReceipt.status) === 0;
   }
 
-  private async requestApproval(txMeta: TransactionMeta): Promise<AddResult> {
+  private async requestApproval(
+    txMeta: TransactionMeta,
+    { shouldShowRequest }: { shouldShowRequest: boolean },
+  ): Promise<AddResult> {
     const id = this.getApprovalId(txMeta);
     const { origin } = txMeta;
     const type = ApprovalType.Transaction;
@@ -1199,7 +1214,7 @@ export class TransactionController extends BaseController<
         requestData,
         expectsResult: true,
       },
-      true,
+      shouldShowRequest,
     )) as Promise<AddResult>;
   }
 
@@ -1225,6 +1240,57 @@ export class TransactionController extends BaseController<
     const isCompleted = this.isLocalFinalState(transaction.status);
 
     return { meta: transaction, isCompleted };
+  }
+
+  private getChainAndNetworkId(): {
+    networkId: string | null;
+    chainId: Hex;
+  } {
+    const { networkId, providerConfig } = this.getNetworkState();
+    const chainId = providerConfig?.chainId;
+    return { networkId, chainId };
+  }
+
+  private prepareUnsignedEthTx(
+    txParams: Record<string, unknown>,
+  ): TypedTransaction {
+    return TransactionFactory.fromTxData(txParams, {
+      common: this.getCommonConfiguration(),
+      freeze: false,
+    });
+  }
+
+  /**
+   * `@ethereumjs/tx` uses `@ethereumjs/common` as a configuration tool for
+   * specifying which chain, network, hardfork and EIPs to support for
+   * a transaction. By referencing this configuration, and analyzing the fields
+   * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
+   * transaction type to use.
+   *
+   * @returns common configuration object
+   */
+  private getCommonConfiguration(): Common {
+    const {
+      networkId,
+      providerConfig: { type: chain, chainId, nickname: name },
+    } = this.getNetworkState();
+
+    if (
+      chain !== RPC &&
+      chain !== NetworkType['linea-goerli'] &&
+      chain !== NetworkType['linea-mainnet']
+    ) {
+      return new Common({ chain, hardfork: HARDFORK });
+    }
+
+    const customChainParams: Partial<ChainConfig> = {
+      name,
+      chainId: parseInt(chainId, 16),
+      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
+      defaultHardfork: HARDFORK,
+    };
+
+    return Common.custom(customChainParams);
   }
 }
 

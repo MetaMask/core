@@ -33,6 +33,7 @@ export interface PreferencesState extends BaseState {
   useTokenDetection: boolean;
   useNftDetection: boolean;
   openSeaEnabled: boolean;
+  securityAlertsEnabled: boolean;
   isMultiAccountBalancesEnabled: boolean;
   disabledRpcMethodPreferences: {
     [methodName: string]: boolean;
@@ -70,6 +71,7 @@ export class PreferencesController extends BaseController<
       useTokenDetection: true,
       useNftDetection: false,
       openSeaEnabled: false,
+      securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       disabledRpcMethodPreferences: {
         eth_sign: false,
@@ -267,6 +269,15 @@ export class PreferencesController extends BaseController<
     if (!openSeaEnabled) {
       this.update({ useNftDetection: false });
     }
+  }
+
+  /**
+   * Toggle the security alert enabled setting.
+   *
+   * @param securityAlertsEnabled - Boolean indicating user preference on using security alerts.
+   */
+  setSecurityAlertsEnabled(securityAlertsEnabled: boolean) {
+    this.update({ securityAlertsEnabled });
   }
 
   /**
