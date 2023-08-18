@@ -407,6 +407,21 @@ export class KeyringController extends BaseControllerV2<
   }
 
   /**
+   * Adds a new keyring of the given `type`.
+   *
+   * @param type - Keyring type name.
+   * @param opts - Keyring options.
+   * @throws If a builder for the given `type` does not exist.
+   * @returns Promise resolving to the added keyring.
+   */
+  async addNewKeyring(
+    type: KeyringTypes | string,
+    opts?: unknown,
+  ): Promise<Keyring<Json>> {
+    return this.#keyring.addNewKeyring(type, opts);
+  }
+
+  /**
    * Method to verify a given password validity. Throws an
    * error if the password is invalid.
    *

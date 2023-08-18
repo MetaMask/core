@@ -269,6 +269,29 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('addNewKeyring', () => {
+    describe('when there is a builder for the given type', () => {
+      it('should add new keyring', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const initialKeyrings = initialState.keyrings;
+          await controller.addNewKeyring(KeyringTypes.simple);
+          expect(controller.state.keyrings).not.toStrictEqual(initialKeyrings);
+          expect(controller.state.keyrings).toHaveLength(2);
+        });
+      });
+    });
+
+    describe('when there is no builder for the given type', () => {
+      it('should throw error', async () => {
+        await withController(async ({ controller }) => {
+          await expect(controller.addNewKeyring('fake')).rejects.toThrow(
+            'KeyringController - No keyringBuilder found for keyring. Keyring type: fake',
+          );
+        });
+      });
+    });
+  });
+
   describe('createNewVaultAndRestore', () => {
     [false, true].map((cacheEncryptionKey) =>
       describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
