@@ -1,6 +1,4 @@
 /* eslint-disable jest/expect-expect */
-
-import { Common } from '@ethereumjs/common';
 import {
   ChainId,
   NetworkType,
@@ -23,7 +21,7 @@ import type {
   TransactionControllerMessenger,
   TransactionConfig,
 } from './TransactionController';
-import { TransactionController, HARDFORK } from './TransactionController';
+import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
 import { WalletDevice, TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
@@ -838,6 +836,22 @@ describe('TransactionController', () => {
       );
     });
 
+    it('skips approval if option explicitly false', async () => {
+      const controller = newController();
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          requireApproval: false,
+        },
+      );
+
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(0);
+    });
+
     it.each([
       ['mainnet', MOCK_MAINNET_NETWORK],
       ['custom network', MOCK_CUSTOM_NETWORK],
@@ -1328,7 +1342,9 @@ describe('TransactionController', () => {
 
   describe('stopTransaction', () => {
     it('rejects result promise', async () => {
-      const controller = newController();
+      const controller = newController({
+        network: MOCK_LINEA_GOERLI_NETWORK,
+      });
 
       const { result, transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1358,7 +1374,9 @@ describe('TransactionController', () => {
 
   describe('speedUpTransaction', () => {
     it('creates additional transaction with increased gas', async () => {
-      const controller = newController();
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
 
       const { transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1424,37 +1442,56 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('getCommonConfiguration', () => {
-    it('gets the common network configuration for mainnet', () => {
-      const controller = newController({ network: MOCK_MAINNET_NETWORK });
+  describe('initApprovals', () => {
+    it('creates approvals for all unapproved transaction', async () => {
+      const transaction = {
+        from: ACCOUNT_MOCK,
+        id: 'mocked',
+        networkID: '5',
+        status: TransactionStatus.unapproved,
+        transactionHash: '1337',
+      };
+      const controller = newController();
+      controller.state.transactions.push(transaction as any);
+      controller.state.transactions.push({
+        ...transaction,
+        id: 'mocked1',
+        transactionHash: '1338',
+      } as any);
 
-      const config = controller.getCommonConfiguration();
+      controller.initApprovals();
 
-      expect(config).toStrictEqual(
-        new Common({ chain: 'mainnet', hardfork: HARDFORK }),
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          expectsResult: true,
+          id: 'mocked',
+          origin: 'metamask',
+          requestData: { txId: 'mocked' },
+          type: 'transaction',
+        },
+        false,
+      );
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          expectsResult: true,
+          id: 'mocked1',
+          origin: 'metamask',
+          requestData: { txId: 'mocked1' },
+          type: 'transaction',
+        },
+        false,
       );
     });
 
-    it.each([
-      ['linea-mainnet', MOCK_LINEA_MAINNET_NETWORK, 59144],
-      ['linea-goerli', MOCK_LINEA_GOERLI_NETWORK, 59140],
-    ])(
-      'gets a custom network configuration for %s',
-      async (_, network: MockNetwork, chainId: number) => {
-        const controller = newController({ network });
+    it('does not create any approval when there is no unapproved transaction', async () => {
+      const controller = newController();
+      controller.initApprovals();
 
-        const config = controller.getCommonConfiguration();
-
-        expect(config).toStrictEqual(
-          Common.custom({
-            name: undefined,
-            chainId,
-            networkId: chainId,
-            defaultHardfork: HARDFORK,
-          }),
-        );
-      },
-    );
+      expect(delayMessengerMock.call).not.toHaveBeenCalled();
+    });
   });
 
   describe('on incoming transaction helper transactions event', () => {
