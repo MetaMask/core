@@ -60,6 +60,7 @@ import {
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
   transactionMatchesNetwork,
+  isSwapsDefaultTokenAddress,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -141,6 +142,11 @@ export const CANCEL_RATE = 1.5;
  * Multiplier used to determine a transaction's increased gas fee during speed up
  */
 export const SPEED_UP_RATE = 1.1;
+
+/**
+ * Timeout in milliseconds used to retry of refreshing post tx balance
+ */
+const UPDATE_POST_TX_BALANCE_TIMEOUT = 5000;
 
 /**
  * The name of the {@link TransactionController}.
@@ -554,23 +560,23 @@ export class TransactionController extends BaseController<
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
-            from: transactionMeta.transaction.from,
-            gasLimit: transactionMeta.transaction.gas,
-            maxFeePerGas: newMaxFeePerGas,
-            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: 2,
-            nonce: transactionMeta.transaction.nonce,
-            to: transactionMeta.transaction.from,
-            value: '0x0',
-          }
+          from: transactionMeta.transaction.from,
+          gasLimit: transactionMeta.transaction.gas,
+          maxFeePerGas: newMaxFeePerGas,
+          maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+          type: 2,
+          nonce: transactionMeta.transaction.nonce,
+          to: transactionMeta.transaction.from,
+          value: '0x0',
+        }
         : {
-            from: transactionMeta.transaction.from,
-            gasLimit: transactionMeta.transaction.gas,
-            gasPrice: newGasPrice,
-            nonce: transactionMeta.transaction.nonce,
-            to: transactionMeta.transaction.from,
-            value: '0x0',
-          };
+          from: transactionMeta.transaction.from,
+          gasLimit: transactionMeta.transaction.gas,
+          gasPrice: newGasPrice,
+          nonce: transactionMeta.transaction.nonce,
+          to: transactionMeta.transaction.from,
+          value: '0x0',
+        };
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
@@ -662,17 +668,17 @@ export class TransactionController extends BaseController<
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
-            ...transactionMeta.transaction,
-            gasLimit: transactionMeta.transaction.gas,
-            maxFeePerGas: newMaxFeePerGas,
-            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: 2,
-          }
+          ...transactionMeta.transaction,
+          gasLimit: transactionMeta.transaction.gas,
+          maxFeePerGas: newMaxFeePerGas,
+          maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+          type: 2,
+        }
         : {
-            ...transactionMeta.transaction,
-            gasLimit: transactionMeta.transaction.gas,
-            gasPrice: newGasPrice,
-          };
+          ...transactionMeta.transaction,
+          gasLimit: transactionMeta.transaction.gas,
+          gasPrice: newGasPrice,
+        };
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
@@ -694,20 +700,20 @@ export class TransactionController extends BaseController<
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
-            ...baseTransactionMeta,
-            transaction: {
-              ...transactionMeta.transaction,
-              maxFeePerGas: newMaxFeePerGas,
-              maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            },
-          }
+          ...baseTransactionMeta,
+          transaction: {
+            ...transactionMeta.transaction,
+            maxFeePerGas: newMaxFeePerGas,
+            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+          },
+        }
         : {
-            ...baseTransactionMeta,
-            transaction: {
-              ...transactionMeta.transaction,
-              gasPrice: newGasPrice,
-            },
-          };
+          ...baseTransactionMeta,
+          transaction: {
+            ...transactionMeta.transaction,
+            gasPrice: newGasPrice,
+          },
+        };
     transactions.push(newTransactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
@@ -1025,14 +1031,14 @@ export class TransactionController extends BaseController<
 
       const txParams = isEIP1559
         ? {
-            ...baseTxParams,
-            maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
-            maxPriorityFeePerGas:
-              transactionMeta.transaction.maxPriorityFeePerGas,
-            estimatedBaseFee: transactionMeta.transaction.estimatedBaseFee,
-            // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
-            type: 2,
-          }
+          ...baseTxParams,
+          maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
+          maxPriorityFeePerGas:
+            transactionMeta.transaction.maxPriorityFeePerGas,
+          estimatedBaseFee: transactionMeta.transaction.estimatedBaseFee,
+          // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
+          type: 2,
+        }
         : baseTxParams;
 
       // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
@@ -1108,9 +1114,8 @@ export class TransactionController extends BaseController<
     const txsToKeep = transactions.reverse().filter((tx) => {
       const { chainId, networkID, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${
-          chainId ? convertHexToDecimal(chainId) : networkID
-        }-${new Date(time).toDateString()}`;
+        const key = `${transaction.nonce}-${chainId ? convertHexToDecimal(chainId) : networkID
+          }-${new Date(time).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (
@@ -1425,6 +1430,49 @@ export class TransactionController extends BaseController<
     }
 
     return dappSuggestedGasFees;
+  }
+
+  private async updatePostTxBalance(
+    transactionMeta: TransactionMeta,
+    {
+      numberOfAttempts = 6,
+    }: {
+      numberOfAttempts: number;
+    },
+  ) {
+    const { id: transactionId } = transactionMeta;
+
+    const postTxBalance = await query(this.ethQuery, 'getBalance', [
+      transactionMeta.transaction.from,
+    ]);
+    const latestTxMeta = this.getTransaction(transactionId);
+
+    if (!latestTxMeta) {
+      return;
+    }
+
+    latestTxMeta.postTxBalance = postTxBalance.toString(16);
+
+    const isDefaultTokenAddress = isSwapsDefaultTokenAddress(
+      transactionMeta?.destinationTokenAddress,
+      transactionMeta?.chainId,
+    );
+
+    if (
+      isDefaultTokenAddress &&
+      transactionMeta.preTxBalance === latestTxMeta.postTxBalance &&
+      numberOfAttempts > 0
+    ) {
+      setTimeout(() => {
+        // If postTxBalance is the same as preTxBalance, try it again.
+        this.updatePostTxBalance(transactionMeta, {
+          numberOfAttempts: numberOfAttempts - 1,
+        });
+      }, UPDATE_POST_TX_BALANCE_TIMEOUT);
+    } else {
+      // Update postTxBalance
+      this.updateTransaction(latestTxMeta);
+    }
   }
 }
 

@@ -39,6 +39,11 @@ type TransactionMetaBase = {
   dappSuggestedGasFees?: DappSuggestedGasFees;
 
   /**
+   * destinationTokenAddress
+   */
+  destinationTokenAddress?: string;
+
+  /**
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
@@ -67,6 +72,16 @@ type TransactionMetaBase = {
    * Origin this transaction was sent from.
    */
   origin?: string;
+
+  /**
+   * If transaction is a swap, this is the balance of the 'from' address before the swap.
+   */
+  preTxBalance?: string;
+
+  /**
+   * If transaction is a swap, this is the balance of the 'from' address after the swap.
+   */
+  postTxBalance?: string;
 
   /**
    * Hex representation of the underlying transaction.
