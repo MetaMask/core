@@ -1,6 +1,7 @@
 import {
   convertHexToDecimal,
   isValidHexAddress,
+  SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
@@ -230,4 +231,19 @@ export function transactionMatchesNetwork(
     return transaction.networkID === networkId;
   }
   return false;
+}
+
+/**
+ * Checks whether the provided address is strictly equal to the address for
+ * the default swaps token of the provided chain.
+ *
+ * @param address - The string to compare to the default token address
+ * @param chainId - The hex encoded chain ID of the default swaps token to check
+ * @returns A boolean whether the address is the provided chain's default token address
+ */
+export function isSwapsDefaultTokenAddress(address?: string, chainId?: Hex) {
+  if (!address || !chainId) {
+    return false;
+  }
+  return address === SWAPS_CHAINID_DEFAULT_TOKEN_MAP[chainId]?.address;
 }

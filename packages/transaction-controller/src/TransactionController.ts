@@ -55,6 +55,7 @@ import {
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
   transactionMatchesNetwork,
+  isSwapsDefaultTokenAddress,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -135,6 +136,11 @@ export const CANCEL_RATE = 1.5;
  * Multiplier used to determine a transaction's increased gas fee during speed up
  */
 export const SPEED_UP_RATE = 1.1;
+
+/**
+ * Timeout in milliseconds used to retry of refreshing post tx balance
+ */
+const UPDATE_POST_TX_BALANCE_TIMEOUT = 5000;
 
 /**
  * The name of the {@link TransactionController}.
@@ -1291,6 +1297,49 @@ export class TransactionController extends BaseController<
     };
 
     return Common.custom(customChainParams);
+  }
+
+  private async updatePostTxBalance(
+    transactionMeta: TransactionMeta,
+    {
+      numberOfAttempts = 6,
+    }: {
+      numberOfAttempts: number;
+    },
+  ) {
+    const { id: transactionId } = transactionMeta;
+
+    const postTxBalance = await query(this.ethQuery, 'getBalance', [
+      transactionMeta.transaction.from,
+    ]);
+    const latestTxMeta = this.getTransaction(transactionId);
+
+    if (!latestTxMeta) {
+      return;
+    }
+
+    latestTxMeta.postTxBalance = postTxBalance.toString(16);
+
+    const isDefaultTokenAddress = isSwapsDefaultTokenAddress(
+      transactionMeta?.destinationTokenAddress,
+      transactionMeta?.chainId,
+    );
+
+    if (
+      isDefaultTokenAddress &&
+      transactionMeta.preTxBalance === latestTxMeta.postTxBalance &&
+      numberOfAttempts > 0
+    ) {
+      setTimeout(() => {
+        // If postTxBalance is the same as preTxBalance, try it again.
+        this.updatePostTxBalance(transactionMeta, {
+          numberOfAttempts: numberOfAttempts - 1,
+        });
+      }, UPDATE_POST_TX_BALANCE_TIMEOUT);
+    } else {
+      // Update postTxBalance
+      this.updateTransaction(latestTxMeta);
+    }
   }
 }
 

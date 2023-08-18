@@ -43,6 +43,9 @@ type TransactionMetaBase = {
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
   verifiedOnBlockchain?: boolean;
+  preTxBalance?: string;
+  postTxBalance?: string;
+  destinationTokenAddress?: string;
 };
 
 /**
