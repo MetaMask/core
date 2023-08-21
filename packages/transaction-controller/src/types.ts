@@ -4,7 +4,7 @@ import type { Hex } from '@metamask/utils';
  * @type TransactionMeta
  *
  * TransactionMeta representation
- * @property baseFeePerGas - The estimated block baseFeePerGas that will be burned. Introduced in EIP 1559. Value in hex wei
+ * @property baseFeePerGas - Base fee of the block as a hex value, introduced in EIP-1559.
  * @property error - Synthesized error information for failed transactions
  * @property id - Generated UUID associated with this transaction
  * @property networkID - Network code as per EIP-155 for this transaction
