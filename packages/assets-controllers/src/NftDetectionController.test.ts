@@ -69,7 +69,7 @@ describe('NftDetectionController', () => {
     });
 
     nftController.configure({ selectedAddress: '0x1' });
-    preferences.setOpenSeaEnabled(true);
+    preferences.setDisplayNftMedia(true);
     preferences.setUseNftDetection(true);
 
     nock(OPENSEA_PROXY_URL)
@@ -454,8 +454,8 @@ describe('NftDetectionController', () => {
     ).toBeUndefined();
   });
 
-  it('should not detect and add NFTs if preferences controller openSeaEnabled is set to false', async () => {
-    preferences.setOpenSeaEnabled(false);
+  it('should not detect and add NFTs if preferences controller displayNftMedia is set to false', async () => {
+    preferences.setDisplayNftMedia(false);
     const selectedAddress = '0x9';
     nftDetection.configure({
       chainId: ChainId.mainnet,

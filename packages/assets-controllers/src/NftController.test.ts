@@ -217,7 +217,7 @@ function setupController({
 
   preferences.update({
     selectedAddress: OWNER_ADDRESS,
-    openSeaEnabled: true,
+    displayNftMedia: true,
   });
 
   return {
@@ -436,7 +436,7 @@ describe('NftController', () => {
           .mockImplementation(() => 'https://testtokenuri.com'),
         getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
-      preferences.setOpenSeaEnabled(false);
+      preferences.setDisplayNftMedia(false);
 
       const requestId = 'approval-request-id-1';
 
@@ -490,7 +490,7 @@ describe('NftController', () => {
           .mockImplementation(() => 'https://testtokenuri.com'),
         getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
       });
-      preferences.setOpenSeaEnabled(false);
+      preferences.setDisplayNftMedia(false);
       const requestId = 'approval-request-id-1';
 
       const clock = sinon.useFakeTimers(1);
@@ -649,7 +649,7 @@ describe('NftController', () => {
       const { nftController, messenger, preferences } = setupController({
         getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
-      preferences.setOpenSeaEnabled(true);
+      preferences.setDisplayNftMedia(true);
 
       const requestId = 'approval-request-id-1';
 
@@ -714,7 +714,7 @@ describe('NftController', () => {
       const { nftController, messenger, preferences } = setupController({
         getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
       });
-      preferences.setOpenSeaEnabled(true);
+      preferences.setDisplayNftMedia(true);
       const requestId = 'approval-request-id-1';
 
       const clock = sinon.useFakeTimers(1);

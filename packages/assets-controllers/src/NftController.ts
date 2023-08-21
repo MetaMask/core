@@ -156,7 +156,7 @@ export interface NftConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
   ipfsGateway: string;
-  openSeaEnabled: boolean;
+  displayNftMedia: boolean;
   useIPFSSubdomains: boolean;
 }
 
@@ -446,7 +446,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     });
 
     let openSeaMetadata;
-    if (this.config.openSeaEnabled) {
+    if (this.config.displayNftMedia) {
       openSeaMetadata = await safelyExecute(async () => {
         return await this.getNftInformationFromApi(contractAddress, tokenId);
       });
@@ -565,7 +565,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     });
 
     let openSeaContractData: Partial<ApiNftContract> | undefined;
-    if (this.config.openSeaEnabled) {
+    if (this.config.displayNftMedia) {
       openSeaContractData = await safelyExecute(async () => {
         return await this.getNftContractInformationFromApi(contractAddress);
       });
@@ -953,7 +953,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       selectedAddress: '',
       chainId: initialChainId,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      openSeaEnabled: false,
+      displayNftMedia: false,
       useIPFSSubdomains: true,
     };
 
@@ -973,8 +973,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
     this.messagingSystem = messenger;
 
     onPreferencesStateChange(
-      ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
-        this.configure({ selectedAddress, ipfsGateway, openSeaEnabled });
+      ({ selectedAddress, ipfsGateway, displayNftMedia }) => {
+        this.configure({ selectedAddress, ipfsGateway, displayNftMedia });
       },
     );
 
