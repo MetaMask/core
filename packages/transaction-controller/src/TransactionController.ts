@@ -1162,9 +1162,7 @@ export class TransactionController extends BaseController<
         meta.verifiedOnBlockchain = true;
         meta.transaction.gasUsed = txReceipt.gasUsed;
         meta.txReceipt = txReceipt;
-        if (txBlock && txBlock.baseFeePerGas) {
-          meta.baseFeePerGas = txBlock.baseFeePerGas;
-        }
+        meta.baseFeePerGas = txBlock?.baseFeePerGas;
 
         // According to the Web3 docs:
         // TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.

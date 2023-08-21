@@ -5,19 +5,19 @@ import type { Hex } from '@metamask/utils';
  *
  * TransactionMeta representation
  * @property baseFeePerGas - Base fee of the block as a hex value, introduced in EIP-1559.
- * @property error - Synthesized error information for failed transactions
- * @property id - Generated UUID associated with this transaction
- * @property networkID - Network code as per EIP-155 for this transaction
- * @property origin - Origin this transaction was sent from
- * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
- * @property rawTransaction - Hex representation of the underlying transaction
- * @property status - String status of this transaction
- * @property time - Timestamp associated with this transaction
- * @property toSmartContract - Whether transaction recipient is a smart contract
- * @property transaction - Underlying Transaction object
- * @property txReceipt - Transaction receipt
- * @property transactionHash - Hash of a successful transaction
- * @property blockNumber - Number of the block where the transaction has been included
+ * @property error - Synthesized error information for failed transactions.
+ * @property id - Generated UUID associated with this transaction.
+ * @property networkID - Network code as per EIP-155 for this transaction.
+ * @property origin - Origin this transaction was sent from.
+ * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed.
+ * @property rawTransaction - Hex representation of the underlying transaction.
+ * @property status - String status of this transaction.
+ * @property time - Timestamp associated with this transaction.
+ * @property toSmartContract - Whether transaction recipient is a smart contract.
+ * @property transaction - Underlying Transaction object.
+ * @property txReceipt - Transaction receipt.
+ * @property transactionHash - Hash of a successful transaction.
+ * @property blockNumber - Number of the block where the transaction has been included.
  */
 export type TransactionMeta =
   | ({
@@ -27,23 +27,23 @@ export type TransactionMeta =
 
 type TransactionMetaBase = {
   baseFeePerGas?: Hex;
-  isTransfer?: boolean;
-  transferInformation?: {
-    symbol: string;
-    contractAddress: string;
-    decimals: number;
-  };
-  id: string;
-  networkID?: string;
+  blockNumber?: string;
   chainId?: Hex;
+  deviceConfirmedOn?: WalletDevice;
+  id: string;
+  isTransfer?: boolean;
+  networkID?: string;
   origin?: string;
   rawTransaction?: string;
   time: number;
   toSmartContract?: boolean;
   transaction: Transaction;
   transactionHash?: string;
-  blockNumber?: string;
-  deviceConfirmedOn?: WalletDevice;
+  transferInformation?: {
+    contractAddress: string;
+    decimals: number;
+    symbol: string;
+  };
   verifiedOnBlockchain?: boolean;
   txReceipt?: TransactionReceipt;
 };
