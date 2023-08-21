@@ -1134,7 +1134,7 @@ describe('NetworkController', () => {
   });
 
   describe('updateNetworkStatus', () => {
-    it.only('updates the network status', async () => {
+    it('updates the network status', async () => {
       await withController(
         { infuraProjectId: 'some-infura-project-id' },
         async ({ controller }) => {
