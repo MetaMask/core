@@ -809,6 +809,12 @@ export class NetworkController extends BaseControllerV2<
       }
     }
     this.update((state) => {
+      if (state.networksMetadata[networkClientId] === undefined) {
+        state.networksMetadata[networkClientId] = {
+          status: NetworkStatus.Unknown,
+          EIPS: {},
+        };
+      }
       const meta = state.networksMetadata[networkClientId];
       meta.status = updatedNetworkStatus;
       if (updatedIsEIP1559Compatible === undefined) {

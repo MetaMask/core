@@ -1133,6 +1133,23 @@ describe('NetworkController', () => {
     });
   });
 
+  describe('updateNetworkStatus', () => {
+    it.only('updates the network status', async () => {
+      await withController(
+        { infuraProjectId: 'some-infura-project-id' },
+        async ({ controller }) => {
+          const fakeNetworkClient = buildFakeClient();
+          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+          await controller.updateNetworkStatus('mainnet');
+
+          expect(controller.state.networksMetadata.mainnet.status).toBe(
+            'available',
+          );
+        },
+      );
+    });
+  });
+
   describe('getNetworkClientById', () => {
     describe('If passed an existing networkClientId', () => {
       it('returns a valid built-in Infura NetworkClient', async () => {
