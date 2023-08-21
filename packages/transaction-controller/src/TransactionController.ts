@@ -378,18 +378,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Get transaction with provided actionId.
-   *
-   * @param actionId - Unique ID to prevent duplicate requests
-   * @returns the filtered transaction
-   */
-  getTransactionWithActionId(actionId?: string) {
-    return this.state.transactions.find(
-      (transaction) => actionId && transaction.actionId === actionId,
-    );
-  }
-
-  /**
    * Add a new unapproved transaction to state. Parameters will be validated, a
    * unique transaction id will be generated, and gas and gasPrice will be calculated
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
@@ -472,6 +460,7 @@ export class TransactionController extends BaseController<
     return {
       result: this.processApproval(transactionMeta, {
         requireApproval,
+        isExisting: Boolean(existingTransactionMeta),
       }),
       transactionMeta,
     };
@@ -978,17 +967,18 @@ export class TransactionController extends BaseController<
     {
       requireApproval,
       shouldShowRequest = true,
+      isExisting = false,
     }: {
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
+      isExisting?: boolean;
     },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
-    const { actionId } = transactionMeta;
 
     try {
-      if (requireApproval !== false) {
+      if (requireApproval !== false || !isExisting) {
         const acceptResult = await this.requestApproval(transactionMeta, {
           shouldShowRequest,
         });
@@ -1005,7 +995,7 @@ export class TransactionController extends BaseController<
 
       if (meta && !isCompleted) {
         if (error.code === errorCodes.provider.userRejectedRequest) {
-          this.cancelTransaction(transactionId, actionId);
+          this.cancelTransaction(transactionId);
 
           throw ethErrors.provider.userRejectedRequest(
             'User rejected the transaction',
@@ -1059,9 +1049,7 @@ export class TransactionController extends BaseController<
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const { chainId } = this.getChainAndNetworkId();
-    const index = transactions.findIndex((transaction) => {
-      return transaction.id === transactionID;
-    });
+    const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
       transaction: { nonce, from },
@@ -1149,24 +1137,18 @@ export class TransactionController extends BaseController<
    * and emitting a `<tx.id>:finished` hub event.
    *
    * @param transactionID - The ID of the transaction to cancel.
-   * @param actionId - Unique ID to prevent duplicate requests
    */
-  private cancelTransaction(transactionID: string, actionId?: string) {
-    const transactionMeta = this.state.transactions.find((transaction) => {
-      if (actionId) {
-        return this.getTransactionWithActionId(actionId);
-      }
-      return transaction.id === transactionID;
-    });
+  private cancelTransaction(transactionID: string) {
+    const transactionMeta = this.state.transactions.find(
+      ({ id }) => id === transactionID,
+    );
     if (!transactionMeta) {
       return;
     }
     transactionMeta.status = TransactionStatus.rejected;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     const transactions = this.state.transactions.filter(
-      (transaction) =>
-        transaction.id !== transactionID ||
-        (actionId && transaction.actionId !== actionId),
+      ({ id }) => id !== transactionID,
     );
     this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
@@ -1359,20 +1341,20 @@ export class TransactionController extends BaseController<
     )) as Promise<AddResult>;
   }
 
-  private getTransaction(transactionID: string): TransactionMeta | undefined {
+  private getTransaction(transactionId: string): TransactionMeta | undefined {
     const { transactions } = this.state;
-    return transactions.find(({ id }) => id === transactionID);
+    return transactions.find(({ id }) => id === transactionId);
   }
 
   private getApprovalId(txMeta: TransactionMeta) {
     return String(txMeta.id);
   }
 
-  private isTransactionCompleted(transactionID: string): {
+  private isTransactionCompleted(transactionId: string): {
     meta?: TransactionMeta;
     isCompleted: boolean;
   } {
-    const transaction = this.getTransaction(transactionID);
+    const transaction = this.getTransaction(transactionId);
 
     if (!transaction) {
       return { meta: undefined, isCompleted: false };
@@ -1588,6 +1570,18 @@ export class TransactionController extends BaseController<
   private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
     transactionMeta.status = TransactionStatus.dropped;
     this.updateTransaction(transactionMeta);
+  }
+
+  /**
+   * Get transaction with provided actionId.
+   *
+   * @param actionId - Unique ID to prevent duplicate requests
+   * @returns the filtered transaction
+   */
+  private getTransactionWithActionId(actionId?: string) {
+    return this.state.transactions.find(
+      (transaction) => actionId && transaction.actionId === actionId,
+    );
   }
 }
 

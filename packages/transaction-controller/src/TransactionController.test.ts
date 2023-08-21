@@ -706,6 +706,135 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('with actionId', () => {
+    it('adds multiple transactions with same actionId and ensures second transaction result does not resolves before the first transaction result', async () => {
+      const controller = newController({ approve: true });
+
+      const mockOrigin = 'origin';
+      let firstResolved = false;
+
+      const { result: firstResult } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          origin: mockOrigin,
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+
+      firstResult
+        .then(() => {
+          firstResolved = true;
+        })
+        .catch(() => undefined);
+      let secondResolved = false;
+      const { result: secondResult } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          origin: mockOrigin,
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+      secondResult
+        .then(() => {
+          secondResolved = true;
+        })
+        .catch(() => undefined);
+
+      await firstResult;
+      const { transactions } = controller.state;
+
+      expect(transactions).toHaveLength(1);
+      expect(firstResolved).toBe(true);
+      expect(secondResolved).toBe(false);
+    });
+    it.each([
+      [
+        'does not add duplicate transaction if actionId already used',
+        ACTION_ID_MOCK,
+        ACTION_ID_MOCK,
+        1,
+      ],
+      [
+        'adds additional transaction if actionId not used',
+        ACTION_ID_MOCK,
+        '00000',
+        2,
+      ],
+    ])(
+      '%s',
+      async (_, firstActionId, secondActionId, expectedTransactionCount) => {
+        const controller = newController();
+
+        const mockOrigin = 'origin';
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            origin: mockOrigin,
+            actionId: firstActionId,
+          },
+        );
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            origin: mockOrigin,
+            actionId: secondActionId,
+          },
+        );
+        const { transactions } = controller.state;
+
+        expect(transactions).toHaveLength(expectedTransactionCount);
+      },
+    );
+
+    it.each([
+      [
+        'adds single transactions when speed up called with existing actionId',
+        ACTION_ID_MOCK,
+        1,
+      ],
+      [
+        'adds multiple transactions when speed up called with non-existent actionId',
+        '00000',
+        2,
+      ],
+    ])('%s', async (_, actionId, expectedTransactionCount) => {
+      const controller = newController();
+
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+      await controller.speedUpTransaction(transactionMeta.id, undefined, {
+        actionId,
+      });
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(expectedTransactionCount);
+    });
+  });
+
   describe('addTransaction', () => {
     it('adds unapproved transaction to state', async () => {
       const controller = newController();
@@ -803,53 +932,6 @@ describe('TransactionController', () => {
         ).toBe(mockGasValue);
       });
     });
-
-    it.each([
-      [
-        'adds single unapproved transactions with same actionId',
-        ACTION_ID_MOCK,
-        ACTION_ID_MOCK,
-        1,
-      ],
-      [
-        'adds multiple unapproved transactions with different actionId',
-        ACTION_ID_MOCK,
-        '00000',
-        2,
-      ],
-    ])(
-      '%s',
-      async (_, firstActionId, secondActionId, expectedTransactionCount) => {
-        const controller = newController();
-
-        const mockOrigin = 'origin';
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            origin: mockOrigin,
-            actionId: firstActionId,
-          },
-        );
-
-        await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            origin: mockOrigin,
-            actionId: secondActionId,
-          },
-        );
-        const { transactions } = controller.state;
-
-        expect(transactions).toHaveLength(expectedTransactionCount);
-      },
-    );
 
     it.each([
       ['mainnet', MOCK_MAINNET_NETWORK],
@@ -1190,19 +1272,13 @@ describe('TransactionController', () => {
     });
 
     describe('on reject', () => {
-      it.each([
-        ['cancels transaction', {}], // Without actionId
-        ['cancels transaction with actionId', { actionId: ACTION_ID_MOCK }],
-      ])('%s', async (_, options) => {
+      it('cancels transaction', async () => {
         const controller = newController({ reject: true });
 
-        const { result } = await controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          options,
-        );
+        const { result } = await controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        });
 
         const finishedPromise = waitForTransactionFinished(controller);
 
@@ -1547,40 +1623,6 @@ describe('TransactionController', () => {
       expect(transactions[1].transaction.gasPrice).toBe(
         '0x5916a6d6', // 1.1 * 0x50fd51da
       );
-    });
-
-    it.each([
-      [
-        'adds single transactions when speed up called with existing actionId',
-        ACTION_ID_MOCK,
-        1,
-      ],
-      [
-        'adds multiple transactions when speed up called with non-existent actionId',
-        '00000',
-        2,
-      ],
-    ])('%s', async (_, actionId, expectedTransactionCount) => {
-      const controller = newController();
-
-      const { transactionMeta } = await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          gas: '0x0',
-          gasPrice: '0x50fd51da',
-          to: ACCOUNT_MOCK,
-          value: '0x0',
-        },
-        {
-          actionId: ACTION_ID_MOCK,
-        },
-      );
-      await controller.speedUpTransaction(transactionMeta.id, undefined, {
-        actionId,
-      });
-
-      const { transactions } = controller.state;
-      expect(transactions).toHaveLength(expectedTransactionCount);
     });
 
     it('uses the same nonce', async () => {
