@@ -12,6 +12,7 @@ describe('PreferencesController', () => {
       useTokenDetection: true,
       useNftDetection: false,
       displayNftMedia: false,
+      securityAlertsEnabled: false,
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
@@ -174,6 +175,12 @@ describe('PreferencesController', () => {
     controller.setDisplayNftMedia(true);
     controller.setUseNftDetection(true);
     expect(controller.state.useNftDetection).toBe(true);
+  });
+
+  it('should set securityAlertsEnabled', () => {
+    const controller = new PreferencesController();
+    controller.setSecurityAlertsEnabled(true);
+    expect(controller.state.securityAlertsEnabled).toBe(true);
   });
 
   it('should set disabledRpcMethodPreferences', () => {

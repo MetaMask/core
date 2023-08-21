@@ -1,6 +1,4 @@
 /* eslint-disable jest/expect-expect */
-
-import { Common } from '@ethereumjs/common';
 import {
   ChainId,
   NetworkType,
@@ -23,9 +21,9 @@ import type {
   TransactionControllerMessenger,
   TransactionConfig,
 } from './TransactionController';
-import { TransactionController, HARDFORK } from './TransactionController';
+import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
-import { TransactionStatus } from './types';
+import { WalletDevice, TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -221,7 +219,7 @@ function waitForTransactionFinished(
   });
 }
 
-const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
+const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
 const GOERLI_PROVIDER = new HttpProvider(
   `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
@@ -654,10 +652,19 @@ describe('TransactionController', () => {
     it('adds unapproved transaction to state', async () => {
       const controller = newController();
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      const mockDeviceConfirmedOn = WalletDevice.OTHER;
+      const mockOrigin = 'origin';
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          deviceConfirmedOn: mockDeviceConfirmedOn,
+          origin: mockOrigin,
+        },
+      );
 
       expect(controller.state.transactions[0].transaction.from).toBe(
         ACCOUNT_MOCK,
@@ -668,6 +675,10 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].chainId).toBe(
         MOCK_NETWORK.state.providerConfig.chainId,
       );
+      expect(controller.state.transactions[0].deviceConfirmedOn).toBe(
+        mockDeviceConfirmedOn,
+      );
+      expect(controller.state.transactions[0].origin).toBe(mockOrigin);
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
       );
@@ -794,6 +805,22 @@ describe('TransactionController', () => {
         },
         true,
       );
+    });
+
+    it('skips approval if option explicitly false', async () => {
+      const controller = newController();
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          requireApproval: false,
+        },
+      );
+
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(0);
     });
 
     it.each([
@@ -1039,7 +1066,7 @@ describe('TransactionController', () => {
       controller.wipeTransactions();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1050,6 +1077,68 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(0);
     });
+
+    it('removes only txs with given address', async () => {
+      const controller = newController();
+
+      controller.wipeTransactions();
+
+      const mockFromAccount1 = '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockFromAccount2 = '0x2bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockCurrentChainId = toHex(5);
+
+      controller.state.transactions.push({
+        id: '1',
+        chainId: mockCurrentChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.state.transactions.push({
+        id: '2',
+        chainId: mockCurrentChainId,
+        transaction: {
+          from: mockFromAccount2,
+        },
+      } as any);
+
+      controller.wipeTransactions(true, mockFromAccount2);
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0].id).toBe('1');
+    });
+
+    it('removes only txs with given address only on current network', async () => {
+      const controller = newController();
+
+      controller.wipeTransactions();
+
+      const mockFromAccount1 = '0x1bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      const mockDifferentChainId = toHex(1);
+      const mockCurrentChainId = toHex(5);
+
+      controller.state.transactions.push({
+        id: '1',
+        chainId: mockCurrentChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.state.transactions.push({
+        id: '4',
+        chainId: mockDifferentChainId,
+        transaction: {
+          from: mockFromAccount1,
+        },
+      } as any);
+
+      controller.wipeTransactions(false, mockFromAccount1);
+
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0].id).toBe('4');
+    });
   });
 
   describe('queryTransactionStatus', () => {
@@ -1057,7 +1146,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         chainId: toHex(5),
@@ -1083,7 +1172,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1106,7 +1195,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
@@ -1123,7 +1212,7 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
+        from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '5',
         chainId: toHex(5),
@@ -1311,7 +1400,9 @@ describe('TransactionController', () => {
 
   describe('stopTransaction', () => {
     it('rejects result promise', async () => {
-      const controller = newController();
+      const controller = newController({
+        network: MOCK_LINEA_GOERLI_NETWORK,
+      });
 
       const { result, transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1341,7 +1432,9 @@ describe('TransactionController', () => {
 
   describe('speedUpTransaction', () => {
     it('creates additional transaction with increased gas', async () => {
-      const controller = newController();
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
 
       const { transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1407,50 +1500,55 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('getCommonConfiguration', () => {
-    it('should get the common  network configuration for mainnet', async () => {
-      const controller = new TransactionController({
-        getNetworkState: () => MOCK_MAINNET_NETWORK.state,
-        onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
-        provider: MOCK_MAINNET_NETWORK.provider,
-        blockTracker: MOCK_MAINNET_NETWORK.blockTracker,
-        messenger: messengerMock,
-      });
+  describe('initApprovals', () => {
+    it('creates approvals for all unapproved transaction', async () => {
+      const transaction = {
+        from: ACCOUNT_MOCK,
+        id: 'mocked',
+        networkID: '5',
+        status: TransactionStatus.unapproved,
+        transactionHash: '1337',
+      };
+      const controller = newController();
+      controller.state.transactions.push(transaction as any);
+      controller.state.transactions.push({
+        ...transaction,
+        id: 'mocked1',
+        transactionHash: '1338',
+      } as any);
 
-      const config = await controller.getCommonConfiguration();
-      expect(config).toStrictEqual(
-        new Common({ chain: 'mainnet', hardfork: HARDFORK }),
+      controller.initApprovals();
+
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(2);
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          expectsResult: true,
+          id: 'mocked',
+          origin: 'metamask',
+          requestData: { txId: 'mocked' },
+          type: 'transaction',
+        },
+        false,
+      );
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          expectsResult: true,
+          id: 'mocked1',
+          origin: 'metamask',
+          requestData: { txId: 'mocked1' },
+          type: 'transaction',
+        },
+        false,
       );
     });
 
-    it.each([
-      ['linea-mainnet', MOCK_LINEA_MAINNET_NETWORK, 59144],
-      ['linea-goerli', MOCK_LINEA_GOERLI_NETWORK, 59140],
-    ])(
-      'should get a custom network configuration for %s',
-      async (
-        _,
-        { state, subscribe, provider, blockTracker }: MockNetwork,
-        chainId: number,
-      ) => {
-        const controller = new TransactionController({
-          getNetworkState: () => state,
-          onNetworkStateChange: subscribe,
-          provider,
-          blockTracker,
-          messenger: messengerMock,
-        });
+    it('does not create any approval when there is no unapproved transaction', async () => {
+      const controller = newController();
+      controller.initApprovals();
 
-        const config = controller.getCommonConfiguration();
-        expect(config).toStrictEqual(
-          Common.custom({
-            name: undefined,
-            chainId,
-            networkId: chainId,
-            defaultHardfork: HARDFORK,
-          }),
-        );
-      },
-    );
+      expect(delayMessengerMock.call).not.toHaveBeenCalled();
+    });
   });
 });
