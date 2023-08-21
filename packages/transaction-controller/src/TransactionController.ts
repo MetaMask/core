@@ -41,7 +41,12 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import type { Transaction, TransactionMeta, WalletDevice } from './types';
+import type {
+  Transaction,
+  TransactionMeta,
+  WalletDevice,
+  DappSuggestedGasFees,
+} from './types';
 import { TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
@@ -399,6 +404,11 @@ export class TransactionController extends BaseController<
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
+    const dappSuggestedGasFees = this.generateDappSuggestedGasFee(
+      transaction,
+      origin,
+    );
+
     const transactionMeta: TransactionMeta = {
       id: random(),
       networkID: networkId ?? undefined,
@@ -409,6 +419,7 @@ export class TransactionController extends BaseController<
       transaction,
       deviceConfirmedOn,
       verifiedOnBlockchain: false,
+      dappSuggestedGasFees,
     };
 
     try {
@@ -1363,6 +1374,37 @@ export class TransactionController extends BaseController<
   }) {
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
+  }
+
+  private generateDappSuggestedGasFee(
+    transaction: Transaction,
+    origin?: string,
+  ) {
+    let dappSuggestedGasFees: DappSuggestedGasFees | undefined;
+    if (typeof origin === 'string' && origin !== ORIGIN_METAMASK) {
+      if (typeof transaction.gasPrice !== 'undefined') {
+        dappSuggestedGasFees = {
+          gasPrice: transaction.gasPrice,
+        };
+      } else if (
+        typeof transaction.maxFeePerGas !== 'undefined' ||
+        typeof transaction.maxPriorityFeePerGas !== 'undefined'
+      ) {
+        dappSuggestedGasFees = {
+          maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
+          maxFeePerGas: transaction.maxFeePerGas,
+        };
+      }
+
+      if (typeof transaction.gas !== 'undefined') {
+        dappSuggestedGasFees = {
+          ...dappSuggestedGasFees,
+          gas: transaction.gas,
+        };
+      }
+    }
+
+    return dappSuggestedGasFees;
   }
 }
 

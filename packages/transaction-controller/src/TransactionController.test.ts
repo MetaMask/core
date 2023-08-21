@@ -709,6 +709,7 @@ describe('TransactionController', () => {
         {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_MOCK,
+          gasPrice: '0x1',
         },
         {
           deviceConfirmedOn: mockDeviceConfirmedOn,
@@ -732,6 +733,54 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
       );
+      expect(
+        controller.state.transactions[0]?.dappSuggestedGasFees?.gasPrice,
+      ).toBe('0x1');
+    });
+
+    it('adds dappSuggestedGasFees to transaction if origin is not MM', async () => {
+      const controller = newController();
+      const mockDappOrigin = 'MockDappOrigin';
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+          maxPriorityFeePerGas: '0x1',
+          maxFeePerGas: '0x2',
+          gas: '0x3',
+        },
+        {
+          origin: mockDappOrigin,
+        },
+      );
+
+      expect(
+        controller.state.transactions[0]?.dappSuggestedGasFees
+          ?.maxPriorityFeePerGas,
+      ).toBe('0x1');
+      expect(
+        controller.state.transactions[0]?.dappSuggestedGasFees?.maxFeePerGas,
+      ).toBe('0x2');
+      expect(controller.state.transactions[0]?.dappSuggestedGasFees?.gas).toBe(
+        '0x3',
+      );
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+          maxPriorityFeePerGas: '0x1',
+        },
+        {
+          origin: mockDappOrigin,
+        },
+      );
+
+      expect(
+        controller.state.transactions[1]?.dappSuggestedGasFees
+          ?.maxPriorityFeePerGas,
+      ).toBe('0x1');
     });
 
     it.each([

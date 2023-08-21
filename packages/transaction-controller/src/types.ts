@@ -29,6 +29,7 @@ type TransactionMetaBase = {
   baseFeePerGas?: Hex;
   blockNumber?: string;
   chainId?: Hex;
+  dappSuggestedGasFees?: DappSuggestedGasFees;
   deviceConfirmedOn?: WalletDevice;
   id: string;
   isTransfer?: boolean;
@@ -207,4 +208,19 @@ export interface RemoteTransactionSource {
   fetchTransactions: (
     request: RemoteTransactionSourceRequest,
   ) => Promise<TransactionMeta[]>;
+}
+
+/**
+ * We attach an object to transactions proposed by dapps to show the values
+ * that the dapp suggested for gas fees. This is used to compare to what our
+ * internal gas price logic would have the transaction priced at for metrics
+ * with the aim of improving our suggestions as well as giving the user the
+ * option to return to the defaults suggested by the dapp if they have edited
+ * the gas fees on the confirmation screen.
+ */
+export interface DappSuggestedGasFees {
+  gasPrice?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+  gas?: string;
 }
