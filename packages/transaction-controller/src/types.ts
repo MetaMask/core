@@ -103,9 +103,10 @@ export interface Transaction {
 }
 
 /**
- * @type TransactionReceipt
+ * Standard data concerning a transaction processed by the blockchain
  *
  * Following properties are not included in the type definition but are returned by the API:
+ *
  * @property byzantium - True if the block is in a post-Byzantium Hard Fork block.
  * @property contractAddress - Contract address
  * @property confirmations - The number of blocks that have been mined since this transaction
@@ -118,56 +119,56 @@ export interface Transaction {
  */
 export interface TransactionReceipt {
   /**
-   * The block hash of the block that this transaction was included in
+   * The block hash of the block that this transaction was included in.
    */
   blockHash?: string;
 
   /**
-   * The block number of the block that this transaction was included in
+   * The block number of the block that this transaction was included in.
    */
   blockNumber?: string;
 
   /**
-   * Effective gas price the transaction was charged at
+   * Effective gas price the transaction was charged at.
    */
   effectiveGasPrice?: string;
 
   /**
-   * Gas used in the transaction
+   * Gas used in the transaction.
    */
   gasUsed?: string;
 
   /**
-   * Total used gas in hex
+   * Total used gas in hex.
    */
   l1Fee?: string;
 
   /**
-   * All the logs emitted by this transaction
+   * All the logs emitted by this transaction.
    */
   logs?: Log[];
 
   /**
-   * The status of the transaction
+   * The status of the transaction.
    */
   status?: string;
 
   /**
-   * The index of this transaction in the list of transactions included in the block this transaction was mined in
+   * The index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
   transactionIndex?: number;
 }
 
 /**
- * @type Log
+ * Represents an event that has been included in a transaction using the EVM `LOG` opcode.
  */
 export interface Log {
   /**
-   * Address of the contract that generated log
+   * Address of the contract that generated log.
    */
   address?: string;
   /**
-   * List of topics for log
+   * List of topics for log.
    */
   topics?: string;
 }
