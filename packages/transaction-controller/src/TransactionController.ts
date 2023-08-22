@@ -704,7 +704,7 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.from,
     );
     const rawTransaction = bufferToHex(signedTx.serialize());
-    const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
+    const hash = await query(this.ethQuery, 'sendRawTransaction', [
       rawTransaction,
     ]);
     const baseTransactionMeta = {
@@ -712,7 +712,7 @@ export class TransactionController extends BaseController<
       estimatedBaseFee,
       id: random(),
       time: Date.now(),
-      transactionHash,
+      hash,
       actionId,
     };
     const newTransactionMeta =
@@ -1025,7 +1025,7 @@ export class TransactionController extends BaseController<
 
       case TransactionStatus.submitted:
         resultCallbacks?.success();
-        return finalMeta.transactionHash as string;
+        return finalMeta.hash as string;
 
       default:
         const internalError = ethErrors.rpc.internal(
@@ -1116,10 +1116,10 @@ export class TransactionController extends BaseController<
 
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
-      const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
+      const hash = await query(this.ethQuery, 'sendRawTransaction', [
         rawTransaction,
       ]);
-      transactionMeta.transactionHash = transactionHash;
+      transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
       this.updateTransaction(transactionMeta);
@@ -1236,11 +1236,11 @@ export class TransactionController extends BaseController<
   private async blockchainTransactionStateReconciler(
     meta: TransactionMeta,
   ): Promise<[TransactionMeta, boolean]> {
-    const { status, transactionHash } = meta;
+    const { status, hash } = meta;
     switch (status) {
       case TransactionStatus.confirmed:
         const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-          transactionHash,
+          hash,
         ]);
 
         if (!txReceipt) {
@@ -1270,12 +1270,12 @@ export class TransactionController extends BaseController<
         return [meta, true];
       case TransactionStatus.submitted:
         const txObj = await query(this.ethQuery, 'getTransactionByHash', [
-          transactionHash,
+          hash,
         ]);
 
         if (!txObj) {
           const receiptShowsFailedStatus =
-            await this.checkTxReceiptStatusIsFailed(transactionHash);
+            await this.checkTxReceiptStatusIsFailed(hash);
 
           // Case the txObj is evaluated as false, a second check will
           // determine if the tx failed or it is pending or confirmed
@@ -1432,8 +1432,7 @@ export class TransactionController extends BaseController<
       ...added,
       ...currentTransactions.map((originalTransaction) => {
         const updatedTransaction = updated.find(
-          ({ transactionHash }) =>
-            transactionHash === originalTransaction.transactionHash,
+          ({ hash }) => hash === originalTransaction.hash,
         );
 
         return updatedTransaction ?? originalTransaction;

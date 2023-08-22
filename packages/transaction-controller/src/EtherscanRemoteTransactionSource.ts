@@ -154,7 +154,7 @@ export class EtherscanRemoteTransactionSource
         to: txMeta.to,
         value: BNToHex(new BN(txMeta.value)),
       },
-      transactionHash: txMeta.hash,
+      hash: txMeta.hash,
       verifiedOnBlockchain: false,
     };
   }

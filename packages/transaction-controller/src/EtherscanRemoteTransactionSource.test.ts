@@ -102,7 +102,7 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
     to: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.to,
     value: '0xb1a2bc2ec50000',
   },
-  transactionHash: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.hash,
+  hash: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.hash,
   verifiedOnBlockchain: false,
 };
 

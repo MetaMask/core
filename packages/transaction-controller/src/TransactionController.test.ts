@@ -84,12 +84,10 @@ jest.mock('@metamask/eth-query', () =>
       },
       getTransactionByHash: (_hash: string, callback: any) => {
         const txs: any = [
-          { transactionHash: '1337', blockNumber: '0x1' },
-          { transactionHash: '1338', blockNumber: null },
+          { hash: '1337', blockNumber: '0x1' },
+          { hash: '1338', blockNumber: null },
         ];
-        const tx: any = txs.find(
-          (element: any) => element.transactionHash === _hash,
-        );
+        const tx: any = txs.find((element: any) => element.hash === _hash);
         callback(undefined, tx);
       },
       getTransactionCount: (_from: any, _to: any, callback: any) => {
@@ -101,22 +99,20 @@ jest.mock('@metamask/eth-query', () =>
       getTransactionReceipt: (_hash: any, callback: any) => {
         const txs: any = [
           {
-            transactionHash: '1337',
+            hash: '1337',
             gasUsed: '0x5208',
             status: '0x1',
             transactionIndex: 1337,
             blockHash: '1337',
           },
           {
-            transactionHash: '1111',
+            hash: '1111',
             gasUsed: '0x1108',
             status: '0x0',
             transactionIndex: 1111,
           },
         ];
-        const tx: any = txs.find(
-          (element: any) => element.transactionHash === _hash,
-        );
+        const tx: any = txs.find((element: any) => element.hash === _hash);
         callback(undefined, tx);
       },
       getBlockByHash: (_blockHash: any, callback: any) => {
@@ -403,7 +399,7 @@ const TRANSACTION_META_MOCK = {
   transaction: {
     from: ACCOUNT_MOCK,
   },
-  transactionHash: '0x1',
+  hash: '0x1',
   time: 123456789,
 } as TransactionMeta;
 
@@ -412,7 +408,7 @@ const TRANSACTION_META_2_MOCK = {
   transaction: {
     from: '0x3',
   },
-  transactionHash: '0x2',
+  hash: '0x2',
   time: 987654321,
 } as TransactionMeta;
 
@@ -1385,7 +1381,7 @@ describe('TransactionController', () => {
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
-        transactionHash: '1337',
+        hash: '1337',
       } as any);
 
       controller.wipeTransactions();
@@ -1466,7 +1462,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.submitted,
-        transactionHash: '1337',
+        hash: '1337',
       } as any);
 
       controller.state.transactions.push({} as any);
@@ -1491,7 +1487,7 @@ describe('TransactionController', () => {
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
-        transactionHash: '1337',
+        hash: '1337',
       } as any);
 
       controller.state.transactions.push({} as any);
@@ -1514,7 +1510,7 @@ describe('TransactionController', () => {
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
-        transactionHash: '1338',
+        hash: '1338',
       } as any);
 
       await controller.queryTransactionStatuses();
@@ -1532,7 +1528,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
-        transactionHash: '1337',
+        hash: '1337',
         verifiedOnBlockchain: false,
         transaction: {
           gasUsed: undefined,
@@ -1786,14 +1782,14 @@ describe('TransactionController', () => {
         id: 'mocked',
         networkID: '5',
         status: TransactionStatus.unapproved,
-        transactionHash: '1337',
+        hash: '1337',
       };
       const controller = newController();
       controller.state.transactions.push(transaction as any);
       controller.state.transactions.push({
         ...transaction,
         id: 'mocked1',
-        transactionHash: '1338',
+        hash: '1338',
       } as any);
 
       controller.initApprovals();

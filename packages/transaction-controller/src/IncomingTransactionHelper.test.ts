@@ -48,7 +48,7 @@ const TRANSACTION_MOCK: TransactionMeta = {
   status: TransactionStatus.submitted,
   time: 0,
   transaction: { to: '0x1', gasUsed: '0x1' },
-  transactionHash: '0x1',
+  hash: '0x1',
 } as unknown as TransactionMeta;
 
 const TRANSACTION_MOCK_2: TransactionMeta = {
@@ -56,7 +56,7 @@ const TRANSACTION_MOCK_2: TransactionMeta = {
   chainId: '0x1',
   time: 1,
   transaction: { to: '0x1' },
-  transactionHash: '0x2',
+  hash: '0x2',
 } as unknown as TransactionMeta;
 
 const createRemoteTransactionSourceMock = (
