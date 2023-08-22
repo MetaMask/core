@@ -1,4 +1,3 @@
-import type { NetworkType } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 /**
@@ -127,17 +126,12 @@ export interface RemoteTransactionSourceRequest {
   /**
    * Block number to start fetching transactions from.
    */
-  fromBlock?: string;
+  fromBlock?: number;
 
   /**
    * Maximum number of transactions to retrieve.
    */
-  limit: number;
-
-  /**
-   * The type of the current network.
-   */
-  networkType: NetworkType;
+  limit?: number;
 }
 
 /**
@@ -145,6 +139,8 @@ export interface RemoteTransactionSourceRequest {
  * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
 export interface RemoteTransactionSource {
+  isSupportedNetwork: (chainId: Hex, networkId: string) => boolean;
+
   fetchTransactions: (
     request: RemoteTransactionSourceRequest,
   ) => Promise<TransactionMeta[]>;

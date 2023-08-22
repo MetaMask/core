@@ -1,6 +1,4 @@
 /* eslint-disable jest/expect-expect */
-
-import { Common } from '@ethereumjs/common';
 import {
   ChainId,
   NetworkType,
@@ -23,7 +21,7 @@ import type {
   TransactionControllerMessenger,
   TransactionConfig,
 } from './TransactionController';
-import { TransactionController, HARDFORK } from './TransactionController';
+import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
 import { WalletDevice, TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
@@ -370,11 +368,23 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const NONCE_MOCK = 12;
-const BLOCK_NUMBER_MOCK = '999';
-const ETHERSCAN_API_KEY_MOCK = 'testApiKey';
 
 const TRANSACTION_META_MOCK = {
-  transaction: { from: ACCOUNT_MOCK },
+  status: TransactionStatus.confirmed,
+  transaction: {
+    from: ACCOUNT_MOCK,
+  },
+  transactionHash: '0x1',
+  time: 123456789,
+} as TransactionMeta;
+
+const TRANSACTION_META_2_MOCK = {
+  status: TransactionStatus.confirmed,
+  transaction: {
+    from: '0x3',
+  },
+  transactionHash: '0x2',
+  time: 987654321,
 } as TransactionMeta;
 
 describe('TransactionController', () => {
@@ -384,6 +394,12 @@ describe('TransactionController', () => {
   let delayMessengerMock: TransactionControllerMessenger;
   let approveTransaction: () => void;
   let getNonceLockSpy: jest.Mock;
+  let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
+
+  const incomingTransactionHelperClassMock =
+    IncomingTransactionHelper as jest.MockedClass<
+      typeof IncomingTransactionHelper
+    >;
 
   /**
    * Create a new instance of the TransactionController.
@@ -422,11 +438,11 @@ describe('TransactionController', () => {
 
     return new TransactionController(
       {
+        blockTracker: finalNetwork.blockTracker,
         getNetworkState: () => finalNetwork.state,
+        messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
-        blockTracker: finalNetwork.blockTracker,
-        messenger,
         ...options,
       },
       {
@@ -474,6 +490,16 @@ describe('TransactionController', () => {
     });
 
     NonceTracker.prototype.getNonceLock = getNonceLockSpy;
+
+    incomingTransactionHelperMock = {
+      hub: {
+        on: jest.fn(),
+      },
+    } as any;
+
+    incomingTransactionHelperClassMock.mockReturnValue(
+      incomingTransactionHelperMock,
+    );
   });
 
   afterEach(() => {
@@ -486,6 +512,7 @@ describe('TransactionController', () => {
       expect(controller.state).toStrictEqual({
         methodData: {},
         transactions: [],
+        lastFetchedBlockNumbers: {},
       });
     });
 
@@ -807,6 +834,22 @@ describe('TransactionController', () => {
         },
         true,
       );
+    });
+
+    it('skips approval if option explicitly false', async () => {
+      const controller = newController();
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          requireApproval: false,
+        },
+      );
+
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(0);
     });
 
     it.each([
@@ -1218,93 +1261,6 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('fetchAll', () => {
-    const mockIncomingTransactionHelperConstructor =
-      IncomingTransactionHelper as jest.MockedClass<
-        typeof IncomingTransactionHelper
-      >;
-
-    const mockIncomingTransactionHelper = {
-      reconcile: jest.fn(),
-    } as unknown as jest.Mocked<IncomingTransactionHelper>;
-
-    beforeEach(() => {
-      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
-        updateRequired: false,
-        transactions: [],
-      });
-
-      mockIncomingTransactionHelperConstructor.mockReturnValueOnce(
-        mockIncomingTransactionHelper,
-      );
-    });
-
-    it('reconciles incoming transactions using helper', async () => {
-      const controller = newController();
-      controller.state.transactions = [
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_MOCK,
-      ];
-
-      controller.fetchAll(ACCOUNT_MOCK, {
-        fromBlock: BLOCK_NUMBER_MOCK,
-        etherscanApiKey: ETHERSCAN_API_KEY_MOCK,
-      });
-
-      expect(mockIncomingTransactionHelper.reconcile).toHaveBeenCalledTimes(1);
-      expect(mockIncomingTransactionHelper.reconcile).toHaveBeenCalledWith({
-        address: ACCOUNT_MOCK,
-        apiKey: ETHERSCAN_API_KEY_MOCK,
-        fromBlock: BLOCK_NUMBER_MOCK,
-        localTransactions: [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK],
-      });
-    });
-
-    it('updates state with transactions from helper if update is required', async () => {
-      mockIncomingTransactionHelper.reconcile.mockReset();
-      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
-        updateRequired: true,
-        transactions: [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK],
-      });
-
-      const controller = newController();
-
-      await controller.fetchAll(ACCOUNT_MOCK);
-
-      expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_MOCK,
-      ]);
-    });
-
-    it('does not updates state if update is not required', async () => {
-      mockIncomingTransactionHelper.reconcile.mockReset();
-      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
-        updateRequired: false,
-        transactions: [TRANSACTION_META_MOCK, TRANSACTION_META_MOCK],
-      });
-
-      const controller = newController();
-
-      await controller.fetchAll(ACCOUNT_MOCK);
-
-      expect(controller.state.transactions).toStrictEqual([]);
-    });
-
-    it('returns latest block number from helper', async () => {
-      mockIncomingTransactionHelper.reconcile.mockReset();
-      mockIncomingTransactionHelper.reconcile.mockResolvedValueOnce({
-        updateRequired: false,
-        transactions: [],
-        latestBlockNumber: BLOCK_NUMBER_MOCK,
-      });
-
-      const latestBlockNumber = await newController().fetchAll(ACCOUNT_MOCK);
-
-      expect(latestBlockNumber).toBe(BLOCK_NUMBER_MOCK);
-    });
-  });
-
   describe('handleMethodData', () => {
     it('loads method data from registry', async () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
@@ -1386,7 +1342,9 @@ describe('TransactionController', () => {
 
   describe('stopTransaction', () => {
     it('rejects result promise', async () => {
-      const controller = newController();
+      const controller = newController({
+        network: MOCK_LINEA_GOERLI_NETWORK,
+      });
 
       const { result, transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1416,7 +1374,9 @@ describe('TransactionController', () => {
 
   describe('speedUpTransaction', () => {
     it('creates additional transaction with increased gas', async () => {
-      const controller = newController();
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
 
       const { transactionMeta } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1482,53 +1442,6 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('getCommonConfiguration', () => {
-    it('should get the common  network configuration for mainnet', async () => {
-      const controller = new TransactionController({
-        getNetworkState: () => MOCK_MAINNET_NETWORK.state,
-        onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
-        provider: MOCK_MAINNET_NETWORK.provider,
-        blockTracker: MOCK_MAINNET_NETWORK.blockTracker,
-        messenger: messengerMock,
-      });
-
-      const config = await controller.getCommonConfiguration();
-      expect(config).toStrictEqual(
-        new Common({ chain: 'mainnet', hardfork: HARDFORK }),
-      );
-    });
-
-    it.each([
-      ['linea-mainnet', MOCK_LINEA_MAINNET_NETWORK, 59144],
-      ['linea-goerli', MOCK_LINEA_GOERLI_NETWORK, 59140],
-    ])(
-      'should get a custom network configuration for %s',
-      async (
-        _,
-        { state, subscribe, provider, blockTracker }: MockNetwork,
-        chainId: number,
-      ) => {
-        const controller = new TransactionController({
-          getNetworkState: () => state,
-          onNetworkStateChange: subscribe,
-          provider,
-          blockTracker,
-          messenger: messengerMock,
-        });
-
-        const config = controller.getCommonConfiguration();
-        expect(config).toStrictEqual(
-          Common.custom({
-            name: undefined,
-            chainId,
-            networkId: chainId,
-            defaultHardfork: HARDFORK,
-          }),
-        );
-      },
-    );
-  });
-
   describe('initApprovals', () => {
     it('creates approvals for all unapproved transaction', async () => {
       const transaction = {
@@ -1578,6 +1491,96 @@ describe('TransactionController', () => {
       controller.initApprovals();
 
       expect(delayMessengerMock.call).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('on incoming transaction helper transactions event', () => {
+    it('adds new transactions to state', async () => {
+      const controller = newController();
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
+        added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
+        updated: [],
+      });
+
+      expect(controller.state.transactions).toStrictEqual([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+    });
+
+    it('updates existing transactions in state', async () => {
+      const controller = newController();
+
+      controller.state.transactions = [
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ];
+
+      const updatedTransaction = {
+        ...TRANSACTION_META_MOCK,
+        status: 'failed',
+      };
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
+        added: [],
+        updated: [updatedTransaction],
+      });
+
+      expect(controller.state.transactions).toStrictEqual([
+        updatedTransaction,
+        TRANSACTION_META_2_MOCK,
+      ]);
+    });
+
+    it('limits max transactions when adding to state', async () => {
+      const controller = newController({ config: { txHistoryLimit: 1 } });
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
+        added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
+        updated: [],
+      });
+
+      expect(controller.state.transactions).toStrictEqual([
+        TRANSACTION_META_2_MOCK,
+      ]);
+    });
+  });
+
+  describe('on incoming transaction helper lastFetchedBlockNumbers event', () => {
+    it('updates state', async () => {
+      const controller = newController();
+
+      const lastFetchedBlockNumbers = {
+        key: 234,
+      };
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
+        lastFetchedBlockNumbers,
+        blockNumber: 123,
+      });
+
+      expect(controller.state.lastFetchedBlockNumbers).toStrictEqual(
+        lastFetchedBlockNumbers,
+      );
+    });
+
+    it('emits incomingTransactionBlock event', async () => {
+      const blockNumber = 123;
+      const listener = jest.fn();
+
+      const controller = newController();
+      controller.hub.on('incomingTransactionBlock', listener);
+
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
+        lastFetchedBlockNumbers: {
+          key: 234,
+        },
+        blockNumber,
+      });
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(blockNumber);
     });
   });
 });
