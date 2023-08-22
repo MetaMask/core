@@ -735,7 +735,7 @@ export class NetworkController extends BaseControllerV2<
    * an error.
    * @throws If the network ID of the network is not a valid hex string.
    */
-  async #getNetworkId(networkClientId?: NetworkClientId): Promise<NetworkId> {
+  async #getNetworkId(networkClientId: NetworkClientId): Promise<NetworkId> {
     const possibleNetworkId = await new Promise<string>((resolve, reject) => {
       let ethQuery = this.#ethQuery;
       if (networkClientId) {
@@ -1011,7 +1011,7 @@ export class NetworkController extends BaseControllerV2<
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(networkClientId?: NetworkClientId): Promise<Block> {
+  #getLatestBlock(networkClientId: NetworkClientId): Promise<Block> {
     if (networkClientId === undefined) {
       networkClientId = this.state.selectedNetworkClientId;
     }
