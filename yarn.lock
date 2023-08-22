@@ -1847,6 +1847,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/name-controller@workspace:packages/name-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/name-controller@workspace:packages/name-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^3.1.0
+    "@metamask/base-controller": "workspace:^"
+    "@types/jest": ^27.4.1
+    deepmerge: ^4.2.2
+    immer: ^9.0.6
+    jest: ^27.5.1
+    ts-jest: ^27.1.4
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
+    typescript: ~4.6.3
+  languageName: unknown
+  linkType: soft
+
 "@metamask/network-controller@workspace:^, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
