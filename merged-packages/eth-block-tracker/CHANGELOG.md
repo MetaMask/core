@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.2.0]
+### Added
+- Typescript: Export `BlockTracker` interface ([#168](https://github.com/MetaMask/eth-block-tracker/pull/168))
+
+### Changed
+- Dependency Updates: ([#165](https://github.com/MetaMask/eth-block-tracker/pull/165))
+  - Bump pify from ^3.0.0 to ^5.0.0
+  - Bump @metamask/utils from ^5.0.1 to ^5.0.2
+
 ## [7.1.0]
 ### Added
 - Add `usePastBlocks` to constructor ([#151](https://github.com/MetaMask/eth-block-tracker/pull/151))
@@ -127,7 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v7.2.0...HEAD
+[7.2.0]: https://github.com/MetaMask/eth-block-tracker/compare/v7.1.0...v7.2.0
 [7.1.0]: https://github.com/MetaMask/eth-block-tracker/compare/v7.0.1...v7.1.0
 [7.0.1]: https://github.com/MetaMask/eth-block-tracker/compare/v7.0.0...v7.0.1
 [7.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v6.1.0...v7.0.0

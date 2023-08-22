@@ -1,6 +1,6 @@
 {
   "name": "eth-block-tracker",
-  "version": "7.1.0",
+  "version": "7.2.0",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block.",
   "repository": {
     "type": "git",
