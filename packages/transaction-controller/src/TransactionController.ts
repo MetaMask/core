@@ -482,10 +482,13 @@ export class TransactionController extends BaseController<
    *
    * @param transactionID - The ID of the transaction to cancel.
    * @param gasValues - The gas values to use for the cancellation transaction.
+   * @param options - The options for the cancellation transaction.
+   * @param options.estimatedBaseFee - The estimated base fee to use for the cancellation transaction.
    */
   async stopTransaction(
     transactionID: string,
     gasValues?: GasPriceValue | FeeMarketEIP1559Values,
+    { estimatedBaseFee }: { estimatedBaseFee?: string } = {},
   ) {
     if (gasValues) {
       validateGasValues(gasValues);
@@ -573,6 +576,7 @@ export class TransactionController extends BaseController<
     );
     const rawTransaction = bufferToHex(signedTx.serialize());
     await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
+    transactionMeta.estimatedBaseFee = estimatedBaseFee;
     transactionMeta.status = TransactionStatus.cancelled;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
@@ -582,10 +586,13 @@ export class TransactionController extends BaseController<
    *
    * @param transactionID - The ID of the transaction to speed up.
    * @param gasValues - The gas values to use for the speed up transation.
+   * @param options - The options for the speed up transaction.
+   * @param options.estimatedBaseFee - The estimated base fee to use for the speed up transaction.
    */
   async speedUpTransaction(
     transactionID: string,
     gasValues?: GasPriceValue | FeeMarketEIP1559Values,
+    { estimatedBaseFee }: { estimatedBaseFee?: string } = {},
   ) {
     if (gasValues) {
       validateGasValues(gasValues);
@@ -675,6 +682,7 @@ export class TransactionController extends BaseController<
     ]);
     const baseTransactionMeta = {
       ...transactionMeta,
+      estimatedBaseFee,
       id: random(),
       time: Date.now(),
       transactionHash,
