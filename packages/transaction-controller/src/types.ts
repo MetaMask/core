@@ -125,7 +125,7 @@ export interface TransactionReceipt {
   /**
    * The block number of the block that this transaction was included in
    */
-  blockNumber?: number;
+  blockNumber?: string;
 
   /**
    * Effective gas price the transaction was charged at
