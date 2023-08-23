@@ -3,7 +3,9 @@ import {
   ChainId,
   convertHexToDecimal,
   toHex,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
+import { BN } from 'ethereumjs-util';
 
 import * as assetsUtil from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
@@ -434,6 +436,66 @@ describe('assetsUtil', () => {
 
     it('should return a URL as is if https:// is already prepended', () => {
       expect(assetsUtil.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
+    });
+  });
+
+  describe('getTotalFiatAccountBalance', () => {
+    it('should return a balance for just native currency', () => {
+      const ADDRESS = '0x0000000000000000000000000000000008675309';
+      const NATIVE_BALANCE = '0x0';
+
+      const CHAINLINK_ADDRESS = '0x514910771AF9Ca656af840dff83E8264EcF986CA';
+      const CHAINLINK_SYMBOL = 'LINK';
+      const CHAINLINK_DECIMALS = 18;
+      const CHAINLINK_PRICE = 6.5;
+      const CHAINLINK_BALANCE = 10;
+
+      const CURRENCY = 'usd';
+      const CURRENCY_CONVERSION_RATE = 1;
+
+      const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
+        // CurrencyRateController
+        {
+          state: {
+            currentCurrency: CURRENCY,
+            conversionRate: CURRENCY_CONVERSION_RATE,
+          },
+        },
+        // PreferencesController
+        { state: { selectedAddress: ADDRESS } },
+        // AccountTrackerController,
+        { state: { accounts: { [ADDRESS]: { balance: NATIVE_BALANCE } } } },
+        // TokenBalancesController
+        {
+          state: {
+            contractBalances: {
+              [CHAINLINK_ADDRESS]: new BN(CHAINLINK_BALANCE),
+            },
+          },
+        },
+        // TokenRatesController
+        {
+          state: {
+            contractExchangeRates: {
+              [toChecksumHexAddress(CHAINLINK_ADDRESS)]: CHAINLINK_PRICE,
+            },
+          },
+        },
+        // TokensController
+        {
+          state: {
+            tokens: [
+              {
+                address: CHAINLINK_ADDRESS,
+                symbol: CHAINLINK_SYMBOL,
+                decimals: CHAINLINK_DECIMALS,
+              },
+            ],
+          },
+        },
+      );
+
+      expect(fiatBalance).toBe(CHAINLINK_PRICE * CHAINLINK_BALANCE);
     });
   });
 });

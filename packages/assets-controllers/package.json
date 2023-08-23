@@ -48,6 +48,7 @@
     "abort-controller": "^3.0.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
+    "ethjs-unit": "^0.1.6",
     "immer": "^9.0.6",
     "multiformats": "^9.5.2",
     "single-call-balance-checker-abi": "^1.0.0",

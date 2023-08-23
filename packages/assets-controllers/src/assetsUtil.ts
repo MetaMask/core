@@ -6,7 +6,8 @@ import {
 } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
-import { BN, stripHexPrefix } from 'ethereumjs-util';
+import { BN, stripHexPrefix, addHexPrefix } from 'ethereumjs-util';
+import { fromWei } from 'ethjs-unit';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
@@ -258,4 +259,158 @@ export function addUrlProtocolPrefix(urlString: string): string {
  */
 export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
   return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
+}
+
+/**
+ * Returns the total fiat value of a given account on a given network,
+ * including native currency and token values
+ *
+ * @param CurrencyRateController - The CurrencyRateController instance
+ * @param PreferencesController - The PreferencesController instance
+ * @param AccountTrackerController - The AccountTrackerController instance
+ * @param TokenBalancesController - The TokenBalancesController instance
+ * @param TokenRatesController - The TokenRatesController instance
+ * @param TokensController - The TokensController instance
+ * @returns A number representing the total fiat balance of an account on a network.
+ */
+export function getTotalFiatAccountBalance(
+  CurrencyRateController,
+  PreferencesController,
+  AccountTrackerController,
+  TokenBalancesController,
+  TokenRatesController,
+  TokensController,
+): number {
+  const weiToFiatNumber = (
+    wei: number,
+    conversionRate: number,
+    decimalsToShow = 5,
+  ) => {
+    const base = Math.pow(10, decimalsToShow);
+    const eth = fromWei(wei).toString();
+    let value = parseFloat(Math.floor(eth * conversionRate * base) / base);
+    value = isNaN(value) ? 0.0 : value;
+    return value;
+  };
+
+  const fastSplit = (value: string, divider = '.') => {
+    const [from, to] = [value.indexOf(divider), 0];
+    return value.substring(from, to) || value;
+  };
+
+  const safeNumberToBN = (value: string) => {
+    try {
+      const safeValue = fastSplit(value?.toString()) || '0';
+      return new BN(safeValue);
+    } catch {
+      return new BN('0');
+    }
+  };
+
+  const fromTokenMinimalUnit = (minimalInput: number, decimals: number) => {
+    const minimalInputStr = addHexPrefix(Number(minimalInput).toString(16));
+    let minimal = safeNumberToBN(minimalInputStr);
+    const negative = minimal.lt(new BN(0));
+    const base = new BN(Math.pow(10, decimals).toString());
+
+    if (negative) {
+      minimal = minimal.mul(negative);
+    }
+    let fraction = minimal.mod(base).toString(10);
+    while (fraction.length < decimals) {
+      fraction = `0${fraction}`;
+    }
+    fraction = fraction.match(/^([0-9]*[1-9]|0)(0*)/u)[1];
+    const whole = minimal.div(base).toString(10);
+    let value = String(whole) + (fraction === '0' ? '' : `.${fraction}`);
+    if (negative) {
+      value = `-${value}`;
+    }
+    return value;
+  };
+
+  const renderFromTokenMinimalUnit = (
+    tokenValue: number,
+    decimals: number,
+    decimalsToShow = 5,
+  ) => {
+    const minimalUnit = fromTokenMinimalUnit(tokenValue || 0, decimals);
+    const minimalUnitNumber = parseFloat(minimalUnit);
+    let renderMinimalUnit;
+    if (minimalUnitNumber < 0.00001 && minimalUnitNumber > 0) {
+      renderMinimalUnit = '< 0.00001';
+    } else {
+      const base = Math.pow(10, decimalsToShow);
+      renderMinimalUnit = (
+        Math.round(minimalUnitNumber * base) / base
+      ).toString();
+    }
+    return renderMinimalUnit;
+  };
+
+  const balanceToFiatNumber = (
+    balance: number,
+    conversionRate: number,
+    exchangeRate: number,
+    decimalsToShow = 5,
+  ) => {
+    const base = Math.pow(10, decimalsToShow);
+    let fiatFixed = parseFloat(
+      Math.floor(balance * conversionRate * exchangeRate * base) / base,
+    );
+    fiatFixed = isNaN(fiatFixed) ? 0.0 : fiatFixed;
+    return fiatFixed;
+  };
+
+  const { selectedAddress } = PreferencesController.state;
+  const { currentCurrency, conversionRate } = CurrencyRateController.state;
+  const finalConversionRate = conversionRate === null ? 0 : conversionRate;
+  const { accounts } = AccountTrackerController.state;
+  const { tokens } = TokensController.state;
+
+  let ethFiat = 0;
+  let tokenFiat = 0;
+  const decimalsToShow = (currentCurrency === 'usd' && 2) || undefined;
+  if (accounts[selectedAddress]) {
+    ethFiat = weiToFiatNumber(
+      accounts[selectedAddress].balance,
+      finalConversionRate,
+      decimalsToShow,
+    );
+  }
+  if (tokens.length > 0) {
+    const { contractBalances: tokenBalances } = TokenBalancesController.state;
+    const { contractExchangeRates: tokenExchangeRates } =
+      TokenRatesController.state;
+    tokens.forEach(
+      (item: {
+        address: string;
+        balance: string | undefined;
+        decimals: number;
+      }) => {
+        const exchangeRate =
+          item.address in tokenExchangeRates
+            ? tokenExchangeRates[item.address]
+            : undefined;
+        const tokenBalance =
+          item.balance ||
+          (item.address in tokenBalances
+            ? renderFromTokenMinimalUnit(
+                tokenBalances[item.address],
+                item.decimals,
+              )
+            : undefined);
+        const tokenBalanceFiat = balanceToFiatNumber(
+          tokenBalance,
+          finalConversionRate,
+          exchangeRate,
+          decimalsToShow,
+        );
+        tokenFiat += tokenBalanceFiat;
+      },
+    );
+  }
+
+  const total = ethFiat + tokenFiat;
+  return total;
 }
