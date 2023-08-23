@@ -102,19 +102,7 @@ export interface Transaction {
 }
 
 /**
- * Standard data concerning a transaction processed by the blockchain
- *
- * Following properties are not included in the type definition but are returned by the API:
- *
- * @property byzantium - True if the block is in a post-Byzantium Hard Fork block.
- * @property contractAddress - Contract address
- * @property confirmations - The number of blocks that have been mined since this transaction
- * @property cumulativeGasUsed - Sum of the gas used by each transaction in the ordered list of transaction
- * @property from - The address this transaction is from
- * @property logsBloom - A bloom-filter, which includes all the addresses and topics included in any log in this transaction
- * @property root - The intermediate state root of a receipt
- * @property to - The address this transaction is to
- * @property type - The EIP-2718 type of this transaction
+ * Standard data concerning a transaction processed by the blockchain.
  */
 export interface TransactionReceipt {
   /**
