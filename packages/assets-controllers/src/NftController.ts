@@ -953,7 +953,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       selectedAddress: '',
       chainId: initialChainId,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      displayNftMedia: false,
+      displayNftMedia: true,
       useIPFSSubdomains: true,
     };
 

@@ -69,7 +69,7 @@ export class PreferencesController extends BaseController<
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      displayNftMedia: false,
+      displayNftMedia: true,
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       disabledRpcMethodPreferences: {
