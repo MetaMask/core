@@ -18,6 +18,7 @@ describe('PreferencesController', () => {
       },
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
+      isIpfsGatewayEnabled: true,
     });
   });
 
@@ -199,5 +200,11 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     controller.setShowTestNetworks(true);
     expect(controller.state.showTestNetworks).toBe(true);
+  });
+
+  it('should set isIpfsGatewayEnabled', () => {
+    const controller = new PreferencesController();
+    controller.setIsIpfsGatewayEnabled(true);
+    expect(controller.state.isIpfsGatewayEnabled).toBe(true);
   });
 });
