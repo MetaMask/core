@@ -104,6 +104,7 @@ jest.mock('@metamask/eth-query', () =>
             gasUsed: '0x5208',
             status: '0x1',
             transactionIndex: 1337,
+            blockHash: '1337',
           },
           {
             transactionHash: '1111',
@@ -116,6 +117,16 @@ jest.mock('@metamask/eth-query', () =>
           (element: any) => element.transactionHash === _hash,
         );
         callback(undefined, tx);
+      },
+      getBlockByHash: (_blockHash: any, callback: any) => {
+        const blocks: any = [
+          { hash: '1337', number: '0x1', baseFeePerGas: '0x14' },
+          { hash: '1338', number: '0x2' },
+        ];
+        const block: any = blocks.find(
+          (element: any) => element.hash === _blockHash,
+        );
+        callback(undefined, block);
       },
     };
   }),
@@ -1268,6 +1279,7 @@ describe('TransactionController', () => {
       const transactionMeta = controller.state.transactions[0];
       expect(transactionMeta.verifiedOnBlockchain).toBe(true);
       expect(transactionMeta.transaction.gasUsed).toBe('0x5208');
+      expect(transactionMeta.baseFeePerGas).toBe('0x14');
       expect(transactionMeta.txReceipt?.transactionIndex).toBe(1337);
     });
   });

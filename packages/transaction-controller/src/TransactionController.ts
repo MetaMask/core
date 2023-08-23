@@ -1155,9 +1155,14 @@ export class TransactionController extends BaseController<
           return [meta, false];
         }
 
+        const txBlock = await query(this.ethQuery, 'getBlockByHash', [
+          txReceipt.blockHash,
+        ]);
+
         meta.verifiedOnBlockchain = true;
         meta.transaction.gasUsed = txReceipt.gasUsed;
         meta.txReceipt = txReceipt;
+        meta.baseFeePerGas = txBlock?.baseFeePerGas;
 
         // According to the Web3 docs:
         // TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
