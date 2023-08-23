@@ -1,8 +1,6 @@
 # The name is overwritten, causing the package to get published under a
-# different NPM scope than non-preview builds. We do this so that the list of
-# non-preview builds does not get cluttered with noise and to prevent bad
-# versions from being published in case of a bug in the preview build process.
-.name |= sub("@metamask/"; "@metamask-previews/") |
+# different NPM scope than non-preview builds.
+.name |= sub("@metamask/"; "\($npm_scope)/") |
 
 # The prerelease version is overwritten, preserving the non-prerelease portion
 # of the version. Technically we'd want to bump the non-prerelease portion as
