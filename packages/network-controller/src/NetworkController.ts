@@ -763,12 +763,14 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Updates the network meta with EIP-1559 support and the network status
+   * Refreshes the network meta with EIP-1559 support and the network status
    * based on the given network client ID.
    *
    * @param networkClientId - The ID of the network client to update.
    */
-  async updateNetworkStatus(networkClientId: NetworkClientId) {
+  async refreshNetworkMetadataByNetworkClientId(
+    networkClientId: NetworkClientId,
+  ) {
     const isInfura = networkClientId in InfuraNetworkType;
     let updatedNetworkStatus: NetworkStatus;
     let updatedIsEIP1559Compatible: boolean | undefined;

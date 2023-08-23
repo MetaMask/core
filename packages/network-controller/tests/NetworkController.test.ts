@@ -1133,14 +1133,14 @@ describe('NetworkController', () => {
     });
   });
 
-  describe('updateNetworkStatus', () => {
+  describe('refreshNetworkMetadataByNetworkClientId', () => {
     it('updates the network status', async () => {
       await withController(
         { infuraProjectId: 'some-infura-project-id' },
         async ({ controller }) => {
           const fakeNetworkClient = buildFakeClient();
           mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-          await controller.updateNetworkStatus('mainnet');
+          await controller.refreshNetworkMetadataByNetworkClientId('mainnet');
 
           expect(controller.state.networksMetadata.mainnet.status).toBe(
             'available',
