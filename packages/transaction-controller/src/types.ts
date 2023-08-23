@@ -1,22 +1,23 @@
-import type { NetworkType } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 /**
  * @type TransactionMeta
  *
  * TransactionMeta representation
- * @property error - Synthesized error information for failed transactions
- * @property id - Generated UUID associated with this transaction
- * @property networkID - Network code as per EIP-155 for this transaction
- * @property origin - Origin this transaction was sent from
- * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
- * @property rawTransaction - Hex representation of the underlying transaction
- * @property status - String status of this transaction
- * @property time - Timestamp associated with this transaction
- * @property toSmartContract - Whether transaction recipient is a smart contract
- * @property transaction - Underlying Transaction object
- * @property transactionHash - Hash of a successful transaction
- * @property blockNumber - Number of the block where the transaction has been included
+ * @property baseFeePerGas - Base fee of the block as a hex value, introduced in EIP-1559.
+ * @property error - Synthesized error information for failed transactions.
+ * @property id - Generated UUID associated with this transaction.
+ * @property networkID - Network code as per EIP-155 for this transaction.
+ * @property origin - Origin this transaction was sent from.
+ * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed.
+ * @property rawTransaction - Hex representation of the underlying transaction.
+ * @property status - String status of this transaction.
+ * @property time - Timestamp associated with this transaction.
+ * @property toSmartContract - Whether transaction recipient is a smart contract.
+ * @property transaction - Underlying Transaction object.
+ * @property txReceipt - Transaction receipt.
+ * @property transactionHash - Hash of a successful transaction.
+ * @property blockNumber - Number of the block where the transaction has been included.
  */
 export type TransactionMeta =
   | ({
@@ -25,24 +26,26 @@ export type TransactionMeta =
   | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
 
 type TransactionMetaBase = {
-  isTransfer?: boolean;
-  transferInformation?: {
-    symbol: string;
-    contractAddress: string;
-    decimals: number;
-  };
-  id: string;
-  networkID?: string;
+  baseFeePerGas?: Hex;
+  blockNumber?: string;
   chainId?: Hex;
+  deviceConfirmedOn?: WalletDevice;
+  id: string;
+  isTransfer?: boolean;
+  networkID?: string;
   origin?: string;
   rawTransaction?: string;
   time: number;
   toSmartContract?: boolean;
   transaction: Transaction;
   transactionHash?: string;
-  blockNumber?: string;
-  deviceConfirmedOn?: WalletDevice;
+  transferInformation?: {
+    contractAddress: string;
+    decimals: number;
+    symbol: string;
+  };
   verifiedOnBlockchain?: boolean;
+  txReceipt?: TransactionReceipt;
 };
 
 /**
@@ -101,6 +104,65 @@ export interface Transaction {
 }
 
 /**
+ * Standard data concerning a transaction processed by the blockchain.
+ */
+export interface TransactionReceipt {
+  /**
+   * The block hash of the block that this transaction was included in.
+   */
+  blockHash?: string;
+
+  /**
+   * The block number of the block that this transaction was included in.
+   */
+  blockNumber?: string;
+
+  /**
+   * Effective gas price the transaction was charged at.
+   */
+  effectiveGasPrice?: string;
+
+  /**
+   * Gas used in the transaction.
+   */
+  gasUsed?: string;
+
+  /**
+   * Total used gas in hex.
+   */
+  l1Fee?: string;
+
+  /**
+   * All the logs emitted by this transaction.
+   */
+  logs?: Log[];
+
+  /**
+   * The status of the transaction.
+   */
+  status?: string;
+
+  /**
+   * The index of this transaction in the list of transactions included in the block this transaction was mined in.
+   */
+  transactionIndex?: number;
+}
+
+/**
+ * Represents an event that has been included in a transaction using the EVM `LOG` opcode.
+ */
+export interface Log {
+  /**
+   * Address of the contract that generated log.
+   */
+  address?: string;
+  /**
+   * List of topics for log.
+   */
+  topics?: string;
+}
+
+/**
  * The configuration required to fetch transaction data from a RemoteTransactionSource.
  */
 export interface RemoteTransactionSourceRequest {
@@ -127,17 +189,12 @@ export interface RemoteTransactionSourceRequest {
   /**
    * Block number to start fetching transactions from.
    */
-  fromBlock?: string;
+  fromBlock?: number;
 
   /**
    * Maximum number of transactions to retrieve.
    */
-  limit: number;
-
-  /**
-   * The type of the current network.
-   */
-  networkType: NetworkType;
+  limit?: number;
 }
 
 /**
@@ -145,6 +202,8 @@ export interface RemoteTransactionSourceRequest {
  * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
 export interface RemoteTransactionSource {
+  isSupportedNetwork: (chainId: Hex, networkId: string) => boolean;
+
   fetchTransactions: (
     request: RemoteTransactionSourceRequest,
   ) => Promise<TransactionMeta[]>;

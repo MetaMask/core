@@ -131,7 +131,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [6.0.0]
 ### Changed
 - **BREAKING:** Create approval requests using `@metamask/approval-controller` ([#1166](https://github.com/MetaMask/core/pull/1166))
-- **BREAKING:** Make `setProviderType` async ([#1191](https://github.com/MetaMask/core/pull/1191))
 
 ## [5.1.0]
 ### Added
