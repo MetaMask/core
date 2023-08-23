@@ -91,14 +91,28 @@ If you make more changes and wish to publish another set of preview builds, run 
 
 ### Using preview builds
 
-To use a preview build for a package within a project, open the project's `package.json`, find the dependency that corresponds to the package, and make two changes:
+To effectively use a preview build for a package within a project, you need to override the resolution logic for your package manager so that the "production" version of that package is replaced with the preview version across the entire dependency tree.
 
-- Update `@metamask/` to `@metamask-previews/` (or whatever NPM scope you've chosen to publish under, if you've forked this monorepo)
-- Update the version to match a preview build (e.g. `1.2.3-e2df9b4` instead of `^1.2.3`)
+- If you're using Yarn, then you can use the `resolutions` field to accomplish this.
+- If you're using NPM or any other package manager, you can use the `overrides` field.
 
-Finally, run `yarn install`.
+You will want to add a line to the appropriate section that looks like this, replacing placeholders:
 
-If you re-publish preview builds, make sure to return to the project's `package.json` and update the preview versions for the corresponding packages.
+```
+"@metamask/<PACKAGE_NAME>": "npm:@<NPM_ORG>/<PACKAGE_NAME>@<VERSION>"
+```
+
+For instance, if you're a member of MetaMask, your project uses Yarn, and you want to use a preview build of `@metamask/controller-utils` whose version is `1.2.3-e2df9b4`, you would add the following to `resolutions`:
+
+```
+"@metamask/controller-utils": "npm:@metamask-previews/controller-utils@1.2.3-e2df9b4"
+```
+
+And if you are an individual contributor, your project uses NPM, and you want to use a preview build of `@metamask/assets-controllers` published under `@foo` whose version is `4.5.6-bc2a997`, you would add the following to `overrides`:
+
+```
+"@metamask/assets-controllers": "npm:@foo/assets-controllers@4.5.6-bc2a997"
+```
 
 ## Releasing
 
