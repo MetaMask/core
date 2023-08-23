@@ -147,6 +147,106 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('addNewAccountForKeyring', () => {
+    describe('when accountCount is not provided', () => {
+      it('should add new account', async () => {
+        await withController(
+          async ({ controller, initialState, preferences }) => {
+            const [primaryKeyring] = controller.getKeyringsByType(
+              KeyringTypes.hd,
+            ) as Keyring<Json>[];
+            const addedAccountAddress =
+              await controller.addNewAccountForKeyring(primaryKeyring);
+            expect(initialState.keyrings).toHaveLength(1);
+            expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+              controller.state.keyrings[0].accounts,
+            );
+            expect(controller.state.keyrings[0].accounts).toHaveLength(2);
+            expect(initialState.keyrings[0].accounts).not.toContain(
+              addedAccountAddress,
+            );
+            expect(addedAccountAddress).toBe(
+              controller.state.keyrings[0].accounts[1],
+            );
+            expect(
+              preferences.updateIdentities.calledWith(
+                controller.state.keyrings[0].accounts,
+              ),
+            ).toBe(true);
+            expect(preferences.setSelectedAddress.called).toBe(false);
+          },
+        );
+      });
+    });
+
+    describe('when accountCount is provided', () => {
+      it('should add new account if accountCount is in sequence', async () => {
+        await withController(
+          async ({ controller, initialState, preferences }) => {
+            const [primaryKeyring] = controller.getKeyringsByType(
+              KeyringTypes.hd,
+            ) as Keyring<Json>[];
+            const addedAccountAddress =
+              await controller.addNewAccountForKeyring(primaryKeyring);
+            expect(initialState.keyrings).toHaveLength(1);
+            expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+              controller.state.keyrings[0].accounts,
+            );
+            expect(controller.state.keyrings[0].accounts).toHaveLength(2);
+            expect(initialState.keyrings[0].accounts).not.toContain(
+              addedAccountAddress,
+            );
+            expect(addedAccountAddress).toBe(
+              controller.state.keyrings[0].accounts[1],
+            );
+            expect(
+              preferences.updateIdentities.calledWith(
+                controller.state.keyrings[0].accounts,
+              ),
+            ).toBe(true);
+            expect(preferences.setSelectedAddress.called).toBe(false);
+          },
+        );
+      });
+
+      it('should throw an error if passed accountCount param is out of sequence', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const [primaryKeyring] = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as Keyring<Json>[];
+          const accountCount = initialState.keyrings[0].accounts.length;
+          await expect(
+            controller.addNewAccountForKeyring(
+              primaryKeyring,
+              accountCount + 1,
+            ),
+          ).rejects.toThrow('Account out of sequence');
+        });
+      });
+
+      it('should not add a new account if called twice with the same accountCount param', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const accountCount = initialState.keyrings[0].accounts.length;
+          const [primaryKeyring] = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as Keyring<Json>[];
+          const firstAccountAdded = await controller.addNewAccountForKeyring(
+            primaryKeyring,
+            accountCount,
+          );
+          const secondAccountAdded = await controller.addNewAccountForKeyring(
+            primaryKeyring,
+            accountCount,
+          );
+          expect(firstAccountAdded).toBe(secondAccountAdded);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(
+            accountCount + 1,
+          );
+        });
+      });
+    });
+  });
+
   describe('addNewAccountWithoutUpdate', () => {
     it('should add new account without updating', async () => {
       await withController(
@@ -166,6 +266,29 @@ describe('KeyringController', () => {
           );
         },
       );
+    });
+  });
+
+  describe('addNewKeyring', () => {
+    describe('when there is a builder for the given type', () => {
+      it('should add new keyring', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const initialKeyrings = initialState.keyrings;
+          await controller.addNewKeyring(KeyringTypes.simple);
+          expect(controller.state.keyrings).not.toStrictEqual(initialKeyrings);
+          expect(controller.state.keyrings).toHaveLength(2);
+        });
+      });
+    });
+
+    describe('when there is no builder for the given type', () => {
+      it('should throw error', async () => {
+        await withController(async ({ controller }) => {
+          await expect(controller.addNewKeyring('fake')).rejects.toThrow(
+            'KeyringController - No keyringBuilder found for keyring. Keyring type: fake',
+          );
+        });
+      });
     });
   });
 
