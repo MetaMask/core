@@ -24,7 +24,7 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn constraints --fix",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!**/CHANGELOG.md' '!**/CHANGELOG.old.md' '**/*.yml' '!.yarnrc.yml' '!merged-packages/**' --ignore-path .gitignore",
     "prepack": "./scripts/prepack.sh",
-    "prepare-preview-builds": "scripts/prepare-preview-builds.sh",
+    "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "publish-previews": "yarn workspaces foreach --parallel --verbose run publish:preview",
     "setup": "yarn install",
     "test": "yarn workspaces foreach --parallel --verbose run test"
