@@ -14,6 +14,7 @@ import type { Hex } from '@metamask/utils';
  * @property time - Timestamp associated with this transaction
  * @property toSmartContract - Whether transaction recipient is a smart contract
  * @property transaction - Underlying Transaction object
+ * @property txReceipt - Transaction receipt
  * @property transactionHash - Hash of a successful transaction
  * @property blockNumber - Number of the block where the transaction has been included
  */
@@ -42,6 +43,7 @@ type TransactionMetaBase = {
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
   verifiedOnBlockchain?: boolean;
+  txReceipt?: TransactionReceipt;
 };
 
 /**
@@ -97,6 +99,65 @@ export interface Transaction {
   maxPriorityFeePerGas?: string;
   estimatedBaseFee?: string;
   estimateGasError?: string;
+}
+
+/**
+ * Standard data concerning a transaction processed by the blockchain.
+ */
+export interface TransactionReceipt {
+  /**
+   * The block hash of the block that this transaction was included in.
+   */
+  blockHash?: string;
+
+  /**
+   * The block number of the block that this transaction was included in.
+   */
+  blockNumber?: string;
+
+  /**
+   * Effective gas price the transaction was charged at.
+   */
+  effectiveGasPrice?: string;
+
+  /**
+   * Gas used in the transaction.
+   */
+  gasUsed?: string;
+
+  /**
+   * Total used gas in hex.
+   */
+  l1Fee?: string;
+
+  /**
+   * All the logs emitted by this transaction.
+   */
+  logs?: Log[];
+
+  /**
+   * The status of the transaction.
+   */
+  status?: string;
+
+  /**
+   * The index of this transaction in the list of transactions included in the block this transaction was mined in.
+   */
+  transactionIndex?: number;
+}
+
+/**
+ * Represents an event that has been included in a transaction using the EVM `LOG` opcode.
+ */
+export interface Log {
+  /**
+   * Address of the contract that generated log.
+   */
+  address?: string;
+  /**
+   * List of topics for log.
+   */
+  topics?: string;
 }
 
 /**
