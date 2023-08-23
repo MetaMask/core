@@ -264,7 +264,6 @@ const MOCK_NETWORK: MockNetwork = {
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
     selectedNetworkClientId: NetworkType.goerli,
-    networkId: '5',
     networksMetadata: {
       [NetworkType.goerli]: {
         EIPS: { 1559: false },
@@ -285,7 +284,6 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
     selectedNetworkClientId: NetworkType.goerli,
-    networkId: '5',
     networksMetadata: {
       [NetworkType.goerli]: {
         EIPS: { 1559: false },
@@ -304,7 +302,6 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
   blockTracker: buildMockBlockTracker('0x102833C'),
   state: {
     selectedNetworkClientId: NetworkType.mainnet,
-    networkId: '1',
     networksMetadata: {
       [NetworkType.mainnet]: {
         EIPS: { 1559: false },
@@ -326,7 +323,6 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
-    networkId: '59144',
     networksMetadata: {
       [NetworkType['linea-mainnet']]: {
         EIPS: { 1559: false },
@@ -348,7 +344,6 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
     selectedNetworkClientId: NetworkType['linea-goerli'],
-    networkId: '59140',
     networksMetadata: {
       [NetworkType['linea-goerli']]: {
         EIPS: { 1559: false },
@@ -370,7 +365,6 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
   blockTracker: buildMockBlockTracker('0xA6EDFC'),
   state: {
     selectedNetworkClientId: 'uuid-1',
-    networkId: '11297108109',
     networksMetadata: {
       'uuid-1': {
         EIPS: { 1559: false },
@@ -719,9 +713,6 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].transaction.from).toBe(
         ACCOUNT_MOCK,
       );
-      expect(controller.state.transactions[0].networkID).toBe(
-        MOCK_NETWORK.state.networkId,
-      );
       expect(controller.state.transactions[0].chainId).toBe(
         MOCK_NETWORK.state.providerConfig.chainId,
       );
@@ -768,9 +759,6 @@ describe('TransactionController', () => {
 
         expect(controller.state.transactions[0].transaction.from).toBe(
           ACCOUNT_MOCK,
-        );
-        expect(controller.state.transactions[0].networkID).toBe(
-          newNetwork.state.networkId,
         );
         expect(controller.state.transactions[0].chainId).toBe(
           newNetwork.state.providerConfig.chainId,
@@ -1108,26 +1096,6 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(0);
     });
 
-    // This tests the fallback to networkId only when there is no chainId present.
-    // It should be removed when networkID is completely removed.
-    it('removes all transactions with matching networkId when there is no chainId', async () => {
-      const controller = newController();
-
-      controller.wipeTransactions();
-
-      controller.state.transactions.push({
-        from: MOCK_PREFERENCES.state.selectedAddress,
-        id: 'foo',
-        networkID: '5',
-        status: TransactionStatus.submitted,
-        transactionHash: '1337',
-      } as any);
-
-      controller.wipeTransactions();
-
-      expect(controller.state.transactions).toHaveLength(0);
-    });
-
     it('removes only txs with given address', async () => {
       const controller = newController();
 
@@ -1198,33 +1166,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
-        networkID: '5',
         chainId: toHex(5),
-        status: TransactionStatus.submitted,
-        transactionHash: '1337',
-      } as any);
-
-      controller.state.transactions.push({} as any);
-
-      const confirmedPromise = waitForTransactionFinished(controller, {
-        confirmed: true,
-      });
-
-      await controller.queryTransactionStatuses();
-
-      const { status } = await confirmedPromise;
-      expect(status).toBe(TransactionStatus.confirmed);
-    });
-
-    // This tests the fallback to networkId only when there is no chainId present.
-    // It should be removed when networkId is completely removed.
-    it('uses networkId only when there is no chainId', async () => {
-      const controller = newController();
-
-      controller.state.transactions.push({
-        from: MOCK_PREFERENCES.state.selectedAddress,
-        id: 'foo',
-        networkID: '5',
         status: TransactionStatus.submitted,
         transactionHash: '1337',
       } as any);
@@ -1247,7 +1189,6 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
-        networkID: '5',
         status: TransactionStatus.submitted,
         transactionHash: '1338',
       } as any);
@@ -1264,7 +1205,6 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         from: MOCK_PREFERENCES.state.selectedAddress,
         id: 'foo',
-        networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
         transactionHash: '1337',
@@ -1470,7 +1410,7 @@ describe('TransactionController', () => {
       const transaction = {
         from: ACCOUNT_MOCK,
         id: 'mocked',
-        networkID: '5',
+        chainId: toHex(5),
         status: TransactionStatus.unapproved,
         transactionHash: '1337',
       };

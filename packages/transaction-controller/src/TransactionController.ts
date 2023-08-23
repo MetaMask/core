@@ -54,7 +54,6 @@ import {
   validateGasValues,
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
-  transactionMatchesNetwork,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -394,14 +393,13 @@ export class TransactionController extends BaseController<
       requireApproval?: boolean | undefined;
     } = {},
   ): Promise<Result> {
-    const { chainId, networkId } = this.getChainAndNetworkId();
+    const chainId = this.getChainId();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
     const transactionMeta: TransactionMeta = {
       id: random(),
-      networkID: networkId ?? undefined,
       chainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
@@ -448,11 +446,11 @@ export class TransactionController extends BaseController<
    * Creates approvals for all unapproved transactions persisted.
    */
   initApprovals() {
-    const { networkId, chainId } = this.getChainAndNetworkId();
+    const chainId = this.getChainId();
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
-        transactionMatchesNetwork(transaction, chainId, networkId),
+        transaction.chainId === chainId,
     );
 
     for (const txMeta of unapprovedTxs) {
@@ -779,19 +777,12 @@ export class TransactionController extends BaseController<
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const { chainId: currentChainId, networkId: currentNetworkID } =
-      this.getChainAndNetworkId();
+    const currentChainId = this.getChainId();
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          // Using fallback to networkID only when there is no chainId present.
-          // Should be removed when networkID is completely removed.
-          const txBelongsToCurrentChain =
-            meta.chainId === currentChainId ||
-            (!meta.chainId && meta.networkID === currentNetworkID);
-
-          if (!meta.verifiedOnBlockchain && txBelongsToCurrentChain) {
+          if (!meta.verifiedOnBlockchain && meta.chainId === currentChainId) {
             const [reconciledTx, updateRequired] =
               await this.blockchainTransactionStateReconciler(meta);
             if (updateRequired) {
@@ -841,15 +832,10 @@ export class TransactionController extends BaseController<
       this.update({ transactions: [] });
       return;
     }
-    const { chainId: currentChainId, networkId: currentNetworkID } =
-      this.getChainAndNetworkId();
+    const currentChainId = this.getChainId();
     const newTransactions = this.state.transactions.filter(
-      ({ networkID, chainId, transaction }) => {
-        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-        const isMatchingNetwork =
-          ignoreNetwork ||
-          chainId === currentChainId ||
-          (!chainId && networkID === currentNetworkID);
+      ({ chainId, transaction }) => {
+        const isMatchingNetwork = ignoreNetwork || chainId === currentChainId;
 
         if (!isMatchingNetwork) {
           return true;
@@ -959,7 +945,7 @@ export class TransactionController extends BaseController<
   private async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
-    const { chainId } = this.getChainAndNetworkId();
+    const chainId = this.getChainId();
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
@@ -1083,11 +1069,11 @@ export class TransactionController extends BaseController<
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
     const txsToKeep = transactions.reverse().filter((tx) => {
-      const { chainId, networkID, status, transaction, time } = tx;
+      const { chainId, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${
-          chainId ? convertHexToDecimal(chainId) : networkID
-        }-${new Date(time).toDateString()}`;
+        const key = `${transaction.nonce}-${convertHexToDecimal(
+          chainId,
+        )}-${new Date(time).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (
@@ -1275,13 +1261,9 @@ export class TransactionController extends BaseController<
     return { meta: transaction, isCompleted };
   }
 
-  private getChainAndNetworkId(): {
-    networkId: string | null;
-    chainId: Hex;
-  } {
-    const { networkId, providerConfig } = this.getNetworkState();
-    const chainId = providerConfig?.chainId;
-    return { networkId, chainId };
+  private getChainId(): Hex {
+    const { providerConfig } = this.getNetworkState();
+    return providerConfig?.chainId;
   }
 
   private prepareUnsignedEthTx(
@@ -1304,7 +1286,6 @@ export class TransactionController extends BaseController<
    */
   private getCommonConfiguration(): Common {
     const {
-      networkId,
       providerConfig: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
@@ -1319,7 +1300,7 @@ export class TransactionController extends BaseController<
     const customChainParams: Partial<ChainConfig> = {
       name,
       chainId: parseInt(chainId, 16),
-      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
+      // networkId: networkId === null ? NaN : parseInt(networkId, undefined),
       defaultHardfork: HARDFORK,
     };
 

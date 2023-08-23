@@ -90,7 +90,6 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
   blockNumber: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.blockNumber,
   chainId: undefined,
   id: ID_MOCK,
-  networkID: undefined,
   status: TransactionStatus.confirmed,
   time: 1543596356000,
   transaction: {
@@ -162,7 +161,6 @@ describe('EtherscanRemoteTransactionSource', () => {
       expect(
         new EtherscanRemoteTransactionSource().isSupportedNetwork(
           CHAIN_IDS.MAINNET,
-          '1',
         ),
       ).toBe(true);
     });
@@ -171,7 +169,6 @@ describe('EtherscanRemoteTransactionSource', () => {
       expect(
         new EtherscanRemoteTransactionSource().isSupportedNetwork(
           '0x1324567891234',
-          '1',
         ),
       ).toBe(false);
     });

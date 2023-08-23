@@ -142,7 +142,6 @@ describe('IncomingTransactionHelper', () => {
         expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
           address: ADDERSS_MOCK,
           currentChainId: NETWORK_STATE_MOCK.providerConfig.chainId,
-          currentNetworkId: NETWORK_STATE_MOCK.networkId,
           fromBlock: expect.any(Number),
           limit: CONTROLLER_ARGS_MOCK.transactionLimit,
         });

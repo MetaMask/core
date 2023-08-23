@@ -7,7 +7,6 @@ import type { Hex } from '@metamask/utils';
  * @property baseFeePerGas - Base fee of the block as a hex value, introduced in EIP-1559.
  * @property error - Synthesized error information for failed transactions.
  * @property id - Generated UUID associated with this transaction.
- * @property networkID - Network code as per EIP-155 for this transaction.
  * @property origin - Origin this transaction was sent from.
  * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed.
  * @property rawTransaction - Hex representation of the underlying transaction.
@@ -32,7 +31,6 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
   id: string;
   isTransfer?: boolean;
-  networkID?: string;
   origin?: string;
   rawTransaction?: string;
   time: number;
@@ -182,11 +180,6 @@ export interface RemoteTransactionSourceRequest {
   currentChainId: Hex;
 
   /**
-   * The networkId of the current network.
-   */
-  currentNetworkId: string;
-
-  /**
    * Block number to start fetching transactions from.
    */
   fromBlock?: number;
@@ -202,7 +195,7 @@ export interface RemoteTransactionSourceRequest {
  * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
 export interface RemoteTransactionSource {
-  isSupportedNetwork: (chainId: Hex, networkId: string) => boolean;
+  isSupportedNetwork: (chainId: Hex) => boolean;
 
   fetchTransactions: (
     request: RemoteTransactionSourceRequest,
