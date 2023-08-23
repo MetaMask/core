@@ -211,12 +211,7 @@ export interface RemoteTransactionSource {
 }
 
 /**
- * We attach an object to transactions proposed by dapps to show the values
- * that the dapp suggested for gas fees. This is used to compare to what our
- * internal gas price logic would have the transaction priced at for metrics
- * with the aim of improving our suggestions as well as giving the user the
- * option to return to the defaults suggested by the dapp if they have edited
- * the gas fees on the confirmation screen.
+ * Gas values initially suggested by the dApp.
  */
 export interface DappSuggestedGasFees {
   gasPrice?: string;

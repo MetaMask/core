@@ -404,7 +404,7 @@ export class TransactionController extends BaseController<
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
-    const dappSuggestedGasFees = this.generateDappSuggestedGasFee(
+    const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       transaction,
       origin,
     );
@@ -1376,32 +1376,39 @@ export class TransactionController extends BaseController<
     this.hub.emit('incomingTransactionBlock', blockNumber);
   }
 
-  private generateDappSuggestedGasFee(
+  private generateDappSuggestedGasFees(
     transaction: Transaction,
     origin?: string,
-  ) {
-    let dappSuggestedGasFees: DappSuggestedGasFees | undefined;
-    if (typeof origin === 'string' && origin !== ORIGIN_METAMASK) {
-      if (typeof transaction.gasPrice !== 'undefined') {
-        dappSuggestedGasFees = {
-          gasPrice: transaction.gasPrice,
-        };
-      } else if (
-        typeof transaction.maxFeePerGas !== 'undefined' ||
-        typeof transaction.maxPriorityFeePerGas !== 'undefined'
-      ) {
-        dappSuggestedGasFees = {
-          maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
-          maxFeePerGas: transaction.maxFeePerGas,
-        };
-      }
+  ): DappSuggestedGasFees | undefined {
+    if (!origin || origin === ORIGIN_METAMASK) {
+      return undefined;
+    }
 
-      if (typeof transaction.gas !== 'undefined') {
-        dappSuggestedGasFees = {
-          ...dappSuggestedGasFees,
-          gas: transaction.gas,
-        };
-      }
+    const { gasPrice, maxFeePerGas, maxPriorityFeePerGas, gas } = transaction;
+
+    if (
+      gasPrice === undefined &&
+      maxFeePerGas === undefined &&
+      maxPriorityFeePerGas === undefined &&
+      gas === undefined
+    ) {
+      return undefined;
+    }
+
+    const dappSuggestedGasFees: DappSuggestedGasFees = {};
+
+    if (gasPrice !== undefined) {
+      dappSuggestedGasFees.gasPrice = gasPrice;
+    } else if (
+      maxFeePerGas !== undefined ||
+      maxPriorityFeePerGas !== undefined
+    ) {
+      dappSuggestedGasFees.maxFeePerGas = maxFeePerGas;
+      dappSuggestedGasFees.maxPriorityFeePerGas = maxPriorityFeePerGas;
+    }
+
+    if (gas !== undefined) {
+      dappSuggestedGasFees.gas = gas;
     }
 
     return dappSuggestedGasFees;
