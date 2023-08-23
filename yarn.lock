@@ -1495,7 +1495,7 @@ __metadata:
     "@metamask/eslint-config-jest": ^12.0.0
     "@metamask/eslint-config-nodejs": ^12.0.0
     "@metamask/eslint-config-typescript": ^12.0.0
-    "@metamask/eth-json-rpc-provider": ^1.0.0
+    "@metamask/eth-json-rpc-provider": ^2.0.0
     "@metamask/utils": ^6.2.0
     "@types/node": ^16.18.24
     "@typescript-eslint/eslint-plugin": ^5.30.7
@@ -1669,6 +1669,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/eth-json-rpc-provider@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@metamask/eth-json-rpc-provider@npm:2.0.0"
+  dependencies:
+    "@metamask/json-rpc-engine": ^7.0.0
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^5.0.1
+  checksum: fc76c403340cc986afc2dbc8172b92d970c58835ebe487a444bd0cb18d9fb03d898df8f99064d52db534a01023db20f24e5a8afb22b68f4b329587b87b87e094
+  languageName: node
+  linkType: hard
+
 "@metamask/eth-keyring-controller@npm:^13.0.0":
   version: 13.0.0
   resolution: "@metamask/eth-keyring-controller@npm:13.0.0"
@@ -1765,6 +1776,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/json-rpc-engine@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "@metamask/json-rpc-engine@npm:7.0.0"
+  dependencies:
+    "@metamask/rpc-errors": ^5.0.0
+    "@metamask/safe-event-emitter": ^2.0.0
+    "@metamask/utils": ^5.0.1
+  checksum: d22347ee4597bc72cdc34e65a27872ed8e77de188c5b95fed9133c25289cd4abd7aafa72e3e326d8a7449a857c275ed6435642727c30c51319f5d97a579c5f49
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
@@ -1857,7 +1879,7 @@ __metadata:
     "@metamask/controller-utils": "workspace:^"
     "@metamask/eth-json-rpc-infura": ^8.1.1
     "@metamask/eth-json-rpc-middleware": ^11.0.0
-    "@metamask/eth-json-rpc-provider": ^1.0.0
+    "@metamask/eth-json-rpc-provider": ^2.0.0
     "@metamask/eth-query": ^3.0.1
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^6.2.0
@@ -2006,7 +2028,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/rpc-errors@npm:^5.1.1":
+"@metamask/rpc-errors@npm:^5.0.0, @metamask/rpc-errors@npm:^5.1.1":
   version: 5.1.1
   resolution: "@metamask/rpc-errors@npm:5.1.1"
   dependencies:
