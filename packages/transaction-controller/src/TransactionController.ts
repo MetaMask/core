@@ -41,13 +41,9 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import type {
-  Transaction,
-  TransactionMeta,
-  WalletDevice,
-  DappSuggestedGasFees,
-} from './types';
-import { TransactionStatus } from './types';
+
+import type { DappSuggestedGasFees, Transaction, TransactionMeta, WalletDevice } from './types';
+import { TransactionStatus, TransactionReceipt, TransactionType } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -61,6 +57,7 @@ import {
   ESTIMATE_GAS_ERROR,
   transactionMatchesNetwork,
   isSwapsDefaultTokenAddress,
+  validateConfirmedExternalTransaction,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -904,6 +901,39 @@ export class TransactionController extends BaseController<
     this.incomingTransactionHelper.stop();
   }
 
+  async confirmExternalTransaction(transactionMeta?: TransactionMeta, transactionReceipt: TransactionReceipt, baseFeePerGas: Hex) {
+    if (!transactionMeta) {
+      throw ethErrors.rpc.invalidParams(
+        '"transactionMeta" is missing',
+      );
+    }
+    // Add external transaction to state
+    this.addExternalTransaction(transactionMeta);
+
+    try {
+      const transactionId = txMeta.id;
+      const gasUsed = normalizeTxReceiptGasUsed(transactionReceipt.gasUsed);
+
+      transactionMeta.txReceipt = {
+        ...transactionReceipt,
+        gasUsed,
+      };
+
+      if (baseFeePerGas) {
+        transactionMeta.baseFeePerGas = baseFeePerGas;
+      }
+
+      this.updateTransaction(transactionMeta);
+
+      if (transactionMeta.type === TransactionType.swap) {
+        await this.updatePostTxBalance(transactionMeta);
+      }
+
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
@@ -1474,6 +1504,80 @@ export class TransactionController extends BaseController<
       this.updateTransaction(latestTxMeta);
     }
   }
+
+  /**
+   * 
+   */
+  private async addExternalTransaction(transactionMeta: TransactionMeta) {
+    const { networkId, chainId } = this.getChainAndNetworkId();
+    const fromAddress = transactionMeta?.transaction?.from;
+    const confirmedTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.transaction.from === fromAddress &&
+        transaction.status === TransactionStatus.confirmed &&
+        transactionMatchesNetwork(transaction, chainId, networkId),
+    );
+    const pendingTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.transaction.from === fromAddress &&
+        transaction.status === TransactionStatus.submitted &&
+        transactionMatchesNetwork(transaction, chainId, networkId),
+    );
+
+    validateConfirmedExternalTransaction(
+      transactionMeta,
+      confirmedTxs,
+      pendingTxs,
+    );
+
+    const updatedTransactions = [...this.state.transactions, transactionMeta];
+    this.update({
+      transactions: this.trimTransactionsForState(updatedTransactions),
+    });
+  }
+
+  /**
+   * 
+   */
+  private markNonceDuplicatesDropped(
+    transactionId: string,
+  ) {
+    const { networkId, chainId } = this.getChainAndNetworkId();
+    const transactionMeta = this.getTransaction(transactionId);
+    const { nonce, from } = transactionMeta.transaction;
+
+    const sameNonceTxs = const pendingTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.transaction.from === from &&
+        transaction.transaction.nonce === nonce &&
+        transactionMatchesNetwork(transaction, chainId, networkId),
+    );
+
+    if (!sameNonceTxs.length) {
+      return;
+    }
+
+    // Mark all same nonce transactions as dropped and give it a replacedBy hash
+    sameNonceTxs.forEach((sameNonceTxMeta) => {
+      if (sameNonceTxMeta.id === transactionId) {
+        return;
+      }
+      sameNonceTxMeta.replacedBy = transactionMeta.hash;
+      sameNonceTxMeta.replacedById = transactionMeta.id;
+      // Drop any transaction that wasn't previously failed (off chain failure)
+      if (sameNonceTxMeta.status !== TransactionStatus.failed) {
+        this.dropTransaction(sameNonceTxMeta.id);
+      }
+    });
+  }
+
+  /**
+   * 
+   */
+  private dropTransaction(transactionId: string) {
+    
+  }
+
 }
 
 export default TransactionController;

@@ -123,6 +123,11 @@ type TransactionMetaBase = {
   txReceipt?: TransactionReceipt;
 
   /**
+   * Type of transaction.
+   */
+  type?: TransactionType;
+
+  /**
    * Whether the transaction is verified on the blockchain.
    */
   verifiedOnBlockchain?: boolean;
@@ -147,6 +152,31 @@ export enum TransactionStatus {
   signed = 'signed',
   submitted = 'submitted',
   unapproved = 'unapproved',
+}
+
+/**
+ * The type of transaction.
+ */ 
+export enum TransactionType {
+  cancel = 'cancel',
+  contractInteraction = 'contractInteraction',
+  deployContract = 'contractDeployment',
+  ethDecrypt = 'eth_decrypt',
+  ethGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
+  incoming = 'incoming',
+  personalSign = 'personal_sign',
+  retry = 'retry',
+  sign = 'eth_sign',
+  signTypedData = 'eth_signTypedData',
+  simpleSend = 'simpleSend',
+  smart = 'smart',
+  swap = 'swap',
+  swapApproval = 'swapApproval',
+  tokenMethodApprove = 'approve',
+  tokenMethodSafeTransferFrom = 'safetransferfrom',
+  tokenMethodTransfer = 'transfer',
+  tokenMethodTransferFrom = 'transferfrom',
+  tokenMethodSetApprovalForAll = 'setapprovalforall',
 }
 
 /**

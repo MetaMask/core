@@ -6,6 +6,7 @@ import {
 import type { Hex } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
+import { ethErrors } from 'eth-rpc-errors';
 
 import type {
   GasPriceValue,
@@ -246,4 +247,45 @@ export function isSwapsDefaultTokenAddress(address?: string, chainId?: Hex) {
     return false;
   }
   return address === SWAPS_CHAINID_DEFAULT_TOKEN_MAP[chainId]?.address;
+}
+
+export function validateConfirmedExternalTransaction(
+  transactionMeta: TransactionMeta,
+  confirmedTxs: TransactionMeta[],
+  pendingTxs: TransactionMeta[],
+) {
+  if (!transactionMeta.transaction) {
+    throw ethErrors.rpc.invalidParams(
+      '"transactionMeta.transaction" is missing',
+    );
+  }
+
+  if (transactionMeta.status !== TransactionStatus.confirmed) {
+    throw ethErrors.rpc.invalidParams(
+      'External transaction status should be "confirmed"',
+    );
+  }
+
+  const externalTxNonce = transactionMeta.transaction.nonce;
+  if (pendingTxs && pendingTxs.length > 0) {
+    const foundPendingTxByNonce = pendingTxs.find(
+      (tx) => tx.transaction?.nonce === externalTxNonce,
+    );
+    if (foundPendingTxByNonce) {
+      throw ethErrors.rpc.invalidParams(
+        'External transaction nonce should not be in pending txs',
+      );
+    }
+  }
+
+  if (confirmedTxs && confirmedTxs.length > 0) {
+    const foundConfirmedTxByNonce = confirmedTxs.find(
+      (el) => el.txParams?.nonce === externalTxNonce,
+    );
+    if (foundConfirmedTxByNonce) {
+      throw ethErrors.rpc.invalidParams(
+        'External transaction nonce should not be in confirmed txs',
+      );
+    }
+  }
 }
