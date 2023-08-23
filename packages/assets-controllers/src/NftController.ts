@@ -504,7 +504,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: object.description,
         standard,
         favorite: false,
-        tokenURI,
+        tokenURI: tokenURI ?? null,
       };
     } catch {
       return {
