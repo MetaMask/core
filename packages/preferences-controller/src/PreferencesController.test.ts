@@ -11,7 +11,7 @@ describe('PreferencesController', () => {
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
-      displayNftMedia: false,
+      displayNftMedia: true,
       securityAlertsEnabled: false,
       disabledRpcMethodPreferences: {
         eth_sign: false,
