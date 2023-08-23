@@ -71,7 +71,7 @@ type TransactionMetaBase = {
   /**
    * Hex representation of the underlying transaction.
    */
-  rawTransaction?: string;
+  rawTx?: string;
 
   /**
    * Timestamp associated with this transaction.
