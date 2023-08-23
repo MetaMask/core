@@ -17,7 +17,6 @@ import {
   ApprovalType,
   ERC20,
   NetworksTicker,
-  TOKEN_URI_IPFS,
 } from '@metamask/controller-utils';
 import type {
   NetworkState,
@@ -2326,7 +2325,7 @@ describe('NftController', () => {
 
       sinon
         .stub(nftController, 'getNftURIAndStandard' as any)
-        .returns([TOKEN_URI_IPFS, ERC1155]);
+        .returns(['ipfs://*', ERC1155]);
 
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = nftController.config;
@@ -2344,7 +2343,7 @@ describe('NftController', () => {
         standard: ERC1155,
         favorite: false,
         isCurrentlyOwned: true,
-        tokenURI: TOKEN_URI_IPFS,
+        tokenURI: 'ipfs://*',
       });
     });
   });

@@ -3,7 +3,6 @@ import { NetworkType, NetworksTicker, ChainId, NetworkId } from './types';
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
 export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
-export const TOKEN_URI_IPFS = 'ipfs://*';
 
 // NETWORKS ID
 // `toHex` not invoked to avoid cyclic dependency
