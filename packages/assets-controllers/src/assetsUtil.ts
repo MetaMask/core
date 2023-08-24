@@ -12,11 +12,11 @@ import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
 import type { Token, TokenRatesState } from './TokenRatesController';
-import { CurrencyRateState } from './CurrencyRateController';
-import { AccountTrackerState } from './AccountTrackerController';
-import { PreferencesState } from '@metamask/preferences-controller';
-import { TokenBalancesState } from './TokenBalancesController';
-import { TokensState } from './TokensController';
+import type { CurrencyRateState } from './CurrencyRateController';
+import type { AccountTrackerState } from './AccountTrackerController';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import type { TokenBalancesState } from './TokenBalancesController';
+import type { TokensState } from './TokensController';
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -309,7 +309,6 @@ export function getTotalFiatAccountBalance(
     let safeValue = '0';
     try {
       safeValue = fastSplit(value?.toString());
-      return new BN(safeValue);
     } catch {
       // Simple return the original value
     }
@@ -365,7 +364,8 @@ export function getTotalFiatAccountBalance(
   ) => {
     const base = Math.pow(10, decimalsToShow);
     let fiatFixed = parseFloat(
-      Math.floor(balance * conversionRate * exchangeRate * base) / base,
+      // Cast as string to avoid TS error
+      String(Math.floor(balance * conversionRate * exchangeRate * base) / base),
     );
     fiatFixed = isNaN(fiatFixed) ? 0.0 : fiatFixed;
     return fiatFixed;
@@ -377,16 +377,20 @@ export function getTotalFiatAccountBalance(
   const { accounts } = accountTrackerControllerState;
   const { tokens } = tokensControllerState;
 
+  const decimalsToShow = currentCurrency === 'usd' ? 2 : undefined;
   let ethFiat = 0;
   let tokenFiat = 0;
-  const decimalsToShow = (currentCurrency === 'usd' && 2) || undefined;
+
+  // Native currency
   if (accounts[selectedAddress]) {
     ethFiat = weiToFiatNumber(
-      accounts[selectedAddress].balance,
+      Number(accounts[selectedAddress].balance), // Is "Number() correct?
       finalConversionRate,
       decimalsToShow,
     );
   }
+
+  // Custom token values
   if (tokens.length > 0) {
     const { contractBalances: tokenBalances } = tokenBalancesControllerState;
     const { contractExchangeRates: tokenExchangeRates } =
