@@ -105,13 +105,13 @@ To use a preview build for a package within a project, you need to override the 
 
 For example:
 
-- If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4` and you want to use the preview version `1.2.3-e2df9b4`, add the following to `resolutions`:
+- If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and you want to use the preview version `1.2.3-e2df9b4`, add the following to `resolutions`:
 
   ```
   "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.2.3-e2df9b4"
   ```
 
-- If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7` and you want to use the preview version `4.5.6-bc2a997` published under `@foo`, add the following to `overrides`:
+- If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and you want to use the preview version `4.5.6-bc2a997` published under `@foo`, add the following to `overrides`:
 
   ```
   "@metamask/assets-controllers@^3.4.7": "npm:@foo/assets-controllers@4.5.6-bc2a997"
