@@ -5,6 +5,7 @@ export enum NameValueType {
 export type NameProviderRequest = {
   value: string;
   type: NameValueType;
+  chainId: string;
 };
 
 export type NameProviderResult = {

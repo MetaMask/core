@@ -1,3 +1,5 @@
 export * from './NameController';
 export * from './types';
-export * from './ENSNameProvider';
+export * from './providers/ens';
+export * from './providers/etherscan';
+export * from './providers/token';

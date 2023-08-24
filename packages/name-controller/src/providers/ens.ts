@@ -2,8 +2,8 @@ import type {
   NameProvider,
   NameProviderRequest,
   NameProviderResult,
-} from './types';
-import { NameValueType } from './types';
+} from '../types';
+import { NameValueType } from '../types';
 
 export type ReverseLookupCallback = (address: string) => Promise<string>;
 

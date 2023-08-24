@@ -53,6 +53,7 @@ export type NameControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type NameControllerOptions = {
+  getChainId: () => string;
   messenger: NameControllerMessenger;
   providers: NameProvider[];
 };
@@ -82,22 +83,27 @@ export class NameController extends BaseControllerV2<
   NameControllerState,
   NameControllerMessenger
 > {
+  #getChainId: () => string;
+
   #providersById: { [id: string]: NameProvider };
 
   /**
    * Construct a Name controller.
    *
    * @param options - The controller options.
+   * @param options.getChainId - A callback that returns the current chain ID.
    * @param options.messenger - The restricted controller messenger for the name controller.
-   * @param options.providers -
+   * @param options.providers - An array of name provider instances to propose names.
    */
-  constructor({ messenger, providers }: NameControllerOptions) {
+  constructor({ getChainId, messenger, providers }: NameControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
       messenger,
       state: getDefaultState(),
     });
+
+    this.#getChainId = getChainId;
 
     this.#providersById = providers.reduce(
       (result: { [id: string]: NameProvider }, provider) => {
@@ -157,9 +163,12 @@ export class NameController extends BaseControllerV2<
       );
     }
 
+    const chainId = this.#getChainId();
+
     const providerResults = await Promise.all(
       providerInstances.map(async (provider) => {
         const providerRequest: NameProviderRequest = {
+          chainId,
           value,
           type,
         };
@@ -186,7 +195,7 @@ export class NameController extends BaseControllerV2<
 
     const updatedProposedState = providerResults.reduce(
       (result: { [id: string]: string }, providerResult) => {
-        if (providerResult.error) {
+        if (providerResult.error || !providerResult.name?.length) {
           return result;
         }
 
