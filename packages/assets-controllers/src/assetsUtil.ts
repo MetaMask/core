@@ -11,7 +11,12 @@ import { fromWei } from 'ethjs-unit';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
-import type { Token } from './TokenRatesController';
+import type { Token, TokenRatesState } from './TokenRatesController';
+import { CurrencyRateState } from './CurrencyRateController';
+import { AccountTrackerState } from './AccountTrackerController';
+import { PreferencesState } from '@metamask/preferences-controller';
+import { TokenBalancesState } from './TokenBalancesController';
+import { TokensState } from './TokensController';
 
 /**
  * Compares nft metadata entries to any nft entry.
@@ -265,21 +270,21 @@ export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
  * Returns the total fiat value of a given account on a given network,
  * including native currency and token values
  *
- * @param CurrencyRateController - The CurrencyRateController instance
- * @param PreferencesController - The PreferencesController instance
- * @param AccountTrackerController - The AccountTrackerController instance
- * @param TokenBalancesController - The TokenBalancesController instance
- * @param TokenRatesController - The TokenRatesController instance
- * @param TokensController - The TokensController instance
+ * @param currencyRateControllerState - The CurrencyRateController instance's state
+ * @param preferencesControllerState - The PreferencesController instance's state
+ * @param accountTrackerControllerState - The AccountTrackerController instance's state
+ * @param tokenBalancesControllerState - The TokenBalancesController instance's state
+ * @param tokenRatesControllerState - The TokenRatesController instance's state
+ * @param tokensControllerState - The TokensController instance's state
  * @returns A number representing the total fiat balance of an account on a network.
  */
 export function getTotalFiatAccountBalance(
-  CurrencyRateController,
-  PreferencesController,
-  AccountTrackerController,
-  TokenBalancesController,
-  TokenRatesController,
-  TokensController,
+  currencyRateControllerState: CurrencyRateState,
+  preferencesControllerState: PreferencesState,
+  accountTrackerControllerState: AccountTrackerState,
+  tokenBalancesControllerState: TokenBalancesState,
+  tokenRatesControllerState: TokenRatesState,
+  tokensControllerState: TokensState,
 ): number {
   const weiToFiatNumber = (
     wei: number,
@@ -288,8 +293,10 @@ export function getTotalFiatAccountBalance(
   ) => {
     const base = Math.pow(10, decimalsToShow);
     const eth = fromWei(wei).toString();
-    let value = parseFloat(Math.floor(eth * conversionRate * base) / base);
-    value = isNaN(value) ? 0.0 : value;
+    let value = parseFloat(
+      Math.floor((eth * conversionRate * base) / base).toString(),
+    );
+    value = isNaN(value) ? 0 : value;
     return value;
   };
 
@@ -299,12 +306,14 @@ export function getTotalFiatAccountBalance(
   };
 
   const safeNumberToBN = (value: string) => {
+    let safeValue = '0';
     try {
-      const safeValue = fastSplit(value?.toString()) || '0';
+      safeValue = fastSplit(value?.toString());
       return new BN(safeValue);
     } catch {
-      return new BN('0');
+      // Simple return the original value
     }
+    return new BN(safeValue);
   };
 
   const fromTokenMinimalUnit = (minimalInput: number, decimals: number) => {
@@ -362,11 +371,11 @@ export function getTotalFiatAccountBalance(
     return fiatFixed;
   };
 
-  const { selectedAddress } = PreferencesController.state;
-  const { currentCurrency, conversionRate } = CurrencyRateController.state;
-  const finalConversionRate = conversionRate === null ? 0 : conversionRate;
-  const { accounts } = AccountTrackerController.state;
-  const { tokens } = TokensController.state;
+  const { selectedAddress } = preferencesControllerState;
+  const { currentCurrency, conversionRate } = currencyRateControllerState;
+  const finalConversionRate = conversionRate ?? 0;
+  const { accounts } = accountTrackerControllerState;
+  const { tokens } = tokensControllerState;
 
   let ethFiat = 0;
   let tokenFiat = 0;
@@ -379,9 +388,9 @@ export function getTotalFiatAccountBalance(
     );
   }
   if (tokens.length > 0) {
-    const { contractBalances: tokenBalances } = TokenBalancesController.state;
+    const { contractBalances: tokenBalances } = tokenBalancesControllerState;
     const { contractExchangeRates: tokenExchangeRates } =
-      TokenRatesController.state;
+      tokenRatesControllerState;
     tokens.forEach(
       (item: {
         address: string;
