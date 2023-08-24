@@ -22,7 +22,6 @@ import {
   RPC,
   ApprovalType,
   ORIGIN_METAMASK,
-  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
@@ -1071,9 +1070,9 @@ export class TransactionController extends BaseController<
     const txsToKeep = transactions.reverse().filter((tx) => {
       const { chainId, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${convertHexToDecimal(
-          chainId,
-        )}-${new Date(time).toDateString()}`;
+        const key = `${transaction.nonce}-${chainId}-${new Date(
+          time,
+        ).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (
