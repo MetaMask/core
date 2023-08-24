@@ -95,7 +95,7 @@ To use a preview build for a package within a project, you need to override the 
 
 1. Open `package.json` in the project and locate the dependency entry for the core package for which you want to use a preview build.
 2. Locate the section responsible for resolution overrides (or create it if it doesn't exist). If you're using Yarn, this is `resolutions`; if you're using NPM or any other package manager, this is `overrides`.
-3. Add a line to this section that mirrors the dependency entry on the left hand side and points to the preview version on the right-hand side:
+3. Add a line to this section that mirrors the dependency entry on the left-hand side and points to the preview version on the right-hand side:
 
    ```
    "@metamask/<PACKAGE_NAME>@<PRODUCTION_VERSION_SPECIFIER>": "npm:@<NPM_ORG>/<PACKAGE_NAME>@<PREVIEW_VERSION>"
