@@ -269,9 +269,9 @@ export function isSwapsDefaultTokenAddress(address?: string, chainId?: Hex) {
  * @param pendingTxs - The submitted transactions in controller state.
  */
 export function validateConfirmedExternalTransaction(
-  transactionMeta: TransactionMeta,
-  confirmedTxs: TransactionMeta[],
-  pendingTxs: TransactionMeta[],
+  transactionMeta?: TransactionMeta,
+  confirmedTxs?: TransactionMeta[],
+  pendingTxs?: TransactionMeta[],
 ) {
   if (!transactionMeta || !transactionMeta.transaction) {
     throw ethErrors.rpc.invalidParams(
