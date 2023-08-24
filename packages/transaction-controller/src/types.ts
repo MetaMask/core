@@ -54,6 +54,11 @@ type TransactionMetaBase = {
   estimatedBaseFee?: string;
 
   /**
+   * hash
+   */
+  hash?: string;
+
+  /**
    * Generated UUID associated with this transaction.
    */
   id: string;
@@ -87,6 +92,16 @@ type TransactionMetaBase = {
    * Hex representation of the underlying transaction.
    */
   rawTransaction?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction hash.
+   */ 
+  replacedBy?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction id.
+   */
+  replacedById?: string;
 
   /**
    * Timestamp associated with this transaction.

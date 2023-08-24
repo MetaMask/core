@@ -1,3 +1,4 @@
+import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
   isValidHexAddress,
@@ -55,8 +56,8 @@ export function normalizeTransaction(transaction: Transaction) {
  * @param gasUsed - gasUsed property.
  * @returns String of gasUsed.
  */
-export function normalizeTxReceiptGasUsed(gasUsed) {
-  return typeof gasUsed === 'string' ? gasUsed : gasUsed.toString(16);
+export function normalizeTxReceiptGasUsed(gasUsed: string | BigNumber) {
+  return typeof gasUsed === 'string' ? gasUsed : gasUsed.toString();
 }
 
 /**
@@ -298,7 +299,7 @@ export function validateConfirmedExternalTransaction(
 
   if (confirmedTxs && confirmedTxs.length > 0) {
     const foundConfirmedTxByNonce = confirmedTxs.find(
-      (tx) => tx.txParams?.nonce === externalTxNonce,
+      (tx) => tx.transaction?.nonce === externalTxNonce,
     );
     if (foundConfirmedTxByNonce) {
       throw ethErrors.rpc.invalidParams(

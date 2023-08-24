@@ -917,7 +917,9 @@ export class TransactionController extends BaseController<
 
     try {
       const transactionId = transactionMeta.id;
-      const gasUsed = normalizeTxReceiptGasUsed(transactionReceipt.gasUsed);
+      const gasUsed = normalizeTxReceiptGasUsed(
+        transactionReceipt.gasUsed as string,
+      );
 
       transactionMeta.txReceipt = {
         ...transactionReceipt,
@@ -936,7 +938,9 @@ export class TransactionController extends BaseController<
 
       // If provided transaction is a swap, then try updating txMeta.postTxBalance.
       if (transactionMeta.type === TransactionType.swap) {
-        await this.updatePostTxBalance(transactionMeta);
+        await this.updatePostTxBalance(transactionMeta, {
+          numberOfAttempts: 6,
+        });
       }
     } catch (error) {
       console.error(error);
@@ -1557,7 +1561,8 @@ export class TransactionController extends BaseController<
   private markNonceDuplicatesDropped(transactionId: string) {
     const { networkId, chainId } = this.getChainAndNetworkId();
     const transactionMeta = this.getTransaction(transactionId);
-    const { nonce, from } = transactionMeta.transaction;
+    const nonce = transactionMeta?.transaction?.nonce;
+    const from = transactionMeta?.transaction?.from;
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.transaction.from === from &&
@@ -1574,11 +1579,11 @@ export class TransactionController extends BaseController<
       if (sameNonceTxMeta.id === transactionId) {
         return;
       }
-      sameNonceTxMeta.replacedBy = transactionMeta.hash;
-      sameNonceTxMeta.replacedById = transactionMeta.id;
+      sameNonceTxMeta.replacedBy = transactionMeta?.hash;
+      sameNonceTxMeta.replacedById = transactionMeta?.id;
       // Drop any transaction that wasn't previously failed (off chain failure)
       if (sameNonceTxMeta.status !== TransactionStatus.failed) {
-        this.dropTransaction(sameNonceTxMeta.id);
+        this.setTransactionStatusDropped(sameNonceTxMeta);
       }
     });
   }
@@ -1586,10 +1591,9 @@ export class TransactionController extends BaseController<
   /**
    * Method to set transaction status to dropped.
    *
-   * @param transactionId - TransactionId of transaction to be marked as dropped.
+   * @param transactionMeta - TransactionMeta of transaction to be marked as dropped.
    */
-  private dropTransaction(transactionId: string) {
-    const transactionMeta = this.getTransaction(transactionId);
+  private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
     transactionMeta.status = TransactionStatus.dropped;
     this.updateTransaction(transactionMeta);
   }
