@@ -463,7 +463,7 @@ describe('EnsController', () => {
         onNetworkStateChange: (listener) => {
           listener({
             providerConfig: {
-              chainId: toHex(1),
+              chainId: toHex(0),
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
