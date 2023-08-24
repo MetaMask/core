@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+### Uncategorized
+- Publish preview builds to NPM instead of GitHub ([#1622](https://github.com/MetaMask/core/pull/1622))
+- Add baseFeePerGas to transaction state ([#1590](https://github.com/MetaMask/core/pull/1590))
+- Persist txReceipt on txMeta for confirmed txs ([#1592](https://github.com/MetaMask/core/pull/1592))
+- Use block tracker to poll incoming transactions ([#1579](https://github.com/MetaMask/core/pull/1579))
+- Minimise public API of Tx controller ([#1581](https://github.com/MetaMask/core/pull/1581))
+- Add `requireApproval` option to `addTransaction` method option bag ([#1580](https://github.com/MetaMask/core/pull/1580))
+- Adds support re-create approval requests based on unapprovedTx when client restarts ([#1575](https://github.com/MetaMask/core/pull/1575))
+- Add options bag to `addTransaction` public API method ([#1576](https://github.com/MetaMask/core/pull/1576))
+- Adds a support of wiping transactions with specific address on current chain ([#1573](https://github.com/MetaMask/core/pull/1573))
+- Chainid network configs ([#1571](https://github.com/MetaMask/core/pull/1571))
+
 ## [8.0.1]
 ### Changed
 - Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
@@ -98,7 +111,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.1...@metamask/transaction-controller@9.0.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.0...@metamask/transaction-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@7.1.0...@metamask/transaction-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@7.0.0...@metamask/transaction-controller@7.1.0
