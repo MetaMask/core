@@ -4,15 +4,16 @@ import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+import { ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
-import { ethErrors } from 'eth-rpc-errors';
 
 import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './TransactionController';
-import type { Transaction, TransactionMeta, TransactionStatus } from './types';
+import { TransactionStatus } from './types';
+import type { Transaction, TransactionMeta } from './types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -46,6 +47,16 @@ export function normalizeTransaction(transaction: Transaction) {
     }
   }
   return normalizedTransaction;
+}
+
+/**
+ * Normalizes gasUsed property if not string.
+ *
+ * @param gasUsed - gasUsed property.
+ * @returns String of gasUsed.
+ */
+export function normalizeTxReceiptGasUsed(gasUsed) {
+  return typeof gasUsed === 'string' ? gasUsed : gasUsed.toString(16);
 }
 
 /**
@@ -249,14 +260,21 @@ export function isSwapsDefaultTokenAddress(address?: string, chainId?: Hex) {
   return address === SWAPS_CHAINID_DEFAULT_TOKEN_MAP[chainId]?.address;
 }
 
+/**
+ * Validates the external provided transaction meta.
+ *
+ * @param transactionMeta - The transaction meta to validate.
+ * @param confirmedTxs - The confirmed transactions in controller state.
+ * @param pendingTxs - The submitted transactions in controller state.
+ */
 export function validateConfirmedExternalTransaction(
   transactionMeta: TransactionMeta,
   confirmedTxs: TransactionMeta[],
   pendingTxs: TransactionMeta[],
 ) {
-  if (!transactionMeta.transaction) {
+  if (!transactionMeta || !transactionMeta.transaction) {
     throw ethErrors.rpc.invalidParams(
-      '"transactionMeta.transaction" is missing',
+      '"transactionMeta" or "transactionMeta.transaction" is missing',
     );
   }
 
@@ -280,7 +298,7 @@ export function validateConfirmedExternalTransaction(
 
   if (confirmedTxs && confirmedTxs.length > 0) {
     const foundConfirmedTxByNonce = confirmedTxs.find(
-      (el) => el.txParams?.nonce === externalTxNonce,
+      (tx) => tx.txParams?.nonce === externalTxNonce,
     );
     if (foundConfirmedTxByNonce) {
       throw ethErrors.rpc.invalidParams(

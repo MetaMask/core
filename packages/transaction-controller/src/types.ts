@@ -147,6 +147,7 @@ export enum TransactionStatus {
   approved = 'approved',
   cancelled = 'cancelled',
   confirmed = 'confirmed',
+  dropped = 'dropped',
   failed = 'failed',
   rejected = 'rejected',
   signed = 'signed',
@@ -156,7 +157,7 @@ export enum TransactionStatus {
 
 /**
  * The type of transaction.
- */ 
+ */
 export enum TransactionType {
   cancel = 'cancel',
   contractInteraction = 'contractInteraction',

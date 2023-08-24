@@ -42,22 +42,29 @@ import { v1 as random } from 'uuid';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 
-import type { DappSuggestedGasFees, Transaction, TransactionMeta, WalletDevice } from './types';
+import type {
+  DappSuggestedGasFees
+  Transaction,
+  TransactionMeta,
+  TransactionReceipt,
+  WalletDevice,
+} from './types';
 import { TransactionStatus, TransactionReceipt, TransactionType } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
-  normalizeTransaction,
-  validateTransaction,
   getIncreasedPriceFromExisting,
+  normalizeTransaction,
+  normalizeTxReceiptGasUsed,
   isEIP1559Transaction,
-  isGasPriceValue,
   isFeeMarketEIP1559Values,
+  isGasPriceValue,
+  isSwapsDefaultTokenAddress,
+  transactionMatchesNetwork,
+  validateConfirmedExternalTransaction,
   validateGasValues,
   validateMinimumIncrease,
+  validateTransaction,
   ESTIMATE_GAS_ERROR,
-  transactionMatchesNetwork,
-  isSwapsDefaultTokenAddress,
-  validateConfirmedExternalTransaction,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -557,23 +564,23 @@ export class TransactionController extends BaseController<
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
-          from: transactionMeta.transaction.from,
-          gasLimit: transactionMeta.transaction.gas,
-          maxFeePerGas: newMaxFeePerGas,
-          maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-          type: 2,
-          nonce: transactionMeta.transaction.nonce,
-          to: transactionMeta.transaction.from,
-          value: '0x0',
-        }
+            from: transactionMeta.transaction.from,
+            gasLimit: transactionMeta.transaction.gas,
+            maxFeePerGas: newMaxFeePerGas,
+            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+            type: 2,
+            nonce: transactionMeta.transaction.nonce,
+            to: transactionMeta.transaction.from,
+            value: '0x0',
+          }
         : {
-          from: transactionMeta.transaction.from,
-          gasLimit: transactionMeta.transaction.gas,
-          gasPrice: newGasPrice,
-          nonce: transactionMeta.transaction.nonce,
-          to: transactionMeta.transaction.from,
-          value: '0x0',
-        };
+            from: transactionMeta.transaction.from,
+            gasLimit: transactionMeta.transaction.gas,
+            gasPrice: newGasPrice,
+            nonce: transactionMeta.transaction.nonce,
+            to: transactionMeta.transaction.from,
+            value: '0x0',
+          };
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
@@ -665,17 +672,17 @@ export class TransactionController extends BaseController<
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
-          ...transactionMeta.transaction,
-          gasLimit: transactionMeta.transaction.gas,
-          maxFeePerGas: newMaxFeePerGas,
-          maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-          type: 2,
-        }
+            ...transactionMeta.transaction,
+            gasLimit: transactionMeta.transaction.gas,
+            maxFeePerGas: newMaxFeePerGas,
+            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+            type: 2,
+          }
         : {
-          ...transactionMeta.transaction,
-          gasLimit: transactionMeta.transaction.gas,
-          gasPrice: newGasPrice,
-        };
+            ...transactionMeta.transaction,
+            gasLimit: transactionMeta.transaction.gas,
+            gasPrice: newGasPrice,
+          };
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
@@ -697,20 +704,20 @@ export class TransactionController extends BaseController<
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
-          ...baseTransactionMeta,
-          transaction: {
-            ...transactionMeta.transaction,
-            maxFeePerGas: newMaxFeePerGas,
-            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-          },
-        }
+            ...baseTransactionMeta,
+            transaction: {
+              ...transactionMeta.transaction,
+              maxFeePerGas: newMaxFeePerGas,
+              maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+            },
+          }
         : {
-          ...baseTransactionMeta,
-          transaction: {
-            ...transactionMeta.transaction,
-            gasPrice: newGasPrice,
-          },
-        };
+            ...baseTransactionMeta,
+            transaction: {
+              ...transactionMeta.transaction,
+              gasPrice: newGasPrice,
+            },
+          };
     transactions.push(newTransactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
@@ -901,34 +908,36 @@ export class TransactionController extends BaseController<
     this.incomingTransactionHelper.stop();
   }
 
-  async confirmExternalTransaction(transactionMeta?: TransactionMeta, transactionReceipt: TransactionReceipt, baseFeePerGas: Hex) {
-    if (!transactionMeta) {
-      throw ethErrors.rpc.invalidParams(
-        '"transactionMeta" is missing',
-      );
-    }
-    // Add external transaction to state
+  async confirmExternalTransaction(
+    transactionMeta: TransactionMeta,
+    transactionReceipt: TransactionReceipt,
+    baseFeePerGas: Hex,
+  ) {
     this.addExternalTransaction(transactionMeta);
 
     try {
-      const transactionId = txMeta.id;
+      const transactionId = transactionMeta.id;
       const gasUsed = normalizeTxReceiptGasUsed(transactionReceipt.gasUsed);
 
       transactionMeta.txReceipt = {
         ...transactionReceipt,
         gasUsed,
       };
-
+      transactionMeta.status = TransactionStatus.confirmed;
       if (baseFeePerGas) {
         transactionMeta.baseFeePerGas = baseFeePerGas;
       }
 
+      // Update same nonce local transactions as dropped and define replacedBy properties.
+      this.markNonceDuplicatesDropped(transactionId);
+
+      // Update external provided transaction with updated gas values and confirmed status.
       this.updateTransaction(transactionMeta);
 
+      // If provided transaction is a swap, then try updating txMeta.postTxBalance.
       if (transactionMeta.type === TransactionType.swap) {
         await this.updatePostTxBalance(transactionMeta);
       }
-
     } catch (error) {
       console.error(error);
     }
@@ -1061,14 +1070,14 @@ export class TransactionController extends BaseController<
 
       const txParams = isEIP1559
         ? {
-          ...baseTxParams,
-          maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
-          maxPriorityFeePerGas:
-            transactionMeta.transaction.maxPriorityFeePerGas,
-          estimatedBaseFee: transactionMeta.transaction.estimatedBaseFee,
-          // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
-          type: 2,
-        }
+            ...baseTxParams,
+            maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
+            maxPriorityFeePerGas:
+              transactionMeta.transaction.maxPriorityFeePerGas,
+            estimatedBaseFee: transactionMeta.transaction.estimatedBaseFee,
+            // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
+            type: 2,
+          }
         : baseTxParams;
 
       // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
@@ -1144,8 +1153,9 @@ export class TransactionController extends BaseController<
     const txsToKeep = transactions.reverse().filter((tx) => {
       const { chainId, networkID, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${chainId ? convertHexToDecimal(chainId) : networkID
-          }-${new Date(time).toDateString()}`;
+        const key = `${transaction.nonce}-${
+          chainId ? convertHexToDecimal(chainId) : networkID
+        }-${new Date(time).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (
@@ -1506,7 +1516,9 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * 
+   * Validates and adds external provided transaction to state.
+   *
+   * @param transactionMeta - Nominated external transaction to be added to state.
    */
   private async addExternalTransaction(transactionMeta: TransactionMeta) {
     const { networkId, chainId } = this.getChainAndNetworkId();
@@ -1537,16 +1549,16 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * 
+   * Sets other txMeta statuses to dropped if the txMeta that has been confirmed has other transactions
+   * in the transactions have the same nonce.
+   *
+   * @param transactionId - Used to identify original transaction.
    */
-  private markNonceDuplicatesDropped(
-    transactionId: string,
-  ) {
+  private markNonceDuplicatesDropped(transactionId: string) {
     const { networkId, chainId } = this.getChainAndNetworkId();
     const transactionMeta = this.getTransaction(transactionId);
     const { nonce, from } = transactionMeta.transaction;
-
-    const sameNonceTxs = const pendingTxs = this.state.transactions.filter(
+    const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.transaction.from === from &&
         transaction.transaction.nonce === nonce &&
@@ -1572,12 +1584,15 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * 
+   * Method to set transaction status to dropped.
+   *
+   * @param transactionId - TransactionId of transaction to be marked as dropped.
    */
   private dropTransaction(transactionId: string) {
-    
+    const transactionMeta = this.getTransaction(transactionId);
+    transactionMeta.status = TransactionStatus.dropped;
+    this.updateTransaction(transactionMeta);
   }
-
 }
 
 export default TransactionController;
