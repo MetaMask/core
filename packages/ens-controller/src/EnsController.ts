@@ -5,17 +5,17 @@ import type {
 import { Web3Provider } from '@ethersproject/providers';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
+import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
   CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
-  ChainId,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import { createProjectLogger, hasProperty } from '@metamask/utils';
+import { createProjectLogger } from '@metamask/utils';
 import ensNetworkMap from 'ethereum-ens-network-map';
 import { toASCII } from 'punycode/';
 
@@ -104,9 +104,7 @@ export class EnsController extends BaseControllerV2<
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
     onNetworkStateChange?: (
-      listener: (
-        networkState: Pick<NetworkState, 'providerConfig'>,
-      ) => void,
+      listener: (networkState: Pick<NetworkState, 'providerConfig'>) => void,
     ) => void;
   }) {
     super({
@@ -123,12 +121,12 @@ export class EnsController extends BaseControllerV2<
       onNetworkStateChange((networkState) => {
         this.resetState();
         const currentChainId = networkState.providerConfig.chainId;
-        if (
-          this.#getChainEnsSupport(currentChainId)
-        ) {
+        if (this.#getChainEnsSupport(currentChainId)) {
           this.#ethProvider = new Web3Provider(provider, {
             chainId: convertHexToDecimal(currentChainId),
-            name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[currentChainId as ChainId],
+            name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[
+              currentChainId as ChainId
+            ],
             ensAddress: ensNetworkMap[parseInt(currentChainId, 16)],
           });
         } else {

@@ -1,4 +1,9 @@
-import { NetworkType, NetworksTicker, ChainId, BuiltInNetworkName } from './types';
+import {
+  NetworkType,
+  NetworksTicker,
+  ChainId,
+  BuiltInNetworkName,
+} from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
