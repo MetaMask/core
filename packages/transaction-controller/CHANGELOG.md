@@ -7,17 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [9.0.0]
-### Uncategorized
-- Publish preview builds to NPM instead of GitHub ([#1622](https://github.com/MetaMask/core/pull/1622))
-- Add baseFeePerGas to transaction state ([#1590](https://github.com/MetaMask/core/pull/1590))
-- Persist txReceipt on txMeta for confirmed txs ([#1592](https://github.com/MetaMask/core/pull/1592))
-- Use block tracker to poll incoming transactions ([#1579](https://github.com/MetaMask/core/pull/1579))
-- Minimise public API of Tx controller ([#1581](https://github.com/MetaMask/core/pull/1581))
-- Add `requireApproval` option to `addTransaction` method option bag ([#1580](https://github.com/MetaMask/core/pull/1580))
-- Adds support re-create approval requests based on unapprovedTx when client restarts ([#1575](https://github.com/MetaMask/core/pull/1575))
-- Add options bag to `addTransaction` public API method ([#1576](https://github.com/MetaMask/core/pull/1576))
-- Adds a support of wiping transactions with specific address on current chain ([#1573](https://github.com/MetaMask/core/pull/1573))
-- Chainid network configs ([#1571](https://github.com/MetaMask/core/pull/1571))
+### Added
+- **BREAKING**: Add required `getSelectedAddress` callback argument to constructor ([#1579](https://github.com/MetaMask/core/pull/1579))
+- **BREAKING**: Add `isSupportedNetwork` method to `RemoteTransactionSource` interface ([#1579](https://github.com/MetaMask/core/pull/1579))
+- Add `baseFeePerGas` to transaction metadata ([#1590](https://github.com/MetaMask/core/pull/1590))
+- Add `txReceipt` to transaction metadata ([#1592](https://github.com/MetaMask/core/pull/1592))
+- Add `initApprovals` method to generate approval requests from unapproved transactions ([#1575](https://github.com/MetaMask/core/pull/1575))
+- Add optional `incomingTransactions` constructor arguments ([#1579](https://github.com/MetaMask/core/pull/1579))
+  - `apiKey`
+  - `includeTokenTransfers`
+  - `isEnabled`
+  - `updateTransactions`
+- Add incoming transaction methods ([#1579](https://github.com/MetaMask/core/pull/1579))
+  - `startIncomingTransactionPolling`
+  - `stopIncomingTransactionPolling`
+  - `updateIncomingTransactions` 
+- Add `requireApproval` option to `addTransaction` method options ([#1580](https://github.com/MetaMask/core/pull/1580))
+- Add `address` argument to `wipeTransactions` method ([#1573](https://github.com/MetaMask/core/pull/1573))
+
+### Changed
+- **BREAKING**: Move all but first argument to options bag in `addTransaction` method ([#1576](https://github.com/MetaMask/core/pull/1576))
+- **BREAKING**: Update `fromBlock` and `limit` types in `RemoteTransactionSourceRequest` ([#1579](https://github.com/MetaMask/core/pull/1579))
+
+### Removed
+- **BREAKING**: Remove `fetchAll` method ([#1579](https://github.com/MetaMask/core/pull/1579))
+- **BREAKING**: Remove `prepareUnsignedEthTx` and `getCommonConfiguration` methods ([#1581](https://github.com/MetaMask/core/pull/1581))
 
 ## [8.0.1]
 ### Changed
