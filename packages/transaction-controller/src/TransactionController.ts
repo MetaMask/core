@@ -564,23 +564,23 @@ export class TransactionController extends BaseController<
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
-          from: transactionMeta.transaction.from,
-          gasLimit: transactionMeta.transaction.gas,
-          maxFeePerGas: newMaxFeePerGas,
-          maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-          type: 2,
-          nonce: transactionMeta.transaction.nonce,
-          to: transactionMeta.transaction.from,
-          value: '0x0',
-        }
+            from: transactionMeta.transaction.from,
+            gasLimit: transactionMeta.transaction.gas,
+            maxFeePerGas: newMaxFeePerGas,
+            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+            type: 2,
+            nonce: transactionMeta.transaction.nonce,
+            to: transactionMeta.transaction.from,
+            value: '0x0',
+          }
         : {
-          from: transactionMeta.transaction.from,
-          gasLimit: transactionMeta.transaction.gas,
-          gasPrice: newGasPrice,
-          nonce: transactionMeta.transaction.nonce,
-          to: transactionMeta.transaction.from,
-          value: '0x0',
-        };
+            from: transactionMeta.transaction.from,
+            gasLimit: transactionMeta.transaction.gas,
+            gasPrice: newGasPrice,
+            nonce: transactionMeta.transaction.nonce,
+            to: transactionMeta.transaction.from,
+            value: '0x0',
+          };
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
@@ -672,17 +672,17 @@ export class TransactionController extends BaseController<
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
-          ...transactionMeta.transaction,
-          gasLimit: transactionMeta.transaction.gas,
-          maxFeePerGas: newMaxFeePerGas,
-          maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-          type: 2,
-        }
+            ...transactionMeta.transaction,
+            gasLimit: transactionMeta.transaction.gas,
+            maxFeePerGas: newMaxFeePerGas,
+            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+            type: 2,
+          }
         : {
-          ...transactionMeta.transaction,
-          gasLimit: transactionMeta.transaction.gas,
-          gasPrice: newGasPrice,
-        };
+            ...transactionMeta.transaction,
+            gasLimit: transactionMeta.transaction.gas,
+            gasPrice: newGasPrice,
+          };
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
@@ -704,20 +704,20 @@ export class TransactionController extends BaseController<
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
-          ...baseTransactionMeta,
-          transaction: {
-            ...transactionMeta.transaction,
-            maxFeePerGas: newMaxFeePerGas,
-            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-          },
-        }
+            ...baseTransactionMeta,
+            transaction: {
+              ...transactionMeta.transaction,
+              maxFeePerGas: newMaxFeePerGas,
+              maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+            },
+          }
         : {
-          ...baseTransactionMeta,
-          transaction: {
-            ...transactionMeta.transaction,
-            gasPrice: newGasPrice,
-          },
-        };
+            ...baseTransactionMeta,
+            transaction: {
+              ...transactionMeta.transaction,
+              gasPrice: newGasPrice,
+            },
+          };
     transactions.push(newTransactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
@@ -910,7 +910,7 @@ export class TransactionController extends BaseController<
 
   /**
    * Adds external provided transaction to state as confirmed transaction.
-   * 
+   *
    * @param transactionMeta - TransactionMeta to add transactions.
    * @param transactionReceipt - TransactionReceipt of the external transaction.
    * @param baseFeePerGas - Base fee per gas of the external transaction.
@@ -1083,14 +1083,14 @@ export class TransactionController extends BaseController<
 
       const txParams = isEIP1559
         ? {
-          ...baseTxParams,
-          maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
-          maxPriorityFeePerGas:
-            transactionMeta.transaction.maxPriorityFeePerGas,
-          estimatedBaseFee: transactionMeta.transaction.estimatedBaseFee,
-          // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
-          type: 2,
-        }
+            ...baseTxParams,
+            maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
+            maxPriorityFeePerGas:
+              transactionMeta.transaction.maxPriorityFeePerGas,
+            estimatedBaseFee: transactionMeta.transaction.estimatedBaseFee,
+            // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
+            type: 2,
+          }
         : baseTxParams;
 
       // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
@@ -1166,8 +1166,9 @@ export class TransactionController extends BaseController<
     const txsToKeep = transactions.reverse().filter((tx) => {
       const { chainId, networkID, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${chainId ? convertHexToDecimal(chainId) : networkID
-          }-${new Date(time).toDateString()}`;
+        const key = `${transaction.nonce}-${
+          chainId ? convertHexToDecimal(chainId) : networkID
+        }-${new Date(time).toDateString()}`;
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (
@@ -1486,7 +1487,7 @@ export class TransactionController extends BaseController<
 
   /**
    * Updates the postTxBalance property of transaction by querying the blockchain.
-   * 
+   *
    * @param transactionMeta - TransactionMeta of transaction to be updated.
    * @param opts - Options object.
    * @param opts.numberOfAttempts - Number of attempts to update postTxBalance.
