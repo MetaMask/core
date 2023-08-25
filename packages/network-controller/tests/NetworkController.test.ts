@@ -1148,6 +1148,20 @@ describe('NetworkController', () => {
         },
       );
     });
+    it('throws an error if the network is not found', async () => {
+      await withController(
+        { infuraProjectId: 'some-infura-project-id' },
+        async ({ controller }) => {
+          await expect(() =>
+            controller.refreshNetworkMetadataByNetworkClientId(
+              'non-existent-network-id',
+            ),
+          ).rejects.toThrow(
+            'No custom network client was found with the ID "non-existent-network-id".',
+          );
+        },
+      );
+    });
   });
 
   describe('getNetworkClientById', () => {
@@ -4270,6 +4284,78 @@ describe('NetworkController', () => {
 
           expect(isEIP1559Compatible).toBe(false);
         });
+      });
+    });
+
+    describe('if a networkClientId is passed in', () => {
+      it('uses the built in state for networksMetadata', async () => {
+        await withController(
+          {
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {
+                    1559: true,
+                  },
+                  status: NetworkStatus.Unknown,
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
+      });
+      it('uses the built in false state for networksMetadata', async () => {
+        await withController(
+          {
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {
+                    1559: false,
+                  },
+                  status: NetworkStatus.Unknown,
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+
+            expect(isEIP1559Compatible).toBe(false);
+          },
+        );
+      });
+      it('calls provider of the networkClientId and returns true', async () => {
+        await withController(
+          {
+            infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            await setFakeProvider(controller, {
+              stubs: [
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+              ],
+            });
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
       });
     });
 
