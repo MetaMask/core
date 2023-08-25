@@ -91,28 +91,31 @@ If you make more changes and wish to publish another set of preview builds, run 
 
 ### Using preview builds
 
-To effectively use a preview build for a package within a project, you need to override the resolution logic for your package manager so that the "production" version of that package is replaced with the preview version across the entire dependency tree.
+To use a preview build for a package within a project, you need to override the resolution logic for your package manager so that the "production" version of that package is replaced with the preview version. Here's how you do that:
 
-- If you're using Yarn, then you can use the `resolutions` field to accomplish this.
-- If you're using NPM or any other package manager, you can use the `overrides` field.
+1. Open `package.json` in the project and locate the dependency entry for the core package for which you want to use a preview build.
+2. Locate the section responsible for resolution overrides (or create it if it doesn't exist). If you're using Yarn, this is `resolutions`; if you're using NPM or any other package manager, this is `overrides`.
+3. Add a line to this section that mirrors the dependency entry on the left-hand side and points to the preview version on the right-hand side:
 
-You will want to add a line to the appropriate section that looks like this, replacing placeholders:
+   ```
+   "@metamask/<PACKAGE_NAME>@<PRODUCTION_VERSION_SPECIFIER>": "npm:@<NPM_ORG>/<PACKAGE_NAME>@<PREVIEW_VERSION>"
+   ```
 
-```
-"@metamask/<PACKAGE_NAME>": "npm:@<NPM_ORG>/<PACKAGE_NAME>@<VERSION>"
-```
+4. Run `yarn install`.
 
-For instance, if you're a member of MetaMask, your project uses Yarn, and you want to use a preview build of `@metamask/controller-utils` whose version is `1.2.3-e2df9b4`, you would add the following to `resolutions`:
+For example:
 
-```
-"@metamask/controller-utils": "npm:@metamask-previews/controller-utils@1.2.3-e2df9b4"
-```
+- If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and you want to use the preview version `1.2.3-e2df9b4`, add the following to `resolutions`:
 
-And if you are an individual contributor, your project uses NPM, and you want to use a preview build of `@metamask/assets-controllers` published under `@foo` whose version is `4.5.6-bc2a997`, you would add the following to `overrides`:
+  ```
+  "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.2.3-e2df9b4"
+  ```
 
-```
-"@metamask/assets-controllers": "npm:@foo/assets-controllers@4.5.6-bc2a997"
-```
+- If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and you want to use the preview version `4.5.6-bc2a997` published under `@foo`, add the following to `overrides`:
+
+  ```
+  "@metamask/assets-controllers@^3.4.7": "npm:@foo/assets-controllers@4.5.6-bc2a997"
+  ```
 
 ## Releasing
 
