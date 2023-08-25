@@ -22,6 +22,7 @@ type TransactionMetaBase = {
    * Number of the block where the transaction has been included.
    */
   blockNumber?: string;
+
   /**
    * The timestamp for when the block was collated.
    */

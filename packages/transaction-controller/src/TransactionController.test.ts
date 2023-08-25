@@ -125,7 +125,7 @@ jest.mock('@metamask/eth-query', () =>
             hash: '1337',
             number: '0x1',
             baseFeePerGas: '0x14',
-            blockTimestamp: '628dc0c8',
+            timestamp: '628dc0c8',
           },
           { hash: '1338', number: '0x2' },
         ];
