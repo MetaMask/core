@@ -95,7 +95,7 @@ type TransactionMetaBase = {
 
   /**
    * When the transaction is dropped, this is the replacement transaction hash.
-   */ 
+   */
   replacedBy?: string;
 
   /**

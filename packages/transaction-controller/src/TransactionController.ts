@@ -41,15 +41,14 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-
 import type {
-  DappSuggestedGasFees
+  DappSuggestedGasFees,
   Transaction,
   TransactionMeta,
   TransactionReceipt,
   WalletDevice,
 } from './types';
-import { TransactionStatus, TransactionReceipt, TransactionType } from './types';
+import { TransactionStatus, TransactionType } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
