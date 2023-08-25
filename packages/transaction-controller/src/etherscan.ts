@@ -147,7 +147,7 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     startBlock: fromBlock?.toString(),
     apikey: apiKey,
     offset: limit?.toString(),
-    order: 'desc',
+    sort: 'desc',
   };
 
   const etherscanTxUrl = getEtherscanApiUrl(chainId, {
