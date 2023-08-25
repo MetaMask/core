@@ -5,6 +5,7 @@ import {
   NetworksTicker,
   toHex,
   BUILT_IN_NETWORKS,
+  ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
 import type {
   BlockTracker,
@@ -22,7 +23,7 @@ import type {
   TransactionConfig,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
-import type { TransactionMeta } from './types';
+import type { TransactionMeta, DappSuggestedGasFees } from './types';
 import { WalletDevice, TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -723,6 +724,54 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
       );
+    });
+
+    describe('adds dappSuggestedGasFees to transaction', () => {
+      it.each([
+        ['origin is MM', ORIGIN_METAMASK],
+        ['origin is not defined', undefined],
+        ['no fee information is given', 'MockDappOrigin'],
+      ])('as undefined if %s', async (_testName, origin) => {
+        const controller = newController();
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            origin,
+          },
+        );
+        expect(
+          controller.state.transactions[0]?.dappSuggestedGasFees,
+        ).toBeUndefined();
+      });
+
+      it.each([
+        ['gasPrice'],
+        ['maxFeePerGas'],
+        ['maxPriorityFeePerGas'],
+        ['gas'],
+      ])('if %s is defined', async (gasPropName) => {
+        const controller = newController();
+        const mockDappOrigin = 'MockDappOrigin';
+        const mockGasValue = '0x1';
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+            [gasPropName]: mockGasValue,
+          },
+          {
+            origin: mockDappOrigin,
+          },
+        );
+        expect(
+          controller.state.transactions[0]?.dappSuggestedGasFees?.[
+            gasPropName as keyof DappSuggestedGasFees
+          ],
+        ).toBe(mockGasValue);
+      });
     });
 
     it.each([
