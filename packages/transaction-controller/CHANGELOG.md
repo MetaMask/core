@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `baseFeePerGas` to transaction metadata ([#1590](https://github.com/MetaMask/core/pull/1590))
 - Add `txReceipt` to transaction metadata ([#1592](https://github.com/MetaMask/core/pull/1592))
 - Add `initApprovals` method to generate approval requests from unapproved transactions ([#1575](https://github.com/MetaMask/core/pull/1575))
+- Add `dappSuggestedGasFees` to transaction metadata ([#1617](https://github.com/MetaMask/core/pull/1617))
 - Add optional `incomingTransactions` constructor arguments ([#1579](https://github.com/MetaMask/core/pull/1579))
   - `apiKey`
   - `includeTokenTransfers`
