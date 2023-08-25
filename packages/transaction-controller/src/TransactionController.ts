@@ -587,7 +587,7 @@ export class TransactionController extends BaseController<
    * @param transactionID - The ID of the transaction to speed up.
    * @param gasValues - The gas values to use for the speed up transation.
    * @param options - The options for the speed up transaction.
-   * @param options.estimatedBaseFee - The estimated base fee to use for the speed up transaction.
+   * @param options.estimatedBaseFee - The estimated base fee of the resulting transaction.
    */
   async speedUpTransaction(
     transactionID: string,
