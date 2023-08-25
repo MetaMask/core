@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "9.0.0",
+  "version": "9.0.1",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -30,11 +30,11 @@
   "dependencies": {
     "@ethereumjs/common": "^3.2.0",
     "@ethereumjs/tx": "^4.2.0",
-    "@metamask/approval-controller": "^3.5.0",
-    "@metamask/base-controller": "^3.2.0",
+    "@metamask/approval-controller": "^3.5.1",
+    "@metamask/base-controller": "^3.2.1",
     "@metamask/controller-utils": "^4.3.1",
     "@metamask/eth-query": "^3.0.1",
-    "@metamask/network-controller": "^12.1.1",
+    "@metamask/network-controller": "^12.1.2",
     "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
     "eth-method-registry": "1.1.0",
@@ -58,8 +58,8 @@
     "typescript": "~4.6.3"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^3.5.0",
-    "@metamask/network-controller": "^12.1.1",
+    "@metamask/approval-controller": "^3.5.1",
+    "@metamask/network-controller": "^12.1.2",
     "babel-runtime": "^6.26.0"
   },
   "engines": {

@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.1]
+### Changed
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/message-manager` to ^7.3.1
+
 ## [5.3.0]
 ### Added
 - Add new methods `setDeferredSignSuccess` and `setDeferredSignError` ([#1506](https://github.com/MetaMask/core/pull/1506))
@@ -59,7 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.3.1...HEAD
+[5.3.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.3.0...@metamask/signature-controller@5.3.1
 [5.3.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.2.0...@metamask/signature-controller@5.3.0
 [5.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.1.0...@metamask/signature-controller@5.2.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.0.0...@metamask/signature-controller@5.1.0

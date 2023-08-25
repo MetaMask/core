@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.1]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+
 ## [3.5.0]
 ### Changed
 - Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
@@ -67,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.5.1...HEAD
+[3.5.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.5.0...@metamask/approval-controller@3.5.1
 [3.5.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.4.0...@metamask/approval-controller@3.5.0
 [3.4.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.3.0...@metamask/approval-controller@3.4.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.2.0...@metamask/approval-controller@3.3.0

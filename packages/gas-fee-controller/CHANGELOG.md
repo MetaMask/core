@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.2]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
+
 ## [6.1.1]
 ### Uncategorized
 - Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
@@ -71,7 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.2...HEAD
+[6.1.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.1...@metamask/gas-fee-controller@6.1.2
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.0...@metamask/gas-fee-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.1...@metamask/gas-fee-controller@6.1.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.0...@metamask/gas-fee-controller@6.0.1

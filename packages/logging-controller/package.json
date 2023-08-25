@@ -1,6 +1,6 @@
 {
   "name": "@metamask/logging-controller",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Manages logging data to assist users and support staff",
   "keywords": [
     "MetaMask",
@@ -28,7 +28,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.0",
+    "@metamask/base-controller": "^3.2.1",
     "@metamask/controller-utils": "^4.3.1",
     "uuid": "^8.3.2"
   },
