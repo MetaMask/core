@@ -483,7 +483,7 @@ export class TransactionController extends BaseController<
    * @param transactionID - The ID of the transaction to cancel.
    * @param gasValues - The gas values to use for the cancellation transaction.
    * @param options - The options for the cancellation transaction.
-   * @param options.estimatedBaseFee - The estimated base fee to use for the cancellation transaction.
+   * @param options.estimatedBaseFee - The estimated base fee of the resulting transaction.
    */
   async stopTransaction(
     transactionID: string,
