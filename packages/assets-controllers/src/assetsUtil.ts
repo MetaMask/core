@@ -4,18 +4,18 @@ import {
   isValidHexAddress,
   GANACHE_CHAIN_ID,
 } from '@metamask/controller-utils';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { BN, stripHexPrefix, addHexPrefix } from 'ethereumjs-util';
 import { fromWei } from 'ethjs-unit';
 import { CID } from 'multiformats/cid';
 
-import type { Nft, NftMetadata } from './NftController';
-import type { Token, TokenRatesState } from './TokenRatesController';
-import type { CurrencyRateState } from './CurrencyRateController';
 import type { AccountTrackerState } from './AccountTrackerController';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { CurrencyRateState } from './CurrencyRateController';
+import type { Nft, NftMetadata } from './NftController';
 import type { TokenBalancesState } from './TokenBalancesController';
+import type { Token, TokenRatesState } from './TokenRatesController';
 import type { TokensState } from './TokensController';
 
 /**

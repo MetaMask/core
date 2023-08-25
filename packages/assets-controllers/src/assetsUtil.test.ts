@@ -5,10 +5,16 @@ import {
   toHex,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
+import { PreferencesController } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
 
+import AccountTrackerController from './AccountTrackerController';
 import * as assetsUtil from './assetsUtil';
+import CurrencyRateController from './CurrencyRateController';
 import type { Nft, NftMetadata } from './NftController';
+import TokenBalancesController from './TokenBalancesController';
+import TokenRatesController from './TokenRatesController';
+import TokensController from './TokensController';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
@@ -455,44 +461,38 @@ describe('assetsUtil', () => {
 
       const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
         // CurrencyRateController
-        {
-          state: {
-            currentCurrency: CURRENCY,
-            conversionRate: CURRENCY_CONVERSION_RATE,
-          },
-        },
+        new CurrencyRateController({
+          currentCurrency: CURRENCY,
+          conversionRate: CURRENCY_CONVERSION_RATE,
+        }).state,
         // PreferencesController
-        { state: { selectedAddress: ADDRESS } },
+        new PreferencesController({ selectedAddress: ADDRESS }).state,
         // AccountTrackerController,
-        { state: { accounts: { [ADDRESS]: { balance: NATIVE_BALANCE } } } },
+        new AccountTrackerController({
+          accounts: { [ADDRESS]: { balance: NATIVE_BALANCE } },
+        }).state,
         // TokenBalancesController
-        {
-          state: {
-            contractBalances: {
-              [CHAINLINK_ADDRESS]: new BN(CHAINLINK_BALANCE),
-            },
+        new TokenBalancesController({
+          contractBalances: {
+            [CHAINLINK_ADDRESS]: new BN(CHAINLINK_BALANCE),
           },
-        },
+        }).state,
         // TokenRatesController
-        {
-          state: {
-            contractExchangeRates: {
-              [toChecksumHexAddress(CHAINLINK_ADDRESS)]: CHAINLINK_PRICE,
-            },
+        new TokenRatesController({
+          contractExchangeRates: {
+            [toChecksumHexAddress(CHAINLINK_ADDRESS)]: CHAINLINK_PRICE,
           },
-        },
+        }).state,
         // TokensController
-        {
-          state: {
-            tokens: [
-              {
-                address: CHAINLINK_ADDRESS,
-                symbol: CHAINLINK_SYMBOL,
-                decimals: CHAINLINK_DECIMALS,
-              },
-            ],
-          },
-        },
+        new TokensController({
+          tokens: [
+            {
+              address: CHAINLINK_ADDRESS,
+              symbol: CHAINLINK_SYMBOL,
+              decimals: CHAINLINK_DECIMALS,
+            },
+          ],
+        }).state,
       );
 
       expect(fiatBalance).toBe(CHAINLINK_PRICE * CHAINLINK_BALANCE);
