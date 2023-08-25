@@ -93,14 +93,14 @@ type TransactionMetaBase = {
   };
 
   /**
-   * Whether the transaction is verified on the blockchain.
-   */
-  verifiedOnBlockchain?: boolean;
-
-  /**
    * Transaction receipt.
    */
   txReceipt?: TransactionReceipt;
+
+  /**
+   * Whether the transaction is verified on the blockchain.
+   */
+  verifiedOnBlockchain?: boolean;
 };
 
 /**
