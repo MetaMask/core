@@ -41,7 +41,12 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import type { Transaction, TransactionMeta, WalletDevice } from './types';
+import type {
+  Transaction,
+  TransactionMeta,
+  WalletDevice,
+  DappSuggestedGasFees,
+} from './types';
 import { TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
@@ -399,6 +404,11 @@ export class TransactionController extends BaseController<
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
+    const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
+      transaction,
+      origin,
+    );
+
     const transactionMeta: TransactionMeta = {
       id: random(),
       networkID: networkId ?? undefined,
@@ -409,6 +419,7 @@ export class TransactionController extends BaseController<
       transaction,
       deviceConfirmedOn,
       verifiedOnBlockchain: false,
+      dappSuggestedGasFees,
     };
 
     try {
@@ -1363,6 +1374,44 @@ export class TransactionController extends BaseController<
   }) {
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
+  }
+
+  private generateDappSuggestedGasFees(
+    transaction: Transaction,
+    origin?: string,
+  ): DappSuggestedGasFees | undefined {
+    if (!origin || origin === ORIGIN_METAMASK) {
+      return undefined;
+    }
+
+    const { gasPrice, maxFeePerGas, maxPriorityFeePerGas, gas } = transaction;
+
+    if (
+      gasPrice === undefined &&
+      maxFeePerGas === undefined &&
+      maxPriorityFeePerGas === undefined &&
+      gas === undefined
+    ) {
+      return undefined;
+    }
+
+    const dappSuggestedGasFees: DappSuggestedGasFees = {};
+
+    if (gasPrice !== undefined) {
+      dappSuggestedGasFees.gasPrice = gasPrice;
+    } else if (
+      maxFeePerGas !== undefined ||
+      maxPriorityFeePerGas !== undefined
+    ) {
+      dappSuggestedGasFees.maxFeePerGas = maxFeePerGas;
+      dappSuggestedGasFees.maxPriorityFeePerGas = maxPriorityFeePerGas;
+    }
+
+    if (gas !== undefined) {
+      dappSuggestedGasFees.gas = gas;
+    }
+
+    return dappSuggestedGasFees;
   }
 }
 
