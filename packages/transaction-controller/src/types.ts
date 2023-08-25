@@ -10,7 +10,7 @@ export type TransactionMeta =
   | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
 
 /**
- * Representation of transaction metadata.
+ * Information about a single transaction such as status and block number.
  */
 type TransactionMetaBase = {
   /**
@@ -143,6 +143,16 @@ export interface Transaction {
   data?: string;
 
   /**
+   * Error message for gas estimation failure.
+   */
+  estimateGasError?: string;
+
+  /**
+   * Estimated base fee for this transaction.
+   */
+  estimatedBaseFee?: string;
+
+  /**
    * Address to send this transaction from.
    */
   from: string;
@@ -163,6 +173,16 @@ export interface Transaction {
   gasUsed?: string;
 
   /**
+   * Maximum fee per gas for this transaction.
+   */
+  maxFeePerGas?: string;
+
+  /**
+   * Maximum priority fee per gas for this transaction.
+   */
+  maxPriorityFeePerGas?: string;
+
+  /**
    * Unique number to prevent replay attacks.
    */
   nonce?: string;
@@ -176,26 +196,6 @@ export interface Transaction {
    * Value associated with this transaction.
    */
   value?: string;
-
-  /**
-   * Maximum fee per gas for this transaction.
-   */
-  maxFeePerGas?: string;
-
-  /**
-   * Maximum priority fee per gas for this transaction.
-   */
-  maxPriorityFeePerGas?: string;
-
-  /**
-   * Estimated base fee for this transaction.
-   */
-  estimatedBaseFee?: string;
-
-  /**
-   * Error message for gas estimation failure.
-   */
-  estimateGasError?: string;
 }
 
 /**
@@ -308,8 +308,8 @@ export interface RemoteTransactionSource {
  * Gas values initially suggested by the dApp.
  */
 export interface DappSuggestedGasFees {
+  gas?: string;
   gasPrice?: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
-  gas?: string;
 }
