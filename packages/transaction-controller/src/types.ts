@@ -39,7 +39,7 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
-   * The estimated base fee of the resulting transaction.
+   * The estimated base fee of the transaction.
    */
   estimatedBaseFee?: string;
 
