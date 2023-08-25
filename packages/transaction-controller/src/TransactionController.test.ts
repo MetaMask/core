@@ -236,8 +236,7 @@ function waitForTransactionFinished(
 ): Promise<TransactionMeta> {
   return new Promise((resolve) => {
     controller.hub.once(
-      `${controller.state.transactions[0].id}:${
-        confirmed ? 'confirmed' : 'finished'
+      `${controller.state.transactions[0].id}:${confirmed ? 'confirmed' : 'finished'
       }`,
       (txMeta) => {
         resolve(txMeta);
@@ -1595,6 +1594,41 @@ describe('TransactionController', () => {
       expect(delayMessengerMock.call).not.toHaveBeenCalled();
     });
   });
+
+  describe.only('confirmExternalTransaction', () => {
+    it('adds external transaction to the state as confirmed', () => {
+      const controller = newController();
+
+      const externalTransactionToConfirm = {
+        from: MOCK_PREFERENCES.state.selectedAddress,
+        id: '1',
+        networkID: '1',
+        chainId: toHex(1),
+        status: TransactionStatus.confirmed,
+        transaction: {
+          gasUsed: undefined,
+        },
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      }
+      const externalBaseFeePerGas = '0x14';
+
+      controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      expect(controller.state.transactions[0].status).toBe(TransactionStatus.confirmed);
+      expect(controller.state.transactions[0].baseFeePerGas).toBe(externalBaseFeePerGas);
+      expect(controller.state.transactions[0]?.txReceipt?.gasUsed).toBe(externalTransactionReceipt.gasUsed);
+
+    });
+
+    // "Sets the same nonce local transactions statuses as dropped and defines replacedBy properties"
+    // "Updates postTxBalance if the transaction is swap"
+  })
 
   describe('on incoming transaction helper transactions event', () => {
     it('adds new transactions to state', async () => {

@@ -1486,7 +1486,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Updates the postTxBalance property of transaction by querying the blockchain.
+   * Updates the postTxBalance property of transaction by querying the blockchain for given transaction's from address.
    *
    * @param transactionMeta - TransactionMeta of transaction to be updated.
    * @param opts - Options object.
