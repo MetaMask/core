@@ -288,9 +288,9 @@ export class TransactionController extends BaseController<
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
       getCurrentAccount: getSelectedAddress,
+      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getNetworkState,
       isEnabled: incomingTransactions.isEnabled,
-      lastFetchedBlockNumbers: this.state.lastFetchedBlockNumbers,
       remoteTransactionSource: new EtherscanRemoteTransactionSource({
         apiKey: incomingTransactions.apiKey,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
@@ -875,25 +875,29 @@ export class TransactionController extends BaseController<
     transactions: TransactionMeta[],
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
-    const txsToKeep = transactions.reverse().filter((tx) => {
-      const { chainId, networkID, status, transaction, time } = tx;
-      if (transaction) {
-        const key = `${transaction.nonce}-${chainId ?? networkID}-${new Date(
-          time,
-        ).toDateString()}`;
-        if (nonceNetworkSet.has(key)) {
-          return true;
-        } else if (
-          nonceNetworkSet.size < this.config.txHistoryLimit ||
-          !this.isFinalState(status)
-        ) {
-          nonceNetworkSet.add(key);
-          return true;
+
+    const txsToKeep = transactions
+      .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
+      .filter((tx) => {
+        const { chainId, networkID, status, transaction, time } = tx;
+        if (transaction) {
+          const key = `${transaction.nonce}-${chainId ?? networkID}-${new Date(
+            time,
+          ).toDateString()}`;
+          if (nonceNetworkSet.has(key)) {
+            return true;
+          } else if (
+            nonceNetworkSet.size < this.config.txHistoryLimit ||
+            !this.isFinalState(status)
+          ) {
+            nonceNetworkSet.add(key);
+            return true;
+          }
         }
-      }
-      return false;
-    });
-    txsToKeep.reverse();
+        return false;
+      });
+
+    txsToKeep.reverse(); // Ascending time order
     return txsToKeep;
   }
 
