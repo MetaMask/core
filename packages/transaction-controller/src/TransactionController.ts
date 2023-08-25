@@ -41,6 +41,7 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { createModuleLogger, projectLogger } from './logger';
 import type {
   DappSuggestedGasFees,
   Transaction,
@@ -919,6 +920,9 @@ export class TransactionController extends BaseController<
     transactionReceipt: TransactionReceipt,
     baseFeePerGas: Hex,
   ) {
+    // Create logger
+    const log = createModuleLogger(projectLogger, 'confirmExternalTransaction');
+
     // Run validation and add external transaction to state.
     this.addExternalTransaction(transactionMeta);
 
@@ -951,7 +955,7 @@ export class TransactionController extends BaseController<
         });
       }
     } catch (error) {
-      console.error(error);
+      log(error);
     }
   }
 

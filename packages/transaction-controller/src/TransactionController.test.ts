@@ -24,7 +24,7 @@ import type {
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
-import { WalletDevice, TransactionStatus } from './types';
+import { WalletDevice, TransactionStatus, TransactionType } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -50,6 +50,10 @@ const mockFlags: { [key: string]: any } = {
   getBlockByNumberValue: null,
 };
 
+const mockGetBalance = jest.fn((_from: any, callback: any) => {
+  callback(undefined, '0x12a0');
+});
+
 jest.mock('@metamask/eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
@@ -68,6 +72,7 @@ jest.mock('@metamask/eth-query', () =>
       gasPrice: (callback: any) => {
         callback(undefined, '0x0');
       },
+      getBalance: mockGetBalance,
       getBlockByNumber: (
         _blocknumber: any,
         _fetchTxs: boolean,
@@ -394,6 +399,7 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
 };
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const NONCE_MOCK = 12;
 
 const TRANSACTION_META_MOCK = {
@@ -1597,17 +1603,20 @@ describe('TransactionController', () => {
   });
 
   describe('confirmExternalTransaction', () => {
-    it('adds external transaction to the state as confirmed', () => {
+    it('adds external transaction to the state as confirmed', async () => {
       const controller = newController();
 
       const externalTransactionToConfirm = {
-        from: MOCK_PREFERENCES.state.selectedAddress,
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
         id: '1',
         networkID: '1',
         chainId: toHex(1),
         status: TransactionStatus.confirmed,
         transaction: {
           gasUsed: undefined,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
         },
       } as any;
       const externalTransactionReceipt = {
@@ -1615,7 +1624,7 @@ describe('TransactionController', () => {
       };
       const externalBaseFeePerGas = '0x14';
 
-      controller.confirmExternalTransaction(
+      await controller.confirmExternalTransaction(
         externalTransactionToConfirm,
         externalTransactionReceipt,
         externalBaseFeePerGas,
@@ -1632,8 +1641,183 @@ describe('TransactionController', () => {
       );
     });
 
-    // "Sets the same nonce local transactions statuses as dropped and defines replacedBy properties"
-    // "Updates postTxBalance if the transaction is swap"
+    it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
+      const controller = newController();
+      const externalTransactionId = '1';
+      const externalTransactionHash = '0x1';
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        hash: externalTransactionHash,
+        id: externalTransactionId,
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.confirmed,
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          nonce: NONCE_MOCK,
+        },
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      // Submitted local unapproved transaction
+      const localTransactionIdWithSameNonce = '9';
+      controller.state.transactions.push({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: localTransactionIdWithSameNonce,
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.unapproved,
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          nonce: NONCE_MOCK,
+        },
+      } as any);
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      const droppedTx = controller.state.transactions.find(
+        (transaction) => transaction.id === localTransactionIdWithSameNonce,
+      );
+
+      expect(droppedTx?.status).toBe(TransactionStatus.dropped);
+
+      expect(droppedTx?.replacedById).toBe(externalTransactionId);
+
+      expect(droppedTx?.replacedBy).toBe(externalTransactionHash);
+    });
+
+    it('doesnt mark transaction as dropped if same nonce local transaction status is failed', async () => {
+      const controller = newController();
+      const externalTransactionId = '1';
+      const externalTransactionHash = '0x1';
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        hash: externalTransactionHash,
+        id: externalTransactionId,
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.confirmed,
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          nonce: NONCE_MOCK,
+        },
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      // Off-chain failed local transaction
+      const localTransactionIdWithSameNonce = '9';
+      controller.state.transactions.push({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: localTransactionIdWithSameNonce,
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.failed,
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          nonce: NONCE_MOCK,
+        },
+      } as any);
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      const failedTx = controller.state.transactions.find(
+        (transaction) => transaction.id === localTransactionIdWithSameNonce,
+      );
+
+      expect(failedTx?.status).toBe(TransactionStatus.failed);
+
+      expect(failedTx?.replacedById).toBe(externalTransactionId);
+
+      expect(failedTx?.replacedBy).toBe(externalTransactionHash);
+    });
+
+    it('updates postTxBalance if transaction is a swap', async () => {
+      const controller = newController();
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: '1',
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.confirmed,
+        preTxBalance: '0x1210',
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          nonce: NONCE_MOCK,
+        },
+        type: TransactionType.swap,
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(transactionMeta?.postTxBalance).toBe('0x12a0');
+    });
+
+    it('silently fails if query result throws', async () => {
+      mockGetBalance.mockImplementationOnce(() => {
+        throw new Error('TestError');
+      });
+      const controller = newController();
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        networkID: '1',
+        chainId: toHex(1),
+        status: TransactionStatus.confirmed,
+        transaction: {
+          gasUsed: undefined,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+        type: TransactionType.swap,
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      expect(
+        async () =>
+          await controller.confirmExternalTransaction(
+            externalTransactionToConfirm,
+            externalTransactionReceipt,
+            externalBaseFeePerGas,
+          ),
+      ).not.toThrow();
+    });
   });
 
   describe('on incoming transaction helper transactions event', () => {

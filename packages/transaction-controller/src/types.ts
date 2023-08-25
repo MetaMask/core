@@ -39,7 +39,7 @@ type TransactionMetaBase = {
   dappSuggestedGasFees?: DappSuggestedGasFees;
 
   /**
-   * destinationTokenAddress
+   * If transaction is a swap, this is the address of the token being swapped from.
    */
   destinationTokenAddress?: string;
 
@@ -54,7 +54,7 @@ type TransactionMetaBase = {
   estimatedBaseFee?: string;
 
   /**
-   * hash
+   * A hex string of the transaction hash, used to identify the transaction on the network.
    */
   hash?: string;
 
