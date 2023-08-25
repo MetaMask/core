@@ -267,6 +267,14 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally start
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   \+ is_valid_version_range(DependencyRange).
 
+% All references to a workspace package must be up to date with the current
+% version of that package.
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectDependencyRange, DependencyType) :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
+  workspace_ident(OtherWorkspaceCwd, DependencyIdent),
+  workspace_version(OtherWorkspaceCwd, OtherWorkspaceVersion),
+  atomic_list_concat(['^', OtherWorkspaceVersion], CorrectDependencyRange).
+
 % All dependency ranges for a package must be synchronized across the monorepo
 % (the least version range wins), regardless of which "*dependencies" field
 % where the package appears.
