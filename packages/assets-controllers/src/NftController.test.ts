@@ -616,6 +616,7 @@ describe('NftController', () => {
               image: 'testERC721Image',
               name: 'testERC721Name',
               standard: ERC721,
+              tokenURI: 'https://testtokenuri.com',
             },
           ],
         },
@@ -823,6 +824,7 @@ describe('NftController', () => {
         description: 'description',
         standard: 'ERC1155',
         favorite: false,
+        tokenURI: 'ipfs://',
       });
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({
@@ -831,6 +833,7 @@ describe('NftController', () => {
         address: '0x01',
         standard: 'ERC1155',
         symbol: 'FOO',
+        tokenURI: 'ipfs://',
       });
     });
 
@@ -849,6 +852,7 @@ describe('NftController', () => {
           description: 'description',
           standard: 'ERC721',
           favorite: false,
+          tokenURI: 'ipfs://',
         },
         { userAddress: detectedUserAddress, chainId: toHex(2) },
         Source.Detected,
@@ -860,6 +864,7 @@ describe('NftController', () => {
         address: '0x01',
         standard: 'ERC721',
         symbol: 'FOO',
+        tokenURI: 'ipfs://',
       });
     });
 
@@ -1447,6 +1452,7 @@ describe('NftController', () => {
         standard: undefined,
         symbol: undefined,
         source: Source.Custom,
+        tokenURI: null,
       });
     });
 
@@ -1512,6 +1518,7 @@ describe('NftController', () => {
         standard: undefined,
         symbol: undefined,
         source: Source.Dapp,
+        tokenURI: null,
       });
     });
 
@@ -1607,6 +1614,7 @@ describe('NftController', () => {
         standard: 'ERC721',
         symbol: 'KDO',
         source: Source.Detected,
+        tokenURI: '',
       });
     });
 

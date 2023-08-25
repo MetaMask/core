@@ -698,6 +698,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           tokenId: tokenId.toString(),
           standard: nftMetadata.standard,
           source,
+          tokenURI: nftMetadata.tokenURI ?? null,
         });
       }
 
@@ -906,6 +907,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenId: string;
     standard: string | null;
     source: Source;
+    tokenURI: string | null;
   }) => void;
 
   /**
@@ -1098,7 +1100,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     };
     await this._requestApproval(suggestedNftMeta);
     const { address, tokenId } = asset;
-    const { name, standard, description, image } = nftMetadata;
+    const { name, standard, description, image, tokenURI } = nftMetadata;
 
     await this.addNft(
       address,
@@ -1108,6 +1110,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: description ?? null,
         image: image ?? null,
         standard: standard ?? null,
+        tokenURI: tokenURI ?? null,
       },
       {
         chainId,
