@@ -29,10 +29,10 @@
   },
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
-    "@metamask/base-controller": "workspace:^",
+    "@metamask/base-controller": "^3.2.0",
     "@metamask/eth-keyring-controller": "^13.0.0",
-    "@metamask/message-manager": "workspace:^",
-    "@metamask/preferences-controller": "workspace:^",
+    "@metamask/message-manager": "^7.3.0",
+    "@metamask/preferences-controller": "^4.3.0",
     "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
@@ -57,7 +57,7 @@
     "uuid": "^8.3.2"
   },
   "peerDependencies": {
-    "@metamask/preferences-controller": "workspace:^"
+    "@metamask/preferences-controller": "^4.3.0"
   },
   "engines": {
     "node": ">=16.0.0"
