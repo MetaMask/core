@@ -251,7 +251,7 @@ export default class AccountsController extends BaseControllerV2<
     legacyAccounts = legacyAccounts.filter(
       (account) =>
         !snapAccounts.find(
-          (snapAccount) => snapAccount.address !== account.address,
+          (snapAccount) => snapAccount.address === account.address,
         ),
     );
 
