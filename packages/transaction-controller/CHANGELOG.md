@@ -8,13 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.1.0]
 ### Added
-- Add `blockTimestamp` to TransactionMetaBase ([#1616](https://github.com/MetaMask/core/pull/1616))
+- Add `blockTimestamp` to `TransactionMetaBase` type ([#1616](https://github.com/MetaMask/core/pull/1616))
+- Update `queryTransactionStatuses` to populate `blockTimestamp` on each transaction when it is verified ([#1616](https://github.com/MetaMask/core/pull/1616))
 
 ### Changed
 - Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
 - Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
-- Update `queryTransactionStatuses` to populate `blockTimestamp` on each transaction when it is verified ([#1616](https://github.com/MetaMask/core/pull/1616))
 
 ## [9.0.0]
 ### Added
