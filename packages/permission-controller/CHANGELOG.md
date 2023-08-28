@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
 
 ## [4.1.0]
 ### Changed

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
 - Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
 - Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.3.1
 - Update NftController to add fallback for when IPFS gateway is disabled ([#1577](https://github.com/MetaMask/core/pull/1577))
