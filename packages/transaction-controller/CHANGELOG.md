@@ -6,11 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.0.1]
-## Changed
+## [9.1.0]
+### Added
+- Add `blockTimestamp` to TransactionMetaBase ([#1616](https://github.com/MetaMask/core/pull/1616))
+
+### Changed
 - Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
 - Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
+- Update `queryTransactionStatuses` to populate `blockTimestamp` on each transaction when it is verified ([#1616](https://github.com/MetaMask/core/pull/1616))
 
 ## [9.0.0]
 ### Added
@@ -141,8 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.0.1...HEAD
-[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.0.0...@metamask/transaction-controller@9.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.0.0...@metamask/transaction-controller@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.1...@metamask/transaction-controller@9.0.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.0...@metamask/transaction-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@7.1.0...@metamask/transaction-controller@8.0.0
