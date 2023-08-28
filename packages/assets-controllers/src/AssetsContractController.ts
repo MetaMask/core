@@ -78,8 +78,6 @@ export class AssetsContractController extends BaseController<
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
-  private readonly getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-
   /**
    * Creates a AssetsContractController instance.
    *
@@ -88,7 +86,6 @@ export class AssetsContractController extends BaseController<
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
-   * @param options.getNetworkClientRegistry - Gets the network client registry from the NetworkController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -160,7 +157,7 @@ export class AssetsContractController extends BaseController<
     return new Web3Provider(provider);
   }
 
-  getChainId(networkClientId?: NetworkClientId): string {
+  getChainId(networkClientId?: NetworkClientId): Hex {
     return networkClientId
       ? this.getNetworkClientById(networkClientId).configuration.chainId
       : this.config.chainId;

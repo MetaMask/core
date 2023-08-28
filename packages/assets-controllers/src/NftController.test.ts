@@ -175,6 +175,7 @@ function setupController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
+    getNetworkClientById: jest.fn(),
   });
 
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
