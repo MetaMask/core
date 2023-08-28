@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.1.0]
 ### Added
-- Capture token URL from OpenSea API under `tokenURI` property ([#1577](https://github.com/MetaMask/core/pull/1577))
+- Populate token URL for NFTs in state under `tokenURI` in `NftMetadata` ([#1577](https://github.com/MetaMask/core/pull/1577))
 
 ### Changed
 - Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
