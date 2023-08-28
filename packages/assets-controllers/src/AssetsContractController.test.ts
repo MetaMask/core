@@ -5,7 +5,7 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
-import type { NetworkControllerMessenger } from '@metamask/network-controller';
+import type { NetworkClientId, NetworkControllerMessenger } from '@metamask/network-controller';
 import {
   NetworkController,
   NetworkClientType,
@@ -19,6 +19,8 @@ import {
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
 import { mockNetwork } from '../../../tests/mock-network';
+import { NetworkClientConfiguration } from '@metamask/network-controller';
+import { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -60,15 +62,19 @@ async function setupControllers() {
     trackMetaMetricsEvent: jest.fn(),
   });
   const preferences = new PreferencesController();
+
+  const rpcUrl = `https://mainnet.infura.io/v3/${networkClientConfiguration.infuraProjectId}`
+  const provider = new HttpProvider(
+    rpcUrl
+  );
+
   const assetsContract = new AssetsContractController({
     chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       messenger.subscribe('NetworkController:stateChange', listener),
+    getNetworkClientById: network.getNetworkClientById.bind(network),
   });
-  const provider = new HttpProvider(
-    `https://mainnet.infura.io/v3/${networkClientConfiguration.infuraProjectId}`,
-  );
 
   return {
     messenger,

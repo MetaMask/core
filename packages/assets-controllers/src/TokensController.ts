@@ -11,12 +11,14 @@ import contractsMap from '@metamask/contract-metadata';
 import {
   toChecksumHexAddress,
   ERC721_INTERFACE_ID,
-  ORIGIN_METAMASK,
   ApprovalType,
   ERC20,
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
-import type { NetworkClientId, NetworkState } from '@metamask/network-controller';
+import type {
+  NetworkClientId,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
