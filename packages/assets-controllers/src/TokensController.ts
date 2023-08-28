@@ -11,14 +11,12 @@ import contractsMap from '@metamask/contract-metadata';
 import {
   toChecksumHexAddress,
   ERC721_INTERFACE_ID,
+  ORIGIN_METAMASK,
   ApprovalType,
   ERC20,
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
-import type {
-  NetworkClientId,
-  NetworkState,
-} from '@metamask/network-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
@@ -52,7 +50,6 @@ import type { Token } from './TokenRatesController';
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
-  selectedNetworkClientId: NetworkClientId;
   provider: any;
 }
 
@@ -243,13 +240,13 @@ export class TokensController extends BaseController<
       });
     });
 
-    onNetworkStateChange(({ selectedNetworkClientId, providerConfig }) => {
+    onNetworkStateChange(({ providerConfig }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = providerConfig;
       this.abortController.abort();
       this.abortController = new WhatwgAbortController();
-      this.configure({ chainId, selectedNetworkClientId });
+      this.configure({ chainId });
       this.ethersProvider = this._instantiateNewEthersProvider();
       this.update({
         tokens: allTokens[chainId]?.[selectedAddress] || [],
@@ -267,7 +264,6 @@ export class TokensController extends BaseController<
   }
 
   _instantiateNewEthersProvider(): any {
-    // is config.provider ever set?
     return new Web3Provider(this.config?.provider);
   }
 
@@ -814,7 +810,7 @@ export class TokensController extends BaseController<
       'ApprovalController:addRequest',
       {
         id: suggestedAssetMeta.id,
-        networkClientId: this.config.selectedNetworkClientId,
+        origin: ORIGIN_METAMASK,
         type: ApprovalType.WatchAsset,
         requestData: {
           id: suggestedAssetMeta.id,
