@@ -5,7 +5,10 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
-import type { NetworkClientId, NetworkControllerMessenger } from '@metamask/network-controller';
+import type {
+  NetworkClientId,
+  NetworkControllerMessenger,
+} from '@metamask/network-controller';
 import {
   NetworkController,
   NetworkClientType,
@@ -19,8 +22,6 @@ import {
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
 import { mockNetwork } from '../../../tests/mock-network';
-import { NetworkClientConfiguration } from '@metamask/network-controller';
-import { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -39,7 +40,7 @@ const TEST_ACCOUNT_PUBLIC_ADDRESS =
  *
  * @returns the objects.
  */
-export async function setupControllers() {
+async function setupControllers() {
   const networkClientConfiguration = {
     type: NetworkClientType.Infura,
     network: 'mainnet',
@@ -64,7 +65,7 @@ export async function setupControllers() {
   const preferences = new PreferencesController();
 
   const provider = new HttpProvider(
-    `https://mainnet.infura.io/v3/${networkClientConfiguration.infuraProjectId}`
+    `https://mainnet.infura.io/v3/${networkClientConfiguration.infuraProjectId}`,
   );
 
   const assetsContract = new AssetsContractController({
@@ -72,10 +73,11 @@ export async function setupControllers() {
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       messenger.subscribe('NetworkController:stateChange', listener),
-    getNetworkClientById: (networkClientId: NetworkClientId) => ({
-      ...network.getNetworkClientById(networkClientId),
-      provider
-    } as any),
+    getNetworkClientById: (networkClientId: NetworkClientId) =>
+      ({
+        ...network.getNetworkClientById(networkClientId),
+        provider,
+      } as any),
   });
 
   return {
@@ -119,6 +121,9 @@ function mockNetworkWithDefaultChainId({
     ],
   });
 }
+
+// eslint-disable-next-line jest/no-export
+export { setupControllers, mockNetworkWithDefaultChainId };
 
 describe('AssetsContractController', () => {
   it('should set default config', async () => {
