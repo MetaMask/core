@@ -708,10 +708,11 @@ describe('TransactionController', () => {
 
   describe('with actionId', () => {
     it('adds multiple transactions with same actionId and ensures second transaction result does not resolves before the first transaction result', async () => {
-      const controller = newController({ approve: true });
+      const controller = newController();
 
       const mockOrigin = 'origin';
-      let firstResolved = false;
+      let firstTransactionCompleted = false;
+      let secondTransactionCompleted = false;
 
       const { result: firstResult } = await controller.addTransaction(
         {
@@ -726,10 +727,10 @@ describe('TransactionController', () => {
 
       firstResult
         .then(() => {
-          firstResolved = true;
+          firstTransactionCompleted = true;
         })
         .catch(() => undefined);
-      let secondResolved = false;
+
       const { result: secondResult } = await controller.addTransaction(
         {
           from: ACCOUNT_MOCK,
@@ -742,17 +743,36 @@ describe('TransactionController', () => {
       );
       secondResult
         .then(() => {
-          secondResolved = true;
+          secondTransactionCompleted = true;
         })
         .catch(() => undefined);
 
+      expect(firstTransactionCompleted).toBe(false);
+      expect(secondTransactionCompleted).toBe(false);
+
+      approveTransaction();
+
       await firstResult;
+      await secondResult;
       const { transactions } = controller.state;
 
       expect(transactions).toHaveLength(1);
-      expect(firstResolved).toBe(true);
-      expect(secondResolved).toBe(false);
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin: mockOrigin,
+          type: 'transaction',
+          requestData: { txId: expect.any(String) },
+          expectsResult: true,
+        },
+        true,
+      );
+      expect(firstTransactionCompleted).toBe(true);
+      expect(secondTransactionCompleted).toBe(true);
     });
+
     it.each([
       [
         'does not add duplicate transaction if actionId already used',
@@ -770,6 +790,7 @@ describe('TransactionController', () => {
       '%s',
       async (_, firstActionId, secondActionId, expectedTransactionCount) => {
         const controller = newController();
+        const expectedRequestApprovalCalledTimes = expectedTransactionCount;
 
         const mockOrigin = 'origin';
 
@@ -797,42 +818,56 @@ describe('TransactionController', () => {
         const { transactions } = controller.state;
 
         expect(transactions).toHaveLength(expectedTransactionCount);
+        expect(delayMessengerMock.call).toHaveBeenCalledTimes(
+          expectedRequestApprovalCalledTimes,
+        );
       },
     );
 
     it.each([
       [
-        'adds single transactions when speed up called with existing actionId',
+        'adds single transaction when speed up called twice with the same actionId',
         ACTION_ID_MOCK,
+        2,
         1,
       ],
       [
         'adds multiple transactions when speed up called with non-existent actionId',
         '00000',
+        3,
         2,
       ],
-    ])('%s', async (_, actionId, expectedTransactionCount) => {
-      const controller = newController();
+    ])(
+      '%s',
+      async (
+        _,
+        actionId,
+        expectedTransactionCount,
+        expectedSignCalledTimes,
+      ) => {
+        const controller = newController();
+        const signSpy = jest.spyOn(controller, 'sign' as any);
 
-      const { transactionMeta } = await controller.addTransaction(
-        {
+        const { transactionMeta } = await controller.addTransaction({
           from: ACCOUNT_MOCK,
           gas: '0x0',
           gasPrice: '0x50fd51da',
           to: ACCOUNT_MOCK,
           value: '0x0',
-        },
-        {
+        });
+        await controller.speedUpTransaction(transactionMeta.id, undefined, {
           actionId: ACTION_ID_MOCK,
-        },
-      );
-      await controller.speedUpTransaction(transactionMeta.id, undefined, {
-        actionId,
-      });
+        });
 
-      const { transactions } = controller.state;
-      expect(transactions).toHaveLength(expectedTransactionCount);
-    });
+        await controller.speedUpTransaction(transactionMeta.id, undefined, {
+          actionId,
+        });
+
+        const { transactions } = controller.state;
+        expect(transactions).toHaveLength(expectedTransactionCount);
+        expect(signSpy).toHaveBeenCalledTimes(expectedSignCalledTimes);
+      },
+    );
   });
 
   describe('addTransaction', () => {

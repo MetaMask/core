@@ -417,11 +417,6 @@ export class TransactionController extends BaseController<
       origin,
     );
 
-    const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
-      transaction,
-      origin,
-    );
-
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
     const transactionMeta: TransactionMeta = existingTransactionMeta || {
@@ -459,8 +454,8 @@ export class TransactionController extends BaseController<
 
     return {
       result: this.processApproval(transactionMeta, {
-        requireApproval,
         isExisting: Boolean(existingTransactionMeta),
+        requireApproval,
       }),
       transactionMeta,
     };
@@ -965,24 +960,26 @@ export class TransactionController extends BaseController<
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
+      isExisting = false,
       requireApproval,
       shouldShowRequest = true,
-      isExisting = false,
     }: {
+      isExisting?: boolean;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
-      isExisting?: boolean;
     },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      if (requireApproval !== false || !isExisting) {
-        const acceptResult = await this.requestApproval(transactionMeta, {
-          shouldShowRequest,
-        });
-        resultCallbacks = acceptResult.resultCallbacks;
+      if (!isExisting) {
+        if (requireApproval !== false) {
+          const acceptResult = await this.requestApproval(transactionMeta, {
+            shouldShowRequest,
+          });
+          resultCallbacks = acceptResult.resultCallbacks;
+        }
       }
 
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
