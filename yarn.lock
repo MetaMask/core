@@ -1365,7 +1365,7 @@ __metadata:
     "@metamask/eth-query": ^3.0.1
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": ^12.1.2
-    "@metamask/preferences-controller": ^4.3.1
+    "@metamask/preferences-controller": ^4.4.0
     "@metamask/rpc-errors": ^5.1.1
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
@@ -1391,7 +1391,7 @@ __metadata:
   peerDependencies:
     "@metamask/approval-controller": ^3.5.1
     "@metamask/network-controller": ^12.1.2
-    "@metamask/preferences-controller": ^4.3.1
+    "@metamask/preferences-controller": ^4.4.0
   languageName: unknown
   linkType: soft
 
@@ -1778,7 +1778,7 @@ __metadata:
     "@metamask/eth-keyring-controller": ^13.0.0
     "@metamask/eth-sig-util": ^6.0.0
     "@metamask/message-manager": ^7.3.1
-    "@metamask/preferences-controller": ^4.3.1
+    "@metamask/preferences-controller": ^4.4.0
     "@metamask/scure-bip39": ^2.1.0
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
@@ -1795,7 +1795,7 @@ __metadata:
     typescript: ~4.6.3
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/preferences-controller": ^4.3.1
+    "@metamask/preferences-controller": ^4.4.0
   languageName: unknown
   linkType: soft
 
@@ -1971,7 +1971,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/preferences-controller@^4.3.1, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@^4.4.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
