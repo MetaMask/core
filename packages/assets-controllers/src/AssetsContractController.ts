@@ -3,7 +3,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
+import type { NetworkClientId, NetworkState, AutoManagedNetworkClient, NetworkClientConfiguration, NetworkController } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import type { BN } from 'ethereumjs-util';
@@ -78,6 +78,8 @@ export class AssetsContractController extends BaseController<
    */
   override name = 'AssetsContractController';
 
+  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+
   /**
    * Creates a AssetsContractController instance.
    *
@@ -85,6 +87,7 @@ export class AssetsContractController extends BaseController<
    * @param options.chainId - The chain ID of the current network.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -93,6 +96,7 @@ export class AssetsContractController extends BaseController<
       chainId: initialChainId,
       onPreferencesStateChange,
       onNetworkStateChange,
+      getNetworkClientById,
     }: {
       chainId: Hex;
       onPreferencesStateChange: (
@@ -101,6 +105,7 @@ export class AssetsContractController extends BaseController<
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
       ) => void;
+      getNetworkClientById: NetworkController['getNetworkClientById'],
     },
     config?: Partial<AssetsContractConfig>,
     state?: Partial<BaseState>,
@@ -112,6 +117,7 @@ export class AssetsContractController extends BaseController<
       chainId: initialChainId,
     };
     this.initialize();
+    this.getNetworkClientById = getNetworkClientById;
 
     onPreferencesStateChange(({ ipfsGateway }) => {
       this.configure({ ipfsGateway });
@@ -142,6 +148,18 @@ export class AssetsContractController extends BaseController<
 
   get provider() {
     throw new Error('Property only used for setting');
+  }
+
+  getProvider(networkClientId?: NetworkClientId): any {
+    let provider = networkClientId ?
+      this.getNetworkClientById(networkClientId).provider
+    : this._provider
+
+    if (provider === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
+
+    return provider
   }
 
   /**
@@ -180,11 +198,11 @@ export class AssetsContractController extends BaseController<
    * @param address - ERC20 asset contract address.
    * @returns Promise resolving to the 'decimals'.
    */
-  async getERC20TokenName(address: string): Promise<string> {
-    if (this.erc20Standard === undefined) {
-      throw new Error(MISSING_PROVIDER_ERROR);
-    }
-    return await this.erc20Standard.getTokenName(address);
+  async getERC20TokenName(address: string, networkClientId?: NetworkClientId): Promise<string> {
+    let provider = this.getProvider(networkClientId)
+    let erc20Standard = new ERC20Standard(provider)
+
+    return erc20Standard.getTokenName(address);
   }
 
   /**

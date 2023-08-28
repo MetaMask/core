@@ -16,7 +16,7 @@ import {
   ERC20,
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
-import type { NetworkState } from '@metamask/network-controller';
+import type { NetworkClientId, NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
@@ -50,6 +50,7 @@ import type { Token } from './TokenRatesController';
 export interface TokensConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
+  selectedNetworkClientId: NetworkClientId;
   provider: any;
 }
 
@@ -240,13 +241,13 @@ export class TokensController extends BaseController<
       });
     });
 
-    onNetworkStateChange(({ providerConfig }) => {
+    onNetworkStateChange(({ selectedNetworkClientId, providerConfig }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = providerConfig;
       this.abortController.abort();
       this.abortController = new WhatwgAbortController();
-      this.configure({ chainId });
+      this.configure({ chainId, selectedNetworkClientId });
       this.ethersProvider = this._instantiateNewEthersProvider();
       this.update({
         tokens: allTokens[chainId]?.[selectedAddress] || [],
@@ -264,6 +265,7 @@ export class TokensController extends BaseController<
   }
 
   _instantiateNewEthersProvider(): any {
+    // is config.provider ever set?
     return new Web3Provider(this.config?.provider);
   }
 
@@ -810,7 +812,7 @@ export class TokensController extends BaseController<
       'ApprovalController:addRequest',
       {
         id: suggestedAssetMeta.id,
-        origin: ORIGIN_METAMASK,
+        networkClientId: this.config.selectedNetworkClientId,
         type: ApprovalType.WatchAsset,
         requestData: {
           id: suggestedAssetMeta.id,
