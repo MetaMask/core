@@ -177,10 +177,10 @@ export type JsonRpcError = OptionalField<
   'data'
 >;
 
-export const JsonRpcParamsStruct = optional(
-  union([record(string(), JsonStruct), array(JsonStruct)]),
-);
-export type JsonRpcParams = Infer<typeof JsonRpcParamsStruct>;
+export const JsonRpcParamsStruct: Struct<Json[] | Record<string, Json>, null> =
+  optional(union([record(string(), JsonStruct), array(JsonStruct)])) as any;
+
+export type JsonRpcParams = Json[] | Record<string, Json>;
 
 export const JsonRpcRequestStruct = object({
   id: JsonRpcIdStruct,
