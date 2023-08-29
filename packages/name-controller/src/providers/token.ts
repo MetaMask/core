@@ -1,5 +1,6 @@
 import type {
   NameProvider,
+  NameProviderMetadata,
   NameProviderRequest,
   NameProviderResponse,
 } from '../types';
@@ -9,12 +10,11 @@ const ID = 'token';
 const LABEL = 'Blockchain (Token Name)';
 
 export class TokenNameProvider implements NameProvider {
-  getProviderIds(): Record<NameType, string[]> {
-    return { [NameType.ETHEREUM_ADDRESS]: [ID] };
-  }
-
-  getProviderLabel(_providerId: string): string {
-    return LABEL;
+  getMetadata(): NameProviderMetadata {
+    return {
+      providerIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
+      providerLabels: { [ID]: LABEL },
+    };
   }
 
   async getProposedNames(
@@ -29,7 +29,7 @@ export class TokenNameProvider implements NameProvider {
     return {
       results: {
         [ID]: {
-          proposedName,
+          proposedNames: [proposedName],
         },
       },
     };

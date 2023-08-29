@@ -2,6 +2,11 @@ export enum NameType {
   ETHEREUM_ADDRESS = 'ethereumAddress',
 }
 
+export type NameProviderMetadata = {
+  providerIds: Record<NameType, string[]>;
+  providerLabels: Record<string, string>;
+};
+
 export type NameProviderRequest = {
   chainId: string;
   providerIds?: string[];
@@ -10,7 +15,7 @@ export type NameProviderRequest = {
 };
 
 export type NameProviderResult = {
-  proposedName?: string;
+  proposedNames?: string[];
   error?: unknown;
 };
 
@@ -20,7 +25,6 @@ export type NameProviderResponse = {
 };
 
 export type NameProvider = {
-  getProviderIds(): Record<NameType, string[]>;
-  getProviderLabel(providerId: string): string;
+  getMetadata(): NameProviderMetadata;
   getProposedNames(request: NameProviderRequest): Promise<NameProviderResponse>;
 };

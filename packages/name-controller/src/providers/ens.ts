@@ -1,5 +1,6 @@
 import type {
   NameProvider,
+  NameProviderMetadata,
   NameProviderRequest,
   NameProviderResponse,
 } from '../types';
@@ -17,12 +18,11 @@ export class ENSNameProvider implements NameProvider {
     this.#reverseLookup = reverseLookup;
   }
 
-  getProviderIds(): Record<NameType, string[]> {
-    return { [NameType.ETHEREUM_ADDRESS]: [ID] };
-  }
-
-  getProviderLabel(_providerId: string): string {
-    return LABEL;
+  getMetadata(): NameProviderMetadata {
+    return {
+      providerIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
+      providerLabels: { [ID]: LABEL },
+    };
   }
 
   async getProposedNames(
@@ -32,7 +32,7 @@ export class ENSNameProvider implements NameProvider {
 
     return {
       results: {
-        [ID]: { proposedName },
+        [ID]: { proposedNames: [proposedName] },
       },
     };
   }

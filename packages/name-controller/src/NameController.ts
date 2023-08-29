@@ -24,7 +24,7 @@ const getDefaultState = () => ({
 export type NameEntry = {
   name: string | null;
   providerId: string | null;
-  proposedNames: Record<string, string | null>;
+  proposedNames: Record<string, string[] | null>;
 };
 
 export type NameControllerState = {
@@ -66,7 +66,7 @@ export type UpdateProposedNamesRequest = {
 };
 
 export type UpdateProposedNamesResult = {
-  results: Record<string, { proposedName?: string; error: unknown }>;
+  results: Record<string, { proposedNames: string[]; error: unknown }>;
 };
 
 export type SetNameRequest = {
@@ -118,7 +118,10 @@ export class NameController extends BaseControllerV2<
    * @param request.value - Value to set the name for.
    */
   setName(request: SetNameRequest) {
+    this.#validateSetNameRequest(request);
+
     const { value, type, name, providerId } = request;
+
     this.#updateEntry(value, type, { name, providerId: providerId ?? null });
   }
 
@@ -156,7 +159,7 @@ export class NameController extends BaseControllerV2<
     providerResponses: NameProviderResponse[],
   ) {
     const { value, type } = request;
-    const newProposedNames: { [providerId: string]: string | null } = {};
+    const newProposedNames: { [providerId: string]: string[] } = {};
 
     for (const providerResponse of providerResponses) {
       const { results, error: responseError } = providerResponse;
@@ -167,10 +170,11 @@ export class NameController extends BaseControllerV2<
 
       for (const providerId of Object.keys(providerResponse.results)) {
         const result = results[providerId];
-        const { proposedName, error: resultError } = result;
+        const { proposedNames } = result;
 
-        newProposedNames[providerId] =
-          proposedName?.length && !resultError ? proposedName : null;
+        newProposedNames[providerId] = proposedNames?.length
+          ? proposedNames.filter((proposedName) => proposedName?.length)
+          : [];
       }
     }
 
@@ -194,10 +198,15 @@ export class NameController extends BaseControllerV2<
         }
 
         for (const providerId of Object.keys(results)) {
-          const { proposedName, error: resultError } = results[providerId];
+          const { proposedNames: resultProposedNames, error: resultError } =
+            results[providerId];
+
+          const proposedNames = resultProposedNames?.length
+            ? resultProposedNames.filter((proposedName) => proposedName?.length)
+            : [];
 
           acc.results[providerId] = {
-            proposedName,
+            proposedNames,
             error: resultError,
           };
         }
@@ -214,7 +223,7 @@ export class NameController extends BaseControllerV2<
     provider: NameProvider,
   ): Promise<NameProviderResponse | undefined> {
     const { value, type, providerIds: requestedProviderIds } = request;
-    const providerIds = provider.getProviderIds()?.[type] || [];
+    const providerIds = this.#getProviderIds(provider, type);
 
     const relevantProviderIds =
       requestedProviderIds?.filter((providerId) =>
@@ -229,7 +238,7 @@ export class NameController extends BaseControllerV2<
       chainId,
       value,
       type,
-      providerIds: relevantProviderIds,
+      providerIds: requestedProviderIds ? relevantProviderIds : undefined,
     };
 
     try {
@@ -244,7 +253,7 @@ export class NameController extends BaseControllerV2<
           (acc: any, providerId) => {
             if (
               !requestedProviderIds ||
-              requestedProviderIds?.includes(providerId)
+              requestedProviderIds.includes(providerId)
             ) {
               acc[providerId] = response.results[providerId];
             }
@@ -267,9 +276,10 @@ export class NameController extends BaseControllerV2<
 
   #updateEntry(value: string, type: NameType, data: Partial<NameEntry>) {
     this.update((state) => {
-      const typeEntries = state.names[type];
+      const typeEntries = state.names[type] || {};
+      state.names[type] = typeEntries;
 
-      const currentEntry = typeEntries?.[value] ?? {
+      const currentEntry = typeEntries[value] ?? {
         proposedNames: {},
         name: null,
         providerId: null,
@@ -281,15 +291,40 @@ export class NameController extends BaseControllerV2<
     });
   }
 
-  #validateUpdateProposedNamesRequest(request: UpdateProposedNamesRequest) {
-    const { value, type, providerIds } = request;
-
+  #validateSetNameRequest(request: SetNameRequest) {
+    const { name, value, type, providerId } = request;
     const errorMessages: string[] = [];
 
-    if (!value?.length || typeof value !== 'string') {
-      errorMessages.push('Must specify a non-empty string value.');
-    }
+    this.#validateValue(value, errorMessages);
+    this.#validateType(type, errorMessages);
+    this.#validateName(name, errorMessages);
+    this.#validateProviderId(providerId, type, errorMessages);
 
+    if (errorMessages.length) {
+      throw new Error(errorMessages.join(' '));
+    }
+  }
+
+  #validateUpdateProposedNamesRequest(request: UpdateProposedNamesRequest) {
+    const { value, type, providerIds } = request;
+    const errorMessages: string[] = [];
+
+    this.#validateValue(value, errorMessages);
+    this.#validateType(type, errorMessages);
+    this.#validateProviderIds(providerIds, type, errorMessages);
+
+    if (errorMessages.length) {
+      throw new Error(errorMessages.join(' '));
+    }
+  }
+
+  #validateValue(value: string, errorMessages: string[]) {
+    if (!value?.length || typeof value !== 'string') {
+      errorMessages.push('Must specify a non-empty string for value.');
+    }
+  }
+
+  #validateType(type: NameType, errorMessages: string[]) {
     if (!Object.values(NameType).includes(type)) {
       errorMessages.push(
         `Must specify one of the following types: ${Object.values(
@@ -297,35 +332,75 @@ export class NameController extends BaseControllerV2<
         ).join(', ')}`,
       );
     }
+  }
 
-    if (providerIds) {
-      const allProviderIds = this.#getAllProviderIds(type);
-      const missingProviderIds = [];
+  #validateName(name: string, errorMessages: string[]) {
+    if (!name?.length || typeof name !== 'string') {
+      errorMessages.push('Must specify a non-empty string for name.');
+    }
+  }
 
-      for (const providerId of providerIds) {
-        if (!allProviderIds.includes(providerId)) {
-          missingProviderIds.push(providerId);
-          continue;
-        }
-      }
+  #validateProviderIds(
+    providerIds: string[] | undefined,
+    type: NameType,
+    errorMessages: string[],
+  ) {
+    if (!providerIds) {
+      return;
+    }
 
-      if (missingProviderIds.length) {
-        errorMessages.push(
-          `Unknown name provider IDs for type '${type}': ${missingProviderIds.join(
-            ', ',
-          )}`,
-        );
+    const allProviderIds = this.#getAllProviderIds(type);
+    const missingProviderIds = [];
+
+    for (const providerId of providerIds) {
+      if (!allProviderIds.includes(providerId)) {
+        missingProviderIds.push(providerId);
+        continue;
       }
     }
 
-    if (errorMessages.length) {
-      throw new Error(errorMessages.join(' '));
+    if (missingProviderIds.length) {
+      errorMessages.push(
+        `Unknown name provider IDs for type '${type}': ${missingProviderIds.join(
+          ', ',
+        )}`,
+      );
+    }
+  }
+
+  #validateProviderId(
+    providerId: string | undefined,
+    type: NameType,
+    errorMessages: string[],
+  ) {
+    if (providerId === null || providerId === undefined) {
+      return;
+    }
+
+    const allProviderIds = this.#getAllProviderIds(type);
+
+    if (!providerId.length || typeof providerId !== 'string') {
+      errorMessages.push('Must specify a non-empty string for providerId.');
+      return;
+    }
+
+    if (!allProviderIds.includes(providerId)) {
+      errorMessages.push(
+        `Unknown provider ID for type '${type}': ${providerId}`,
+      );
     }
   }
 
   #getAllProviderIds(type: NameType): string[] {
-    return this.#providers
-      .map((provider) => provider.getProviderIds()?.[type] || [])
-      .flat();
+    return (
+      this.#providers
+        /* istanbul ignore next */
+        .map((provider) => this.#getProviderIds(provider, type))
+        .flat()
+    );
+  }
+
+  #getProviderIds(provider: NameProvider, type: NameType): string[] {
+    return provider.getMetadata().providerIds[type];
   }
 }

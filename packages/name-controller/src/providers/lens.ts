@@ -1,5 +1,6 @@
 import type {
   NameProvider,
+  NameProviderMetadata,
   NameProviderRequest,
   NameProviderResponse,
 } from '../types';
@@ -9,12 +10,11 @@ const ID = 'lens';
 const LABEL = 'Lens Protocol';
 
 export class LensNameProvider implements NameProvider {
-  getProviderIds(): Record<string, string[]> {
-    return { [NameType.ETHEREUM_ADDRESS]: [ID] };
-  }
-
-  getProviderLabel(_providerId: string): string {
-    return LABEL;
+  getMetadata(): NameProviderMetadata {
+    return {
+      providerIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
+      providerLabels: { [ID]: LABEL },
+    };
   }
 
   async getProposedNames(
@@ -37,13 +37,13 @@ export class LensNameProvider implements NameProvider {
 
     const responseData = await response.json();
 
-    const profile = responseData?.data?.profiles?.items?.[0];
-    const proposedName = profile?.handle;
+    const profiles = responseData?.data?.profiles?.items;
+    const proposedNames = profiles?.map((profile: any) => profile.handle);
 
     return {
       results: {
         [ID]: {
-          proposedName,
+          proposedNames,
         },
       },
     };

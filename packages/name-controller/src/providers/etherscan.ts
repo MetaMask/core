@@ -1,5 +1,6 @@
 import type {
   NameProvider,
+  NameProviderMetadata,
   NameProviderRequest,
   NameProviderResponse,
 } from '../types';
@@ -15,12 +16,11 @@ export class EtherscanNameProvider implements NameProvider {
     this.#apiKey = apiKey;
   }
 
-  getProviderIds(): Record<NameType, string[]> {
-    return { [NameType.ETHEREUM_ADDRESS]: [ID] };
-  }
-
-  getProviderLabel(_providerId: string): string {
-    return LABEL;
+  getMetadata(): NameProviderMetadata {
+    return {
+      providerIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
+      providerLabels: { [ID]: LABEL },
+    };
   }
 
   async getProposedNames(
@@ -41,7 +41,7 @@ export class EtherscanNameProvider implements NameProvider {
     return {
       results: {
         [ID]: {
-          proposedName,
+          proposedNames: [proposedName],
         },
       },
     };
