@@ -145,6 +145,12 @@ export class AssetsContractController extends BaseController<
     throw new Error('Property only used for setting');
   }
 
+  /**
+   * Get the relevant provider instance.
+   *
+   * @param networkClientId - Network Client ID.
+   * @returns Web3Provider instance.
+   */
   getProvider(networkClientId?: NetworkClientId): Web3Provider {
     const provider = networkClientId
       ? this.getNetworkClientById(networkClientId).provider
@@ -157,10 +163,49 @@ export class AssetsContractController extends BaseController<
     return new Web3Provider(provider);
   }
 
+  /**
+   * Get the relevant chain ID.
+   *
+   * @param networkClientId - Network Client ID used to get the provider.
+   * @returns Hex chain ID.
+   */
   getChainId(networkClientId?: NetworkClientId): Hex {
     return networkClientId
       ? this.getNetworkClientById(networkClientId).configuration.chainId
       : this.config.chainId;
+  }
+
+  /**
+   * Get a ERC20Standard instance using the relevant provider instance.
+   *
+   * @param networkClientId - Network Client ID used to get the provider.
+   * @returns ERC20Standard instance.
+   */
+  getERC20Standard(networkClientId?: NetworkClientId): ERC20Standard {
+    const provider = this.getProvider(networkClientId);
+    return new ERC20Standard(provider);
+  }
+
+  /**
+   * Get a ERC721Standard instance using the relevant provider instance.
+   *
+   * @param networkClientId - Network Client ID used to get the provider.
+   * @returns ERC721Standard instance.
+   */
+  getERC721Standard(networkClientId?: NetworkClientId): ERC721Standard {
+    const provider = this.getProvider(networkClientId);
+    return new ERC721Standard(provider);
+  }
+
+  /**
+   * Get a ERC1155Standard instance using the relevant provider instance.
+   *
+   * @param networkClientId - Network Client ID used to get the provider.
+   * @returns ERC1155Standard instance.
+   */
+  getERC1155Standard(networkClientId?: NetworkClientId): ERC1155Standard {
+    const provider = this.getProvider(networkClientId);
+    return new ERC1155Standard(provider);
   }
 
   /**
@@ -176,9 +221,7 @@ export class AssetsContractController extends BaseController<
     selectedAddress: string,
     networkClientId?: NetworkClientId,
   ): Promise<BN> {
-    const provider = this.getProvider(networkClientId);
-    const erc20Standard = new ERC20Standard(provider);
-
+    const erc20Standard = this.getERC20Standard(networkClientId);
     return erc20Standard.getBalanceOf(address, selectedAddress);
   }
 
@@ -193,9 +236,7 @@ export class AssetsContractController extends BaseController<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<string> {
-    const provider = this.getProvider(networkClientId);
-    const erc20Standard = new ERC20Standard(provider);
-
+    const erc20Standard = this.getERC20Standard(networkClientId);
     return erc20Standard.getTokenDecimals(address);
   }
 
@@ -210,9 +251,7 @@ export class AssetsContractController extends BaseController<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<string> {
-    const provider = this.getProvider(networkClientId);
-    const erc20Standard = new ERC20Standard(provider);
-
+    const erc20Standard = this.getERC20Standard(networkClientId);
     return erc20Standard.getTokenName(address);
   }
 
@@ -231,9 +270,7 @@ export class AssetsContractController extends BaseController<
     index: number,
     networkClientId?: NetworkClientId,
   ): Promise<string> {
-    const provider = this.getProvider(networkClientId);
-    const erc721Standard = new ERC721Standard(provider);
-
+    const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getNftTokenId(address, selectedAddress, index);
   }
 
@@ -259,13 +296,14 @@ export class AssetsContractController extends BaseController<
     decimals?: string | undefined;
     balance?: BN | undefined;
   }> {
-    const provider = this.getProvider(networkClientId);
+    // Asserts provider is available
+    this.getProvider(networkClientId);
 
     const { ipfsGateway } = this.config;
 
     // ERC721
     try {
-      const erc721Standard = new ERC721Standard(provider);
+      const erc721Standard = this.getERC721Standard(networkClientId);
       return {
         ...(await erc721Standard.getDetails(
           tokenAddress,
@@ -279,7 +317,7 @@ export class AssetsContractController extends BaseController<
 
     // ERC1155
     try {
-      const erc1155Standard = new ERC1155Standard(provider);
+      const erc1155Standard = this.getERC1155Standard(networkClientId);
       return {
         ...(await erc1155Standard.getDetails(
           tokenAddress,
@@ -293,7 +331,7 @@ export class AssetsContractController extends BaseController<
 
     // ERC20
     try {
-      const erc20Standard = new ERC20Standard(provider);
+      const erc20Standard = this.getERC20Standard(networkClientId);
       return {
         ...(await erc20Standard.getDetails(tokenAddress, userAddress)),
       };
@@ -317,9 +355,7 @@ export class AssetsContractController extends BaseController<
     tokenId: string,
     networkClientId?: NetworkClientId,
   ): Promise<string> {
-    const provider = this.getProvider(networkClientId);
-    const erc721Standard = new ERC721Standard(provider);
-
+    const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getTokenURI(address, tokenId);
   }
 
@@ -334,9 +370,7 @@ export class AssetsContractController extends BaseController<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<string> {
-    const provider = this.getProvider(networkClientId);
-    const erc721Standard = new ERC721Standard(provider);
-
+    const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getAssetName(address);
   }
 
@@ -351,9 +385,7 @@ export class AssetsContractController extends BaseController<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<string> {
-    const provider = this.getProvider(networkClientId);
-    const erc721Standard = new ERC721Standard(provider);
-
+    const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getAssetSymbol(address);
   }
 
@@ -370,9 +402,7 @@ export class AssetsContractController extends BaseController<
     tokenId: string,
     networkClientId?: NetworkClientId,
   ): Promise<string> {
-    const provider = this.getProvider(networkClientId);
-    const erc721Standard = new ERC721Standard(provider);
-
+    const erc721Standard = this.getERC721Standard(networkClientId);
     return erc721Standard.getOwnerOf(address, tokenId);
   }
 
@@ -389,8 +419,7 @@ export class AssetsContractController extends BaseController<
     tokenId: string,
     networkClientId?: NetworkClientId,
   ): Promise<string> {
-    const provider = this.getProvider(networkClientId);
-    const erc1155Standard = new ERC1155Standard(provider);
+    const erc1155Standard = this.getERC1155Standard(networkClientId);
     return erc1155Standard.getTokenURI(address, tokenId);
   }
 
@@ -409,9 +438,7 @@ export class AssetsContractController extends BaseController<
     nftId: string,
     networkClientId?: NetworkClientId,
   ): Promise<BN> {
-    const provider = this.getProvider(networkClientId);
-    const erc1155Standard = new ERC1155Standard(provider);
-
+    const erc1155Standard = this.getERC1155Standard(networkClientId);
     return erc1155Standard.getBalanceOf(nftAddress, userAddress, nftId);
   }
 
@@ -434,9 +461,7 @@ export class AssetsContractController extends BaseController<
     qty: string,
     networkClientId?: NetworkClientId,
   ): Promise<void> {
-    const provider = this.getProvider(networkClientId);
-    const erc1155Standard = new ERC1155Standard(provider);
-
+    const erc1155Standard = this.getERC1155Standard(networkClientId);
     return erc1155Standard.transferSingle(
       nftAddress,
       senderAddress,
