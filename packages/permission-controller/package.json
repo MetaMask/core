@@ -1,6 +1,6 @@
 {
   "name": "@metamask/permission-controller",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "Mediates access to JSON-RPC methods, used to interact with pieces of the MetaMask stack, via middleware for json-rpc-engine",
   "keywords": [
     "MetaMask",
@@ -23,15 +23,14 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/permission-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "workspace:^",
-    "@metamask/base-controller": "workspace:^",
-    "@metamask/controller-utils": "workspace:^",
+    "@metamask/approval-controller": "^3.5.1",
+    "@metamask/base-controller": "^3.2.1",
+    "@metamask/controller-utils": "^4.3.2",
     "@metamask/utils": "^6.2.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
@@ -51,7 +50,7 @@
     "typescript": "~4.6.3"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "workspace:^"
+    "@metamask/approval-controller": "^3.5.1"
   },
   "engines": {
     "node": ">=16.0.0"

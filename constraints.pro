@@ -242,10 +242,6 @@ gen_enforced_field(WorkspaceCwd, 'files', []) :-
 gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
   WorkspaceCwd \= '.'.
 
-% All published packages must have the same "prepare-manifest:preview" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.prepare-manifest:preview', '../../scripts/prepare-preview-manifest.sh') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
-
 % All published packages must have the same "publish:preview" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.publish:preview', 'yarn npm publish --tag preview') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
@@ -270,6 +266,14 @@ gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally starting with ^ or ~', DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   \+ is_valid_version_range(DependencyRange).
+
+% All references to a workspace package must be up to date with the current
+% version of that package.
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectDependencyRange, DependencyType) :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
+  workspace_ident(OtherWorkspaceCwd, DependencyIdent),
+  workspace_version(OtherWorkspaceCwd, OtherWorkspaceVersion),
+  atomic_list_concat(['^', OtherWorkspaceVersion], CorrectDependencyRange).
 
 % All dependency ranges for a package must be synchronized across the monorepo
 % (the least version range wins), regardless of which "*dependencies" field

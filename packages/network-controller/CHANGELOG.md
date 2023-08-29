@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.2]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+
+## [12.1.1]
+### Added
+- Added an export for NetworkClientId in NetworkController ([#1583](https://github.com/MetaMask/core/pull/1583))
+
+## [12.1.0]
+### Added
+- Add `getNetworkClientById` ([#1562](https://github.com/MetaMask/core/pull/1562))
+- Add `findNetworkClientIdByChainId` ([#1571](https://github.com/MetaMask/core/pull/1571))
+
 ## [12.0.0]
 ### Added
 - Add `NetworksMetadata` type ([#1559](https://github.com/MetaMask/core/pull/1559))
@@ -231,7 +245,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.2...HEAD
+[12.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.1...@metamask/network-controller@12.1.2
+[12.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.0...@metamask/network-controller@12.1.1
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.0.0...@metamask/network-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@11.0.0...@metamask/network-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.1...@metamask/network-controller@11.0.0
 [10.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.0...@metamask/network-controller@10.3.1

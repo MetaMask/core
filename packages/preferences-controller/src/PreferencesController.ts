@@ -33,11 +33,13 @@ export interface PreferencesState extends BaseState {
   useTokenDetection: boolean;
   useNftDetection: boolean;
   openSeaEnabled: boolean;
+  securityAlertsEnabled: boolean;
   isMultiAccountBalancesEnabled: boolean;
   disabledRpcMethodPreferences: {
     [methodName: string]: boolean;
   };
   showTestNetworks: boolean;
+  isIpfsGatewayEnabled: boolean;
 }
 
 /**
@@ -69,11 +71,13 @@ export class PreferencesController extends BaseController<
       useTokenDetection: true,
       useNftDetection: false,
       openSeaEnabled: false,
+      securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
       disabledRpcMethodPreferences: {
         eth_sign: false,
       },
       showTestNetworks: false,
+      isIpfsGatewayEnabled: true,
     };
     this.initialize();
   }
@@ -268,6 +272,15 @@ export class PreferencesController extends BaseController<
   }
 
   /**
+   * Toggle the security alert enabled setting.
+   *
+   * @param securityAlertsEnabled - Boolean indicating user preference on using security alerts.
+   */
+  setSecurityAlertsEnabled(securityAlertsEnabled: boolean) {
+    this.update({ securityAlertsEnabled });
+  }
+
+  /**
    * A setter for the user preferences to enable/disable rpc methods.
    *
    * @param methodName - The RPC method name to change the setting of.
@@ -298,6 +311,15 @@ export class PreferencesController extends BaseController<
    */
   setShowTestNetworks(showTestNetworks: boolean) {
     this.update({ showTestNetworks });
+  }
+
+  /**
+   * A setter for the user allow to be fetched IPFS content
+   *
+   * @param isIpfsGatewayEnabled - true to enable ipfs source
+   */
+  setIsIpfsGatewayEnabled(isIpfsGatewayEnabled: boolean) {
+    this.update({ isIpfsGatewayEnabled });
   }
 }
 

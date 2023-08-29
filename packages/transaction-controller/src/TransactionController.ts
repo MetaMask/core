@@ -30,6 +30,7 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
@@ -40,7 +41,12 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import type { Transaction, TransactionMeta, WalletDevice } from './types';
+import type {
+  Transaction,
+  TransactionMeta,
+  WalletDevice,
+  DappSuggestedGasFees,
+} from './types';
 import { TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
@@ -53,6 +59,7 @@ import {
   validateGasValues,
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
+  transactionMatchesNetwork,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -122,6 +129,7 @@ export interface MethodData {
 export interface TransactionState extends BaseState {
   transactions: TransactionMeta[];
   methodData: { [key: string]: MethodData };
+  lastFetchedBlockNumbers: { [key: string]: number };
 }
 
 /**
@@ -218,32 +226,48 @@ export class TransactionController extends BaseController<
    * Creates a TransactionController instance.
    *
    * @param options - The controller options.
+   * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.getNetworkState - Gets the state of the network controller.
+   * @param options.getSelectedAddress - Gets the address of the currently selected account.
+   * @param options.incomingTransactions - Configuration options for incoming transaction support.
+   * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
+   * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
+   * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
+   * @param options.incomingTransactions.updateTransactions - Whether or not to update local transactions using remote transaction data.
+   * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
-   * @param options.blockTracker - The block tracker used to poll for new blocks data.
-   * @param options.messenger - The controller messenger.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
+      blockTracker,
       getNetworkState,
+      getSelectedAddress,
+      incomingTransactions = {},
+      messenger,
       onNetworkStateChange,
       provider,
-      blockTracker,
-      messenger,
     }: {
+      blockTracker: BlockTracker;
       getNetworkState: () => NetworkState;
+      getSelectedAddress: () => string;
+      incomingTransactions: {
+        apiKey?: string;
+        includeTokenTransfers?: boolean;
+        isEnabled?: () => boolean;
+        updateTransactions?: boolean;
+      };
+      messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: Provider;
-      blockTracker: BlockTracker;
-      messenger: TransactionControllerMessenger;
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
   ) {
     super(config, state);
+
     this.defaultConfig = {
       interval: 15000,
       txHistoryLimit: 40,
@@ -252,13 +276,17 @@ export class TransactionController extends BaseController<
     this.defaultState = {
       methodData: {},
       transactions: [],
+      lastFetchedBlockNumbers: {},
     };
+
     this.initialize();
+
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.registry = new MethodRegistry({ provider });
+
     this.nonceTracker = new NonceTracker({
       provider,
       blockTracker,
@@ -275,17 +303,35 @@ export class TransactionController extends BaseController<
           this.state.transactions,
         ),
     });
+
     this.incomingTransactionHelper = new IncomingTransactionHelper({
+      blockTracker,
+      getCurrentAccount: getSelectedAddress,
       getNetworkState,
-      getEthQuery: () => this.ethQuery,
+      isEnabled: incomingTransactions.isEnabled,
+      remoteTransactionSource: new EtherscanRemoteTransactionSource({
+        apiKey: incomingTransactions.apiKey,
+        includeTokenTransfers: incomingTransactions.includeTokenTransfers,
+      }),
       transactionLimit: this.config.txHistoryLimit,
-      remoteTransactionSource: new EtherscanRemoteTransactionSource(),
+      updateTransactions: incomingTransactions.updateTransactions,
     });
+
+    this.incomingTransactionHelper.hub.on(
+      'transactions',
+      this.onIncomingTransactions.bind(this),
+    );
+
+    this.incomingTransactionHelper.hub.on(
+      'updatedLastFetchedBlockNumbers',
+      this.onUpdatedLastFetchedBlockNumbers.bind(this),
+    );
 
     onNetworkStateChange(() => {
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
+
     this.poll();
   }
 
@@ -335,30 +381,45 @@ export class TransactionController extends BaseController<
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
    *
    * @param transaction - The transaction object to add.
-   * @param origin - The domain origin to append to the generated TransactionMeta.
-   * @param deviceConfirmedOn - An enum to indicate what device the transaction was confirmed to append to the generated TransactionMeta.
+   * @param opts - Additional options to control how the transaction is added.
+   * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
+   * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
+   * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
     transaction: Transaction,
-    origin?: string,
-    deviceConfirmedOn?: WalletDevice,
+    {
+      deviceConfirmedOn,
+      origin,
+      requireApproval,
+    }: {
+      deviceConfirmedOn?: WalletDevice;
+      origin?: string;
+      requireApproval?: boolean | undefined;
+    } = {},
   ): Promise<Result> {
-    const { providerConfig, networkId } = this.getNetworkState();
+    const { chainId, networkId } = this.getChainAndNetworkId();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
+    const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
+      transaction,
+      origin,
+    );
+
     const transactionMeta: TransactionMeta = {
       id: random(),
       networkID: networkId ?? undefined,
-      chainId: providerConfig.chainId,
+      chainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
       transaction,
       deviceConfirmedOn,
       verifiedOnBlockchain: false,
+      dappSuggestedGasFees,
     };
 
     try {
@@ -375,50 +436,44 @@ export class TransactionController extends BaseController<
     this.hub.emit(`unapprovedTransaction`, transactionMeta);
 
     return {
-      result: this.processApproval(transactionMeta),
+      result: this.processApproval(transactionMeta, {
+        requireApproval,
+      }),
       transactionMeta,
     };
   }
 
-  prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
-    return TransactionFactory.fromTxData(txParams, {
-      common: this.getCommonConfiguration(),
-      freeze: false,
-    });
+  startIncomingTransactionPolling() {
+    this.incomingTransactionHelper.start();
+  }
+
+  stopIncomingTransactionPolling() {
+    this.incomingTransactionHelper.stop();
+  }
+
+  async updateIncomingTransactions() {
+    await this.incomingTransactionHelper.update();
   }
 
   /**
-   * `@ethereumjs/tx` uses `@ethereumjs/common` as a configuration tool for
-   * specifying which chain, network, hardfork and EIPs to support for
-   * a transaction. By referencing this configuration, and analyzing the fields
-   * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
-   * transaction type to use.
-   *
-   * @returns {Common} common configuration object
+   * Creates approvals for all unapproved transactions persisted.
    */
+  initApprovals() {
+    const { networkId, chainId } = this.getChainAndNetworkId();
+    const unapprovedTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.status === TransactionStatus.unapproved &&
+        transactionMatchesNetwork(transaction, chainId, networkId),
+    );
 
-  getCommonConfiguration(): Common {
-    const {
-      networkId,
-      providerConfig: { type: chain, chainId, nickname: name },
-    } = this.getNetworkState();
-
-    if (
-      chain !== RPC &&
-      chain !== NetworkType['linea-goerli'] &&
-      chain !== NetworkType['linea-mainnet']
-    ) {
-      return new Common({ chain, hardfork: HARDFORK });
+    for (const txMeta of unapprovedTxs) {
+      this.processApproval(txMeta, {
+        shouldShowRequest: false,
+      }).catch((error) => {
+        /* istanbul ignore next */
+        console.error('Error during persisted transaction approval', error);
+      });
     }
-
-    const customChainParams: Partial<ChainConfig> = {
-      name,
-      chainId: parseInt(chainId, 16),
-      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
-      defaultHardfork: HARDFORK,
-    };
-
-    return Common.custom(customChainParams);
   }
 
   /**
@@ -735,9 +790,8 @@ export class TransactionController extends BaseController<
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const { providerConfig, networkId: currentNetworkID } =
-      this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { chainId: currentChainId, networkId: currentNetworkID } =
+      this.getChainAndNetworkId();
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
@@ -789,23 +843,33 @@ export class TransactionController extends BaseController<
    *
    * @param ignoreNetwork - Determines whether to wipe all transactions, or just those on the
    * current network. If `true`, all transactions are wiped.
+   * @param address - If specified, only transactions originating from this address will be
+   * wiped on current network.
    */
-  wipeTransactions(ignoreNetwork?: boolean) {
+  wipeTransactions(ignoreNetwork?: boolean, address?: string) {
     /* istanbul ignore next */
-    if (ignoreNetwork) {
+    if (ignoreNetwork && !address) {
       this.update({ transactions: [] });
       return;
     }
-    const { providerConfig, networkId: currentNetworkID } =
-      this.getNetworkState();
-    const { chainId: currentChainId } = providerConfig;
+    const { chainId: currentChainId, networkId: currentNetworkID } =
+      this.getChainAndNetworkId();
     const newTransactions = this.state.transactions.filter(
-      ({ networkID, chainId }) => {
+      ({ networkID, chainId, transaction }) => {
         // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-        const isCurrentNetwork =
+        const isMatchingNetwork =
+          ignoreNetwork ||
           chainId === currentChainId ||
           (!chainId && networkID === currentNetworkID);
-        return !isCurrentNetwork;
+
+        if (!isMatchingNetwork) {
+          return true;
+        }
+
+        const isMatchingAddress =
+          !address || transaction.from?.toLowerCase() === address.toLowerCase();
+
+        return !isMatchingAddress;
       },
     );
 
@@ -814,47 +878,34 @@ export class TransactionController extends BaseController<
     });
   }
 
-  /**
-   * Get transactions from Etherscan for the given address. By default all transactions are
-   * returned, but the `fromBlock` option can be given to filter just for transactions from a
-   * specific block onward.
-   *
-   * @param address - The address to fetch the transactions for.
-   * @param opt - Object containing optional data, fromBlock and Etherscan API key.
-   * @returns The block number of the latest incoming transaction.
-   */
-  async fetchAll(
-    address: string,
-    opt?: FetchAllOptions,
-  ): Promise<string | void> {
-    const { transactions: localTransactions } = this.state;
+  startIncomingTransactionProcessing() {
+    this.incomingTransactionHelper.start();
+  }
 
-    const { updateRequired, transactions, latestBlockNumber } =
-      await this.incomingTransactionHelper.reconcile({
-        address,
-        localTransactions,
-        fromBlock: opt?.fromBlock,
-        apiKey: opt?.etherscanApiKey,
-      });
-
-    if (updateRequired) {
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
-    }
-
-    return latestBlockNumber;
+  stopIncomingTransactionProcessing() {
+    this.incomingTransactionHelper.stop();
   }
 
   private async processApproval(
     transactionMeta: TransactionMeta,
+    {
+      requireApproval,
+      shouldShowRequest = true,
+    }: {
+      requireApproval?: boolean | undefined;
+      shouldShowRequest?: boolean;
+    },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
-      const acceptResult = await this.requestApproval(transactionMeta);
-      resultCallbacks = acceptResult.resultCallbacks;
+      if (requireApproval !== false) {
+        const acceptResult = await this.requestApproval(transactionMeta, {
+          shouldShowRequest,
+        });
+        resultCallbacks = acceptResult.resultCallbacks;
+      }
 
       const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
 
@@ -919,8 +970,7 @@ export class TransactionController extends BaseController<
   private async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
-    const { providerConfig } = this.getNetworkState();
-    const { chainId } = providerConfig;
+    const { chainId } = this.getChainAndNetworkId();
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const {
@@ -1116,8 +1166,15 @@ export class TransactionController extends BaseController<
           return [meta, false];
         }
 
+        const txBlock = await query(this.ethQuery, 'getBlockByHash', [
+          txReceipt.blockHash,
+        ]);
+
         meta.verifiedOnBlockchain = true;
         meta.transaction.gasUsed = txReceipt.gasUsed;
+        meta.txReceipt = txReceipt;
+        meta.baseFeePerGas = txBlock?.baseFeePerGas;
+        meta.blockTimestamp = txBlock?.timestamp;
 
         // According to the Web3 docs:
         // TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
@@ -1184,7 +1241,10 @@ export class TransactionController extends BaseController<
     return Number(txReceipt.status) === 0;
   }
 
-  private async requestApproval(txMeta: TransactionMeta): Promise<AddResult> {
+  private async requestApproval(
+    txMeta: TransactionMeta,
+    { shouldShowRequest }: { shouldShowRequest: boolean },
+  ): Promise<AddResult> {
     const id = this.getApprovalId(txMeta);
     const { origin } = txMeta;
     const type = ApprovalType.Transaction;
@@ -1199,7 +1259,7 @@ export class TransactionController extends BaseController<
         requestData,
         expectsResult: true,
       },
-      true,
+      shouldShowRequest,
     )) as Promise<AddResult>;
   }
 
@@ -1225,6 +1285,134 @@ export class TransactionController extends BaseController<
     const isCompleted = this.isLocalFinalState(transaction.status);
 
     return { meta: transaction, isCompleted };
+  }
+
+  private getChainAndNetworkId(): {
+    networkId: string | null;
+    chainId: Hex;
+  } {
+    const { networkId, providerConfig } = this.getNetworkState();
+    const chainId = providerConfig?.chainId;
+    return { networkId, chainId };
+  }
+
+  private prepareUnsignedEthTx(
+    txParams: Record<string, unknown>,
+  ): TypedTransaction {
+    return TransactionFactory.fromTxData(txParams, {
+      common: this.getCommonConfiguration(),
+      freeze: false,
+    });
+  }
+
+  /**
+   * `@ethereumjs/tx` uses `@ethereumjs/common` as a configuration tool for
+   * specifying which chain, network, hardfork and EIPs to support for
+   * a transaction. By referencing this configuration, and analyzing the fields
+   * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
+   * transaction type to use.
+   *
+   * @returns common configuration object
+   */
+  private getCommonConfiguration(): Common {
+    const {
+      networkId,
+      providerConfig: { type: chain, chainId, nickname: name },
+    } = this.getNetworkState();
+
+    if (
+      chain !== RPC &&
+      chain !== NetworkType['linea-goerli'] &&
+      chain !== NetworkType['linea-mainnet']
+    ) {
+      return new Common({ chain, hardfork: HARDFORK });
+    }
+
+    const customChainParams: Partial<ChainConfig> = {
+      name,
+      chainId: parseInt(chainId, 16),
+      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
+      defaultHardfork: HARDFORK,
+    };
+
+    return Common.custom(customChainParams);
+  }
+
+  private onIncomingTransactions({
+    added,
+    updated,
+  }: {
+    added: TransactionMeta[];
+    updated: TransactionMeta[];
+  }) {
+    const { transactions: currentTransactions } = this.state;
+
+    const updatedTransactions = [
+      ...added,
+      ...currentTransactions.map((originalTransaction) => {
+        const updatedTransaction = updated.find(
+          ({ transactionHash }) =>
+            transactionHash === originalTransaction.transactionHash,
+        );
+
+        return updatedTransaction ?? originalTransaction;
+      }),
+    ];
+
+    this.update({
+      transactions: this.trimTransactionsForState(updatedTransactions),
+    });
+  }
+
+  private onUpdatedLastFetchedBlockNumbers({
+    lastFetchedBlockNumbers,
+    blockNumber,
+  }: {
+    lastFetchedBlockNumbers: {
+      [key: string]: number;
+    };
+    blockNumber: number;
+  }) {
+    this.update({ lastFetchedBlockNumbers });
+    this.hub.emit('incomingTransactionBlock', blockNumber);
+  }
+
+  private generateDappSuggestedGasFees(
+    transaction: Transaction,
+    origin?: string,
+  ): DappSuggestedGasFees | undefined {
+    if (!origin || origin === ORIGIN_METAMASK) {
+      return undefined;
+    }
+
+    const { gasPrice, maxFeePerGas, maxPriorityFeePerGas, gas } = transaction;
+
+    if (
+      gasPrice === undefined &&
+      maxFeePerGas === undefined &&
+      maxPriorityFeePerGas === undefined &&
+      gas === undefined
+    ) {
+      return undefined;
+    }
+
+    const dappSuggestedGasFees: DappSuggestedGasFees = {};
+
+    if (gasPrice !== undefined) {
+      dappSuggestedGasFees.gasPrice = gasPrice;
+    } else if (
+      maxFeePerGas !== undefined ||
+      maxPriorityFeePerGas !== undefined
+    ) {
+      dappSuggestedGasFees.maxFeePerGas = maxFeePerGas;
+      dappSuggestedGasFees.maxPriorityFeePerGas = maxPriorityFeePerGas;
+    }
+
+    if (gas !== undefined) {
+      dappSuggestedGasFees.gas = gas;
+    }
+
+    return dappSuggestedGasFees;
   }
 }
 

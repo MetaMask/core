@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "MetaMask",
@@ -23,14 +23,13 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/phishing-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:^",
-    "@metamask/controller-utils": "workspace:^",
+    "@metamask/base-controller": "^3.2.1",
+    "@metamask/controller-utils": "^4.3.2",
     "@types/punycode": "^2.1.0",
     "eth-phishing-detect": "^1.2.0",
     "punycode": "^2.1.1"

@@ -312,6 +312,37 @@ export class KeyringController extends BaseControllerV2<
   }
 
   /**
+   * Adds a new account to the specified keyring.
+   *
+   * @param keyring - Keyring to add the account to.
+   * @param accountCount - Number of accounts before adding a new one, used to make the method idempotent.
+   * @returns Promise resolving to keyring current state and added account
+   */
+  async addNewAccountForKeyring(
+    keyring: Keyring<Json>,
+    accountCount?: number,
+  ): Promise<Hex> {
+    const oldAccounts = await keyring.getAccounts();
+
+    if (accountCount && oldAccounts.length !== accountCount) {
+      if (accountCount > oldAccounts.length) {
+        throw new Error('Account out of sequence');
+      }
+      return oldAccounts[accountCount];
+    }
+
+    await this.#keyring.addNewAccount(keyring);
+    const addedAccountAddress = (await keyring.getAccounts()).find(
+      (selectedAddress) => !oldAccounts.includes(selectedAddress),
+    );
+    assertIsStrictHexString(addedAccountAddress);
+
+    this.updateIdentities(await this.#keyring.getAccounts());
+
+    return addedAccountAddress;
+  }
+
+  /**
    * Adds a new account to the default (first) HD seed phrase keyring without updating identities in preferences.
    *
    * @returns Promise resolving to current state when the account is added.
@@ -373,6 +404,21 @@ export class KeyringController extends BaseControllerV2<
     } finally {
       releaseLock();
     }
+  }
+
+  /**
+   * Adds a new keyring of the given `type`.
+   *
+   * @param type - Keyring type name.
+   * @param opts - Keyring options.
+   * @throws If a builder for the given `type` does not exist.
+   * @returns Promise resolving to the added keyring.
+   */
+  async addNewKeyring(
+    type: KeyringTypes | string,
+    opts?: unknown,
+  ): Promise<Keyring<Json>> {
+    return this.#keyring.addNewKeyring(type, opts);
   }
 
   /**
@@ -467,6 +513,16 @@ export class KeyringController extends BaseControllerV2<
    */
   getKeyringsByType(type: KeyringTypes | string): unknown[] {
     return this.#keyring.getKeyringsByType(type);
+  }
+
+  /**
+   * Persist all serialized keyrings in the vault.
+   *
+   * @returns Promise resolving with `true` value when the
+   * operation completes.
+   */
+  async persistAllKeyrings(): Promise<boolean> {
+    return this.#keyring.persistAllKeyrings();
   }
 
   /**

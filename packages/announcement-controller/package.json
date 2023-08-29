@@ -1,6 +1,6 @@
 {
   "name": "@metamask/announcement-controller",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Manages in-app announcements",
   "keywords": [
     "MetaMask",
@@ -23,13 +23,12 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/announcement-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:^"
+    "@metamask/base-controller": "^3.2.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",

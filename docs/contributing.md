@@ -51,81 +51,113 @@ When submitting a pull request for this repo, take some a bit of extra time to f
   - What are the anticipated effects to whichever platform might want to make use of these changes?
   - If there are breaking changes to the API, what do consumers need to do in order to adapt to those changes upon upgrading to them?
 
-## Using packages in other projects during development/testing
+## Testing changes to packages in another project
 
-When developing changes to packages within this repository that a different project depends upon, you may wish to load those changes into the project and test them locally or in CI before publishing proper releases of those packages. To solve that problem, this repository provides a mechanism to publish "preview" versions of packages to GitHub Package Registry. These versions can then be used in the project like any other version, provided the project is configured to use that registry.
+If you have a project that depends on a package in this monorepo, you may want to load those changes into the project without having to create a whole new monorepo release. How you do this depends on your use case.
 
-### Publishing preview builds as a MetaMask contributor
+### Testing changes to packages locally
 
-If you are a member of the MetaMask organization, you can create branches directly on this repository rather than using a fork. This allows you to use our preview build GitHub Action.
+If you're developing your project locally and want to test changes to a package, you can follow these steps:
 
-Post a comment on the PR with the text `@metamaskbot publish-preview` (This triggers the `publish-preview` GitHub action). After a few minutes, you will see a new comment indicating that all packages have been published with the format `<package name>-<commit id>`.
+1. First, you must build the monorepo. It's recommend to run `yarn build:watch` so that changes to the package you want to change are reflected in your project automatically.
+2. Next, you need to connect the package to your project by overriding the resolution logic in your package manager to replace the published version of the package with the local version.
 
-### Publishing preview builds as an independent contributor
+   1. Open `package.json` in the project and locate the dependency entry for the package.
+   2. Locate the section responsible for resolution overrides (or create it if it doesn't exist). If you're using Yarn, this is `resolutions`; if you're using NPM or any other package manager, this is `overrides`.
+   3. Add a line to this section that mirrors the dependency entry on the left-hand side and points to the local path on the right-hand side:
 
-If you're a contributor and you've forked this repository, you can create preview versions for a branch by following these steps:
+      ```
+      "@metamask/<PACKAGE_NAME>@<PUBLISHED_VERSION_RANGE>": "file:<PATH_TO_CORE>/packages/<PACKAGE_NAME>"
+      ```
 
-1. Open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<your GitHub username>`.
-2. From your local fork of the repository, run `yarn prepare-preview-builds "$(git rev-parse --short HEAD)" && yarn build && yarn publish-previews` to generate preview versions for all packages based on the current branch and publish them to GitHub Package Registry.
-   - Take note of the version that is published; it should look like `1.2.3-e2df9b4` instead of `1.2.3`.
+      > **Example:**
+      >
+      > - If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and your clone of the `core` repo is at the same level as your project, add the following to `resolutions`:
+      >
+      >   ```
+      >   "@metamask/controller-utils@^1.1.4": "file:../core/packages/controller-utils"
+      >   ```
+      >
+      > - If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and your fork of the `core` repo is at the same level as your project, add the following to `overrides`:
+      >
+      >   ```
+      >   "@metamask/assets-controllers@^3.4.7": "file:../core/packages/assets-controllers"
+      >   ```
 
-### Using preview builds
+   4. Run `yarn install`.
 
-> **Warning**
->
-> There is a known problem with the preview build workflow. It relies upon you having a local cache of any non-preview `@metamask/`-scoped packages.
->
-> If you encounter problems installing non-preview `@metamask/`-scoped packages when using this workflow, you can work around the problem by first installing dependencies without preview builds enabled (e.g. by temporarily removing the `.npmrc` or unsetting the required environment variables) to install the missing packages. Once they are installed, preview build installations should work (the non-preview `@metamask/`-scoped packages will be found in your local cache).
->
-> See [issue #1075](https://github.com/MetaMask/core/issues/1075) for more details.
+3. Due to the use of Yarn's `file:` protocol, if you update the package in the monorepo, then you'll need to run `yarn install` in the project again.
 
-Preview builds should automatically work in CI on the MetaMask extension and MetaMask mobile repositories, as long as the PR is in draft.
+### Testing changes to packages with preview builds
 
-To use preview builds locally, follow these steps:
+If you want to test changes to a package where it would be unwieldy or impossible to use a local version, such as on CI, you can publish a preview build and configure your project to use it.
 
-1. Navigate to your settings within GitHub and [create a classic access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `read:packages` scope.
-2. Follow these steps in the project using the preview builds:
+#### Publishing preview builds as a MetaMask contributor
 
-   - **Yarn 1 (classic) or NPM**
+If you're a member of the MetaMask organization, you can create preview builds based on a pull request by following these steps:
 
-     Add the following in `.npmrc`
+1. Post a comment on the pull request with the text `@metamaskbot publish-preview`. This starts the `publish-preview` GitHub action, which will create preview builds for all packages in the monorepo.
+2. After a few minutes, the action should complete and you will see a new comment that lists the newly published packages along with their versions.
 
-     ```
-     @metamask:registry=https://npm.pkg.github.com
-     //npm.pkg.github.com/:_authToken=<your personal access token>
-     ```
+   Note two things about each package:
 
-   - **Yarn >= 2 (berry):**
+   - The name is scoped to `@metamask-previews` instead of `@metamask`.
+   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-e2df9b4` instead of `1.2.3`.
 
-     Ensure that the project `.yarnrc.yml` file has the following contents:
+Now you can [use these preview builds in your project](#using-preview-builds).
 
-     ```
-     npmRegistries:
-       "https://npm.pkg.github.com":
-         npmAlwaysAuth: true
-         npmAuthToken: "${GITHUB_NPM_TOKEN-}"
+If you make more changes to a package, follow step 2 again, making sure to update the reference to the package in your project's `package.json` to use the newly published preview version.
 
-     npmScopes:
-       metamask:
-         npmRegistryServer: "${METAMASK_NPM_REGISTRY:-https://registry.yarnpkg.com}"
-     ```
+#### Publishing preview builds as an independent contributor
 
-     The `METAMASK_NPM_REGISTRY` environment variable lets you control which registry is used for `@metamask`-scoped packages. Set this environment variable to `https://npm.pkg.github.com` to use preview builds. The `GITHUB_NPM_TOKEN` environment variable is where your token is set (the one created in step 1).
+If you've forked this repository, you can create preview builds based on a branch by following these steps:
 
-     For example, in Bash or ZSH, you can set both of these environment variables when installing dependencies:
+1. First, since an NPM scope is used to host preview build releases, you'll need access to one. If you do not, you can either [create a new organization](https://www.npmjs.com/org/create) or [convert your existing username into an organization](https://www.npmjs.com/org/upgrade).
 
-     ```bash
-     GITHUB_NPM_TOKEN=<your personal access token> METAMASK_NPM_REGISTRY=https://npm.pkg.github.com yarn install
-     ```
+2. Once you've done this, open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<NPM_ORG>`, replacing `NPM_ORG` with your NPM organization.
 
-     - It's recommended to use your machine's local keychain to store the token, and retrieve it from there. For example on macOS, you can use:
-       ```bash
-       GITHUB_NPM_TOKEN=$(security find-generic-password -s 'GitHub NPM Token' -w) METAMASK_NPM_REGISTRY=https://npm.pkg.github.com yarn install
-       ```
+3. Next, run the following command to create and publish the preview builds (again, replacing `NPM_ORG` as appropriate):
 
-3. Update `package.json` with the new preview build versions
-   - Each preview build package should have a version matching (e.g. `1.2.3-e2df9b4` instead of `~1.2.3`), then run `yarn install`.
-4. Repeat step 3 each time you publish new preview builds.
+   ```
+   yarn prepare-preview-builds "@<NPM_ORG>" "$(git rev-parse --short HEAD)" && yarn build && yarn publish-previews
+   ```
+
+   You should be able to see the published version of each package in the output. Note two things:
+
+   - The name is scoped to the NPM organization you entered instead of `@metamask`.
+   - The ID of the last commit in the branch is appended to the version, e.g. `1.2.3-e2df9b4` instead of `1.2.3`.
+
+Now you can [use these preview builds in your project](#using-preview-builds).
+
+If you make more changes to a package, follow step 3 again, making sure to update the reference to the package in your project's `package.json` to use the newly published preview version.
+
+#### Using preview builds
+
+To use a preview build for a package within a project, you need to override the resolution logic for your package manager so that the "production" version of that package is replaced with the preview version. Here's how you do that:
+
+1. Open `package.json` in the project and locate the dependency entry for the core package for which you want to use a preview build.
+2. Locate the section responsible for resolution overrides (or create it if it doesn't exist). If you're using Yarn, this is `resolutions`; if you're using NPM or any other package manager, this is `overrides`.
+3. Add a line to this section that mirrors the dependency entry on the left-hand side and points to the preview version on the right-hand side:
+
+   ```
+   "@metamask/<PACKAGE_NAME>@<PRODUCTION_VERSION_RANGE>": "npm:@<NPM_ORG>/<PACKAGE_NAME>@<PREVIEW_VERSION>"
+   ```
+
+   > **Example:**
+   >
+   > - If you're a member of MetaMask, your project uses Yarn, `@metamask/controller-utils` is listed in dependencies at `^1.1.4`, and you want to use the preview version `1.2.3-e2df9b4`, add the following to `resolutions`:
+   >
+   >   ```
+   >   "@metamask/controller-utils@^1.1.4": "npm:@metamask-previews/controller-utils@1.2.3-e2df9b4"
+   >   ```
+   >
+   > - If you are an individual contributor, your project uses NPM, `@metamask/assets-controllers` is listed in dependencies at `^3.4.7`, and you want to use the preview version `4.5.6-bc2a997` published under `@foo`, add the following to `overrides`:
+   >
+   >   ```
+   >   "@metamask/assets-controllers@^3.4.7": "npm:@foo/assets-controllers@4.5.6-bc2a997"
+   >   ```
+
+4. Run `yarn install`.
 
 ## Releasing
 
