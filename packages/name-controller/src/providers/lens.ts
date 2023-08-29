@@ -1,25 +1,26 @@
 import type {
   NameProvider,
   NameProviderRequest,
-  NameProviderResult,
+  NameProviderResponse,
 } from '../types';
-import { NameValueType } from '../types';
+import { NameType } from '../types';
 
 const ID = 'lens';
-
-const SUPPORTED_TYPES: NameValueType[] = [NameValueType.ETHEREUM_ADDRESS];
+const LABEL = 'Lens Protocol';
 
 export class LensNameProvider implements NameProvider {
-  getProviderId(): string {
-    return ID;
+  getProviderIds(): Record<string, string[]> {
+    return { [NameType.ETHEREUM_ADDRESS]: [ID] };
   }
 
-  supportsType(type: NameValueType): boolean {
-    return SUPPORTED_TYPES.includes(type);
+  getProviderLabel(_providerId: string): string {
+    return LABEL;
   }
 
-  async getName(request: NameProviderRequest): Promise<NameProviderResult> {
-    const { value, type } = request;
+  async getProposedNames(
+    request: NameProviderRequest,
+  ): Promise<NameProviderResponse> {
+    const { value } = request;
     const url = `https://api.lens.dev`;
 
     const body = JSON.stringify({
@@ -37,17 +38,14 @@ export class LensNameProvider implements NameProvider {
     const responseData = await response.json();
 
     const profile = responseData?.data?.profiles?.items?.[0];
-    let name = profile?.handle;
-
-    if (name && profile?.name) {
-      name += ` (${profile?.name})`;
-    }
+    const proposedName = profile?.handle;
 
     return {
-      provider: ID,
-      value,
-      type,
-      name,
+      results: {
+        [ID]: {
+          proposedName,
+        },
+      },
     };
   }
 }

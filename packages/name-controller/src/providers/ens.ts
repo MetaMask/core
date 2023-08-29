@@ -1,15 +1,14 @@
 import type {
   NameProvider,
   NameProviderRequest,
-  NameProviderResult,
+  NameProviderResponse,
 } from '../types';
-import { NameValueType } from '../types';
+import { NameType } from '../types';
 
 export type ReverseLookupCallback = (address: string) => Promise<string>;
 
 const ID = 'ens';
-
-const SUPPORTED_TYPES: NameValueType[] = [NameValueType.ETHEREUM_ADDRESS];
+const LABEL = 'Ethereum Name Service (ENS)';
 
 export class ENSNameProvider implements NameProvider {
   #reverseLookup: ReverseLookupCallback;
@@ -18,22 +17,23 @@ export class ENSNameProvider implements NameProvider {
     this.#reverseLookup = reverseLookup;
   }
 
-  getProviderId(): string {
-    return ID;
+  getProviderIds(): Record<NameType, string[]> {
+    return { [NameType.ETHEREUM_ADDRESS]: [ID] };
   }
 
-  supportsType(type: NameValueType): boolean {
-    return SUPPORTED_TYPES.includes(type);
+  getProviderLabel(_providerId: string): string {
+    return LABEL;
   }
 
-  async getName(request: NameProviderRequest): Promise<NameProviderResult> {
-    const domain = await this.#reverseLookup(request.value);
+  async getProposedNames(
+    request: NameProviderRequest,
+  ): Promise<NameProviderResponse> {
+    const proposedName = await this.#reverseLookup(request.value);
 
     return {
-      provider: ID,
-      value: request.value,
-      type: request.type,
-      name: domain,
+      results: {
+        [ID]: { proposedName },
+      },
     };
   }
 }

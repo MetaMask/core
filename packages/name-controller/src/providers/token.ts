@@ -1,35 +1,37 @@
 import type {
   NameProvider,
   NameProviderRequest,
-  NameProviderResult,
+  NameProviderResponse,
 } from '../types';
-import { NameValueType } from '../types';
+import { NameType } from '../types';
 
 const ID = 'token';
-
-const SUPPORTED_TYPES: NameValueType[] = [NameValueType.ETHEREUM_ADDRESS];
+const LABEL = 'Blockchain (Token Name)';
 
 export class TokenNameProvider implements NameProvider {
-  getProviderId(): string {
-    return ID;
+  getProviderIds(): Record<NameType, string[]> {
+    return { [NameType.ETHEREUM_ADDRESS]: [ID] };
   }
 
-  supportsType(type: NameValueType): boolean {
-    return SUPPORTED_TYPES.includes(type);
+  getProviderLabel(_providerId: string): string {
+    return LABEL;
   }
 
-  async getName(request: NameProviderRequest): Promise<NameProviderResult> {
-    const { value, type, chainId } = request;
+  async getProposedNames(
+    request: NameProviderRequest,
+  ): Promise<NameProviderResponse> {
+    const { value, chainId } = request;
     const url = `https://token-api.metaswap.codefi.network/token/${chainId}?address=${value}`;
     const response = await fetch(url);
     const responseData = await response.json();
-    const name = responseData?.name;
+    const proposedName = responseData?.name;
 
     return {
-      provider: ID,
-      value,
-      type,
-      name,
+      results: {
+        [ID]: {
+          proposedName,
+        },
+      },
     };
   }
 }

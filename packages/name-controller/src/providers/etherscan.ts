@@ -1,13 +1,12 @@
 import type {
   NameProvider,
   NameProviderRequest,
-  NameProviderResult,
+  NameProviderResponse,
 } from '../types';
-import { NameValueType } from '../types';
+import { NameType } from '../types';
 
 const ID = 'etherscan';
-
-const SUPPORTED_TYPES: NameValueType[] = [NameValueType.ETHEREUM_ADDRESS];
+const LABEL = 'Etherscan (Verified Contract Name)';
 
 export class EtherscanNameProvider implements NameProvider {
   #apiKey?: string;
@@ -16,16 +15,18 @@ export class EtherscanNameProvider implements NameProvider {
     this.#apiKey = apiKey;
   }
 
-  getProviderId(): string {
-    return ID;
+  getProviderIds(): Record<NameType, string[]> {
+    return { [NameType.ETHEREUM_ADDRESS]: [ID] };
   }
 
-  supportsType(type: NameValueType): boolean {
-    return SUPPORTED_TYPES.includes(type);
+  getProviderLabel(_providerId: string): string {
+    return LABEL;
   }
 
-  async getName(request: NameProviderRequest): Promise<NameProviderResult> {
-    const { value, type } = request;
+  async getProposedNames(
+    request: NameProviderRequest,
+  ): Promise<NameProviderResponse> {
+    const { value } = request;
 
     let url = `https://api.etherscan.io/api?module=contract&action=getsourcecode&address=${value}`;
 
@@ -35,13 +36,14 @@ export class EtherscanNameProvider implements NameProvider {
 
     const response = await fetch(url);
     const responseData = await response.json();
-    const name = responseData?.result?.[0]?.ContractName;
+    const proposedName = responseData?.result?.[0]?.ContractName;
 
     return {
-      provider: ID,
-      value,
-      type,
-      name,
+      results: {
+        [ID]: {
+          proposedName,
+        },
+      },
     };
   }
 }

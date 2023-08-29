@@ -1,23 +1,26 @@
-export enum NameValueType {
+export enum NameType {
   ETHEREUM_ADDRESS = 'ethereumAddress',
 }
 
 export type NameProviderRequest = {
-  value: string;
-  type: NameValueType;
   chainId: string;
+  providerIds?: string[];
+  type: NameType;
+  value: string;
 };
 
 export type NameProviderResult = {
-  provider: string;
-  value: string;
-  type: NameValueType;
-  name?: string;
+  proposedName?: string;
+  error?: unknown;
+};
+
+export type NameProviderResponse = {
+  results: Record<string, NameProviderResult>;
   error?: unknown;
 };
 
 export type NameProvider = {
-  getProviderId(): string;
-  supportsType(type: NameValueType): boolean;
-  getName(request: NameProviderRequest): Promise<NameProviderResult>;
+  getProviderIds(): Record<NameType, string[]>;
+  getProviderLabel(providerId: string): string;
+  getProposedNames(request: NameProviderRequest): Promise<NameProviderResponse>;
 };
