@@ -317,23 +317,17 @@ export function getTotalFiatAccountBalance(
 
   const fromTokenMinimalUnit = (minimalInput: number, decimals: number) => {
     const minimalInputStr = addHexPrefix(Number(minimalInput).toString(16));
-    let minimal = safeNumberToBN(minimalInputStr);
-    const negative = minimal.lt(new BN(0));
+    const minimal = safeNumberToBN(minimalInputStr);
     const base = new BN(Math.pow(10, decimals).toString());
 
-    if (negative) {
-      minimal = minimal.mul(negative);
-    }
     let fraction = minimal.mod(base).toString(10);
     while (fraction.length < decimals) {
       fraction = `0${fraction}`;
     }
-    fraction = fraction.match(/^([0-9]*[1-9]|0)(0*)/u)[1];
+    fraction = fraction.match(/^([0-9]*[1-9]|0)(0*)/u)?.[1] || '0';
+
     const whole = minimal.div(base).toString(10);
-    let value = String(whole) + (fraction === '0' ? '' : `.${fraction}`);
-    if (negative) {
-      value = `-${value}`;
-    }
+    const value = String(whole) + (fraction === '0' ? '' : `.${fraction}`);
     return value;
   };
 
