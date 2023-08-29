@@ -373,7 +373,10 @@ export default class AccountsController extends BaseControllerV2<
       currentState.internalAccounts.selectedAccount = account.id;
     });
 
-    this.messagingSystem.publish(`${this.name}:selectedAccountChange`, account);
+    this.messagingSystem.publish(
+      `${controllerName}:selectedAccountChange`,
+      account,
+    );
   }
 
   setAccountName(accountId: string, accountName: string): void {
@@ -437,8 +440,6 @@ export default class AccountsController extends BaseControllerV2<
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         account.address.toLowerCase() === newAddress!.toLowerCase(),
     );
-
-    // console.log('new account in onKeyringStateChange', newAccount);
 
     // set the first new account as the selected account
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
