@@ -15,7 +15,6 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
-  OPENSEA_API_URL,
   OPENSEA_PROXY_URL,
   ApprovalType,
 } from '@metamask/controller-utils';
@@ -227,14 +226,10 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
   private getNftContractInformationApi({
     contractAddress,
-    useProxy,
   }: {
     contractAddress: string;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`
-      : `${OPENSEA_API_URL}/asset_contract/${contractAddress}`;
+    return `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`;
   }
 
   /**
@@ -490,37 +485,16 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
   ): Promise<ApiNftContract> {
     /* istanbul ignore if */
-    let apiNftContractObject: ApiNftContract | undefined =
+    const apiNftContractObject: ApiNftContract | undefined =
       await fetchWithErrorHandling({
         url: this.getNftContractInformationApi({
           contractAddress,
-          useProxy: true,
         }),
       });
 
     // if we successfully fetched return the fetched data immediately
     if (apiNftContractObject) {
       return apiNftContractObject;
-    }
-
-    // if we were unsuccessful in fetching from the API and an OpenSea API key is present
-    // attempt to refetch directly against the OpenSea API and if successful return the data immediately
-    if (this.openSeaApiKey) {
-      apiNftContractObject = await fetchWithErrorHandling({
-        url: this.getNftContractInformationApi({
-          contractAddress,
-          useProxy: false,
-        }),
-        options: {
-          headers: { 'X-API-KEY': this.openSeaApiKey },
-        },
-        // catch 403 errors (in case API key is down we don't want to blow up)
-        errorCodesToCatch: [403],
-      });
-
-      if (apiNftContractObject) {
-        return apiNftContractObject;
-      }
     }
 
     // If we've reached this point we were unable to fetch data from either the proxy or opensea so we return

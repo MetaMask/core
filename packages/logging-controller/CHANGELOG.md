@@ -6,10 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+
 ## [1.0.0]
 ### Added
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.0...@metamask/logging-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/logging-controller@1.0.0
