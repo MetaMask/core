@@ -413,7 +413,7 @@ describe('NameController', () => {
     });
 
     describe('with error', () => {
-      it('ignores response if unhandled error while getting proposed name using provider', async () => {
+      it('returns result errors if unhandled error while getting proposed name using provider', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
         const error = new Error('TestError');
@@ -447,6 +447,10 @@ describe('NameController', () => {
 
         expect(result).toStrictEqual({
           results: {
+            [`${PROVIDER_ID_MOCK}1`]: {
+              proposedNames: undefined,
+              error,
+            },
             [`${PROVIDER_ID_MOCK}2`]: {
               proposedNames: [
                 `${PROPOSED_NAME_MOCK}2`,
@@ -458,7 +462,7 @@ describe('NameController', () => {
         });
       });
 
-      it('ignores response if response error while getting proposed name using provider', async () => {
+      it('returns result errors if response error while getting proposed name using provider', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
         const error = new Error('TestError');
@@ -495,6 +499,10 @@ describe('NameController', () => {
 
         expect(result).toStrictEqual({
           results: {
+            [`${PROVIDER_ID_MOCK}1`]: {
+              proposedNames: undefined,
+              error,
+            },
             [`${PROVIDER_ID_MOCK}2`]: {
               proposedNames: [
                 `${PROPOSED_NAME_MOCK}2`,
@@ -506,7 +514,7 @@ describe('NameController', () => {
         });
       });
 
-      it('stores empty array if result error while getting proposed name using provider', async () => {
+      it('stores null if result error while getting proposed name using provider', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
         const error = new Error('TestError');
@@ -535,7 +543,7 @@ describe('NameController', () => {
               name: null,
               providerId: null,
               proposedNames: {
-                [`${PROVIDER_ID_MOCK}1`]: [],
+                [`${PROVIDER_ID_MOCK}1`]: null,
                 [`${PROVIDER_ID_MOCK}2`]: [
                   `${PROPOSED_NAME_MOCK}2`,
                   `${PROPOSED_NAME_MOCK}2_2`,
@@ -548,7 +556,7 @@ describe('NameController', () => {
         expect(result).toStrictEqual({
           results: {
             [`${PROVIDER_ID_MOCK}1`]: {
-              proposedNames: [],
+              proposedNames: undefined,
               error,
             },
             [`${PROVIDER_ID_MOCK}2`]: {

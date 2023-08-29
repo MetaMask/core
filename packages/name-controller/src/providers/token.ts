@@ -23,8 +23,15 @@ export class TokenNameProvider implements NameProvider {
     const { value, chainId } = request;
     const url = `https://token-api.metaswap.codefi.network/token/${chainId}?address=${value}`;
     const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(
+        `Fetch failed with status '${response.status}' for request '${url}'`,
+      );
+    }
+
     const responseData = await response.json();
-    const proposedName = responseData?.name;
+    const proposedName = responseData.name;
 
     return {
       results: {

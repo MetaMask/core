@@ -6,6 +6,7 @@ import type {
   NameProvider,
   NameProviderRequest,
   NameProviderResponse,
+  NameProviderResult,
 } from './types';
 import { NameType } from './types';
 
@@ -73,7 +74,7 @@ export type UpdateProposedNamesRequest = {
 };
 
 export type UpdateProposedNamesResult = {
-  results: Record<string, { proposedNames: string[]; error: unknown }>;
+  results: Record<string, { proposedNames?: string[]; error?: unknown }>;
 };
 
 export type SetNameRequest = {
@@ -167,7 +168,7 @@ export class NameController extends BaseControllerV2<
     providerResponses: NameProviderResponse[],
   ) {
     const { value, type } = request;
-    const newProposedNames: { [providerId: string]: string[] } = {};
+    const newProposedNames: { [providerId: string]: string[] | null } = {};
 
     for (const providerResponse of providerResponses) {
       const { results, error: responseError } = providerResponse;
@@ -179,10 +180,15 @@ export class NameController extends BaseControllerV2<
       for (const providerId of Object.keys(providerResponse.results)) {
         const result = results[providerId];
         const { proposedNames } = result;
+        let finalProposedNames = result.error ? null : proposedNames ?? [];
 
-        newProposedNames[providerId] = proposedNames?.length
-          ? proposedNames.filter((proposedName) => proposedName?.length)
-          : [];
+        if (finalProposedNames) {
+          finalProposedNames = finalProposedNames.filter(
+            (proposedName) => proposedName?.length,
+          );
+        }
+
+        newProposedNames[providerId] = finalProposedNames;
       }
     }
 
@@ -217,19 +223,21 @@ export class NameController extends BaseControllerV2<
   ): UpdateProposedNamesResult {
     return providerResponses.reduce(
       (acc: UpdateProposedNamesResult, providerResponse) => {
-        const { results, error: responseError } = providerResponse;
-
-        if (responseError) {
-          return acc;
-        }
+        const { results } = providerResponse;
 
         for (const providerId of Object.keys(results)) {
           const { proposedNames: resultProposedNames, error: resultError } =
             results[providerId];
 
-          const proposedNames = resultProposedNames?.length
-            ? resultProposedNames.filter((proposedName) => proposedName?.length)
-            : [];
+          let proposedNames = resultError
+            ? undefined
+            : resultProposedNames ?? [];
+
+          if (proposedNames) {
+            proposedNames = proposedNames.filter(
+              (proposedName) => proposedName?.length,
+            );
+          }
 
           acc.results[providerId] = {
             proposedNames,
@@ -254,7 +262,7 @@ export class NameController extends BaseControllerV2<
     const relevantProviderIds =
       requestedProviderIds?.filter((providerId) =>
         providerIds.includes(providerId),
-      ) ?? [];
+      ) ?? providerIds;
 
     if (requestedProviderIds && !relevantProviderIds.length) {
       return undefined;
@@ -267,37 +275,47 @@ export class NameController extends BaseControllerV2<
       providerIds: requestedProviderIds ? relevantProviderIds : undefined,
     };
 
+    let responseError: unknown | undefined;
+    let response: NameProviderResponse | undefined;
+
     try {
-      const response = await provider.getProposedNames(providerRequest);
-
-      if (response.error) {
-        return { results: {}, error: response.error };
-      }
-
-      return {
-        results: Object.keys(response.results).reduce(
-          (acc: any, providerId) => {
-            if (
-              !requestedProviderIds ||
-              requestedProviderIds.includes(providerId)
-            ) {
-              acc[providerId] = response.results[providerId];
-            }
-
-            return acc;
-          },
-          {},
-        ),
-      };
+      response = await provider.getProposedNames(providerRequest);
+      responseError = response.error;
     } catch (error) {
-      console.error('Failed to get proposed names', {
-        value,
-        type,
-        error,
-      });
-
-      return { results: {}, error };
+      responseError = error;
     }
+
+    let results = {};
+
+    if (response?.results) {
+      results = Object.keys(response.results).reduce(
+        (acc: NameProviderResponse['results'], providerId) => {
+          if (
+            !requestedProviderIds ||
+            requestedProviderIds.includes(providerId)
+          ) {
+            acc[providerId] = (response as NameProviderResponse).results[
+              providerId
+            ];
+          }
+
+          return acc;
+        },
+        {},
+      );
+    }
+
+    if (responseError) {
+      results = providerIds.reduce(
+        (acc: NameProviderResponse['results'], providerId) => {
+          acc[providerId] = { proposedNames: [], error: responseError };
+          return acc;
+        },
+        {},
+      );
+    }
+
+    return { results, error: responseError };
   }
 
   #updateEntry(value: string, type: NameType, data: Partial<NameEntry>) {
