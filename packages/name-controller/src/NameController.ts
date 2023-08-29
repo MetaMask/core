@@ -13,12 +13,14 @@ const controllerName = 'NameController';
 
 const stateMetadata = {
   names: { persist: true, anonymous: false },
+  nameProviders: { persist: true, anonymous: false },
 };
 
 const getDefaultState = () => ({
   names: {
     [NameType.ETHEREUM_ADDRESS]: {},
   },
+  nameProviders: {},
 });
 
 export type NameEntry = {
@@ -27,8 +29,13 @@ export type NameEntry = {
   proposedNames: Record<string, string[] | null>;
 };
 
+export type ProviderEntry = {
+  label: string;
+};
+
 export type NameControllerState = {
   names: Record<NameType, Record<string, NameEntry>>;
+  nameProviders: Record<string, ProviderEntry>;
 };
 
 export type GetNameState = {
@@ -150,6 +157,7 @@ export class NameController extends BaseControllerV2<
     ).filter((response) => Boolean(response)) as NameProviderResponse[];
 
     this.#updateProposedNameState(request, providerResponses);
+    this.#updateProviderState(this.#providers);
 
     return this.#getUpdateProposedNamesResult(providerResponses);
   }
@@ -184,6 +192,24 @@ export class NameController extends BaseControllerV2<
     };
 
     this.#updateEntry(value, type, { proposedNames });
+  }
+
+  #updateProviderState(providers: NameProvider[]) {
+    const newNameProviders = { ...this.state.nameProviders };
+
+    for (const provider of providers) {
+      const { providerLabels } = provider.getMetadata();
+
+      for (const providerId of Object.keys(providerLabels)) {
+        newNameProviders[providerId] = {
+          label: providerLabels[providerId],
+        };
+      }
+    }
+
+    this.update((state) => {
+      state.nameProviders = newNameProviders;
+    });
   }
 
   #getUpdateProposedNamesResult(
