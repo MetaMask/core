@@ -8,13 +8,15 @@ import {
 import { PreferencesController } from '@metamask/preferences-controller';
 import { BN } from 'ethereumjs-util';
 
-import AccountTrackerController from './AccountTrackerController';
+import {
+  AccountTrackerController,
+  CurrencyRateController,
+  TokenBalancesController,
+  TokenRatesController,
+  TokensController,
+} from '.';
 import * as assetsUtil from './assetsUtil';
-import CurrencyRateController from './CurrencyRateController';
 import type { Nft, NftMetadata } from './NftController';
-import TokenBalancesController from './TokenBalancesController';
-import TokenRatesController from './TokenRatesController';
-import TokensController from './TokensController';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
