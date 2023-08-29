@@ -34,7 +34,7 @@
     "@metamask/eth-keyring-controller": "^13.0.1",
     "@metamask/message-manager": "^7.3.4",
     "@metamask/preferences-controller": "^4.4.2",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^8.1.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",

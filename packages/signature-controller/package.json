@@ -34,7 +34,7 @@
     "@metamask/controller-utils": "^5.0.1",
     "@metamask/logging-controller": "^1.0.3",
     "@metamask/message-manager": "^7.3.4",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^8.1.0",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
     "immer": "^9.0.6",
