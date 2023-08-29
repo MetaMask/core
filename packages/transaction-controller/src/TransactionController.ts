@@ -33,9 +33,6 @@ import {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
-import { PollingBlockTracker as BlockTracker } from 'eth-block-tracker';
-import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
-import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import {
   getAndFormatTransactionsForNonceTracker,
   normalizeTransaction,
@@ -137,8 +134,6 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   never
 >;
-
-export type BlockTrackerProxy = SwappableProxy<BlockTracker>;
 
 /**
  * Multiplier used to determine a transaction's increased gas fee during cancellation
@@ -290,7 +285,7 @@ export class TransactionController extends BaseController<
     });
 
     this.messagingSystem = messenger;
-    this.blockTracker = createEventEmitterProxy(new BlockTracker({ provider }));
+    this.blockTracker = blockTracker;
 
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker: this.blockTracker,
@@ -319,9 +314,6 @@ export class TransactionController extends BaseController<
     onNetworkStateChange(() => {
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
-      this.blockTracker.setTarget(
-        new BlockTracker({ provider: this.provider }),
-      );
     });
 
     this.poll();

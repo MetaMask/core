@@ -278,6 +278,6 @@ export class IncomingTransactionHelper {
   }
 
   #getCurrentNetworkId(): string {
-    return this.#getNetworkState().network;
+    return this.#getNetworkState().networkId as string;
   }
 }
