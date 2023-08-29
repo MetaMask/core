@@ -315,7 +315,7 @@ export function getTotalFiatAccountBalance(
     return new BN(safeValue);
   };
 
-  const fromTokenMinimalUnit = (minimalInput: number, decimals: number) => {
+  const fromTokenMinimalUnit = (minimalInput: BN, decimals: number) => {
     const minimalInputStr = addHexPrefix(Number(minimalInput).toString(16));
     const minimal = safeNumberToBN(minimalInputStr);
     const base = new BN(Math.pow(10, decimals).toString());
@@ -324,7 +324,7 @@ export function getTotalFiatAccountBalance(
     while (fraction.length < decimals) {
       fraction = `0${fraction}`;
     }
-    fraction = fraction.match(/^([0-9]*[1-9]|0)(0*)/u)?.[1] || '0';
+    fraction = fraction.match(/^([0-9]*[1-9]|0)(0*)/u)?.[1] ?? '0';
 
     const whole = minimal.div(base).toString(10);
     const value = String(whole) + (fraction === '0' ? '' : `.${fraction}`);
@@ -332,7 +332,7 @@ export function getTotalFiatAccountBalance(
   };
 
   const renderFromTokenMinimalUnit = (
-    tokenValue: number,
+    tokenValue: BN,
     decimals: number,
     decimalsToShow = 5,
   ) => {
@@ -396,9 +396,10 @@ export function getTotalFiatAccountBalance(
         decimals: number;
       }) => {
         const exchangeRate =
-          item.address in tokenExchangeRates
+          item.address in tokenExchangeRates &&
+          tokenExchangeRates[item.address] !== undefined
             ? tokenExchangeRates[item.address]
-            : undefined;
+            : 0; // What do we do with an undefined exchange rate?
         const tokenBalance =
           item.balance ||
           (item.address in tokenBalances
@@ -406,11 +407,11 @@ export function getTotalFiatAccountBalance(
                 tokenBalances[item.address],
                 item.decimals,
               )
-            : undefined);
+            : 0); // What do we do with an undefined balance?
         const tokenBalanceFiat = balanceToFiatNumber(
-          tokenBalance,
+          Number(tokenBalance),
           finalConversionRate,
-          exchangeRate,
+          Number(exchangeRate),
           decimalsToShow,
         );
         tokenFiat += tokenBalanceFiat;
