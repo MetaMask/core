@@ -10,8 +10,8 @@ import type {
 import type {
   SnapController,
   SnapControllerEvents,
+  SnapControllerState,
 } from '@metamask/snaps-controllers';
-import type { SnapControllerState } from '@metamask/snaps-controllers-flask';
 import type { Snap } from '@metamask/snaps-utils';
 import { sha256FromString } from 'ethereumjs-util';
 import type { Patch } from 'immer';

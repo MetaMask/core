@@ -10,7 +10,9 @@
     {
       "path": "../controller-utils"
     },
-    { "path": "../keyring-controller" }
+    {
+      "path": "../keyring-controller"
+    }
   ],
   "include": ["../../types", "./src"]
 }
