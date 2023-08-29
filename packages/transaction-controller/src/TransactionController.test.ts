@@ -710,6 +710,16 @@ describe('TransactionController', () => {
 
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
       const mockOrigin = 'origin';
+      const mockSecurityAlertResponse = {
+        resultType: 'Malicious',
+        reason: 'blur_farming',
+        description:
+          'A SetApprovalForAll request was made on {contract}. We found the operator {operator} to be malicious',
+        args: {
+          contract: '0xa7206d878c5c3871826dfdb42191c49b1d11f466',
+          operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
+        },
+      };
 
       await controller.addTransaction(
         {
@@ -719,6 +729,7 @@ describe('TransactionController', () => {
         {
           deviceConfirmedOn: mockDeviceConfirmedOn,
           origin: mockOrigin,
+          securityAlertResponse: mockSecurityAlertResponse,
         },
       );
 
@@ -737,6 +748,9 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].origin).toBe(mockOrigin);
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
+      );
+      expect(controller.state.transactions[0].securityAlertResponse).toBe(
+        mockSecurityAlertResponse,
       );
     });
 
