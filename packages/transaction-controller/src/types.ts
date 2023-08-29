@@ -40,6 +40,11 @@ type TransactionMetaBase = {
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
   verifiedOnBlockchain?: boolean;
+
+  /**
+   * Response from security validator.
+   */
+  securityAlertResponse?: Record<string, unknown>;
 };
 
 /**
