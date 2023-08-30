@@ -132,26 +132,18 @@ export default class AccountsController extends BaseControllerV2<
         const { snaps } = snapState;
         const accounts = this.listAccounts();
 
-        const disabledSnaps: Snap[] = Object.values(snaps).filter(
-          (snap) => !snap.enabled || !snap.blocked,
-        );
-
-        const accountsToUpdate = accounts.filter(
-          (account) =>
-            account.metadata.snap &&
-            disabledSnaps.find((snap) => snap.id === account.metadata.snap?.id),
-        );
-
         this.update((currentState: AccountsControllerState) => {
-          accountsToUpdate.forEach((account) => {
-            if (
-              currentState.internalAccounts.accounts[account.id]?.metadata?.snap
-            ) {
+          accounts.forEach((account) => {
+            const currentAccount =
+              currentState.internalAccounts.accounts[account.id];
+            if (currentAccount?.metadata?.snap) {
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore this account is guaranteed to have snap metadata
               currentState.internalAccounts.accounts[
                 account.id
-              ].metadata.snap.enabled = false;
+              ].metadata.snap.enabled =
+                snaps[currentAccount.metadata.snap.id].enabled &&
+                !snaps[currentAccount.metadata.snap.id].blocked;
             }
           });
         });
@@ -483,6 +475,7 @@ export function keyringTypeToName(keyringType: string): string {
       return 'Custody';
     }
     default: {
+      console.warn(`Unknown keyring ${keyringType}`);
       return 'Account';
     }
   }

@@ -1,5 +1,8 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/eth-snap-keyring';
+import type { KeyringControllerState } from '@metamask/keyring-controller';
+import type { SnapControllerState } from '@metamask/snaps-controllers';
+import { SnapStatus } from '@metamask/snaps-utils';
 import * as uuid from 'uuid';
 
 import type {
@@ -7,7 +10,7 @@ import type {
   AccountsControllerEvents,
   AccountsControllerState,
 } from './AccountsController';
-import AccountsController from './AccountsController';
+import AccountsController, { keyringTypeToName } from './AccountsController';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');
@@ -77,20 +80,26 @@ const mockAccount2: InternalAccount = {
  * @param props.name - The name of the account.
  * @param props.address - The address of the account.
  * @param props.keyringType - The type of the keyring associated with the account.
+ * @param props.snapId - The id of the snap.
+ * @param props.snapEnabled
  * @returns The `InternalAccount` object created from the legacy account properties.
  */
-function createExpectedInternalAccountFromLegacy({
+function createExpectedInternalAccount({
   id,
   name,
   address,
   keyringType,
+  snapId,
+  snapEnabled = true,
 }: {
   id: string;
   name: string;
   address: string;
   keyringType: string;
+  snapId?: string;
+  snapEnabled?: boolean;
 }): InternalAccount {
-  return {
+  const account: InternalAccount = {
     id,
     name,
     address,
@@ -112,6 +121,15 @@ function createExpectedInternalAccountFromLegacy({
       lastSelected: undefined,
     },
   };
+
+  if (snapId) {
+    account.metadata.snap = {
+      id: snapId,
+      enabled: Boolean(snapEnabled),
+    };
+  }
+
+  return account;
 }
 
 /**
@@ -173,13 +191,15 @@ function setupAccountsController({
   // eslint-disable-next-line @typescript-eslint/default-param-last
   initialState = {},
   keyringApiEnabled = true,
-  onKeyringStateChange = () => jest.fn(),
-  onSnapStateChange = () => jest.fn(),
+  onKeyringStateChange = () => undefined,
+  onSnapStateChange = () => undefined,
 }: {
   initialState?: Partial<AccountsControllerState>;
   keyringApiEnabled?: boolean;
-  onKeyringStateChange?: () => void;
-  onSnapStateChange?: () => void;
+  onKeyringStateChange?: (
+    listener: (state: KeyringControllerState) => void,
+  ) => void;
+  onSnapStateChange?: (listener: (state: SnapControllerState) => void) => void;
 }): AccountsController {
   const accountsControllerMessenger = buildAccountsControllerMessenger(
     new ControllerMessenger(),
@@ -203,88 +223,168 @@ describe('AccountsController', () => {
     jest.clearAllMocks();
   });
 
-  // describe('onSnapStateChange', () => {
-  //   it('should disable snap-enabled accounts when a snap is disabled', () => {
-  //
-  //     const accountsController = new AccountsController();
-  //     const snapId = 'snap123';
-  //     const accountId = '0x123';
-  //     const account = {
-  //       id: accountId,
-  //       metadata: { snap: { id: snapId, enabled: true } },
-  //     };
-  //     accountsController.state.internalAccounts.accounts[accountId] = account;
+  describe('onSnapStateChange', () => {
+    it('should not be used when keyringApiEnabled is false', async () => {
+      const snapStateChangeSpy = jest.fn();
+      setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: false,
+        onSnapStateChange: () => {
+          snapStateChangeSpy();
+        },
+      });
 
-  //     const snapState = {
-  //       snaps: {
-  //         [snapId]: { id: snapId, enabled: false },
-  //       },
-  //     };
+      expect(snapStateChangeSpy).not.toHaveBeenCalled();
+    });
 
-  //
-  //     accountsController.onSnapStateChange(snapState);
+    it('should be used enable an account if the snap is enabled and not blocked', async () => {
+      const mockSnapAccount = createExpectedInternalAccount({
+        id: 'mock-id',
+        name: 'Snap Account 1',
+        address: '0x0',
+        keyringType: 'Snap Keyring',
+        snapId: 'mock-snap',
+        snapEnabled: false,
+      });
+      const mockSnapChangeState = {
+        snaps: {
+          'mock-snap': {
+            enabled: true,
+            id: 'mock-snap',
+            blocked: false,
+            status: SnapStatus.Running,
+          },
+        },
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockSnapAccount.id]: mockSnapAccount,
+            },
+            selectedAccount: mockSnapAccount.id,
+          },
+        },
+        keyringApiEnabled: true,
+        onSnapStateChange: (listener: (state: any) => void) => {
+          listener(mockSnapChangeState);
+        },
+      });
 
-  //
-  //     expect(
-  //       accountsController.state.internalAccounts.accounts[accountId].metadata
-  //         .snap.enabled,
-  //     ).toBe(false);
-  //   });
+      const updatedAccount = accountsController.getAccountExpect(
+        mockSnapAccount.id,
+      );
 
-  //   it('should not disable snap-disabled accounts when a snap is disabled', () => {
-  //
-  //     const accountsController = new AccountsController();
-  //     const snapId = 'snap123';
-  //     const accountId = '0x123';
-  //     const account = {
-  //       id: accountId,
-  //       metadata: { snap: { id: snapId, enabled: false } },
-  //     };
-  //     accountsController.state.internalAccounts.accounts[accountId] = account;
+      expect(updatedAccount.metadata.snap?.enabled).toBe(true);
+    });
 
-  //     const snapState = {
-  //       snaps: {
-  //         [snapId]: { id: snapId, enabled: false },
-  //       },
-  //     };
+    it('should be used disable an account if the snap is disabled', async () => {
+      const mockSnapAccount = createExpectedInternalAccount({
+        id: 'mock-id',
+        name: 'Snap Account 1',
+        address: '0x0',
+        keyringType: 'Snap Keyring',
+        snapId: 'mock-snap',
+      });
+      const mockSnapChangeState = {
+        snaps: {
+          'mock-snap': {
+            enabled: false,
+            id: 'mock-snap',
+            blocked: false,
+            status: SnapStatus.Running,
+          },
+        },
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockSnapAccount.id]: mockSnapAccount,
+            },
+            selectedAccount: mockSnapAccount.id,
+          },
+        },
+        keyringApiEnabled: true,
+        onSnapStateChange: (listener: (state: any) => void) => {
+          listener(mockSnapChangeState);
+        },
+      });
 
-  //
-  //     accountsController.onSnapStateChange(snapState);
+      const updatedAccount = accountsController.getAccountExpect(
+        mockSnapAccount.id,
+      );
 
-  //
-  //     expect(
-  //       accountsController.state.internalAccounts.accounts[accountId].metadata
-  //         .snap.enabled,
-  //     ).toBe(false);
-  //   });
+      expect(updatedAccount.metadata.snap?.enabled).toBe(false);
+    });
 
-  //   it('should not disable accounts when a snap is enabled', () => {
-  //
-  //     const accountsController = new AccountsController();
-  //     const snapId = 'snap123';
-  //     const accountId = '0x123';
-  //     const account = {
-  //       id: accountId,
-  //       metadata: { snap: { id: snapId, enabled: true } },
-  //     };
-  //     accountsController.state.internalAccounts.accounts[accountId] = account;
+    it('should be used disable an account if the snap is blocked', async () => {
+      const mockSnapAccount = createExpectedInternalAccount({
+        id: 'mock-id',
+        name: 'Snap Account 1',
+        address: '0x0',
+        keyringType: 'Snap Keyring',
+        snapId: 'mock-snap',
+      });
+      const mockSnapChangeState = {
+        snaps: {
+          'mock-snap': {
+            enabled: true,
+            id: 'mock-snap',
+            blocked: true,
+            status: SnapStatus.Running,
+          },
+        },
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockSnapAccount.id]: mockSnapAccount,
+            },
+            selectedAccount: mockSnapAccount.id,
+          },
+        },
+        keyringApiEnabled: true,
+        onSnapStateChange: (listener: (state: any) => void) => {
+          listener(mockSnapChangeState);
+        },
+      });
 
-  //     const snapState = {
-  //       snaps: {
-  //         [snapId]: { id: snapId, enabled: true },
-  //       },
-  //     };
+      const updatedAccount = accountsController.getAccountExpect(
+        mockSnapAccount.id,
+      );
 
-  //
-  //     accountsController.onSnapStateChange(snapState);
+      expect(updatedAccount.metadata.snap?.enabled).toBe(false);
+    });
+  });
 
-  //
-  //     expect(
-  //       accountsController.state.internalAccounts.accounts[accountId].metadata
-  //         .snap.enabled,
-  //     ).toBe(true);
-  //   });
-  // });
+  describe('constructor', () => {
+    it('should select next account if selectedAccount is not found', async () => {
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+            },
+            selectedAccount: 'missing account',
+          },
+        },
+        keyringApiEnabled: true,
+      });
+
+      const selectedAccount = accountsController.getSelectedAccount();
+
+      expect(setLastSelectedAsAny(selectedAccount)).toStrictEqual(
+        setLastSelectedAsAny(mockAccount),
+      );
+    });
+  });
 
   describe('updateAccounts', () => {
     const mockAddress1 = '0x123';
@@ -333,13 +433,13 @@ describe('AccountsController', () => {
         keyringApiEnabled: false,
       });
       const expectedAccounts = [
-        createExpectedInternalAccountFromLegacy({
+        createExpectedInternalAccount({
           name: 'Account 1',
           id: 'mock-id',
           address: mockAddress1,
           keyringType: 'HD Key Tree',
         }),
-        createExpectedInternalAccountFromLegacy({
+        createExpectedInternalAccount({
           name: 'Account 2',
           id: 'mock-id2',
           address: mockAddress2,
@@ -353,7 +453,6 @@ describe('AccountsController', () => {
     });
 
     it('should update accounts with snap accounts', async () => {
-      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
       mockGetAccounts.mockResolvedValue([]);
       mockGetKeyringByType.mockReturnValueOnce([
         {
@@ -389,6 +488,132 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
+    it('should filter snap accounts from legacyAccounts', async () => {
+      mockUUID.mockReturnValueOnce('mock-id');
+      mockGetKeyringByType.mockReturnValueOnce([
+        {
+          type: 'Snap Keyring',
+          listAccounts: async () => [mockSnapAccount2],
+        },
+      ]);
+
+      // first account will be legacy, second will be a snap account
+      mockGetAccounts.mockResolvedValue([mockAddress1, '0x1234']);
+      mockGetKeyringForAccount
+        .mockResolvedValueOnce({ type: 'HD Key Tree' })
+        .mockResolvedValueOnce({ type: 'Snap Keyring' });
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: true,
+      });
+      const expectedAccounts = [
+        createExpectedInternalAccount({
+          name: 'Account 1',
+          id: 'mock-id',
+          address: mockAddress1,
+          keyringType: 'HD Key Tree',
+        }),
+        createExpectedInternalAccount({
+          name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
+          id: mockSnapAccount2.id,
+          address: mockSnapAccount2.address,
+          keyringType: 'Snap Keyring',
+          snapId: 'mock-snap-id2',
+        }),
+      ];
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
+
+    it('should filter snap accounts from legacyAccounts even if the snap account is listed before legacy accounts', async () => {
+      mockUUID.mockReturnValue('mock-id');
+      mockGetKeyringByType.mockReturnValueOnce([
+        {
+          type: 'Snap Keyring',
+          listAccounts: async () => [mockSnapAccount2],
+        },
+      ]);
+
+      // first account will be legacy, second will be a snap account
+      mockGetAccounts.mockResolvedValue(['0x1234', mockAddress1]);
+      mockGetKeyringForAccount
+        .mockResolvedValueOnce({ type: 'Snap Keyring' })
+        .mockResolvedValueOnce({ type: 'HD Key Tree' });
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: true,
+      });
+      const expectedAccounts = [
+        createExpectedInternalAccount({
+          name: 'Account 1',
+          id: 'mock-id',
+          address: mockAddress1,
+          keyringType: 'HD Key Tree',
+        }),
+        createExpectedInternalAccount({
+          name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
+          id: mockSnapAccount2.id,
+          address: mockSnapAccount2.address,
+          keyringType: 'Snap Keyring',
+          snapId: 'mock-snap-id2',
+        }),
+      ];
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
+
+    it.each([
+      'Simple Key Pair',
+      'HD Key Tree',
+      'Trezor Hardware',
+      'Ledger Hardware',
+      'Lattice Hardware',
+      'QR Hardware Wallet Device',
+      'Custody',
+    ])('should add accounts for %s type', async (keyringType) => {
+      mockUUID.mockReturnValue('mock-id');
+      mockGetAccounts.mockResolvedValue([mockAddress1]);
+      mockGetKeyringForAccount.mockResolvedValue({ type: keyringType });
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: false,
+      });
+
+      const expectedAccounts = [
+        createExpectedInternalAccount({
+          name: `${keyringTypeToName(keyringType)} 1`,
+          id: 'mock-id',
+          address: mockAddress1,
+          keyringType,
+        }),
+      ];
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
   //   });
 
   //   it('should update accounts with snap accounts', async () => {
@@ -488,8 +713,6 @@ describe('AccountsController', () => {
         setLastSelectedAsAny(mockAccount as InternalAccount),
       );
     });
-  });
-
   it('should return undefined for an unknown account ID', () => {
     const accountsController = setupAccountsController({
       initialState: {
@@ -503,6 +726,7 @@ describe('AccountsController', () => {
     const result = accountsController.getAccount("I don't exist");
 
     expect(result).toBeUndefined();
+    });
   });
 
   describe('listAccounts', () => {
@@ -558,6 +782,32 @@ describe('AccountsController', () => {
       expect(() => accountsController.getAccountExpect('unknown id')).toThrow(
         `Account Id unknown id not found`,
       );
+    });
+
+    it('should handle the edge case of undefined accountId during onboarding', async () => {
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      // @ts-expect-error forcing undefined accountId
+      expect(accountsController.getAccountExpect(undefined)).toStrictEqual({
+        id: '',
+        name: '',
+        address: '',
+        options: {},
+        supportedMethods: [],
+        type: 'eip155:eoa',
+        metadata: {
+          keyring: {
+            type: '',
+          },
+        },
+      });
     });
   });
 
