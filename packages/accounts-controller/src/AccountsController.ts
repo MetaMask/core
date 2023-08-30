@@ -11,7 +11,6 @@ import type {
   SnapControllerEvents,
   SnapControllerState,
 } from '@metamask/snaps-controllers';
-import type { Snap } from '@metamask/snaps-utils';
 import { sha256FromString } from 'ethereumjs-util';
 import type { Patch } from 'immer';
 import { v4 as uuid } from 'uuid';
@@ -136,7 +135,7 @@ export default class AccountsController extends BaseControllerV2<
           accounts.forEach((account) => {
             const currentAccount =
               currentState.internalAccounts.accounts[account.id];
-            if (currentAccount?.metadata?.snap) {
+            if (currentAccount && currentAccount.metadata.snap) {
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment
               // @ts-ignore this account is guaranteed to have snap metadata
               currentState.internalAccounts.accounts[
@@ -298,7 +297,7 @@ export default class AccountsController extends BaseControllerV2<
 
     const accounts: Record<string, InternalAccount> = [
       ...legacyAccounts,
-      ...(this.keyringApiEnabled ? snapAccounts : []),
+      ...snapAccounts,
     ].reduce((internalAccountMap, internalAccount) => {
       const keyringTypeName = keyringTypeToName(
         internalAccount.metadata.keyring.type,
@@ -344,11 +343,12 @@ export default class AccountsController extends BaseControllerV2<
   async #listSnapAccounts(): Promise<InternalAccount[]> {
     const [snapKeyring] = this.getKeyringByType(SnapKeyring.type);
 
-    const snapAccounts =
-      (await (snapKeyring as SnapKeyring)?.listAccounts(false)) ?? [];
+    const snapAccounts = await (snapKeyring as SnapKeyring).listAccounts(false);
 
     for (const account of snapAccounts) {
-      const snapId = account.metadata.snap?.id as string;
+      // The snap account is guaranteed to have a snap metadata
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const snapId = account.metadata.snap!.id!;
 
       account.metadata = {
         snap: {

@@ -81,7 +81,7 @@ const mockAccount2: InternalAccount = {
  * @param props.address - The address of the account.
  * @param props.keyringType - The type of the keyring associated with the account.
  * @param props.snapId - The id of the snap.
- * @param props.snapEnabled
+ * @param props.snapEnabled - The status of the snap
  * @returns The `InternalAccount` object created from the legacy account properties.
  */
 function createExpectedInternalAccount({
@@ -361,6 +361,177 @@ describe('AccountsController', () => {
       );
 
       expect(updatedAccount.metadata.snap?.enabled).toBe(false);
+    });
+  });
+
+  describe('onKeyringStateChange', () => {
+    it('should only update if the keyring is unlocked', async () => {
+      const mockNewKeyringState = {
+        isUnlocked: false,
+        keyrings: [
+          {
+            accounts: [mockAccount.address, mockAccount2.address],
+            type: 'HD Key Tree',
+          },
+        ],
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: true,
+        onKeyringStateChange: (
+          listener: (state: KeyringControllerState) => void,
+        ) => {
+          listener(mockNewKeyringState);
+        },
+      });
+
+      const accounts = accountsController.listAccounts();
+
+      expect(accounts).toStrictEqual([]);
+    });
+
+    it('should add new accounts', async () => {
+      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+      mockGetAccounts.mockResolvedValue([
+        mockAccount.address,
+        mockAccount2.address,
+      ]);
+      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [mockAccount.address, mockAccount2.address],
+          },
+        ],
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+        keyringApiEnabled: false,
+        onKeyringStateChange: (
+          listener: (state: KeyringControllerState) => void,
+        ) => {
+          listener(mockNewKeyringState);
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const accounts = accountsController.listAccounts();
+
+      expect(accounts).toStrictEqual([
+        mockAccount,
+        setLastSelectedAsAny(mockAccount2),
+      ]);
+    });
+
+    it('should handle keyring reinitialization', async () => {
+      const mockInitialAccount = createExpectedInternalAccount({
+        id: 'mock-id',
+        name: 'Account 1',
+        address: '0x123',
+        keyringType: 'HD Key Tree',
+      });
+      const mockReinitialisedAccount = createExpectedInternalAccount({
+        id: 'mock-id2',
+        name: 'Account 1',
+        address: '0x456',
+        keyringType: 'HD Key Tree',
+      });
+      mockUUID.mockReturnValueOnce('mock-id2');
+      mockGetAccounts.mockResolvedValue([mockReinitialisedAccount.address]);
+      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [mockReinitialisedAccount.address],
+          },
+        ],
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockInitialAccount.id]: mockInitialAccount,
+            },
+            selectedAccount: mockInitialAccount.id,
+          },
+        },
+        keyringApiEnabled: false,
+        onKeyringStateChange: (
+          listener: (state: KeyringControllerState) => void,
+        ) => {
+          listener(mockNewKeyringState);
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const selectedAccount = accountsController.getSelectedAccount();
+      const accounts = accountsController.listAccounts();
+      const expectedAccount = {
+        ...setLastSelectedAsAny(mockReinitialisedAccount),
+        name: 'Account 1', // since there aren't any other accounts it will be account 1
+      };
+
+      expect(selectedAccount).toStrictEqual(expectedAccount);
+      expect(accounts).toStrictEqual([expectedAccount]);
+    });
+
+    it('should delete accounts if its gone from the keyring state', async () => {
+      mockUUID.mockReturnValueOnce('mock-id2');
+      mockGetAccounts.mockResolvedValue([mockAccount2.address]);
+      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [mockAccount2.address],
+          },
+        ],
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+        keyringApiEnabled: false,
+        onKeyringStateChange: (
+          listener: (state: KeyringControllerState) => void,
+        ) => {
+          listener(mockNewKeyringState);
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const accounts = accountsController.listAccounts();
+
+      expect(accounts).toStrictEqual([setLastSelectedAsAny(mockAccount2)]);
+      expect(accountsController.getSelectedAccount()).toStrictEqual(
+        setLastSelectedAsAny(mockAccount2),
+      );
     });
   });
 
