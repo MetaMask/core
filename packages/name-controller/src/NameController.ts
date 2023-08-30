@@ -6,7 +6,6 @@ import type {
   NameProvider,
   NameProviderRequest,
   NameProviderResponse,
-  NameProviderResult,
 } from './types';
 import { NameType } from './types';
 

@@ -1,5 +1,8 @@
 import { TokenNameProvider } from './token';
 import { NameType } from '../types';
+import { handleFetch } from '../util';
+
+jest.mock('../util');
 
 const VALUE_MOCK = 'TestValue';
 const CHAIN_ID_MOCK = '0x1';
@@ -7,6 +10,14 @@ const PROVIDER_ID = 'token';
 const TOKEN_NAME_MOCK = 'TestTokenName';
 
 describe('TokenNameProvider', () => {
+  const handleFetchMock = handleFetch as jest.MockedFunction<
+    typeof handleFetch
+  >;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {
       const metadata = new TokenNameProvider().getMetadata();
@@ -28,12 +39,8 @@ describe('TokenNameProvider', () => {
   describe('getProposedNames', () => {
     it('returns the token name from infura response', async () => {
       const provider = new TokenNameProvider();
-      const mockFetch = jest.spyOn(global, 'fetch');
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ name: TOKEN_NAME_MOCK }),
-      } as any);
+      handleFetchMock.mockResolvedValueOnce({ name: TOKEN_NAME_MOCK });
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
@@ -47,29 +54,9 @@ describe('TokenNameProvider', () => {
         },
       });
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(handleFetchMock).toHaveBeenCalledTimes(1);
+      expect(handleFetchMock).toHaveBeenCalledWith(
         `https://token-api.metaswap.codefi.network/token/${CHAIN_ID_MOCK}?address=${VALUE_MOCK}`,
-      );
-    });
-
-    it('throws if request fails', async () => {
-      const provider = new TokenNameProvider();
-      const mockFetch = jest.spyOn(global, 'fetch');
-
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-      } as any);
-
-      await expect(
-        provider.getProposedNames({
-          value: VALUE_MOCK,
-          chainId: CHAIN_ID_MOCK,
-          type: NameType.ETHEREUM_ADDRESS,
-        }),
-      ).rejects.toThrow(
-        `Fetch failed with status '500' for request 'https://token-api.metaswap.codefi.network/token/${CHAIN_ID_MOCK}?address=${VALUE_MOCK}`,
       );
     });
   });
