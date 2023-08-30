@@ -464,36 +464,41 @@ describe('assetsUtil', () => {
       const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
         // CurrencyRateController
         new CurrencyRateController({
-          currentCurrency: CURRENCY,
-          conversionRate: CURRENCY_CONVERSION_RATE,
+          state: {
+            currentCurrency: CURRENCY,
+            conversionRate: CURRENCY_CONVERSION_RATE,
+          },
         }).state,
         // PreferencesController
-        new PreferencesController({ selectedAddress: ADDRESS }).state,
+        new PreferencesController(undefined, { selectedAddress: ADDRESS })
+          .state,
         // AccountTrackerController,
-        new AccountTrackerController({
+        new AccountTrackerController({}, undefined, {
           accounts: { [ADDRESS]: { balance: NATIVE_BALANCE } },
         }).state,
         // TokenBalancesController
-        new TokenBalancesController({
+        new TokenBalancesController({}, undefined, {
           contractBalances: {
             [CHAINLINK_ADDRESS]: new BN(CHAINLINK_BALANCE),
           },
         }).state,
         // TokenRatesController
-        new TokenRatesController({
+        new TokenRatesController({}, undefined, {
           contractExchangeRates: {
             [toChecksumHexAddress(CHAINLINK_ADDRESS)]: CHAINLINK_PRICE,
           },
         }).state,
         // TokensController
         new TokensController({
-          tokens: [
-            {
-              address: CHAINLINK_ADDRESS,
-              symbol: CHAINLINK_SYMBOL,
-              decimals: CHAINLINK_DECIMALS,
-            },
-          ],
+          state: {
+            tokens: [
+              {
+                address: CHAINLINK_ADDRESS,
+                symbol: CHAINLINK_SYMBOL,
+                decimals: CHAINLINK_DECIMALS,
+              },
+            ],
+          },
         }).state,
       );
 
