@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.1]
+### Changed
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+
 ## [4.1.0]
 ### Changed
 - Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
@@ -73,7 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.1...HEAD
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.0...@metamask/permission-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.1...@metamask/permission-controller@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.0...@metamask/permission-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.2.0...@metamask/permission-controller@4.0.0

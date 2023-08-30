@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "8.0.1",
+  "version": "9.1.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -23,7 +23,6 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
@@ -31,11 +30,11 @@
   "dependencies": {
     "@ethereumjs/common": "^3.2.0",
     "@ethereumjs/tx": "^4.2.0",
-    "@metamask/approval-controller": "workspace:^",
-    "@metamask/base-controller": "workspace:^",
-    "@metamask/controller-utils": "workspace:^",
+    "@metamask/approval-controller": "^3.5.1",
+    "@metamask/base-controller": "^3.2.1",
+    "@metamask/controller-utils": "^4.3.2",
     "@metamask/eth-query": "^3.0.1",
-    "@metamask/network-controller": "workspace:^",
+    "@metamask/network-controller": "^12.1.2",
     "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
     "eth-method-registry": "1.1.0",
@@ -59,8 +58,8 @@
     "typescript": "~4.6.3"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "workspace:^",
-    "@metamask/network-controller": "workspace:^",
+    "@metamask/approval-controller": "^3.5.1",
+    "@metamask/network-controller": "^12.1.2",
     "babel-runtime": "^6.26.0"
   },
   "engines": {

@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0]
+### Added
+- Add `tokenURI` to `NftMetadata` type ([#1577](https://github.com/MetaMask/core/pull/1577))
+- Populate token URL for NFT metadata under `tokenURI` ([#1577](https://github.com/MetaMask/core/pull/1577))
+
+### Changed
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.0
+- Update NftController to add fallback for when IPFS gateway is disabled ([#1577](https://github.com/MetaMask/core/pull/1577))
+
 ## [11.0.1]
 ### Changed
 - Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
@@ -131,7 +144,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [6.0.0]
 ### Changed
 - **BREAKING:** Create approval requests using `@metamask/approval-controller` ([#1166](https://github.com/MetaMask/core/pull/1166))
-- **BREAKING:** Make `setProviderType` async ([#1191](https://github.com/MetaMask/core/pull/1191))
 
 ## [5.1.0]
 ### Added
@@ -214,7 +226,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.1...@metamask/assets-controllers@11.1.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.0...@metamask/assets-controllers@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@10.0.0...@metamask/assets-controllers@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.2.0...@metamask/assets-controllers@10.0.0
