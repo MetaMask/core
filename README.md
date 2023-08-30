@@ -31,7 +31,7 @@ Or, in graph form [^fn1]:
 
 <!-- start dependency graph -->
 
-```mermaid
+``` mermaid
 %%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%
 graph LR;
 linkStyle default opacity:0.5
@@ -54,6 +54,7 @@ linkStyle default opacity:0.5
   phishing_controller(["@metamask/phishing-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
+  selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   address_book_controller --> base_controller;
@@ -91,6 +92,8 @@ linkStyle default opacity:0.5
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
   rate_limit_controller --> base_controller;
+  selected_network_controller --> base_controller;
+  selected_network_controller --> network_controller;
   signature_controller --> approval_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
