@@ -24,6 +24,11 @@ type TransactionMetaBase = {
   blockNumber?: string;
 
   /**
+   * The timestamp for when the block was collated.
+   */
+  blockTimestamp?: string;
+
+  /**
    * Network code as per EIP-155 for this transaction.
    */
   chainId?: Hex;
@@ -106,6 +111,11 @@ type TransactionMetaBase = {
    * Whether the transaction is verified on the blockchain.
    */
   verifiedOnBlockchain?: boolean;
+
+  /**
+   * Response from security validator.
+   */
+  securityAlertResponse?: Record<string, unknown>;
 };
 
 /**

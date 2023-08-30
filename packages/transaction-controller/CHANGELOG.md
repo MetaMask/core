@@ -6,6 +6,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0]
+### Added
+- Add `blockTimestamp` to `TransactionMetaBase` type ([#1616](https://github.com/MetaMask/core/pull/1616))
+- Update `queryTransactionStatuses` to populate `blockTimestamp` on each transaction when it is verified ([#1616](https://github.com/MetaMask/core/pull/1616))
+
+### Changed
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
+
+## [9.0.0]
+### Added
+- Add `baseFeePerGas` to transaction metadata ([#1590](https://github.com/MetaMask/core/pull/1590))
+- Add `txReceipt` to transaction metadata ([#1592](https://github.com/MetaMask/core/pull/1592))
+- Add `initApprovals` method to generate approval requests from unapproved transactions ([#1575](https://github.com/MetaMask/core/pull/1575))
+- Add `dappSuggestedGasFees` to transaction metadata ([#1617](https://github.com/MetaMask/core/pull/1617))
+- Add optional `incomingTransactions` constructor arguments ([#1579](https://github.com/MetaMask/core/pull/1579))
+  - `apiKey`
+  - `includeTokenTransfers`
+  - `isEnabled`
+  - `updateTransactions`
+- Add incoming transaction methods ([#1579](https://github.com/MetaMask/core/pull/1579))
+  - `startIncomingTransactionPolling`
+  - `stopIncomingTransactionPolling`
+  - `updateIncomingTransactions` 
+- Add `requireApproval` option to `addTransaction` method options ([#1580](https://github.com/MetaMask/core/pull/1580))
+- Add `address` argument to `wipeTransactions` method ([#1573](https://github.com/MetaMask/core/pull/1573))
+
+### Changed
+- **BREAKING**: Add required `getSelectedAddress` callback argument to constructor ([#1579](https://github.com/MetaMask/core/pull/1579))
+- **BREAKING**: Add `isSupportedNetwork` method to `RemoteTransactionSource` interface ([#1579](https://github.com/MetaMask/core/pull/1579))
+- **BREAKING**: Move all but first argument to options bag in `addTransaction` method ([#1576](https://github.com/MetaMask/core/pull/1576))
+- **BREAKING**: Update properties of `RemoteTransactionSourceRequest` type ([#1579](https://github.com/MetaMask/core/pull/1579))
+  - The `fromBlock` property has changed from `string` to `number`
+  - The `networkType` property has been removed
+  - This type is intended mainly for internal use, so it's likely this change doesn't affect most projects
+
+### Removed
+- **BREAKING**: Remove `fetchAll` method ([#1579](https://github.com/MetaMask/core/pull/1579))
+  - This method was used to fetch transaction history from Etherscan
+  - This is now handled automatically by the controller on each new block, if polling is enabled
+  - Polling can be enabled or disabled by calling `startIncomingTransactionPolling` or `stopIncomingTransactionPolling` respectively
+  - An immediate update can be requested by calling `updateIncomingTransactions`
+  - The new constructor parameter `incomingTransactions.isEnabled` acts as an override to disable this functionality based on a client preference for example
+- **BREAKING**: Remove `prepareUnsignedEthTx` and `getCommonConfiguration` methods ([#1581](https://github.com/MetaMask/core/pull/1581))
+  - These methods were intended mainly for internal use, so it's likely this change doesn't affect most projects
+
 ## [8.0.1]
 ### Changed
 - Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
@@ -98,7 +146,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.0.0...@metamask/transaction-controller@9.1.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.1...@metamask/transaction-controller@9.0.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.0...@metamask/transaction-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@7.1.0...@metamask/transaction-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@7.0.0...@metamask/transaction-controller@7.1.0

@@ -385,6 +385,7 @@ export class TransactionController extends BaseController<
    * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
+   * @param opts.securityAlertResponse - Response from security validator.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -393,10 +394,12 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
       origin,
       requireApproval,
+      securityAlertResponse,
     }: {
       deviceConfirmedOn?: WalletDevice;
       origin?: string;
       requireApproval?: boolean | undefined;
+      securityAlertResponse?: Record<string, unknown>;
     } = {},
   ): Promise<Result> {
     const { chainId, networkId } = this.getChainAndNetworkId();
@@ -420,6 +423,7 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
       verifiedOnBlockchain: false,
       dappSuggestedGasFees,
+      securityAlertResponse,
     };
 
     try {
@@ -1182,6 +1186,7 @@ export class TransactionController extends BaseController<
         meta.transaction.gasUsed = txReceipt.gasUsed;
         meta.txReceipt = txReceipt;
         meta.baseFeePerGas = txBlock?.baseFeePerGas;
+        meta.blockTimestamp = txBlock?.timestamp;
 
         // According to the Web3 docs:
         // TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.

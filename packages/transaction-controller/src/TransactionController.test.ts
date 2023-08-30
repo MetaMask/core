@@ -121,7 +121,12 @@ jest.mock('@metamask/eth-query', () =>
       },
       getBlockByHash: (_blockHash: any, callback: any) => {
         const blocks: any = [
-          { hash: '1337', number: '0x1', baseFeePerGas: '0x14' },
+          {
+            hash: '1337',
+            number: '0x1',
+            baseFeePerGas: '0x14',
+            timestamp: '628dc0c8',
+          },
           { hash: '1338', number: '0x2' },
         ];
         const block: any = blocks.find(
@@ -705,6 +710,16 @@ describe('TransactionController', () => {
 
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
       const mockOrigin = 'origin';
+      const mockSecurityAlertResponse = {
+        resultType: 'Malicious',
+        reason: 'blur_farming',
+        description:
+          'A SetApprovalForAll request was made on {contract}. We found the operator {operator} to be malicious',
+        args: {
+          contract: '0xa7206d878c5c3871826dfdb42191c49b1d11f466',
+          operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
+        },
+      };
 
       await controller.addTransaction(
         {
@@ -714,6 +729,7 @@ describe('TransactionController', () => {
         {
           deviceConfirmedOn: mockDeviceConfirmedOn,
           origin: mockOrigin,
+          securityAlertResponse: mockSecurityAlertResponse,
         },
       );
 
@@ -732,6 +748,9 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].origin).toBe(mockOrigin);
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
+      );
+      expect(controller.state.transactions[0].securityAlertResponse).toBe(
+        mockSecurityAlertResponse,
       );
     });
 
@@ -1328,6 +1347,7 @@ describe('TransactionController', () => {
       const transactionMeta = controller.state.transactions[0];
       expect(transactionMeta.verifiedOnBlockchain).toBe(true);
       expect(transactionMeta.transaction.gasUsed).toBe('0x5208');
+      expect(transactionMeta.blockTimestamp).toBe('628dc0c8');
       expect(transactionMeta.baseFeePerGas).toBe('0x14');
       expect(transactionMeta.txReceipt?.transactionIndex).toBe(1337);
     });
