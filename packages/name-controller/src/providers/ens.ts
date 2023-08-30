@@ -6,7 +6,10 @@ import type {
 } from '../types';
 import { NameType } from '../types';
 
-export type ReverseLookupCallback = (address: string) => Promise<string>;
+export type ReverseLookupCallback = (
+  address: string,
+  chainId: string,
+) => Promise<string>;
 
 const ID = 'ens';
 const LABEL = 'Ethereum Name Service (ENS)';
@@ -28,7 +31,8 @@ export class ENSNameProvider implements NameProvider {
   async getProposedNames(
     request: NameProviderRequest,
   ): Promise<NameProviderResponse> {
-    const proposedName = await this.#reverseLookup(request.value);
+    const { value, chainId } = request;
+    const proposedName = await this.#reverseLookup(value, chainId);
 
     return {
       results: {
