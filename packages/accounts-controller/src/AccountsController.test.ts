@@ -785,32 +785,6 @@ describe('AccountsController', () => {
 
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
-  //   });
-
-  //   it('should update accounts with snap accounts', async () => {
-  //
-  //     const accountsController = new AccountsController();
-  //     const legacyAccounts = [];
-  //     const snapAccounts = [
-  //       { address: '0x789', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //       { address: '0xabc', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //     ];
-
-  //
-  //     jest
-  //       .spyOn(accountsController, '#listLegacyAccounts')
-  //       .mockResolvedValue(legacyAccounts);
-  //     jest
-  //       .spyOn(accountsController, '#listSnapAccounts')
-  //       .mockResolvedValue(snapAccounts);
-  //     await accountsController.updateAccounts();
-
-  //
-  //     expect(accountsController.state.internalAccounts.accounts).toEqual(
-  //       snapAccounts,
-  //     );
-  //   });
-
   });
 
   describe('loadBackup', () => {
@@ -871,8 +845,8 @@ describe('AccountsController', () => {
     it('should return an account by ID', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
-          accounts: { [mockAccount.id]: mockAccount },
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
             selectedAccount: mockAccount.id,
           },
         },
@@ -884,19 +858,19 @@ describe('AccountsController', () => {
         setLastSelectedAsAny(mockAccount as InternalAccount),
       );
     });
-  it('should return undefined for an unknown account ID', () => {
-    const accountsController = setupAccountsController({
-      initialState: {
-      internalAccounts: {
-        accounts: { [mockAccount.id]: mockAccount },
-          selectedAccount: mockAccount.id,
+    it('should return undefined for an unknown account ID', () => {
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
         },
-      },
-    });
+      });
 
-    const result = accountsController.getAccount("I don't exist");
+      const result = accountsController.getAccount("I don't exist");
 
-    expect(result).toBeUndefined();
+      expect(result).toBeUndefined();
     });
   });
 
@@ -904,10 +878,10 @@ describe('AccountsController', () => {
     it('should return a list of accounts', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
-          accounts: {
-            [mockAccount.id]: mockAccount,
-            [mockAccount2.id]: mockAccount2,
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
             },
             selectedAccount: mockAccount.id,
           },
@@ -927,7 +901,7 @@ describe('AccountsController', () => {
     it('should return an account by ID', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
+          internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
             selectedAccount: mockAccount.id,
           },
@@ -943,7 +917,7 @@ describe('AccountsController', () => {
     it('should throw an error for an unknown account ID', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
+          internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
             selectedAccount: mockAccount.id,
           },
@@ -986,9 +960,9 @@ describe('AccountsController', () => {
     it('should return the selected account', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
+          internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-          selectedAccount: mockAccount.id,
+            selectedAccount: mockAccount.id,
           },
         },
       });
@@ -1004,12 +978,12 @@ describe('AccountsController', () => {
     it('should set the selected account', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
-          accounts: {
-            [mockAccount.id]: mockAccount,
-            [mockAccount2.id]: mockAccount2,
-          },
-          selectedAccount: mockAccount.id,
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
           },
         },
       });
@@ -1024,12 +998,12 @@ describe('AccountsController', () => {
     it('should throw an error for an unknown account ID', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
-          accounts: {
-            [mockAccount.id]: mockAccount,
-            [mockAccount2.id]: mockAccount2,
-          },
-          selectedAccount: mockAccount.id,
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
           },
         },
       });
@@ -1044,9 +1018,9 @@ describe('AccountsController', () => {
     it('should set the name of an existing account', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
+          internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-          selectedAccount: mockAccount.id,
+            selectedAccount: mockAccount.id,
           },
         },
       });
@@ -1060,12 +1034,12 @@ describe('AccountsController', () => {
     it('should throw an error if the account name already exists', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
-          accounts: {
-            [mockAccount.id]: mockAccount,
-            [mockAccount2.id]: mockAccount2,
-          },
-          selectedAccount: mockAccount.id,
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
           },
         },
       });
@@ -1078,9 +1052,9 @@ describe('AccountsController', () => {
     it('should throw an error if the account ID is not found', () => {
       const accountsController = setupAccountsController({
         initialState: {
-        internalAccounts: {
+          internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-          selectedAccount: mockAccount.id,
+            selectedAccount: mockAccount.id,
           },
         },
       });
