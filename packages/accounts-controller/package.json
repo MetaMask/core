@@ -28,17 +28,17 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.0",
+    "@metamask/base-controller": "^3.2.1",
     "@metamask/eth-snap-keyring": "git+https://github.com/MetaMask/eth-snap-keyring.git#commit=543117c98e80c83378dbd8bb2bc87704ee0f96f0",
-    "@metamask/keyring-controller": "^7.1.0",
+    "@metamask/keyring-controller": "^7.2.0",
     "@metamask/snaps-controllers": "^1.0.1",
     "@metamask/snaps-utils": "^1.0.1",
     "@metamask/utils": "^6.2.0",
     "eth-rpc-errors": "^4.0.2",
-    "ethereumjs-util": "^7.1.5",
+    "ethereumjs-util": "^7.0.10",
     "immer": "^9.0.6",
     "nanoid": "^3.1.31",
-    "uuid": "^9.0.0"
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
@@ -51,6 +51,9 @@
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
+  },
+  "peerDependencies": {
+    "@metamask/keyring-controller": "^7.2.0"
   },
   "engines": {
     "node": ">=16.0.0"
