@@ -8,7 +8,6 @@ import type {
   KeyringControllerEvents,
 } from '@metamask/keyring-controller';
 import type {
-  SnapController,
   SnapControllerEvents,
   SnapControllerState,
 } from '@metamask/snaps-controllers';
@@ -80,22 +79,30 @@ export default class AccountsController extends BaseControllerV2<
   AccountsControllerState,
   AccountsControllerMessenger
 > {
-  #keyringController: KeyringController;
+  getKeyringForAccount: KeyringController['getKeyringForAccount'];
 
-  #snapController: SnapController;
+  getKeyringByType: KeyringController['getKeyringsByType'];
+
+  getAccounts: KeyringController['getAccounts'];
+
+  keyringApiEnabled: boolean;
 
   constructor({
     messenger,
     state,
-    keyringController,
-    snapController,
+    keyringApiEnabled,
+    getKeyringForAccount,
+    getKeyringByType,
+    getAccounts,
     onSnapStateChange,
     onKeyringStateChange,
   }: {
     messenger: AccountsControllerMessenger;
     state: AccountsControllerState;
-    keyringController: KeyringController;
-    snapController: SnapController;
+    keyringApiEnabled: boolean;
+    getKeyringForAccount: KeyringController['getKeyringForAccount'];
+    getKeyringByType: KeyringController['getKeyringsByType'];
+    getAccounts: KeyringController['getAccounts'];
     onKeyringStateChange: (
       listener: (keyringState: KeyringControllerState) => void,
     ) => void;
@@ -113,43 +120,43 @@ export default class AccountsController extends BaseControllerV2<
       },
     });
 
-    this.#keyringController = keyringController;
-    this.#snapController = snapController;
+    this.getKeyringForAccount = getKeyringForAccount;
+    this.getKeyringByType = getKeyringByType;
+    this.getAccounts = getAccounts;
+    this.keyringApiEnabled = Boolean(keyringApiEnabled);
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    onSnapStateChange(async (snapState: SnapControllerState) => {
-      // only check if snaps changed in status
-      const { snaps } = snapState;
-      const accounts = this.listAccounts();
+    if (this.keyringApiEnabled) {
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      onSnapStateChange(async (snapState: SnapControllerState) => {
+        // only check if snaps changed in status
+        const { snaps } = snapState;
+        const accounts = this.listAccounts();
 
-      const disabledSnaps: Snap[] = [];
-      for (const snap of Object.values(snaps)) {
-        if (!(await this.#isSnapEnabled(snap.id))) {
-          disabledSnaps.push(snap);
-        }
-      }
+        const disabledSnaps: Snap[] = Object.values(snaps).filter(
+          (snap) => !snap.enabled || !snap.blocked,
+        );
 
-      const accountsToUpdate = accounts.filter(
-        (account) =>
-          account.metadata.snap &&
-          disabledSnaps.find((snap) => snap.id === account.metadata.snap?.id),
-      );
+        const accountsToUpdate = accounts.filter(
+          (account) =>
+            account.metadata.snap &&
+            disabledSnaps.find((snap) => snap.id === account.metadata.snap?.id),
+        );
 
-      this.update((currentState: AccountsControllerState) => {
-        accountsToUpdate.forEach((account) => {
-          if (
-            currentState.internalAccounts.accounts[account.id] &&
-            currentState.internalAccounts.accounts[account.id].metadata?.snap
-          ) {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore this account is guaranteed to have snap metadata
-            currentState.internalAccounts.accounts[
-              account.id
-            ].metadata.snap.enabled = false;
-          }
+        this.update((currentState: AccountsControllerState) => {
+          accountsToUpdate.forEach((account) => {
+            if (
+              currentState.internalAccounts.accounts[account.id]?.metadata?.snap
+            ) {
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore this account is guaranteed to have snap metadata
+              currentState.internalAccounts.accounts[
+                account.id
+              ].metadata.snap.enabled = false;
+            }
+          });
         });
       });
-    });
+    }
 
     onKeyringStateChange(
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -244,16 +251,54 @@ export default class AccountsController extends BaseControllerV2<
     return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
   }
 
+  setSelectedAccount(accountId: string): void {
+    const account = this.getAccountExpect(accountId);
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
+    this.update((currentState: AccountsControllerState) => {
+      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
+        Date.now();
+      currentState.internalAccounts.selectedAccount = account.id;
+    });
+
+    this.messagingSystem.publish(`${this.name}:selectedAccountChange`, account);
+  }
+
+  setAccountName(accountId: string, accountName: string): void {
+    const account = this.getAccountExpect(accountId);
+
+    if (
+      this.listAccounts().find(
+        (internalAccount) =>
+          internalAccount.name === accountName &&
+          internalAccount.id !== accountId,
+      )
+    ) {
+      throw new Error('Account name already exists');
+    }
+
+    this.update((currentState: AccountsControllerState) => {
+      currentState.internalAccounts.accounts[accountId] = {
+        ...account,
+        name: accountName,
+      };
+    });
+  }
+
   async updateAccounts(): Promise<void> {
     let legacyAccounts = await this.#listLegacyAccounts();
-    const snapAccounts = await this.#listSnapAccounts();
-    // remove duplicate accounts that are retrieved from the snap keyring.
-    legacyAccounts = legacyAccounts.filter(
-      (account) =>
-        !snapAccounts.find(
-          (snapAccount) => snapAccount.address === account.address,
-        ),
-    );
+    let snapAccounts: InternalAccount[] = [];
+    if (this.keyringApiEnabled) {
+      snapAccounts = await this.#listSnapAccounts();
+      // remove duplicate accounts that are retrieved from the snap keyring.
+      legacyAccounts = legacyAccounts.filter(
+        (account) =>
+          !snapAccounts.find(
+            (snapAccount) => snapAccount.address === account.address,
+          ),
+      );
+    }
 
     // keyring type map.
     const keyringTypes = new Map<string, number>();
@@ -261,7 +306,7 @@ export default class AccountsController extends BaseControllerV2<
 
     const accounts: Record<string, InternalAccount> = [
       ...legacyAccounts,
-      ...snapAccounts,
+      ...(this.keyringApiEnabled ? snapAccounts : []),
     ].reduce((internalAccountMap, internalAccount) => {
       const keyringTypeName = keyringTypeToName(
         internalAccount.metadata.keyring.type,
@@ -296,10 +341,14 @@ export default class AccountsController extends BaseControllerV2<
     });
   }
 
+  loadBackup(backup: AccountsControllerState): void {
+    this.update((currentState: AccountsControllerState) => {
+      currentState.internalAccounts = backup.internalAccounts;
+    });
+  }
+
   async #listSnapAccounts(): Promise<InternalAccount[]> {
-    const [snapKeyring] = this.#keyringController.getKeyringsByType(
-      SnapKeyring.type,
-    );
+    const [snapKeyring] = this.getKeyringByType(SnapKeyring.type);
 
     const snapAccounts =
       (await (snapKeyring as SnapKeyring)?.listAccounts(false)) ?? [];
@@ -310,7 +359,7 @@ export default class AccountsController extends BaseControllerV2<
       account.metadata = {
         snap: {
           id: snapId,
-          enabled: await this.#isSnapEnabled(snapId),
+          enabled: true,
           name: account.name,
         },
         keyring: {
@@ -324,12 +373,10 @@ export default class AccountsController extends BaseControllerV2<
 
   // Note: listLegacyAccounts is a temporary method until the keyrings all implement the InternalAccount interface
   async #listLegacyAccounts(): Promise<Omit<InternalAccount, 'name'>[]> {
-    const addresses = await this.#keyringController.getAccounts();
+    const addresses = await this.getAccounts();
     const internalAccounts: Omit<InternalAccount, 'name'>[] = [];
     for (const address of addresses) {
-      const keyring = await this.#keyringController.getKeyringForAccount(
-        address,
-      );
+      const keyring = await this.getKeyringForAccount(address);
       // TODO: this is done until the keyrings all implement the InternalAccount interface
       const v4options = {
         random: sha256FromString(address).slice(0, 16),
@@ -362,50 +409,6 @@ export default class AccountsController extends BaseControllerV2<
     return internalAccounts.filter(
       (account) => account.metadata.keyring.type !== 'Snap Keyring',
     );
-  }
-
-  setSelectedAccount(accountId: string): void {
-    const account = this.getAccountExpect(accountId);
-
-    this.update((currentState: AccountsControllerState) => {
-      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
-        Date.now();
-      currentState.internalAccounts.selectedAccount = account.id;
-    });
-
-    this.messagingSystem.publish(
-      `${controllerName}:selectedAccountChange`,
-      account,
-    );
-  }
-
-  setAccountName(accountId: string, accountName: string): void {
-    const account = this.getAccountExpect(accountId);
-
-    if (
-      this.listAccounts().find(
-        (internalAccount) =>
-          internalAccount.name === accountName &&
-          internalAccount.id !== accountId,
-      )
-    ) {
-      throw new Error('Account name already exists');
-    }
-
-    this.update((currentState: AccountsControllerState) => {
-      currentState.internalAccounts.accounts[accountId] = {
-        ...account,
-        name: accountName,
-      };
-    });
-  }
-
-  async #isSnapEnabled(snapId: string): Promise<boolean> {
-    const snap = (await this.#snapController.getSnapState(snapId)) as any;
-    if (!snap) {
-      return false;
-    }
-    return snap?.enabled && !snap?.blocked;
   }
 
   #handleSelectedAccountRemoved() {
