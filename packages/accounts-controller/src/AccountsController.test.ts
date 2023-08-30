@@ -89,7 +89,7 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
       ...account.metadata,
       lastSelected: expect.any(Number),
     },
-  };
+  } as InternalAccount;
 }
 
 /**
@@ -361,80 +361,84 @@ describe('AccountsController', () => {
   //   });
   // });
 
-  // describe('getAccount', () => {
-  //   it('should return an account by ID', () => {
-  //     const accountsController = setupAccountsController({
-  //       internalAccounts: {
-  //         accounts: { [mockAccount.id]: mockAccount },
-  //       },
-  //     });
+  describe('getAccount', () => {
+    it('should return an account by ID', () => {
+      const accountsController = setupAccountsController({
+        internalAccounts: {
+          accounts: { [mockAccount.id]: mockAccount },
+        },
+      });
 
-  //     const result = accountsController.getAccount(mockAccount.id);
+      const result = accountsController.getAccount(mockAccount.id);
 
-  //     expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
-  //   });
-  // });
+      expect(result).toStrictEqual(
+        setLastSelectedAsAny(mockAccount as InternalAccount),
+      );
+    });
+  });
 
-  // it('should return undefined for an unknown account ID', () => {
-  //   const accountsController = setupAccountsController({
-  //     internalAccounts: {
-  //       accounts: { [mockAccount.id]: mockAccount },
-  //     },
-  //   });
+  it('should return undefined for an unknown account ID', () => {
+    const accountsController = setupAccountsController({
+      internalAccounts: {
+        accounts: { [mockAccount.id]: mockAccount },
+      },
+    });
 
-  //   const result = accountsController.getAccount("I don't exist");
+    const result = accountsController.getAccount("I don't exist");
 
-  //   expect(result).toBeUndefined();
-  // });
+    expect(result).toBeUndefined();
+  });
 
-  // describe('listAccounts', () => {
-  //   it('should return a list of accounts', () => {
-  //     const accountsController = setupAccountsController({
-  //       internalAccounts: {
-  //         accounts: {
-  //           [mockAccount.id]: mockAccount,
-  //           [mockAccount2.id]: mockAccount2,
-  //         },
-  //       },
-  //     });
+  describe('listAccounts', () => {
+    it('should return a list of accounts', () => {
+      const accountsController = setupAccountsController({
+        internalAccounts: {
+          accounts: {
+            [mockAccount.id]: mockAccount,
+            [mockAccount2.id]: mockAccount2,
+          },
+        },
+      });
 
-  //     const result = accountsController.listAccounts();
+      const result = accountsController.listAccounts();
 
-  //     expect(result).toEqual([
-  //       setLastSelectedAsAny(mockAccount),
-  //       setLastSelectedAsAny(mockAccount2),
-  //     ]);
-  //   });
-  // });
+      expect(result).toStrictEqual([
+        setLastSelectedAsAny(mockAccount as InternalAccount),
+        setLastSelectedAsAny(mockAccount2 as InternalAccount),
+      ]);
+    });
+  });
 
-  // describe('getAccountExpect', () => {
-  //   it('should return an account by ID', () => {
-  //     const accountsController = setupAccountsController({
-  //       internalAccounts: {
-  //         accounts: {
-  //           [mockAccount.id]: mockAccount,
-  //         },
-  //       },
-  //     });
-  //     const result = accountsController.getAccountExpect(mockAccount.id);
+  describe('getAccountExpect', () => {
+    it('should return an account by ID', () => {
+      const accountsController = setupAccountsController({
+        internalAccounts: {
+          accounts: {
+            [mockAccount.id]: mockAccount,
+          },
+        },
+      });
+      const result = accountsController.getAccountExpect(mockAccount.id);
 
-  //     expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
-  //   });
+      expect(result).toStrictEqual(
+        setLastSelectedAsAny(mockAccount as InternalAccount),
+      );
+    });
 
-  //   it('should throw an error for an unknown account ID', () => {
-  //     const accountsController = setupAccountsController({
-  //       internalAccounts: {
-  //         accounts: {
-  //           [mockAccount.id]: mockAccount,
-  //         },
-  //       },
-  //     });
+    it('should throw an error for an unknown account ID', () => {
+      const accountsController = setupAccountsController({
+        internalAccounts: {
+          accounts: {
+            [mockAccount.id]: mockAccount,
+          },
+        },
+      });
 
-  //     expect(() => accountsController.getAccountExpect('unknown id')).toThrow(
-  //       `Account Id unknown id not found`,
-  //     );
-  //   });
-  // });
+      expect(() => accountsController.getAccountExpect('unknown id')).toThrow(
+        `Account Id unknown id not found`,
+      );
+    });
+  });
 
   describe('getSelectedAccount', () => {
     it('should return the selected account', () => {
