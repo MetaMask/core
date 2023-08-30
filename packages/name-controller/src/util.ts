@@ -1,4 +1,32 @@
-// Below functions are intentionally copied from controller-utils to avoid package dependency
+/**
+ * Execute a GraphQL query.
+ *
+ * @param url - GraphQL endpoint URL.
+ * @param query - GraphQL query.
+ * @param variables - GraphQL variables.
+ */
+export async function graphQL<T>(
+  url: string,
+  query: string,
+  variables: Record<string, any>,
+): Promise<T> {
+  const body = JSON.stringify({
+    query,
+    variables,
+  });
+
+  const response = await handleFetch(url, {
+    body,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  return response?.data;
+}
+
+// Below functions are intentionally copied from controller-utils to avoid a package dependency
 
 /**
  * Execute fetch and return object response.

@@ -11,7 +11,7 @@ import { handleFetch } from '../util';
 const ID = 'etherscan';
 const LABEL = 'Etherscan (Verified Contract Name)';
 
-export type EtherscanGetSourceCodeResponse = {
+type EtherscanGetSourceCodeResponse = {
   status: '1' | '0';
   message: string;
   result: [

@@ -5,9 +5,30 @@ import type {
   NameProviderResponse,
 } from '../types';
 import { NameType } from '../types';
+import { graphQL } from '../util';
 
 const ID = 'lens';
 const LABEL = 'Lens Protocol';
+const LENS_URL = `https://api.lens.dev`;
+
+const QUERY = `
+query HandlesForAddress($address: EthereumAddress!) {
+  profiles(request: { ownedBy: [$address] }) {
+    items {
+      handle
+    }
+  }
+}`;
+
+type LensResponse = {
+  profiles: {
+    items: [
+      {
+        handle: string;
+      },
+    ];
+  };
+};
 
 export class LensNameProvider implements NameProvider {
   getMetadata(): NameProviderMetadata {
@@ -21,24 +42,13 @@ export class LensNameProvider implements NameProvider {
     request: NameProviderRequest,
   ): Promise<NameProviderResponse> {
     const { value } = request;
-    const url = `https://api.lens.dev`;
 
-    const body = JSON.stringify({
-      query: `query Profiles {  profiles(request: { ownedBy: ["${value}"], limit: 1 }) {    items {      name      handle    }  }}`,
+    const responseData = await graphQL<LensResponse>(LENS_URL, QUERY, {
+      address: value,
     });
 
-    const response = await fetch(url, {
-      body,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const responseData = await response.json();
-
-    const profiles = responseData?.data?.profiles?.items;
-    const proposedNames = profiles?.map((profile: any) => profile.handle);
+    const profiles = responseData?.profiles?.items ?? [];
+    const proposedNames = profiles.map((profile) => profile.handle);
 
     return {
       results: {
