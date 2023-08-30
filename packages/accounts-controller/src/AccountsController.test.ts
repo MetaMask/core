@@ -1,5 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/eth-snap-keyring';
+import * as uuid from 'uuid';
 
 import type {
   AccountsControllerActions,
@@ -8,16 +9,8 @@ import type {
 } from './AccountsController';
 import AccountsController from './AccountsController';
 
-const mockUUIDV4 = jest.fn();
-
-jest.mock('uuid', () => {
-  const actual = jest.requireActual('uuid');
-
-  return {
-    ...actual,
-    v4: () => mockUUIDV4,
-  };
-});
+jest.mock('uuid');
+const mockUUID = jest.spyOn(uuid, 'v4');
 
 const defaultState: AccountsControllerState = {
   internalAccounts: {
@@ -30,7 +23,7 @@ const mockGetKeyringForAccount = jest.fn();
 const mockGetKeyringByType = jest.fn();
 const mockGetAccounts = jest.fn();
 
-const mockAccount = {
+const mockAccount: InternalAccount = {
   name: 'Account 1',
   id: 'mock-id',
   address: '0x123',
@@ -53,7 +46,7 @@ const mockAccount = {
   },
 };
 
-const mockAccount2 = {
+const mockAccount2: InternalAccount = {
   name: 'Account 2',
   id: 'mock-id2',
   address: '0x1234',
@@ -75,6 +68,51 @@ const mockAccount2 = {
     lastSelected: 1691565967656,
   },
 };
+
+/**
+ * Creates an `InternalAccount` object from the given legacy account properties.
+ *
+ * @param props - The properties of the legacy account.
+ * @param props.id - The ID of the account.
+ * @param props.name - The name of the account.
+ * @param props.address - The address of the account.
+ * @param props.keyringType - The type of the keyring associated with the account.
+ * @returns The `InternalAccount` object created from the legacy account properties.
+ */
+function createExpectedInternalAccountFromLegacy({
+  id,
+  name,
+  address,
+  keyringType,
+}: {
+  id: string;
+  name: string;
+  address: string;
+  keyringType: string;
+}): InternalAccount {
+  return {
+    id,
+    name,
+    address,
+    options: {},
+    supportedMethods: [
+      'personal_sign',
+      'eth_sendTransaction',
+      'eth_sign',
+      'eth_signTransaction',
+      'eth_signTypedData',
+      'eth_signTypedData_v1',
+      'eth_signTypedData_v2',
+      'eth_signTypedData_v3',
+      'eth_signTypedData_v4',
+    ],
+    type: 'eip155:eoa',
+    metadata: {
+      keyring: { type: keyringType },
+      lastSelected: undefined,
+    },
+  };
+}
 
 /**
  * Sets the `lastSelected` property of the given `account` to `expect.any(Number)`.
@@ -122,27 +160,27 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
 }
 
 /**
- *
- * @param initialState - The initial state to use for the AccountsController.
- * @param onKeyringStateChange - A callback to call when the keyring state changes.
- * @param onSnapStateChange - A callback to call when the snap state changes.
- */
-/**
  * Sets up an instance of the AccountsController class with the given initial state and callbacks.
  *
- * @param initialState - The initial state to use for the AccountsController.
- * @param keyringApiEnabled - Whether or not the keyring API is enabled.
- * @param onKeyringStateChange - A callback to call when the keyring state changes.
- * @param onSnapStateChange - A callback to call when the snap state changes.
+ * @param options - The options object.
+ * @param [options.initialState] - The initial state to use for the AccountsController.
+ * @param [options.keyringApiEnabled] - Whether or not the keyring API is enabled.
+ * @param [options.onKeyringStateChange] - A callback to call when the keyring state changes.
+ * @param [options.onSnapStateChange] - A callback to call when the snap state changes.
  * @returns An instance of the AccountsController class.
  */
-function setupAccountsController(
+function setupAccountsController({
   // eslint-disable-next-line @typescript-eslint/default-param-last
   initialState = {},
   keyringApiEnabled = true,
   onKeyringStateChange = () => jest.fn(),
   onSnapStateChange = () => jest.fn(),
-): AccountsController {
+}: {
+  initialState?: Partial<AccountsControllerState>;
+  keyringApiEnabled?: boolean;
+  onKeyringStateChange?: () => void;
+  onSnapStateChange?: () => void;
+}): AccountsController {
   const accountsControllerMessenger = buildAccountsControllerMessenger(
     new ControllerMessenger(),
   );
@@ -248,29 +286,109 @@ describe('AccountsController', () => {
   //   });
   // });
 
-  // describe('updateAccounts', () => {
-  //   it('should update accounts with legacy accounts', async () => {
-  //
-  //     const accountsController = new AccountsController();
-  //     const legacyAccounts = [
-  //       { address: '0x123', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //       { address: '0x456', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //     ];
-  //     const snapAccounts = [];
+  describe('updateAccounts', () => {
+    const mockAddress1 = '0x123';
+    const mockAddress2 = '0x456';
+    const mockSnapAccount = {
+      ...mockAccount,
+      metadata: {
+        ...mockAccount.metadata,
+        keyring: {
+          type: 'Snap Keyring',
+        },
+        snap: {
+          enabled: true,
+          id: 'mock-snap-id',
+        },
+        lastSelected: undefined,
+      },
+    };
+    const mockSnapAccount2 = {
+      ...mockAccount2,
+      metadata: {
+        ...mockAccount2.metadata,
+        keyring: {
+          type: 'Snap Keyring',
+        },
+        snap: {
+          enabled: true,
+          id: 'mock-snap-id2',
+        },
+        lastSelected: undefined,
+      },
+    };
 
-  //
-  //     jest
-  //       .spyOn(accountsController, '#listLegacyAccounts')
-  //       .mockResolvedValue(legacyAccounts);
-  //     jest
-  //       .spyOn(accountsController, '#listSnapAccounts')
-  //       .mockResolvedValue(snapAccounts);
-  //     await accountsController.updateAccounts();
+    it('should update accounts with legacy accounts', async () => {
+      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+      mockGetAccounts.mockResolvedValue([mockAddress1, mockAddress2]);
+      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
 
-  //
-  //     expect(accountsController.state.internalAccounts.accounts).toEqual(
-  //       legacyAccounts,
-  //     );
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: false,
+      });
+      const expectedAccounts = [
+        createExpectedInternalAccountFromLegacy({
+          name: 'Account 1',
+          id: 'mock-id',
+          address: mockAddress1,
+          keyringType: 'HD Key Tree',
+        }),
+        createExpectedInternalAccountFromLegacy({
+          name: 'Account 2',
+          id: 'mock-id2',
+          address: mockAddress2,
+          keyringType: 'HD Key Tree',
+        }),
+      ];
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
+
+    it('should update accounts with snap accounts', async () => {
+      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+      mockGetAccounts.mockResolvedValue([]);
+      mockGetKeyringByType.mockReturnValueOnce([
+        {
+          type: 'Snap Keyring',
+          listAccounts: async () => [mockSnapAccount, mockSnapAccount2],
+        },
+      ]);
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: true,
+      });
+
+      const expectedAccount1 = {
+        ...mockSnapAccount,
+        name: 'Snap Account 1',
+      };
+
+      const expectedAccount2 = {
+        ...mockSnapAccount2,
+        name: 'Snap Account 2',
+      };
+
+      const expectedAccounts = [expectedAccount1, expectedAccount2];
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
+
   //   });
 
   //   it('should update accounts with snap accounts', async () => {
@@ -297,75 +415,70 @@ describe('AccountsController', () => {
   //     );
   //   });
 
-  //   it('should remove duplicate accounts from snap and legacy accounts', async () => {
-  //
-  //     const accountsController = new AccountsController();
-  //     const legacyAccounts = [
-  //       { address: '0x123', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //       { address: '0x456', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //     ];
-  //     const snapAccounts = [
-  //       { address: '0x456', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //       { address: '0x789', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //     ];
-  //     const expectedAccounts = [
-  //       { address: '0x123', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //       { address: '0x456', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //       { address: '0x789', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //     ];
+  });
 
-  //
-  //     jest
-  //       .spyOn(accountsController, '#listLegacyAccounts')
-  //       .mockResolvedValue(legacyAccounts);
-  //     jest
-  //       .spyOn(accountsController, '#listSnapAccounts')
-  //       .mockResolvedValue(snapAccounts);
-  //     await accountsController.updateAccounts();
+  describe('loadBackup', () => {
+    it('should load a backup', async () => {
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+      });
 
-  //
-  //     expect(accountsController.state.internalAccounts.accounts).toEqual(
-  //       expectedAccounts,
-  //     );
-  //   });
+      accountsController.loadBackup({
+        internalAccounts: {
+          accounts: {
+            [mockAccount.id]: mockAccount,
+          },
+          selectedAccount: mockAccount.id,
+        },
+      });
 
-  //   it('should update keyring types', async () => {
-  //
-  //     const accountsController = new AccountsController();
-  //     const legacyAccounts = [
-  //       { address: '0x123', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //       { address: '0x456', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //     ];
-  //     const snapAccounts = [
-  //       { address: '0x789', metadata: { keyring: { type: 'Simple Keyring' } } },
-  //       { address: '0xabc', metadata: { keyring: { type: 'Ledger Keyring' } } },
-  //     ];
-  //     const expectedKeyringTypes = new Map([
-  //       ['Simple Keyring', 2],
-  //       ['Ledger Keyring', 1],
-  //     ]);
+      expect(accountsController.state).toStrictEqual({
+        internalAccounts: {
+          accounts: {
+            [mockAccount.id]: mockAccount,
+          },
+          selectedAccount: mockAccount.id,
+        },
+      });
+    });
 
-  //
-  //     jest
-  //       .spyOn(accountsController, '#listLegacyAccounts')
-  //       .mockResolvedValue(legacyAccounts);
-  //     jest
-  //       .spyOn(accountsController, '#listSnapAccounts')
-  //       .mockResolvedValue(snapAccounts);
-  //     await accountsController.updateAccounts();
+    it('should not load backup if the data is undefined', () => {
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
 
-  //
-  //     expect(accountsController.state.internalAccounts.keyringTypes).toEqual(
-  //       expectedKeyringTypes,
-  //     );
-  //   });
-  // });
+      // @ts-expect-error incorrect state
+      accountsController.loadBackup({});
+
+      expect(accountsController.state).toStrictEqual({
+        internalAccounts: {
+          accounts: {
+            [mockAccount.id]: mockAccount,
+          },
+          selectedAccount: mockAccount.id,
+        },
+      });
+    });
+  });
 
   describe('getAccount', () => {
     it('should return an account by ID', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
           accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
         },
       });
 
@@ -379,8 +492,11 @@ describe('AccountsController', () => {
 
   it('should return undefined for an unknown account ID', () => {
     const accountsController = setupAccountsController({
+      initialState: {
       internalAccounts: {
         accounts: { [mockAccount.id]: mockAccount },
+          selectedAccount: mockAccount.id,
+        },
       },
     });
 
@@ -392,10 +508,13 @@ describe('AccountsController', () => {
   describe('listAccounts', () => {
     it('should return a list of accounts', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
           accounts: {
             [mockAccount.id]: mockAccount,
             [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: mockAccount.id,
           },
         },
       });
@@ -412,9 +531,10 @@ describe('AccountsController', () => {
   describe('getAccountExpect', () => {
     it('should return an account by ID', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
-          accounts: {
-            [mockAccount.id]: mockAccount,
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
           },
         },
       });
@@ -427,9 +547,10 @@ describe('AccountsController', () => {
 
     it('should throw an error for an unknown account ID', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
-          accounts: {
-            [mockAccount.id]: mockAccount,
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
           },
         },
       });
@@ -443,11 +564,11 @@ describe('AccountsController', () => {
   describe('getSelectedAccount', () => {
     it('should return the selected account', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
-          accounts: {
-            [mockAccount.id]: mockAccount,
-          },
+            accounts: { [mockAccount.id]: mockAccount },
           selectedAccount: mockAccount.id,
+          },
         },
       });
       const result = accountsController.getAccountExpect(mockAccount.id);
@@ -461,12 +582,14 @@ describe('AccountsController', () => {
   describe('setSelectedAccount', () => {
     it('should set the selected account', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
           accounts: {
             [mockAccount.id]: mockAccount,
             [mockAccount2.id]: mockAccount2,
           },
           selectedAccount: mockAccount.id,
+          },
         },
       });
 
@@ -479,12 +602,14 @@ describe('AccountsController', () => {
 
     it('should throw an error for an unknown account ID', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
           accounts: {
             [mockAccount.id]: mockAccount,
             [mockAccount2.id]: mockAccount2,
           },
           selectedAccount: mockAccount.id,
+          },
         },
       });
 
@@ -497,14 +622,13 @@ describe('AccountsController', () => {
   describe('setAccountName', () => {
     it('should set the name of an existing account', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
-          accounts: {
-            [mockAccount.id]: mockAccount,
-          },
+            accounts: { [mockAccount.id]: mockAccount },
           selectedAccount: mockAccount.id,
+          },
         },
       });
-
       accountsController.setAccountName(mockAccount.id, 'new name');
 
       expect(accountsController.getAccountExpect(mockAccount.id).name).toBe(
@@ -514,12 +638,14 @@ describe('AccountsController', () => {
 
     it('should throw an error if the account name already exists', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
           accounts: {
             [mockAccount.id]: mockAccount,
             [mockAccount2.id]: mockAccount2,
           },
           selectedAccount: mockAccount.id,
+          },
         },
       });
 
@@ -530,11 +656,11 @@ describe('AccountsController', () => {
 
     it('should throw an error if the account ID is not found', () => {
       const accountsController = setupAccountsController({
+        initialState: {
         internalAccounts: {
-          accounts: {
-            [mockAccount.id]: mockAccount,
-          },
+            accounts: { [mockAccount.id]: mockAccount },
           selectedAccount: mockAccount.id,
+          },
         },
       });
       expect(() =>

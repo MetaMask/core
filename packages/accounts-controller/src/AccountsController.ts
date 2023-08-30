@@ -342,9 +342,11 @@ export default class AccountsController extends BaseControllerV2<
   }
 
   loadBackup(backup: AccountsControllerState): void {
-    this.update((currentState: AccountsControllerState) => {
-      currentState.internalAccounts = backup.internalAccounts;
-    });
+    if (backup.internalAccounts) {
+      this.update((currentState: AccountsControllerState) => {
+        currentState.internalAccounts = backup.internalAccounts;
+      });
+    }
   }
 
   async #listSnapAccounts(): Promise<InternalAccount[]> {
@@ -360,7 +362,6 @@ export default class AccountsController extends BaseControllerV2<
         snap: {
           id: snapId,
           enabled: true,
-          name: account.name,
         },
         keyring: {
           type: (snapKeyring as SnapKeyring).type,
@@ -377,7 +378,6 @@ export default class AccountsController extends BaseControllerV2<
     const internalAccounts: Omit<InternalAccount, 'name'>[] = [];
     for (const address of addresses) {
       const keyring = await this.getKeyringForAccount(address);
-      // TODO: this is done until the keyrings all implement the InternalAccount interface
       const v4options = {
         random: sha256FromString(address).slice(0, 16),
       };
