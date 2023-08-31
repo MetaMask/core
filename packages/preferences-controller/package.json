@@ -1,6 +1,6 @@
 {
   "name": "@metamask/preferences-controller",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "description": "Manages user-configurable settings for MetaMask",
   "keywords": [
     "MetaMask",
@@ -23,14 +23,13 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/preferences-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:^",
-    "@metamask/controller-utils": "workspace:^"
+    "@metamask/base-controller": "^3.2.1",
+    "@metamask/controller-utils": "^4.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",

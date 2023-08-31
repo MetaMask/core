@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "4.3.1",
+  "version": "4.3.2",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
@@ -23,7 +23,6 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/controller-utils",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"

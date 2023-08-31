@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "12.1.1",
+  "version": "12.1.2",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -23,14 +23,13 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:^",
-    "@metamask/controller-utils": "workspace:^",
+    "@metamask/base-controller": "^3.2.1",
+    "@metamask/controller-utils": "^4.3.2",
     "@metamask/eth-json-rpc-infura": "^8.1.1",
     "@metamask/eth-json-rpc-middleware": "^11.0.0",
     "@metamask/eth-json-rpc-provider": "^1.0.0",

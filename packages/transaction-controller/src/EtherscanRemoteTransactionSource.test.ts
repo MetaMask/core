@@ -1,5 +1,6 @@
 import { v1 as random } from 'uuid';
 
+import { CHAIN_IDS } from './constants';
 import type {
   EtherscanTokenTransactionMeta,
   EtherscanTransactionMeta,
@@ -63,7 +64,6 @@ const ETHERSCAN_TOKEN_TRANSACTION_MOCK: EtherscanTokenTransactionMeta = {
 
 const ETHERSCAN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> =
   {
-    status: '1',
     result: [
       ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
       ETHERSCAN_TRANSACTION_ERROR_MOCK,
@@ -72,7 +72,6 @@ const ETHERSCAN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<Ethersca
 
 const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTokenTransactionMeta> =
   {
-    status: '1',
     result: [
       ETHERSCAN_TOKEN_TRANSACTION_MOCK,
       ETHERSCAN_TOKEN_TRANSACTION_MOCK,
@@ -81,7 +80,6 @@ const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<Et
 
 const ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> =
   {
-    status: '0',
     result: [],
   };
 
@@ -159,6 +157,26 @@ describe('EtherscanRemoteTransactionSource', () => {
     randomMock.mockReturnValue(ID_MOCK);
   });
 
+  describe('isSupportedNetwork', () => {
+    it('returns true if chain ID in constant', () => {
+      expect(
+        new EtherscanRemoteTransactionSource().isSupportedNetwork(
+          CHAIN_IDS.MAINNET,
+          '1',
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false if chain ID not in constant', () => {
+      expect(
+        new EtherscanRemoteTransactionSource().isSupportedNetwork(
+          '0x1324567891234',
+          '1',
+        ),
+      ).toBe(false);
+    });
+  });
+
   describe('fetchTransactions', () => {
     it('returns normalized transactions fetched from Etherscan', async () => {
       fetchEtherscanTransactionsMock.mockResolvedValueOnce(
@@ -190,6 +208,18 @@ describe('EtherscanRemoteTransactionSource', () => {
         EXPECTED_NORMALISED_TOKEN_TRANSACTION,
         EXPECTED_NORMALISED_TOKEN_TRANSACTION,
       ]);
+    });
+
+    it('returns no normalized token transactions if flag disabled', async () => {
+      fetchEtherscanTokenTransactionsMock.mockResolvedValueOnce(
+        ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK,
+      );
+
+      const transactions = await new EtherscanRemoteTransactionSource({
+        includeTokenTransfers: false,
+      }).fetchTransactions({} as any);
+
+      expect(transactions).toStrictEqual([]);
     });
   });
 });

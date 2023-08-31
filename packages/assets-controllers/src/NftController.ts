@@ -15,7 +15,6 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
-  OPENSEA_API_URL,
   OPENSEA_PROXY_URL,
   ApprovalType,
 } from '@metamask/controller-utils';
@@ -139,6 +138,7 @@ export interface NftMetadata {
   creator?: ApiNftCreator;
   lastSale?: ApiNftLastSale;
   transactionId?: string;
+  tokenURI?: string | null;
 }
 
 interface AccountParams {
@@ -158,6 +158,7 @@ export interface NftConfig extends BaseConfig {
   ipfsGateway: string;
   displayNftMedia: boolean;
   useIPFSSubdomains: boolean;
+  isIpfsGatewayEnabled: boolean;
 }
 
 /**
@@ -225,14 +226,10 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
   private getNftContractInformationApi({
     contractAddress,
-    useProxy,
   }: {
     contractAddress: string;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`
-      : `${OPENSEA_API_URL}/asset_contract/${contractAddress}`;
+    return `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`;
   }
 
   /**
@@ -352,12 +349,40 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
     tokenId: string,
   ): Promise<NftMetadata> {
-    const { ipfsGateway, useIPFSSubdomains } = this.config;
+    const {
+      ipfsGateway,
+      useIPFSSubdomains,
+      isIpfsGatewayEnabled,
+      displayNftMedia,
+    } = this.config;
     const result = await this.getNftURIAndStandard(contractAddress, tokenId);
     let tokenURI = result[0];
     const standard = result[1];
 
-    if (tokenURI.startsWith('ipfs://')) {
+    if (!displayNftMedia && !isIpfsGatewayEnabled) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI,
+      };
+    }
+
+    const hasIpfsTokenURI = tokenURI.startsWith('ipfs://');
+
+    if (hasIpfsTokenURI && !isIpfsGatewayEnabled) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI: tokenURI ?? null,
+      };
+    }
+    if (hasIpfsTokenURI) {
       tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
     }
 
@@ -374,6 +399,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: object.description,
         standard,
         favorite: false,
+        tokenURI: tokenURI ?? null,
       };
     } catch {
       return {
@@ -382,6 +408,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: null,
         standard: standard || null,
         favorite: false,
+        tokenURI: tokenURI ?? null,
       };
     }
   }
@@ -459,6 +486,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       image: blockchainMetadata.image ?? openSeaMetadata?.image ?? null,
       standard:
         blockchainMetadata.standard ?? openSeaMetadata?.standard ?? null,
+      tokenURI: blockchainMetadata.tokenURI ?? null,
     };
   }
 
@@ -472,37 +500,16 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
   ): Promise<ApiNftContract> {
     /* istanbul ignore if */
-    let apiNftContractObject: ApiNftContract | undefined =
+    const apiNftContractObject: ApiNftContract | undefined =
       await fetchWithErrorHandling({
         url: this.getNftContractInformationApi({
           contractAddress,
-          useProxy: true,
         }),
       });
 
     // if we successfully fetched return the fetched data immediately
     if (apiNftContractObject) {
       return apiNftContractObject;
-    }
-
-    // if we were unsuccessful in fetching from the API and an OpenSea API key is present
-    // attempt to refetch directly against the OpenSea API and if successful return the data immediately
-    if (this.openSeaApiKey) {
-      apiNftContractObject = await fetchWithErrorHandling({
-        url: this.getNftContractInformationApi({
-          contractAddress,
-          useProxy: false,
-        }),
-        options: {
-          headers: { 'X-API-KEY': this.openSeaApiKey },
-        },
-        // catch 403 errors (in case API key is down we don't want to blow up)
-        errorCodesToCatch: [403],
-      });
-
-      if (apiNftContractObject) {
-        return apiNftContractObject;
-      }
     }
 
     // If we've reached this point we were unable to fetch data from either the proxy or opensea so we return
@@ -955,6 +962,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       displayNftMedia: true,
       useIPFSSubdomains: true,
+      isIpfsGatewayEnabled: true,
     };
 
     this.defaultState = {
@@ -973,8 +981,18 @@ export class NftController extends BaseController<NftConfig, NftState> {
     this.messagingSystem = messenger;
 
     onPreferencesStateChange(
-      ({ selectedAddress, ipfsGateway, displayNftMedia }) => {
-        this.configure({ selectedAddress, ipfsGateway, displayNftMedia });
+      ({
+        selectedAddress,
+        ipfsGateway,
+        displayNftMedia,
+        isIpfsGatewayEnabled,
+      }) => {
+        this.configure({
+          selectedAddress,
+          ipfsGateway,
+          displayNftMedia,
+          isIpfsGatewayEnabled,
+        });
       },
     );
 

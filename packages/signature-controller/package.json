@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "5.3.0",
+  "version": "5.3.1",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -23,16 +23,15 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/signature-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "workspace:^",
-    "@metamask/base-controller": "workspace:^",
-    "@metamask/controller-utils": "workspace:^",
-    "@metamask/message-manager": "workspace:^",
+    "@metamask/approval-controller": "^3.5.1",
+    "@metamask/base-controller": "^3.2.1",
+    "@metamask/controller-utils": "^4.3.2",
+    "@metamask/message-manager": "^7.3.1",
     "@metamask/utils": "^6.2.0",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
@@ -50,7 +49,7 @@
     "typescript": "~4.6.3"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "workspace:^"
+    "@metamask/approval-controller": "^3.5.1"
   },
   "engines": {
     "node": ">=16.0.0"

@@ -982,6 +982,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        tokenURI: '',
       });
     });
 
@@ -1110,6 +1111,8 @@ describe('NftController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        tokenURI:
+          'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
       });
 
       expect(
@@ -1234,6 +1237,8 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
         imageOriginal: 'image.uri',
         numberOfSales: 1,
+        tokenURI:
+          'https://api.opensea.io/api/v1/metadata/0x495f947276749Ce646f68AC8c248420045cb7b5e/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
       });
     });
 
@@ -1344,6 +1349,8 @@ describe('NftController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        tokenURI:
+          'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
       });
 
       expect(
@@ -1577,6 +1584,7 @@ describe('NftController', () => {
           tokenId: ERC721_KUDOS_TOKEN_ID,
           favorite: false,
           isCurrentlyOwned: true,
+          tokenURI: '',
         },
       ]);
 
@@ -1804,6 +1812,8 @@ describe('NftController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        tokenURI:
+          'https://bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm.ipfs.cloudflare-ipfs.com',
       });
     });
 
@@ -1941,6 +1951,7 @@ describe('NftController', () => {
         standard: null,
         favorite: false,
         isCurrentlyOwned: true,
+        tokenURI: '',
       });
     });
   });
@@ -2302,6 +2313,38 @@ describe('NftController', () => {
         );
       };
       await expect(result).rejects.toThrow(error);
+    });
+
+    it('should add NFT with null metadata if the ipfs gateway is disabled and opensea is disabled', async () => {
+      const { assetsContract, nftController, preferences } = setupController();
+
+      preferences.update({
+        isIpfsGatewayEnabled: false,
+        displayNftMedia: false,
+      });
+
+      sinon
+        .stub(nftController, 'getNftURIAndStandard' as any)
+        .returns(['ipfs://*', ERC1155]);
+
+      assetsContract.configure({ provider: MAINNET_PROVIDER });
+      const { selectedAddress, chainId } = nftController.config;
+
+      await nftController.addNft(ERC1155_NFT_ADDRESS, ERC1155_NFT_ID);
+
+      expect(
+        nftController.state.allNfts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC1155_NFT_ADDRESS,
+        name: null,
+        description: null,
+        image: null,
+        tokenId: ERC1155_NFT_ID,
+        standard: ERC1155,
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI: 'ipfs://*',
+      });
     });
   });
 
