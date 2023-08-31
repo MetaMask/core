@@ -1446,11 +1446,18 @@ describe('TransactionController', () => {
         value: '0x0',
       });
 
-      await controller.stopTransaction(transactionMeta.id);
+      const finishedPromise = waitForTransactionFinished(controller);
+
+      await controller.stopTransaction(transactionMeta.id, undefined, {
+        estimatedBaseFee: '0x123',
+      });
+
+      const { estimatedBaseFee } = await finishedPromise;
 
       approveTransaction();
 
       await expect(result).rejects.toThrow('User cancelled the transaction');
+      expect(estimatedBaseFee).toBe('0x123');
     });
 
     it('throws if no sign method', async () => {
@@ -1499,7 +1506,9 @@ describe('TransactionController', () => {
       });
 
       await result;
-      await controller.speedUpTransaction(transactionMeta.id);
+      await controller.speedUpTransaction(transactionMeta.id, undefined, {
+        estimatedBaseFee: '0x123',
+      });
 
       const { transactions } = controller.state;
       expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
@@ -1508,6 +1517,7 @@ describe('TransactionController', () => {
       expect(transactions[0].transaction.nonce).toStrictEqual(
         transactions[1].transaction.nonce,
       );
+      expect(transactions[1].estimatedBaseFee).toBe('0x123');
     });
 
     it('allows transaction count to exceed txHistorylimit', async () => {

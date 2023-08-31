@@ -44,6 +44,11 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
+   * The estimated base fee of the transaction.
+   */
+  estimatedBaseFee?: string;
+
+  /**
    * Generated UUID associated with this transaction.
    */
   id: string;
