@@ -13,7 +13,6 @@ import {
   nullable,
   number,
   object,
-  omit,
   optional,
   record,
   string,
@@ -178,7 +177,7 @@ export type JsonRpcError = OptionalField<
 >;
 
 export const JsonRpcParamsStruct: Struct<Json[] | Record<string, Json>, null> =
-  optional(union([record(string(), JsonStruct), array(JsonStruct)])) as any;
+  union([record(string(), JsonStruct), array(JsonStruct)]);
 
 export type JsonRpcParams = Json[] | Record<string, Json>;
 
@@ -186,20 +185,15 @@ export const JsonRpcRequestStruct = object({
   id: JsonRpcIdStruct,
   jsonrpc: JsonRpcVersionStruct,
   method: string(),
-  params: JsonRpcParamsStruct,
+  params: optional(JsonRpcParamsStruct),
 });
 
 export type InferWithParams<
   Type extends Struct<any>,
   Params extends JsonRpcParams,
-> = Omit<Infer<Type>, 'params'> &
-  (keyof Params extends undefined
-    ? {
-        params?: Params;
-      }
-    : {
-        params: Params;
-      });
+> = Omit<Infer<Type>, 'params'> & {
+  params?: Exclude<Params, undefined>;
+};
 
 /**
  * A JSON-RPC request object.
@@ -207,7 +201,11 @@ export type InferWithParams<
 export type JsonRpcRequest<Params extends JsonRpcParams = JsonRpcParams> =
   InferWithParams<typeof JsonRpcRequestStruct, Params>;
 
-export const JsonRpcNotificationStruct = omit(JsonRpcRequestStruct, ['id']);
+export const JsonRpcNotificationStruct = object({
+  jsonrpc: JsonRpcVersionStruct,
+  method: string(),
+  params: optional(JsonRpcParamsStruct),
+});
 
 /**
  * A JSON-RPC notification object.
