@@ -1,4 +1,3 @@
-import { BigNumber } from '@ethersproject/bignumber';
 import { ethErrors } from 'eth-rpc-errors';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
@@ -12,7 +11,6 @@ import * as util from './utils';
 import {
   getAndFormatTransactionsForNonceTracker,
   transactionMatchesNetwork,
-  normalizeTxReceiptGasUsed,
   validateConfirmedExternalTransaction,
 } from './utils';
 
@@ -47,20 +45,6 @@ describe('utils', () => {
       maxFeePerGas: '0xmaxFeePerGas',
       maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
       estimatedBaseFee: '0xestimatedBaseFee',
-    });
-  });
-
-  describe('normalizeTxReceiptGasUsed', () => {
-    it('should return a string representation of gasUsed when provided a BigNumber', () => {
-      const gasUsedBigNumber = BigNumber.from('50000');
-      const normalizedGasUsed = normalizeTxReceiptGasUsed(gasUsedBigNumber);
-      expect(normalizedGasUsed).toBe('50000');
-    });
-
-    it('should return the input string as is', () => {
-      const gasUsedString = '75000';
-      const normalizedGasUsed = normalizeTxReceiptGasUsed(gasUsedString);
-      expect(normalizedGasUsed).toBe('75000');
     });
   });
 

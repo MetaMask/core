@@ -1,4 +1,3 @@
-import type { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
   isValidHexAddress,
@@ -47,16 +46,6 @@ export function normalizeTransaction(transaction: Transaction) {
     }
   }
   return normalizedTransaction;
-}
-
-/**
- * Normalizes gasUsed property if not string.
- *
- * @param gasUsed - gasUsed property.
- * @returns String of gasUsed.
- */
-export function normalizeTxReceiptGasUsed(gasUsed: string | BigNumber) {
-  return typeof gasUsed === 'string' ? gasUsed : gasUsed.toString();
 }
 
 /**

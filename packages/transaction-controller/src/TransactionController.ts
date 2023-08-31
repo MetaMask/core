@@ -54,7 +54,6 @@ import {
   getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
   normalizeTransaction,
-  normalizeTxReceiptGasUsed,
   isEIP1559Transaction,
   isFeeMarketEIP1559Values,
   isGasPriceValue,
@@ -922,16 +921,10 @@ export class TransactionController extends BaseController<
 
     try {
       const transactionId = transactionMeta.id;
-      const gasUsed = normalizeTxReceiptGasUsed(
-        transactionReceipt.gasUsed as string,
-      );
 
       // Make sure status is confirmed and define gasUsed as in receipt.
       transactionMeta.status = TransactionStatus.confirmed;
-      transactionMeta.txReceipt = {
-        ...transactionReceipt,
-        gasUsed,
-      };
+      transactionMeta.txReceipt = transactionReceipt;
       if (baseFeePerGas) {
         transactionMeta.baseFeePerGas = baseFeePerGas;
       }
