@@ -2315,7 +2315,7 @@ describe('NftController', () => {
       await expect(result).rejects.toThrow(error);
     });
 
-    it('should add NFT with null metadata if the ipfs gateway is disabled and opensea is disabled', async () => {
+    it('should add NFT with null metadata if the ipfs gateway is disabled and display NFT is disabled', async () => {
       const { assetsContract, nftController, preferences } = setupController();
 
       preferences.update({
@@ -2336,14 +2336,89 @@ describe('NftController', () => {
         nftController.state.allNfts[selectedAddress][chainId][0],
       ).toStrictEqual({
         address: ERC1155_NFT_ADDRESS,
-        name: null,
-        description: null,
+        name: 'name',
+        description: 'description',
+        image: 'image.uri',
+        tokenId: ERC1155_NFT_ID,
+        standard: ERC1155,
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI: 'ipfs://*',
+      });
+    });
+    it('should add NFT with  metadata if the ipfs gateway is enabled and display NFT is disabled', async () => {
+      const { assetsContract, nftController, preferences } = setupController();
+
+      preferences.update({
+        isIpfsGatewayEnabled: true,
+        displayNftMedia: false,
+      });
+
+      sinon
+        .stub(nftController, 'getNftURIAndStandard' as any)
+        .returns(['ipfs://*', ERC1155]);
+      sinon
+        .stub(nftController, 'getNftInformationFromTokenURI' as any)
+        .returns({
+          name: 'name',
+          description: 'description',
+          image: 'image.uri',
+          standard: ERC1155,
+          favorite: false,
+          isCurrentlyOwned: true,
+          tokenURI: 'ipfs://*',
+        });
+
+      assetsContract.configure({ provider: MAINNET_PROVIDER });
+      const { selectedAddress, chainId } = nftController.config;
+
+      await nftController.addNft(ERC1155_NFT_ADDRESS, ERC1155_NFT_ID);
+
+      expect(
+        nftController.state.allNfts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC1155_NFT_ADDRESS,
+        name: 'name',
+        description: 'description',
+        image: 'image.uri',
+        tokenId: ERC1155_NFT_ID,
+        standard: ERC1155,
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI: 'ipfs://*',
+      });
+    });
+    it('should add NFT with metadata if the ipfs gateway is disabled and display NFT is enabled', async () => {
+      const { assetsContract, nftController, preferences } = setupController();
+
+      preferences.update({
+        isIpfsGatewayEnabled: false,
+        displayNftMedia: true,
+      });
+
+      sinon
+        .stub(nftController, 'getNftURIAndStandard' as any)
+        .returns(['ipfs://*', ERC1155]);
+
+      assetsContract.configure({ provider: MAINNET_PROVIDER });
+      const { selectedAddress, chainId } = nftController.config;
+
+      await nftController.addNft(ERC1155_NFT_ADDRESS, ERC1155_NFT_ID);
+
+      expect(
+        nftController.state.allNfts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC1155_NFT_ADDRESS,
+        name: 'name',
+        description: 'description',
         image: null,
         tokenId: ERC1155_NFT_ID,
         standard: ERC1155,
         favorite: false,
         isCurrentlyOwned: true,
         tokenURI: 'ipfs://*',
+        numberOfSales: 1,
+        imageOriginal: 'image.uri',
       });
     });
   });
