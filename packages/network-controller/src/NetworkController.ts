@@ -251,9 +251,9 @@ function buildCustomNetworkClientId(
   ...args:
     | [NetworkConfigurationId]
     | [
-      ProviderConfig & { type: typeof NetworkType.rpc; rpcUrl: string },
-      NetworkConfigurations,
-    ]
+        ProviderConfig & { type: typeof NetworkType.rpc; rpcUrl: string },
+        NetworkConfigurations,
+      ]
 ): CustomNetworkClientId {
   if (args.length === 1) {
     return args[0];
@@ -615,8 +615,8 @@ export class NetworkController extends BaseControllerV2<
   getProviderAndBlockTracker(): {
     provider: SwappableProxy<ProxyWithAccessibleTarget<Provider>> | undefined;
     blockTracker:
-    | SwappableProxy<ProxyWithAccessibleTarget<BlockTracker>>
-    | undefined;
+      | SwappableProxy<ProxyWithAccessibleTarget<BlockTracker>>
+      | undefined;
   } {
     return {
       provider: this.#providerProxy,
@@ -679,7 +679,7 @@ export class NetworkController extends BaseControllerV2<
     if (isInfuraProviderType(networkClientId)) {
       const infuraNetworkClient =
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-        networkClientId
+          networkClientId
         ];
       if (!infuraNetworkClient) {
         throw new Error(
@@ -691,7 +691,7 @@ export class NetworkController extends BaseControllerV2<
 
     const customNetworkClient =
       autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-      networkClientId
+        networkClientId
       ];
     if (!customNetworkClient) {
       throw new Error(
@@ -1379,12 +1379,12 @@ export class NetworkController extends BaseControllerV2<
    */
   #buildIdentifiedNetworkClientConfigurationsFromProviderConfig():
     | [
-      [
-        NetworkClientType.Custom,
-        CustomNetworkClientId,
-        CustomNetworkClientConfiguration,
-      ],
-    ]
+        [
+          NetworkClientType.Custom,
+          CustomNetworkClientId,
+          CustomNetworkClientConfiguration,
+        ],
+      ]
     | [] {
     const { providerConfig } = this.state;
 
