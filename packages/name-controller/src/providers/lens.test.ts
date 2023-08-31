@@ -6,7 +6,7 @@ jest.mock('../util');
 
 const VALUE_MOCK = 'TestValue';
 const CHAIN_ID_MOCK = '0x1';
-const PROVIDER_ID = 'lens';
+const SOURCE_ID = 'lens';
 const HANDLE_MOCK = 'TestHandle';
 const HANDLE_2_MOCK = 'TestHandle2';
 
@@ -20,18 +20,15 @@ describe('LensNameProvider', () => {
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {
       const metadata = new LensNameProvider().getMetadata();
-      const { providerIds, providerLabels } = metadata;
+      const { sourceIds, sourceLabels } = metadata;
 
-      expect(Object.keys(providerIds)).toStrictEqual([
-        NameType.ETHEREUM_ADDRESS,
-      ]);
+      expect(Object.keys(sourceIds)).toStrictEqual([NameType.ETHEREUM_ADDRESS]);
+      expect(Object.values(sourceIds)).toStrictEqual([[expect.any(String)]]);
 
-      expect(Object.values(providerIds)).toStrictEqual([[expect.any(String)]]);
+      const providerId = Object.values(sourceIds)[0][0];
 
-      const providerId = Object.values(providerIds)[0][0];
-
-      expect(Object.keys(providerLabels)).toStrictEqual([providerId]);
-      expect(providerLabels[providerId]).toStrictEqual(expect.any(String));
+      expect(Object.keys(sourceLabels)).toStrictEqual([providerId]);
+      expect(sourceLabels[providerId]).toStrictEqual(expect.any(String));
     });
   });
 
@@ -60,7 +57,7 @@ describe('LensNameProvider', () => {
 
       expect(response).toStrictEqual({
         results: {
-          [PROVIDER_ID]: {
+          [SOURCE_ID]: {
             proposedNames: [HANDLE_MOCK, HANDLE_2_MOCK],
           },
         },
@@ -83,7 +80,7 @@ describe('LensNameProvider', () => {
 
       expect(response).toStrictEqual({
         results: {
-          [PROVIDER_ID]: {
+          [SOURCE_ID]: {
             proposedNames: [],
           },
         },

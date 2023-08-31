@@ -2,7 +2,7 @@ import type {
   NameProvider,
   NameProviderMetadata,
   NameProviderRequest,
-  NameProviderResponse,
+  NameProviderResult,
 } from '../types';
 import { NameType } from '../types';
 
@@ -23,14 +23,14 @@ export class ENSNameProvider implements NameProvider {
 
   getMetadata(): NameProviderMetadata {
     return {
-      providerIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
-      providerLabels: { [ID]: LABEL },
+      sourceIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
+      sourceLabels: { [ID]: LABEL },
     };
   }
 
   async getProposedNames(
     request: NameProviderRequest,
-  ): Promise<NameProviderResponse> {
+  ): Promise<NameProviderResult> {
     const { value, chainId } = request;
     const proposedName = await this.#reverseLookup(value, chainId);
 

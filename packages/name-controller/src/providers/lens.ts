@@ -2,7 +2,7 @@ import type {
   NameProvider,
   NameProviderMetadata,
   NameProviderRequest,
-  NameProviderResponse,
+  NameProviderResult,
 } from '../types';
 import { NameType } from '../types';
 import { graphQL } from '../util';
@@ -33,14 +33,14 @@ type LensResponse = {
 export class LensNameProvider implements NameProvider {
   getMetadata(): NameProviderMetadata {
     return {
-      providerIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
-      providerLabels: { [ID]: LABEL },
+      sourceIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
+      sourceLabels: { [ID]: LABEL },
     };
   }
 
   async getProposedNames(
     request: NameProviderRequest,
-  ): Promise<NameProviderResponse> {
+  ): Promise<NameProviderResult> {
     const { value } = request;
 
     const responseData = await graphQL<LensResponse>(LENS_URL, QUERY, {

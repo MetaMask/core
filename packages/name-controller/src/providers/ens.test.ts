@@ -5,7 +5,7 @@ jest.mock('../util');
 
 const VALUE_MOCK = 'TestValue';
 const CHAIN_ID_MOCK = '0x1';
-const PROVIDER_ID = 'ens';
+const SOURCE_ID = 'ens';
 const DOMAIN_MOCK = 'testdomain.eth';
 const REVERSE_LOOKUP_MOCK = () => DOMAIN_MOCK;
 
@@ -21,18 +21,15 @@ describe('ENSNameProvider', () => {
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {
       const metadata = new ENSNameProvider(CONSTRUCTOR_ARGS_MOCK).getMetadata();
-      const { providerIds, providerLabels } = metadata;
+      const { sourceIds, sourceLabels } = metadata;
 
-      expect(Object.keys(providerIds)).toStrictEqual([
-        NameType.ETHEREUM_ADDRESS,
-      ]);
+      expect(Object.keys(sourceIds)).toStrictEqual([NameType.ETHEREUM_ADDRESS]);
+      expect(Object.values(sourceIds)).toStrictEqual([[expect.any(String)]]);
 
-      expect(Object.values(providerIds)).toStrictEqual([[expect.any(String)]]);
+      const providerId = Object.values(sourceIds)[0][0];
 
-      const providerId = Object.values(providerIds)[0][0];
-
-      expect(Object.keys(providerLabels)).toStrictEqual([providerId]);
-      expect(providerLabels[providerId]).toStrictEqual(expect.any(String));
+      expect(Object.keys(sourceLabels)).toStrictEqual([providerId]);
+      expect(sourceLabels[providerId]).toStrictEqual(expect.any(String));
     });
   });
 
@@ -48,7 +45,7 @@ describe('ENSNameProvider', () => {
 
       expect(response).toStrictEqual({
         results: {
-          [PROVIDER_ID]: { proposedNames: [DOMAIN_MOCK] },
+          [SOURCE_ID]: { proposedNames: [DOMAIN_MOCK] },
         },
       });
     });
