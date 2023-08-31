@@ -13,14 +13,14 @@ const controllerName = 'NameController';
 
 const stateMetadata = {
   names: { persist: true, anonymous: false },
-  nameProviders: { persist: true, anonymous: false },
+  nameSources: { persist: true, anonymous: false },
 };
 
 const getDefaultState = () => ({
   names: {
     [NameType.ETHEREUM_ADDRESS]: {},
   },
-  nameProviders: {},
+  nameSources: {},
 });
 
 export type NameEntry = {
@@ -29,13 +29,14 @@ export type NameEntry = {
   proposedNames: Record<string, string[] | null>;
 };
 
-export type ProviderEntry = {
+export type SourceEntry = {
   label: string;
 };
 
 export type NameControllerState = {
-  names: Record<NameType, Record<string, NameEntry>>;
-  nameProviders: Record<string, ProviderEntry>;
+  // Type > Value > Variation > Entry
+  names: Record<NameType, Record<string, Record<string, NameEntry>>>;
+  nameSources: Record<string, SourceEntry>;
 };
 
 export type GetNameState = {
@@ -157,7 +158,7 @@ export class NameController extends BaseControllerV2<
     ).filter((response) => Boolean(response)) as NameProviderResult[];
 
     this.#updateProposedNameState(request, providerResponses);
-    this.#updateProviderState(this.#providers);
+    this.#updateSourceState(this.#providers);
 
     return this.#getUpdateProposedNamesResult(providerResponses);
   }
@@ -191,29 +192,34 @@ export class NameController extends BaseControllerV2<
       }
     }
 
+    const variationKey = this.#getTypeVariationKey(type);
+
+    const existingProposedNames =
+      this.state.names[type]?.[value]?.[variationKey]?.proposedNames;
+
     const proposedNames = {
-      ...this.state.names[type]?.[value]?.proposedNames,
+      ...existingProposedNames,
       ...newProposedNames,
     };
 
     this.#updateEntry(value, type, { proposedNames });
   }
 
-  #updateProviderState(providers: NameProvider[]) {
-    const newNameProviders = { ...this.state.nameProviders };
+  #updateSourceState(providers: NameProvider[]) {
+    const newNameSources = { ...this.state.nameSources };
 
     for (const provider of providers) {
       const { sourceLabels } = provider.getMetadata();
 
       for (const sourceId of Object.keys(sourceLabels)) {
-        newNameProviders[sourceId] = {
+        newNameSources[sourceId] = {
           label: sourceLabels[sourceId],
         };
       }
     }
 
     this.update((state) => {
-      state.nameProviders = newNameProviders;
+      state.nameSources = newNameSources;
     });
   }
 
@@ -313,11 +319,16 @@ export class NameController extends BaseControllerV2<
   }
 
   #updateEntry(value: string, type: NameType, data: Partial<NameEntry>) {
+    const variationKey = this.#getTypeVariationKey(type);
+
     this.update((state) => {
       const typeEntries = state.names[type] || {};
       state.names[type] = typeEntries;
 
-      const currentEntry = typeEntries[value] ?? {
+      const variationEntries = typeEntries[value] || {};
+      typeEntries[value] = variationEntries;
+
+      const currentEntry = variationEntries[variationKey] ?? {
         proposedNames: {},
         name: null,
         sourceId: null,
@@ -325,8 +336,16 @@ export class NameController extends BaseControllerV2<
 
       const updatedEntry = { ...currentEntry, ...data };
 
-      typeEntries[value] = updatedEntry;
+      variationEntries[variationKey] = updatedEntry;
     });
+  }
+
+  #getTypeVariationKey(type: NameType): string {
+    switch (type) {
+      default: {
+        return this.#getChainId();
+      }
+    }
   }
 
   #validateSetNameRequest(request: SetNameRequest) {
