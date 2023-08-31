@@ -27,6 +27,7 @@ export type NameEntry = {
   name: string | null;
   sourceId: string | null;
   proposedNames: Record<string, string[] | null>;
+  proposedNamesLastUpdated: number | null;
 };
 
 export type SourceEntry = {
@@ -202,7 +203,9 @@ export class NameController extends BaseControllerV2<
       ...newProposedNames,
     };
 
-    this.#updateEntry(value, type, { proposedNames });
+    const proposedNamesLastUpdated = this.#getCurrentTimeSeconds();
+
+    this.#updateEntry(value, type, { proposedNames, proposedNamesLastUpdated });
   }
 
   #updateSourceState(providers: NameProvider[]) {
@@ -330,6 +333,7 @@ export class NameController extends BaseControllerV2<
 
       const currentEntry = variationEntries[variationKey] ?? {
         proposedNames: {},
+        proposedNamesLastUpdated: null,
         name: null,
         sourceId: null,
       };
@@ -346,6 +350,10 @@ export class NameController extends BaseControllerV2<
         return this.#getChainId();
       }
     }
+  }
+
+  #getCurrentTimeSeconds(): number {
+    return Math.round(Date.now() / 1000);
   }
 
   #validateSetNameRequest(request: SetNameRequest) {

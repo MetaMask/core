@@ -10,6 +10,7 @@ const SOURCE_LABEL_MOCK = 'TestSourceLabel';
 const VALUE_MOCK = 'TestValue';
 const CHAIN_ID_MOCK = '0x1';
 const GET_CHAIN_ID_MOCK = () => CHAIN_ID_MOCK;
+const TIME_MOCK = 123;
 
 const MESSENGER_MOCK = {
   registerActionHandler: jest.fn(),
@@ -24,6 +25,9 @@ const CONTROLLER_ARGS_MOCK = {
 
 // eslint-disable-next-line jest/prefer-spy-on
 console.error = jest.fn();
+
+// eslint-disable-next-line jest/prefer-spy-on
+Date.now = jest.fn().mockReturnValue(TIME_MOCK * 1000);
 
 /**
  * Creates a mock name provider.
@@ -77,6 +81,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              proposedNamesLastUpdated: null,
               proposedNames: {},
             },
           },
@@ -98,6 +103,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              proposedNamesLastUpdated: null,
               proposedNames: {
                 [SOURCE_ID_MOCK]: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
               },
@@ -119,6 +125,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: `${SOURCE_ID_MOCK}1`,
+              proposedNamesLastUpdated: null,
               proposedNames: {
                 [SOURCE_ID_MOCK]: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
               },
@@ -137,6 +144,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: SOURCE_ID_MOCK,
+              proposedNamesLastUpdated: null,
               proposedNames: {
                 [SOURCE_ID_MOCK]: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
               },
@@ -157,6 +165,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: null,
+              proposedNamesLastUpdated: null,
               proposedNames: {
                 [SOURCE_ID_MOCK]: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
               },
@@ -181,6 +190,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
+              proposedNamesLastUpdated: TIME_MOCK,
               proposedNames: {
                 [SOURCE_ID_MOCK]: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
               },
@@ -201,6 +211,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: NAME_MOCK,
               sourceId: SOURCE_ID_MOCK,
+              proposedNamesLastUpdated: TIME_MOCK,
               proposedNames: {
                 [SOURCE_ID_MOCK]: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
               },
@@ -208,6 +219,7 @@ describe('NameController', () => {
             [alternateChainId]: {
               name: alternateName,
               sourceId: null,
+              proposedNamesLastUpdated: null,
               proposedNames: {},
             },
           },
@@ -330,6 +342,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                proposedNamesLastUpdated: TIME_MOCK,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: [
                     `${PROPOSED_NAME_MOCK}1`,
@@ -381,6 +394,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              proposedNamesLastUpdated: 12,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: ['ShouldBeDeleted1'],
                 [`${SOURCE_ID_MOCK}2`]: ['ShouldBeDeleted2'],
@@ -402,6 +416,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              proposedNamesLastUpdated: TIME_MOCK,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: [
                   `${PROPOSED_NAME_MOCK}1`,
@@ -467,6 +482,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              proposedNamesLastUpdated: TIME_MOCK,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: [],
                 [`${SOURCE_ID_MOCK}2`]: [
@@ -525,6 +541,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              proposedNamesLastUpdated: TIME_MOCK,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: [],
                 [`${SOURCE_ID_MOCK}2`]: [
@@ -610,6 +627,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              proposedNamesLastUpdated: 12,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: ['ShouldNotBeDeleted1'],
                 [`${SOURCE_ID_MOCK}2`]: ['ShouldNotBeDeleted2'],
@@ -631,6 +649,7 @@ describe('NameController', () => {
             [CHAIN_ID_MOCK]: {
               name: null,
               sourceId: null,
+              proposedNamesLastUpdated: 12,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: ['ShouldNotBeDeleted1'],
                 [`${SOURCE_ID_MOCK}2`]: ['ShouldNotBeDeleted2'],
@@ -640,6 +659,7 @@ describe('NameController', () => {
             [alternateChainId]: {
               name: null,
               sourceId: null,
+              proposedNamesLastUpdated: TIME_MOCK,
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: [
                   `${PROPOSED_NAME_MOCK}1`,
@@ -680,6 +700,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                proposedNamesLastUpdated: TIME_MOCK,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}2`]: [
                     `${PROPOSED_NAME_MOCK}2`,
@@ -734,6 +755,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                proposedNamesLastUpdated: TIME_MOCK,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}2`]: [
                     `${PROPOSED_NAME_MOCK}2`,
@@ -791,6 +813,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                proposedNamesLastUpdated: TIME_MOCK,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: null,
                   [`${SOURCE_ID_MOCK}2`]: [
@@ -837,6 +860,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                proposedNamesLastUpdated: 12,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: ['ShouldNotBeDeleted1'],
                   [`${SOURCE_ID_MOCK}2`]: ['ShouldBeDeleted2'],
@@ -859,6 +883,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                proposedNamesLastUpdated: TIME_MOCK,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: [`ShouldNotBeDeleted1`],
                   [`${SOURCE_ID_MOCK}2`]: [
@@ -963,6 +988,7 @@ describe('NameController', () => {
               [CHAIN_ID_MOCK]: {
                 name: null,
                 sourceId: null,
+                proposedNamesLastUpdated: TIME_MOCK,
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: [
                     `${PROPOSED_NAME_MOCK}1`,
