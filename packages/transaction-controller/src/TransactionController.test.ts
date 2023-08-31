@@ -24,7 +24,7 @@ import type {
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
-import { WalletDevice, TransactionStatus, TransactionType } from './types';
+import { WalletDevice, TransactionStatus } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -1753,39 +1753,6 @@ describe('TransactionController', () => {
       expect(failedTx?.replacedBy).toBe(externalTransactionHash);
     });
 
-    it('updates postTxBalance if transaction is a swap', async () => {
-      const controller = newController();
-      const externalTransactionToConfirm = {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-        id: '1',
-        networkID: '5',
-        chainId: toHex(5),
-        status: TransactionStatus.confirmed,
-        preTxBalance: '0x1210',
-        transaction: {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-          nonce: NONCE_MOCK,
-        },
-        type: TransactionType.swap,
-      } as any;
-      const externalTransactionReceipt = {
-        gasUsed: '0x5208',
-      };
-      const externalBaseFeePerGas = '0x14';
-
-      await controller.confirmExternalTransaction(
-        externalTransactionToConfirm,
-        externalTransactionReceipt,
-        externalBaseFeePerGas,
-      );
-
-      const transactionMeta = controller.state.transactions[0];
-
-      expect(transactionMeta?.postTxBalance).toBe('0x12a0');
-    });
-
     it('silently fails if query result throws', async () => {
       mockGetBalance.mockImplementationOnce(() => {
         throw new Error('TestError');
@@ -1802,7 +1769,6 @@ describe('TransactionController', () => {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         },
-        type: TransactionType.swap,
       } as any;
       const externalTransactionReceipt = {
         gasUsed: '0x5208',

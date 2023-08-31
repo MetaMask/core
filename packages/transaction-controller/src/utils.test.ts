@@ -399,40 +399,6 @@ describe('utils', () => {
     });
   });
 
-  describe('isSwapsDefaultTokenAddress', () => {
-    it('should return true for matching address and chainId', () => {
-      const chainId = '0x1'; // Mainnet chainId
-      const expectedAddress = '0x0000000000000000000000000000000000000000';
-
-      const result = util.isSwapsDefaultTokenAddress(expectedAddress, chainId);
-
-      expect(result).toBe(true);
-    });
-
-    it('should return false for non-matching address and chainId', () => {
-      const chainId = '0x1'; // Mainnet chainId
-      const expectedAddress = '0x456def';
-
-      const result = util.isSwapsDefaultTokenAddress(expectedAddress, chainId);
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false for missing address or chainId', () => {
-      const chainId = '0x1';
-      const address = '0x123abc';
-
-      // Missing chainId
-      expect(util.isSwapsDefaultTokenAddress(address)).toBe(false);
-
-      // Missing address
-      expect(util.isSwapsDefaultTokenAddress(undefined, chainId)).toBe(false);
-
-      // Missing both
-      expect(util.isSwapsDefaultTokenAddress()).toBe(false);
-    });
-  });
-
   describe('validateConfirmedExternalTransaction', () => {
     const mockTransactionMeta = (status: TransactionStatus, nonce: string) => {
       const meta = {

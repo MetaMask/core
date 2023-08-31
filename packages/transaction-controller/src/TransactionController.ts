@@ -49,7 +49,7 @@ import type {
   TransactionReceipt,
   WalletDevice,
 } from './types';
-import { TransactionStatus, TransactionType } from './types';
+import { TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
@@ -58,7 +58,6 @@ import {
   isEIP1559Transaction,
   isFeeMarketEIP1559Values,
   isGasPriceValue,
-  isSwapsDefaultTokenAddress,
   transactionMatchesNetwork,
   validateConfirmedExternalTransaction,
   validateGasValues,
@@ -146,11 +145,6 @@ export const CANCEL_RATE = 1.5;
  * Multiplier used to determine a transaction's increased gas fee during speed up
  */
 export const SPEED_UP_RATE = 1.1;
-
-/**
- * Timeout in milliseconds used to retry of refreshing post tx balance
- */
-const UPDATE_POST_TX_BALANCE_TIMEOUT = 5000;
 
 /**
  * The name of the {@link TransactionController}.
@@ -947,13 +941,6 @@ export class TransactionController extends BaseController<
 
       // Update external provided transaction with updated gas values and confirmed status.
       this.updateTransaction(transactionMeta);
-
-      // If provided transaction is a swap, then try updating txMeta.postTxBalance.
-      if (transactionMeta.type === TransactionType.swap) {
-        await this.updatePostTxBalance(transactionMeta, {
-          numberOfAttempts: 6,
-        });
-      }
     } catch (error) {
       log(error);
     }
@@ -1486,56 +1473,6 @@ export class TransactionController extends BaseController<
     }
 
     return dappSuggestedGasFees;
-  }
-
-  /**
-   * Updates the postTxBalance property of transaction by querying the blockchain for given transaction's from address.
-   *
-   * @param transactionMeta - TransactionMeta of transaction to be updated.
-   * @param opts - Options object.
-   * @param opts.numberOfAttempts - Number of attempts to update postTxBalance.
-   */
-  private async updatePostTxBalance(
-    transactionMeta: TransactionMeta,
-    {
-      numberOfAttempts = 6,
-    }: {
-      numberOfAttempts: number;
-    },
-  ) {
-    const { id: transactionId } = transactionMeta;
-
-    const postTxBalance = await query(this.ethQuery, 'getBalance', [
-      transactionMeta.transaction.from,
-    ]);
-    const latestTxMeta = this.getTransaction(transactionId);
-
-    if (!latestTxMeta) {
-      return;
-    }
-
-    latestTxMeta.postTxBalance = postTxBalance.toString(16);
-
-    const isDefaultTokenAddress = isSwapsDefaultTokenAddress(
-      transactionMeta?.destinationTokenAddress,
-      transactionMeta?.chainId,
-    );
-
-    if (
-      isDefaultTokenAddress &&
-      transactionMeta.preTxBalance === latestTxMeta.postTxBalance &&
-      numberOfAttempts > 0
-    ) {
-      setTimeout(() => {
-        // If postTxBalance is the same as preTxBalance, try it again.
-        this.updatePostTxBalance(transactionMeta, {
-          numberOfAttempts: numberOfAttempts - 1,
-        });
-      }, UPDATE_POST_TX_BALANCE_TIMEOUT);
-    } else {
-      // Update postTxBalance
-      this.updateTransaction(latestTxMeta);
-    }
   }
 
   /**
