@@ -890,7 +890,7 @@ describe('NameController', () => {
         );
       });
 
-      it('throws if missing providers', async () => {
+      it('throws if missing sources', async () => {
         const provider1 = createMockProvider(1);
 
         const controller = new NameController({
@@ -906,6 +906,28 @@ describe('NameController', () => {
           }),
         ).rejects.toThrow(
           `Unknown source IDs for type '${NameType.ETHEREUM_ADDRESS}': ${SOURCE_ID_MOCK}2, ${SOURCE_ID_MOCK}3`,
+        );
+      });
+
+      it('throws if duplicate source IDs', async () => {
+        const provider1 = createMockProvider(1);
+        const provider2 = createMockProvider(2);
+        const provider3 = createMockProvider(3);
+        const provider4 = createMockProvider(1);
+        const provider5 = createMockProvider(2);
+
+        const controller = new NameController({
+          ...CONTROLLER_ARGS_MOCK,
+          providers: [provider1, provider2, provider3, provider4, provider5],
+        });
+
+        await expect(
+          controller.updateProposedNames({
+            value: VALUE_MOCK,
+            type: NameType.ETHEREUM_ADDRESS,
+          }),
+        ).rejects.toThrow(
+          `Duplicate source IDs found for type '${NameType.ETHEREUM_ADDRESS}': ${SOURCE_ID_MOCK}1, ${SOURCE_ID_MOCK}2`,
         );
       });
     });

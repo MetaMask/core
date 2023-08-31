@@ -138,7 +138,7 @@ export class NameController extends BaseControllerV2<
    * @param request - Request object.
    * @param request.value - Value to update the proposed names for.
    * @param request.type - Type of value to update the proposed names for.
-   * @param request.sourceIds - Optional array of provider IDs to limit which providers are used. If not provided, all providers will be used.
+   * @param request.sourceIds - Optional array of source IDs to limit which sources are used by the providers. If not provided, all sources in all providers will be used.
    * @returns The updated proposed names for the value.
    */
   async updateProposedNames(
@@ -350,6 +350,7 @@ export class NameController extends BaseControllerV2<
     this.#validateValue(value, errorMessages);
     this.#validateType(type, errorMessages);
     this.#validateSourceIds(sourceIds, type, errorMessages);
+    this.#validateDuplicateSourceIds(type, errorMessages);
 
     if (errorMessages.length) {
       throw new Error(errorMessages.join(' '));
@@ -422,6 +423,22 @@ export class NameController extends BaseControllerV2<
 
     if (!allSourceIds.includes(sourceId)) {
       errorMessages.push(`Unknown source ID for type '${type}': ${sourceId}`);
+    }
+  }
+
+  #validateDuplicateSourceIds(type: NameType, errorMessages: string[]) {
+    const allSourceIds = this.#getAllSourceIds(type);
+
+    const duplicateSourceIds = allSourceIds.filter(
+      (sourceId, index) => allSourceIds.indexOf(sourceId) !== index,
+    );
+
+    if (duplicateSourceIds.length) {
+      errorMessages.push(
+        `Duplicate source IDs found for type '${type}': ${duplicateSourceIds.join(
+          ', ',
+        )}`,
+      );
     }
   }
 
