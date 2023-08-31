@@ -1471,8 +1471,9 @@ export class TransactionController extends BaseController<
    */
   private async addExternalTransaction(transactionMeta: TransactionMeta) {
     const { networkId, chainId } = this.getChainAndNetworkId();
+    const { transactions } = this.state;
     const fromAddress = transactionMeta?.transaction?.from;
-    const sameFromAndNetworkTransactions = this.state.transactions.filter(
+    const sameFromAndNetworkTransactions = transactions.filter(
       (transaction) =>
         transaction.transaction.from === fromAddress &&
         transactionMatchesNetwork(transaction, chainId, networkId),
@@ -1490,7 +1491,7 @@ export class TransactionController extends BaseController<
       pendingTxs,
     );
 
-    const updatedTransactions = [...this.state.transactions, transactionMeta];
+    const updatedTransactions = [...transactions, transactionMeta];
     this.update({
       transactions: this.trimTransactionsForState(updatedTransactions),
     });
