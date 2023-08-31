@@ -1476,17 +1476,16 @@ export class TransactionController extends BaseController<
   private async addExternalTransaction(transactionMeta: TransactionMeta) {
     const { networkId, chainId } = this.getChainAndNetworkId();
     const fromAddress = transactionMeta?.transaction?.from;
-    const confirmedTxs = this.state.transactions.filter(
+    const sameFromAndNetworkTransactions = this.state.transactions.filter(
       (transaction) =>
         transaction.transaction.from === fromAddress &&
-        transaction.status === TransactionStatus.confirmed &&
         transactionMatchesNetwork(transaction, chainId, networkId),
     );
+    const confirmedTxs = sameFromAndNetworkTransactions.filter(
+      (transaction) => transaction.status === TransactionStatus.confirmed,
+    );
     const pendingTxs = this.state.transactions.filter(
-      (transaction) =>
-        transaction.transaction.from === fromAddress &&
-        transaction.status === TransactionStatus.submitted &&
-        transactionMatchesNetwork(transaction, chainId, networkId),
+      (transaction) => transaction.status === TransactionStatus.submitted,
     );
 
     validateConfirmedExternalTransaction(
