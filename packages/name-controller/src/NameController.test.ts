@@ -373,6 +373,118 @@ describe('NameController', () => {
       });
     });
 
+    it.each([
+      ['undefined', undefined],
+      ['empty string', ''],
+    ])('ignores proposed name if %s', async (_, proposedName) => {
+      const provider1 = createMockProvider(1);
+      const provider2 = createMockProvider(2);
+
+      provider1.getProposedNames.mockResolvedValue({
+        results: {
+          [`${SOURCE_ID_MOCK}1`]: { proposedNames: [proposedName as string] },
+        },
+      });
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1, provider2],
+      });
+
+      const result = await controller.updateProposedNames({
+        value: VALUE_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(controller.state.names).toStrictEqual({
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            name: null,
+            sourceId: null,
+            proposedNames: {
+              [`${SOURCE_ID_MOCK}1`]: [],
+              [`${SOURCE_ID_MOCK}2`]: [
+                `${PROPOSED_NAME_MOCK}2`,
+                `${PROPOSED_NAME_MOCK}2_2`,
+              ],
+            },
+          },
+        },
+      });
+
+      expect(result).toStrictEqual({
+        results: {
+          [`${SOURCE_ID_MOCK}1`]: {
+            proposedNames: [],
+            error: undefined,
+          },
+          [`${SOURCE_ID_MOCK}2`]: {
+            proposedNames: [
+              `${PROPOSED_NAME_MOCK}2`,
+              `${PROPOSED_NAME_MOCK}2_2`,
+            ],
+            error: undefined,
+          },
+        },
+      });
+    });
+
+    it('stores empty array if proposed names is undefined and no error', async () => {
+      const provider1 = createMockProvider(1);
+      const provider2 = createMockProvider(2);
+
+      provider1.getProposedNames.mockResolvedValue({
+        results: {
+          [`${SOURCE_ID_MOCK}1`]: {
+            proposedNames: undefined,
+            error: undefined,
+          },
+        },
+      });
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1, provider2],
+      });
+
+      const result = await controller.updateProposedNames({
+        value: VALUE_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(controller.state.names).toStrictEqual({
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            name: null,
+            sourceId: null,
+            proposedNames: {
+              [`${SOURCE_ID_MOCK}1`]: [],
+              [`${SOURCE_ID_MOCK}2`]: [
+                `${PROPOSED_NAME_MOCK}2`,
+                `${PROPOSED_NAME_MOCK}2_2`,
+              ],
+            },
+          },
+        },
+      });
+
+      expect(result).toStrictEqual({
+        results: {
+          [`${SOURCE_ID_MOCK}1`]: {
+            proposedNames: [],
+            error: undefined,
+          },
+          [`${SOURCE_ID_MOCK}2`]: {
+            proposedNames: [
+              `${PROPOSED_NAME_MOCK}2`,
+              `${PROPOSED_NAME_MOCK}2_2`,
+            ],
+            error: undefined,
+          },
+        },
+      });
+    });
+
     it('updates provider state', async () => {
       const provider1 = createMockProvider(1);
       const provider2 = createMockProvider(2);
@@ -568,62 +680,6 @@ describe('NameController', () => {
             },
           },
         });
-      });
-    });
-
-    it.each([
-      ['undefined', undefined],
-      ['empty string', ''],
-    ])('skips proposed name if %s', async (_, proposedName) => {
-      const provider1 = createMockProvider(1);
-      const provider2 = createMockProvider(2);
-
-      provider1.getProposedNames.mockResolvedValue({
-        results: {
-          [`${SOURCE_ID_MOCK}1`]: { proposedNames: [proposedName as string] },
-        },
-      });
-
-      const controller = new NameController({
-        ...CONTROLLER_ARGS_MOCK,
-        providers: [provider1, provider2],
-      });
-
-      const result = await controller.updateProposedNames({
-        value: VALUE_MOCK,
-        type: NameType.ETHEREUM_ADDRESS,
-      });
-
-      expect(controller.state.names).toStrictEqual({
-        [NameType.ETHEREUM_ADDRESS]: {
-          [VALUE_MOCK]: {
-            name: null,
-            sourceId: null,
-            proposedNames: {
-              [`${SOURCE_ID_MOCK}1`]: [],
-              [`${SOURCE_ID_MOCK}2`]: [
-                `${PROPOSED_NAME_MOCK}2`,
-                `${PROPOSED_NAME_MOCK}2_2`,
-              ],
-            },
-          },
-        },
-      });
-
-      expect(result).toStrictEqual({
-        results: {
-          [`${SOURCE_ID_MOCK}1`]: {
-            proposedNames: [],
-            error: undefined,
-          },
-          [`${SOURCE_ID_MOCK}2`]: {
-            proposedNames: [
-              `${PROPOSED_NAME_MOCK}2`,
-              `${PROPOSED_NAME_MOCK}2_2`,
-            ],
-            error: undefined,
-          },
-        },
       });
     });
 
