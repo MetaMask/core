@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+### Changed
+- Make types for JSON-RPC-related structs more accurate ([#134](https://github.com/MetaMask/utils/pull/134))
+  - Aligning `JsonRpcParams` to be optional, yet not `undefined`.
+  - Updated types:
+    - `InferWithParams`
+    - `JsonRpcNotificationStruct`
+    - `JsonRpcParamsStruct`
+    - `JsonRpcRequestStruct`
+
 ## [8.0.0]
 ### Changed
 - **BREAKING:** `JsonRpcParams` type no longer accepts `undefined` as value, as `undefined` is not a valid JSON type ([#130](https://github.com/MetaMask/utils/pull/130))
@@ -182,7 +192,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/utils/compare/v8.0.0...v8.1.0
 [8.0.0]: https://github.com/MetaMask/utils/compare/v7.1.0...v8.0.0
 [7.1.0]: https://github.com/MetaMask/utils/compare/v7.0.0...v7.1.0
 [7.0.0]: https://github.com/MetaMask/utils/compare/v6.2.0...v7.0.0
