@@ -50,10 +50,6 @@ const mockFlags: { [key: string]: any } = {
   getBlockByNumberValue: null,
 };
 
-const mockGetBalance = jest.fn((_from: any, callback: any) => {
-  callback(undefined, '0x12a0');
-});
-
 jest.mock('@metamask/eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
@@ -72,7 +68,6 @@ jest.mock('@metamask/eth-query', () =>
       gasPrice: (callback: any) => {
         callback(undefined, '0x0');
       },
-      getBalance: mockGetBalance,
       getBlockByNumber: (
         _blocknumber: any,
         _fetchTxs: boolean,
@@ -1751,38 +1746,6 @@ describe('TransactionController', () => {
       expect(failedTx?.replacedById).toBe(externalTransactionId);
 
       expect(failedTx?.replacedBy).toBe(externalTransactionHash);
-    });
-
-    it('silently fails if query result throws', async () => {
-      mockGetBalance.mockImplementationOnce(() => {
-        throw new Error('TestError');
-      });
-      const controller = newController();
-      const externalTransactionToConfirm = {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-        networkID: '1',
-        chainId: toHex(1),
-        status: TransactionStatus.confirmed,
-        transaction: {
-          gasUsed: undefined,
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-      } as any;
-      const externalTransactionReceipt = {
-        gasUsed: '0x5208',
-      };
-      const externalBaseFeePerGas = '0x14';
-
-      expect(
-        async () =>
-          await controller.confirmExternalTransaction(
-            externalTransactionToConfirm,
-            externalTransactionReceipt,
-            externalBaseFeePerGas,
-          ),
-      ).not.toThrow();
     });
   });
 
