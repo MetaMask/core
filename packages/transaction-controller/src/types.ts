@@ -84,7 +84,7 @@ type TransactionMetaBase = {
   replacedBy?: string;
 
   /**
-   * When the transaction is dropped, this is the replacement transaction id.
+   * When the transaction is dropped, this is the replacement transaction ID.
    */
   replacedById?: string;
 
