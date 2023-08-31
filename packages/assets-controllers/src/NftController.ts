@@ -139,6 +139,7 @@ export interface NftMetadata {
   lastSale?: ApiNftLastSale;
   transactionId?: string;
   tokenURI?: string | null;
+  error?: boolean | undefined;
 }
 
 interface AccountParams {
@@ -277,65 +278,75 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
     tokenId: string,
   ): Promise<NftMetadata> {
-    // Attempt to fetch the data with the proxy
-    const nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
-      url: this.getNftApi({
-        contractAddress,
-        tokenId,
-      }),
-    });
+    try {
+      // Attempt to fetch the data with the proxy
+      const nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
+        url: this.getNftApi({
+          contractAddress,
+          tokenId,
+        }),
+      });
 
-    // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
-    if (!nftInformation) {
+      // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
+      if (!nftInformation) {
+        return {
+          name: null,
+          description: null,
+          image: null,
+          standard: null,
+        };
+      }
+
+      // if we've reached this point, we have successfully fetched some data for nftInformation
+      // now we reconfigure the data to conform to the `NftMetadata` type for storage.
+      const {
+        num_sales,
+        background_color,
+        image_url,
+        image_preview_url,
+        image_thumbnail_url,
+        image_original_url,
+        animation_url,
+        animation_original_url,
+        name,
+        description,
+        external_link,
+        creator,
+        last_sale,
+        asset_contract: { schema_name },
+      } = nftInformation;
+
+      /* istanbul ignore next */
+      const nftMetadata: NftMetadata = Object.assign(
+        {},
+        { name: name || null },
+        { description: description || null },
+        { image: image_url || null },
+        creator && { creator },
+        num_sales && { numberOfSales: num_sales },
+        background_color && { backgroundColor: background_color },
+        image_preview_url && { imagePreview: image_preview_url },
+        image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
+        image_original_url && { imageOriginal: image_original_url },
+        animation_url && { animation: animation_url },
+        animation_original_url && {
+          animationOriginal: animation_original_url,
+        },
+        external_link && { externalLink: external_link },
+        last_sale && { lastSale: last_sale },
+        schema_name && { standard: schema_name },
+      );
+
+      return nftMetadata;
+    } catch (error) {
       return {
         name: null,
         description: null,
         image: null,
         standard: null,
+        error: true,
       };
     }
-
-    // if we've reached this point, we have successfully fetched some data for nftInformation
-    // now we reconfigure the data to conform to the `NftMetadata` type for storage.
-    const {
-      num_sales,
-      background_color,
-      image_url,
-      image_preview_url,
-      image_thumbnail_url,
-      image_original_url,
-      animation_url,
-      animation_original_url,
-      name,
-      description,
-      external_link,
-      creator,
-      last_sale,
-      asset_contract: { schema_name },
-    } = nftInformation;
-
-    /* istanbul ignore next */
-    const nftMetadata: NftMetadata = Object.assign(
-      {},
-      { name: name || null },
-      { description: description || null },
-      { image: image_url || null },
-      creator && { creator },
-      num_sales && { numberOfSales: num_sales },
-      background_color && { backgroundColor: background_color },
-      image_preview_url && { imagePreview: image_preview_url },
-      image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
-      image_original_url && { imageOriginal: image_original_url },
-      animation_url && { animation: animation_url },
-      animation_original_url && {
-        animationOriginal: animation_original_url,
-      },
-      external_link && { externalLink: external_link },
-      last_sale && { lastSale: last_sale },
-      schema_name && { standard: schema_name },
-    );
-
-    return nftMetadata;
   }
 
   /**
@@ -409,6 +420,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         standard: standard || null,
         favorite: false,
         tokenURI: tokenURI ?? null,
+        error: true,
       };
     }
   }
@@ -478,6 +490,19 @@ export class NftController extends BaseController<NftConfig, NftState> {
         return await this.getNftInformationFromApi(contractAddress, tokenId);
       });
     }
+
+    if (blockchainMetadata.error && openSeaMetadata.error) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: blockchainMetadata.standard ?? null,
+        favorite: false,
+        tokenURI: blockchainMetadata.tokenURI ?? null,
+        error: true,
+      };
+    }
+
     return {
       ...openSeaMetadata,
       name: blockchainMetadata.name ?? openSeaMetadata?.name ?? null,

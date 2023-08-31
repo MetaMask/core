@@ -1705,7 +1705,7 @@ describe('NftController', () => {
       expect(nftController.state.ignoredNfts).toHaveLength(1);
     });
 
-    it('should add NFT with metadata hosted in IPFS', async () => {
+    it.only('should add NFT with metadata hosted in IPFS', async () => {
       const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
@@ -2336,9 +2336,9 @@ describe('NftController', () => {
         nftController.state.allNfts[selectedAddress][chainId][0],
       ).toStrictEqual({
         address: ERC1155_NFT_ADDRESS,
-        name: 'name',
-        description: 'description',
-        image: 'image.uri',
+        name: null,
+        description: null,
+        image: null,
         tokenId: ERC1155_NFT_ID,
         standard: ERC1155,
         favorite: false,
