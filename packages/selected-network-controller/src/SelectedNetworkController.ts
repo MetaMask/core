@@ -145,7 +145,7 @@ export default class SelectedNetworkController extends BaseControllerV2<
   }
 
   setNetworkClientIdForMetamask(networkClientId: NetworkClientId) {
-    return this.setNetworkClientIdForDomain(METAMASK_DOMAIN, networkClientId);
+    this.setNetworkClientIdForDomain(METAMASK_DOMAIN, networkClientId);
   }
 
   setNetworkClientIdForDomain(
