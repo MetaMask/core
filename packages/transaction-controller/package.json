@@ -35,7 +35,7 @@
     "@metamask/controller-utils": "^4.3.2",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/network-controller": "^12.1.2",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^8.1.0",
     "async-mutex": "^0.2.6",
     "eth-method-registry": "1.1.0",
     "eth-rpc-errors": "^4.0.2",
