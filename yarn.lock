@@ -1409,7 +1409,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@^3.2.1, @metamask/base-controller@workspace:^, @metamask/base-controller@workspace:packages/base-controller":
+"@metamask/base-controller@^3.2.1, @metamask/base-controller@workspace:packages/base-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
@@ -1852,7 +1852,7 @@ __metadata:
   resolution: "@metamask/name-controller@workspace:packages/name-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
-    "@metamask/base-controller": "workspace:^"
+    "@metamask/base-controller": ^3.2.1
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     immer: ^9.0.6
