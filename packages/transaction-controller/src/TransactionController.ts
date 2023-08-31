@@ -40,6 +40,7 @@ import NonceTracker from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+import { validateConfirmedExternalTransaction } from './external-transactions';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   DappSuggestedGasFees,
@@ -57,7 +58,6 @@ import {
   isFeeMarketEIP1559Values,
   isGasPriceValue,
   transactionMatchesNetwork,
-  validateConfirmedExternalTransaction,
   validateGasValues,
   validateMinimumIncrease,
   validateTransaction,

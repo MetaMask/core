@@ -1,4 +1,3 @@
-import { ethErrors } from 'eth-rpc-errors';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
 import type {
@@ -11,7 +10,6 @@ import * as util from './utils';
 import {
   getAndFormatTransactionsForNonceTracker,
   transactionMatchesNetwork,
-  validateConfirmedExternalTransaction,
 } from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
@@ -380,98 +378,6 @@ describe('utils', () => {
           networkId,
         ),
       ).toBe(false);
-    });
-  });
-
-  describe('validateConfirmedExternalTransaction', () => {
-    const mockTransactionMeta = (status: TransactionStatus, nonce: string) => {
-      const meta = {
-        status,
-        transaction: { nonce },
-      } as TransactionMeta;
-      return meta;
-    };
-
-    it('should throw if transactionMeta or transaction is missing', () => {
-      expect(() =>
-        validateConfirmedExternalTransaction(undefined, [], []),
-      ).toThrow(
-        ethErrors.rpc.invalidParams(
-          '"transactionMeta" or "transactionMeta.transaction" is missing',
-        ),
-      );
-
-      expect(() =>
-        validateConfirmedExternalTransaction({} as TransactionMeta, [], []),
-      ).toThrow(
-        ethErrors.rpc.invalidParams(
-          '"transactionMeta" or "transactionMeta.transaction" is missing',
-        ),
-      );
-    });
-
-    it('should throw if transaction status is not confirmed', () => {
-      const transactionMeta = mockTransactionMeta(
-        TransactionStatus.submitted,
-        '123',
-      );
-      expect(() =>
-        validateConfirmedExternalTransaction(transactionMeta),
-      ).toThrow(
-        ethErrors.rpc.invalidParams(
-          'External transaction status should be "confirmed"',
-        ),
-      );
-    });
-
-    it('should throw if external transaction nonce is in pending txs', () => {
-      const externalTxNonce = '123';
-      const transactionMeta = mockTransactionMeta(
-        TransactionStatus.confirmed,
-        externalTxNonce,
-      );
-      const pendingTxs = [
-        mockTransactionMeta(TransactionStatus.submitted, externalTxNonce),
-      ];
-
-      expect(() =>
-        validateConfirmedExternalTransaction(transactionMeta, [], pendingTxs),
-      ).toThrow(
-        ethErrors.rpc.invalidParams(
-          'External transaction nonce should not be in pending txs',
-        ),
-      );
-    });
-
-    it('should throw if external transaction nonce is in confirmed txs', () => {
-      const externalTxNonce = '123';
-      const transactionMeta = mockTransactionMeta(
-        TransactionStatus.confirmed,
-        externalTxNonce,
-      );
-      const confirmedTxs = [
-        mockTransactionMeta(TransactionStatus.confirmed, externalTxNonce),
-      ];
-
-      expect(() =>
-        validateConfirmedExternalTransaction(transactionMeta, confirmedTxs, []),
-      ).toThrow(
-        ethErrors.rpc.invalidParams(
-          'External transaction nonce should not be in confirmed txs',
-        ),
-      );
-    });
-
-    it('should not throw if all validations pass', () => {
-      const externalTxNonce = '123';
-      const transactionMeta = mockTransactionMeta(
-        TransactionStatus.confirmed,
-        externalTxNonce,
-      );
-
-      expect(() =>
-        validateConfirmedExternalTransaction(transactionMeta, [], []),
-      ).not.toThrow();
     });
   });
 });
