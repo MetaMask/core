@@ -968,6 +968,27 @@ describe('TransactionController', () => {
       });
     });
 
+    it('fails to estimate gas', async () => {
+      const controller = newController({ network: MOCK_CUSTOM_NETWORK });
+      jest.spyOn(controller, 'estimateGas').mockImplementationOnce(() => {
+        throw new Error('Unknown problem');
+      });
+
+      mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
+
+      await expect(
+        controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            origin: 'MockDappOrigin',
+          },
+        ),
+      ).rejects.toThrow('Unknown problem');
+    });
+
     it.each([
       ['mainnet', MOCK_MAINNET_NETWORK],
       ['custom network', MOCK_CUSTOM_NETWORK],
@@ -1246,10 +1267,7 @@ describe('TransactionController', () => {
           (
             delayMessengerMock.call as jest.MockedFunction<any>
           ).mockImplementationOnce(() => {
-            controller.state.transactions[0].status =
-              TransactionStatus.confirmed;
-
-            throw new Error('TestError');
+            throw new Error('Unknown problem');
           });
 
           const { result } = await controller.addTransaction({
@@ -1290,7 +1308,7 @@ describe('TransactionController', () => {
             delayMessengerMock.call as jest.MockedFunction<any>
           ).mockImplementationOnce(() => {
             controller.state.transactions = [];
-            throw new Error('TestError');
+            throw new Error('Unknown problem');
           });
 
           const { result } = await controller.addTransaction({
@@ -1622,8 +1640,24 @@ describe('TransactionController', () => {
 
       approveTransaction();
 
+      const { transactions } = controller.state;
       await expect(result).rejects.toThrow('User cancelled the transaction');
       expect(estimatedBaseFee).toBe('0x123');
+      expect(transactions[0].status).toStrictEqual(TransactionStatus.cancelled);
+    });
+
+    it('rejects unknown transaction', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_GOERLI_NETWORK,
+      });
+
+      await controller.stopTransaction('transactionIdMock', {
+        gasPrice: '0x1',
+      });
+
+      const signSpy = jest.spyOn(controller, 'sign' as any);
+
+      expect(signSpy).toHaveBeenCalledTimes(0);
     });
 
     it('throws if no sign method', async () => {
@@ -1658,6 +1692,28 @@ describe('TransactionController', () => {
       expect(transactions[1].transaction.gasPrice).toBe(
         '0x5916a6d6', // 1.1 * 0x50fd51da
       );
+    });
+
+    it('creates additional transaction specifying the gasPrice', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id, {
+        gasPrice: '0x62DEF4DA',
+      });
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      expect(transactions[1].transaction.gasPrice).toBe('0x62DEF4DA');
     });
 
     it('uses the same nonce', async () => {

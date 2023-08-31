@@ -971,39 +971,44 @@ export class TransactionController extends BaseController<
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
+    const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
+    const finishedPromise = isCompleted
+      ? Promise.resolve(meta)
+      : this._waitForTransactionFinished(transactionId);
 
-    try {
-      if (!isExisting) {
+    if (!isExisting && !isCompleted) {
+      try {
         if (requireApproval !== false) {
           const acceptResult = await this.requestApproval(transactionMeta, {
             shouldShowRequest,
           });
           resultCallbacks = acceptResult.resultCallbacks;
         }
-      }
 
-      const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
+        const { isCompleted: isTxCompleted } =
+          this.isTransactionCompleted(transactionId);
 
-      if (meta && !isCompleted) {
-        await this.approveTransaction(transactionId);
-      }
-    } catch (error: any) {
-      const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
+        if (!isTxCompleted) {
+          await this.approveTransaction(transactionId);
+        }
+      } catch (error: any) {
+        const { isCompleted: isTxCompleted } =
+          this.isTransactionCompleted(transactionId);
+        if (meta && !isTxCompleted) {
+          if (error.code === errorCodes.provider.userRejectedRequest) {
+            this.cancelTransaction(transactionId);
 
-      if (meta && !isCompleted) {
-        if (error.code === errorCodes.provider.userRejectedRequest) {
-          this.cancelTransaction(transactionId);
-
-          throw ethErrors.provider.userRejectedRequest(
-            'User rejected the transaction',
-          );
-        } else {
-          this.failTransaction(meta, error);
+            throw ethErrors.provider.userRejectedRequest(
+              'User rejected the transaction',
+            );
+          } else {
+            this.failTransaction(meta, error);
+          }
         }
       }
     }
 
-    const finalMeta = this.getTransaction(transactionId);
+    const finalMeta = await finishedPromise;
 
     switch (finalMeta?.status) {
       case TransactionStatus.failed:
@@ -1579,6 +1584,16 @@ export class TransactionController extends BaseController<
     return this.state.transactions.find(
       (transaction) => actionId && transaction.actionId === actionId,
     );
+  }
+
+  async _waitForTransactionFinished(
+    transactionId: string,
+  ): Promise<TransactionMeta> {
+    return new Promise((resolve) => {
+      this.hub.once(`${transactionId}:finished`, (txMeta) => {
+        resolve(txMeta);
+      });
+    });
   }
 }
 
