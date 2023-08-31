@@ -266,6 +266,9 @@ export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
   return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
 }
 
+
+
+
 /**
  * Returns the total fiat value of a given account on a given network,
  * including native currency and token values
@@ -278,6 +281,7 @@ export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
  * @param tokensControllerState - The TokensController instance's state
  * @returns A number representing the total fiat balance of an account on a network.
  */
+/*
 export function getTotalFiatAccountBalance(
   currencyRateControllerState: CurrencyRateState,
   preferencesControllerState: PreferencesState,
@@ -286,85 +290,6 @@ export function getTotalFiatAccountBalance(
   tokenRatesControllerState: TokenRatesState,
   tokensControllerState: TokensState,
 ): number {
-  const weiToFiatNumber = (
-    wei: number,
-    conversionRate: number,
-    decimalsToShow = 5,
-  ) => {
-    const base = Math.pow(10, decimalsToShow);
-    const eth = fromWei(wei).toString();
-    let value = parseFloat(
-      Math.floor((eth * conversionRate * base) / base).toString(),
-    );
-    value = isNaN(value) ? 0 : value;
-    return value;
-  };
-
-  const fastSplit = (value: string, divider = '.') => {
-    const [from, to] = [value.indexOf(divider), 0];
-    return value.substring(from, to) || value;
-  };
-
-  const safeNumberToBN = (value: string) => {
-    let safeValue = '0';
-    try {
-      safeValue = fastSplit(value?.toString());
-    } catch {
-      // Simple return the original value
-    }
-    return new BN(safeValue);
-  };
-
-  const fromTokenMinimalUnit = (minimalInput: BN, decimals: number) => {
-    const minimalInputStr = addHexPrefix(Number(minimalInput).toString(16));
-    const minimal = safeNumberToBN(minimalInputStr);
-    const base = new BN(Math.pow(10, decimals).toString());
-
-    let fraction = minimal.mod(base).toString(10);
-    while (fraction.length < decimals) {
-      fraction = `0${fraction}`;
-    }
-    fraction = fraction.match(/^([0-9]*[1-9]|0)(0*)/u)?.[1] ?? '0';
-
-    const whole = minimal.div(base).toString(10);
-    const value = String(whole) + (fraction === '0' ? '' : `.${fraction}`);
-    return value;
-  };
-
-  const renderFromTokenMinimalUnit = (
-    tokenValue: BN,
-    decimals: number,
-    decimalsToShow = 5,
-  ) => {
-    const minimalUnit = fromTokenMinimalUnit(tokenValue || 0, decimals);
-    const minimalUnitNumber = parseFloat(minimalUnit);
-    let renderMinimalUnit;
-    if (minimalUnitNumber < 0.00001 && minimalUnitNumber > 0) {
-      renderMinimalUnit = '< 0.00001';
-    } else {
-      const base = Math.pow(10, decimalsToShow);
-      renderMinimalUnit = (
-        Math.round(minimalUnitNumber * base) / base
-      ).toString();
-    }
-    return renderMinimalUnit;
-  };
-
-  const balanceToFiatNumber = (
-    balance: number,
-    conversionRate: number,
-    exchangeRate: number,
-    decimalsToShow = 5,
-  ) => {
-    const base = Math.pow(10, decimalsToShow);
-    let fiatFixed = parseFloat(
-      // Cast as string to avoid TS error
-      String(Math.floor(balance * conversionRate * exchangeRate * base) / base),
-    );
-    fiatFixed = isNaN(fiatFixed) ? 0.0 : fiatFixed;
-    return fiatFixed;
-  };
-
   const { selectedAddress } = preferencesControllerState;
   const { currentCurrency, conversionRate } = currencyRateControllerState;
   const finalConversionRate = conversionRate ?? 0;
@@ -422,3 +347,85 @@ export function getTotalFiatAccountBalance(
   const total = ethFiat + tokenFiat;
   return total;
 }
+*/
+
+
+export function weiToFiatNumber(
+  wei: number,
+  conversionRate: number,
+  decimalsToShow = 5,
+) {
+  const base = Math.pow(10, decimalsToShow);
+  const eth = fromWei(wei).toString();
+  let value = parseFloat(
+    Math.floor((eth * conversionRate * base) / base).toString(),
+  );
+  value = isNaN(value) ? 0 : value;
+  return value;
+};
+
+export function fastSplit(value: string, divider = '.') {
+  const [from, to] = [value.indexOf(divider), 0];
+  return value.substring(from, to) || value;
+};
+
+export function safeNumberToBN(value: string): BN {
+  let safeValue = '0';
+  try {
+    return new BN(Number(safeValue));
+  } catch (e) {
+    // Simply return the original value
+    console.log("Value could not be split", e);
+    return new BN(Number(safeValue));
+  }
+}
+
+export function fromTokenMinimalUnit(minimalInput: BN, decimals: number) {
+  const minimalInputStr = addHexPrefix(Number(minimalInput).toString(16));
+  const minimal = safeNumberToBN(minimalInputStr);
+  const base = new BN(Math.pow(10, decimals).toString());
+
+  let fraction = minimal.mod(base).toString(10);
+  while (fraction.length < decimals) {
+    fraction = `0${fraction}`;
+  }
+  fraction = fraction.match(/^([0-9]*[1-9]|0)(0*)/u)?.[1] ?? '0';
+
+  const whole = minimal.div(base).toString(10);
+  const value = String(whole) + (fraction === '0' ? '' : `.${fraction}`);
+  return value;
+};
+
+export function renderFromTokenMinimalUnit(
+  tokenValue: BN,
+  decimals: number,
+  decimalsToShow = 5,
+) {
+  const minimalUnit = fromTokenMinimalUnit(tokenValue || 0, decimals);
+  const minimalUnitNumber = parseFloat(minimalUnit);
+  let renderMinimalUnit;
+  if (minimalUnitNumber < 0.00001 && minimalUnitNumber > 0) {
+    renderMinimalUnit = '< 0.00001';
+  } else {
+    const base = Math.pow(10, decimalsToShow);
+    renderMinimalUnit = (
+      Math.round(minimalUnitNumber * base) / base
+    ).toString();
+  }
+  return renderMinimalUnit;
+};
+
+export function balanceToFiatNumber(
+  balance: number,
+  conversionRate: number,
+  exchangeRate: number,
+  decimalsToShow = 5,
+) {
+  const base = Math.pow(10, decimalsToShow);
+  let fiatFixed = parseFloat(
+    // Cast as string to avoid TS error
+    String(Math.floor(balance * conversionRate * exchangeRate * base) / base),
+  );
+  fiatFixed = isNaN(fiatFixed) ? 0.0 : fiatFixed;
+  return fiatFixed;
+};

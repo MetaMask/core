@@ -12,5 +12,4 @@ export {
   isTokenDetectionSupportedForNetwork,
   formatIconUrlWithProxy,
   getFormattedIpfsUrl,
-  getTotalFiatAccountBalance,
 } from './assetsUtil';

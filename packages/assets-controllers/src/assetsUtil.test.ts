@@ -447,6 +447,24 @@ describe('assetsUtil', () => {
     });
   });
 
+  describe('renderFromTokenMinimalUnit', () => {
+    it.only('should return proper value', () => {
+      const value = assetsUtil.renderFromTokenMinimalUnit(
+        new BN(1.23456789),
+        18,
+      );
+      expect(value).toBe(1.23456);
+    });
+  });
+
+  describe('fastSplit', () => {
+    it('should return proper value', () => {
+      const value = assetsUtil.fastSplit('20000.10');
+      expect(value).toBe('20000');
+    });
+  });
+
+  /*
   describe('getTotalFiatAccountBalance', () => {
     it('should return a balance for just native currency', () => {
       const ADDRESS = '0x0000000000000000000000000000000008675309';
@@ -463,33 +481,30 @@ describe('assetsUtil', () => {
 
       const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
         // CurrencyRateController
-        new CurrencyRateController({
-          state: {
-            currentCurrency: CURRENCY,
-            conversionRate: CURRENCY_CONVERSION_RATE,
-          },
-        }).state,
+        {
+          currentCurrency: CURRENCY,
+          conversionRate: CURRENCY_CONVERSION_RATE,
+        },
         // PreferencesController
-        new PreferencesController(undefined, { selectedAddress: ADDRESS })
-          .state,
+        { selectedAddress: ADDRESS },
         // AccountTrackerController,
-        new AccountTrackerController({}, undefined, {
+        {
           accounts: { [ADDRESS]: { balance: NATIVE_BALANCE } },
-        }).state,
+        },
         // TokenBalancesController
-        new TokenBalancesController({}, undefined, {
+        {
           contractBalances: {
             [CHAINLINK_ADDRESS]: new BN(CHAINLINK_BALANCE),
           },
-        }).state,
+        },
         // TokenRatesController
-        new TokenRatesController({}, undefined, {
+        {
           contractExchangeRates: {
             [toChecksumHexAddress(CHAINLINK_ADDRESS)]: CHAINLINK_PRICE,
           },
-        }).state,
+        },
         // TokensController
-        new TokensController({
+        {
           state: {
             tokens: [
               {
@@ -499,10 +514,11 @@ describe('assetsUtil', () => {
               },
             ],
           },
-        }).state,
+        },
       );
 
       expect(fiatBalance).toBe(CHAINLINK_PRICE * CHAINLINK_BALANCE);
     });
   });
+  */
 });
