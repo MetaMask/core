@@ -39,11 +39,6 @@ type TransactionMetaBase = {
   dappSuggestedGasFees?: DappSuggestedGasFees;
 
   /**
-   * If transaction is a swap, this is the address of the token being swapped from.
-   */
-  destinationTokenAddress?: string;
-
-  /**
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
