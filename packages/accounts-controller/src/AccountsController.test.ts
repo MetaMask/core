@@ -10,7 +10,7 @@ import type {
   AccountsControllerEvents,
   AccountsControllerState,
 } from './AccountsController';
-import AccountsController, { keyringTypeToName } from './AccountsController';
+import { AccountsController, keyringTypeToName } from './AccountsController';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');

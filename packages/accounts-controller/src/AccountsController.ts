@@ -73,7 +73,7 @@ const defaultState: AccountsControllerState = {
   },
 };
 
-export default class AccountsController extends BaseControllerV2<
+export class AccountsController extends BaseControllerV2<
   typeof controllerName,
   AccountsControllerState,
   AccountsControllerMessenger
@@ -98,7 +98,7 @@ export default class AccountsController extends BaseControllerV2<
   }: {
     messenger: AccountsControllerMessenger;
     state: AccountsControllerState;
-    keyringApiEnabled: boolean;
+    keyringApiEnabled?: boolean;
     getKeyringForAccount: KeyringController['getKeyringForAccount'];
     getKeyringByType: KeyringController['getKeyringsByType'];
     getAccounts: KeyringController['getAccounts'];
