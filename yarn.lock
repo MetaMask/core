@@ -1287,14 +1287,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@^1.0.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
-    "@metamask/base-controller": ^3.2.0
+    "@metamask/base-controller": ^3.2.1
     "@metamask/eth-snap-keyring": "git+https://github.com/MetaMask/eth-snap-keyring.git#commit=543117c98e80c83378dbd8bb2bc87704ee0f96f0"
-    "@metamask/keyring-controller": ^7.1.0
+    "@metamask/keyring-controller": ^7.2.0
     "@metamask/snaps-controllers": ^1.0.1
     "@metamask/snaps-utils": ^1.0.1
     "@metamask/utils": ^6.2.0
@@ -1302,7 +1302,7 @@ __metadata:
     "@types/readable-stream": ^2.3.0
     deepmerge: ^4.2.2
     eth-rpc-errors: ^4.0.2
-    ethereumjs-util: ^7.1.5
+    ethereumjs-util: ^7.0.10
     immer: ^9.0.6
     jest: ^27.5.1
     nanoid: ^3.1.31
@@ -1311,7 +1311,9 @@ __metadata:
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
-    uuid: ^9.0.0
+    uuid: ^8.3.2
+  peerDependencies:
+    "@metamask/keyring-controller": ^7.2.0
   languageName: unknown
   linkType: soft
 
@@ -1391,12 +1393,14 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/abi-utils": ^2.0.1
+    "@metamask/accounts-controller": ^1.0.0
     "@metamask/approval-controller": ^3.5.1
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
     "@metamask/contract-metadata": ^2.3.1
     "@metamask/controller-utils": ^4.3.2
     "@metamask/eth-query": ^3.0.1
+    "@metamask/eth-snap-keyring": "git+https://github.com/MetaMask/eth-snap-keyring.git#commit=543117c98e80c83378dbd8bb2bc87704ee0f96f0"
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": ^12.1.2
     "@metamask/preferences-controller": ^4.4.0
@@ -1423,6 +1427,7 @@ __metadata:
     typescript: ~4.6.3
     uuid: ^8.3.2
   peerDependencies:
+    "@metamask/accounts-controller": ^1.0.0
     "@metamask/approval-controller": ^3.5.1
     "@metamask/network-controller": ^12.1.2
     "@metamask/preferences-controller": ^4.4.0
@@ -1443,7 +1448,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@^3.0.0, @metamask/base-controller@^3.2.0, @metamask/base-controller@^3.2.1, @metamask/base-controller@workspace:packages/base-controller":
+"@metamask/base-controller@^3.0.0, @metamask/base-controller@^3.2.1, @metamask/base-controller@workspace:packages/base-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
@@ -1844,7 +1849,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@^7.1.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@^7.2.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -5256,7 +5261,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethereumjs-util@npm:^7.0.10, ethereumjs-util@npm:^7.0.8, ethereumjs-util@npm:^7.1.2, ethereumjs-util@npm:^7.1.5":
+"ethereumjs-util@npm:^7.0.10, ethereumjs-util@npm:^7.0.8, ethereumjs-util@npm:^7.1.2":
   version: 7.1.5
   resolution: "ethereumjs-util@npm:7.1.5"
   dependencies:
