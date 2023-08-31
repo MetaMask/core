@@ -1176,10 +1176,12 @@ describe('TransactionController', () => {
 
         await result;
 
-        const { transaction, status } = controller.state.transactions[0];
+        const { transaction, status, submittedTime } =
+          controller.state.transactions[0];
         expect(transaction.from).toBe(ACCOUNT_MOCK);
         expect(transaction.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
         expect(status).toBe(TransactionStatus.submitted);
+        expect(submittedTime).toBeLessThanOrEqual(Date.now());
       });
 
       it('reports success to approval acceptor', async () => {
