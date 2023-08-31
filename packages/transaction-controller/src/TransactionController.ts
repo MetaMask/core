@@ -1520,17 +1520,17 @@ export class TransactionController extends BaseController<
     }
 
     // Mark all same nonce transactions as dropped and give it a replacedBy hash
-    sameNonceTxs.forEach((sameNonceTxMeta) => {
-      if (sameNonceTxMeta.id === transactionId) {
+    for (const transaction of sameNonceTxs) {
+      if (transaction.id === transactionId) {
         return;
       }
-      sameNonceTxMeta.replacedBy = transactionMeta?.hash;
-      sameNonceTxMeta.replacedById = transactionMeta?.id;
+      transaction.replacedBy = transactionMeta?.hash;
+      transaction.replacedById = transactionMeta?.id;
       // Drop any transaction that wasn't previously failed (off chain failure)
-      if (sameNonceTxMeta.status !== TransactionStatus.failed) {
-        this.setTransactionStatusDropped(sameNonceTxMeta);
+      if (transaction.status !== TransactionStatus.failed) {
+        this.setTransactionStatusDropped(transaction);
       }
-    });
+    }
   }
 
   /**
