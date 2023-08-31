@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.3.0]
-### Uncategorized
+### Added
 - Add `decryptMessage` method ([#1596](https://github.com/MetaMask/core/pull/1596))
 
 ## [7.2.0]

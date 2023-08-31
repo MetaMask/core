@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [9.2.0]
-### Uncategorized
+### Added
 - Persist `estimatedBaseFee` in `stopTransaction` and `speedUpTransaction` ([#1621](https://github.com/MetaMask/core/pull/1621))
-- Adding response from security validator to transaction ([#1636](https://github.com/MetaMask/core/pull/1636))
+- Add `securityAlertResponse` to `addTransaction` `opts` argument ([#1636](https://github.com/MetaMask/core/pull/1636))
 
 ## [9.1.0]
 ### Added
