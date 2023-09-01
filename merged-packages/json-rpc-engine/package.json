@@ -34,9 +34,9 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/rpc-errors": "^5.0.0",
+    "@metamask/rpc-errors": "^6.0.0",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^7.0.0"
+    "@metamask/utils": "^8.1.0"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",
