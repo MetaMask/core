@@ -1705,7 +1705,7 @@ describe('NftController', () => {
       expect(nftController.state.ignoredNfts).toHaveLength(1);
     });
 
-    it.only('should add NFT with metadata hosted in IPFS', async () => {
+    it('should add NFT with metadata hosted in IPFS', async () => {
       const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
@@ -1814,6 +1814,7 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
         tokenURI:
           'https://bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm.ipfs.cloudflare-ipfs.com',
+        error: 'Opensea import error',
       });
     });
 

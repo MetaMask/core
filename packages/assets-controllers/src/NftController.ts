@@ -139,7 +139,7 @@ export interface NftMetadata {
   lastSale?: ApiNftLastSale;
   transactionId?: string;
   tokenURI?: string | null;
-  error?: boolean | undefined;
+  error?: string | undefined;
 }
 
 interface AccountParams {
@@ -344,7 +344,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         description: null,
         image: null,
         standard: null,
-        error: true,
+        error: 'Opensea import error',
       };
     }
   }
@@ -397,6 +397,17 @@ export class NftController extends BaseController<NftConfig, NftState> {
       tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
     }
 
+    if (!hasIpfsTokenURI && !displayNftMedia) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI: tokenURI ?? null,
+      };
+    }
+
     try {
       const object = await handleFetch(tokenURI);
       // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
@@ -420,7 +431,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         standard: standard || null,
         favorite: false,
         tokenURI: tokenURI ?? null,
-        error: true,
+        error: 'URI import error',
       };
     }
   }
@@ -499,7 +510,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         standard: blockchainMetadata.standard ?? null,
         favorite: false,
         tokenURI: blockchainMetadata.tokenURI ?? null,
-        error: true,
+        error: 'Both import failed',
       };
     }
 
