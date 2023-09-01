@@ -14,7 +14,7 @@ export type TransactionMeta =
  */
 type TransactionMetaBase = {
   /**
-   * Unique ID to prevent duplicate requests
+   * Unique ID to prevent duplicate requests.
    */
   actionId?: string;
 
