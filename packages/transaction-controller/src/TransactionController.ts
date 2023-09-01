@@ -384,7 +384,7 @@ export class TransactionController extends BaseController<
    *
    * @param transaction - The transaction object to add.
    * @param opts - Additional options to control how the transaction is added.
-   * @param opts.actionId - Unique ID to prevent duplicate requests
+   * @param opts.actionId - Unique ID to prevent duplicate requests.
    * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
