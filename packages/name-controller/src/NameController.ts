@@ -66,6 +66,7 @@ export type NameControllerOptions = {
   getChainId: () => string;
   messenger: NameControllerMessenger;
   providers: NameProvider[];
+  state?: Partial<NameControllerState>;
 };
 
 export type UpdateProposedNamesRequest = {
@@ -104,13 +105,19 @@ export class NameController extends BaseControllerV2<
    * @param options.getChainId - Callback that returns the chain ID of the current network.
    * @param options.messenger - Restricted controller messenger for the name controller.
    * @param options.providers - Array of name provider instances to propose names.
+   * @param options.state - Initial state to set on the controller.
    */
-  constructor({ getChainId, messenger, providers }: NameControllerOptions) {
+  constructor({
+    getChainId,
+    messenger,
+    providers,
+    state,
+  }: NameControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
       messenger,
-      state: getDefaultState(),
+      state: { ...getDefaultState(), ...state },
     });
 
     this.#getChainId = getChainId;
