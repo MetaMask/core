@@ -10,9 +10,7 @@ const SOURCE_ID = 'token';
 const TOKEN_NAME_MOCK = 'TestTokenName';
 
 describe('TokenNameProvider', () => {
-  const handleFetchMock = handleFetch as jest.MockedFunction<
-    typeof handleFetch
-  >;
+  const handleFetchMock = jest.mocked(handleFetch);
 
   beforeEach(() => {
     jest.resetAllMocks();

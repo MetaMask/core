@@ -13,9 +13,7 @@ const CONTRACT_NAME_2_MOCK = 'TestContractName2';
 const API_KEY_MOCK = 'TestApiKey';
 
 describe('EtherscanNameProvider', () => {
-  const handleFetchMock = handleFetch as jest.MockedFunction<
-    typeof handleFetch
-  >;
+  const handleFetchMock = jest.mocked(handleFetch);
 
   beforeEach(() => {
     jest.resetAllMocks();

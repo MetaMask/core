@@ -11,7 +11,7 @@ const HANDLE_MOCK = 'TestHandle';
 const HANDLE_2_MOCK = 'TestHandle2';
 
 describe('LensNameProvider', () => {
-  const graphqlMock = graphQL as jest.MockedFunction<typeof graphQL>;
+  const graphqlMock = jest.mocked(graphQL);
 
   beforeEach(() => {
     jest.resetAllMocks();
