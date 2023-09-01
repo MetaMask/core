@@ -20,8 +20,8 @@ export const CHAIN_IDS = {
   GNOSIS: '0x64',
 } as const;
 
-const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';
-const DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX = 'api';
+export const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';
+export const DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX = 'api';
 
 export const ETHERSCAN_SUPPORTED_NETWORKS = {
   [CHAIN_IDS.GOERLI]: {

@@ -422,6 +422,7 @@ describe('TransactionController', () => {
   let approveTransaction: () => void;
   let getNonceLockSpy: jest.Mock;
   let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
+  let timeCounter = 0;
 
   const incomingTransactionHelperClassMock =
     IncomingTransactionHelper as jest.MockedClass<
@@ -489,6 +490,11 @@ describe('TransactionController', () => {
   }
 
   beforeEach(() => {
+    jest.spyOn(Date, 'now').mockImplementation(() => {
+      timeCounter += 1;
+      return timeCounter;
+    });
+
     for (const key in mockFlags) {
       mockFlags[key] = null;
     }

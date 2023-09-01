@@ -233,7 +233,8 @@ export class TransactionController extends BaseController<
    * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
    * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
-   * @param options.incomingTransactions.updateTransactions - Whether or not to update local transactions using remote transaction data.
+   * @param options.incomingTransactions.queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
+   * @param options.incomingTransactions.updateTransactions - Whether to update local transactions using remote transaction data.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
@@ -257,6 +258,7 @@ export class TransactionController extends BaseController<
         apiKey?: string;
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
+        queryEntireHistory?: boolean;
         updateTransactions?: boolean;
       };
       messenger: TransactionControllerMessenger;
@@ -307,8 +309,10 @@ export class TransactionController extends BaseController<
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
       getCurrentAccount: getSelectedAddress,
+      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getNetworkState,
       isEnabled: incomingTransactions.isEnabled,
+      queryEntireHistory: incomingTransactions.queryEntireHistory,
       remoteTransactionSource: new EtherscanRemoteTransactionSource({
         apiKey: incomingTransactions.apiKey,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
@@ -1105,25 +1109,32 @@ export class TransactionController extends BaseController<
     transactions: TransactionMeta[],
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
-    const txsToKeep = transactions.reverse().filter((tx) => {
-      const { chainId, networkID, status, transaction, time } = tx;
-      if (transaction) {
-        const key = `${transaction.nonce}-${
-          chainId ? convertHexToDecimal(chainId) : networkID
-        }-${new Date(time).toDateString()}`;
-        if (nonceNetworkSet.has(key)) {
-          return true;
-        } else if (
-          nonceNetworkSet.size < this.config.txHistoryLimit ||
-          !this.isFinalState(status)
-        ) {
-          nonceNetworkSet.add(key);
-          return true;
+
+    const txsToKeep = transactions
+      .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
+      .filter((tx) => {
+        const { chainId, networkID, status, transaction, time } = tx;
+
+        if (transaction) {
+          const key = `${transaction.nonce}-${
+            chainId ? convertHexToDecimal(chainId) : networkID
+          }-${new Date(time).toDateString()}`;
+
+          if (nonceNetworkSet.has(key)) {
+            return true;
+          } else if (
+            nonceNetworkSet.size < this.config.txHistoryLimit ||
+            !this.isFinalState(status)
+          ) {
+            nonceNetworkSet.add(key);
+            return true;
+          }
         }
-      }
-      return false;
-    });
-    txsToKeep.reverse();
+
+        return false;
+      });
+
+    txsToKeep.reverse(); // Ascending time order
     return txsToKeep;
   }
 
