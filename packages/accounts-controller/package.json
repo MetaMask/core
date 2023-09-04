@@ -30,6 +30,7 @@
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
     "@metamask/eth-snap-keyring": "git+https://github.com/MetaMask/eth-snap-keyring.git#commit=543117c98e80c83378dbd8bb2bc87704ee0f96f0",
+    "@metamask/keyring-api": "0.2.1",
     "@metamask/keyring-controller": "^7.2.0",
     "@metamask/snaps-controllers": "^1.0.1",
     "@metamask/snaps-utils": "^1.0.1",

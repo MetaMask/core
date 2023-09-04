@@ -1,5 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type { InternalAccount } from '@metamask/eth-snap-keyring';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
@@ -27,48 +27,48 @@ const mockGetKeyringByType = jest.fn();
 const mockGetAccounts = jest.fn();
 
 const mockAccount: InternalAccount = {
-  name: 'Account 1',
   id: 'mock-id',
   address: '0x123',
   options: {},
-  supportedMethods: [
+  methods: [
     'personal_sign',
-    'eth_sendTransaction',
     'eth_sign',
     'eth_signTransaction',
     'eth_signTypedData',
     'eth_signTypedData_v1',
-    'eth_signTypedData_v2',
     'eth_signTypedData_v3',
     'eth_signTypedData_v4',
   ],
   type: 'eip155:eoa',
   metadata: {
+    name: 'Account 1',
     keyring: { type: 'HD Key Tree' },
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     lastSelected: 1691565967656,
   },
 };
 
 const mockAccount2: InternalAccount = {
-  name: 'Account 2',
   id: 'mock-id2',
   address: '0x1234',
   options: {},
-  supportedMethods: [
+  methods: [
     'personal_sign',
-    'eth_sendTransaction',
     'eth_sign',
     'eth_signTransaction',
     'eth_signTypedData',
     'eth_signTypedData_v1',
-    'eth_signTypedData_v2',
     'eth_signTypedData_v3',
     'eth_signTypedData_v4',
   ],
   type: 'eip155:eoa',
   metadata: {
+    name: 'Account 2',
     keyring: { type: 'HD Key Tree' },
-    lastSelected: 1691565967656,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    lastSelected: 1955565967656,
   },
 };
 
@@ -101,23 +101,23 @@ function createExpectedInternalAccount({
 }): InternalAccount {
   const account: InternalAccount = {
     id,
-    name,
     address,
     options: {},
-    supportedMethods: [
+    methods: [
       'personal_sign',
-      'eth_sendTransaction',
       'eth_sign',
       'eth_signTransaction',
       'eth_signTypedData',
       'eth_signTypedData_v1',
-      'eth_signTypedData_v2',
       'eth_signTypedData_v3',
       'eth_signTypedData_v4',
     ],
     type: 'eip155:eoa',
     metadata: {
+      name,
       keyring: { type: keyringType },
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       lastSelected: undefined,
     },
   };
@@ -125,6 +125,7 @@ function createExpectedInternalAccount({
   if (snapId) {
     account.metadata.snap = {
       id: snapId,
+      name: '',
       enabled: Boolean(snapEnabled),
     };
   }
@@ -484,10 +485,7 @@ describe('AccountsController', () => {
 
       const selectedAccount = accountsController.getSelectedAccount();
       const accounts = accountsController.listAccounts();
-      const expectedAccount = {
-        ...setLastSelectedAsAny(mockReinitialisedAccount),
-        name: 'Account 1', // since there aren't any other accounts it will be account 1
-      };
+      const expectedAccount = setLastSelectedAsAny(mockReinitialisedAccount);
 
       expect(selectedAccount).toStrictEqual(expectedAccount);
       expect(accounts).toStrictEqual([expectedAccount]);
@@ -533,6 +531,113 @@ describe('AccountsController', () => {
         setLastSelectedAsAny(mockAccount2),
       );
     });
+
+    it('should delete accounts and set the most recent lastSelected account', async () => {
+      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+      mockGetAccounts.mockResolvedValue([
+        mockAccount.address,
+        mockAccount2.address,
+      ]);
+      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [mockAccount.address, mockAccount2.address],
+          },
+        ],
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              'missing-account': {
+                address: '0x999',
+              } as InternalAccount,
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: 'missing-account',
+          },
+        },
+        keyringApiEnabled: false,
+        onKeyringStateChange: (
+          listener: (state: KeyringControllerState) => void,
+        ) => {
+          listener(mockNewKeyringState);
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const accounts = accountsController.listAccounts();
+
+      expect(accounts).toStrictEqual([
+        setLastSelectedAsAny(mockAccount),
+        setLastSelectedAsAny(mockAccount2),
+      ]);
+      expect(accountsController.getSelectedAccount()).toStrictEqual(
+        setLastSelectedAsAny(mockAccount2),
+      );
+    });
+
+    it('should delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
+      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+      mockGetAccounts.mockResolvedValue([
+        mockAccount.address,
+        mockAccount2.address,
+      ]);
+      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      const mockAccount2WithoutLastSelected = {
+        ...mockAccount2,
+        metadata: {
+          ...mockAccount2.metadata,
+          lastSelected: undefined,
+        },
+      };
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [mockAccount.address, mockAccount2.address],
+          },
+        ],
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              'missing-account': {
+                address: '0x999',
+              } as InternalAccount,
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2WithoutLastSelected,
+            },
+            selectedAccount: 'missing-account',
+          },
+        },
+        keyringApiEnabled: false,
+        onKeyringStateChange: (
+          listener: (state: KeyringControllerState) => void,
+        ) => {
+          listener(mockNewKeyringState);
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const accounts = accountsController.listAccounts();
+
+      expect(accounts).toStrictEqual([
+        setLastSelectedAsAny(mockAccount),
+        mockAccount2WithoutLastSelected,
+      ]);
+      expect(accountsController.getSelectedAccount()).toStrictEqual(
+        setLastSelectedAsAny(mockAccount),
+      );
+    });
   });
 
   describe('constructor', () => {
@@ -570,6 +675,7 @@ describe('AccountsController', () => {
         snap: {
           enabled: true,
           id: 'mock-snap-id',
+          name: '',
         },
         lastSelected: undefined,
       },
@@ -584,6 +690,7 @@ describe('AccountsController', () => {
         snap: {
           enabled: true,
           id: 'mock-snap-id2',
+          name: '',
         },
         lastSelected: undefined,
       },
@@ -623,7 +730,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('should update accounts with snap accounts', async () => {
+    it('should update accounts with snap accounts when snap keyring is defined and has accounts', async () => {
       mockGetAccounts.mockResolvedValue([]);
       mockGetKeyringByType.mockReturnValueOnce([
         {
@@ -644,15 +751,42 @@ describe('AccountsController', () => {
 
       const expectedAccount1 = {
         ...mockSnapAccount,
-        name: 'Snap Account 1',
+        metadata: {
+          ...mockSnapAccount.metadata,
+          name: 'Snap Account 1',
+        },
       };
 
       const expectedAccount2 = {
         ...mockSnapAccount2,
-        name: 'Snap Account 2',
+        metadata: {
+          ...mockSnapAccount2.metadata,
+          name: 'Snap Account 2',
+        },
       };
 
       const expectedAccounts = [expectedAccount1, expectedAccount2];
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
+
+    it('should return an empty array if the snap keyring is not defined', async () => {
+      mockGetAccounts.mockResolvedValue([]);
+      mockGetKeyringByType.mockReturnValueOnce([undefined]);
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: true,
+      });
+
+      const expectedAccounts: InternalAccount[] = [];
 
       await accountsController.updateAccounts();
 
@@ -757,6 +891,7 @@ describe('AccountsController', () => {
       'Lattice Hardware',
       'QR Hardware Wallet Device',
       'Custody',
+      'Unknown',
     ])('should add accounts for %s type', async (keyringType) => {
       mockUUID.mockReturnValue('mock-id');
       mockGetAccounts.mockResolvedValue([mockAddress1]);
@@ -888,6 +1023,8 @@ describe('AccountsController', () => {
         },
       });
 
+      console.log(mockAccount, mockAccount2);
+
       const result = accountsController.listAccounts();
 
       expect(result).toStrictEqual([
@@ -942,12 +1079,12 @@ describe('AccountsController', () => {
       // @ts-expect-error forcing undefined accountId
       expect(accountsController.getAccountExpect(undefined)).toStrictEqual({
         id: '',
-        name: '',
         address: '',
         options: {},
-        supportedMethods: [],
+        methods: [],
         type: 'eip155:eoa',
         metadata: {
+          name: '',
           keyring: {
             type: '',
           },
@@ -1026,9 +1163,9 @@ describe('AccountsController', () => {
       });
       accountsController.setAccountName(mockAccount.id, 'new name');
 
-      expect(accountsController.getAccountExpect(mockAccount.id).name).toBe(
-        'new name',
-      );
+      expect(
+        accountsController.getAccountExpect(mockAccount.id).metadata.name,
+      ).toBe('new name');
     });
 
     it('should throw an error if the account name already exists', () => {
