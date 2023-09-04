@@ -1904,6 +1904,116 @@ describe('KeyringController', () => {
       });
     });
   });
+
+  describe('actions', () => {
+    describe('signMessage', () => {
+      it('should sign message', async () => {
+        await withController(async ({ messenger, initialState }) => {
+          const messageParams = {
+            from: initialState.keyrings[0].accounts[0],
+            data: '0x1234',
+          };
+
+          const signature = await messenger.call(
+            'KeyringController:signMessage',
+            messageParams,
+          );
+
+          expect(signature).not.toBe('');
+        });
+      });
+    });
+
+    describe('signPersonalMessage', () => {
+      it('should sign personal message', async () => {
+        await withController(async ({ messenger, initialState }) => {
+          const messageParams = {
+            from: initialState.keyrings[0].accounts[0],
+            data: '0x1234',
+          };
+
+          const signature = await messenger.call(
+            'KeyringController:signPersonalMessage',
+            messageParams,
+          );
+
+          expect(signature).not.toBe('');
+        });
+      });
+    });
+
+    describe('signTypedMessage', () => {
+      it('should call signTypedMessage', async () => {
+        await withController(async ({ messenger, initialState }) => {
+          const msgParams = {
+            domain: {
+              chainId: 1,
+              name: 'Ether Mail',
+              verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+              version: '1',
+            },
+            message: {
+              contents: 'Hello, Bob!',
+              from: {
+                name: 'Cow',
+                wallets: [
+                  '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+                  '0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF',
+                ],
+              },
+              to: [
+                {
+                  name: 'Bob',
+                  wallets: [
+                    '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+                    '0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57',
+                    '0xB0B0b0b0b0b0B000000000000000000000000000',
+                  ],
+                },
+              ],
+            },
+            primaryType: 'Mail' as const,
+            types: {
+              EIP712Domain: [
+                { name: 'name', type: 'string' },
+                { name: 'version', type: 'string' },
+                { name: 'chainId', type: 'uint256' },
+                { name: 'verifyingContract', type: 'address' },
+              ],
+              Group: [
+                { name: 'name', type: 'string' },
+                { name: 'members', type: 'Person[]' },
+              ],
+              Mail: [
+                { name: 'from', type: 'Person' },
+                { name: 'to', type: 'Person[]' },
+                { name: 'contents', type: 'string' },
+              ],
+              Person: [
+                { name: 'name', type: 'string' },
+                { name: 'wallets', type: 'address[]' },
+              ],
+            },
+          };
+
+          const signer = initialState.keyrings[0].accounts[0];
+          const signature = await messenger.call(
+            'KeyringController:signTypedMessage',
+            { data: JSON.stringify(msgParams), from: signer },
+            SignTypedDataVersion.V4,
+          );
+          const recovered = recoverTypedSignature({
+            data: msgParams,
+            signature,
+            version: SignTypedDataVersion.V4,
+          });
+
+          expect(signer).toBe(recovered);
+          expect(signature).not.toBe('');
+        });
+      });
+    });
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({
@@ -1954,7 +2064,12 @@ function buildMessenger() {
 function buildKeyringControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'KeyringController',
-    allowedActions: [],
+    allowedActions: [
+      'KeyringController:getState',
+      'KeyringController:signMessage',
+      'KeyringController:signPersonalMessage',
+      'KeyringController:signTypedMessage',
+    ],
     allowedEvents: [
       'KeyringController:stateChange',
       'KeyringController:lock',
