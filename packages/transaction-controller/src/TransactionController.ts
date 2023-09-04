@@ -40,26 +40,28 @@ import NonceTracker from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+import { validateConfirmedExternalTransaction } from './external-transactions';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
+  DappSuggestedGasFees,
   Transaction,
   TransactionMeta,
+  TransactionReceipt,
   WalletDevice,
-  DappSuggestedGasFees,
 } from './types';
 import { TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
-  normalizeTransaction,
-  validateTransaction,
   getIncreasedPriceFromExisting,
+  normalizeTransaction,
   isEIP1559Transaction,
-  isGasPriceValue,
   isFeeMarketEIP1559Values,
+  isGasPriceValue,
+  transactionMatchesNetwork,
   validateGasValues,
   validateMinimumIncrease,
+  validateTransaction,
   ESTIMATE_GAS_ERROR,
-  transactionMatchesNetwork,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -898,6 +900,41 @@ export class TransactionController extends BaseController<
     this.incomingTransactionHelper.stop();
   }
 
+  /**
+   * Adds external provided transaction to state as confirmed transaction.
+   *
+   * @param transactionMeta - TransactionMeta to add transactions.
+   * @param transactionReceipt - TransactionReceipt of the external transaction.
+   * @param baseFeePerGas - Base fee per gas of the external transaction.
+   */
+  async confirmExternalTransaction(
+    transactionMeta: TransactionMeta,
+    transactionReceipt: TransactionReceipt,
+    baseFeePerGas: Hex,
+  ) {
+    // Run validation and add external transaction to state.
+    this.addExternalTransaction(transactionMeta);
+
+    try {
+      const transactionId = transactionMeta.id;
+
+      // Make sure status is confirmed and define gasUsed as in receipt.
+      transactionMeta.status = TransactionStatus.confirmed;
+      transactionMeta.txReceipt = transactionReceipt;
+      if (baseFeePerGas) {
+        transactionMeta.baseFeePerGas = baseFeePerGas;
+      }
+
+      // Update same nonce local transactions as dropped and define replacedBy properties.
+      this.markNonceDuplicatesDropped(transactionId);
+
+      // Update external provided transaction with updated gas values and confirmed status.
+      this.updateTransaction(transactionMeta);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
@@ -1425,6 +1462,85 @@ export class TransactionController extends BaseController<
     }
 
     return dappSuggestedGasFees;
+  }
+
+  /**
+   * Validates and adds external provided transaction to state.
+   *
+   * @param transactionMeta - Nominated external transaction to be added to state.
+   */
+  private async addExternalTransaction(transactionMeta: TransactionMeta) {
+    const { networkId, chainId } = this.getChainAndNetworkId();
+    const { transactions } = this.state;
+    const fromAddress = transactionMeta?.transaction?.from;
+    const sameFromAndNetworkTransactions = transactions.filter(
+      (transaction) =>
+        transaction.transaction.from === fromAddress &&
+        transactionMatchesNetwork(transaction, chainId, networkId),
+    );
+    const confirmedTxs = sameFromAndNetworkTransactions.filter(
+      (transaction) => transaction.status === TransactionStatus.confirmed,
+    );
+    const pendingTxs = sameFromAndNetworkTransactions.filter(
+      (transaction) => transaction.status === TransactionStatus.submitted,
+    );
+
+    validateConfirmedExternalTransaction(
+      transactionMeta,
+      confirmedTxs,
+      pendingTxs,
+    );
+
+    const updatedTransactions = [...transactions, transactionMeta];
+    this.update({
+      transactions: this.trimTransactionsForState(updatedTransactions),
+    });
+  }
+
+  /**
+   * Sets other txMeta statuses to dropped if the txMeta that has been confirmed has other transactions
+   * in the transactions have the same nonce.
+   *
+   * @param transactionId - Used to identify original transaction.
+   */
+  private markNonceDuplicatesDropped(transactionId: string) {
+    const { networkId, chainId } = this.getChainAndNetworkId();
+    const transactionMeta = this.getTransaction(transactionId);
+    const nonce = transactionMeta?.transaction?.nonce;
+    const from = transactionMeta?.transaction?.from;
+    const sameNonceTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.transaction.from === from &&
+        transaction.transaction.nonce === nonce &&
+        transactionMatchesNetwork(transaction, chainId, networkId),
+    );
+
+    if (!sameNonceTxs.length) {
+      return;
+    }
+
+    // Mark all same nonce transactions as dropped and give it a replacedBy hash
+    for (const transaction of sameNonceTxs) {
+      if (transaction.id === transactionId) {
+        continue;
+      }
+      transaction.replacedBy = transactionMeta?.hash;
+      transaction.replacedById = transactionMeta?.id;
+      // Drop any transaction that wasn't previously failed (off chain failure)
+      if (transaction.status !== TransactionStatus.failed) {
+        this.setTransactionStatusDropped(transaction);
+      }
+    }
+  }
+
+  /**
+   * Method to set transaction status to dropped.
+   *
+   * @param transactionMeta - TransactionMeta of transaction to be marked as dropped.
+   */
+  private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
+    transactionMeta.status = TransactionStatus.dropped;
+    this.updateTransaction(transactionMeta);
   }
 }
 

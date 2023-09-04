@@ -10,7 +10,7 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './TransactionController';
-import type { Transaction, TransactionMeta, TransactionStatus } from './types';
+import type { TransactionStatus, Transaction, TransactionMeta } from './types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
