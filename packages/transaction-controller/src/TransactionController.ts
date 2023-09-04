@@ -1522,7 +1522,7 @@ export class TransactionController extends BaseController<
     // Mark all same nonce transactions as dropped and give it a replacedBy hash
     for (const transaction of sameNonceTxs) {
       if (transaction.id === transactionId) {
-        return;
+        continue;
       }
       transaction.replacedBy = transactionMeta?.hash;
       transaction.replacedById = transactionMeta?.id;
