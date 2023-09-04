@@ -1481,7 +1481,7 @@ export class TransactionController extends BaseController<
     const confirmedTxs = sameFromAndNetworkTransactions.filter(
       (transaction) => transaction.status === TransactionStatus.confirmed,
     );
-    const pendingTxs = this.state.transactions.filter(
+    const pendingTxs = sameFromAndNetworkTransactions.filter(
       (transaction) => transaction.status === TransactionStatus.submitted,
     );
 
