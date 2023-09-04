@@ -974,9 +974,9 @@ export class TransactionController extends BaseController<
     const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
     const finishedPromise = isCompleted
       ? Promise.resolve(meta)
-      : this._waitForTransactionFinished(transactionId);
+      : this.waitForTransactionFinished(transactionId);
 
-    if (!isExisting && !isCompleted) {
+    if (meta && !isExisting && !isCompleted) {
       try {
         if (requireApproval !== false) {
           const acceptResult = await this.requestApproval(transactionMeta, {
@@ -994,7 +994,7 @@ export class TransactionController extends BaseController<
       } catch (error: any) {
         const { isCompleted: isTxCompleted } =
           this.isTransactionCompleted(transactionId);
-        if (meta && !isTxCompleted) {
+        if (!isTxCompleted) {
           if (error.code === errorCodes.provider.userRejectedRequest) {
             this.cancelTransaction(transactionId);
 
@@ -1586,7 +1586,7 @@ export class TransactionController extends BaseController<
     );
   }
 
-  async _waitForTransactionFinished(
+  private async waitForTransactionFinished(
     transactionId: string,
   ): Promise<TransactionMeta> {
     return new Promise((resolve) => {

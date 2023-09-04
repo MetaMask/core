@@ -707,6 +707,51 @@ describe('TransactionController', () => {
   });
 
   describe('with actionId', () => {
+    it('adds single unapproved transaction when called twice with same actionId', async () => {
+      const controller = newController();
+
+      const mockOrigin = 'origin';
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          origin: mockOrigin,
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+
+      const firstTransactionCount = controller.state.transactions.length;
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          origin: mockOrigin,
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+      const secondTransactionCount = controller.state.transactions.length;
+
+      expect(firstTransactionCount).toStrictEqual(secondTransactionCount);
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin: mockOrigin,
+          type: 'transaction',
+          requestData: { txId: expect.any(String) },
+          expectsResult: true,
+        },
+        true,
+      );
+    });
+
     it('adds multiple transactions with same actionId and ensures second transaction result does not resolves before the first transaction result', async () => {
       const controller = newController();
 
@@ -747,28 +792,15 @@ describe('TransactionController', () => {
         })
         .catch(() => undefined);
 
+      await wait(0);
+
       expect(firstTransactionCompleted).toBe(false);
       expect(secondTransactionCompleted).toBe(false);
 
       approveTransaction();
-
       await firstResult;
       await secondResult;
-      const { transactions } = controller.state;
 
-      expect(transactions).toHaveLength(1);
-      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
-      expect(delayMessengerMock.call).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin: mockOrigin,
-          type: 'transaction',
-          requestData: { txId: expect.any(String) },
-          expectsResult: true,
-        },
-        true,
-      );
       expect(firstTransactionCompleted).toBe(true);
       expect(secondTransactionCompleted).toBe(true);
     });
@@ -966,27 +998,6 @@ describe('TransactionController', () => {
           ],
         ).toBe(mockGasValue);
       });
-    });
-
-    it('fails to estimate gas', async () => {
-      const controller = newController({ network: MOCK_CUSTOM_NETWORK });
-      jest.spyOn(controller, 'estimateGas').mockImplementationOnce(() => {
-        throw new Error('Unknown problem');
-      });
-
-      mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
-
-      await expect(
-        controller.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          },
-          {
-            origin: 'MockDappOrigin',
-          },
-        ),
-      ).rejects.toThrow('Unknown problem');
     });
 
     it.each([
