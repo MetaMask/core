@@ -84,8 +84,8 @@ jest.mock('@metamask/eth-query', () =>
       },
       getTransactionByHash: (_hash: string, callback: any) => {
         const txs: any = [
-          { hash: '1337', blockNumber: '0x1' },
-          { hash: '1338', blockNumber: null },
+          { blockNumber: '0x1', hash: '1337' },
+          { blockNumber: null, hash: '1338' },
         ];
         const tx: any = txs.find((element: any) => element.hash === _hash);
         callback(undefined, tx);
@@ -99,15 +99,15 @@ jest.mock('@metamask/eth-query', () =>
       getTransactionReceipt: (_hash: any, callback: any) => {
         const txs: any = [
           {
-            hash: '1337',
+            blockHash: '1337',
             gasUsed: '0x5208',
+            hash: '1337',
             status: '0x1',
             transactionIndex: 1337,
-            blockHash: '1337',
           },
           {
-            hash: '1111',
             gasUsed: '0x1108',
+            hash: '1111',
             status: '0x0',
             transactionIndex: 1111,
           },
@@ -118,9 +118,9 @@ jest.mock('@metamask/eth-query', () =>
       getBlockByHash: (_blockHash: any, callback: any) => {
         const blocks: any = [
           {
+            baseFeePerGas: '0x14',
             hash: '1337',
             number: '0x1',
-            baseFeePerGas: '0x14',
             timestamp: '628dc0c8',
           },
           { hash: '1338', number: '0x2' },
@@ -395,21 +395,21 @@ const NONCE_MOCK = 12;
 const ACTION_ID_MOCK = '123456';
 
 const TRANSACTION_META_MOCK = {
+  hash: '0x1',
   status: TransactionStatus.confirmed,
+  time: 123456789,
   transaction: {
     from: ACCOUNT_MOCK,
   },
-  hash: '0x1',
-  time: 123456789,
 } as TransactionMeta;
 
 const TRANSACTION_META_2_MOCK = {
+  hash: '0x2',
   status: TransactionStatus.confirmed,
+  time: 987654321,
   transaction: {
     from: '0x3',
   },
-  hash: '0x2',
-  time: 987654321,
 } as TransactionMeta;
 
 describe('TransactionController', () => {
@@ -1378,10 +1378,10 @@ describe('TransactionController', () => {
 
       controller.state.transactions.push({
         from: MOCK_PREFERENCES.state.selectedAddress,
+        hash: '1337',
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
-        hash: '1337',
       } as any);
 
       controller.wipeTransactions();
@@ -1457,12 +1457,12 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
+        chainId: toHex(5),
         from: MOCK_PREFERENCES.state.selectedAddress,
+        hash: '1337',
         id: 'foo',
         networkID: '5',
-        chainId: toHex(5),
         status: TransactionStatus.submitted,
-        hash: '1337',
       } as any);
 
       controller.state.transactions.push({} as any);
@@ -1484,10 +1484,10 @@ describe('TransactionController', () => {
 
       controller.state.transactions.push({
         from: MOCK_PREFERENCES.state.selectedAddress,
+        hash: '1337',
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
-        hash: '1337',
       } as any);
 
       controller.state.transactions.push({} as any);
@@ -1523,16 +1523,16 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
+        chainId: toHex(5),
         from: MOCK_PREFERENCES.state.selectedAddress,
+        hash: '1337',
         id: 'foo',
         networkID: '5',
-        chainId: toHex(5),
         status: TransactionStatus.confirmed,
-        hash: '1337',
-        verifiedOnBlockchain: false,
         transaction: {
           gasUsed: undefined,
         },
+        verifiedOnBlockchain: false,
       } as any);
 
       await controller.queryTransactionStatuses();
@@ -1779,10 +1779,10 @@ describe('TransactionController', () => {
     it('creates approvals for all unapproved transaction', async () => {
       const transaction = {
         from: ACCOUNT_MOCK,
+        hash: '1337',
         id: 'mocked',
         networkID: '5',
         status: TransactionStatus.unapproved,
-        hash: '1337',
       };
       const controller = newController();
       controller.state.transactions.push(transaction as any);
