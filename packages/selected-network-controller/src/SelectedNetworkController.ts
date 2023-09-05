@@ -37,9 +37,11 @@ export const SelectedNetworkControllerEventTypes = {
 
 export type SelectedNetworkControllerState = {
   domains: Record<Domain, NetworkClientId>;
-  // Feature flag to start returning networkClientId based on the domain.
-  // when the flag is false, the 'metamask' domain will always be used.
-  // defaults to false
+  /**
+   * Feature flag to start returning networkClientId based on the domain.
+   * when the flag is false, the 'metamask' domain will always be used.
+   * defaults to false
+   */
   perDomainNetwork: boolean;
 };
 
