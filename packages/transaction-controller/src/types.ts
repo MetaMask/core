@@ -171,7 +171,7 @@ export interface Transaction {
   /**
    * Network ID as per EIP-155.
    */
-  chainId: Hex;
+  chainId?: Hex;
 
   /**
    * Data to pass with this transaction.

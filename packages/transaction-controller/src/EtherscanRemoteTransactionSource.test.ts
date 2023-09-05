@@ -93,6 +93,7 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
   status: TransactionStatus.confirmed,
   time: 1543596356000,
   transaction: {
+    chainId: undefined,
     from: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.from,
     gas: '0x51d68',
     gasPrice: '0x4a817c800',

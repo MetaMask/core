@@ -126,6 +126,7 @@ export class EtherscanRemoteTransactionSource
       status: TransactionStatus.confirmed,
       time,
       transaction: {
+        chainId: currentChainId,
         from: txMeta.from,
         gas: BNToHex(new BN(txMeta.gas)),
         gasPrice: BNToHex(new BN(txMeta.gasPrice)),

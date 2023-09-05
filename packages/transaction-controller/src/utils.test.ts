@@ -252,6 +252,7 @@ describe('utils', () => {
       const inputTransactions: TransactionMeta[] = [
         {
           id: '1',
+          chainId: '0x1',
           time: 123456,
           transaction: {
             from: fromAddress,
@@ -263,6 +264,7 @@ describe('utils', () => {
         },
         {
           id: '2',
+          chainId: '0x1',
           time: 123457,
           transaction: {
             from: '0x124',
@@ -274,6 +276,7 @@ describe('utils', () => {
         },
         {
           id: '3',
+          chainId: '0x1',
           time: 123458,
           transaction: {
             from: fromAddress,
