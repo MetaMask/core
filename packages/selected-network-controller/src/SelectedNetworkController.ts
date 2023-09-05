@@ -106,10 +106,10 @@ export class SelectedNetworkController extends BaseControllerV2<
       messenger,
       state: getDefaultState(),
     });
-    this.registerMessageHandlers();
+    this.#registerMessageHandlers();
   }
 
-  private registerMessageHandlers(): void {
+  #registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
       this.getNetworkClientIdForDomain.bind(this),
