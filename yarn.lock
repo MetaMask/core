@@ -1293,8 +1293,8 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
-    "@metamask/eth-snap-keyring": "git+https://github.com/MetaMask/eth-snap-keyring.git#commit=543117c98e80c83378dbd8bb2bc87704ee0f96f0"
-    "@metamask/keyring-api": 0.2.1
+    "@metamask/eth-snap-keyring": ^0.2.0
+    "@metamask/keyring-api": ^0.2.2
     "@metamask/keyring-controller": ^7.2.0
     "@metamask/snaps-controllers": ^1.0.1
     "@metamask/snaps-utils": ^1.0.1
@@ -1790,6 +1790,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/eth-snap-keyring@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/eth-snap-keyring@npm:0.2.0"
+  dependencies:
+    "@ethereumjs/tx": ^4.1.2
+    "@metamask/eth-sig-util": ^5.1.0
+    "@metamask/keyring-api": ^0.2.2
+    "@metamask/snaps-controllers": ^0.38.2-flask.1
+    "@metamask/utils": ^8.1.0
+    "@types/uuid": ^9.0.1
+    superstruct: ^1.0.3
+    uuid: ^9.0.0
+  checksum: 61383c837a114601a53bc16aa0b4d4db81335c741a890a09fcb68259fccfb3e330c20ef6f5e2c489502eb7350076a5669d313f940862b8f0c985e704ba34dc53
+  languageName: node
+  linkType: hard
+
 "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller"
@@ -1849,22 +1865,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:0.2.1":
-  version: 0.2.1
-  resolution: "@metamask/keyring-api@npm:0.2.1"
-  dependencies:
-    "@metamask/providers": ^11.0.0
-    "@metamask/rpc-methods": ^0.38.1-flask.1
-    "@metamask/snaps-controllers": ^0.38.2-flask.1
-    "@metamask/snaps-utils": ^0.38.2-flask.1
-    "@metamask/utils": ^8.0.0
-    "@types/uuid": ^9.0.1
-    superstruct: ^1.0.3
-    uuid: ^9.0.0
-  checksum: 1501d361fa14023f2666575bbde44b37a6ad0fbf95e19d0f956dcbebb83c7fab854fa3b15cdd2c83970540db86bcc7f85d509db1a7cd21b7611579e0da6097c4
-  languageName: node
-  linkType: hard
-
 "@metamask/keyring-api@npm:^0.1.3":
   version: 0.1.3
   resolution: "@metamask/keyring-api@npm:0.1.3"
@@ -1880,6 +1880,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^0.2.2":
+  version: 0.2.2
+  resolution: "@metamask/keyring-api@npm:0.2.2"
+  dependencies:
+    "@metamask/providers": ^11.0.0
+    "@metamask/rpc-methods": ^0.38.1-flask.1
+    "@metamask/snaps-controllers": ^0.38.2-flask.1
+    "@metamask/snaps-utils": ^0.38.2-flask.1
+    "@metamask/utils": ^8.0.0
+    "@types/uuid": ^9.0.1
+    superstruct: ^1.0.3
+    uuid: ^9.0.0
+  checksum: eefa5408c04e203db4d3a711e0b621193fd5d15c31e155331a0af8da9d150629074ca847aeb55654f39c104eff01060452d7d3ac43b5122f8b565b249581a8df
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-controller@^7.2.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
@@ -1892,7 +1908,6 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/eth-keyring-controller": ^13.0.0
     "@metamask/eth-sig-util": ^6.0.0
-    "@metamask/keyring-api": 0.2.1
     "@metamask/message-manager": ^7.3.1
     "@metamask/preferences-controller": ^4.4.0
     "@metamask/scure-bip39": ^2.1.0
@@ -2676,7 +2691,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^8.0.0":
+"@metamask/utils@npm:^8.0.0, @metamask/utils@npm:^8.1.0":
   version: 8.1.0
   resolution: "@metamask/utils@npm:8.1.0"
   dependencies:

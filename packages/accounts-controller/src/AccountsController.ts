@@ -129,7 +129,9 @@ export class AccountsController extends BaseControllerV2<
       onSnapStateChange(async (snapState: SnapControllerState) => {
         // only check if snaps changed in status
         const { snaps } = snapState;
-        const accounts = this.listAccounts();
+        const accounts = this.listAccounts().filter(
+          (account) => account.metadata.snap,
+        );
 
         this.update((currentState: AccountsControllerState) => {
           accounts.forEach((account) => {
@@ -248,8 +250,6 @@ export class AccountsController extends BaseControllerV2<
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore Type instantiation is excessively deep and possibly infinite.
     this.update((currentState: AccountsControllerState) => {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore lastSelected will be added in 0.2.2
       currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
         Date.now();
       currentState.internalAccounts.selectedAccount = account.id;
@@ -325,8 +325,6 @@ export class AccountsController extends BaseControllerV2<
             existingAccount && existingAccount.metadata.name !== ''
               ? existingAccount.metadata.name
               : `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore lastSelected will be added in 0.2.2
           lastSelected: existingAccount?.metadata?.lastSelected,
         },
       };
@@ -357,29 +355,6 @@ export class AccountsController extends BaseControllerV2<
     }
 
     const snapAccounts = await (snapKeyring as SnapKeyring).listAccounts(false);
-
-    for (const account of snapAccounts) {
-      // The snap account is guaranteed to have a snap metadata
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const snapId = account.metadata.snap!.id!;
-
-      account.metadata = {
-        snap: {
-          id: snapId,
-          enabled: true,
-          name: '',
-        },
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore snap keyring not updated yet
-        name: '',
-        keyring: {
-          type: (snapKeyring as SnapKeyring).type,
-        },
-      };
-    }
-
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore lastSelected will be added in 0.2.2
     return snapAccounts;
   }
 
@@ -429,11 +404,7 @@ export class AccountsController extends BaseControllerV2<
       .sort((accountA, accountB) => {
         // sort by lastSelected descending
         return (
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
           (accountB.metadata?.lastSelected ?? 0) -
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
           (accountA.metadata?.lastSelected ?? 0)
         );
       })[0];
