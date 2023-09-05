@@ -66,13 +66,10 @@ describe('createSelectedNetworkMiddleware', () => {
       origin: 'example.com',
     } as any;
 
-    const mockGetNetworkClientIdForDomain = jest.fn();
-    // 1st check its not set
-    mockGetNetworkClientIdForDomain.mockReturnValueOnce(undefined);
-    // 2nd check is after calling set
-    mockGetNetworkClientIdForDomain.mockReturnValueOnce(
-      'defaultNetworkClientId',
-    );
+    const mockGetNetworkClientIdForDomain = jest
+      .fn()
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce('defaultNetworkClientId');
     const mockSetNetworkClientIdForDomain = jest.fn();
     const mockNetworkControllerGetState = jest.fn().mockReturnValue({
       selectedNetworkClientId: 'defaultNetworkClientId',
