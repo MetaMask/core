@@ -31,7 +31,7 @@ Or, in graph form [^fn1]:
 
 <!-- start dependency graph -->
 
-``` mermaid
+```mermaid
 %%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%
 graph LR;
 linkStyle default opacity:0.5
