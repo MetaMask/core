@@ -1,23 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
 /**
- * @type TransactionMeta
- *
- * TransactionMeta representation
- * @property baseFeePerGas - Base fee of the block as a hex value, introduced in EIP-1559.
- * @property error - Synthesized error information for failed transactions.
- * @property id - Generated UUID associated with this transaction.
- * @property networkID - Network code as per EIP-155 for this transaction.
- * @property origin - Origin this transaction was sent from.
- * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed.
- * @property rawTransaction - Hex representation of the underlying transaction.
- * @property status - String status of this transaction.
- * @property time - Timestamp associated with this transaction.
- * @property toSmartContract - Whether transaction recipient is a smart contract.
- * @property transaction - Underlying Transaction object.
- * @property txReceipt - Transaction receipt.
- * @property transactionHash - Hash of a successful transaction.
- * @property blockNumber - Number of the block where the transaction has been included.
+ * Representation of transaction metadata.
  */
 export type TransactionMeta =
   | ({
@@ -25,27 +9,133 @@ export type TransactionMeta =
     } & TransactionMetaBase)
   | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
 
+/**
+ * Information about a single transaction such as status and block number.
+ */
 type TransactionMetaBase = {
+  /**
+   * Unique ID to prevent duplicate requests.
+   */
+  actionId?: string;
+
+  /**
+   * Base fee of the block as a hex value, introduced in EIP-1559.
+   */
   baseFeePerGas?: Hex;
+
+  /**
+   * Number of the block where the transaction has been included.
+   */
   blockNumber?: string;
+
+  /**
+   * The timestamp for when the block was collated.
+   */
+  blockTimestamp?: string;
+
+  /**
+   * Network code as per EIP-155 for this transaction.
+   */
   chainId?: Hex;
+
+  /**
+   * Gas values provided by the dApp.
+   */
+  dappSuggestedGasFees?: DappSuggestedGasFees;
+
+  /**
+   * String to indicate what device the transaction was confirmed on.
+   */
   deviceConfirmedOn?: WalletDevice;
+
+  /**
+   * The estimated base fee of the transaction.
+   */
+  estimatedBaseFee?: string;
+
+  /**
+   * A hex string of the transaction hash, used to identify the transaction on the network.
+   */
+  hash?: string;
+
+  /**
+   * Generated UUID associated with this transaction.
+   */
   id: string;
+
+  /**
+   * Whether the transaction is a transfer.
+   */
   isTransfer?: boolean;
+
+  /**
+   * Network code as per EIP-155 for this transaction.
+   */
   networkID?: string;
+
+  /**
+   * Origin this transaction was sent from.
+   */
   origin?: string;
+
+  /**
+   * Hex representation of the underlying transaction.
+   */
   rawTransaction?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction hash.
+   */
+  replacedBy?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction ID.
+   */
+  replacedById?: string;
+
+  /**
+   * Timestamp associated with this transaction.
+   */
   time: number;
+
+  /**
+   * Whether transaction recipient is a smart contract.
+   */
   toSmartContract?: boolean;
+
+  /**
+   * Underlying Transaction object.
+   */
   transaction: Transaction;
+
+  /**
+   * Hash of a successful transaction.
+   */
   transactionHash?: string;
+
+  /**
+   * Additional transfer information.
+   */
   transferInformation?: {
     contractAddress: string;
     decimals: number;
     symbol: string;
   };
-  verifiedOnBlockchain?: boolean;
+
+  /**
+   * Transaction receipt.
+   */
   txReceipt?: TransactionReceipt;
+
+  /**
+   * Whether the transaction is verified on the blockchain.
+   */
+  verifiedOnBlockchain?: boolean;
+
+  /**
+   * Response from security validator.
+   */
+  securityAlertResponse?: Record<string, unknown>;
 };
 
 /**
@@ -57,6 +147,7 @@ export enum TransactionStatus {
   approved = 'approved',
   cancelled = 'cancelled',
   confirmed = 'confirmed',
+  dropped = 'dropped',
   failed = 'failed',
   rejected = 'rejected',
   signed = 'signed',
@@ -74,33 +165,73 @@ export enum WalletDevice {
 }
 
 /**
- * @type Transaction
- *
- * Transaction representation
- * @property chainId - Network ID as per EIP-155
- * @property data - Data to pass with this transaction
- * @property from - Address to send this transaction from
- * @property gas - Gas to send with this transaction
- * @property gasPrice - Price of gas with this transaction
- * @property gasUsed - Gas used in the transaction
- * @property nonce - Unique number to prevent replay attacks
- * @property to - Address to send this transaction to
- * @property value - Value associated with this transaction
+ * Standard data concerning a transaction to be processed by the blockchain.
  */
 export interface Transaction {
+  /**
+   * Network ID as per EIP-155.
+   */
   chainId?: Hex;
+
+  /**
+   * Data to pass with this transaction.
+   */
   data?: string;
-  from: string;
-  gas?: string;
-  gasPrice?: string;
-  gasUsed?: string;
-  nonce?: string;
-  to?: string;
-  value?: string;
-  maxFeePerGas?: string;
-  maxPriorityFeePerGas?: string;
-  estimatedBaseFee?: string;
+
+  /**
+   * Error message for gas estimation failure.
+   */
   estimateGasError?: string;
+
+  /**
+   * Estimated base fee for this transaction.
+   */
+  estimatedBaseFee?: string;
+
+  /**
+   * Address to send this transaction from.
+   */
+  from: string;
+
+  /**
+   * Gas to send with this transaction.
+   */
+  gas?: string;
+
+  /**
+   * Price of gas with this transaction.
+   */
+  gasPrice?: string;
+
+  /**
+   * Gas used in the transaction.
+   */
+  gasUsed?: string;
+
+  /**
+   * Maximum fee per gas for this transaction.
+   */
+  maxFeePerGas?: string;
+
+  /**
+   * Maximum priority fee per gas for this transaction.
+   */
+  maxPriorityFeePerGas?: string;
+
+  /**
+   * Unique number to prevent replay attacks.
+   */
+  nonce?: string;
+
+  /**
+   * Address to send this transaction to.
+   */
+  to?: string;
+
+  /**
+   * Value associated with this transaction.
+   */
+  value?: string;
 }
 
 /**
@@ -207,4 +338,14 @@ export interface RemoteTransactionSource {
   fetchTransactions: (
     request: RemoteTransactionSourceRequest,
   ) => Promise<TransactionMeta[]>;
+}
+
+/**
+ * Gas values initially suggested by the dApp.
+ */
+export interface DappSuggestedGasFees {
+  gas?: string;
+  gasPrice?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
 }
