@@ -94,6 +94,11 @@ type TransactionMetaBase = {
   replacedById?: string;
 
   /**
+   * The time the transaction was submitted to the network, in Unix epoch time (ms).
+   */
+  submittedTime?: number;
+
+  /**
    * Timestamp associated with this transaction.
    */
   time: number;

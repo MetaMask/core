@@ -1121,6 +1121,7 @@ export class TransactionController extends BaseController<
       ]);
       transactionMeta.transactionHash = transactionHash;
       transactionMeta.status = TransactionStatus.submitted;
+      transactionMeta.submittedTime = new Date().getTime();
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error: any) {
