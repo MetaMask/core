@@ -36,7 +36,7 @@ type TransactionMetaBase = {
   /**
    * Network code as per EIP-155 for this transaction.
    */
-  chainId?: Hex;
+  chainId: Hex;
 
   /**
    * Gas values provided by the dApp.
@@ -171,7 +171,7 @@ export interface Transaction {
   /**
    * Network ID as per EIP-155.
    */
-  chainId?: Hex;
+  chainId: Hex;
 
   /**
    * Data to pass with this transaction.
