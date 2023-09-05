@@ -36,21 +36,6 @@ describe('SelectedNetworkController', () => {
     expect(controller.state.domains.metamask).toBe(networkClientId);
   });
 
-  it('can reset the state / selections to the default state', () => {
-    const options: SelectedNetworkControllerOptions = {
-      messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
-    };
-    const controller = new SelectedNetworkController(options);
-    controller.setNetworkClientIdForDomain('example.com', 'network1');
-    controller.setNetworkClientIdForDomain('test.com', 'network2');
-    controller.setNetworkClientIdForMetamask('network3');
-    controller.resetState();
-    expect(controller.state).toStrictEqual({
-      domains: {},
-      perDomainNetwork: false,
-    });
-  });
-
   describe('getNetworkClientIdForDomain', () => {
     it('gives the metamask domain when the perDomainNetwork option is false (default)', () => {
       const options: SelectedNetworkControllerOptions = {

@@ -139,13 +139,6 @@ export class SelectedNetworkController extends BaseControllerV2<
     );
   }
 
-  /**
-   * Reset the controller state to the initial state.
-   */
-  resetState() {
-    this.update(getDefaultState);
-  }
-
   setNetworkClientIdForMetamask(networkClientId: NetworkClientId) {
     this.setNetworkClientIdForDomain(METAMASK_DOMAIN, networkClientId);
   }
