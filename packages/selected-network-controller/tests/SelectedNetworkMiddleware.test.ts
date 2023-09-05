@@ -6,7 +6,7 @@ import type {
 
 import { buildSelectedNetworkControllerMessenger } from './utils';
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
-import createSelectedNetworkMiddleware from '../src/SelectedNetworkMiddleware';
+import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
 
 const buildMessenger = () => {
   return new ControllerMessenger<

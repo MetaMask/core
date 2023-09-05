@@ -7,7 +7,7 @@ import type { JsonRpcMiddleware } from 'json-rpc-engine';
 import type { SelectedNetworkControllerMessenger } from './SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from './SelectedNetworkController';
 
-const createSelectedNetworkMiddleware = (
+export const createSelectedNetworkMiddleware = (
   selectedNetworkControllerMessenger: SelectedNetworkControllerMessenger,
   networkControllerMessenger: NetworkControllerMessenger,
 ): JsonRpcMiddleware<any, any> => {
@@ -40,5 +40,3 @@ const createSelectedNetworkMiddleware = (
     return next();
   };
 };
-
-export default createSelectedNetworkMiddleware;

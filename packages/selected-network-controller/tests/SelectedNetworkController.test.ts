@@ -1,6 +1,6 @@
 import { buildSelectedNetworkControllerMessenger } from './utils';
 import type { SelectedNetworkControllerOptions } from '../src/SelectedNetworkController';
-import SelectedNetworkController from '../src/SelectedNetworkController';
+import { SelectedNetworkController } from '../src/SelectedNetworkController';
 
 describe('SelectedNetworkController', () => {
   it('can be instantiated with default values', () => {

@@ -88,7 +88,7 @@ export type SelectedNetworkControllerOptions = {
 /**
  * Controller for getting and setting the network for a particular domain.
  */
-export default class SelectedNetworkController extends BaseControllerV2<
+export class SelectedNetworkController extends BaseControllerV2<
   typeof controllerName,
   SelectedNetworkControllerState,
   SelectedNetworkControllerMessenger

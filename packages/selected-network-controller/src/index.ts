@@ -1,3 +1,3 @@
 export * from './SelectedNetworkController';
-export { default as SelectedNetworkController } from './SelectedNetworkController';
-export { default as SelectedNetworkMiddleware } from './SelectedNetworkMiddleware';
+export * from './SelectedNetworkController';
+export * from './SelectedNetworkMiddleware';
