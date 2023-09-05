@@ -14,6 +14,11 @@ export type TransactionMeta =
  */
 type TransactionMetaBase = {
   /**
+   * Unique ID to prevent duplicate requests.
+   */
+  actionId?: string;
+
+  /**
    * Base fee of the block as a hex value, introduced in EIP-1559.
    */
   baseFeePerGas?: Hex;
@@ -49,6 +54,11 @@ type TransactionMetaBase = {
   estimatedBaseFee?: string;
 
   /**
+   * A hex string of the transaction hash, used to identify the transaction on the network.
+   */
+  hash?: string;
+
+  /**
    * Generated UUID associated with this transaction.
    */
   id: string;
@@ -72,6 +82,16 @@ type TransactionMetaBase = {
    * Hex representation of the underlying transaction.
    */
   rawTransaction?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction hash.
+   */
+  replacedBy?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction ID.
+   */
+  replacedById?: string;
 
   /**
    * Timestamp associated with this transaction.
@@ -127,6 +147,7 @@ export enum TransactionStatus {
   approved = 'approved',
   cancelled = 'cancelled',
   confirmed = 'confirmed',
+  dropped = 'dropped',
   failed = 'failed',
   rejected = 'rejected',
   signed = 'signed',
