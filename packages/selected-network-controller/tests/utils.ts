@@ -2,8 +2,8 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 
 import type {
-  SelectedNetworkControllerActions,
-  SelectedNetworkControllerEvents,
+  SelectedNetworkControllerAction,
+  SelectedNetworkControllerEvent,
 } from '../src/SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
 
@@ -15,8 +15,8 @@ import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkCont
  */
 function buildMessenger() {
   return new ControllerMessenger<
-    SelectedNetworkControllerActions,
-    SelectedNetworkControllerEvents | NetworkControllerStateChangeEvent
+    SelectedNetworkControllerAction,
+    SelectedNetworkControllerEvent | NetworkControllerStateChangeEvent
   >();
 }
 /**
