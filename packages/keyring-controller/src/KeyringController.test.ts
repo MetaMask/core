@@ -1906,160 +1906,131 @@ describe('KeyringController', () => {
   });
 
   describe('actions', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(KeyringController.prototype, 'signMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'signPersonalMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'signTypedMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'decryptMessage')
+        .mockResolvedValue('I am Satoshi Buterin');
+      jest
+        .spyOn(KeyringController.prototype, 'getEncryptionPublicKey')
+        .mockResolvedValue('ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=');
+    });
+
     describe('signMessage', () => {
       it('should sign message', async () => {
-        await withController(async ({ messenger, initialState }) => {
-          const messageParams = {
-            from: initialState.keyrings[0].accounts[0],
-            data: '0x1234',
-          };
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: '0x1234',
+            };
 
-          const signature = await messenger.call(
-            'KeyringController:signMessage',
-            messageParams,
-          );
+            await messenger.call(
+              'KeyringController:signMessage',
+              messageParams,
+            );
 
-          expect(signature).not.toBe('');
-        });
+            expect(controller.signMessage).toHaveBeenCalledWith(messageParams);
+          },
+        );
       });
     });
 
     describe('signPersonalMessage', () => {
       it('should sign personal message', async () => {
-        await withController(async ({ messenger, initialState }) => {
-          const messageParams = {
-            from: initialState.keyrings[0].accounts[0],
-            data: '0x1234',
-          };
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: '0x1234',
+            };
 
-          const signature = await messenger.call(
-            'KeyringController:signPersonalMessage',
-            messageParams,
-          );
+            await messenger.call(
+              'KeyringController:signPersonalMessage',
+              messageParams,
+            );
 
-          expect(signature).not.toBe('');
-        });
+            expect(controller.signPersonalMessage).toHaveBeenCalledWith(
+              messageParams,
+            );
+          },
+        );
       });
     });
 
     describe('signTypedMessage', () => {
       it('should call signTypedMessage', async () => {
-        await withController(async ({ messenger, initialState }) => {
-          const msgParams = {
-            domain: {
-              chainId: 1,
-              name: 'Ether Mail',
-              verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
-              version: '1',
-            },
-            message: {
-              contents: 'Hello, Bob!',
-              from: {
-                name: 'Cow',
-                wallets: [
-                  '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
-                  '0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF',
-                ],
-              },
-              to: [
-                {
-                  name: 'Bob',
-                  wallets: [
-                    '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-                    '0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57',
-                    '0xB0B0b0b0b0b0B000000000000000000000000000',
-                  ],
-                },
-              ],
-            },
-            primaryType: 'Mail' as const,
-            types: {
-              EIP712Domain: [
-                { name: 'name', type: 'string' },
-                { name: 'version', type: 'string' },
-                { name: 'chainId', type: 'uint256' },
-                { name: 'verifyingContract', type: 'address' },
-              ],
-              Group: [
-                { name: 'name', type: 'string' },
-                { name: 'members', type: 'Person[]' },
-              ],
-              Mail: [
-                { name: 'from', type: 'Person' },
-                { name: 'to', type: 'Person[]' },
-                { name: 'contents', type: 'string' },
-              ],
-              Person: [
-                { name: 'name', type: 'string' },
-                { name: 'wallets', type: 'address[]' },
-              ],
-            },
-          };
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              data: JSON.stringify({ foo: 'bar' }),
+              from: initialState.keyrings[0].accounts[0],
+            };
 
-          const signer = initialState.keyrings[0].accounts[0];
-          const signature = await messenger.call(
-            'KeyringController:signTypedMessage',
-            { data: JSON.stringify(msgParams), from: signer },
-            SignTypedDataVersion.V4,
-          );
-          const recovered = recoverTypedSignature({
-            data: msgParams,
-            signature,
-            version: SignTypedDataVersion.V4,
-          });
+            await messenger.call(
+              'KeyringController:signTypedMessage',
+              messageParams,
+              SignTypedDataVersion.V4,
+            );
 
-          expect(signer).toBe(recovered);
-          expect(signature).not.toBe('');
-        });
+            expect(controller.signTypedMessage).toHaveBeenCalledWith(
+              messageParams,
+              SignTypedDataVersion.V4,
+            );
+          },
+        );
       });
     });
 
     describe('getEncryptionPublicKey', () => {
-      it('should return encryption public key', async () => {
-        await withController(async ({ controller, messenger }) => {
-          const { importedAccountAddress } =
-            await controller.importAccountWithStrategy(
-              AccountImportStrategy.privateKey,
-              [privateKey],
+      it('should call getEncryptionPublicKey', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            await messenger.call(
+              'KeyringController:getEncryptionPublicKey',
+              initialState.keyrings[0].accounts[0],
             );
 
-          const encryptionPublicKey = await messenger.call(
-            'KeyringController:getEncryptionPublicKey',
-            importedAccountAddress,
-          );
-
-          expect(encryptionPublicKey).toBe(
-            'ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=',
-          );
-        });
+            expect(controller.getEncryptionPublicKey).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+            );
+          },
+        );
       });
     });
 
     describe('decryptMessage', () => {
       it('should return correct decrypted message', async () => {
-        await withController(async ({ controller, messenger }) => {
-          const { importedAccountAddress } =
-            await controller.importAccountWithStrategy(
-              AccountImportStrategy.privateKey,
-              [privateKey],
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: {
+                version: '1.0',
+                nonce: '123456',
+                ephemPublicKey: '0xabcdef1234567890',
+                ciphertext: '0xabcdef1234567890',
+              },
+            };
+
+            await messenger.call(
+              'KeyringController:decryptMessage',
+              messageParams,
             );
-          const encryptedMessage = {
-            version: 'x25519-xsalsa20-poly1305',
-            nonce: 'xbE80IHYbqVDkpk7mmqdoeOMgf5FAmvY',
-            ephemPublicKey: 'e54bVuT+DVtOkRxqptIajrjlZnVKPXXUpKzUF+opR0c=',
-            ciphertext: 'a/RaJ/eSY5vlxy++Wx/wgxFZg5XR/IACGFBpMyk1v7w5Za7j',
-          };
 
-          const decryptedMessage = await messenger.call(
-            'KeyringController:decryptMessage',
-            {
-              from: importedAccountAddress,
-              data: encryptedMessage,
-            },
-          );
-
-          expect(decryptedMessage).toBe('I am Satoshi Buterin');
-        });
+            expect(controller.decryptMessage).toHaveBeenCalledWith(
+              messageParams,
+            );
+          },
+        );
       });
     });
   });
