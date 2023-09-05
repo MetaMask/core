@@ -108,7 +108,7 @@ describe('SelectedNetworkController', () => {
     expect(controller.state.domains.metamask).toBe('newNetwork');
   });
 
-  it('if the network controller state changes, but the selected network hasnt, no update occurs', () => {
+  it("does not update the state if the network controller state changes but the selected network hasn't", () => {
     const mockMessagingSystem = {
       registerActionHandler: jest.fn(),
       subscribe: jest.fn(),
