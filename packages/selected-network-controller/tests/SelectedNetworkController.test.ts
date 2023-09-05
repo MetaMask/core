@@ -82,7 +82,7 @@ describe('SelectedNetworkController', () => {
     const state: any = {
       selectedNetworkClientId: 'newNetwork',
     };
-    const patch: any = [
+    const patch = [
       {
         path: ['selectedNetworkClientId'],
         op: 'replace',
@@ -110,7 +110,7 @@ describe('SelectedNetworkController', () => {
     const state: any = {
       selectedNetworkClientId: 'newNetwork',
     };
-    const patch: any = [
+    const patch = [
       {
         path: ['anythingelse'],
         op: 'replace',
