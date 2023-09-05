@@ -80,6 +80,16 @@ export type KeyringControllerSignTypedMessageAction = {
   handler: KeyringController['signTypedMessage'];
 };
 
+export type KeyringControllerDecryptMessageAction = {
+  type: `${typeof name}:decryptMessage`;
+  handler: KeyringController['decryptMessage'];
+};
+
+export type KeyringControllerGetEncryptionPublicKeyAction = {
+  type: `${typeof name}:getEncryptionPublicKey`;
+  handler: KeyringController['getEncryptionPublicKey'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -104,7 +114,9 @@ export type KeyringControllerActions =
   | KeyringControllerGetStateAction
   | KeyringControllerSignMessageAction
   | KeyringControllerSignPersonalMessageAction
-  | KeyringControllerSignTypedMessageAction;
+  | KeyringControllerSignTypedMessageAction
+  | KeyringControllerDecryptMessageAction
+  | KeyringControllerGetEncryptionPublicKeyAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -944,6 +956,16 @@ export class KeyringController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${name}:signTypedMessage`,
       this.signTypedMessage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:decryptMessage`,
+      this.decryptMessage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getEncryptionPublicKey`,
+      this.getEncryptionPublicKey.bind(this),
     );
   }
 

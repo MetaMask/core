@@ -2013,6 +2013,55 @@ describe('KeyringController', () => {
         });
       });
     });
+
+    describe('getEncryptionPublicKey', () => {
+      it('should return encryption public key', async () => {
+        await withController(async ({ controller, messenger }) => {
+          const { importedAccountAddress } =
+            await controller.importAccountWithStrategy(
+              AccountImportStrategy.privateKey,
+              [privateKey],
+            );
+
+          const encryptionPublicKey = await messenger.call(
+            'KeyringController:getEncryptionPublicKey',
+            importedAccountAddress,
+          );
+
+          expect(encryptionPublicKey).toBe(
+            'ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=',
+          );
+        });
+      });
+    });
+
+    describe('decryptMessage', () => {
+      it('should return correct decrypted message', async () => {
+        await withController(async ({ controller, messenger }) => {
+          const { importedAccountAddress } =
+            await controller.importAccountWithStrategy(
+              AccountImportStrategy.privateKey,
+              [privateKey],
+            );
+          const encryptedMessage = {
+            version: 'x25519-xsalsa20-poly1305',
+            nonce: 'xbE80IHYbqVDkpk7mmqdoeOMgf5FAmvY',
+            ephemPublicKey: 'e54bVuT+DVtOkRxqptIajrjlZnVKPXXUpKzUF+opR0c=',
+            ciphertext: 'a/RaJ/eSY5vlxy++Wx/wgxFZg5XR/IACGFBpMyk1v7w5Za7j',
+          };
+
+          const decryptedMessage = await messenger.call(
+            'KeyringController:decryptMessage',
+            {
+              from: importedAccountAddress,
+              data: encryptedMessage,
+            },
+          );
+
+          expect(decryptedMessage).toBe('I am Satoshi Buterin');
+        });
+      });
+    });
   });
 });
 
@@ -2069,6 +2118,8 @@ function buildKeyringControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:signMessage',
       'KeyringController:signPersonalMessage',
       'KeyringController:signTypedMessage',
+      'KeyringController:decryptMessage',
+      'KeyringController:getEncryptionPublicKey',
     ],
     allowedEvents: [
       'KeyringController:stateChange',
