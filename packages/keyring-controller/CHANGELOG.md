@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.0]
+### Added
+- Add `decryptMessage` method ([#1596](https://github.com/MetaMask/core/pull/1596))
+
+## [7.2.0]
+### Added
+- Add `addNewAccountForKeyring` method ([#1591](https://github.com/MetaMask/core/pull/1591))
+- Add `addNewKeyring` method ([#1594](https://github.com/MetaMask/core/pull/1594))
+- Add `persistAllKeyrings` method ([#1574](https://github.com/MetaMask/core/pull/1574))
+
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/message-manager` to ^7.3.1
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.0
+
 ## [7.1.0]
 ### Added
 - Add `getEncryptionPublicKey` method on KeyringController ([#1569](https://github.com/MetaMask/core/pull/1569))
@@ -147,7 +162,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.3.0...HEAD
+[7.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.2.0...@metamask/keyring-controller@7.3.0
+[7.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.1.0...@metamask/keyring-controller@7.2.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.0.0...@metamask/keyring-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.1.0...@metamask/keyring-controller@7.0.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.0.0...@metamask/keyring-controller@6.1.0

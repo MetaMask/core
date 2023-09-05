@@ -14,6 +14,11 @@ export type TransactionMeta =
  */
 type TransactionMetaBase = {
   /**
+   * Unique ID to prevent duplicate requests.
+   */
+  actionId?: string;
+
+  /**
    * Base fee of the block as a hex value, introduced in EIP-1559.
    */
   baseFeePerGas?: Hex;
@@ -22,6 +27,11 @@ type TransactionMetaBase = {
    * Number of the block where the transaction has been included.
    */
   blockNumber?: string;
+
+  /**
+   * The timestamp for when the block was collated.
+   */
+  blockTimestamp?: string;
 
   /**
    * Network code as per EIP-155 for this transaction.
@@ -37,6 +47,16 @@ type TransactionMetaBase = {
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
+
+  /**
+   * The estimated base fee of the transaction.
+   */
+  estimatedBaseFee?: string;
+
+  /**
+   * A hex string of the transaction hash, used to identify the transaction on the network.
+   */
+  hash?: string;
 
   /**
    * Generated UUID associated with this transaction.
@@ -57,6 +77,21 @@ type TransactionMetaBase = {
    * Hex representation of the underlying transaction.
    */
   rawTransaction?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction hash.
+   */
+  replacedBy?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction ID.
+   */
+  replacedById?: string;
+
+  /**
+   * The time the transaction was submitted to the network, in Unix epoch time (ms).
+   */
+  submittedTime?: number;
 
   /**
    * Timestamp associated with this transaction.
@@ -96,6 +131,11 @@ type TransactionMetaBase = {
    * Whether the transaction is verified on the blockchain.
    */
   verifiedOnBlockchain?: boolean;
+
+  /**
+   * Response from security validator.
+   */
+  securityAlertResponse?: Record<string, unknown>;
 };
 
 /**
@@ -107,6 +147,7 @@ export enum TransactionStatus {
   approved = 'approved',
   cancelled = 'cancelled',
   confirmed = 'confirmed',
+  dropped = 'dropped',
   failed = 'failed',
   rejected = 'rejected',
   signed = 'signed',

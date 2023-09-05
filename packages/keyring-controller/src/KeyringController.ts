@@ -11,13 +11,8 @@ import type {
   TypedMessageParams,
 } from '@metamask/message-manager';
 import type { PreferencesController } from '@metamask/preferences-controller';
-import {
-  assertIsStrictHexString,
-  hasProperty,
-  type Hex,
-  type Keyring,
-  type Json,
-} from '@metamask/utils';
+import type { Eip1024EncryptedData, Hex, Keyring, Json } from '@metamask/utils';
+import { assertIsStrictHexString, hasProperty } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import {
   addHexPrefix,
@@ -486,6 +481,21 @@ export class KeyringController extends BaseControllerV2<
     opts?: Record<string, unknown>,
   ): Promise<string> {
     return this.#keyring.getEncryptionPublicKey(account, opts);
+  }
+
+  /**
+   * Attempts to decrypt the provided message parameters.
+   *
+   * @param messageParams - The decryption message parameters.
+   * @param messageParams.from - The address of the account you want to use to decrypt the message.
+   * @param messageParams.data - The encrypted data that you want to decrypt.
+   * @returns The raw decryption result.
+   */
+  async decryptMessage(messageParams: {
+    from: string;
+    data: Eip1024EncryptedData;
+  }): Promise<string> {
+    return this.#keyring.decryptMessage(messageParams);
   }
 
   /**
