@@ -83,7 +83,7 @@ type TransactionMetaBase = {
   /**
    * Hex representation of the underlying transaction.
    */
-  rawTransaction?: string;
+  rawTx?: string;
 
   /**
    * When the transaction is dropped, this is the replacement transaction hash.
