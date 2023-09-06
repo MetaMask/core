@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.0]
+### Added
+- Add `decryptMessage` method ([#1596](https://github.com/MetaMask/core/pull/1596))
+
 ## [7.2.0]
 ### Added
 - Add `addNewAccountForKeyring` method ([#1591](https://github.com/MetaMask/core/pull/1591))
@@ -158,7 +162,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.3.0...HEAD
+[7.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.2.0...@metamask/keyring-controller@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.1.0...@metamask/keyring-controller@7.2.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.0.0...@metamask/keyring-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.1.0...@metamask/keyring-controller@7.0.0

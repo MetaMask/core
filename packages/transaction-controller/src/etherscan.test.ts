@@ -31,9 +31,7 @@ const RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> = {
 };
 
 describe('Etherscan', () => {
-  const handleFetchMock = handleFetch as jest.MockedFunction<
-    typeof handleFetch
-  >;
+  const handleFetchMock = jest.mocked(handleFetch);
 
   beforeEach(() => {
     jest.resetAllMocks();

@@ -41,6 +41,9 @@
       "path": "./packages/message-manager"
     },
     {
+      "path": "./packages/name-controller"
+    },
+    {
       "path": "./packages/network-controller"
     },
     {
