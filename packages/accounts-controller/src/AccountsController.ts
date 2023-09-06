@@ -73,6 +73,14 @@ const defaultState: AccountsControllerState = {
   },
 };
 
+/**
+ * Controller that manages internal accounts.
+ * The accounts controller is responsible for creating and managing internal accounts.
+ * It also provides convenience methods for accessing and updating the internal accounts.
+ * The accounts controller also listens for keyring state changes and updates the internal accounts accordingly.
+ * The accounts controller also listens for snap state changes and updates the internal accounts accordingly.
+ *
+ */
 export class AccountsController extends BaseControllerV2<
   typeof controllerName,
   AccountsControllerState,
@@ -86,6 +94,19 @@ export class AccountsController extends BaseControllerV2<
 
   keyringApiEnabled: boolean;
 
+  /**
+   * Constructor for AccountsController.
+   *
+   * @param options - The controller options.
+   * @param options.messenger - The messenger object.
+   * @param options.state - Initial state to set on this controller
+   * @param [options.keyringApiEnabled] - The keyring API enabled flag.
+   * @param options.getKeyringForAccount - Gets the keyring for a given account from the keyring controller.
+   * @param options.getKeyringByType - Gets the keyring instance for the given type from the keyring controller.
+   * @param options.getAccounts - Gets all the accounts from the keyring controller.
+   * @param options.onKeyringStateChange - Allows subscribing to the keyring controller state changes.
+   * @param options.onSnapStateChange - Allows subscribing to the snap controller state changes.
+   */
   constructor({
     messenger,
     state,
@@ -206,14 +227,32 @@ export class AccountsController extends BaseControllerV2<
     }
   }
 
+  /**
+   * Returns the internal account object for the given account ID, if it exists.
+   *
+   * @param accountId - The ID of the account to retrieve.
+   * @returns The internal account object, or undefined if the account does not exist.
+   */
   getAccount(accountId: string): InternalAccount | undefined {
     return this.state.internalAccounts.accounts[accountId];
   }
 
+  /**
+   * Returns an array of all internal accounts.
+   *
+   * @returns An array of InternalAccount objects.
+   */
   listAccounts(): InternalAccount[] {
     return Object.values(this.state.internalAccounts.accounts);
   }
 
+  /**
+   * Returns the internal account object for the given account ID.
+   *
+   * @param accountId - The ID of the account to retrieve.
+   * @returns The internal account object.
+   * @throws An error if the account ID is not found.
+   */
   getAccountExpect(accountId: string): InternalAccount {
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
@@ -240,10 +279,20 @@ export class AccountsController extends BaseControllerV2<
     return account;
   }
 
+  /**
+   * Returns the selected internal account.
+   *
+   * @returns The selected internal account.
+   */
   getSelectedAccount(): InternalAccount {
     return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
   }
 
+  /**
+   * Sets the selected account by its ID.
+   *
+   * @param accountId - The ID of the account to be selected.
+   */
   setSelectedAccount(accountId: string): void {
     const account = this.getAccountExpect(accountId);
 
@@ -258,6 +307,13 @@ export class AccountsController extends BaseControllerV2<
     this.messagingSystem.publish(`${this.name}:selectedAccountChange`, account);
   }
 
+  /**
+   * Sets the name of the account with the given ID.
+   *
+   * @param accountId - The ID of the account to set the name for.
+   * @param accountName - The new name for the account.
+   * @throws An error if an account with the same name already exists.
+   */
   setAccountName(accountId: string, accountName: string): void {
     const account = this.getAccountExpect(accountId);
 
@@ -282,6 +338,12 @@ export class AccountsController extends BaseControllerV2<
     });
   }
 
+  /**
+   * Updates the internal accounts list by retrieving legacy and snap accounts,
+   * removing duplicates, and updating the metadata of each account.
+   *
+   * @returns A Promise that resolves when the accounts have been updated.
+   */
   async updateAccounts(): Promise<void> {
     let legacyAccounts = await this.#listLegacyAccounts();
     let snapAccounts: InternalAccount[] = [];
@@ -339,6 +401,11 @@ export class AccountsController extends BaseControllerV2<
     });
   }
 
+  /**
+   * Loads the backup state of the accounts controller.
+   *
+   * @param backup - The backup state to load.
+   */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
       this.update((currentState: AccountsControllerState) => {
@@ -347,6 +414,11 @@ export class AccountsController extends BaseControllerV2<
     }
   }
 
+  /**
+   * Returns a list of internal accounts created using the SnapKeyring.
+   *
+   * @returns A promise that resolves to an array of InternalAccount objects.
+   */
   async #listSnapAccounts(): Promise<InternalAccount[]> {
     const [snapKeyring] = this.getKeyringByType(SnapKeyring.type);
     // snap keyring is not available until the first account is created in the keyring controller
@@ -358,7 +430,13 @@ export class AccountsController extends BaseControllerV2<
     return snapAccounts;
   }
 
-  // Note: listLegacyAccounts is a temporary method until the keyrings all implement the InternalAccount interface
+  /**
+   * Returns a list of legacy accounts.
+   * Note: listLegacyAccounts is a temporary method until the keyrings all implement the InternalAccount interface.
+   * Once all keyrings implement the InternalAccount interface, this method can be removed and getAccounts can be used instead.
+   *
+   * @returns A Promise that resolves to an array of InternalAccount objects.
+   */
   async #listLegacyAccounts(): Promise<InternalAccount[]> {
     const addresses = await this.getAccounts();
     const internalAccounts: InternalAccount[] = [];
@@ -396,6 +474,9 @@ export class AccountsController extends BaseControllerV2<
     );
   }
 
+  /**
+   * Handles the removal of the currently selected account by selecting the previous account in the list.
+   */
   #handleSelectedAccountRemoved() {
     const previousAccount = this.listAccounts()
       .filter(
@@ -412,6 +493,12 @@ export class AccountsController extends BaseControllerV2<
     this.setSelectedAccount(previousAccount.id);
   }
 
+  /**
+   * Handles the event when a new account is added to the keyring.
+   *
+   * @param updatedKeyringAddresses - An array of updated keyring addresses.
+   * @param previousAccounts - An array of previous internal accounts.
+   */
   #handleNewAccountAdded(
     updatedKeyringAddresses: string[],
     previousAccounts: InternalAccount[],
