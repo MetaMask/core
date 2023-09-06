@@ -3940,7 +3940,7 @@ describe('NetworkController', () => {
 
           const detailsPre =
             controller.state.networksMetadata[
-              controller.state.selectedNetworkClientId
+            controller.state.selectedNetworkClientId
             ];
 
           try {
@@ -3952,7 +3952,7 @@ describe('NetworkController', () => {
 
           const detailsPost =
             controller.state.networksMetadata[
-              controller.state.selectedNetworkClientId
+            controller.state.selectedNetworkClientId
             ];
 
           expect(detailsPost).toBe(detailsPre);
@@ -4115,6 +4115,7 @@ describe('NetworkController', () => {
                 testNetworkConfigurationId2: {
                   rpcUrl: 'http://somethingexisting.com',
                   chainId: undefined,
+                  iconUrl: undefined,
                   ticker: 'something existing',
                   nickname: 'something existing',
                   id: 'testNetworkConfigurationId2',
@@ -4179,6 +4180,7 @@ describe('NetworkController', () => {
             type: 'rpc',
             rpcUrl: 'https://mock-rpc-url',
             chainId: toHex(111),
+            iconUrl: undefined,
             ticker: 'TEST',
             nickname: 'something existing',
             id: 'testNetworkConfigurationId',
@@ -4656,7 +4658,7 @@ describe('NetworkController', () => {
         );
       });
 
-      it('removes properties not specific to the NetworkConfiguration interface before persisting it to state', async function () {
+      it('removes properties not specific to the NetworkConfiguration interface before persisting it to state', async function() {
         await withController(async ({ controller }) => {
           uuidV4Mock.mockReturnValue('AAAA-AAAA-AAAA-AAAA');
 
@@ -4998,6 +5000,7 @@ describe('NetworkController', () => {
               type: NetworkType.rpc,
               rpcUrl: 'https://test.network',
               chainId: toHex(111),
+              iconUrl: undefined,
               ticker: 'TICKER',
               nickname: 'test network',
               rpcPrefs: {
@@ -5151,7 +5154,7 @@ describe('NetworkController', () => {
           );
         });
 
-        it('removes properties not specific to the NetworkConfiguration interface before persisting it to state', async function () {
+        it('removes properties not specific to the NetworkConfiguration interface before persisting it to state', async function() {
           await withController(
             {
               state: {
@@ -5891,6 +5894,7 @@ describe('NetworkController', () => {
                       id: 'testNetworkConfiguration',
                       rpcUrl: 'https://mock-rpc-url',
                       chainId: toHex(1337),
+                      iconUrl: undefined,
                       ticker: 'TEST',
                       nickname: 'test network',
                       rpcPrefs: {
@@ -5929,6 +5933,7 @@ describe('NetworkController', () => {
                   type: 'rpc',
                   id: 'testNetworkConfiguration',
                   rpcUrl: 'https://mock-rpc-url',
+                  iconUrl: undefined,
                   chainId: toHex(1337),
                   ticker: 'TEST',
                   nickname: 'test network',
@@ -7238,35 +7243,35 @@ function refreshNetworkTests({
         >[0] =
           controller.state.providerConfig.type === NetworkType.rpc
             ? {
-                chainId: toHex(controller.state.providerConfig.chainId),
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                rpcUrl: controller.state.providerConfig.rpcUrl!,
-                type: NetworkClientType.Custom,
-              }
+              chainId: toHex(controller.state.providerConfig.chainId),
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              rpcUrl: controller.state.providerConfig.rpcUrl!,
+              type: NetworkClientType.Custom,
+            }
             : {
-                network: controller.state.providerConfig.type,
-                infuraProjectId: 'infura-project-id',
-                chainId:
-                  BUILT_IN_NETWORKS[controller.state.providerConfig.type]
-                    .chainId,
-                type: NetworkClientType.Infura,
-              };
+              network: controller.state.providerConfig.type,
+              infuraProjectId: 'infura-project-id',
+              chainId:
+                BUILT_IN_NETWORKS[controller.state.providerConfig.type]
+                  .chainId,
+              type: NetworkClientType.Infura,
+            };
         const operationNetworkClientOptions: Parameters<
           typeof createNetworkClient
         >[0] =
           expectedProviderConfig.type === NetworkType.rpc
             ? {
-                chainId: toHex(expectedProviderConfig.chainId),
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                rpcUrl: expectedProviderConfig.rpcUrl!,
-                type: NetworkClientType.Custom,
-              }
+              chainId: toHex(expectedProviderConfig.chainId),
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              rpcUrl: expectedProviderConfig.rpcUrl!,
+              type: NetworkClientType.Custom,
+            }
             : {
-                network: expectedProviderConfig.type,
-                infuraProjectId: 'infura-project-id',
-                chainId: BUILT_IN_NETWORKS[expectedProviderConfig.type].chainId,
-                type: NetworkClientType.Infura,
-              };
+              network: expectedProviderConfig.type,
+              infuraProjectId: 'infura-project-id',
+              chainId: BUILT_IN_NETWORKS[expectedProviderConfig.type].chainId,
+              type: NetworkClientType.Infura,
+            };
         mockCreateNetworkClient()
           .calledWith(initializationNetworkClientOptions)
           .mockReturnValue(fakeNetworkClients[0])
@@ -9209,8 +9214,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
             // Using a string instead of an Error leads to better backtraces.
             /* eslint-disable-next-line prefer-promise-reject-errors */
             reject(
-              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
-                interestingEventPayloads.length
+              `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${interestingEventPayloads.length
               } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
                 allEventPayloads,
                 { depth: null },
@@ -9298,7 +9302,7 @@ async function waitForStateChanges({
     propertyPath === undefined
       ? () => true
       : ([_newState, patches]: [NetworkState, Patch[]]) =>
-          didPropertyChange(patches, propertyPath);
+        didPropertyChange(patches, propertyPath);
 
   return await waitForPublishedEvents<NetworkControllerStateChangeEvent>({
     messenger,
