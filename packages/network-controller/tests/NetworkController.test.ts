@@ -4646,6 +4646,7 @@ describe('NetworkController', () => {
               'BBBB-BBBB-BBBB-BBBB': {
                 rpcUrl: 'https://test.network.2',
                 chainId: toHex(222),
+                iconUrl: undefined,
                 ticker: 'TICKER2',
                 nickname: 'test network 2',
                 rpcPrefs: {
@@ -4684,6 +4685,7 @@ describe('NetworkController', () => {
             'AAAA-AAAA-AAAA-AAAA': {
               rpcUrl: 'https://test.network',
               chainId: toHex(111),
+              iconUrl: undefined,
               ticker: 'TICKER',
               nickname: 'test network',
               rpcPrefs: {
@@ -5087,6 +5089,40 @@ describe('NetworkController', () => {
           },
         );
       });
+
+      it('accepts an iconUrl and saves it', async () => {
+
+        const newCustomNetworkClient = buildFakeClient();
+        mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients()
+          .calledWith({
+            chainId: toHex(111),
+            rpcUrl: 'https://test.network',
+            type: NetworkClientType.Custom,
+          })
+          .mockReturnValue(newCustomNetworkClient);
+        await withController(
+          {},
+          async ({ controller }) => {
+            await controller.upsertNetworkConfiguration(
+              {
+                rpcUrl: 'https://test.network',
+                chainId: toHex(111),
+                ticker: 'TICKER',
+                iconUrl: 'https://abc.123'
+              },
+              {
+                setActive: true,
+                referrer: 'https://test-dapp.com',
+                source: 'dapp',
+              },
+            );
+
+            expect(controller.state.providerConfig.iconUrl).toStrictEqual(
+              'https://abc.123'
+            );
+          },
+        );
+      });
     });
 
     describe.each([
@@ -5142,6 +5178,7 @@ describe('NetworkController', () => {
                 'BBBB-BBBB-BBBB-BBBB': {
                   rpcUrl: newRpcUrl,
                   chainId: toHex(999),
+                  iconUrl: undefined,
                   ticker: 'NEW_TICKER',
                   nickname: 'test network 2',
                   rpcPrefs: {
@@ -5191,6 +5228,7 @@ describe('NetworkController', () => {
                 'AAAA-AAAA-AAAA-AAAA': {
                   rpcUrl: newRpcUrl,
                   chainId: toHex(999),
+                  iconUrl: undefined,
                   ticker: 'NEW_TICKER',
                   nickname: 'test network',
                   rpcPrefs: {
