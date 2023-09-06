@@ -1,18 +1,26 @@
+import type { ControllerMessenger } from '@metamask/base-controller';
 import type {
   NetworkClientId,
-  NetworkControllerMessenger,
+  NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import type { JsonRpcMiddleware } from 'json-rpc-engine';
 
-import type { SelectedNetworkControllerMessenger } from './SelectedNetworkController';
+import type {
+  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerSetNetworkClientIdForDomainAction,
+} from './SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from './SelectedNetworkController';
 
 export const createSelectedNetworkMiddleware = (
-  selectedNetworkControllerMessenger: SelectedNetworkControllerMessenger,
-  networkControllerMessenger: NetworkControllerMessenger,
+  messenger: ControllerMessenger<
+    | SelectedNetworkControllerGetNetworkClientIdForDomainAction
+    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
+    | NetworkControllerGetStateAction,
+    never
+  >,
 ): JsonRpcMiddleware<any, any> => {
   const getNetworkClientIdForDomain = (origin: string) =>
-    selectedNetworkControllerMessenger.call(
+    messenger.call(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
       origin,
     );
@@ -21,15 +29,14 @@ export const createSelectedNetworkMiddleware = (
     origin: string,
     networkClientId: NetworkClientId,
   ) =>
-    selectedNetworkControllerMessenger.call(
+    messenger.call(
       SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
       origin,
       networkClientId,
     );
 
   const getDefaultNetworkClientId = () =>
-    networkControllerMessenger.call('NetworkController:getState')
-      .selectedNetworkClientId;
+    messenger.call('NetworkController:getState').selectedNetworkClientId;
 
   return (req: any, _, next) => {
     if (getNetworkClientIdForDomain(req.origin) === undefined) {

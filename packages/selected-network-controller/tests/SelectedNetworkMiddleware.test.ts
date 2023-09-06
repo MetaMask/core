@@ -1,39 +1,28 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type {
-  NetworkControllerEvents,
-  NetworkControllerActions,
-} from '@metamask/network-controller';
+import type { NetworkControllerGetStateAction } from '@metamask/network-controller';
 
-import { buildSelectedNetworkControllerMessenger } from './utils';
+import type {
+  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerSetNetworkClientIdForDomainAction,
+} from '../src/SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController';
 import { createSelectedNetworkMiddleware } from '../src/SelectedNetworkMiddleware';
 
 const buildMessenger = () => {
   return new ControllerMessenger<
-    NetworkControllerActions,
-    NetworkControllerEvents
+    | SelectedNetworkControllerGetNetworkClientIdForDomainAction
+    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
+    | NetworkControllerGetStateAction,
+    never
   >();
-};
-
-const buildNetworkControllerMessenger = (messenger = buildMessenger()) => {
-  return messenger.getRestricted({
-    name: 'NetworkController',
-    allowedActions: ['NetworkController:getState'],
-    allowedEvents: ['NetworkController:stateChange'],
-  });
 };
 
 const noop = jest.fn();
 
 describe('createSelectedNetworkMiddleware', () => {
   it('puts networkClientId on request', async () => {
-    const selectedNetworkControllerMessenger =
-      buildSelectedNetworkControllerMessenger();
-    const networkControllerMessenger = buildNetworkControllerMessenger();
-    const middleware = createSelectedNetworkMiddleware(
-      selectedNetworkControllerMessenger,
-      networkControllerMessenger,
-    );
+    const messenger = buildMessenger();
+    const middleware = createSelectedNetworkMiddleware(messenger);
 
     const req = {
       origin: 'example.com',
@@ -43,7 +32,7 @@ describe('createSelectedNetworkMiddleware', () => {
       .fn()
       .mockReturnValue('mockNetworkClientId');
 
-    selectedNetworkControllerMessenger.registerActionHandler(
+    messenger.registerActionHandler(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
       mockGetNetworkClientIdForDomain,
     );
@@ -54,13 +43,8 @@ describe('createSelectedNetworkMiddleware', () => {
   });
 
   it('sets the networkClientId for the domain to the current network from networkController if one is not set', async () => {
-    const selectedNetworkControllerMessenger =
-      buildSelectedNetworkControllerMessenger();
-    const networkControllerMessenger = buildNetworkControllerMessenger();
-    const middleware = createSelectedNetworkMiddleware(
-      selectedNetworkControllerMessenger,
-      networkControllerMessenger,
-    );
+    const messenger = buildMessenger();
+    const middleware = createSelectedNetworkMiddleware(messenger);
 
     const req = {
       origin: 'example.com',
@@ -74,15 +58,15 @@ describe('createSelectedNetworkMiddleware', () => {
     const mockNetworkControllerGetState = jest.fn().mockReturnValue({
       selectedNetworkClientId: 'defaultNetworkClientId',
     });
-    selectedNetworkControllerMessenger.registerActionHandler(
+    messenger.registerActionHandler(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
       mockGetNetworkClientIdForDomain,
     );
-    selectedNetworkControllerMessenger.registerActionHandler(
+    messenger.registerActionHandler(
       SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
       mockSetNetworkClientIdForDomain,
     );
-    networkControllerMessenger.registerActionHandler(
+    messenger.registerActionHandler(
       'NetworkController:getState',
       mockNetworkControllerGetState,
     );
