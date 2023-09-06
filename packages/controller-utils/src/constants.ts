@@ -1,3 +1,5 @@
+import type { Hex } from '@metamask/utils';
+
 import {
   NetworkType,
   NetworksTicker,
@@ -140,4 +142,93 @@ export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [ChainId['linea-goerli']]: BuiltInNetworkName.LineaGoerli,
   [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
   [ChainId.aurora]: BuiltInNetworkName.Aurora,
+};
+
+/**
+ * Compiled from https://chainid.network/chains.json
+ * A mapping of network ID to chain IDs for all chains
+ * that have mismatched network ID and chain ID. Most
+ * notably ETC with network ID of 1 but chain ID of 61
+ */
+export const NON_MATCHING_NETWORK_ID_TO_CHAIN_IDS: Record<string, Hex[]> = {
+  '0': [
+    '0x18', // toHex(24)
+    '0xd3', // toHex(211)
+    '0x3d4', // toHex(980)
+    '0x3dd', // toHex(989)
+  ],
+  '1': [
+    '0x2', // toHex(2)
+    '0x3d', // toHex(61)
+    '0x65', // toHex(101)
+    '0x8a', // toHex(138)
+    '0x106', // toHex(262)
+    '0x334', // toHex(820)
+    '0x740', // toHex(1856)
+    '0x76a', // toHex(1898)
+    '0x797e', // toHex(31102)
+    '0xa869', // toHex(43113)
+    '0x116e1', // toHex(71393)
+    '0x192b2', // toHex(103090)
+    '0x3113a', // toHex(201018)
+    '0x31146', // toHex(201030)
+    '0x335f9', // toHex(210425)
+    '0x66b3a', // toHex(420666)
+    '0x219e2d', // toHex(2203181)
+    '0x21a9b4', // toHex(2206132)
+    '0x133edce', // toHex(20180430)
+  ],
+  '2': [
+    '0x9', // toHex(9)
+    '0x3e', // toHex(62)
+    '0x335', // toHex(821)
+  ],
+  '7': [
+    '0x3f', // toHex(63)
+  ],
+  '10': [
+    '0x96f', // toHex(2415)
+  ],
+  '21': [
+    '0x85a', // toHex(2138)
+  ],
+  '79': [
+    '0x50f9', // toHex(20729)
+  ],
+  '1000': [
+    '0x1f4', // toHex(500)
+  ],
+  '1001': [
+    '0x1f5', // toHex(501)
+  ],
+  '1024': [
+    '0x208', // toHex(520)
+  ],
+  '1230': [
+    '0x3012', // toHex(12306)
+  ],
+  '2048': [
+    '0x4b2', // toHex(1202)
+  ],
+  '2221': [
+    '0xde', // toHex(222)
+  ],
+  '3344': [
+    '0x10804', // toHex(67588)
+  ],
+  '37129': [
+    '0x5fa4', // toHex(24484)
+  ],
+  '37480': [
+    '0x609e', // toHex(24734)
+  ],
+  '48501': [
+    '0x14dc9', // toHex(85449)
+  ],
+  '103090': [
+    '0x66a44', // toHex(420420)
+  ],
+  '11235813': [
+    '0x654', // toHex(1620)
+  ],
 };

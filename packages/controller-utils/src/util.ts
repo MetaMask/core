@@ -13,7 +13,10 @@ import {
 import { fromWei, toWei } from 'ethjs-unit';
 import deepEqual from 'fast-deep-equal';
 
-import { MAX_SAFE_CHAIN_ID } from './constants';
+import {
+  MAX_SAFE_CHAIN_ID,
+  NON_MATCHING_NETWORK_ID_TO_CHAIN_IDS,
+} from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
 
@@ -511,6 +514,30 @@ export function isValidJson(value: unknown): value is Json {
   } catch (_) {
     return false;
   }
+}
+
+/**
+ * Helper to check if networkId matches a chainId
+ *
+ * @param networkId - Network ID for the chain.
+ * @param chainId - Chain ID for the chain.
+ * @returns Whether the network ID matches the chain ID
+ */
+export function deprecatedNetworkIdMatchesChainId(
+  networkId: string,
+  chainId: Hex,
+): boolean {
+  let networkIdHex;
+  try {
+    networkIdHex = toHex(networkId);
+  } catch (err) {
+    return false;
+  }
+  if (networkIdHex === chainId) {
+    return true;
+  }
+  const nonMatchingChainIds = NON_MATCHING_NETWORK_ID_TO_CHAIN_IDS[networkId];
+  return Boolean(nonMatchingChainIds && nonMatchingChainIds.includes(chainId));
 }
 
 /**

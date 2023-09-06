@@ -559,4 +559,38 @@ describe('util', () => {
       expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
     });
   });
+
+  describe('deprecatedNetworkIdMatchesChainId', () => {
+    it('returns false if networkId cannot be transformed to hex', () => {
+      expect(util.deprecatedNetworkIdMatchesChainId('', '0x1')).toBe(false);
+      expect(util.deprecatedNetworkIdMatchesChainId('XYZ123ABC', '0x1')).toBe(
+        false,
+      );
+    });
+
+    it('returns false if networkId does not match chainId directly or via mapping', () => {
+      expect(util.deprecatedNetworkIdMatchesChainId('1', '0x0')).toBe(false);
+      expect(util.deprecatedNetworkIdMatchesChainId('2', '0x1')).toBe(false);
+      expect(util.deprecatedNetworkIdMatchesChainId('2', '0x3')).toBe(false);
+      expect(util.deprecatedNetworkIdMatchesChainId('3', '0x1')).toBe(false);
+      expect(util.deprecatedNetworkIdMatchesChainId('3', '0x2')).toBe(false);
+      expect(util.deprecatedNetworkIdMatchesChainId('3', '0x4')).toBe(false);
+    });
+
+    it('returns true if networkId does match chainId directly', () => {
+      expect(util.deprecatedNetworkIdMatchesChainId('1', '0x1')).toBe(true);
+      expect(util.deprecatedNetworkIdMatchesChainId('2', '0x2')).toBe(true);
+      expect(util.deprecatedNetworkIdMatchesChainId('3', '0x3')).toBe(true);
+    });
+
+    it('returns true if networkId does matches via mapping', () => {
+      expect(util.deprecatedNetworkIdMatchesChainId('1', '0x2')).toBe(true);
+      expect(util.deprecatedNetworkIdMatchesChainId('1', '0x133edce')).toBe(
+        true,
+      );
+      expect(util.deprecatedNetworkIdMatchesChainId('2', '0x9')).toBe(true);
+      expect(util.deprecatedNetworkIdMatchesChainId('2', '0x3e')).toBe(true);
+      expect(util.deprecatedNetworkIdMatchesChainId('2', '0x335')).toBe(true);
+    });
+  });
 });
