@@ -266,9 +266,6 @@ export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
   return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
 }
 
-
-
-
 /**
  * Returns the total fiat value of a given account on a given network,
  * including native currency and token values
@@ -281,7 +278,6 @@ export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
  * @param tokensControllerState - The TokensController instance's state
  * @returns A number representing the total fiat balance of an account on a network.
  */
-/*
 export function getTotalFiatAccountBalance(
   currencyRateControllerState: CurrencyRateState,
   preferencesControllerState: PreferencesState,
@@ -314,47 +310,51 @@ export function getTotalFiatAccountBalance(
     const { contractBalances: tokenBalances } = tokenBalancesControllerState;
     const { contractExchangeRates: tokenExchangeRates } =
       tokenRatesControllerState;
-    tokens.forEach(
-      (item: {
-        address: string;
-        balance: string | undefined;
-        decimals: number;
-      }) => {
-        const exchangeRate =
-          item.address in tokenExchangeRates &&
-          tokenExchangeRates[item.address] !== undefined
-            ? tokenExchangeRates[item.address]
-            : 0; // What do we do with an undefined exchange rate?
-        const tokenBalance =
-          item.balance ||
-          (item.address in tokenBalances
-            ? renderFromTokenMinimalUnit(
-                tokenBalances[item.address],
-                item.decimals,
-              )
-            : 0); // What do we do with an undefined balance?
-        const tokenBalanceFiat = balanceToFiatNumber(
-          Number(tokenBalance),
-          finalConversionRate,
-          Number(exchangeRate),
-          decimalsToShow,
-        );
-        tokenFiat += tokenBalanceFiat;
-      },
-    );
+    const tokenValues = tokens.map((item: Token) => {
+      if (item.address === undefined || item.balance === undefined) {
+        return 0;
+      }
+
+      const exchangeRate =
+        item.address in tokenExchangeRates &&
+        tokenExchangeRates[item.address] !== undefined
+          ? tokenExchangeRates[item.address]
+          : 0; // What do we do with an undefined exchange rate?
+      const tokenBalance =
+        item.balance ||
+        (item.address in tokenBalances
+          ? renderFromTokenMinimalUnit(
+              tokenBalances[item.address],
+              item.decimals,
+            )
+          : 0); // What do we do with an undefined balance?
+      const tokenBalanceFiat = balanceToFiatNumber(
+        Number(tokenBalance),
+        finalConversionRate,
+        Number(exchangeRate),
+        decimalsToShow,
+      );
+      return tokenBalanceFiat;
+    });
+
+    tokenFiat = tokenValues.reduce((a, b) => a + b, 0);
   }
 
   const total = ethFiat + tokenFiat;
   return total;
 }
-*/
 
-
+/**
+ *
+ * @param wei
+ * @param conversionRate
+ * @param decimalsToShow
+ */
 export function weiToFiatNumber(
   wei: number,
   conversionRate: number,
   decimalsToShow = 5,
-) {
+): number {
   const base = Math.pow(10, decimalsToShow);
   const eth = fromWei(wei).toString();
   let value = parseFloat(
@@ -362,25 +362,41 @@ export function weiToFiatNumber(
   );
   value = isNaN(value) ? 0 : value;
   return value;
-};
+}
 
-export function fastSplit(value: string, divider = '.') {
+/**
+ *
+ * @param value
+ * @param divider
+ */
+export function fastSplit(value: string, divider = '.'): string {
   const [from, to] = [value.indexOf(divider), 0];
   return value.substring(from, to) || value;
-};
+}
 
+/**
+ *
+ * @param value
+ */
 export function safeNumberToBN(value: string): BN {
-  let safeValue = '0';
   try {
-    return new BN(Number(safeValue));
+    return new BN(Number(value));
   } catch (e) {
     // Simply return the original value
-    console.log("Value could not be split", e);
-    return new BN(Number(safeValue));
+    console.log(`Value ${value} could not be split`, e);
+    return new BN(0);
   }
 }
 
-export function fromTokenMinimalUnit(minimalInput: BN, decimals: number) {
+/**
+ *
+ * @param minimalInput
+ * @param decimals
+ */
+export function fromTokenMinimalUnit(
+  minimalInput: BN,
+  decimals: number,
+): string {
   const minimalInputStr = addHexPrefix(Number(minimalInput).toString(16));
   const minimal = safeNumberToBN(minimalInputStr);
   const base = new BN(Math.pow(10, decimals).toString());
@@ -394,15 +410,22 @@ export function fromTokenMinimalUnit(minimalInput: BN, decimals: number) {
   const whole = minimal.div(base).toString(10);
   const value = String(whole) + (fraction === '0' ? '' : `.${fraction}`);
   return value;
-};
+}
 
+/**
+ *
+ * @param tokenValue
+ * @param decimals
+ * @param decimalsToShow
+ */
 export function renderFromTokenMinimalUnit(
   tokenValue: BN,
   decimals: number,
   decimalsToShow = 5,
-) {
+): string {
   const minimalUnit = fromTokenMinimalUnit(tokenValue || 0, decimals);
   const minimalUnitNumber = parseFloat(minimalUnit);
+
   let renderMinimalUnit;
   if (minimalUnitNumber < 0.00001 && minimalUnitNumber > 0) {
     renderMinimalUnit = '< 0.00001';
@@ -413,19 +436,26 @@ export function renderFromTokenMinimalUnit(
     ).toString();
   }
   return renderMinimalUnit;
-};
+}
 
+/**
+ *
+ * @param balance
+ * @param conversionRate
+ * @param exchangeRate
+ * @param decimalsToShow
+ */
 export function balanceToFiatNumber(
   balance: number,
   conversionRate: number,
   exchangeRate: number,
   decimalsToShow = 5,
-) {
+): number {
   const base = Math.pow(10, decimalsToShow);
   let fiatFixed = parseFloat(
     // Cast as string to avoid TS error
     String(Math.floor(balance * conversionRate * exchangeRate * base) / base),
   );
-  fiatFixed = isNaN(fiatFixed) ? 0.0 : fiatFixed;
+  fiatFixed = isNaN(fiatFixed) ? 0 : fiatFixed;
   return fiatFixed;
-};
+}

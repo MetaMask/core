@@ -10,5 +10,6 @@
     { "path": "../network-controller" },
     { "path": "../preferences-controller" }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "exclude": ["!**/*.(spec|test).ts?(x)"],
 }
