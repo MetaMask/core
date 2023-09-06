@@ -1862,27 +1862,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@npm:^7.3.0":
-  version: 7.3.0
-  resolution: "@metamask/keyring-controller@npm:7.3.0"
-  dependencies:
-    "@keystonehq/metamask-airgapped-keyring": ^0.13.1
-    "@metamask/base-controller": ^3.2.1
-    "@metamask/eth-keyring-controller": ^13.0.0
-    "@metamask/message-manager": ^7.3.1
-    "@metamask/preferences-controller": ^4.4.0
-    "@metamask/utils": ^6.2.0
-    async-mutex: ^0.2.6
-    ethereumjs-util: ^7.0.10
-    ethereumjs-wallet: ^1.0.1
-    immer: ^9.0.6
-  peerDependencies:
-    "@metamask/preferences-controller": ^4.4.0
-  checksum: c81d05fcaef6c4ad0959b4483cd4132deb3f28b52da6e847e64465ae6fadf3099adf2bfe422735437014a2ff67b159133e440ed6c1516c6087e458097241d186
-  languageName: node
-  linkType: hard
-
-"@metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@^7.3.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
