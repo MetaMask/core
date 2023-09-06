@@ -1133,37 +1133,6 @@ describe('NetworkController', () => {
     });
   });
 
-  describe('refreshNetworkMetadataByNetworkClientId', () => {
-    it('updates the network status', async () => {
-      await withController(
-        { infuraProjectId: 'some-infura-project-id' },
-        async ({ controller }) => {
-          const fakeNetworkClient = buildFakeClient();
-          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-          await controller.refreshNetworkMetadataByNetworkClientId('mainnet');
-
-          expect(controller.state.networksMetadata.mainnet.status).toBe(
-            'available',
-          );
-        },
-      );
-    });
-    it('throws an error if the network is not found', async () => {
-      await withController(
-        { infuraProjectId: 'some-infura-project-id' },
-        async ({ controller }) => {
-          await expect(() =>
-            controller.refreshNetworkMetadataByNetworkClientId(
-              'non-existent-network-id',
-            ),
-          ).rejects.toThrow(
-            'No custom network client was found with the ID "non-existent-network-id".',
-          );
-        },
-      );
-    });
-  });
-
   describe('getNetworkClientById', () => {
     describe('If passed an existing networkClientId', () => {
       it('returns a valid built-in Infura NetworkClient', async () => {
@@ -2003,6 +1972,35 @@ describe('NetworkController', () => {
   });
 
   describe('lookupNetwork', () => {
+    describe('if a networkClientId param is passed', () => {
+      it('updates the network status', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+            await controller.lookupNetwork('mainnet');
+
+            expect(controller.state.networksMetadata.mainnet.status).toBe(
+              'available',
+            );
+          },
+        );
+      });
+      it('throws an error if the network is not found', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            await expect(() =>
+              controller.lookupNetwork('non-existent-network-id'),
+            ).rejects.toThrow(
+              'No custom network client was found with the ID "non-existent-network-id".',
+            );
+          },
+        );
+      });
+    });
+
     describe('if a provider has not been set', () => {
       it('does not change network in state', async () => {
         await withController(async ({ controller, messenger }) => {
@@ -4340,6 +4338,15 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             await setFakeProvider(controller, {
               stubs: [
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
                 {
                   request: {
                     method: 'eth_getBlockByNumber',
