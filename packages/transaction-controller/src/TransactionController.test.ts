@@ -959,6 +959,36 @@ describe('TransactionController', () => {
       );
     });
 
+    it('adds initial history', async () => {
+      const controller = newController();
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      expect(controller.state.transactions[0]?.history).toBeDefined();
+      // Atleast 1 history item (initial snapshot)
+      expect(controller.state.transactions[0]?.history?.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    it('doesnt populate history if history explicitly disabled', async () => {
+      const controller = newController({
+        options: {
+          disableHistory: true,
+        },
+      });
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      expect(controller.state.transactions[0]?.history).toBeUndefined();
+    });
+
     describe('adds dappSuggestedGasFees to transaction', () => {
       it.each([
         ['origin is MM', ORIGIN_METAMASK],
@@ -1876,6 +1906,14 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0]?.txReceipt?.gasUsed).toBe(
         externalTransactionReceipt.gasUsed,
       );
+      expect(controller.state.transactions[0]?.history).toBeDefined();
+      // Atleast 1 history item (initial snapshot)
+      expect(controller.state.transactions[0]?.history?.length).toBeGreaterThan(
+        0,
+      );
+      expect(
+        controller.state.transactions[0]?.history?.[1][0].timestamp,
+      ).toBeLessThanOrEqual(Date.now());
     });
 
     it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {

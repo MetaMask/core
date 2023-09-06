@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import type { Operation } from 'fast-json-patch';
 
 /**
  * Representation of transaction metadata.
@@ -57,6 +58,11 @@ type TransactionMetaBase = {
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
   hash?: string;
+
+  /**
+   * A history of mutations to TransactionMeta.
+   */
+  history?: TransactionHistory;
 
   /**
    * Generated UUID associated with this transaction.
@@ -372,3 +378,20 @@ export interface DappSuggestedGasFees {
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
 }
+
+/**
+ * A transaction history operation that includes a note and timestamp.
+ */
+export type ExtendedHistoryOperation = Operation & {
+  note?: string;
+  timestamp?: number;
+};
+
+/**
+ * A transaction history that includes the transaction meta as the first element.
+ * And the rest of the elements are the operation arrays that were applied to the transaction meta.
+ */
+export type TransactionHistory = [
+  TransactionMeta,
+  ...ExtendedHistoryOperation[][],
+];
