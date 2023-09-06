@@ -768,9 +768,7 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param networkClientId - The ID of the network client to update.
    */
-  async refreshNetworkMetadataByNetworkClientId(
-    networkClientId: NetworkClientId,
-  ) {
+  async lookupNetworkByClientId(networkClientId: NetworkClientId) {
     const isInfura = networkClientId in InfuraNetworkType;
     let updatedNetworkStatus: NetworkStatus;
     let updatedIsEIP1559Compatible: boolean | undefined;
@@ -805,6 +803,15 @@ export class NetworkController extends BaseControllerV2<
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
         }
+      } else if (
+        typeof Error !== 'undefined' &&
+        hasProperty(error as unknown as Error, 'message') &&
+        typeof (error as unknown as Error).message === 'string' &&
+        (error as unknown as Error).message.includes(
+          'No custom network client was found with the ID',
+        )
+      ) {
+        throw error;
       } else {
         log('NetworkController - could not determine network status', error);
         updatedNetworkStatus = NetworkStatus.Unknown;
@@ -833,12 +840,19 @@ export class NetworkController extends BaseControllerV2<
    * stores whether the network supports EIP-1559; otherwise clears said
    * information about the network that may have been previously stored.
    *
+   * @param networkClientId - (Optional) The ID of the network client to update.
+   * If no ID is provided, uses the currently selected network.
    * @fires infuraIsBlocked if the network is Infura-supported and is blocking
    * requests.
    * @fires infuraIsUnblocked if the network is Infura-supported and is not
    * blocking requests, or if the network is not Infura-supported.
    */
-  async lookupNetwork() {
+  async lookupNetwork(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      await this.lookupNetworkByClientId(networkClientId);
+      return;
+    }
+
     if (!this.#ethQuery) {
       return;
     }
@@ -1050,30 +1064,44 @@ export class NetworkController extends BaseControllerV2<
    * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
   async getEIP1559Compatibility(networkClientId?: NetworkClientId) {
-    const networkClientIdToCheck =
-      networkClientId || this.state.selectedNetworkClientId;
-
-    const metadata = this.state.networksMetadata[networkClientIdToCheck];
-    if (metadata === undefined) {
+    if (networkClientId) {
+      return this.get1555CompatibilityWithNetworkClientId(networkClientId);
+    }
+    if (!this.#ethQuery) {
       return false;
     }
-    const { EIPS } = metadata;
 
-    // may want to include some 'freshness' value - something to make sure we refetch this from time to time
+    const { EIPS } =
+      this.state.networksMetadata[this.state.selectedNetworkClientId];
+
     if (EIPS[1559] !== undefined) {
       return EIPS[1559];
     }
 
     const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
-      networkClientIdToCheck,
+      this.state.selectedNetworkClientId,
     );
     this.update((state) => {
       if (isEIP1559Compatible !== undefined) {
-        state.networksMetadata[networkClientIdToCheck].EIPS[1559] =
+        state.networksMetadata[state.selectedNetworkClientId].EIPS[1559] =
           isEIP1559Compatible;
       }
     });
     return isEIP1559Compatible;
+  }
+
+  async get1555CompatibilityWithNetworkClientId(
+    networkClientId: NetworkClientId,
+  ) {
+    let metadata = this.state.networksMetadata[networkClientId];
+    if (metadata === undefined) {
+      await this.lookupNetwork(networkClientId);
+      metadata = this.state.networksMetadata[networkClientId];
+    }
+    const { EIPS } = metadata;
+
+    // may want to include some 'freshness' value - something to make sure we refetch this from time to time
+    return EIPS[1559];
   }
 
   /**
