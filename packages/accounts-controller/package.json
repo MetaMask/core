@@ -54,7 +54,7 @@
     "typescript": "~4.6.3"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^7.2.0"
+    "@metamask/keyring-controller": "^7.3.0"
   },
   "engines": {
     "node": ">=16.0.0"
