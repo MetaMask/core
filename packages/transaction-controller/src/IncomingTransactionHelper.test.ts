@@ -21,7 +21,6 @@ const NETWORK_STATE_MOCK: NetworkState = {
     chainId: '0x1',
     type: NetworkType.mainnet,
   },
-  networkId: '1',
 } as unknown as NetworkState;
 
 const ADDERSS_MOCK = '0x1';

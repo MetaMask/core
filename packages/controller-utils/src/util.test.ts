@@ -585,9 +585,7 @@ describe('util', () => {
 
     it('returns true if networkId does matches via mapping', () => {
       expect(util.deprecatedNetworkIdMatchesChainId('1', '0x2')).toBe(true);
-      expect(util.deprecatedNetworkIdMatchesChainId('1', '0x133edce')).toBe(
-        true,
-      );
+      expect(util.deprecatedNetworkIdMatchesChainId('1', '0x3d')).toBe(true);
       expect(util.deprecatedNetworkIdMatchesChainId('2', '0x9')).toBe(true);
       expect(util.deprecatedNetworkIdMatchesChainId('2', '0x3e')).toBe(true);
       expect(util.deprecatedNetworkIdMatchesChainId('2', '0x335')).toBe(true);

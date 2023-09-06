@@ -266,14 +266,14 @@ export function testsForProviderType(providerType: ProviderType) {
 
       describe('eth_chainId', () => {
         it('does not hit the RPC endpoint, instead returning the configured chain id', async () => {
-          const networkId = await withNetworkClient(
+          const chainId = await withNetworkClient(
             { providerType: 'custom', customChainId: '0x1' },
             ({ makeRpcCall }) => {
               return makeRpcCall({ method: 'eth_chainId' });
             },
           );
 
-          expect(networkId).toBe('0x1');
+          expect(chainId).toBe('0x1');
         });
       });
     });
