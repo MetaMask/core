@@ -60,6 +60,7 @@ import {
   validateMinimumIncrease,
   validateTransaction,
   ESTIMATE_GAS_ERROR,
+  transactionMatchesChainId,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -478,7 +479,7 @@ export class TransactionController extends BaseController<
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId,
+        transactionMatchesChainId(transaction, chainId),
     );
 
     for (const txMeta of unapprovedTxs) {
@@ -828,7 +829,10 @@ export class TransactionController extends BaseController<
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          if (!meta.verifiedOnBlockchain && meta.chainId === currentChainId) {
+          if (
+            !meta.verifiedOnBlockchain &&
+            transactionMatchesChainId(meta, currentChainId)
+          ) {
             const [reconciledTx, updateRequired] =
               await this.blockchainTransactionStateReconciler(meta);
             if (updateRequired) {
@@ -1487,7 +1491,7 @@ export class TransactionController extends BaseController<
     const sameFromAndNetworkTransactions = transactions.filter(
       (transaction) =>
         transaction.transaction.from === fromAddress &&
-        transaction.chainId === chainId,
+        transactionMatchesChainId(transaction, chainId),
     );
     const confirmedTxs = sameFromAndNetworkTransactions.filter(
       (transaction) => transaction.status === TransactionStatus.confirmed,
@@ -1523,7 +1527,7 @@ export class TransactionController extends BaseController<
       (transaction) =>
         transaction.transaction.from === from &&
         transaction.transaction.nonce === nonce &&
-        transaction.chainId === chainId,
+        transactionMatchesChainId(transaction, chainId),
     );
 
     if (!sameNonceTxs.length) {

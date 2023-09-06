@@ -1,3 +1,4 @@
+import { deprecatedNetworkIdMatchesChainId } from '@metamask/controller-utils';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
 import type {
@@ -7,7 +8,6 @@ import type {
 import type { Transaction, TransactionMeta } from './types';
 import { TransactionStatus } from './types';
 import * as util from './utils';
-import { getAndFormatTransactionsForNonceTracker } from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -15,7 +15,22 @@ const GAS_PRICE = 'gasPrice';
 const FAIL = 'lol';
 const PASS = '0x1';
 
+jest.mock('@metamask/controller-utils', () => {
+  return {
+    ...jest.requireActual('@metamask/controller-utils'),
+    deprecatedNetworkIdMatchesChainId: jest.fn(),
+  };
+});
+
+const mockDeprecatedNetworkIdMatchesChainId = jest.mocked(
+  deprecatedNetworkIdMatchesChainId,
+);
+
 describe('utils', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('normalizeTransaction', () => {
     const normalized = util.normalizeTransaction({
       data: 'data',
@@ -301,12 +316,89 @@ describe('utils', () => {
         },
       ];
 
-      const result = getAndFormatTransactionsForNonceTracker(
+      const result = util.getAndFormatTransactionsForNonceTracker(
         fromAddress,
         TransactionStatus.confirmed,
         inputTransactions,
       );
       expect(result).toStrictEqual(expectedResult);
+    });
+  });
+
+  describe('transactionMatchesChainId', () => {
+    const mockTransaction: TransactionMeta = {
+      chainId: '0x1',
+      networkID: '1',
+      id: '1',
+      time: 123456,
+      transaction: {
+        from: '0x123',
+        gas: '0x100',
+        value: '0x200',
+        nonce: '0x1',
+      },
+      status: TransactionStatus.unapproved,
+    };
+
+    describe('transaction has chainId', () => {
+      const transaction = {
+        ...mockTransaction,
+        networkID: undefined,
+      };
+
+      it('returns false if chainId does not match transaction chainId', () => {
+        expect(util.transactionMatchesChainId(transaction, '0x2')).toBe(false);
+        expect(mockDeprecatedNetworkIdMatchesChainId).not.toHaveBeenCalled();
+      });
+
+      it('returns true if chainId matches transaction chainId', () => {
+        expect(util.transactionMatchesChainId(transaction, '0x1')).toBe(true);
+        expect(mockDeprecatedNetworkIdMatchesChainId).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('transaction only has networkID', () => {
+      const transaction = {
+        ...mockTransaction,
+        chainId: undefined,
+      } as unknown as TransactionMeta;
+
+      it('returns false if chainId does not match transaction networkID', () => {
+        mockDeprecatedNetworkIdMatchesChainId.mockReturnValue(false);
+
+        expect(util.transactionMatchesChainId(transaction, '0x123')).toBe(
+          false,
+        );
+        expect(mockDeprecatedNetworkIdMatchesChainId).toHaveBeenCalledWith(
+          '1',
+          '0x123',
+        );
+      });
+
+      it('returns true if chainId matches transaction networkID', () => {
+        mockDeprecatedNetworkIdMatchesChainId.mockReturnValue(true);
+
+        expect(util.transactionMatchesChainId(transaction, '0x123')).toBe(true);
+        expect(mockDeprecatedNetworkIdMatchesChainId).toHaveBeenCalledWith(
+          '1',
+          '0x123',
+        );
+      });
+    });
+
+    describe('transaction has neither chainId or networkID', () => {
+      const transaction = {
+        ...mockTransaction,
+        networkID: undefined,
+        chainId: undefined,
+      } as unknown as TransactionMeta;
+
+      it('returns false', () => {
+        expect(util.transactionMatchesChainId(transaction, '0x123')).toBe(
+          false,
+        );
+        expect(mockDeprecatedNetworkIdMatchesChainId).not.toHaveBeenCalled();
+      });
     });
   });
 });
