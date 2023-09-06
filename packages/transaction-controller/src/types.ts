@@ -69,6 +69,13 @@ type TransactionMetaBase = {
   isTransfer?: boolean;
 
   /**
+   * Network code as per EIP-155 for this transaction
+   *
+   * @deprecated Use `chainId` instead.
+   */
+  readonly networkID?: string;
+
+  /**
    * Origin this transaction was sent from.
    */
   origin?: string;
