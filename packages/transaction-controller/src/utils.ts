@@ -43,6 +43,10 @@ export function normalizeTransaction(transaction: Transaction) {
       normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
     }
   }
+
+  if (transaction?.type === '0x0') {
+    normalizedTransaction.type = '0x0';
+  }
   return normalizedTransaction;
 }
 
