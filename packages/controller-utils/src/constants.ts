@@ -147,8 +147,8 @@ export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
 /**
  * Compiled from https://chainid.network/chains.json
  * A mapping of network ID to chain IDs for all chains
- * that have mismatched network ID and chain ID. Most
- * notably ETC with network ID of 1 but chain ID of 61
+ * that have mismatched network ID and chain ID.  Most
+ * notably ETC has a network ID of 1 but chain ID of 61.
  */
 export const NON_MATCHING_NETWORK_ID_TO_CHAIN_IDS: Record<string, Hex[]> = {
   '0': [
@@ -231,4 +231,55 @@ export const NON_MATCHING_NETWORK_ID_TO_CHAIN_IDS: Record<string, Hex[]> = {
   '11235813': [
     '0x654', // toHex(1620)
   ],
+};
+
+/**
+ * Compiled from https://chainid.network/chains.json
+ * A mapping of chain ID to network ID for all chains
+ * that have mismatched network ID and chain ID. Most
+ * notably ETC has a network ID of 1 but chain ID of 61.
+ */
+export const NON_MATCHING_CHAIN_ID_TO_NETWORK_ID: Record<Hex, string> = {
+  '0x2': '1',
+  '0x9': '2',
+  '0x18': '0',
+  '0x3d': '1',
+  '0x3e': '2',
+  '0x3f': '7',
+  '0x65': '1',
+  '0x8a': '1',
+  '0xd3': '0',
+  '0xde': '2221',
+  '0x106': '1',
+  '0x1f4': '1000',
+  '0x1f5': '1001',
+  '0x208': '1024',
+  '0x334': '1',
+  '0x335': '2',
+  '0x3d4': '0',
+  '0x3dd': '0',
+  '0x4b2': '2048',
+  '0x654': '11235813',
+  '0x740': '1',
+  '0x76a': '1',
+  '0x85a': '21',
+  '0x96f': '10',
+  '0x3012': '1230',
+  '0x50f9': '79',
+  '0x5fa4': '37129',
+  '0x609e': '37480',
+  '0x797e': '1',
+  '0xa869': '1',
+  '0x10804': '3344',
+  '0x116e1': '1',
+  '0x14dc9': '48501',
+  '0x192b2': '1',
+  '0x3113a': '1',
+  '0x31146': '1',
+  '0x335f9': '1',
+  '0x66a44': '103090',
+  '0x66b3a': '1',
+  '0x219e2d': '1',
+  '0x21a9b4': '1',
+  '0x133edce': '1',
 };

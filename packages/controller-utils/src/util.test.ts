@@ -591,4 +591,25 @@ describe('util', () => {
       expect(util.deprecatedNetworkIdMatchesChainId('2', '0x335')).toBe(true);
     });
   });
+
+  describe('deprecatedConvertChainIdToNetworkId', () => {
+    it('returns a matched value via the mapping', () => {
+      expect(util.deprecatedConvertChainIdToNetworkId('0x2')).toBe('1');
+      expect(util.deprecatedConvertChainIdToNetworkId('0x3d')).toBe('1');
+      expect(util.deprecatedConvertChainIdToNetworkId('0x133edce')).toBe('1');
+    });
+
+    it('returns the chainId as decimal string', () => {
+      expect(util.deprecatedConvertChainIdToNetworkId('0x1')).toBe('1');
+      expect(util.deprecatedConvertChainIdToNetworkId('0x5')).toBe('5');
+      expect(util.deprecatedConvertChainIdToNetworkId('0xaa36a7')).toBe(
+        '11155111',
+      );
+      expect(util.deprecatedConvertChainIdToNetworkId('0x4e454152')).toBe(
+        '1313161554',
+      );
+      expect(util.deprecatedConvertChainIdToNetworkId('0xe704')).toBe('59140');
+      expect(util.deprecatedConvertChainIdToNetworkId('0xe708')).toBe('59144');
+    });
+  });
 });
