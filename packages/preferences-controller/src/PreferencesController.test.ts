@@ -1,3 +1,4 @@
+import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 import { PreferencesController } from './PreferencesController';
 
 describe('PreferencesController', () => {
@@ -206,5 +207,21 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     controller.setIsIpfsGatewayEnabled(true);
     expect(controller.state.isIpfsGatewayEnabled).toBe(true);
+  });
+
+  it('should set showIncomingTransactions to false', () => {
+    const controller = new PreferencesController();
+    Object.keys(ETHERSCAN_SUPPORTED_CHAIN_IDS).forEach(
+      (networkHexChainId: string) =>
+        controller.setEnableNetworkIncomingTransactions(
+          networkHexChainId,
+          false,
+        ),
+    );
+
+    Object.values(controller.state.showIncomingTransactions).forEach(
+      (showIncomingTransaction: boolean) =>
+        expect(showIncomingTransaction).toBe(false),
+    );
   });
 });

@@ -2,6 +2,8 @@ import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 
+import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
+
 /**
  * ContactEntry representation.
  *
@@ -40,6 +42,7 @@ export interface PreferencesState extends BaseState {
   };
   showTestNetworks: boolean;
   isIpfsGatewayEnabled: boolean;
+  showIncomingTransactions: { [chainId: string]: boolean };
 }
 
 /**
@@ -78,6 +81,27 @@ export class PreferencesController extends BaseController<
       },
       showTestNetworks: false,
       isIpfsGatewayEnabled: true,
+      showIncomingTransactions: {
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.MAINNET]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.GOERLI]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.BSC]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.BSC_TESTNET]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.OPTIMISM]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.OPTIMISM_TESTNET]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.POLYGON]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.POLYGON_TESTNET]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.AVALANCHE]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.AVALANCHE_TESTNET]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.FANTOM]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.FANTOM_TESTNET]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.SEPOLIA]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.LINEA_GOERLI]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.LINEA_MAINNET]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONBEAM_TESTNET]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.MOONRIVER]: true,
+        [ETHERSCAN_SUPPORTED_CHAIN_IDS.GNOSIS]: true,
+      },
     };
     this.initialize();
   }
@@ -320,6 +344,24 @@ export class PreferencesController extends BaseController<
    */
   setIsIpfsGatewayEnabled(isIpfsGatewayEnabled: boolean) {
     this.update({ isIpfsGatewayEnabled });
+  }
+
+  /**
+   * A setter for the user allow to be fetched IPFS content
+   *
+   * @param chainId - On hexadecimal format to enable the incoming transaction network
+   * @param isIconmingTransactionNetworkEnable - true to enable incoming transactions
+   */
+  setEnableNetworkIncomingTransactions(
+    chainId: string,
+    isIconmingTransactionNetworkEnable: boolean,
+  ) {
+    this.update({
+      showIncomingTransactions: {
+        ...this.state.showIncomingTransactions,
+        [chainId]: isIconmingTransactionNetworkEnable,
+      },
+    });
   }
 }
 
