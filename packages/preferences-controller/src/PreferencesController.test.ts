@@ -1,4 +1,3 @@
-import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 import { PreferencesController } from './PreferencesController';
 
 describe('PreferencesController', () => {
