@@ -1,4 +1,9 @@
-import { buildSelectedNetworkControllerMessenger } from './utils';
+import { defaultState as networkControllerDefaultState } from '@metamask/network-controller';
+
+import {
+  buildSelectedNetworkControllerMessenger,
+  buildMessenger,
+} from './utils';
 import type { SelectedNetworkControllerOptions } from '../src/SelectedNetworkController';
 import { SelectedNetworkController } from '../src/SelectedNetworkController';
 
@@ -15,25 +20,27 @@ describe('SelectedNetworkController', () => {
     });
   });
 
-  it('can set the networkClientId for a domain', () => {
-    const options: SelectedNetworkControllerOptions = {
-      messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
-    };
-    const controller = new SelectedNetworkController(options);
-    const domain = 'example.com';
-    const networkClientId = 'network1';
-    controller.setNetworkClientIdForDomain(domain, networkClientId);
-    expect(controller.state.domains[domain]).toBe(networkClientId);
-  });
+  describe('setNetworkClientIdForDomain', () => {
+    it('can set the networkClientId for a domain', () => {
+      const options: SelectedNetworkControllerOptions = {
+        messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
+      };
+      const controller = new SelectedNetworkController(options);
+      const domain = 'example.com';
+      const networkClientId = 'network1';
+      controller.setNetworkClientIdForDomain(domain, networkClientId);
+      expect(controller.state.domains[domain]).toBe(networkClientId);
+    });
 
-  it('can set the networkClientId for the metamask domain specifically', () => {
-    const options: SelectedNetworkControllerOptions = {
-      messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
-    };
-    const controller = new SelectedNetworkController(options);
-    const networkClientId = 'network2';
-    controller.setNetworkClientIdForMetamask(networkClientId);
-    expect(controller.state.domains.metamask).toBe(networkClientId);
+    it('can set the networkClientId for the metamask domain specifically', () => {
+      const options: SelectedNetworkControllerOptions = {
+        messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
+      };
+      const controller = new SelectedNetworkController(options);
+      const networkClientId = 'network2';
+      controller.setNetworkClientIdForMetamask(networkClientId);
+      expect(controller.state.domains.metamask).toBe(networkClientId);
+    });
   });
 
   describe('getNetworkClientIdForDomain', () => {
@@ -66,30 +73,27 @@ describe('SelectedNetworkController', () => {
   });
 
   it('updates the networkClientId for the metamask domain when the networkControllers selectedNetworkClientId changes', () => {
-    const mockMessagingSystem = {
-      registerActionHandler: jest.fn(),
-      subscribe: jest.fn(),
-      publish: () => jest.fn(),
-    };
+    const messenger = buildMessenger();
     const options: SelectedNetworkControllerOptions = {
-      messenger: mockMessagingSystem as any,
+      messenger: buildSelectedNetworkControllerMessenger(messenger),
     };
     const controller = new SelectedNetworkController(options);
     controller.setNetworkClientIdForMetamask('oldNetwork');
     expect(controller.state.domains.metamask).toBe('oldNetwork');
 
-    const stateChangeHandler = mockMessagingSystem.subscribe.mock.calls[0][1];
-    const state: any = {
-      selectedNetworkClientId: 'newNetwork',
-    };
     const patch = [
       {
         path: ['selectedNetworkClientId'],
-        op: 'replace',
+        op: 'replace' as const,
         value: 'newNetwork',
       },
     ];
-    stateChangeHandler(state, patch);
+
+    const state = {
+      ...networkControllerDefaultState,
+      selectedNetworkClientId: 'newNetwork',
+    };
+    messenger.publish('NetworkController:stateChange', state, patch);
     expect(controller.state.domains.metamask).toBe('newNetwork');
   });
 

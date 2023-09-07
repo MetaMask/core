@@ -13,7 +13,7 @@ import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkCont
  *
  * @returns The controller messenger.
  */
-function buildMessenger() {
+export function buildMessenger() {
   return new ControllerMessenger<
     SelectedNetworkControllerAction,
     SelectedNetworkControllerEvent | NetworkControllerStateChangeEvent
