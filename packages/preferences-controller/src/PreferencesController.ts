@@ -17,6 +17,27 @@ export interface ContactEntry {
   importTime?: number;
 }
 
+type EtherscanSupportedHexChainId =
+  | '0x1'
+  | '0x5'
+  | '0x38'
+  | '0x61'
+  | '0xa'
+  | '0x1a4'
+  | '0x89'
+  | '0x13881'
+  | '0xa86a'
+  | '0xa869'
+  | '0xfa'
+  | '0xfa2'
+  | '0xaa36a7'
+  | '0xe704'
+  | '0xe708'
+  | '0x504'
+  | '0x507'
+  | '0x505'
+  | '0x64';
+
 /**
  * @type PreferencesState
  *
@@ -353,15 +374,17 @@ export class PreferencesController extends BaseController<
    * @param isIconmingTransactionNetworkEnable - true to enable incoming transactions
    */
   setEnableNetworkIncomingTransactions(
-    chainId: string,
+    chainId: EtherscanSupportedHexChainId,
     isIconmingTransactionNetworkEnable: boolean,
   ) {
-    this.update({
-      showIncomingTransactions: {
-        ...this.state.showIncomingTransactions,
-        [chainId]: isIconmingTransactionNetworkEnable,
-      },
-    });
+    if (Object.values(ETHERSCAN_SUPPORTED_CHAIN_IDS).includes(chainId)) {
+      this.update({
+        showIncomingTransactions: {
+          ...this.state.showIncomingTransactions,
+          [chainId]: isIconmingTransactionNetworkEnable,
+        },
+      });
+    }
   }
 }
 
