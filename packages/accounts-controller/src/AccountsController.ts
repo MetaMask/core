@@ -430,7 +430,6 @@ export class AccountsController extends BaseControllerV2<
   ): Promise<void> {
     // check if there are any new accounts added
     // TODO: change when accountAdded event is added to the keyring controller
-    console.log('running handleOnKeyringStateChange');
 
     if (keyringState.isUnlocked) {
       // TODO: ACCOUNTS_CONTROLLER keyring will return accounts instead of addresses, remove this flatMap after and just get the latest id
