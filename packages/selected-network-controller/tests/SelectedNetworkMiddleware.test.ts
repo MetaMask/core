@@ -1,5 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { NetworkControllerGetStateAction } from '@metamask/network-controller';
+import { JsonRpcEngine } from 'json-rpc-engine';
 
 import type {
   SelectedNetworkControllerGetNetworkClientIdForDomainAction,
@@ -80,5 +81,39 @@ describe('createSelectedNetworkMiddleware', () => {
       'defaultNetworkClientId',
     );
     expect(req.networkClientId).toBe('defaultNetworkClientId');
+  });
+
+  it('implements the json-rpc-engine middleware interface appropriately', async () => {
+    const engine = new JsonRpcEngine();
+    const messenger = buildMessenger();
+    engine.push((req: any, _, next) => {
+      req.origin = 'foobar';
+      next();
+    });
+    engine.push(createSelectedNetworkMiddleware(messenger));
+    const mockNextMiddleware = jest.fn().mockImplementation((req, res, _, end) => {
+      res.result = req.networkClientId;
+      end();
+    });
+    engine.push(mockNextMiddleware);
+    const testNetworkId = 'testNetworkId';
+    const mockGetNetworkClientIdForDomain = jest
+      .fn()
+      .mockReturnValue(testNetworkId);
+    messenger.registerActionHandler(
+      SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
+      mockGetNetworkClientIdForDomain,
+    );
+
+    const result = await engine.handle({ id: 1, jsonrpc: '2.0', method: 'hello' });
+    expect(mockNextMiddleware).toHaveBeenCalledWith(
+      expect.objectContaining({
+        networkClientId: testNetworkId
+      }),
+      expect.any(Object),
+      expect.any(Function),
+      expect.any(Function)
+    );
+    expect(result).toStrictEqual(expect.objectContaining({ result: testNetworkId }));
   });
 });
