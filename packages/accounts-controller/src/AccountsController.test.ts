@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType } from '@metamask/keyring-api';
+import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import * as uuid from 'uuid';
@@ -30,15 +30,7 @@ const mockAccount: InternalAccount = {
   id: 'mock-id',
   address: '0x123',
   options: {},
-  methods: [
-    'personal_sign',
-    'eth_sign',
-    'eth_signTransaction',
-    'eth_signTypedData',
-    'eth_signTypedData_v1',
-    'eth_signTypedData_v3',
-    'eth_signTypedData_v4',
-  ],
+  methods: [...Object.values(EthMethod)],
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 1',
@@ -53,15 +45,7 @@ const mockAccount2: InternalAccount = {
   id: 'mock-id2',
   address: '0x1234',
   options: {},
-  methods: [
-    'personal_sign',
-    'eth_sign',
-    'eth_signTransaction',
-    'eth_signTypedData',
-    'eth_signTypedData_v1',
-    'eth_signTypedData_v3',
-    'eth_signTypedData_v4',
-  ],
+  methods: [...Object.values(EthMethod)],
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 2',
@@ -103,15 +87,7 @@ function createExpectedInternalAccount({
     id,
     address,
     options: {},
-    methods: [
-      'personal_sign',
-      'eth_sign',
-      'eth_signTransaction',
-      'eth_signTypedData',
-      'eth_signTypedData_v1',
-      'eth_signTypedData_v3',
-      'eth_signTypedData_v4',
-    ],
+    methods: [...Object.values(EthMethod)],
     type: EthAccountType.Eoa,
     metadata: {
       name,
