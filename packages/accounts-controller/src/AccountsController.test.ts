@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
-import type { KeyringControllerState } from '@metamask/keyring-controller';
+import { EthAccountType } from '@metamask/keyring-api';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import * as uuid from 'uuid';
@@ -39,7 +39,7 @@ const mockAccount: InternalAccount = {
     'eth_signTypedData_v3',
     'eth_signTypedData_v4',
   ],
-  type: 'eip155:eoa',
+  type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 1',
     keyring: { type: 'HD Key Tree' },
@@ -62,7 +62,7 @@ const mockAccount2: InternalAccount = {
     'eth_signTypedData_v3',
     'eth_signTypedData_v4',
   ],
-  type: 'eip155:eoa',
+  type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 2',
     keyring: { type: 'HD Key Tree' },
@@ -112,7 +112,7 @@ function createExpectedInternalAccount({
       'eth_signTypedData_v3',
       'eth_signTypedData_v4',
     ],
-    type: 'eip155:eoa',
+    type: EthAccountType.Eoa,
     metadata: {
       name,
       keyring: { type: keyringType },
@@ -184,27 +184,23 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
  * @param options - The options object.
  * @param [options.initialState] - The initial state to use for the AccountsController.
  * @param [options.keyringApiEnabled] - Whether or not the keyring API is enabled.
- * @param [options.onKeyringStateChange] - A callback to call when the keyring state changes.
- * @param [options.onSnapStateChange] - A callback to call when the snap state changes.
+ * @param [options.messenger] - Messenger to use for the AccountsController.
  * @returns An instance of the AccountsController class.
  */
 function setupAccountsController({
-  // eslint-disable-next-line @typescript-eslint/default-param-last
   initialState = {},
   keyringApiEnabled = true,
-  onKeyringStateChange = () => undefined,
-  onSnapStateChange = () => undefined,
+  messenger = buildMessenger(),
 }: {
   initialState?: Partial<AccountsControllerState>;
   keyringApiEnabled?: boolean;
-  onKeyringStateChange?: (
-    listener: (state: KeyringControllerState) => void,
-  ) => void;
-  onSnapStateChange?: (listener: (state: SnapControllerState) => void) => void;
+  messenger?: ControllerMessenger<
+    AccountsControllerActions,
+    AccountsControllerEvents
+  >;
 }): AccountsController {
-  const accountsControllerMessenger = buildAccountsControllerMessenger(
-    new ControllerMessenger(),
-  );
+  const accountsControllerMessenger =
+    buildAccountsControllerMessenger(messenger);
 
   const accountsController = new AccountsController({
     messenger: accountsControllerMessenger,
@@ -212,8 +208,6 @@ function setupAccountsController({
     getKeyringForAccount: mockGetKeyringForAccount,
     getKeyringByType: mockGetKeyringByType,
     getAccounts: mockGetAccounts,
-    onKeyringStateChange,
-    onSnapStateChange,
     keyringApiEnabled,
   });
   return accountsController;
@@ -226,6 +220,7 @@ describe('AccountsController', () => {
 
   describe('onSnapStateChange', () => {
     it('should not be used when keyringApiEnabled is false', async () => {
+      const messenger = buildMessenger();
       const snapStateChangeSpy = jest.fn();
       setupAccountsController({
         initialState: {
@@ -235,15 +230,20 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: false,
-        onSnapStateChange: () => {
-          snapStateChangeSpy();
-        },
+        messenger,
       });
+
+      messenger.publish(
+        'SnapController:stateChange',
+        {} as any as SnapControllerState,
+        [],
+      );
 
       expect(snapStateChangeSpy).not.toHaveBeenCalled();
     });
 
     it('should be used enable an account if the snap is enabled and not blocked', async () => {
+      const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
         name: 'Snap Account 1',
@@ -261,7 +261,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-      };
+      } as any as SnapControllerState;
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -272,10 +272,10 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: true,
-        onSnapStateChange: (listener: (state: any) => void) => {
-          listener(mockSnapChangeState);
-        },
+        messenger,
       });
+
+      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
 
       const updatedAccount = accountsController.getAccountExpect(
         mockSnapAccount.id,
@@ -285,6 +285,7 @@ describe('AccountsController', () => {
     });
 
     it('should be used disable an account if the snap is disabled', async () => {
+      const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
         name: 'Snap Account 1',
@@ -301,7 +302,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-      };
+      } as any as SnapControllerState;
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -312,10 +313,10 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: true,
-        onSnapStateChange: (listener: (state: any) => void) => {
-          listener(mockSnapChangeState);
-        },
+        messenger,
       });
+
+      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
 
       const updatedAccount = accountsController.getAccountExpect(
         mockSnapAccount.id,
@@ -325,6 +326,7 @@ describe('AccountsController', () => {
     });
 
     it('should be used disable an account if the snap is blocked', async () => {
+      const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
         name: 'Snap Account 1',
@@ -341,7 +343,7 @@ describe('AccountsController', () => {
             status: SnapStatus.Running,
           },
         },
-      };
+      } as any as SnapControllerState;
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -352,10 +354,10 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: true,
-        onSnapStateChange: (listener: (state: any) => void) => {
-          listener(mockSnapChangeState);
-        },
+        messenger,
       });
+
+      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
 
       const updatedAccount = accountsController.getAccountExpect(
         mockSnapAccount.id,
@@ -367,6 +369,8 @@ describe('AccountsController', () => {
 
   describe('onKeyringStateChange', () => {
     it('should only update if the keyring is unlocked', async () => {
+      const messenger = buildMessenger();
+
       const mockNewKeyringState = {
         isUnlocked: false,
         keyrings: [
@@ -384,12 +388,14 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: true,
-        onKeyringStateChange: (
-          listener: (state: KeyringControllerState) => void,
-        ) => {
-          listener(mockNewKeyringState);
-        },
+        messenger,
       });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
 
       const accounts = accountsController.listAccounts();
 
@@ -397,6 +403,7 @@ describe('AccountsController', () => {
     });
 
     it('should add new accounts', async () => {
+      const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
       mockGetAccounts.mockResolvedValue([
         mockAccount.address,
@@ -422,14 +429,16 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: false,
-        onKeyringStateChange: (
-          listener: (state: KeyringControllerState) => void,
-        ) => {
-          listener(mockNewKeyringState);
-        },
+        messenger,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const accounts = accountsController.listAccounts();
 
@@ -440,6 +449,7 @@ describe('AccountsController', () => {
     });
 
     it('should handle keyring reinitialization', async () => {
+      const messenger = buildMessenger();
       const mockInitialAccount = createExpectedInternalAccount({
         id: 'mock-id',
         name: 'Account 1',
@@ -474,14 +484,16 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: false,
-        onKeyringStateChange: (
-          listener: (state: KeyringControllerState) => void,
-        ) => {
-          listener(mockNewKeyringState);
-        },
+        messenger,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const selectedAccount = accountsController.getSelectedAccount();
       const accounts = accountsController.listAccounts();
@@ -492,6 +504,7 @@ describe('AccountsController', () => {
     });
 
     it('should delete accounts if its gone from the keyring state', async () => {
+      const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id2');
       mockGetAccounts.mockResolvedValue([mockAccount2.address]);
       mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
@@ -515,14 +528,16 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: false,
-        onKeyringStateChange: (
-          listener: (state: KeyringControllerState) => void,
-        ) => {
-          listener(mockNewKeyringState);
-        },
+        messenger,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const accounts = accountsController.listAccounts();
 
@@ -533,6 +548,7 @@ describe('AccountsController', () => {
     });
 
     it('should delete accounts and set the most recent lastSelected account', async () => {
+      const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
       mockGetAccounts.mockResolvedValue([
         mockAccount.address,
@@ -562,14 +578,16 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: false,
-        onKeyringStateChange: (
-          listener: (state: KeyringControllerState) => void,
-        ) => {
-          listener(mockNewKeyringState);
-        },
+        messenger,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const accounts = accountsController.listAccounts();
 
@@ -583,6 +601,7 @@ describe('AccountsController', () => {
     });
 
     it('should delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
+      const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
       mockGetAccounts.mockResolvedValue([
         mockAccount.address,
@@ -619,14 +638,16 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: false,
-        onKeyringStateChange: (
-          listener: (state: KeyringControllerState) => void,
-        ) => {
-          listener(mockNewKeyringState);
-        },
+        messenger,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const accounts = accountsController.listAccounts();
 
@@ -1082,7 +1103,7 @@ describe('AccountsController', () => {
         address: '',
         options: {},
         methods: [],
-        type: 'eip155:eoa',
+        type: EthAccountType.Eoa,
         metadata: {
           name: '',
           keyring: {

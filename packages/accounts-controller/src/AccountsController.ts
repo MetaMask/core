@@ -2,6 +2,7 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
+import { EthAccountType } from '@metamask/keyring-api';
 import type {
   KeyringControllerState,
   KeyringController,
@@ -104,8 +105,6 @@ export class AccountsController extends BaseControllerV2<
    * @param options.getKeyringForAccount - Gets the keyring for a given account from the keyring controller.
    * @param options.getKeyringByType - Gets the keyring instance for the given type from the keyring controller.
    * @param options.getAccounts - Gets all the accounts from the keyring controller.
-   * @param options.onKeyringStateChange - Allows subscribing to the keyring controller state changes.
-   * @param options.onSnapStateChange - Allows subscribing to the snap controller state changes.
    */
   constructor({
     messenger,
@@ -114,8 +113,6 @@ export class AccountsController extends BaseControllerV2<
     getKeyringForAccount,
     getKeyringByType,
     getAccounts,
-    onSnapStateChange,
-    onKeyringStateChange,
   }: {
     messenger: AccountsControllerMessenger;
     state: AccountsControllerState;
@@ -123,12 +120,6 @@ export class AccountsController extends BaseControllerV2<
     getKeyringForAccount: KeyringController['getKeyringForAccount'];
     getKeyringByType: KeyringController['getKeyringsByType'];
     getAccounts: KeyringController['getAccounts'];
-    onKeyringStateChange: (
-      listener: (keyringState: KeyringControllerState) => void,
-    ) => void;
-    onSnapStateChange: (
-      listener: (snapState: SnapControllerState) => void,
-    ) => void;
   }) {
     super({
       messenger,
@@ -146,76 +137,17 @@ export class AccountsController extends BaseControllerV2<
     this.keyringApiEnabled = Boolean(keyringApiEnabled);
 
     if (this.keyringApiEnabled) {
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      onSnapStateChange(async (snapState: SnapControllerState) => {
-        // only check if snaps changed in status
-        const { snaps } = snapState;
-        const accounts = this.listAccounts().filter(
-          (account) => account.metadata.snap,
-        );
-
-        this.update((currentState: AccountsControllerState) => {
-          accounts.forEach((account) => {
-            const currentAccount =
-              currentState.internalAccounts.accounts[account.id];
-            if (currentAccount?.metadata?.snap) {
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore this account is guaranteed to have snap metadata
-              currentState.internalAccounts.accounts[
-                account.id
-              ].metadata.snap.enabled =
-                snaps[currentAccount.metadata.snap.id].enabled &&
-                !snaps[currentAccount.metadata.snap.id].blocked;
-            }
-          });
-        });
-      });
+      this.messagingSystem.subscribe(
+        'SnapController:stateChange',
+        async (snapStateState) =>
+          await this.#handleOnSnapStateChange(snapStateState),
+      );
     }
 
-    onKeyringStateChange(
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (keyringState: KeyringControllerState): Promise<void> => {
-        // check if there are any new accounts added
-        // TODO: change when accountAdded event is added to the keyring controller
-
-        if (keyringState.isUnlocked) {
-          // TODO: ACCOUNTS_CONTROLLER keyring will return accounts instead of addresses, remove this flatMap after and just get the latest id
-          const updatedKeyringAddresses = keyringState.keyrings.flatMap(
-            (keyring) => keyring.accounts,
-          );
-          const previousAccounts = this.listAccounts();
-
-          // if there are no overlaps between the addresses in the keyring and previous accounts,
-          // it means the keyring is being reinitialized because the vault is being restored with the same SRP
-          const overlaps = updatedKeyringAddresses.filter((address) =>
-            previousAccounts.find(
-              (account) =>
-                account.address.toLowerCase() === address.toLowerCase(),
-            ),
-          );
-
-          await this.updateAccounts();
-
-          if (updatedKeyringAddresses.length > previousAccounts.length) {
-            this.#handleNewAccountAdded(
-              updatedKeyringAddresses,
-              previousAccounts,
-            );
-          } else if (
-            updatedKeyringAddresses.length > 0 &&
-            overlaps.length === 0
-          ) {
-            // if the keyring is being reinitialized, the selected account will be reset to the first account
-            this.setSelectedAccount(this.listAccounts()[0].id);
-          } else if (
-            updatedKeyringAddresses.length < previousAccounts.length &&
-            overlaps.length > 0 &&
-            !this.getAccount(this.state.internalAccounts.selectedAccount)
-          ) {
-            this.#handleSelectedAccountRemoved();
-          }
-        }
-      },
+    this.messagingSystem.subscribe(
+      'KeyringController:stateChange',
+      async (keyringState) =>
+        await this.#handleOnKeyringStateChange(keyringState),
     );
 
     // if somehow the selected account becomes lost then select the first account
@@ -262,7 +194,7 @@ export class AccountsController extends BaseControllerV2<
         address: '',
         options: {},
         methods: [],
-        type: 'eip155:eoa',
+        type: EthAccountType.Eoa,
         metadata: {
           name: '',
           keyring: {
@@ -459,7 +391,7 @@ export class AccountsController extends BaseControllerV2<
           'eth_signTypedData_v3',
           'eth_signTypedData_v4',
         ],
-        type: 'eip155:eoa',
+        type: EthAccountType.Eoa,
         metadata: {
           name: '',
           keyring: {
@@ -493,6 +425,71 @@ export class AccountsController extends BaseControllerV2<
     this.setSelectedAccount(previousAccount.id);
   }
 
+  async #handleOnKeyringStateChange(
+    keyringState: KeyringControllerState,
+  ): Promise<void> {
+    // check if there are any new accounts added
+    // TODO: change when accountAdded event is added to the keyring controller
+    console.log('running handleOnKeyringStateChange');
+
+    if (keyringState.isUnlocked) {
+      // TODO: ACCOUNTS_CONTROLLER keyring will return accounts instead of addresses, remove this flatMap after and just get the latest id
+      const updatedKeyringAddresses = keyringState.keyrings.flatMap(
+        (keyring) => keyring.accounts,
+      );
+      const previousAccounts = this.listAccounts();
+
+      // if there are no overlaps between the addresses in the keyring and previous accounts,
+      // it means the keyring is being reinitialized because the vault is being restored with the same SRP
+      const overlaps = updatedKeyringAddresses.filter((address) =>
+        previousAccounts.find(
+          (account) => account.address.toLowerCase() === address.toLowerCase(),
+        ),
+      );
+
+      await this.updateAccounts();
+
+      if (updatedKeyringAddresses.length > previousAccounts.length) {
+        this.#handleNewAccountAdded(updatedKeyringAddresses, previousAccounts);
+      } else if (updatedKeyringAddresses.length > 0 && overlaps.length === 0) {
+        // if the keyring is being reinitialized, the selected account will be reset to the first account
+        this.setSelectedAccount(this.listAccounts()[0].id);
+      } else if (
+        updatedKeyringAddresses.length < previousAccounts.length &&
+        overlaps.length > 0 &&
+        !this.getAccount(this.state.internalAccounts.selectedAccount)
+      ) {
+        this.#handleSelectedAccountRemoved();
+      }
+    }
+  }
+
+  async #handleOnSnapStateChange(
+    snapState: SnapControllerState,
+  ): Promise<void> {
+    // only check if snaps changed in status
+    const { snaps } = snapState;
+    const accounts = this.listAccounts().filter(
+      (account) => account.metadata.snap,
+    );
+
+    this.update((currentState: AccountsControllerState) => {
+      accounts.forEach((account) => {
+        const currentAccount =
+          currentState.internalAccounts.accounts[account.id];
+        if (currentAccount?.metadata?.snap) {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore this account is guaranteed to have snap metadata
+          currentState.internalAccounts.accounts[
+            account.id
+          ].metadata.snap.enabled =
+            snaps[currentAccount.metadata.snap.id].enabled &&
+            !snaps[currentAccount.metadata.snap.id].blocked;
+        }
+      });
+    });
+  }
+
   /**
    * Handles the event when a new account is added to the keyring.
    *
@@ -503,22 +500,18 @@ export class AccountsController extends BaseControllerV2<
     updatedKeyringAddresses: string[],
     previousAccounts: InternalAccount[],
   ) {
-    const newAddress = updatedKeyringAddresses.find(
+    const [newAddress] = updatedKeyringAddresses.filter(
       (address) =>
         !previousAccounts.find(
           (account) => account.address.toLowerCase() === address.toLowerCase(),
         ),
     );
 
-    const newAccount = this.listAccounts().find(
-      (account) =>
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        account.address.toLowerCase() === newAddress!.toLowerCase(),
+    const [newAccount] = this.listAccounts().filter(
+      (account) => account.address.toLowerCase() === newAddress.toLowerCase(),
     );
 
-    // set the first new account as the selected account
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    this.setSelectedAccount(newAccount!.id);
+    this.setSelectedAccount(newAccount.id);
   }
 }
 
