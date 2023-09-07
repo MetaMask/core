@@ -9,6 +9,7 @@ import {
   recoverPersonalSignature,
   recoverTypedSignature,
   SignTypedDataVersion,
+  encrypt,
 } from '@metamask/eth-sig-util';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import {
@@ -590,6 +591,53 @@ describe('KeyringController', () => {
 
         expect(encryptionPublicKey).toBe(
           'ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=',
+        );
+      });
+    });
+  });
+
+  describe('decryptMessage', () => {
+    it('should successfully decrypt a message with valid parameters and return the raw decryption result', async () => {
+      await withController(async ({ controller }) => {
+        const { importedAccountAddress } =
+          await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+        const message = 'Hello, encrypted world!';
+        const encryptedMessage = encrypt({
+          publicKey: await controller.getEncryptionPublicKey(
+            importedAccountAddress,
+          ),
+          data: message,
+          version: 'x25519-xsalsa20-poly1305',
+        });
+
+        const messageParams = {
+          from: importedAccountAddress,
+          data: encryptedMessage,
+        };
+
+        const result = await controller.decryptMessage(messageParams);
+
+        expect(result).toBe(message);
+      });
+    });
+
+    it("should throw an error if the 'from' parameter is not a valid account address", async () => {
+      await withController(async ({ controller }) => {
+        const messageParams = {
+          from: 'invalid address',
+          data: {
+            version: '1.0',
+            nonce: '123456',
+            ephemPublicKey: '0xabcdef1234567890',
+            ciphertext: '0xabcdef1234567890',
+          },
+        };
+
+        await expect(controller.decryptMessage(messageParams)).rejects.toThrow(
+          'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
         );
       });
     });
