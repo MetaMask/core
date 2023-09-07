@@ -222,10 +222,10 @@ export function transactionMatchesChainId(
   transaction: TransactionMeta,
   chainId: Hex,
 ) {
-  if (transaction.chainId) {
+  if (transaction.chainId !== undefined) {
     return transaction.chainId === chainId;
   }
-  if (transaction.networkID) {
+  if (transaction.networkID !== undefined) {
     return deprecatedNetworkIdMatchesChainId(transaction.networkID, chainId);
   }
   return false;
