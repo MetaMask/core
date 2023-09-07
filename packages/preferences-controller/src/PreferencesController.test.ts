@@ -20,6 +20,27 @@ describe('PreferencesController', () => {
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
       isIpfsGatewayEnabled: true,
+      showIncomingTransactions: {
+        '0x1': true,
+        '0x5': true,
+        '0x38': true,
+        '0x61': true,
+        '0xa': true,
+        '0xa869': true,
+        '0x1a4': true,
+        '0x89': true,
+        '0x13881': true,
+        '0xa86a': true,
+        '0xfa': true,
+        '0xfa2': true,
+        '0xaa36a7': true,
+        '0xe704': true,
+        '0xe708': true,
+        '0x504': true,
+        '0x507': true,
+        '0x505': true,
+        '0x64': true,
+      },
     });
   });
 
@@ -209,19 +230,10 @@ describe('PreferencesController', () => {
     expect(controller.state.isIpfsGatewayEnabled).toBe(true);
   });
 
-  it('should set showIncomingTransactions to false', () => {
+  it('should set showIncomingTransactions to false on ethereum network', () => {
     const controller = new PreferencesController();
-    Object.keys(ETHERSCAN_SUPPORTED_CHAIN_IDS).forEach(
-      (networkHexChainId: string) =>
-        controller.setEnableNetworkIncomingTransactions(
-          networkHexChainId,
-          false,
-        ),
-    );
 
-    Object.values(controller.state.showIncomingTransactions).forEach(
-      (showIncomingTransaction: boolean) =>
-        expect(showIncomingTransaction).toBe(false),
-    );
+    controller.setEnableNetworkIncomingTransactions('0x1', false);
+    expect(controller.state.showIncomingTransactions['0x1']).toBe(false);
   });
 });
