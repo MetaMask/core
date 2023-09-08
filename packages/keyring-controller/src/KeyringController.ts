@@ -65,6 +65,31 @@ export type KeyringControllerGetStateAction = {
   handler: () => KeyringControllerState;
 };
 
+export type KeyringControllerSignMessageAction = {
+  type: `${typeof name}:signMessage`;
+  handler: KeyringController['signMessage'];
+};
+
+export type KeyringControllerSignPersonalMessageAction = {
+  type: `${typeof name}:signPersonalMessage`;
+  handler: KeyringController['signPersonalMessage'];
+};
+
+export type KeyringControllerSignTypedMessageAction = {
+  type: `${typeof name}:signTypedMessage`;
+  handler: KeyringController['signTypedMessage'];
+};
+
+export type KeyringControllerDecryptMessageAction = {
+  type: `${typeof name}:decryptMessage`;
+  handler: KeyringController['decryptMessage'];
+};
+
+export type KeyringControllerGetEncryptionPublicKeyAction = {
+  type: `${typeof name}:getEncryptionPublicKey`;
+  handler: KeyringController['getEncryptionPublicKey'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -85,7 +110,13 @@ export type KeyringControllerUnlockEvent = {
   payload: [];
 };
 
-export type KeyringControllerActions = KeyringControllerGetStateAction;
+export type KeyringControllerActions =
+  | KeyringControllerGetStateAction
+  | KeyringControllerSignMessageAction
+  | KeyringControllerSignPersonalMessageAction
+  | KeyringControllerSignTypedMessageAction
+  | KeyringControllerDecryptMessageAction
+  | KeyringControllerGetEncryptionPublicKeyAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -256,6 +287,8 @@ export class KeyringController extends BaseControllerV2<
     this.updateIdentities = updateIdentities;
     this.setSelectedAddress = setSelectedAddress;
     this.setAccountLabel = setAccountLabel;
+
+    this.#registerMessageHandlers();
   }
 
   /**
@@ -903,6 +936,37 @@ export class KeyringController extends BaseControllerV2<
       this.setSelectedAddress(account);
     });
     await this.#keyring.persistAllKeyrings();
+  }
+
+  /**
+   * Constructor helper for registering this controller's messaging system
+   * actions.
+   */
+  #registerMessageHandlers() {
+    this.messagingSystem.registerActionHandler(
+      `${name}:signMessage`,
+      this.signMessage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:signPersonalMessage`,
+      this.signPersonalMessage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:signTypedMessage`,
+      this.signTypedMessage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:decryptMessage`,
+      this.decryptMessage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getEncryptionPublicKey`,
+      this.getEncryptionPublicKey.bind(this),
+    );
   }
 
   /**
