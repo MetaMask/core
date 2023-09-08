@@ -86,7 +86,7 @@ type TransactionMetaBase = {
   /**
    * Hex representation of the underlying transaction.
    */
-  rawTransaction?: string;
+  rawTx?: string;
 
   /**
    * When the transaction is dropped, this is the replacement transaction hash.
@@ -97,6 +97,11 @@ type TransactionMetaBase = {
    * When the transaction is dropped, this is the replacement transaction ID.
    */
   replacedById?: string;
+
+  /**
+   * The time the transaction was submitted to the network, in Unix epoch time (ms).
+   */
+  submittedTime?: number;
 
   /**
    * Timestamp associated with this transaction.
