@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+### Added
+- Add `submittedTime` to the transaction metadata ([#1645](https://github.com/MetaMask/core/pull/1645))
+- Add optional `actionId` argument to `addTransaction` and `speedUpTransaction` to prevent duplicate requests ([#1582](https://github.com/MetaMask/core/pull/1582))
+- Add `confirmExternalTransaction` method ([#1625](https://github.com/MetaMask/core/pull/1625))
+
+### Changed
+- **BREAKING**: Rename `rawTransaction` to `rawTx` in the transaction metadata ([#1624](https://github.com/MetaMask/core/pull/1624))
+
 ## [9.2.0]
 ### Added
 - Persist `estimatedBaseFee` in `stopTransaction` and `speedUpTransaction` ([#1621](https://github.com/MetaMask/core/pull/1621))
@@ -151,7 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.2.0...@metamask/transaction-controller@10.0.0
 [9.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.1.0...@metamask/transaction-controller@9.2.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.0.0...@metamask/transaction-controller@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@8.0.1...@metamask/transaction-controller@9.0.0
