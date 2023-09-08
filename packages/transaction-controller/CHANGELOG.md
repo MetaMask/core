@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [10.0.0]
 ### Added
 - Add `submittedTime` to the transaction metadata ([#1645](https://github.com/MetaMask/core/pull/1645))
-- Add support for actionId ([#1582](https://github.com/MetaMask/core/pull/1582))
+- Add optional `actionId` argument to `addTransaction` and `speedUpTransaction` to prevent duplicate requests ([#1582](https://github.com/MetaMask/core/pull/1582))
 - Add name controller ([#1647](https://github.com/MetaMask/core/pull/1647))
 
 ### Changed
