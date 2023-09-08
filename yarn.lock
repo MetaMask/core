@@ -2250,6 +2250,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/selected-network-controller@workspace:packages/selected-network-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^3.1.0
+    "@metamask/base-controller": ^3.2.1
+    "@metamask/network-controller": ^12.1.2
+    "@types/jest": ^27.4.1
+    deepmerge: ^4.2.2
+    immer: ^9.0.6
+    jest: ^27.5.1
+    json-rpc-engine: ^6.1.0
+    lodash: ^4.17.21
+    nock: ^13.3.1
+    sinon: ^9.2.4
+    ts-jest: ^27.1.4
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
+    typescript: ~4.6.3
+  peerDependencies:
+    "@metamask/network-controller": ^12.1.2
+  languageName: unknown
+  linkType: soft
+
 "@metamask/signature-controller@workspace:packages/signature-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/signature-controller@workspace:packages/signature-controller"

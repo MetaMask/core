@@ -47,6 +47,9 @@
       "path": "./packages/network-controller"
     },
     {
+      "path": "./packages/selected-network-controller"
+    },
+    {
       "path": "./packages/notification-controller"
     },
     {

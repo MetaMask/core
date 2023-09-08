@@ -46,6 +46,9 @@
       "path": "./packages/network-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/selected-network-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/notification-controller/tsconfig.build.json"
     },
     {
