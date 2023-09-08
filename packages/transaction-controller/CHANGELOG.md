@@ -10,11 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add `submittedTime` to the transaction metadata ([#1645](https://github.com/MetaMask/core/pull/1645))
 - Add optional `actionId` argument to `addTransaction` and `speedUpTransaction` to prevent duplicate requests ([#1582](https://github.com/MetaMask/core/pull/1582))
-- Add name controller ([#1647](https://github.com/MetaMask/core/pull/1647))
+- Add `confirmExternalTransaction` method ([#1625](https://github.com/MetaMask/core/pull/1625))
 
 ### Changed
 - **BREAKING**: Rename `rawTransaction` to `rawTx` in the transaction metadata ([#1624](https://github.com/MetaMask/core/pull/1624))
-- Support confirming of external transactions in `TransactionController`  ([#1625](https://github.com/MetaMask/core/pull/1625))
 
 ## [9.2.0]
 ### Added
