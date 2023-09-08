@@ -109,11 +109,6 @@ type TransactionMetaBase = {
   toSmartContract?: boolean;
 
   /**
-   * Underlying Transaction object.
-   */
-  transaction: Transaction;
-
-  /**
    * Hash of a successful transaction.
    */
   transactionHash?: string;
@@ -126,6 +121,11 @@ type TransactionMetaBase = {
     decimals: number;
     symbol: string;
   };
+
+  /**
+   * Underlying Transaction object.
+   */
+  txParams: TransactionParams;
 
   /**
    * Transaction receipt.
@@ -172,7 +172,7 @@ export enum WalletDevice {
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
  */
-export interface Transaction {
+export interface TransactionParams {
   /**
    * Network ID as per EIP-155.
    */

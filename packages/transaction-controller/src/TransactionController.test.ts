@@ -400,7 +400,7 @@ const ACTION_ID_MOCK = '123456';
 
 const TRANSACTION_META_MOCK = {
   status: TransactionStatus.confirmed,
-  transaction: {
+  txParams: {
     from: ACCOUNT_MOCK,
   },
   transactionHash: '0x1',
@@ -409,7 +409,7 @@ const TRANSACTION_META_MOCK = {
 
 const TRANSACTION_META_2_MOCK = {
   status: TransactionStatus.confirmed,
-  transaction: {
+  txParams: {
     from: '0x3',
   },
   transactionHash: '0x2',
@@ -931,9 +931,7 @@ describe('TransactionController', () => {
         },
       );
 
-      expect(controller.state.transactions[0].transaction.from).toBe(
-        ACCOUNT_MOCK,
-      );
+      expect(controller.state.transactions[0].txParams.from).toBe(ACCOUNT_MOCK);
       expect(controller.state.transactions[0].networkID).toBe(
         MOCK_NETWORK.state.networkId,
       );
@@ -1032,7 +1030,7 @@ describe('TransactionController', () => {
           to: ACCOUNT_MOCK,
         });
 
-        expect(controller.state.transactions[0].transaction.from).toBe(
+        expect(controller.state.transactions[0].txParams.from).toBe(
           ACCOUNT_MOCK,
         );
         expect(controller.state.transactions[0].networkID).toBe(
@@ -1092,11 +1090,11 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(2);
       const secondTransaction = controller.state.transactions[1];
 
-      expect(firstTransaction.transaction.nonce).toBe(
+      expect(firstTransaction.txParams.nonce).toBe(
         `0x${NONCE_MOCK.toString(16)}`,
       );
 
-      expect(secondTransaction.transaction.nonce).toBe(
+      expect(secondTransaction.txParams.nonce).toBe(
         `0x${(NONCE_MOCK + 1).toString(16)}`,
       );
     });
@@ -1155,7 +1153,7 @@ describe('TransactionController', () => {
         });
 
         const {
-          transaction: { estimateGasError },
+          txParams: { estimateGasError },
         } = controller.state.transactions[0];
 
         expect(estimateGasError).toBe(ESTIMATE_GAS_ERROR);
@@ -1176,10 +1174,10 @@ describe('TransactionController', () => {
 
         await result;
 
-        const { transaction, status, submittedTime } =
+        const { txParams, status, submittedTime } =
           controller.state.transactions[0];
-        expect(transaction.from).toBe(ACCOUNT_MOCK);
-        expect(transaction.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
+        expect(txParams.from).toBe(ACCOUNT_MOCK);
+        expect(txParams.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
         expect(status).toBe(TransactionStatus.submitted);
         expect(submittedTime).toBeLessThanOrEqual(Date.now());
       });
@@ -1235,9 +1233,9 @@ describe('TransactionController', () => {
 
           await expect(result).rejects.toThrow(expectedError);
 
-          const { transaction, status } = controller.state.transactions[0];
-          expect(transaction.from).toBe(ACCOUNT_MOCK);
-          expect(transaction.to).toBe(ACCOUNT_MOCK);
+          const { txParams, status } = controller.state.transactions[0];
+          expect(txParams.from).toBe(ACCOUNT_MOCK);
+          expect(txParams.to).toBe(ACCOUNT_MOCK);
           expect(status).toBe(TransactionStatus.failed);
         }
 
@@ -1350,8 +1348,8 @@ describe('TransactionController', () => {
 
         await expect(result).rejects.toThrow('User rejected the transaction');
 
-        const { transaction, status } = await finishedPromise;
-        expect(transaction.from).toBe(ACCOUNT_MOCK);
+        const { txParams, status } = await finishedPromise;
+        expect(txParams.from).toBe(ACCOUNT_MOCK);
         expect(status).toBe(TransactionStatus.rejected);
       });
     });
@@ -1405,7 +1403,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '1',
         chainId: mockCurrentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount1,
         },
       } as any);
@@ -1413,7 +1411,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '2',
         chainId: mockCurrentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount2,
         },
       } as any);
@@ -1436,7 +1434,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '1',
         chainId: mockCurrentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount1,
         },
       } as any);
@@ -1444,7 +1442,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '4',
         chainId: mockDifferentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount1,
         },
       } as any);
@@ -1534,7 +1532,7 @@ describe('TransactionController', () => {
         status: TransactionStatus.confirmed,
         transactionHash: '1337',
         verifiedOnBlockchain: false,
-        transaction: {
+        txParams: {
           gasUsed: undefined,
         },
       } as any);
@@ -1543,7 +1541,7 @@ describe('TransactionController', () => {
 
       const transactionMeta = controller.state.transactions[0];
       expect(transactionMeta.verifiedOnBlockchain).toBe(true);
-      expect(transactionMeta.transaction.gasUsed).toBe('0x5208');
+      expect(transactionMeta.txParams.gasUsed).toBe('0x5208');
       expect(transactionMeta.blockTimestamp).toBe('628dc0c8');
       expect(transactionMeta.baseFeePerGas).toBe('0x14');
       expect(transactionMeta.txReceipt?.transactionIndex).toBe(1337);
@@ -1702,7 +1700,7 @@ describe('TransactionController', () => {
 
       const { transactions } = controller.state;
       expect(transactions).toHaveLength(2);
-      expect(transactions[1].transaction.gasPrice).toBe(
+      expect(transactions[1].txParams.gasPrice).toBe(
         '0x5916a6d6', // 1.1 * 0x50fd51da
       );
     });
@@ -1748,9 +1746,9 @@ describe('TransactionController', () => {
       const { transactions } = controller.state;
       expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
       expect(transactions).toHaveLength(2);
-      expect(transactions[0].transaction.nonce).toBeDefined();
-      expect(transactions[0].transaction.nonce).toStrictEqual(
-        transactions[1].transaction.nonce,
+      expect(transactions[0].txParams.nonce).toBeDefined();
+      expect(transactions[0].txParams.nonce).toStrictEqual(
+        transactions[1].txParams.nonce,
       );
       expect(transactions[1].estimatedBaseFee).toBe('0x123');
     });

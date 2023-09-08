@@ -47,7 +47,7 @@ const TRANSACTION_MOCK: TransactionMeta = {
   chainId: '0x1',
   status: TransactionStatus.submitted,
   time: 0,
-  transaction: { to: '0x1', gasUsed: '0x1' },
+  txParams: { to: '0x1', gasUsed: '0x1' },
   transactionHash: '0x1',
 } as unknown as TransactionMeta;
 
@@ -55,7 +55,7 @@ const TRANSACTION_MOCK_2: TransactionMeta = {
   blockNumber: '234',
   chainId: '0x1',
   time: 1,
-  transaction: { to: '0x1' },
+  txParams: { to: '0x1' },
   transactionHash: '0x2',
 } as unknown as TransactionMeta;
 
@@ -215,8 +215,8 @@ describe('IncomingTransactionHelper', () => {
       it('if new outgoing transaction fetched and update transactions enabled', async () => {
         const outgoingTransaction = {
           ...TRANSACTION_MOCK_2,
-          transaction: {
-            ...TRANSACTION_MOCK_2.transaction,
+          txParams: {
+            ...TRANSACTION_MOCK_2.txParams,
             from: '0x1',
             to: '0x2',
           },
@@ -264,8 +264,8 @@ describe('IncomingTransactionHelper', () => {
       it('if existing transaction fetched with different gas used and update transactions enabled', async () => {
         const updatedTransaction = {
           ...TRANSACTION_MOCK,
-          transaction: {
-            ...TRANSACTION_MOCK.transaction,
+          txParams: {
+            ...TRANSACTION_MOCK.txParams,
             gasUsed: '0x2',
           },
         } as TransactionMeta;
@@ -380,11 +380,11 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource: createRemoteTransactionSourceMock([
             {
               ...TRANSACTION_MOCK,
-              transaction: { to: '0x2' },
+              txParams: { to: '0x2' },
             } as TransactionMeta,
             {
               ...TRANSACTION_MOCK,
-              transaction: { to: undefined },
+              txParams: { to: undefined },
             } as TransactionMeta,
           ]),
         });
@@ -482,7 +482,7 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource: createRemoteTransactionSourceMock([
             {
               ...TRANSACTION_MOCK_2,
-              transaction: { to: '0x2' },
+              txParams: { to: '0x2' },
             } as TransactionMeta,
           ]),
         });
