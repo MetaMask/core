@@ -1314,7 +1314,7 @@ __metadata:
     typescript: ~4.6.3
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/keyring-controller": ^7.3.0
+    "@metamask/keyring-controller": ^7.4.0
   languageName: unknown
   linkType: soft
 
