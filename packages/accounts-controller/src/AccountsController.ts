@@ -150,7 +150,6 @@ export class AccountsController extends BaseControllerV2<
         await this.#handleOnKeyringStateChange(keyringState),
     );
 
-    // if somehow the selected account becomes lost then select the first account
     if (
       this.state.internalAccounts.selectedAccount !== '' &&
       !this.getAccount(this.state.internalAccounts.selectedAccount)
@@ -477,11 +476,7 @@ export class AccountsController extends BaseControllerV2<
         const currentAccount =
           currentState.internalAccounts.accounts[account.id];
         if (currentAccount?.metadata?.snap) {
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore this account is guaranteed to have snap metadata
-          currentState.internalAccounts.accounts[
-            account.id
-          ].metadata.snap.enabled =
+          currentAccount.metadata.snap.enabled =
             snaps[currentAccount.metadata.snap.id].enabled &&
             !snaps[currentAccount.metadata.snap.id].blocked;
         }
