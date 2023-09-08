@@ -1295,7 +1295,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/eth-snap-keyring": ^0.2.0
     "@metamask/keyring-api": ^0.2.2
-    "@metamask/keyring-controller": ^7.3.0
+    "@metamask/keyring-controller": ^7.4.0
     "@metamask/snaps-controllers": ^1.0.1
     "@metamask/snaps-utils": ^1.0.1
     "@metamask/utils": ^6.2.0
@@ -1862,7 +1862,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@^7.3.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@^7.4.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
