@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add name controller ([#1647](https://github.com/MetaMask/core/pull/1647))
 
 ### Changed
-- **BREAKING**: Rename rawTransaction to rawTx in the persisted transaction metadata ([#1624](https://github.com/MetaMask/core/pull/1624))
+- **BREAKING**: Rename `rawTransaction` to `rawTx` in the transaction metadata ([#1624](https://github.com/MetaMask/core/pull/1624))
 - Support confirming of external transactions in `TransactionController`  ([#1625](https://github.com/MetaMask/core/pull/1625))
 
 ## [9.2.0]
