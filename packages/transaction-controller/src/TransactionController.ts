@@ -443,6 +443,7 @@ export class TransactionController extends BaseController<
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
     }
+
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
       transactions.push(transactionMeta);
@@ -592,6 +593,7 @@ export class TransactionController extends BaseController<
       unsignedEthTx,
       transactionMeta.transaction.from,
     );
+    await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
     await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
     transactionMeta.estimatedBaseFee = estimatedBaseFee;
@@ -703,6 +705,7 @@ export class TransactionController extends BaseController<
       unsignedEthTx,
       transactionMeta.transaction.from,
     );
+    await this.updateTransactionMetaRSV(transactionMeta, signedTx);
     const rawTx = bufferToHex(signedTx.serialize());
     const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
       rawTx,
@@ -1110,6 +1113,7 @@ export class TransactionController extends BaseController<
 
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
       const signedTx = await this.sign(unsignedEthTx, from);
+      await this.updateTransactionMetaRSV(transactionMeta, signedTx);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
       const rawTx = bufferToHex(signedTx.serialize());
@@ -1595,6 +1599,30 @@ export class TransactionController extends BaseController<
         resolve(txMeta);
       });
     });
+  }
+
+  /**
+   * Updates the r, s, and v properties of a TransactionMeta object
+   * with values from a signed transaction.
+   *
+   * @param transactionMeta - The TransactionMeta object to update.
+   * @param signedTx - The encompassing type for all transaction types containing r, s, and v values.
+   */
+  private async updateTransactionMetaRSV(
+    transactionMeta: TransactionMeta,
+    signedTx: TypedTransaction,
+  ): Promise<void> {
+    if (signedTx.r) {
+      transactionMeta.r = addHexPrefix(signedTx.r.toString(16));
+    }
+
+    if (signedTx.s) {
+      transactionMeta.s = addHexPrefix(signedTx.s.toString(16));
+    }
+
+    if (signedTx.v) {
+      transactionMeta.v = addHexPrefix(signedTx.v.toString(16));
+    }
   }
 }
 

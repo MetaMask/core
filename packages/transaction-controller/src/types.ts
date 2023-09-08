@@ -79,6 +79,11 @@ type TransactionMetaBase = {
   origin?: string;
 
   /**
+   * The transaction's 'r' value as a hex string.
+   */
+  r?: string;
+
+  /**
    * Hex representation of the underlying transaction.
    */
   rawTx?: string;
@@ -92,6 +97,16 @@ type TransactionMetaBase = {
    * When the transaction is dropped, this is the replacement transaction ID.
    */
   replacedById?: string;
+
+  /**
+   * The transaction's 's' value as a hex string.
+   */
+  s?: string;
+
+  /**
+   * Response from security validator.
+   */
+  securityAlertResponse?: Record<string, unknown>;
 
   /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
@@ -133,14 +148,14 @@ type TransactionMetaBase = {
   txReceipt?: TransactionReceipt;
 
   /**
+   * The transaction's 'v' value as a hex string.
+   */
+  v?: string;
+
+  /**
    * Whether the transaction is verified on the blockchain.
    */
   verifiedOnBlockchain?: boolean;
-
-  /**
-   * Response from security validator.
-   */
-  securityAlertResponse?: Record<string, unknown>;
 };
 
 /**
