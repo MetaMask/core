@@ -1724,7 +1724,7 @@ describe('TransactionController', () => {
 
       const { transactions } = controller.state;
       expect(transactions).toHaveLength(2);
-      expect(transactions[1].transaction.gasPrice).toBe('0x62DEF4DA');
+      expect(transactions[1].txParams.gasPrice).toBe('0x62DEF4DA');
     });
 
     it('uses the same nonce', async () => {
@@ -1840,7 +1840,7 @@ describe('TransactionController', () => {
         networkID: '1',
         chainId: toHex(1),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           gasUsed: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
@@ -1880,7 +1880,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -1900,7 +1900,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.unapproved,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -1936,7 +1936,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -1956,7 +1956,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.failed,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,

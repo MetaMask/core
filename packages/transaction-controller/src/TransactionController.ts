@@ -1501,10 +1501,10 @@ export class TransactionController extends BaseController<
   private async addExternalTransaction(transactionMeta: TransactionMeta) {
     const { networkId, chainId } = this.getChainAndNetworkId();
     const { transactions } = this.state;
-    const fromAddress = transactionMeta?.transaction?.from;
+    const fromAddress = transactionMeta?.txParams?.from;
     const sameFromAndNetworkTransactions = transactions.filter(
       (transaction) =>
-        transaction.transaction.from === fromAddress &&
+        transaction.txParams.from === fromAddress &&
         transactionMatchesNetwork(transaction, chainId, networkId),
     );
     const confirmedTxs = sameFromAndNetworkTransactions.filter(
@@ -1535,12 +1535,12 @@ export class TransactionController extends BaseController<
   private markNonceDuplicatesDropped(transactionId: string) {
     const { networkId, chainId } = this.getChainAndNetworkId();
     const transactionMeta = this.getTransaction(transactionId);
-    const nonce = transactionMeta?.transaction?.nonce;
-    const from = transactionMeta?.transaction?.from;
+    const nonce = transactionMeta?.txParams?.nonce;
+    const from = transactionMeta?.txParams?.from;
     const sameNonceTxs = this.state.transactions.filter(
       (transaction) =>
-        transaction.transaction.from === from &&
-        transaction.transaction.nonce === nonce &&
+        transaction.txParams.from === from &&
+        transaction.txParams.nonce === nonce &&
         transactionMatchesNetwork(transaction, chainId, networkId),
     );
 
