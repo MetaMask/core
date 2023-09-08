@@ -924,7 +924,13 @@ describe('TransactionController', () => {
           operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
         },
       };
-
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
       await controller.addTransaction(
         {
           from: ACCOUNT_MOCK,
@@ -934,6 +940,7 @@ describe('TransactionController', () => {
           deviceConfirmedOn: mockDeviceConfirmedOn,
           origin: mockOrigin,
           securityAlertResponse: mockSecurityAlertResponse,
+          sendFlowHistory: mockSendFlowHistory,
         },
       );
 
@@ -951,6 +958,9 @@ describe('TransactionController', () => {
         mockSecurityAlertResponse,
       );
       expect(transactionMeta.originalGasEstimate).toBe('0x0');
+      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
+        mockSendFlowHistory,
+      );
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
@@ -1982,6 +1992,129 @@ describe('TransactionController', () => {
       expect(failedTx?.replacedById).toBe(externalTransactionId);
 
       expect(failedTx?.replacedBy).toBe(externalTransactionHash);
+    });
+  });
+
+  describe('updateTransactionSendFlowHistory', () => {
+    it('appends sendFlowHistory entries to transaction meta', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+      const addedTxId = controller.state.transactions[0].id;
+      controller.updateTransactionSendFlowHistory(
+        addedTxId,
+        0,
+        mockSendFlowHistory,
+      );
+
+      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
+        mockSendFlowHistory,
+      );
+    });
+    it('doesnt append if current sendFlowHistory lengths doesnt match', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+      const addedTxId = controller.state.transactions[0].id;
+      controller.updateTransactionSendFlowHistory(
+        addedTxId,
+        5,
+        mockSendFlowHistory,
+      );
+
+      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
+        [],
+      );
+    });
+    it('throws if sendFlowHistory persistence is disabled', async () => {
+      const controller = newController({
+        options: { disableSendFlowHistory: true },
+      });
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+      const addedTxId = controller.state.transactions[0].id;
+      expect(() =>
+        controller.updateTransactionSendFlowHistory(
+          addedTxId,
+          0,
+          mockSendFlowHistory,
+        ),
+      ).toThrow(
+        'TransactionsController: Send flow history is disabled for this instance of the controller.',
+      );
+    });
+    it('throws if transactionMeta is not found', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      expect(() =>
+        controller.updateTransactionSendFlowHistory(
+          'foo',
+          0,
+          mockSendFlowHistory,
+        ),
+      ).toThrow(
+        'TransactionsController: updateTransactionSendFlowHistory called but transactionMeta not found.',
+      );
+    });
+    it('throws if the transaction is not unapproved status', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      controller.state.transactions.push({
+        from: MOCK_PREFERENCES.state.selectedAddress,
+        id: 'foo',
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
+        transactionHash: '1337',
+      } as any);
+      expect(() =>
+        controller.updateTransactionSendFlowHistory(
+          'foo',
+          0,
+          mockSendFlowHistory,
+        ),
+      )
+        .toThrow(`TransactionsController: Can only call updateTransactionSendFlowHistory on an unapproved transaction.
+      Current tx status: submitted`);
     });
   });
 

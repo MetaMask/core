@@ -47,6 +47,7 @@ import type {
   Transaction,
   TransactionMeta,
   TransactionReceipt,
+  SendFlowHistoryEntry,
   WalletDevice,
 } from './types';
 import { TransactionStatus } from './types';
@@ -59,6 +60,7 @@ import {
   isGasPriceValue,
   transactionMatchesNetwork,
   validateGasValues,
+  validateIfTransactionUnapproved,
   validateMinimumIncrease,
   validateTransaction,
   ESTIMATE_GAS_ERROR,
@@ -174,6 +176,8 @@ export class TransactionController extends BaseController<
 > {
   private ethQuery: EthQuery;
 
+  private readonly isSendFlowHistoryDisabled: boolean;
+
   private readonly nonceTracker: NonceTracker;
 
   private registry: any;
@@ -229,6 +233,7 @@ export class TransactionController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
+   * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
@@ -246,6 +251,7 @@ export class TransactionController extends BaseController<
   constructor(
     {
       blockTracker,
+      disableSendFlowHistory,
       getNetworkState,
       getSelectedAddress,
       incomingTransactions = {},
@@ -254,6 +260,7 @@ export class TransactionController extends BaseController<
       provider,
     }: {
       blockTracker: BlockTracker;
+      disableSendFlowHistory: boolean;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
@@ -289,6 +296,7 @@ export class TransactionController extends BaseController<
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
+    this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.registry = new MethodRegistry({ provider });
 
     this.nonceTracker = new NonceTracker({
@@ -393,6 +401,7 @@ export class TransactionController extends BaseController<
    * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param opts.securityAlertResponse - Response from security validator.
+   * @param opts.sendFlowHistory - The sendFlowHistory entries to add.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -403,12 +412,14 @@ export class TransactionController extends BaseController<
       origin,
       requireApproval,
       securityAlertResponse,
+      sendFlowHistory,
     }: {
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
       origin?: string;
       requireApproval?: boolean | undefined;
       securityAlertResponse?: Record<string, unknown>;
+      sendFlowHistory?: SendFlowHistoryEntry[];
     } = {},
   ): Promise<Result> {
     const { chainId, networkId } = this.getChainAndNetworkId();
@@ -450,6 +461,9 @@ export class TransactionController extends BaseController<
     }
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
+      if (!this.isSendFlowHistoryDisabled) {
+        transactionMeta.sendFlowHistory = sendFlowHistory ?? [];
+      }
       transactions.push(transactionMeta);
       this.update({
         transactions: this.trimTransactionsForState(transactions),
@@ -961,6 +975,53 @@ export class TransactionController extends BaseController<
     } catch (error) {
       console.error(error);
     }
+  }
+
+  /**
+   * Appends new sendFlowHistoryToAdd to the transaction with the given transactionID
+   * if transaction is unapproved. Returns the updated transactionMeta.
+   *
+   * @param transactionID - The ID of the transaction to update.
+   * @param currentSendFlowHistoryLength - The length of the current sendFlowHistory array.
+   * @param sendFlowHistoryToAdd - The sendFlowHistory entries to add.
+   * @returns The updated transactionMeta.
+   */
+  updateTransactionSendFlowHistory(
+    transactionID: string,
+    currentSendFlowHistoryLength: number,
+    sendFlowHistoryToAdd: SendFlowHistoryEntry[],
+  ): TransactionMeta {
+    if (this.isSendFlowHistoryDisabled) {
+      throw new Error(
+        'TransactionsController: Send flow history is disabled for this instance of the controller.',
+      );
+    }
+
+    const transactionMeta = this.getTransaction(transactionID);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `TransactionsController: updateTransactionSendFlowHistory called but transactionMeta not found.`,
+      );
+    }
+
+    validateIfTransactionUnapproved(
+      transactionMeta,
+      'updateTransactionSendFlowHistory',
+    );
+
+    if (
+      currentSendFlowHistoryLength ===
+      (transactionMeta?.sendFlowHistory?.length || 0)
+    ) {
+      transactionMeta.sendFlowHistory = [
+        ...(transactionMeta?.sendFlowHistory ?? []),
+        ...sendFlowHistoryToAdd,
+      ];
+      this.updateTransaction(transactionMeta);
+    }
+
+    return this.getTransaction(transactionID) as TransactionMeta;
   }
 
   private async processApproval(

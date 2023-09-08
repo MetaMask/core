@@ -99,6 +99,12 @@ type TransactionMetaBase = {
   replacedById?: string;
 
   /**
+   * An array of entries that describe the user's journey through the send flow.
+   * This is purely attached to state logs for troubleshooting and support.
+   */
+  sendFlowHistory?: SendFlowHistoryEntry[];
+
+  /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
   submittedTime?: number;
@@ -358,4 +364,9 @@ export interface DappSuggestedGasFees {
   gasPrice?: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
+}
+
+export interface SendFlowHistoryEntry {
+  entry: string;
+  timestamp: number;
 }
