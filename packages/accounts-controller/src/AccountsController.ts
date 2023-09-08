@@ -150,6 +150,7 @@ export class AccountsController extends BaseControllerV2<
         await this.#handleOnKeyringStateChange(keyringState),
     );
 
+    // if somehow the selected account becomes lost then select the first account
     if (
       this.state.internalAccounts.selectedAccount !== '' &&
       !this.getAccount(this.state.internalAccounts.selectedAccount)
@@ -424,6 +425,12 @@ export class AccountsController extends BaseControllerV2<
     this.setSelectedAccount(previousAccount.id);
   }
 
+  /**
+   * Handles changes in the keyring state, specifically when new accounts are added or removed.
+   *
+   * @param keyringState - The new state of the keyring controller.
+   * @returns A Promise that resolves when the function has finished executing.
+   */
   async #handleOnKeyringStateChange(
     keyringState: KeyringControllerState,
   ): Promise<void> {
@@ -462,6 +469,12 @@ export class AccountsController extends BaseControllerV2<
     }
   }
 
+  /**
+   * Handles the change in SnapControllerState by updating the metadata of accounts that have a snap enabled.
+   *
+   * @param snapState - The new SnapControllerState.
+   * @returns A Promise that resolves when the update is complete.
+   */
   async #handleOnSnapStateChange(
     snapState: SnapControllerState,
   ): Promise<void> {
