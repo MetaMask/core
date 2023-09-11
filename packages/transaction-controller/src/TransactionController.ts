@@ -1687,7 +1687,7 @@ export class TransactionController extends BaseController<
     transactionMeta.status = TransactionStatus.dropped;
     this.updateTransaction(
       transactionMeta,
-      'TransactionController#setTransactionStatusDropped - transaction dropped',
+      'TransactionController#setTransactionStatusDropped - Transaction dropped',
     );
   }
 
