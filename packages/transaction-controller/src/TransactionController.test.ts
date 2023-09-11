@@ -967,11 +967,25 @@ describe('TransactionController', () => {
         to: ACCOUNT_MOCK,
       });
 
-      expect(controller.state.transactions[0]?.history).toBeDefined();
-      // Atleast 1 history item (initial snapshot)
-      expect(controller.state.transactions[0]?.history?.length).toBeGreaterThan(
-        0,
-      );
+      const expectedInitialSnapshot = {
+        actionId: undefined,
+        chainId: expect.any(String),
+        dappSuggestedGasFees: undefined,
+        deviceConfirmedOn: undefined,
+        id: expect.any(String),
+        networkID: expect.any(String),
+        origin: undefined,
+        securityAlertResponse: undefined,
+        status: TransactionStatus.unapproved,
+        time: expect.any(Number),
+        transaction: expect.anything(),
+        verifiedOnBlockchain: expect.any(Boolean),
+      };
+
+      // Expect initial snapshot to be in place
+      expect(controller.state.transactions[0]?.history).toEqual([
+        expectedInitialSnapshot,
+      ]);
     });
 
     it('doesnt populate history if history explicitly disabled', async () => {
