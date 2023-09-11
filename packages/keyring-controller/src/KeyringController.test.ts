@@ -1904,6 +1904,136 @@ describe('KeyringController', () => {
       });
     });
   });
+
+  describe('actions', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(KeyringController.prototype, 'signMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'signPersonalMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'signTypedMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'decryptMessage')
+        .mockResolvedValue('I am Satoshi Buterin');
+      jest
+        .spyOn(KeyringController.prototype, 'getEncryptionPublicKey')
+        .mockResolvedValue('ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=');
+    });
+
+    describe('signMessage', () => {
+      it('should sign message', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: '0x1234',
+            };
+
+            await messenger.call(
+              'KeyringController:signMessage',
+              messageParams,
+            );
+
+            expect(controller.signMessage).toHaveBeenCalledWith(messageParams);
+          },
+        );
+      });
+    });
+
+    describe('signPersonalMessage', () => {
+      it('should sign personal message', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: '0x1234',
+            };
+
+            await messenger.call(
+              'KeyringController:signPersonalMessage',
+              messageParams,
+            );
+
+            expect(controller.signPersonalMessage).toHaveBeenCalledWith(
+              messageParams,
+            );
+          },
+        );
+      });
+    });
+
+    describe('signTypedMessage', () => {
+      it('should call signTypedMessage', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              data: JSON.stringify({ foo: 'bar' }),
+              from: initialState.keyrings[0].accounts[0],
+            };
+
+            await messenger.call(
+              'KeyringController:signTypedMessage',
+              messageParams,
+              SignTypedDataVersion.V4,
+            );
+
+            expect(controller.signTypedMessage).toHaveBeenCalledWith(
+              messageParams,
+              SignTypedDataVersion.V4,
+            );
+          },
+        );
+      });
+    });
+
+    describe('getEncryptionPublicKey', () => {
+      it('should call getEncryptionPublicKey', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            await messenger.call(
+              'KeyringController:getEncryptionPublicKey',
+              initialState.keyrings[0].accounts[0],
+            );
+
+            expect(controller.getEncryptionPublicKey).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+            );
+          },
+        );
+      });
+    });
+
+    describe('decryptMessage', () => {
+      it('should return correct decrypted message', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: {
+                version: '1.0',
+                nonce: '123456',
+                ephemPublicKey: '0xabcdef1234567890',
+                ciphertext: '0xabcdef1234567890',
+              },
+            };
+
+            await messenger.call(
+              'KeyringController:decryptMessage',
+              messageParams,
+            );
+
+            expect(controller.decryptMessage).toHaveBeenCalledWith(
+              messageParams,
+            );
+          },
+        );
+      });
+    });
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({
@@ -1954,7 +2084,14 @@ function buildMessenger() {
 function buildKeyringControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'KeyringController',
-    allowedActions: [],
+    allowedActions: [
+      'KeyringController:getState',
+      'KeyringController:signMessage',
+      'KeyringController:signPersonalMessage',
+      'KeyringController:signTypedMessage',
+      'KeyringController:decryptMessage',
+      'KeyringController:getEncryptionPublicKey',
+    ],
     allowedEvents: [
       'KeyringController:stateChange',
       'KeyringController:lock',
