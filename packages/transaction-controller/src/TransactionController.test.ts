@@ -2020,6 +2020,41 @@ describe('TransactionController', () => {
         mockSendFlowHistory,
       );
     });
+
+    it('appends sendFlowHistory entries to existing entries in transaction meta', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      const mockExistingSendFlowHistory = [
+        {
+          entry: 'sendFlow - user selected transfer to my accounts',
+          timestamp: 1650663928210,
+        },
+      ];
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      }, {
+        sendFlowHistory: mockExistingSendFlowHistory,
+      });
+      const addedTxId = controller.state.transactions[0].id;
+      controller.updateTransactionSendFlowHistory(
+        addedTxId,
+        1,
+        mockSendFlowHistory,
+      );
+
+      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual([
+        ...mockExistingSendFlowHistory,
+        ...mockSendFlowHistory,
+      ]);
+    });
+
     it('doesnt append if current sendFlowHistory lengths doesnt match', async () => {
       const controller = newController();
       const mockSendFlowHistory = [
@@ -2044,6 +2079,7 @@ describe('TransactionController', () => {
         [],
       );
     });
+
     it('throws if sendFlowHistory persistence is disabled', async () => {
       const controller = newController({
         options: { disableSendFlowHistory: true },
@@ -2067,9 +2103,10 @@ describe('TransactionController', () => {
           mockSendFlowHistory,
         ),
       ).toThrow(
-        'Send flow history is disabled for the current transaction controller.',
+        'Send flow history is disabled for the current transaction controller',
       );
     });
+
     it('throws if transactionMeta is not found', async () => {
       const controller = newController();
       const mockSendFlowHistory = [
@@ -2089,6 +2126,7 @@ describe('TransactionController', () => {
         'Cannot update send flow history as no transaction metadata found',
       );
     });
+
     it('throws if the transaction is not unapproved status', async () => {
       const controller = newController();
       const mockSendFlowHistory = [
