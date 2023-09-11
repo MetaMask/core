@@ -1785,7 +1785,6 @@ describe('TransactionController', () => {
         from: ACCOUNT_MOCK,
         to: ACCOUNT_2_MOCK,
         id: '1',
-        networkID: '1',
         chainId: toHex(1),
         status: TransactionStatus.confirmed,
         transaction: {
@@ -1825,7 +1824,6 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         hash: externalTransactionHash,
         id: externalTransactionId,
-        networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
         transaction: {
@@ -1845,7 +1843,6 @@ describe('TransactionController', () => {
         from: ACCOUNT_MOCK,
         to: ACCOUNT_2_MOCK,
         id: localTransactionIdWithSameNonce,
-        networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.unapproved,
         transaction: {
@@ -1881,7 +1878,6 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         hash: externalTransactionHash,
         id: externalTransactionId,
-        networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
         transaction: {
@@ -1901,7 +1897,6 @@ describe('TransactionController', () => {
         from: ACCOUNT_MOCK,
         to: ACCOUNT_2_MOCK,
         id: localTransactionIdWithSameNonce,
-        networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.failed,
         transaction: {

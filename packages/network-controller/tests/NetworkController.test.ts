@@ -1962,21 +1962,6 @@ describe('NetworkController', () => {
   });
 
   describe('lookupNetwork', () => {
-    describe('if a provider has not been set', () => {
-      it('does not change network in state', async () => {
-        await withController(async ({ controller, messenger }) => {
-          const promiseForNetworkChanges = waitForStateChanges({
-            messenger,
-            propertyPath: ['networkId'],
-          });
-
-          await controller.lookupNetwork();
-
-          await expect(promiseForNetworkChanges).toNeverResolve();
-        });
-      });
-    });
-
     [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
       (networkType) => {
         describe(`when the provider config in state contains a network type of "${networkType}"`, () => {
