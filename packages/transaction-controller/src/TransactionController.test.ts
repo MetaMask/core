@@ -2067,7 +2067,7 @@ describe('TransactionController', () => {
           mockSendFlowHistory,
         ),
       ).toThrow(
-        'TransactionsController: Send flow history is disabled for this instance of the controller.',
+        'Send flow history is disabled for the current transaction controller.',
       );
     });
     it('throws if transactionMeta is not found', async () => {
@@ -2086,7 +2086,7 @@ describe('TransactionController', () => {
           mockSendFlowHistory,
         ),
       ).toThrow(
-        'TransactionsController: updateTransactionSendFlowHistory called but transactionMeta not found.',
+        'Cannot update send flow history as no transaction metadata found',
       );
     });
     it('throws if the transaction is not unapproved status', async () => {
