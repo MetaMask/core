@@ -89,7 +89,7 @@ const INFURA_NETWORKS = [
     networkType: NetworkType['linea-goerli'],
     chainId: toHex(59140),
     ticker: 'LineaETH',
-    blockExplorerUrl: 'https://explorer.goerli.linea.build',
+    blockExplorerUrl: 'https://goerli.lineascan.build',
   },
   {
     networkType: NetworkType['linea-mainnet'],
