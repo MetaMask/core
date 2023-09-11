@@ -978,8 +978,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Appends new sendFlowHistoryToAdd to the transaction with the given transactionID
-   * if transaction is unapproved. Returns the updated transactionMeta.
+   * Append new send flow history to a transaction.
    *
    * @param transactionID - The ID of the transaction to update.
    * @param currentSendFlowHistoryLength - The length of the current sendFlowHistory array.
