@@ -154,6 +154,18 @@ type TransactionMetaBase = {
   securityAlertResponse?: Record<string, unknown>;
 };
 
+export type SendFlowHistoryEntry = {
+  /**
+   * String to indicate user interaction information.
+   */
+  entry: string;
+
+  /**
+   * Timestamp associated with this entry.
+   */ 
+  timestamp: number;
+};
+
 /**
  * The status of the transaction. Each status represents the state of the transaction internally
  * in the wallet. Some of these correspond with the state of the transaction on the network, but
@@ -364,9 +376,4 @@ export interface DappSuggestedGasFees {
   gasPrice?: string;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
-}
-
-export interface SendFlowHistoryEntry {
-  entry: string;
-  timestamp: number;
 }
