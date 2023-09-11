@@ -17,6 +17,7 @@ This repository houses the following packages:
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/message-manager`](packages/message-manager)
+- [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/notification-controller`](packages/notification-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
@@ -46,12 +47,14 @@ linkStyle default opacity:0.5
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
+  name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
   notification_controller(["@metamask/notification-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
+  selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   address_book_controller --> base_controller;
@@ -77,6 +80,7 @@ linkStyle default opacity:0.5
   logging_controller --> controller_utils;
   message_manager --> base_controller;
   message_manager --> controller_utils;
+  name_controller --> base_controller;
   network_controller --> base_controller;
   network_controller --> controller_utils;
   notification_controller --> base_controller;
@@ -88,6 +92,8 @@ linkStyle default opacity:0.5
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
   rate_limit_controller --> base_controller;
+  selected_network_controller --> base_controller;
+  selected_network_controller --> network_controller;
   signature_controller --> approval_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;

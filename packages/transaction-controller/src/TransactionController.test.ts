@@ -394,7 +394,9 @@ const MOCK_CUSTOM_NETWORK: MockNetwork = {
 };
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const NONCE_MOCK = 12;
+const ACTION_ID_MOCK = '123456';
 
 const TRANSACTION_META_MOCK = {
   status: TransactionStatus.confirmed,
@@ -710,6 +712,202 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('with actionId', () => {
+    it('adds single unapproved transaction when called twice with same actionId', async () => {
+      const controller = newController();
+
+      const mockOrigin = 'origin';
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          origin: mockOrigin,
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+
+      const firstTransactionCount = controller.state.transactions.length;
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          origin: mockOrigin,
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+      const secondTransactionCount = controller.state.transactions.length;
+
+      expect(firstTransactionCount).toStrictEqual(secondTransactionCount);
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
+      expect(delayMessengerMock.call).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: expect.any(String),
+          origin: mockOrigin,
+          type: 'transaction',
+          requestData: { txId: expect.any(String) },
+          expectsResult: true,
+        },
+        true,
+      );
+    });
+
+    it('adds multiple transactions with same actionId and ensures second transaction result does not resolves before the first transaction result', async () => {
+      const controller = newController();
+
+      const mockOrigin = 'origin';
+      let firstTransactionCompleted = false;
+      let secondTransactionCompleted = false;
+
+      const { result: firstResult } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          origin: mockOrigin,
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+
+      firstResult
+        .then(() => {
+          firstTransactionCompleted = true;
+        })
+        .catch(() => undefined);
+
+      const { result: secondResult } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          origin: mockOrigin,
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+      secondResult
+        .then(() => {
+          secondTransactionCompleted = true;
+        })
+        .catch(() => undefined);
+
+      await wait(0);
+
+      expect(firstTransactionCompleted).toBe(false);
+      expect(secondTransactionCompleted).toBe(false);
+
+      approveTransaction();
+      await firstResult;
+      await secondResult;
+
+      expect(firstTransactionCompleted).toBe(true);
+      expect(secondTransactionCompleted).toBe(true);
+    });
+
+    it.each([
+      [
+        'does not add duplicate transaction if actionId already used',
+        ACTION_ID_MOCK,
+        ACTION_ID_MOCK,
+        1,
+      ],
+      [
+        'adds additional transaction if actionId not used',
+        ACTION_ID_MOCK,
+        '00000',
+        2,
+      ],
+    ])(
+      '%s',
+      async (_, firstActionId, secondActionId, expectedTransactionCount) => {
+        const controller = newController();
+        const expectedRequestApprovalCalledTimes = expectedTransactionCount;
+
+        const mockOrigin = 'origin';
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            origin: mockOrigin,
+            actionId: firstActionId,
+          },
+        );
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            origin: mockOrigin,
+            actionId: secondActionId,
+          },
+        );
+        const { transactions } = controller.state;
+
+        expect(transactions).toHaveLength(expectedTransactionCount);
+        expect(delayMessengerMock.call).toHaveBeenCalledTimes(
+          expectedRequestApprovalCalledTimes,
+        );
+      },
+    );
+
+    it.each([
+      [
+        'adds single transaction when speed up called twice with the same actionId',
+        ACTION_ID_MOCK,
+        2,
+        1,
+      ],
+      [
+        'adds multiple transactions when speed up called with non-existent actionId',
+        '00000',
+        3,
+        2,
+      ],
+    ])(
+      '%s',
+      async (
+        _,
+        actionId,
+        expectedTransactionCount,
+        expectedSignCalledTimes,
+      ) => {
+        const controller = newController();
+        const signSpy = jest.spyOn(controller, 'sign' as any);
+
+        const { transactionMeta } = await controller.addTransaction({
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        });
+        await controller.speedUpTransaction(transactionMeta.id, undefined, {
+          actionId: ACTION_ID_MOCK,
+        });
+
+        await controller.speedUpTransaction(transactionMeta.id, undefined, {
+          actionId,
+        });
+
+        const { transactions } = controller.state;
+        expect(transactions).toHaveLength(expectedTransactionCount);
+        expect(signSpy).toHaveBeenCalledTimes(expectedSignCalledTimes);
+      },
+    );
+  });
+
   describe('addTransaction', () => {
     it('adds unapproved transaction to state', async () => {
       const controller = newController();
@@ -984,10 +1182,12 @@ describe('TransactionController', () => {
 
         await result;
 
-        const { transaction, status } = controller.state.transactions[0];
+        const { transaction, status, submittedTime } =
+          controller.state.transactions[0];
         expect(transaction.from).toBe(ACCOUNT_MOCK);
         expect(transaction.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
         expect(status).toBe(TransactionStatus.submitted);
+        expect(submittedTime).toEqual(expect.any(Number));
       });
 
       it('reports success to approval acceptor', async () => {
@@ -1086,10 +1286,7 @@ describe('TransactionController', () => {
           (
             delayMessengerMock.call as jest.MockedFunction<any>
           ).mockImplementationOnce(() => {
-            controller.state.transactions[0].status =
-              TransactionStatus.confirmed;
-
-            throw new Error('TestError');
+            throw new Error('Unknown problem');
           });
 
           const { result } = await controller.addTransaction({
@@ -1130,7 +1327,7 @@ describe('TransactionController', () => {
             delayMessengerMock.call as jest.MockedFunction<any>
           ).mockImplementationOnce(() => {
             controller.state.transactions = [];
-            throw new Error('TestError');
+            throw new Error('Unknown problem');
           });
 
           const { result } = await controller.addTransaction({
@@ -1462,8 +1659,24 @@ describe('TransactionController', () => {
 
       approveTransaction();
 
+      const { transactions } = controller.state;
       await expect(result).rejects.toThrow('User cancelled the transaction');
       expect(estimatedBaseFee).toBe('0x123');
+      expect(transactions[0].status).toStrictEqual(TransactionStatus.cancelled);
+    });
+
+    it('rejects unknown transaction', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_GOERLI_NETWORK,
+      });
+
+      await controller.stopTransaction('transactionIdMock', {
+        gasPrice: '0x1',
+      });
+
+      const signSpy = jest.spyOn(controller, 'sign' as any);
+
+      expect(signSpy).toHaveBeenCalledTimes(0);
     });
 
     it('throws if no sign method', async () => {
@@ -1498,6 +1711,28 @@ describe('TransactionController', () => {
       expect(transactions[1].transaction.gasPrice).toBe(
         '0x5916a6d6', // 1.1 * 0x50fd51da
       );
+    });
+
+    it('creates additional transaction specifying the gasPrice', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id, {
+        gasPrice: '0x62DEF4DA',
+      });
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      expect(transactions[1].transaction.gasPrice).toBe('0x62DEF4DA');
     });
 
     it('uses the same nonce', async () => {
@@ -1599,6 +1834,158 @@ describe('TransactionController', () => {
       controller.initApprovals();
 
       expect(delayMessengerMock.call).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('confirmExternalTransaction', () => {
+    it('adds external transaction to the state as confirmed', async () => {
+      const controller = newController();
+
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: '1',
+        networkID: '1',
+        chainId: toHex(1),
+        status: TransactionStatus.confirmed,
+        transaction: {
+          gasUsed: undefined,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.confirmed,
+      );
+      expect(controller.state.transactions[0].baseFeePerGas).toBe(
+        externalBaseFeePerGas,
+      );
+      expect(controller.state.transactions[0]?.txReceipt?.gasUsed).toBe(
+        externalTransactionReceipt.gasUsed,
+      );
+    });
+
+    it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
+      const controller = newController();
+      const externalTransactionId = '1';
+      const externalTransactionHash = '0x1';
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        hash: externalTransactionHash,
+        id: externalTransactionId,
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.confirmed,
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          nonce: NONCE_MOCK,
+        },
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      // Submitted local unapproved transaction
+      const localTransactionIdWithSameNonce = '9';
+      controller.state.transactions.push({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: localTransactionIdWithSameNonce,
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.unapproved,
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          nonce: NONCE_MOCK,
+        },
+      } as any);
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      const droppedTx = controller.state.transactions.find(
+        (transaction) => transaction.id === localTransactionIdWithSameNonce,
+      );
+
+      expect(droppedTx?.status).toBe(TransactionStatus.dropped);
+
+      expect(droppedTx?.replacedById).toBe(externalTransactionId);
+
+      expect(droppedTx?.replacedBy).toBe(externalTransactionHash);
+    });
+
+    it('doesnt mark transaction as dropped if same nonce local transaction status is failed', async () => {
+      const controller = newController();
+      const externalTransactionId = '1';
+      const externalTransactionHash = '0x1';
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        hash: externalTransactionHash,
+        id: externalTransactionId,
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.confirmed,
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          nonce: NONCE_MOCK,
+        },
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      // Off-chain failed local transaction
+      const localTransactionIdWithSameNonce = '9';
+      controller.state.transactions.push({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: localTransactionIdWithSameNonce,
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.failed,
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          nonce: NONCE_MOCK,
+        },
+      } as any);
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      const failedTx = controller.state.transactions.find(
+        (transaction) => transaction.id === localTransactionIdWithSameNonce,
+      );
+
+      expect(failedTx?.status).toBe(TransactionStatus.failed);
+
+      expect(failedTx?.replacedById).toBe(externalTransactionId);
+
+      expect(failedTx?.replacedBy).toBe(externalTransactionHash);
     });
   });
 
