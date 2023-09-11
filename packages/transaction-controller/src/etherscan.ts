@@ -1,7 +1,10 @@
 import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import { ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
+import {
+  DEFAULT_ETHERSCAN_DOMAIN,
+  ETHERSCAN_SUPPORTED_NETWORKS,
+} from './constants';
 
 export interface EtherscanTransactionMetaBase {
   blockNumber: string;
@@ -148,7 +151,7 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     startBlock: fromBlock?.toString(),
     apikey: apiKey,
     offset: limit?.toString(),
-    order: 'desc',
+    sort: 'desc',
   };
 
   const etherscanTxUrl = getEtherscanApiUrl(chainId, {
@@ -188,6 +191,11 @@ function getEtherscanApiUrl(
 
   const apiUrl = `https://${networkInfo.subdomain}.${networkInfo.domain}`;
   let url = `${apiUrl}/api?`;
+
+  // We only support API keys for the Etherscan domain
+  if (networkInfo.domain !== DEFAULT_ETHERSCAN_DOMAIN) {
+    urlParams.apikey = undefined;
+  }
 
   // eslint-disable-next-line guard-for-in
   for (const paramKey in urlParams) {
