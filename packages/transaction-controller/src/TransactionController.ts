@@ -246,7 +246,7 @@ export class TransactionController extends BaseController<
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.getNetworkState - Gets the state of the network controller.
-   * @param options.disableHistory - Explicitly disable transaction metadata history.
+   * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
