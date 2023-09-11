@@ -899,7 +899,7 @@ export class TransactionController extends BaseController<
    * Updates an existing transaction in state.
    *
    * @param transactionMeta - The new transaction to store in state.
-   * @param note - A note of update reason to add the transaction history.
+   * @param note - A note or update reason to include in the transaction history.
    */
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
     const { transactions } = this.state;
