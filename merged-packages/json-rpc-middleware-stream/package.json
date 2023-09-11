@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@metamask/safe-event-emitter": "^3.0.0",
+    "json-rpc-engine": "^6.1.0",
     "readable-stream": "^2.3.3"
   },
   "devDependencies": {
