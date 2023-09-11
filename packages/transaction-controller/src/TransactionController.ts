@@ -1001,7 +1001,7 @@ export class TransactionController extends BaseController<
 
     if (!transactionMeta) {
       throw new Error(
-        `TransactionsController: updateTransactionSendFlowHistory called but transactionMeta not found.`,
+        `Cannot update send flow history as no transaction metadata found`,
       );
     }
 
