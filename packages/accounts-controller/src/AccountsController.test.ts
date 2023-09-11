@@ -769,6 +769,66 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
+    it('should not delete snap accounts that are not enabled, or accounts where the communication with the snap is interrupted', async () => {
+      const mockDisabledSnapAccount = {
+        ...mockSnapAccount,
+        id: 'mock-disabled-snap',
+        metadata: {
+          ...mockSnapAccount.metadata,
+          name: 'Snap Account 3',
+          snap: {
+            ...mockSnapAccount.metadata.snap,
+            enabled: false,
+          },
+        },
+      };
+      mockGetAccounts.mockResolvedValue([]);
+      mockGetKeyringByType.mockReturnValueOnce([
+        {
+          type: 'Snap Keyring',
+          listAccounts: async () => [mockSnapAccount, mockSnapAccount2],
+        },
+      ]);
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              'mock-disabled-snap': mockDisabledSnapAccount,
+            },
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: true,
+      });
+
+      const expectedAccount1 = {
+        ...mockSnapAccount,
+        metadata: {
+          ...mockSnapAccount.metadata,
+          name: 'Snap Account 1',
+        },
+      };
+
+      const expectedAccount2 = {
+        ...mockSnapAccount2,
+        metadata: {
+          ...mockSnapAccount2.metadata,
+          name: 'Snap Account 2',
+        },
+      };
+
+      const expectedAccounts = [
+        expectedAccount1,
+        expectedAccount2,
+        mockDisabledSnapAccount,
+      ];
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
+
     it('should return an empty array if the snap keyring is not defined', async () => {
       mockGetAccounts.mockResolvedValue([]);
       mockGetKeyringByType.mockReturnValueOnce([undefined]);

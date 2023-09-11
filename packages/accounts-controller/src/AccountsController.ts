@@ -359,7 +359,25 @@ export class AccountsController extends BaseControllerV2<
     }
 
     const snapAccounts = await (snapKeyring as SnapKeyring).listAccounts(false);
-    return snapAccounts;
+
+    // missing accounts should be included as well but with the snap metadata enabled as false
+    const missingSnapAccounts = Object.values(
+      this.state.internalAccounts.accounts,
+    )
+      .filter((currentAccount) =>
+        snapAccounts.some(
+          (account) =>
+            account.id !== currentAccount.id && currentAccount.metadata.snap,
+        ),
+      )
+      .map((account) => {
+        if (account.metadata?.snap) {
+          account.metadata.snap.enabled = false;
+        }
+        return account;
+      });
+
+    return [...snapAccounts, ...missingSnapAccounts];
   }
 
   /**
