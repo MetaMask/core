@@ -2154,7 +2154,7 @@ describe('TransactionController', () => {
           mockSendFlowHistory,
         ),
       )
-        .toThrow(`TransactionsController: Can only call updateTransactionSendFlowHistory on an unapproved transaction.
+        .toThrow(`Can only call updateTransactionSendFlowHistory on an unapproved transaction.
       Current tx status: submitted`);
     });
   });
