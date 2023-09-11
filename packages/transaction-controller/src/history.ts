@@ -15,7 +15,7 @@ import type {
  * @param note - A note for the transaction metada update.
  * @returns An array of history operation.
  */
-export function generateHistoryEntry(
+function generateHistoryEntry(
   previousState: any,
   currentState: TransactionMeta,
   note: string,
@@ -35,12 +35,34 @@ export function generateHistoryEntry(
 }
 
 /**
+ * Compares and adds history entry to the provided transactionMeta history.
+ *
+ * @param transactionMeta - TransactionMeta to add history entry to.
+ * @param note - Note to add to history entry.
+ */
+export function updateTransactionHistory(
+  transactionMeta: TransactionMeta,
+  note: string,
+): void {
+  const currentState = snapshotFromTransactionMeta(transactionMeta);
+  const previousState = replayHistory(
+    transactionMeta.history as TransactionHistory,
+  );
+
+  const historyEntry = generateHistoryEntry(previousState, currentState, note);
+
+  if (historyEntry.length) {
+    transactionMeta?.history?.push(historyEntry);
+  }
+}
+
+/**
  * Recovers previous transactionMeta from passed history array.
  *
  * @param transactionHistory - The transaction metadata to replay.
  * @returns The transaction metadata.
  */
-export function replayHistory(
+function replayHistory(
   transactionHistory: TransactionHistory,
 ): TransactionMeta {
   const shortHistory = cloneDeep(transactionHistory);

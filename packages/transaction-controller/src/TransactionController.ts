@@ -42,15 +42,13 @@ import { v1 as random } from 'uuid';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { validateConfirmedExternalTransaction } from './external-transactions';
 import {
-  generateHistoryEntry,
-  replayHistory,
+  updateTransactionHistory,
   snapshotFromTransactionMeta,
-} from './history-utils';
+} from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   DappSuggestedGasFees,
   Transaction,
-  TransactionHistory,
   TransactionMeta,
   TransactionReceipt,
   SendFlowHistoryEntry,
@@ -908,7 +906,7 @@ export class TransactionController extends BaseController<
     );
     validateTransaction(transactionMeta.transaction);
     if (!this.isHistoryDisabled) {
-      this.updateTransactionHistory(transactionMeta, note);
+      updateTransactionHistory(transactionMeta, note);
     }
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
@@ -1711,32 +1709,6 @@ export class TransactionController extends BaseController<
         resolve(txMeta);
       });
     });
-  }
-
-  /**
-   * Compares and adds history entry to the provided transactionMeta history.
-   *
-   * @param transactionMeta - TransactionMeta to add history entry to.
-   * @param note - Note to add to history entry.
-   */
-  private updateTransactionHistory(
-    transactionMeta: TransactionMeta,
-    note: string,
-  ): void {
-    const currentState = snapshotFromTransactionMeta(transactionMeta);
-    const previousState = replayHistory(
-      transactionMeta.history as TransactionHistory,
-    );
-
-    const historyEntry = generateHistoryEntry(
-      previousState,
-      currentState,
-      note,
-    );
-
-    if (historyEntry.length) {
-      transactionMeta?.history?.push(historyEntry);
-    }
   }
 
   /**
