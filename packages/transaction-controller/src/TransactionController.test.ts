@@ -1187,7 +1187,7 @@ describe('TransactionController', () => {
         expect(transaction.from).toBe(ACCOUNT_MOCK);
         expect(transaction.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
         expect(status).toBe(TransactionStatus.submitted);
-        expect(submittedTime).toEqual(expect.any(Number));
+        expect(submittedTime).toStrictEqual(expect.any(Number));
       });
 
       it('reports success to approval acceptor', async () => {
