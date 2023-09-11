@@ -162,7 +162,7 @@ export type SendFlowHistoryEntry = {
 
   /**
    * Timestamp associated with this entry.
-   */ 
+   */
   timestamp: number;
 };
 

@@ -2036,12 +2036,15 @@ describe('TransactionController', () => {
           timestamp: 1650663928210,
         },
       ];
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      }, {
-        sendFlowHistory: mockExistingSendFlowHistory,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          sendFlowHistory: mockExistingSendFlowHistory,
+        },
+      );
       const addedTxId = controller.state.transactions[0].id;
       controller.updateTransactionSendFlowHistory(
         addedTxId,
