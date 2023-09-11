@@ -298,11 +298,20 @@ export function getTotalFiatAccountBalance(
 
   // Native currency
   if (accounts[selectedAddress]) {
-    ethFiat = weiToFiatNumber(
-      Number(accounts[selectedAddress].balance), // Is "Number() correct?
+    console.log('accounts[selectedAddress]: ', accounts[selectedAddress]);
+    console.log(
+      Number(accounts[selectedAddress].balance),
       finalConversionRate,
       decimalsToShow,
     );
+    ethFiat = weiToFiatNumber(
+      Number(accounts[selectedAddress].balance),
+      finalConversionRate,
+      decimalsToShow,
+    );
+    console.log("ethFiat comes out as: ", ethFiat)
+  } else {
+    console.log('NO NATIVE CURRENCY ACCOUNT');
   }
 
   // Custom token values
@@ -356,10 +365,14 @@ export function weiToFiatNumber(
   decimalsToShow = 5,
 ): number {
   const base = Math.pow(10, decimalsToShow);
-  const eth = fromWei(wei).toString();
+  const eth = fromWei(wei, 'ether').toString();
   let value = parseFloat(
     Math.floor((eth * conversionRate * base) / base).toString(),
   );
+
+  console.log('[weiToFiatNumber] base: ', base, '; eth: ', eth, '; value: ', value);
+  console.log(`[weiToFiatNumber] calculation: (${eth} * ${conversionRate} * ${base}) / ${base}`)
+
   value = isNaN(value) ? 0 : value;
   return value;
 }
