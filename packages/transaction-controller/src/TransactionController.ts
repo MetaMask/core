@@ -993,7 +993,7 @@ export class TransactionController extends BaseController<
   ): TransactionMeta {
     if (this.isSendFlowHistoryDisabled) {
       throw new Error(
-        'TransactionsController: Send flow history is disabled for this instance of the controller.',
+        'Send flow history is disabled for the current transaction controller',
       );
     }
 
