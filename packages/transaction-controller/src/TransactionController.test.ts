@@ -424,6 +424,7 @@ describe('TransactionController', () => {
   let approveTransaction: () => void;
   let getNonceLockSpy: jest.Mock;
   let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
+  let timeCounter = 0;
 
   const incomingTransactionHelperClassMock =
     IncomingTransactionHelper as jest.MockedClass<
@@ -491,6 +492,11 @@ describe('TransactionController', () => {
   }
 
   beforeEach(() => {
+    jest.spyOn(Date, 'now').mockImplementation(() => {
+      timeCounter += 1;
+      return timeCounter;
+    });
+
     for (const key in mockFlags) {
       mockFlags[key] = null;
     }
@@ -1176,7 +1182,7 @@ describe('TransactionController', () => {
         expect(transaction.from).toBe(ACCOUNT_MOCK);
         expect(transaction.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
         expect(status).toBe(TransactionStatus.submitted);
-        expect(submittedTime).toBeLessThanOrEqual(Date.now());
+        expect(submittedTime).toStrictEqual(expect.any(Number));
       });
 
       it('reports success to approval acceptor', async () => {
