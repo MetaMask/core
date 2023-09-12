@@ -1,17 +1,28 @@
 import type { TxData, TypedTransaction } from '@ethereumjs/tx';
 import {
-  type MetaMaskKeyring as QRKeyring,
+  MetaMaskKeyring as QRKeyring,
   type IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
+import type Transport from '@ledgerhq/hw-transport';
+import LedgerKeyring from '@ledgerhq/metamask-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
+import {
+  KeyringController as EthKeyringController,
+  keyringBuilderFactory,
+} from '@metamask/eth-keyring-controller';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
 import type { PreferencesController } from '@metamask/preferences-controller';
-import type { Eip1024EncryptedData, Hex, Keyring, Json } from '@metamask/utils';
+import type {
+  Eip1024EncryptedData,
+  Hex,
+  Keyring,
+  Json,
+  KeyringClass,
+} from '@metamask/utils';
 import { assertIsStrictHexString, hasProperty } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import {
@@ -23,28 +34,9 @@ import {
   getBinarySize,
 } from 'ethereumjs-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
-import {
-  KeyringController as EthKeyringController,
-  keyringBuilderFactory,
-} from '@metamask/eth-keyring-controller';
-import { Mutex } from 'async-mutex';
-import {
-  MetaMaskKeyring as QRKeyring,
-  IKeyringState as IQRKeyringState,
-} from '@keystonehq/metamask-airgapped-keyring';
-import Transport from '@ledgerhq/hw-transport';
-import LedgerKeyring from '@ledgerhq/metamask-keyring';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  PersonalMessageParams,
-  TypedMessageParams,
-} from '@metamask/message-manager';
 import type { Patch } from 'immer';
-import { SerializedLedgerKeyring } from './types/SerializedKeyringTypes';
+
+import type { SerializedLedgerKeyring } from './types/SerializedKeyringTypes';
 
 const name = 'KeyringController';
 
@@ -55,20 +47,7 @@ export enum KeyringTypes {
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
-}
-
-/**
- * @type KeyringObject
- *
- * Keyring object
- * @property type - Keyring type
- * @property accounts - Associated accounts
- * @function getAccounts - Get associated accounts
- */
-export interface KeyringObject {
-  type: string;
-  accounts: string[];
-  getAccounts(): string[];
+  ledger = 'Ledger',
 }
 
 /**
@@ -307,8 +286,8 @@ export class KeyringController extends BaseControllerV2<
     });
 
     const additionalKeyringBuilders = [
-      keyringBuilderFactory(QRKeyring),
-      keyringBuilderFactory(LedgerKeyring),
+      keyringBuilderFactory(QRKeyring as unknown as KeyringClass<Json>),
+      keyringBuilderFactory(LedgerKeyring as unknown as KeyringClass<Json>),
     ];
     this.#keyring = new EthKeyringController(
       Object.assign(
@@ -744,22 +723,6 @@ export class KeyringController extends BaseControllerV2<
     version: SignTypedDataVersion,
   ): Promise<string> {
     try {
-      const address = normalizeAddress(messageParams.from);
-      if (!address || !isValidHexAddress(address)) {
-        throw new Error(
-          `Missing or invalid address ${JSON.stringify(messageParams.from)}`,
-        );
-      }
-
-      const ledgerKeyring = await this.getLedgerKeyring();
-      const isLedgerAccount = await ledgerKeyring.managesAccount(address);
-
-      if (isLedgerAccount) {
-        return this.#keyring.signTypedMessage(messageParams, { version });
-      }
-
-      const qrKeyring = await this.getOrAddQRKeyring();
-      const qrAccounts = await qrKeyring.getAccounts();
       if (
         ![
           SignTypedDataVersion.V1,
@@ -1086,7 +1049,9 @@ export class KeyringController extends BaseControllerV2<
   // Ledger Related methods
 
   private async addLedgerKeyring(): Promise<LedgerKeyring> {
-    return await this.#keyring.addNewKeyring(KeyringTypes.ledger);
+    return (await this.#keyring.addNewKeyring(
+      KeyringTypes.ledger,
+    )) as unknown as LedgerKeyring;
   }
 
   /**
@@ -1095,7 +1060,9 @@ export class KeyringController extends BaseControllerV2<
    * @returns The stored Ledger Keyring
    */
   async getLedgerKeyring(): Promise<LedgerKeyring> {
-    const keyring = this.#keyring.getKeyringsByType(KeyringTypes.ledger)[0];
+    const keyring = this.#keyring.getKeyringsByType(
+      KeyringTypes.ledger,
+    )[0] as unknown as LedgerKeyring;
 
     if (keyring) {
       return keyring;
@@ -1147,7 +1114,7 @@ export class KeyringController extends BaseControllerV2<
   }> {
     const keyring = await this.getLedgerKeyring();
     const oldAccounts = await this.#keyring.getAccounts();
-    await this.#keyring.addNewAccount(keyring);
+    await this.#keyring.addNewAccount(keyring as unknown as Keyring<Json>);
     const newAccounts = await this.#keyring.getAccounts();
 
     this.updateIdentities(newAccounts);
