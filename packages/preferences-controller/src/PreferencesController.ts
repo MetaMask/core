@@ -371,17 +371,17 @@ export class PreferencesController extends BaseController<
    * A setter for the user allow to be fetched IPFS content
    *
    * @param chainId - On hexadecimal format to enable the incoming transaction network
-   * @param isIconmingTransactionNetworkEnable - true to enable incoming transactions
+   * @param isIncomingTransactionNetworkEnable - true to enable incoming transactions
    */
   setEnableNetworkIncomingTransactions(
     chainId: EtherscanSupportedHexChainId,
-    isIconmingTransactionNetworkEnable: boolean,
+    isIncomingTransactionNetworkEnable: boolean,
   ) {
     if (Object.values(ETHERSCAN_SUPPORTED_CHAIN_IDS).includes(chainId)) {
       this.update({
         showIncomingTransactions: {
           ...this.state.showIncomingTransactions,
-          [chainId]: isIconmingTransactionNetworkEnable,
+          [chainId]: isIncomingTransactionNetworkEnable,
         },
       });
     }
