@@ -1977,7 +1977,7 @@ describe('TransactionController', () => {
       const controller = newController({
         options: {
           disableHistory: true,
-        }
+        },
       });
       const externalTransactionId = '1';
       const externalTransactionHash = '0x1';

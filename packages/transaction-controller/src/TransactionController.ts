@@ -995,7 +995,7 @@ export class TransactionController extends BaseController<
         'TransactionController:confirmExternalTransaction - Add external transaction',
       );
     } catch (error) {
-      console.log("asddsaadsads")
+      console.log('asddsaadsads');
       console.error(error);
     }
   }
