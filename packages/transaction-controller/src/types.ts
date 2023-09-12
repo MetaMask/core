@@ -382,10 +382,18 @@ export interface DappSuggestedGasFees {
 /**
  * A transaction history operation that includes a note and timestamp.
  */
-export type ExtendedHistoryOperation = Operation & {
+type ExtendedHistoryOperation = Operation & {
   note?: string;
   timestamp?: number;
 };
+
+/**
+ * A transaction history entry that includes the ExtendedHistoryOperation as the first element.
+ */ 
+export type TransactionHistoryEntry = [
+  ExtendedHistoryOperation,
+  ...Operation[]
+]
 
 /**
  * A transaction history that includes the transaction meta as the first element.
@@ -393,5 +401,5 @@ export type ExtendedHistoryOperation = Operation & {
  */
 export type TransactionHistory = [
   TransactionMeta,
-  ...ExtendedHistoryOperation[][],
+  ...TransactionHistoryEntry[],
 ];

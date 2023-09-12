@@ -2,9 +2,9 @@ import jsonDiffer from 'fast-json-patch';
 import { cloneDeep } from 'lodash';
 
 import type {
-  TransactionMeta,
-  ExtendedHistoryOperation,
   TransactionHistory,
+  TransactionHistoryEntry,
+  TransactionMeta,
 } from './types';
 
 /**
@@ -19,11 +19,11 @@ function generateHistoryEntry(
   previousState: any,
   currentState: TransactionMeta,
   note: string,
-): ExtendedHistoryOperation[] {
+): TransactionHistoryEntry {
   const historyOperationsEntry = jsonDiffer.compare(
     previousState,
     currentState,
-  ) as ExtendedHistoryOperation[];
+  ) as TransactionHistoryEntry;
   // Add a note to the first operation, since it breaks if we append it to the entry
   if (historyOperationsEntry[0]) {
     if (note) {
