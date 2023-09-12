@@ -5,6 +5,8 @@ import EventEmitter from 'events';
 
 import type { RemoteTransactionSource, TransactionMeta } from './types';
 
+const RECENT_HISTORY_BLOCK_RANGE = 10;
+
 const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
   (txMeta) => txMeta.status,
   (txMeta) => txMeta.transaction.gasUsed,
@@ -17,6 +19,8 @@ export class IncomingTransactionHelper {
 
   #getCurrentAccount: () => string;
 
+  #getLastFetchedBlockNumbers: () => Record<string, number>;
+
   #getLocalTransactions: () => TransactionMeta[];
 
   #getNetworkState: () => NetworkState;
@@ -25,11 +29,11 @@ export class IncomingTransactionHelper {
 
   #isRunning: boolean;
 
-  #lastFetchedBlockNumbers: Record<string, number>;
-
   #mutex = new Mutex();
 
   #onLatestBlock: (blockNumberHex: Hex) => Promise<void>;
+
+  #queryEntireHistory: boolean;
 
   #remoteTransactionSource: RemoteTransactionSource;
 
@@ -40,20 +44,22 @@ export class IncomingTransactionHelper {
   constructor({
     blockTracker,
     getCurrentAccount,
+    getLastFetchedBlockNumbers,
     getLocalTransactions,
     getNetworkState,
     isEnabled,
-    lastFetchedBlockNumbers,
+    queryEntireHistory,
     remoteTransactionSource,
     transactionLimit,
     updateTransactions,
   }: {
     blockTracker: BlockTracker;
     getCurrentAccount: () => string;
-    getNetworkState: () => NetworkState;
+    getLastFetchedBlockNumbers: () => Record<string, number>;
     getLocalTransactions?: () => TransactionMeta[];
+    getNetworkState: () => NetworkState;
     isEnabled?: () => boolean;
-    lastFetchedBlockNumbers?: Record<string, number>;
+    queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
     transactionLimit?: number;
     updateTransactions?: boolean;
@@ -62,11 +68,12 @@ export class IncomingTransactionHelper {
 
     this.#blockTracker = blockTracker;
     this.#getCurrentAccount = getCurrentAccount;
+    this.#getLastFetchedBlockNumbers = getLastFetchedBlockNumbers;
     this.#getLocalTransactions = getLocalTransactions || (() => []);
     this.#getNetworkState = getNetworkState;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
-    this.#lastFetchedBlockNumbers = lastFetchedBlockNumbers ?? {};
+    this.#queryEntireHistory = queryEntireHistory ?? true;
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#transactionLimit = transactionLimit;
     this.#updateTransactions = updateTransactions ?? false;
@@ -204,19 +211,19 @@ export class IncomingTransactionHelper {
     );
   }
 
-  #getFromBlock(latestBlockNumber: number): number {
+  #getFromBlock(latestBlockNumber: number): number | undefined {
     const lastFetchedKey = this.#getBlockNumberKey();
 
     const lastFetchedBlockNumber =
-      this.#lastFetchedBlockNumbers[lastFetchedKey];
+      this.#getLastFetchedBlockNumbers()[lastFetchedKey];
 
     if (lastFetchedBlockNumber) {
       return lastFetchedBlockNumber + 1;
     }
 
-    // Avoid using latest block as remote transaction source
-    // may not have indexed it yet
-    return Math.max(latestBlockNumber - 10, 0);
+    return this.#queryEntireHistory
+      ? undefined
+      : latestBlockNumber - RECENT_HISTORY_BLOCK_RANGE;
   }
 
   #updateLastFetchedBlockNumber(remoteTxs: TransactionMeta[]) {
@@ -238,16 +245,17 @@ export class IncomingTransactionHelper {
     }
 
     const lastFetchedKey = this.#getBlockNumberKey();
-    const previousValue = this.#lastFetchedBlockNumbers[lastFetchedKey];
+    const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
+    const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
 
     if (previousValue === lastFetchedBlockNumber) {
       return;
     }
 
-    this.#lastFetchedBlockNumbers[lastFetchedKey] = lastFetchedBlockNumber;
+    lastFetchedBlockNumbers[lastFetchedKey] = lastFetchedBlockNumber;
 
     this.hub.emit('updatedLastFetchedBlockNumbers', {
-      lastFetchedBlockNumbers: this.#lastFetchedBlockNumbers,
+      lastFetchedBlockNumbers,
       blockNumber: lastFetchedBlockNumber,
     });
   }
