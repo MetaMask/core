@@ -975,6 +975,7 @@ describe('TransactionController', () => {
         id: expect.any(String),
         networkID: expect.any(String),
         origin: undefined,
+        originalGasEstimate: expect.any(String),
         securityAlertResponse: undefined,
         status: TransactionStatus.unapproved,
         time: expect.any(Number),
