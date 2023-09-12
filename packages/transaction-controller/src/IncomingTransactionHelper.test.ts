@@ -49,18 +49,18 @@ const CONTROLLER_ARGS_MOCK = {
 const TRANSACTION_MOCK: TransactionMeta = {
   blockNumber: '123',
   chainId: '0x1',
+  hash: '0x1',
   status: TransactionStatus.submitted,
   time: 0,
   transaction: { to: '0x1', gasUsed: '0x1' },
-  transactionHash: '0x1',
 } as unknown as TransactionMeta;
 
 const TRANSACTION_MOCK_2: TransactionMeta = {
   blockNumber: '234',
+  hash: '0x2',
   chainId: '0x1',
   time: 1,
   transaction: { to: '0x1' },
-  transactionHash: '0x2',
 } as unknown as TransactionMeta;
 
 const createRemoteTransactionSourceMock = (
