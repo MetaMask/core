@@ -1974,7 +1974,11 @@ describe('TransactionController', () => {
     });
 
     it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
-      const controller = newController();
+      const controller = newController({
+        options: {
+          disableHistory: true,
+        }
+      });
       const externalTransactionId = '1';
       const externalTransactionHash = '0x1';
       const externalTransactionToConfirm = {
