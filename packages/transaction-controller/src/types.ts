@@ -132,6 +132,9 @@ type TransactionMetaBase = {
    */
   txReceipt?: TransactionReceipt;
 
+  /** The type of transaction this txMeta represents. */
+  type?: TransactionType;
+
   /**
    * Whether the transaction is verified on the blockchain.
    */
@@ -167,6 +170,122 @@ export enum WalletDevice {
   MM_MOBILE = 'metamask_mobile',
   MM_EXTENSION = 'metamask_extension',
   OTHER = 'other_device',
+}
+
+/**
+ * The type of the transaction.
+ */
+export enum TransactionType {
+  /**
+   * A transaction sending a network's native asset to a recipient.
+   */
+  cancel = 'cancel',
+
+  /**
+   * A transaction that is interacting with a smart contract's methods that we
+   * have not treated as a special case, such as approve, transfer, and
+   * transferfrom.
+   */
+  contractInteraction = 'contractInteraction',
+
+  /**
+   * A transaction that deployed a smart contract.
+   */
+  deployContract = 'contractDeployment',
+
+  /**
+   * A transaction for Ethereum decryption.
+   */
+  ethDecrypt = 'eth_decrypt',
+
+  /**
+   * A transaction for getting an encryption public key.
+   */
+  ethGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
+
+  /**
+   * An incoming (deposit) transaction.
+   */
+  incoming = 'incoming',
+
+  /**
+   * A transaction for personal sign.
+   */
+  personalSign = 'personal_sign',
+
+  /**
+   * When a transaction is failed it can be retried by
+   * resubmitting the same transaction with a higher gas fee. This type is also used
+   * to speed up pending transactions. This is accomplished by creating a new tx with
+   * the same nonce and higher gas fees.
+   */
+  retry = 'retry',
+
+  /**
+   * A transaction sending a network's native asset to a recipient.
+   */
+  simpleSend = 'simpleSend',
+
+  /**
+   * A transaction that is signing a message.
+   */
+  sign = 'eth_sign',
+
+  /**
+   * A transaction that is signing typed data.
+   */
+  signTypedData = 'eth_signTypedData',
+
+  /**
+   * A transaction sending a network's native asset to a recipient.
+   */
+  smart = 'smart',
+
+  /**
+   * A transaction swapping one token for another through MetaMask Swaps.
+   */
+  swap = 'swap',
+
+  /**
+   * Similar to the approve type, a swap approval is a special case of ERC20
+   * approve method that requests an allowance of the token to spend on behalf
+   * of the user for the MetaMask Swaps contract. The first swap for any token
+   * will have an accompanying swapApproval transaction.
+   */
+  swapApproval = 'swapApproval',
+
+  /**
+   * A token transaction requesting an allowance of the token to spend on
+   * behalf of the user.
+   */
+  tokenMethodApprove = 'approve',
+
+  /**
+   * A token transaction transferring tokens from an account that the sender
+   * has an allowance of. The method is prefixed with safe because when calling
+   * this method the contract checks to ensure that the receiver is an address
+   * capable of handling the token being sent.
+   */
+  tokenMethodSafeTransferFrom = 'safetransferfrom',
+
+  /**
+   * A token transaction where the user is sending tokens that they own to
+   * another address.
+   */
+  tokenMethodTransfer = 'transfer',
+
+  /**
+   * A token transaction transferring tokens from an account that the sender
+   * has an allowance of. For more information on allowances, see the approve
+   * type.
+   */
+  tokenMethodTransferFrom = 'transferfrom',
+
+  /**
+   * A token transaction requesting an allowance of all of a user's tokens to
+   * spend on behalf of the user.
+   */
+  tokenMethodSetApprovalForAll = 'setapprovalforall',
 }
 
 /**
@@ -354,3 +473,18 @@ export interface DappSuggestedGasFees {
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
 }
+
+/**
+ * Result of inferring the transaction type.
+ */
+export type InferTransactionTypeResult = {
+  /**
+   * The contract code, in hex format if it exists. '0x0' or
+   * '0x' are also indicators of non-existent contract code
+   */
+  getCodeResponse?: string;
+  /**
+   * The type of transaction
+   */
+  type: TransactionType;
+};

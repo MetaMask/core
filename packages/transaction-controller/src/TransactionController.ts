@@ -49,7 +49,7 @@ import type {
   TransactionReceipt,
   WalletDevice,
 } from './types';
-import { TransactionStatus } from './types';
+import { TransactionType, TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
@@ -62,6 +62,7 @@ import {
   validateMinimumIncrease,
   validateTransaction,
   ESTIMATE_GAS_ERROR,
+  determineTransactionType,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -393,6 +394,7 @@ export class TransactionController extends BaseController<
    * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param opts.securityAlertResponse - Response from security validator.
+   * @param opts.type - Type of transaction to add, such as 'cancel' or 'swap'.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -403,12 +405,14 @@ export class TransactionController extends BaseController<
       origin,
       requireApproval,
       securityAlertResponse,
+      type,
     }: {
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
       origin?: string;
       requireApproval?: boolean | undefined;
       securityAlertResponse?: Record<string, unknown>;
+      type?: TransactionType;
     } = {},
   ): Promise<Result> {
     const { chainId, networkId } = this.getChainAndNetworkId();
@@ -437,6 +441,9 @@ export class TransactionController extends BaseController<
       securityAlertResponse,
       // Add actionId to txMeta to check if same actionId is seen again
       actionId,
+      type:
+        type ||
+        (await determineTransactionType(transaction, this.ethQuery)).type,
     };
 
     try {
@@ -718,6 +725,7 @@ export class TransactionController extends BaseController<
       time: Date.now(),
       transactionHash,
       actionId,
+      type: TransactionType.retry,
     };
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
