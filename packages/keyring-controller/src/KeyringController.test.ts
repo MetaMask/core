@@ -2,8 +2,12 @@ import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
+import LedgerKeyring from '@ledgerhq/metamask-keyring';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { keyringBuilderFactory } from '@metamask/eth-keyring-controller';
+import {
+  keyringBuilderFactory,
+  KeyringController as EthKeyringController,
+} from '@metamask/eth-keyring-controller';
 import {
   normalize,
   recoverPersonalSignature,
@@ -11,6 +15,7 @@ import {
   SignTypedDataVersion,
   encrypt,
 } from '@metamask/eth-sig-util';
+import { PreferencesController } from '@metamask/preferences-controller';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import {
   isValidHexAddress,
@@ -35,6 +40,7 @@ import {
   KeyringTypes,
 } from './KeyringController';
 import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+import { MockTransport } from '../tests/mocks/mockLedgerTransport';
 
 jest.mock('uuid', () => {
   return {
@@ -2032,6 +2038,498 @@ describe('KeyringController', () => {
           },
         );
       });
+    });
+  });
+
+  describe('Ledger Keyring', () => {
+    let ledgerKeyring: LedgerKeyring;
+    let signProcessKeyringController: KeyringController;
+    const preferences = new PreferencesController();
+
+    beforeEach(async () => {
+      signProcessKeyringController = await withController(
+        // @ts-expect-error LedgerKeyring is not yet compatible with Keyring type.
+        { keyringBuilders: [keyringBuilderFactory(LedgerKeyring)] },
+        ({ controller }) => controller,
+      );
+
+      await signProcessKeyringController.createNewVaultAndKeychain(password);
+      ledgerKeyring = await signProcessKeyringController.getLedgerKeyring();
+
+      ledgerKeyring.setApp({
+        signTransaction: sinon.stub(),
+        getAddress: sinon.stub().resolves({
+          address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        }),
+        signEIP712HashedMessage: sinon.stub(),
+        signPersonalMessage: sinon.stub(),
+      });
+
+      await signProcessKeyringController.unlockLedgerDefaultAccount();
+    });
+
+    it('should sign a message with a Ledger keyring', async () => {
+      const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signMessage');
+
+      confirmSignatureStub.resolves(
+        '4cb25933c5225f9f92fc9b487451b93bc3646c6aa01b72b01065b8509ac4fd6c37798695d0d5c0949ed10c5e102800ea2b62c2b670729c5631c81b0c52002a641b',
+      );
+
+      const data =
+        '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
+
+      const account = await ledgerKeyring.getDefaultAccount();
+      const signature = await signProcessKeyringController.signMessage({
+        data,
+        from: account,
+      });
+      expect(signature).toBe(
+        '4cb25933c5225f9f92fc9b487451b93bc3646c6aa01b72b01065b8509ac4fd6c37798695d0d5c0949ed10c5e102800ea2b62c2b670729c5631c81b0c52002a641b',
+      );
+
+      confirmSignatureStub.reset();
+    });
+
+    it('should sign a personal message with a Ledger keyring', async () => {
+      const confirmSignatureStub = sinon.stub(
+        ledgerKeyring,
+        'signPersonalMessage',
+      );
+
+      confirmSignatureStub.resolves(
+        '4cb25933c5225f9f92fc9b487451b93bc3646c6aa01b72b01065b8509ac4fd6c37798695d0d5c0949ed10c5e102800ea2b62c2b670729c5631c81b0c52002a641b',
+      );
+
+      const data =
+        '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
+
+      const account = await ledgerKeyring.getDefaultAccount();
+      const signature = await signProcessKeyringController.signPersonalMessage({
+        data,
+        from: account,
+      });
+      expect(signature).toBe(
+        '4cb25933c5225f9f92fc9b487451b93bc3646c6aa01b72b01065b8509ac4fd6c37798695d0d5c0949ed10c5e102800ea2b62c2b670729c5631c81b0c52002a641b',
+      );
+
+      confirmSignatureStub.reset();
+    });
+
+    it('should restore the Ledger keyring', async () => {
+      const serializedLedgerKeyring = {
+        accounts: [
+          {
+            address: '0x3f60aaa3df2D1a6de9e8233b564a5BB82c3975FD',
+            hdPath: "m/44'/60'/0'/0/0",
+          },
+        ],
+        deviceId: '2A522280-CD5B-3B38-759F-8729D4A2CCCD',
+        hdPath: "m/44'/60'/0'/0/0",
+      };
+      await signProcessKeyringController.restoreLedgerKeyring(
+        serializedLedgerKeyring,
+      );
+
+      expect(
+        signProcessKeyringController.state.keyrings[1].accounts,
+      ).toHaveLength(1);
+    });
+
+    it('should sign transaction with Ledger keyring', async () => {
+      const tx = TransactionFactory.fromTxData(
+        {
+          accessList: [],
+          chainId: '0x4',
+          data: '0x',
+          gasLimit: '0x5208',
+          maxFeePerGas: '0x2540be400',
+          maxPriorityFeePerGas: '0x3b9aca00',
+          nonce: '0x68',
+          r: undefined,
+          s: undefined,
+          to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+          v: undefined,
+          value: '0x0',
+          type: 2,
+        },
+        {
+          common: Common.custom({
+            name: 'rinkeby',
+            chainId: parseInt('4'),
+            networkId: parseInt('4'),
+            defaultHardfork: 'london',
+          }),
+        },
+      );
+
+      const mockedSignatureValue = TransactionFactory.fromTxData(
+        {
+          accessList: [],
+          chainId: '0x4',
+          data: '0x',
+          gasLimit: '0x5208',
+          maxFeePerGas: '0x2540be400',
+          maxPriorityFeePerGas: '0x3b9aca00',
+          nonce: '0x68',
+          r: BigInt('1'),
+          s: BigInt('2'),
+          v: BigInt('0'),
+          to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+          value: '0x0',
+          type: 2,
+        },
+        {
+          common: Common.custom({
+            name: 'rinkeby',
+            chainId: parseInt('4'),
+            networkId: parseInt('4'),
+            defaultHardfork: 'london',
+          }),
+        },
+      );
+
+      const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signTransaction');
+
+      confirmSignatureStub.resolves(mockedSignatureValue as any);
+
+      const account = await ledgerKeyring.getDefaultAccount();
+
+      const { r, s, v } = await signProcessKeyringController.signTransaction(
+        tx,
+        account,
+      );
+      expect(r?.toString()).toBe('1');
+      expect(s?.toString()).toBe('2');
+      expect(v?.toString()).toBe('0');
+
+      confirmSignatureStub.reset();
+    });
+
+    it('should throw if typed data verions is not V4', async () => {
+      const typedMsgParams = [
+        {
+          name: 'Message',
+          type: 'string',
+          value: 'Hi, Alice!',
+        },
+        {
+          name: 'A number',
+          type: 'uint32',
+          value: '1337',
+        },
+      ];
+      const account = await ledgerKeyring.getDefaultAccount();
+
+      const signature = signProcessKeyringController.signTypedMessage(
+        { data: typedMsgParams, from: account },
+        SignTypedDataVersion.V1,
+      );
+
+      await expect(signature).rejects.toThrow(
+        'Ledger: Only version 4 of typed data signing is supported',
+      );
+
+      const signature2 = signProcessKeyringController.signTypedMessage(
+        { data: typedMsgParams, from: account },
+        SignTypedDataVersion.V3,
+      );
+
+      await expect(signature2).rejects.toThrow(
+        'Ledger: Only version 4 of typed data signing is supported',
+      );
+    });
+
+    it('should sign typed data for V4 with Ledger Keyring', async () => {
+      const msgParams = {
+        domain: {
+          chainId: 1,
+          name: 'Ether Mail',
+          verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+          version: '1',
+        },
+        message: {
+          contents: 'Hello, Bob!',
+          attachedMoneyInEth: 4.2,
+          from: {
+            name: 'Cow',
+            wallets: [
+              '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+              '0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF',
+            ],
+          },
+          to: [
+            {
+              name: 'Bob',
+              wallets: [
+                '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+                '0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57',
+                '0xB0B0b0b0b0b0B000000000000000000000000000',
+              ],
+            },
+          ],
+        },
+        primaryType: 'Mail' as const,
+        types: {
+          EIP712Domain: [
+            { name: 'name', type: 'string' },
+            { name: 'version', type: 'string' },
+            { name: 'chainId', type: 'uint256' },
+            { name: 'verifyingContract', type: 'address' },
+          ],
+          Group: [
+            { name: 'name', type: 'string' },
+            { name: 'members', type: 'Person[]' },
+          ],
+          Mail: [
+            { name: 'from', type: 'Person' },
+            { name: 'to', type: 'Person[]' },
+            { name: 'contents', type: 'string' },
+          ],
+          Person: [
+            { name: 'name', type: 'string' },
+            { name: 'wallets', type: 'address[]' },
+          ],
+        },
+      };
+
+      const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signTypedData');
+
+      confirmSignatureStub.resolves(
+        '0xafb6e247b1c490e284053c87ab5f6b59e219d51f743f7a4d83e400782bc7e4b9479a268e0e0acd4de3f1e28e4fac2a6b32a4195e8dfa9d19147abe8807aa6f6400',
+      );
+
+      const account = await ledgerKeyring.getDefaultAccount();
+      const signature = await signProcessKeyringController.signTypedMessage(
+        { data: JSON.stringify(msgParams), from: account },
+        SignTypedDataVersion.V4,
+      );
+      const recovered = recoverTypedSignature({
+        data: msgParams,
+        signature,
+        version: SignTypedDataVersion.V4,
+      });
+      expect(account).toBe(recovered);
+    });
+
+    it('should forget Ledger Keyring', async () => {
+      // const setSelectedAddressSpy = sinon.spy(
+      //   preferences,
+      //   'setSelectedAddress',
+      // );
+
+      // creating a new keyring controller without adding a ledger account
+      const locallyUsedKeyring = await withController(
+        ({ controller }) => controller,
+      );
+
+      await locallyUsedKeyring.createNewVaultAndKeychain(password);
+      const localLedgerKeyring = await locallyUsedKeyring.getLedgerKeyring();
+
+      localLedgerKeyring.setApp({
+        signTransaction: sinon.stub(),
+        getAddress: sinon.stub().resolves({
+          address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        }),
+        signEIP712HashedMessage: sinon.stub(),
+        signPersonalMessage: sinon.stub(),
+      });
+
+      // Start of test
+      const accounts = await locallyUsedKeyring.getAccounts();
+      expect(accounts).toHaveLength(1);
+
+      console.log({ accounts });
+
+      const forgetDeviceSpy = sinon.spy(localLedgerKeyring, 'forgetDevice');
+
+      await locallyUsedKeyring.forgetLedger();
+      expect(locallyUsedKeyring.state.keyrings[1].accounts).toHaveLength(0);
+      expect(forgetDeviceSpy.callCount).toBe(1);
+      // expect(setSelectedAddressSpy.callCount).toBe(1);
+      // expect(setSelectedAddressSpy.calledWith(accounts[0])).toBe(true);
+    });
+
+    it('should return Ledger Keyring for corresponding account', async () => {
+      const ledgerAccount = '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2';
+
+      const keyring = await signProcessKeyringController.getAccountKeyringType(
+        ledgerAccount,
+      );
+
+      expect(keyring).toBe(KeyringTypes.ledger);
+    });
+
+    it('should connect to ledger hardware', async () => {
+      const setTransportStub = sinon.stub(ledgerKeyring, 'setTransport');
+      setTransportStub.resolves();
+
+      const getAppAndVersionStub = sinon.stub(
+        ledgerKeyring,
+        'getAppAndVersion',
+      );
+
+      const mockedAppVersionValue = {
+        appName: 'mockApp',
+        version: 'mockVersion',
+      };
+      getAppAndVersionStub.resolves(mockedAppVersionValue);
+
+      const mockDeviceId = 'mockDeviceId';
+      const mockTransport = new MockTransport();
+
+      const appName = await signProcessKeyringController.connectLedgerHardware(
+        mockTransport,
+        mockDeviceId,
+      );
+
+      expect(appName).toBe(mockedAppVersionValue.appName);
+    });
+
+    it('should open ethereum app on ledger', async () => {
+      const openEthereumAppOnLedgerStub = sinon.stub(
+        ledgerKeyring,
+        'openEthApp',
+      );
+      openEthereumAppOnLedgerStub.resolves();
+      await signProcessKeyringController.openEthereumAppOnLedger();
+      expect(openEthereumAppOnLedgerStub.callCount).toBe(1);
+    });
+
+    it('should close running ledger app on ledger', async () => {
+      const getAppAndVersionStub = sinon.stub(
+        ledgerKeyring,
+        'getAppAndVersion',
+      );
+
+      const mockedAppVersionValue = {
+        appName: 'mockApp',
+        version: 'mockVersion',
+      };
+
+      const mockedAppVersionValueBolos = {
+        appName: 'BOLOS',
+        version: 'mockVersion',
+      };
+
+      getAppAndVersionStub.onCall(0).resolves(mockedAppVersionValue);
+      getAppAndVersionStub.onCall(1).resolves(mockedAppVersionValueBolos);
+
+      const quitAppSpy = sinon.stub(ledgerKeyring, 'quitApp');
+      quitAppSpy.resolves();
+
+      // Testing the path when app name is not BOLOS
+      await signProcessKeyringController.closeRunningAppOnLedger();
+      expect(quitAppSpy.callCount).toBe(1);
+
+      // Reset the quitAppSpy call count
+      quitAppSpy.reset();
+
+      // Testing the path when the app name is BOLOS
+      await signProcessKeyringController.closeRunningAppOnLedger();
+      expect(quitAppSpy.callCount).toBe(0);
+    });
+
+    it('should update the state when unlocking the default account on ledger', async () => {
+      // Setup
+
+      // const updateIdentitiesSpy = sinon.spy(preferences, 'updateIdentities');
+      // const setAccountLabelSpy = sinon.spy(preferences, 'setAccountLabel');
+      // const setSelectedAddressSpy = sinon.spy(
+      //   preferences,
+      //   'setSelectedAddress',
+      // );
+
+      const persistAllKeyringsSpy = sinon.spy(
+        EthKeyringController.prototype,
+        'persistAllKeyrings',
+      );
+
+      // creating a new keyring controller without adding a ledger account
+      const locallyUsedKeyring = await withController(
+        ({ controller }) => controller,
+      );
+
+      await locallyUsedKeyring.createNewVaultAndKeychain(password);
+      const localLedgerKeyring = await locallyUsedKeyring.getLedgerKeyring();
+
+      localLedgerKeyring.setApp({
+        signTransaction: sinon.stub(),
+        getAddress: sinon.stub().resolves({
+          address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        }),
+        signEIP712HashedMessage: sinon.stub(),
+        signPersonalMessage: sinon.stub(),
+      });
+
+      // Start of test
+      const initialAccounts = await locallyUsedKeyring.getAccounts();
+
+      const defaultHDAccount = initialAccounts[0];
+
+      // now adding the ledger account
+      const ledgerAccount =
+        await locallyUsedKeyring.unlockLedgerDefaultAccount();
+
+      // const updatedKeyrings = (await fullUpdateSpy.returnValues[1]).keyrings;
+      const newAccountsList = [defaultHDAccount, ledgerAccount.address];
+
+      expect(newAccountsList).toStrictEqual([
+        defaultHDAccount, // this is a dynamic account thats generated in the HD Keyring
+        '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+      ]);
+
+      // expect(updateIdentitiesSpy.calledWith(newAccountsList)).toBe(true);
+
+      // expect(
+      //   setAccountLabelSpy.calledWith(
+      //     '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+      //     'Ledger 1',
+      //   ),
+      // ).toBe(true);
+
+      // expect(
+      //   setSelectedAddressSpy.calledWith(
+      //     '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+      //   ),
+      // ).toBe(true);
+
+      expect(persistAllKeyringsSpy.called).toBe(true);
+
+      expect(ledgerAccount).toStrictEqual({
+        address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        balance: '0x0',
+      });
+
+      expect(
+        locallyUsedKeyring.state.keyrings[1].accounts.map((address) =>
+          address.toLowerCase(),
+        ),
+      ).toStrictEqual(['0xe908e4378431418759b4f87b4bf7966e8aaa5cf2']);
+    });
+
+    it("tests that if setAccountLabel is not defined, we don't set a label", async () => {
+      const setAccountLabelSpy = sinon.spy(preferences, 'setAccountLabel');
+
+      // creating a new keyring controller without adding a ledger account
+      const locallyUsedKeyring = await withController(
+        ({ controller }) => controller,
+      );
+
+      await locallyUsedKeyring.createNewVaultAndKeychain(password);
+      const localLedgerKeyring = await locallyUsedKeyring.getLedgerKeyring();
+
+      localLedgerKeyring.setApp({
+        signTransaction: sinon.stub(),
+        getAddress: sinon.stub().resolves({
+          address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        }),
+        signEIP712HashedMessage: sinon.stub(),
+        signPersonalMessage: sinon.stub(),
+      });
+
+      // Start of test
+      await locallyUsedKeyring.unlockLedgerDefaultAccount();
+      expect(setAccountLabelSpy.callCount).toBe(0);
     });
   });
 });

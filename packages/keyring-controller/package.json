@@ -29,6 +29,8 @@
   },
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
+    "@ledgerhq/hw-transport": "6.24.1",
+    "@ledgerhq/metamask-keyring": "0.3.3",
     "@metamask/base-controller": "^3.2.1",
     "@metamask/eth-keyring-controller": "^13.0.0",
     "@metamask/message-manager": "^7.3.1",
