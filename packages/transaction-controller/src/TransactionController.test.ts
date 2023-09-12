@@ -959,7 +959,7 @@ describe('TransactionController', () => {
       );
     });
 
-    it('adds initial history', async () => {
+    it('generates initial history', async () => {
       const controller = newController();
 
       await controller.addTransaction({
@@ -983,24 +983,9 @@ describe('TransactionController', () => {
       };
 
       // Expect initial snapshot to be in place
-      expect(controller.state.transactions[0]?.history).toEqual([
+      expect(controller.state.transactions[0]?.history).toStrictEqual([
         expectedInitialSnapshot,
       ]);
-    });
-
-    it('doesnt populate history if history explicitly disabled', async () => {
-      const controller = newController({
-        options: {
-          disableHistory: true,
-        },
-      });
-
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-
-      expect(controller.state.transactions[0]?.history).toBeUndefined();
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
@@ -1920,14 +1905,72 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0]?.txReceipt?.gasUsed).toBe(
         externalTransactionReceipt.gasUsed,
       );
-      expect(controller.state.transactions[0]?.history).toBeDefined();
-      // Atleast 1 history item (initial snapshot)
-      expect(controller.state.transactions[0]?.history?.length).toBeGreaterThan(
-        0,
+    });
+
+    it('generates initial history', async () => {
+      const controller = newController();
+
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: '1',
+        networkID: '1',
+        chainId: toHex(1),
+        status: TransactionStatus.confirmed,
+        transaction: {
+          gasUsed: undefined,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
       );
-      expect(
-        controller.state.transactions[0]?.history?.[1][0].timestamp,
-      ).toBeLessThanOrEqual(Date.now());
+
+      const expectedInitialSnapshot = {
+        chainId: '0x1',
+        from: ACCOUNT_MOCK,
+        id: '1',
+        networkID: '1',
+        status: TransactionStatus.confirmed,
+        to: ACCOUNT_2_MOCK,
+        transaction: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          gasUsed: undefined,
+        },
+      };
+
+      // Expect initial snapshot to be the first history item
+      expect(controller.state.transactions[0]?.history?.[0]).toStrictEqual(
+        expectedInitialSnapshot,
+      );
+      // Expect modification history to be present
+      expect(controller.state.transactions[0]?.history?.[1]).toStrictEqual([
+        {
+          note: expect.any(String),
+          op: 'remove',
+          path: '/transaction/gasUsed',
+          timestamp: expect.any(Number),
+        },
+        {
+          op: 'add',
+          path: '/txReceipt',
+          value: expect.anything(),
+        },
+        {
+          op: 'add',
+          path: '/baseFeePerGas',
+          value: expect.any(String),
+        },
+      ]);
     });
 
     it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
