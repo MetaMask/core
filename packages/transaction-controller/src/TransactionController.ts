@@ -1625,10 +1625,7 @@ export class TransactionController extends BaseController<
     );
 
     // Make sure provided external transaction has non empty history array
-    if (
-      !Array.isArray(transactionMeta.history) ||
-      !transactionMeta.history.length
-    ) {
+    if (!(transactionMeta.history ?? []).length) {
       if (!this.isHistoryDisabled) {
         this.addInitialHistorySnapshot(transactionMeta);
       }

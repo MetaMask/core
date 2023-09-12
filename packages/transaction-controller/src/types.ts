@@ -389,11 +389,11 @@ type ExtendedHistoryOperation = Operation & {
 
 /**
  * A transaction history entry that includes the ExtendedHistoryOperation as the first element.
- */ 
+ */
 export type TransactionHistoryEntry = [
   ExtendedHistoryOperation,
-  ...Operation[]
-]
+  ...Operation[],
+];
 
 /**
  * A transaction history that includes the transaction meta as the first element.
