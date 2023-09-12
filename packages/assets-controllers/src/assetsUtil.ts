@@ -8,7 +8,7 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { BN, stripHexPrefix, addHexPrefix } from 'ethereumjs-util';
-import { fromWei } from 'ethjs-unit';
+import { fromWei, toWei } from 'ethjs-unit';
 import { CID } from 'multiformats/cid';
 
 import type { AccountTrackerState } from './AccountTrackerController';
@@ -309,7 +309,7 @@ export function getTotalFiatAccountBalance(
       finalConversionRate,
       decimalsToShow,
     );
-    console.log("ethFiat comes out as: ", ethFiat)
+    console.log('ethFiat comes out as: ', ethFiat);
   } else {
     console.log('NO NATIVE CURRENCY ACCOUNT');
   }
@@ -370,8 +370,17 @@ export function weiToFiatNumber(
     Math.floor((eth * conversionRate * base) / base).toString(),
   );
 
-  console.log('[weiToFiatNumber] base: ', base, '; eth: ', eth, '; value: ', value);
-  console.log(`[weiToFiatNumber] calculation: (${eth} * ${conversionRate} * ${base}) / ${base}`)
+  console.log(
+    '[weiToFiatNumber] base: ',
+    base,
+    '; eth: ',
+    eth,
+    '; value: ',
+    value,
+  );
+  console.log(
+    `[weiToFiatNumber] calculation: (${eth} * ${conversionRate} * ${base})`,
+  );
 
   value = isNaN(value) ? 0 : value;
   return value;

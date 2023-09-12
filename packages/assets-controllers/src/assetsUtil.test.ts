@@ -6,6 +6,7 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import { BN } from 'ethereumjs-util';
+import { toWei } from 'ethjs-unit';
 
 import * as assetsUtil from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
@@ -563,7 +564,7 @@ describe('assetsUtil', () => {
         // AccountTrackerController
         {
           ...DEFAULT_ACCOUNT_TRACKER_STATE,
-          accounts: { [ADDRESS]: { balance: '0x038d7ea4c68000' } }, // 1000000000000000 ?
+          accounts: { [ADDRESS]: { balance: toWei(ethBalance, 'ether') } },
         },
         // TokenBalancesController
         DEFAULT_TOKEN_BALANCES_STATE,
@@ -573,7 +574,9 @@ describe('assetsUtil', () => {
         DEFAULT_TOKENS_STATE,
       );
 
-      expect(fiatBalance).toBe(ethBalance * CURRENCY_CONVERSION_RATE);
+      expect(fiatBalance).toBe(
+        (ethBalance * CURRENCY_CONVERSION_RATE).toFixed(2),
+      );
     });
   });
 });
