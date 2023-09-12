@@ -30,10 +30,12 @@
   "dependencies": {
     "@ethereumjs/common": "^3.2.0",
     "@ethereumjs/tx": "^4.2.0",
+    "@ethersproject/abi": "^5.7.0",
     "@metamask/approval-controller": "^3.5.1",
     "@metamask/base-controller": "^3.2.1",
     "@metamask/controller-utils": "^4.3.2",
     "@metamask/eth-query": "^3.0.1",
+    "@metamask/metamask-eth-abis": "^3.0.0",
     "@metamask/network-controller": "^12.1.2",
     "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
