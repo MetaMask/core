@@ -79,6 +79,11 @@ type TransactionMetaBase = {
   origin?: string;
 
   /**
+   * The original gas estimation of the transaction.
+   */
+  originalGasEstimate?: string;
+
+  /**
    * Hex representation of the underlying transaction.
    */
   rawTx?: string;
