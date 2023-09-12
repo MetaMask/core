@@ -769,7 +769,7 @@ export class NetworkController extends BaseControllerV2<
    * @param networkClientId - The ID of the network client to update.
    */
   async lookupNetworkByClientId(networkClientId: NetworkClientId) {
-    const isInfura = networkClientId in InfuraNetworkType;
+    const isInfura = isInfuraProviderType(networkClientId);
     let updatedNetworkStatus: NetworkStatus;
     let updatedIsEIP1559Compatible: boolean | undefined;
 
@@ -1034,10 +1034,6 @@ export class NetworkController extends BaseControllerV2<
 
     const networkClient = this.getNetworkClientById(networkClientId);
     const ethQuery = new EthQuery(networkClient.provider);
-
-    if (!ethQuery) {
-      throw new Error('Provider has not been initialized');
-    }
 
     return new Promise((resolve, reject) => {
       ethQuery.sendAsync(
