@@ -2,7 +2,7 @@ import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
 import { NetworkClientType } from '@metamask/network-controller';
 
 import {
-  setupControllers,
+  setupAssetContractControllers,
   mockNetworkWithDefaultChainId,
 } from './AssetsContractController.test';
 
@@ -19,31 +19,31 @@ const TEST_ACCOUNT_PUBLIC_ADDRESS =
 
 describe('AssetsContractController with NetworkClientId', () => {
   it('should throw when getting ERC-20 token balance when networkClientId is invalid', async () => {
-    const { assetsContract, messenger } = await setupControllers();
+    const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
       assetsContract.getERC20BalanceOf(
         ERC20_UNI_ADDRESS,
         TEST_ACCOUNT_PUBLIC_ADDRESS,
         'invalidNetworkClientId',
       ),
-    ).rejects.toThrow(expect.any(Error));
+    ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should throw when getting ERC-20 token decimal when networkClientId is invalid', async () => {
-    const { assetsContract, messenger } = await setupControllers();
+    const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
       assetsContract.getERC20TokenDecimals(
         ERC20_UNI_ADDRESS,
         'invalidNetworkClientId',
       ),
-    ).rejects.toThrow(expect.any(Error));
+    ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should get balance of ERC-20 token contract correctly', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -98,7 +98,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should get ERC-721 NFT tokenId correctly', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -131,7 +131,7 @@ describe('AssetsContractController with NetworkClientId', () => {
   });
 
   it('should throw error when getting ERC-721 token standard and details when networkClientId is invalid', async () => {
-    const { assetsContract, messenger } = await setupControllers();
+    const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
       assetsContract.getTokenStandardAndDetails(
         ERC20_UNI_ADDRESS,
@@ -139,12 +139,12 @@ describe('AssetsContractController with NetworkClientId', () => {
         undefined,
         'invalidNetworkClientId',
       ),
-    ).rejects.toThrow(expect.any(Error));
+    ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should throw contract standard error when getting ERC-20 token standard and details when provided with invalid ERC-20 address', async () => {
-    const { assetsContract, messenger } = await setupControllers();
+    const { assetsContract, messenger } = await setupAssetContractControllers();
     const error = 'Unable to determine contract standard';
     await expect(
       assetsContract.getTokenStandardAndDetails(
@@ -159,7 +159,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should get ERC-721 token standard and details', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -225,7 +225,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should get ERC-1155 token standard and details', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -275,7 +275,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should get ERC-20 token standard and details', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -373,7 +373,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should get ERC-721 NFT tokenURI correctly', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -422,7 +422,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should throw an error when address given is not an ERC-721 NFT', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -458,7 +458,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should get ERC-721 NFT name', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -490,7 +490,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should get ERC-721 NFT symbol', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -521,19 +521,19 @@ describe('AssetsContractController with NetworkClientId', () => {
   });
 
   it('should throw error when getting ERC-721 NFT symbol when networkClientId is invalid', async () => {
-    const { assetsContract, messenger } = await setupControllers();
+    const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
       assetsContract.getERC721AssetSymbol(
         ERC721_GODS_ADDRESS,
         'invalidNetworkClientId',
       ),
-    ).rejects.toThrow(expect.any(Error));
+    ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should get ERC-20 token decimals', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -565,7 +565,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should get ERC-20 token name', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -599,7 +599,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should get ERC-721 NFT ownership', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -631,20 +631,20 @@ describe('AssetsContractController with NetworkClientId', () => {
   });
 
   it('should throw error when getting ERC-721 NFT ownership using networkClientId that is invalid', async () => {
-    const { assetsContract, messenger } = await setupControllers();
+    const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
       assetsContract.getERC721OwnerOf(
         ERC721_GODS_ADDRESS,
         '148332',
         'invalidNetworkClientId',
       ),
-    ).rejects.toThrow(expect.any(Error));
+    ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should get balance of ERC-20 token in a single call on network with token detection support', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -677,7 +677,7 @@ describe('AssetsContractController with NetworkClientId', () => {
 
   it('should not have balance in a single call after switching to network without token detection support', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -746,7 +746,7 @@ describe('AssetsContractController with NetworkClientId', () => {
   });
 
   it('should throw error when transfering single ERC-1155 when networkClientId is invalid', async () => {
-    const { assetsContract, messenger } = await setupControllers();
+    const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
       assetsContract.transferSingleERC1155(
         ERC1155_ADDRESS,
@@ -756,13 +756,13 @@ describe('AssetsContractController with NetworkClientId', () => {
         '1',
         'invalidNetworkClientId',
       ),
-    ).rejects.toThrow(expect.any(Error));
+    ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should get the balance of a ERC-1155 NFT for a given address', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -794,8 +794,8 @@ describe('AssetsContractController with NetworkClientId', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw missing provider error when getting the balance of a ERC-1155 NFT when networkClientId is invalid', async () => {
-    const { assetsContract, messenger } = await setupControllers();
+  it('should throw error when getting the balance of a ERC-1155 NFT when networkClientId is invalid', async () => {
+    const { assetsContract, messenger } = await setupAssetContractControllers();
     await expect(
       assetsContract.getERC1155BalanceOf(
         TEST_ACCOUNT_PUBLIC_ADDRESS,
@@ -803,13 +803,13 @@ describe('AssetsContractController with NetworkClientId', () => {
         ERC1155_ID,
         'invalidNetworkClientId',
       ),
-    ).rejects.toThrow(expect.any(Error));
+    ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should get the URI of a ERC-1155 NFT', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
-      await setupControllers();
+      await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
