@@ -933,25 +933,20 @@ describe('TransactionController', () => {
         },
       );
 
-      expect(controller.state.transactions[0].transaction.from).toBe(
-        ACCOUNT_MOCK,
-      );
-      expect(controller.state.transactions[0].networkID).toBe(
-        MOCK_NETWORK.state.networkId,
-      );
-      expect(controller.state.transactions[0].chainId).toBe(
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(transactionMeta.transaction.from).toBe(ACCOUNT_MOCK);
+      expect(transactionMeta.networkID).toBe(MOCK_NETWORK.state.networkId);
+      expect(transactionMeta.chainId).toBe(
         MOCK_NETWORK.state.providerConfig.chainId,
       );
-      expect(controller.state.transactions[0].deviceConfirmedOn).toBe(
-        mockDeviceConfirmedOn,
-      );
-      expect(controller.state.transactions[0].origin).toBe(mockOrigin);
-      expect(controller.state.transactions[0].status).toBe(
-        TransactionStatus.unapproved,
-      );
-      expect(controller.state.transactions[0].securityAlertResponse).toBe(
+      expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
+      expect(transactionMeta.origin).toBe(mockOrigin);
+      expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
+      expect(transactionMeta.securityAlertResponse).toBe(
         mockSecurityAlertResponse,
       );
+      expect(transactionMeta.originalGasEstimate).toBe('0x0');
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
@@ -1736,7 +1731,7 @@ describe('TransactionController', () => {
 
       const { transactionMeta, result } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
-        gas: '0x0',
+        gas: '0x1',
         gasPrice: '0x50fd51da',
         to: ACCOUNT_MOCK,
         value: '0x0',
@@ -1755,6 +1750,7 @@ describe('TransactionController', () => {
         transactions[1].transaction.nonce,
       );
       expect(transactions[1].estimatedBaseFee).toBe('0x123');
+      expect(transactions[1].originalGasEstimate).toBe('0x1');
     });
 
     it('allows transaction count to exceed txHistorylimit', async () => {

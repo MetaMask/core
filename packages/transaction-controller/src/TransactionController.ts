@@ -443,6 +443,7 @@ export class TransactionController extends BaseController<
       const { gas, estimateGasError } = await this.estimateGas(transaction);
       transaction.gas = gas;
       transaction.estimateGasError = estimateGasError;
+      transactionMeta.originalGasEstimate = gas;
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
@@ -716,6 +717,7 @@ export class TransactionController extends BaseController<
       time: Date.now(),
       hash,
       actionId,
+      originalGasEstimate: transactionMeta.transaction.gas,
     };
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
@@ -770,7 +772,7 @@ export class TransactionController extends BaseController<
     ]);
 
     // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
-    // If the newtwork is a custom network then bypass this check and fetch 'estimateGas'.
+    // If the network is a custom network then bypass this check and fetch 'estimateGas'.
     /* istanbul ignore next */
     const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
     /* istanbul ignore next */
