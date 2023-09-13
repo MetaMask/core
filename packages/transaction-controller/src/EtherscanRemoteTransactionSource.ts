@@ -28,15 +28,11 @@ import { TransactionStatus } from './types';
 export class EtherscanRemoteTransactionSource
   implements RemoteTransactionSource
 {
-  #apiKey?: string;
-
   #includeTokenTransfers: boolean;
 
   constructor({
-    apiKey,
     includeTokenTransfers,
-  }: { apiKey?: string; includeTokenTransfers?: boolean } = {}) {
-    this.#apiKey = apiKey;
+  }: { includeTokenTransfers?: boolean } = {}) {
     this.#includeTokenTransfers = includeTokenTransfers ?? true;
   }
 
@@ -49,7 +45,6 @@ export class EtherscanRemoteTransactionSource
   ): Promise<TransactionMeta[]> {
     const etherscanRequest: EtherscanTransactionRequest = {
       ...request,
-      apiKey: this.#apiKey,
       chainId: request.currentChainId,
     };
 

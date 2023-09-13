@@ -1,10 +1,10 @@
 import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import {
-  DEFAULT_ETHERSCAN_DOMAIN,
-  ETHERSCAN_SUPPORTED_NETWORKS,
-} from './constants';
+import { ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
+import { incomingTransactionsLogger } from './logger';
+
+const log = incomingTransactionsLogger;
 
 export interface EtherscanTransactionMetaBase {
   blockNumber: string;
@@ -47,7 +47,6 @@ export interface EtherscanTransactionResponse<
 
 export interface EtherscanTransactionRequest {
   address: string;
-  apiKey?: string;
   chainId: Hex;
   fromBlock?: number;
   limit?: number;
@@ -64,7 +63,6 @@ interface RawEtherscanResponse<T extends EtherscanTransactionMetaBase> {
  *
  * @param request - Configuration required to fetch transactions.
  * @param request.address - Address to retrieve transactions for.
- * @param request.apiKey - Etherscan API key.
  * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching transactions from.
  * @param request.limit - Number of transactions to retrieve.
@@ -72,7 +70,6 @@ interface RawEtherscanResponse<T extends EtherscanTransactionMetaBase> {
  */
 export async function fetchEtherscanTransactions({
   address,
-  apiKey,
   chainId,
   fromBlock,
   limit,
@@ -81,7 +78,6 @@ export async function fetchEtherscanTransactions({
 > {
   return await fetchTransactions('txlist', {
     address,
-    apiKey,
     chainId,
     fromBlock,
     limit,
@@ -93,7 +89,6 @@ export async function fetchEtherscanTransactions({
  *
  * @param request - Configuration required to fetch token transactions.
  * @param request.address - Address to retrieve token transactions for.
- * @param request.apiKey - Etherscan API key.
  * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching token transactions from.
  * @param request.limit - Number of token transactions to retrieve.
@@ -101,7 +96,6 @@ export async function fetchEtherscanTransactions({
  */
 export async function fetchEtherscanTokenTransactions({
   address,
-  apiKey,
   chainId,
   fromBlock,
   limit,
@@ -110,7 +104,6 @@ export async function fetchEtherscanTokenTransactions({
 > {
   return await fetchTransactions('tokentx', {
     address,
-    apiKey,
     chainId,
     fromBlock,
     limit,
@@ -123,7 +116,6 @@ export async function fetchEtherscanTokenTransactions({
  * @param action - The Etherscan endpoint to use.
  * @param options - Options bag.
  * @param options.address - Address to retrieve transactions for.
- * @param options.apiKey - Etherscan API key.
  * @param options.chainId - Current chain ID used to determine subdomain and domain.
  * @param options.fromBlock - Block number to start fetching transactions from.
  * @param options.limit - Number of transactions to retrieve.
@@ -133,13 +125,11 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
   action: string,
   {
     address,
-    apiKey,
     chainId,
     fromBlock,
     limit,
   }: {
     address: string;
-    apiKey?: string;
     chainId: Hex;
     fromBlock?: number;
     limit?: number;
@@ -149,7 +139,6 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     module: 'account',
     address,
     startBlock: fromBlock?.toString(),
-    apikey: apiKey,
     offset: limit?.toString(),
     sort: 'desc',
   };
@@ -163,11 +152,20 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     etherscanTxUrl,
   )) as RawEtherscanResponse<T>;
 
-  if (response.status === '0' && response.message === 'NOTOK') {
-    throw new Error(`Etherscan request failed - ${response.result}`);
+  let result = response.result as T[];
+
+  if (response.status === '0') {
+    result = [];
+
+    if (response.result?.length) {
+      log('Ignored Etherscan request error', {
+        message: response.result,
+        action,
+      });
+    }
   }
 
-  return { result: response.result as T[] };
+  return { result };
 }
 
 /**
@@ -191,11 +189,6 @@ function getEtherscanApiUrl(
 
   const apiUrl = `https://${networkInfo.subdomain}.${networkInfo.domain}`;
   let url = `${apiUrl}/api?`;
-
-  // We only support API keys for the Etherscan domain
-  if (networkInfo.domain !== DEFAULT_ETHERSCAN_DOMAIN) {
-    urlParams.apikey = undefined;
-  }
 
   // eslint-disable-next-line guard-for-in
   for (const paramKey in urlParams) {

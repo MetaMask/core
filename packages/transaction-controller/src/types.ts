@@ -308,11 +308,6 @@ export interface RemoteTransactionSourceRequest {
   address: string;
 
   /**
-   * API key if required by the remote source.
-   */
-  apiKey?: string;
-
-  /**
    * The chainId of the current network.
    */
   currentChainId: Hex;
