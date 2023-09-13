@@ -467,7 +467,6 @@ describe('assetsUtil', () => {
     const CHAINLINK_ADDRESS = toChecksumHexAddress(
       '0x514910771AF9Ca656af840dff83E8264EcF986CA',
     );
-    const CHAINLINK_PRICE = 5.5;
     const CHAINLINK_SYMBOL = 'LINK';
     const CHAINLINK_DECIMALS = 18;
     const CHAINLINK_BALANCE = 10;
@@ -568,12 +567,10 @@ describe('assetsUtil', () => {
         DEFAULT_TOKENS_STATE,
       );
 
-      expect(fiatBalance).toBe(
-        (ethBalance * CURRENCY_CONVERSION_RATE).toFixed(2),
-      );
+      expect(fiatBalance).toBe(ethBalance * CURRENCY_CONVERSION_RATE);
     });
 
-    it.only('should return correct balance when no ETH and 10 LINK', () => {
+    it('should return correct balance when no ETH and 10 LINK', () => {
       const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
         // CurrencyRateController
         DEFAULT_CURRENCY_RATE_STATE,
@@ -598,13 +595,47 @@ describe('assetsUtil', () => {
               address: CHAINLINK_ADDRESS,
               symbol: CHAINLINK_SYMBOL,
               decimals: CHAINLINK_DECIMALS,
-              balance: toWei(CHAINLINK_BALANCE, 'ether'),
+              balance: new BN(CHAINLINK_BALANCE).toString(),
             },
           ],
         },
       );
 
-      expect(fiatBalance).toBe(CHAINLINK_BALANCE * CHAINLINK_PRICE);
+      expect(fiatBalance).toBe(58.29);
+    });
+
+    it.only('should return correct balance when no ETH and 100 USDC', () => {
+      const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
+        // CurrencyRateController
+        DEFAULT_CURRENCY_RATE_STATE,
+        // PreferencesController
+        DEFAULT_PREFERENCES_STATE,
+        // AccountTrackerController,
+        DEFAULT_ACCOUNT_TRACKER_STATE,
+        // TokenBalancesController
+        DEFAULT_TOKEN_BALANCES_STATE,
+        // TokenRatesController
+        {
+          ...DEFAULT_TOKEN_RATES_STATE,
+          contractExchangeRates: {
+            [USDC_ADDRESS]: USDC_EXCHANGE_RATE,
+          },
+        },
+        // TokensController
+        {
+          ...DEFAULT_TOKENS_STATE,
+          tokens: [
+            {
+              address: USDC_ADDRESS,
+              symbol: USDC_SYMBOL,
+              decimals: USDC_DECIMALS,
+              balance: new BN(USDC_BALANCE).toString(),
+            },
+          ],
+        },
+      );
+
+      expect(fiatBalance).toBe(99.84);
     });
   });
 });
