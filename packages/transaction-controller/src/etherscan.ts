@@ -159,11 +159,13 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     etherscanTxUrl,
   )) as RawEtherscanResponse<T>;
 
-  if (response.status === '0' && response.message === 'NOTOK') {
-    throw new Error(`Etherscan request failed - ${response.result}`);
+  let result = response.result as T[];
+
+  if (response.status === '0') {
+    result = [];
   }
 
-  return { result: response.result as T[] };
+  return { result };
 }
 
 /**
