@@ -64,7 +64,33 @@ describe('Etherscan', () => {
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
           `&apikey=${REQUEST_MOCK.apiKey}` +
           `&offset=${REQUEST_MOCK.limit}` +
-          `&order=desc` +
+          `&sort=desc` +
+          `&action=${action}` +
+          `&tag=latest` +
+          `&page=1`,
+      );
+    });
+
+    it('does not include API key in request if chain does not use standard Etherscan domain', async () => {
+      handleFetchMock.mockResolvedValueOnce(RESPONSE_MOCK);
+
+      await (Etherscan as any)[method]({
+        ...REQUEST_MOCK,
+        chainId: CHAIN_IDS.LINEA_MAINNET,
+      });
+
+      expect(handleFetchMock).toHaveBeenCalledTimes(1);
+      expect(handleFetchMock).toHaveBeenCalledWith(
+        `https://${
+          ETHERSCAN_SUPPORTED_NETWORKS[CHAIN_IDS.LINEA_MAINNET].subdomain
+        }.${
+          ETHERSCAN_SUPPORTED_NETWORKS[CHAIN_IDS.LINEA_MAINNET].domain
+        }/api?` +
+          `module=account` +
+          `&address=${REQUEST_MOCK.address}` +
+          `&startBlock=${REQUEST_MOCK.fromBlock}` +
+          `&offset=${REQUEST_MOCK.limit}` +
+          `&sort=desc` +
           `&action=${action}` +
           `&tag=latest` +
           `&page=1`,
@@ -89,7 +115,7 @@ describe('Etherscan', () => {
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
           `&apikey=${REQUEST_MOCK.apiKey}` +
           `&offset=${REQUEST_MOCK.limit}` +
-          `&order=desc` +
+          `&sort=desc` +
           `&action=${action}` +
           `&tag=latest` +
           `&page=1`,
@@ -138,7 +164,7 @@ describe('Etherscan', () => {
         }/api?` +
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
-          `&order=desc` +
+          `&sort=desc` +
           `&action=${action}` +
           `&tag=latest` +
           `&page=1`,

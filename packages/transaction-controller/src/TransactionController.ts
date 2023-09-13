@@ -235,7 +235,8 @@ export class TransactionController extends BaseController<
    * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
    * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
-   * @param options.incomingTransactions.updateTransactions - Whether or not to update local transactions using remote transaction data.
+   * @param options.incomingTransactions.queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
+   * @param options.incomingTransactions.updateTransactions - Whether to update local transactions using remote transaction data.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
@@ -259,6 +260,7 @@ export class TransactionController extends BaseController<
         apiKey?: string;
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
+        queryEntireHistory?: boolean;
         updateTransactions?: boolean;
       };
       messenger: TransactionControllerMessenger;
@@ -309,8 +311,10 @@ export class TransactionController extends BaseController<
     this.incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
       getCurrentAccount: getSelectedAddress,
+      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getNetworkState,
       isEnabled: incomingTransactions.isEnabled,
+      queryEntireHistory: incomingTransactions.queryEntireHistory,
       remoteTransactionSource: new EtherscanRemoteTransactionSource({
         apiKey: incomingTransactions.apiKey,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
@@ -439,6 +443,7 @@ export class TransactionController extends BaseController<
       const { gas, estimateGasError } = await this.estimateGas(txParams);
       txParams.gas = gas;
       txParams.estimateGasError = estimateGasError;
+      transactionMeta.originalGasEstimate = gas;
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
@@ -704,16 +709,15 @@ export class TransactionController extends BaseController<
       transactionMeta.txParams.from,
     );
     const rawTx = bufferToHex(signedTx.serialize());
-    const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
-      rawTx,
-    ]);
+    const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
     const baseTransactionMeta = {
       ...transactionMeta,
       estimatedBaseFee,
       id: random(),
       time: Date.now(),
-      transactionHash,
+      hash,
       actionId,
+      originalGasEstimate: transactionMeta.txParams.gas,
     };
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
@@ -768,7 +772,7 @@ export class TransactionController extends BaseController<
     ]);
 
     // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
-    // If the newtwork is a custom network then bypass this check and fetch 'estimateGas'.
+    // If the network is a custom network then bypass this check and fetch 'estimateGas'.
     /* istanbul ignore next */
     const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
     /* istanbul ignore next */
@@ -1023,7 +1027,7 @@ export class TransactionController extends BaseController<
 
       case TransactionStatus.submitted:
         resultCallbacks?.success();
-        return finalMeta.transactionHash as string;
+        return finalMeta.hash as string;
 
       default:
         const internalError = ethErrors.rpc.internal(
@@ -1113,10 +1117,8 @@ export class TransactionController extends BaseController<
 
       transactionMeta.rawTx = rawTx;
       this.updateTransaction(transactionMeta);
-      const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
-        rawTx,
-      ]);
-      transactionMeta.transactionHash = transactionHash;
+      const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+      transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
       this.updateTransaction(transactionMeta);
@@ -1171,25 +1173,32 @@ export class TransactionController extends BaseController<
     transactions: TransactionMeta[],
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
-    const txsToKeep = transactions.reverse().filter((tx) => {
-      const { chainId, networkID, status, txParams, time } = tx;
-      if (txParams) {
-        const key = `${txParams.nonce}-${
-          chainId ? convertHexToDecimal(chainId) : networkID
-        }-${new Date(time).toDateString()}`;
-        if (nonceNetworkSet.has(key)) {
-          return true;
-        } else if (
-          nonceNetworkSet.size < this.config.txHistoryLimit ||
-          !this.isFinalState(status)
-        ) {
-          nonceNetworkSet.add(key);
-          return true;
+
+    const txsToKeep = transactions
+      .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
+      .filter((tx) => {
+        const { chainId, networkID, status, txParams, time } = tx;
+
+        if (txParams) {
+          const key = `${txParams.nonce}-${
+            chainId ? convertHexToDecimal(chainId) : networkID
+          }-${new Date(time).toDateString()}`;
+
+          if (nonceNetworkSet.has(key)) {
+            return true;
+          } else if (
+            nonceNetworkSet.size < this.config.txHistoryLimit ||
+            !this.isFinalState(status)
+          ) {
+            nonceNetworkSet.add(key);
+            return true;
+          }
         }
-      }
-      return false;
-    });
-    txsToKeep.reverse();
+
+        return false;
+      });
+
+    txsToKeep.reverse(); // Ascending time order
     return txsToKeep;
   }
 
@@ -1233,11 +1242,11 @@ export class TransactionController extends BaseController<
   private async blockchainTransactionStateReconciler(
     meta: TransactionMeta,
   ): Promise<[TransactionMeta, boolean]> {
-    const { status, transactionHash } = meta;
+    const { status, hash } = meta;
     switch (status) {
       case TransactionStatus.confirmed:
         const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-          transactionHash,
+          hash,
         ]);
 
         if (!txReceipt) {
@@ -1267,12 +1276,12 @@ export class TransactionController extends BaseController<
         return [meta, true];
       case TransactionStatus.submitted:
         const txObj = await query(this.ethQuery, 'getTransactionByHash', [
-          transactionHash,
+          hash,
         ]);
 
         if (!txObj) {
           const receiptShowsFailedStatus =
-            await this.checkTxReceiptStatusIsFailed(transactionHash);
+            await this.checkTxReceiptStatusIsFailed(hash);
 
           // Case the txObj is evaluated as false, a second check will
           // determine if the tx failed or it is pending or confirmed
@@ -1429,8 +1438,7 @@ export class TransactionController extends BaseController<
       ...added,
       ...currentTransactions.map((originalTransaction) => {
         const updatedTransaction = updated.find(
-          ({ transactionHash }) =>
-            transactionHash === originalTransaction.transactionHash,
+          ({ hash }) => hash === originalTransaction.hash,
         );
 
         return updatedTransaction ?? originalTransaction;

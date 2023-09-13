@@ -79,6 +79,11 @@ type TransactionMetaBase = {
   origin?: string;
 
   /**
+   * The original gas estimation of the transaction.
+   */
+  originalGasEstimate?: string;
+
+  /**
    * Hex representation of the underlying transaction.
    */
   rawTx?: string;
@@ -107,11 +112,6 @@ type TransactionMetaBase = {
    * Whether transaction recipient is a smart contract.
    */
   toSmartContract?: boolean;
-
-  /**
-   * Hash of a successful transaction.
-   */
-  transactionHash?: string;
 
   /**
    * Additional transfer information.
