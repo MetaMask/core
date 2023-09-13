@@ -311,12 +311,11 @@ export function getTotalFiatAccountBalance(
     const { contractExchangeRates: tokenExchangeRates } =
       tokenRatesControllerState;
 
-    console.log("[tokens]: ", tokens);
+    console.log('[tokens]: ', tokens);
 
     const tokenValues = tokens.map((item: Token) => {
       // TODO: Retrieve the token balance from tokenBalancesControllerState
       // instead of checking the token "item" for it, because it doesn't actually live there
-
 
       if (item.address === undefined || item.balance === undefined) {
         console.log('[tokens] no address or balance, bailing');
@@ -349,7 +348,14 @@ export function getTotalFiatAccountBalance(
         decimalsToShow,
       );
 
-      console.log('[tokens] tokenBalanceFiat: ', tokenBalanceFiat, Number(tokenBalance), finalConversionRate, Number(exchangeRate), decimalsToShow); 
+      console.log(
+        '[tokens] tokenBalanceFiat: ',
+        tokenBalanceFiat,
+        Number(tokenBalance),
+        finalConversionRate,
+        Number(exchangeRate),
+        decimalsToShow,
+      );
 
       return tokenBalanceFiat;
     });

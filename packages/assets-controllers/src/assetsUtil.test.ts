@@ -461,6 +461,7 @@ describe('assetsUtil', () => {
     const ADDRESS = '0x0000000000000000000000000000000008675309';
     const CURRENCY = 'usd';
     const CURRENCY_CONVERSION_RATE = 1560.51;
+
     const NATIVE_CURRENCY = 'ETH';
     const NATIVE_BALANCE = '0x0';
 
@@ -604,7 +605,7 @@ describe('assetsUtil', () => {
       expect(fiatBalance).toBe(58.29);
     });
 
-    it.only('should return correct balance when no ETH and 100 USDC', () => {
+    it('should return correct balance when no ETH and 100 USDC', () => {
       const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
         // CurrencyRateController
         DEFAULT_CURRENCY_RATE_STATE,
@@ -636,6 +637,49 @@ describe('assetsUtil', () => {
       );
 
       expect(fiatBalance).toBe(99.84);
+    });
+
+    it('should return correct balance when 2 ETH, 2 LINK, and 100 USDC', () => {
+      const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
+        // CurrencyRateController
+        DEFAULT_CURRENCY_RATE_STATE,
+        // PreferencesController
+        DEFAULT_PREFERENCES_STATE,
+        // AccountTrackerController,
+        {
+          ...DEFAULT_ACCOUNT_TRACKER_STATE,
+          accounts: { [ADDRESS]: { balance: toWei(2, 'ether') } },
+        },
+        // TokenBalancesController
+        DEFAULT_TOKEN_BALANCES_STATE,
+        // TokenRatesController
+        {
+          ...DEFAULT_TOKEN_RATES_STATE,
+          contractExchangeRates: {
+            [USDC_ADDRESS]: USDC_EXCHANGE_RATE,
+          },
+        },
+        // TokensController
+        {
+          ...DEFAULT_TOKENS_STATE,
+          tokens: [
+            {
+              address: USDC_ADDRESS,
+              symbol: USDC_SYMBOL,
+              decimals: USDC_DECIMALS,
+              balance: new BN(2).toString(),
+            },
+            {
+              address: CHAINLINK_ADDRESS,
+              symbol: CHAINLINK_SYMBOL,
+              decimals: CHAINLINK_DECIMALS,
+              balance: new BN(CHAINLINK_BALANCE).toString(),
+            },
+          ],
+        },
+      );
+
+      expect(fiatBalance).toBe(3122.99);
     });
   });
 });
