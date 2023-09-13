@@ -232,6 +232,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      getNetworkClientById: jest.fn(),
     });
     const tokensController = new TokensController({
       chainId: toHex(1),

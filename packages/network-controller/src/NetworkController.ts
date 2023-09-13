@@ -453,10 +453,16 @@ export type NetworkControllerGetEthQueryAction = {
   handler: () => EthQuery | undefined;
 };
 
+export type NetworkControllerGetNetworkClientByIdAction = {
+  type: `NetworkController:getNetworkClientById`;
+  handler: NetworkController['getNetworkClientById'];
+};
+
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
-  | NetworkControllerGetEthQueryAction;
+  | NetworkControllerGetEthQueryAction
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -599,6 +605,11 @@ export class NetworkController extends BaseControllerV2<
       () => {
         return this.#ethQuery;
       },
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getNetworkClientById`,
+      this.getNetworkClientById.bind(this),
     );
 
     this.#previousProviderConfig = this.state.providerConfig;

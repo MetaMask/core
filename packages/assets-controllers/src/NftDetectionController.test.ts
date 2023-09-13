@@ -38,6 +38,7 @@ describe('NftDetectionController', () => {
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: networkStateChangeNoop,
+      getNetworkClientById: jest.fn(),
     });
 
     nftController = new NftController({
