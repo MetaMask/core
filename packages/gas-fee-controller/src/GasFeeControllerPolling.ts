@@ -27,24 +27,38 @@ export default abstract class GasFeeControllerPolling<
       const set = new Set<string>();
       set.add(innerPollToken);
       this.networkClientIdTokensMap.set(networkClientId, set);
-      this.poll(networkClientId);
     }
+    this.#poll(networkClientId);
 
     // call _poll
     // add the inner poll token to the poll tokens set
     return innerPollToken;
   }
 
-  stop(innerPollToken?: string, networkClientId?: NetworkClientId) {
-    if (!innerPollToken || !networkClientId) {
+  stop({
+    pollingToken,
+    networkClientId,
+  }: {
+    pollingToken?: string;
+    networkClientId?: NetworkClientId;
+  } = {}) {
+    if (pollingToken && !networkClientId) {
+      throw new Error(
+        'networkClientId is required when pollingToken is passed',
+      );
+    }
+    if (!pollingToken || !networkClientId) {
       this.networkClientIdTokensMap.forEach((tokens, _networkClientId) => {
         tokens.forEach((token) => {
-          this.stop(token, _networkClientId);
+          this.stop({
+            pollingToken: token,
+            networkClientId: _networkClientId,
+          });
         });
       });
       return;
     }
-    this.networkClientIdTokensMap.get(networkClientId)?.delete(innerPollToken);
+    this.networkClientIdTokensMap.get(networkClientId)?.delete(pollingToken);
     if (this.networkClientIdTokensMap.get(networkClientId)?.size === 0) {
       clearInterval(this.intervalIds[networkClientId]);
       delete this.intervalIds[networkClientId];
@@ -54,7 +68,7 @@ export default abstract class GasFeeControllerPolling<
 
   abstract executePoll(networkClientId: NetworkClientId): Promise<void>;
 
-  poll(networkClientId: NetworkClientId) {
+  #poll(networkClientId: NetworkClientId) {
     if (this.intervalIds[networkClientId]) {
       clearInterval(this.intervalIds[networkClientId]);
     }
