@@ -518,41 +518,6 @@ export function isValidJson(value: unknown): value is Json {
 }
 
 /**
- * Checks if a networkId matches a chainId
- *
- * @param networkId - Network ID for the chain.
- * @param chainId - Chain ID for the chain.
- * @returns Whether the network ID matches the chain ID
- */
-export function deprecatedNetworkIdMatchesChainId(
-  networkId: string,
-  chainId: Hex,
-): boolean {
-  let networkIdHex;
-  try {
-    networkIdHex = toHex(networkId);
-  } catch (err) {
-    return false;
-  }
-  if (networkIdHex === chainId) {
-    return true;
-  }
-  const chainIds = NON_MATCHING_NETWORK_ID_TO_CHAIN_IDS[networkId];
-  return Boolean(chainIds && chainIds.includes(chainId));
-}
-
-/**
- * Converts a chainId to networkId
- *
- * @param chainId - Chain ID for the chain.
- * @returns The network ID
- */
-export function deprecatedConvertChainIdToNetworkId(chainId: Hex): string {
-  const networkId = NON_MATCHING_CHAIN_ID_TO_NETWORK_ID[chainId];
-  return networkId !== undefined ? networkId : parseInt(chainId, 16).toString();
-}
-
-/**
  * Utility method to log if error is a common fetch error and otherwise rethrow it.
  *
  * @param error - Caught error that we should either rethrow or log to console
