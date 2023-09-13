@@ -1528,7 +1528,7 @@ __metadata:
     "@metamask/eslint-config-jest": ^12.0.0
     "@metamask/eslint-config-nodejs": ^12.0.0
     "@metamask/eslint-config-typescript": ^12.0.0
-    "@metamask/eth-json-rpc-provider": ^1.0.0
+    "@metamask/eth-json-rpc-provider": ^2.1.0
     "@metamask/utils": ^8.1.0
     "@types/node": ^16.18.24
     "@typescript-eslint/eslint-plugin": ^5.30.7
@@ -1702,6 +1702,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/eth-json-rpc-provider@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "@metamask/eth-json-rpc-provider@npm:2.1.0"
+  dependencies:
+    "@metamask/json-rpc-engine": ^7.1.0
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^8.1.0
+  checksum: 020f7c4d9d305b590aa7d7c2198b3487e3e609110b43b04802cdf42c09fb8300b5989c9cb2dc15d50bcc244d44d26a779de6b5171e5f2fe7001eab83a5028874
+  languageName: node
+  linkType: hard
+
 "@metamask/eth-keyring-controller@npm:^13.0.1":
   version: 13.0.1
   resolution: "@metamask/eth-keyring-controller@npm:13.0.1"
@@ -1829,7 +1840,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/json-rpc-engine@npm:^7.1.1":
+"@metamask/json-rpc-engine@npm:^7.1.0, @metamask/json-rpc-engine@npm:^7.1.1":
   version: 7.1.1
   resolution: "@metamask/json-rpc-engine@npm:7.1.1"
   dependencies:
@@ -1995,7 +2006,7 @@ __metadata:
     "@metamask/controller-utils": ^5.0.0
     "@metamask/eth-json-rpc-infura": ^8.1.1
     "@metamask/eth-json-rpc-middleware": ^11.0.2
-    "@metamask/eth-json-rpc-provider": ^1.0.0
+    "@metamask/eth-json-rpc-provider": ^2.1.0
     "@metamask/eth-query": ^3.0.1
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^8.1.0
