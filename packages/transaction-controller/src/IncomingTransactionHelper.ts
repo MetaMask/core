@@ -4,6 +4,7 @@ import { Mutex } from 'async-mutex';
 import EventEmitter from 'events';
 
 import type { RemoteTransactionSource, TransactionMeta } from './types';
+import { incomingTransactionsLogger } from './logger';
 
 const RECENT_HISTORY_BLOCK_RANGE = 10;
 
@@ -11,6 +12,8 @@ const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
   (txMeta) => txMeta.status,
   (txMeta) => txMeta.transaction.gasUsed,
 ];
+
+const log = incomingTransactionsLogger;
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;
@@ -110,6 +113,8 @@ export class IncomingTransactionHelper {
   async update(latestBlockNumberHex?: Hex): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
 
+    log('Checking for incoming transactions');
+
     try {
       if (!this.#canStart()) {
         return;
@@ -137,6 +142,7 @@ export class IncomingTransactionHelper {
             limit: this.#transactionLimit,
           });
       } catch (error: any) {
+        log('Error while fetching remote transactions', error);
         return;
       }
 
@@ -163,6 +169,11 @@ export class IncomingTransactionHelper {
       if (newTransactions.length > 0 || updatedTransactions.length > 0) {
         this.#sortTransactionsByTime(newTransactions);
         this.#sortTransactionsByTime(updatedTransactions);
+
+        log('Found incoming transactions', {
+          new: newTransactions,
+          updated: updatedTransactions,
+        });
 
         this.hub.emit('transactions', {
           added: newTransactions,
