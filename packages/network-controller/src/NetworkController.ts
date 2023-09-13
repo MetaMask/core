@@ -453,10 +453,16 @@ export type NetworkControllerGetEthQueryAction = {
   handler: () => EthQuery | undefined;
 };
 
+export type NetworkControllerGetNetworkClientByIdAction = {
+  type: `NetworkController:getNetworkClientById`;
+  handler: NetworkController['getNetworkClientById'];
+};
+
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
-  | NetworkControllerGetEthQueryAction;
+  | NetworkControllerGetEthQueryAction
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -601,6 +607,11 @@ export class NetworkController extends BaseControllerV2<
       },
     );
 
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getNetworkClientById`,
+      this.getNetworkClientById.bind(this),
+    );
+
     this.#previousProviderConfig = this.state.providerConfig;
   }
 
@@ -730,17 +741,23 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Fetches the network ID for the network, ensuring that it is a hex string.
    *
+   * @param networkClientId - The ID of the network client to fetch the network
    * @returns A promise that either resolves to the network ID, or rejects with
    * an error.
    * @throws If the network ID of the network is not a valid hex string.
    */
-  async #getNetworkId(): Promise<NetworkId> {
+  async #getNetworkId(networkClientId: NetworkClientId): Promise<NetworkId> {
     const possibleNetworkId = await new Promise<string>((resolve, reject) => {
-      if (!this.#ethQuery) {
+      let ethQuery = this.#ethQuery;
+      if (networkClientId) {
+        const networkClient = this.getNetworkClientById(networkClientId);
+        ethQuery = new EthQuery(networkClient.provider);
+      }
+      if (!ethQuery) {
         throw new Error('Provider has not been initialized');
       }
 
-      this.#ethQuery.sendAsync(
+      ethQuery.sendAsync(
         { method: 'net_version' },
         (error: unknown, result?: unknown) => {
           if (error) {
@@ -757,17 +774,96 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
+   * Refreshes the network meta with EIP-1559 support and the network status
+   * based on the given network client ID.
+   *
+   * @param networkClientId - The ID of the network client to update.
+   */
+  async lookupNetworkByClientId(networkClientId: NetworkClientId) {
+    const isInfura = isInfuraProviderType(networkClientId);
+    let updatedNetworkStatus: NetworkStatus;
+    let updatedIsEIP1559Compatible: boolean | undefined;
+
+    try {
+      updatedIsEIP1559Compatible = await this.#determineEIP1559Compatibility(
+        networkClientId,
+      );
+      updatedNetworkStatus = NetworkStatus.Available;
+    } catch (error) {
+      if (isErrorWithCode(error)) {
+        let responseBody;
+        if (
+          isInfura &&
+          hasProperty(error, 'message') &&
+          typeof error.message === 'string'
+        ) {
+          try {
+            responseBody = JSON.parse(error.message);
+          } catch {
+            // error.message must not be JSON
+          }
+        }
+
+        if (
+          isPlainObject(responseBody) &&
+          responseBody.error === INFURA_BLOCKED_KEY
+        ) {
+          updatedNetworkStatus = NetworkStatus.Blocked;
+        } else if (error.code === errorCodes.rpc.internal) {
+          updatedNetworkStatus = NetworkStatus.Unknown;
+        } else {
+          updatedNetworkStatus = NetworkStatus.Unavailable;
+        }
+      } else if (
+        typeof Error !== 'undefined' &&
+        hasProperty(error as unknown as Error, 'message') &&
+        typeof (error as unknown as Error).message === 'string' &&
+        (error as unknown as Error).message.includes(
+          'No custom network client was found with the ID',
+        )
+      ) {
+        throw error;
+      } else {
+        log('NetworkController - could not determine network status', error);
+        updatedNetworkStatus = NetworkStatus.Unknown;
+      }
+    }
+    this.update((state) => {
+      if (state.networksMetadata[networkClientId] === undefined) {
+        state.networksMetadata[networkClientId] = {
+          status: NetworkStatus.Unknown,
+          EIPS: {},
+        };
+      }
+      const meta = state.networksMetadata[networkClientId];
+      meta.status = updatedNetworkStatus;
+      if (updatedIsEIP1559Compatible === undefined) {
+        delete meta.EIPS[1559];
+      } else {
+        meta.EIPS[1559] = updatedIsEIP1559Compatible;
+      }
+    });
+  }
+
+  /**
    * Performs side effects after switching to a network. If the network is
    * available, updates the network state with the network ID of the network and
    * stores whether the network supports EIP-1559; otherwise clears said
    * information about the network that may have been previously stored.
    *
+   * @param networkClientId - (Optional) The ID of the network client to update.
+   * If no ID is provided, uses the currently selected network.
    * @fires infuraIsBlocked if the network is Infura-supported and is blocking
    * requests.
    * @fires infuraIsUnblocked if the network is Infura-supported and is not
    * blocking requests, or if the network is not Infura-supported.
    */
-  async lookupNetwork() {
+  async lookupNetwork(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      await this.lookupNetworkByClientId(networkClientId);
+      return;
+    }
+
     if (!this.#ethQuery) {
       return;
     }
@@ -793,8 +889,8 @@ export class NetworkController extends BaseControllerV2<
 
     try {
       const [networkId, isEIP1559Compatible] = await Promise.all([
-        this.#getNetworkId(),
-        this.#determineEIP1559Compatibility(),
+        this.#getNetworkId(this.state.selectedNetworkClientId),
+        this.#determineEIP1559Compatibility(this.state.selectedNetworkClientId),
       ]);
       updatedNetworkStatus = NetworkStatus.Available;
       updatedNetworkId = networkId;
@@ -938,16 +1034,20 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Fetches the latest block for the network.
    *
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check the latest block. Defaults to the selectedNetworkClientId.
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(): Promise<Block> {
-    return new Promise((resolve, reject) => {
-      if (!this.#ethQuery) {
-        throw new Error('Provider has not been initialized');
-      }
+  #getLatestBlock(networkClientId: NetworkClientId): Promise<Block> {
+    if (networkClientId === undefined) {
+      networkClientId = this.state.selectedNetworkClientId;
+    }
 
-      this.#ethQuery.sendAsync(
+    const networkClient = this.getNetworkClientById(networkClientId);
+    const ethQuery = new EthQuery(networkClient.provider);
+
+    return new Promise((resolve, reject) => {
+      ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
           if (error) {
@@ -966,10 +1066,14 @@ export class NetworkController extends BaseControllerV2<
    * latest block has a `baseFeePerGas` property, then updates state
    * appropriately.
    *
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check 1559 compatibility.
    * @returns A promise that resolves to true if the network supports EIP-1559
    * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
-  async getEIP1559Compatibility() {
+  async getEIP1559Compatibility(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      return this.get1555CompatibilityWithNetworkClientId(networkClientId);
+    }
     if (!this.#ethQuery) {
       return false;
     }
@@ -981,7 +1085,9 @@ export class NetworkController extends BaseControllerV2<
       return EIPS[1559];
     }
 
-    const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
+    const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
+      this.state.selectedNetworkClientId,
+    );
     this.update((state) => {
       if (isEIP1559Compatible !== undefined) {
         state.networksMetadata[state.selectedNetworkClientId].EIPS[1559] =
@@ -991,16 +1097,33 @@ export class NetworkController extends BaseControllerV2<
     return isEIP1559Compatible;
   }
 
+  async get1555CompatibilityWithNetworkClientId(
+    networkClientId: NetworkClientId,
+  ) {
+    let metadata = this.state.networksMetadata[networkClientId];
+    if (metadata === undefined) {
+      await this.lookupNetwork(networkClientId);
+      metadata = this.state.networksMetadata[networkClientId];
+    }
+    const { EIPS } = metadata;
+
+    // may want to include some 'freshness' value - something to make sure we refetch this from time to time
+    return EIPS[1559];
+  }
+
   /**
    * Retrieves and checks the latest block from the currently selected
    * network; if the block has a `baseFeePerGas` property, then we know
    * that the network supports EIP-1559; otherwise it doesn't.
    *
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check 1559 compatibility
    * @returns A promise that resolves to `true` if the network supports EIP-1559,
    * `false` otherwise, or `undefined` if unable to retrieve the last block.
    */
-  async #determineEIP1559Compatibility(): Promise<boolean | undefined> {
-    const latestBlock = await this.#getLatestBlock();
+  async #determineEIP1559Compatibility(
+    networkClientId: NetworkClientId,
+  ): Promise<boolean | undefined> {
+    const latestBlock = await this.#getLatestBlock(networkClientId);
 
     if (!latestBlock) {
       return undefined;
