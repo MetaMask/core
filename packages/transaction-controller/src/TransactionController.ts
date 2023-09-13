@@ -1170,12 +1170,13 @@ export class TransactionController extends BaseController<
     const txsToKeep = transactions
       .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
       .filter((tx) => {
-        const { chainId, networkID, status, transaction, time } = tx;
+        const { chainId, status, transaction, time } = tx;
 
         if (transaction) {
-          const key = `${transaction.nonce}-${
-            chainId ? convertHexToDecimal(chainId) : networkID
-          }-${new Date(time).toDateString()}`;
+          const txChainId = chainId ?? transaction.chainId;
+          const key = `${transaction.nonce}-${convertHexToDecimal(
+            txChainId,
+          )}-${new Date(time).toDateString()}`;
 
           if (nonceNetworkSet.has(key)) {
             return true;
