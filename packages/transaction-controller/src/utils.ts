@@ -262,16 +262,10 @@ export async function determineTransactionType(
   txParams: Transaction,
   ethQuery: EthQuery,
 ): Promise<InferTransactionTypeResult> {
-  const { data, to } = txParams;
-  let name: string | undefined;
-  try {
-    name = parseStandardTokenTransactionData(data)?.name;
-  } catch (error) {
-    console.debug('Failed to parse transaction data.', error, data);
-  }
-
   let result;
   let contractCode;
+  const { data, to } = txParams;
+  const name = parseStandardTokenTransactionData(data)?.name;
 
   if (data && !to) {
     result = TransactionType.deployContract;
@@ -351,14 +345,14 @@ export async function readAddressAsContract(
   ethQuery: EthQuery,
   address?: string,
 ): Promise<{
-  contractCode?: string;
+  contractCode: string | null;
   isContractAddress: boolean;
 }> {
   let contractCode;
   try {
     contractCode = await query(ethQuery, 'getCode', [address]);
   } catch (e) {
-    contractCode = undefined;
+    contractCode = null;
   }
 
   const isContractAddress = contractCode
