@@ -366,6 +366,7 @@ export class TransactionController extends BaseController<
    * @param opts - Additional options to control how the transaction is added.
    * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
+   * @param opts.securityAlertResponse - Response from security validator.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -373,9 +374,11 @@ export class TransactionController extends BaseController<
     {
       deviceConfirmedOn,
       origin,
+      securityAlertResponse,
     }: {
       deviceConfirmedOn?: WalletDevice;
       origin?: string;
+      securityAlertResponse?: Record<string, unknown>;
     } = {},
   ): Promise<Result> {
     const { providerConfig, networkId } = this.getNetworkState();
@@ -393,6 +396,7 @@ export class TransactionController extends BaseController<
       transaction,
       deviceConfirmedOn,
       verifiedOnBlockchain: false,
+      securityAlertResponse,
     };
 
     try {
