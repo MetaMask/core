@@ -61,7 +61,7 @@
     "webextension-polyfill-ts": "^0.26.0"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": "^16.20 || ^18.16 || >=20"
   },
   "publishConfig": {
     "access": "public",
