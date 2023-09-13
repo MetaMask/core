@@ -1,5 +1,6 @@
 import { Duplex } from 'readable-stream';
-import { JsonRpcEngine, JsonRpcRequest } from 'json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcRequest, JsonRpcParams } from '@metamask/utils';
 
 interface EngineStreamOptions {
   engine: JsonRpcEngine;
@@ -35,7 +36,7 @@ export default function createEngineStream(opts: EngineStreamOptions): Duplex {
    * @param cb - The stream write callback.
    */
   function write(
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest<JsonRpcParams>,
     _encoding: unknown,
     cb: (error?: Error | null) => void,
   ) {

@@ -1,17 +1,21 @@
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import { Duplex } from 'readable-stream';
-import {
+import type {
   JsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
-  JsonRpcNotification,
   JsonRpcMiddleware,
+} from '@metamask/json-rpc-engine';
+
+import type {
+  JsonRpcNotification,
+  JsonRpcParams,
   JsonRpcRequest,
   PendingJsonRpcResponse,
-} from 'json-rpc-engine';
+} from '@metamask/utils';
 
 interface IdMapValue {
-  req: JsonRpcRequest<unknown>;
-  res: PendingJsonRpcResponse<unknown>;
+  req: JsonRpcRequest<JsonRpcParams>;
+  res: PendingJsonRpcResponse<JsonRpcParams>;
   next: JsonRpcEngineNextCallback;
   end: JsonRpcEngineEndCallback;
   retryCount?: number;
@@ -44,7 +48,7 @@ export default function createStreamMiddleware(options: Options = {}) {
 
   const events = new SafeEventEmitter();
 
-  const middleware: JsonRpcMiddleware<unknown, unknown> = (
+  const middleware: JsonRpcMiddleware<JsonRpcParams, JsonRpcParams> = (
     req,
     res,
     next,
@@ -63,7 +67,7 @@ export default function createStreamMiddleware(options: Options = {}) {
    *
    * @param req - The JSON-RPC request object.
    */
-  function sendToStream(req: JsonRpcRequest<unknown>) {
+  function sendToStream(req: JsonRpcRequest<JsonRpcParams>) {
     // TODO: limiting retries could be implemented here
     stream.push(req);
   }
@@ -76,7 +80,7 @@ export default function createStreamMiddleware(options: Options = {}) {
    * @param cb - The stream write callback.
    */
   function processMessage(
-    res: PendingJsonRpcResponse<unknown>,
+    res: PendingJsonRpcResponse<JsonRpcParams>,
     _encoding: unknown,
     cb: (error?: Error | null) => void,
   ) {
@@ -84,7 +88,9 @@ export default function createStreamMiddleware(options: Options = {}) {
     try {
       const isNotification = !res.id;
       if (isNotification) {
-        processNotification(res as unknown as JsonRpcNotification<unknown>);
+        processNotification(
+          res as unknown as JsonRpcNotification<JsonRpcParams>,
+        );
       } else {
         processResponse(res);
       }
@@ -100,7 +106,7 @@ export default function createStreamMiddleware(options: Options = {}) {
    *
    * @param res - The response to process.
    */
-  function processResponse(res: PendingJsonRpcResponse<unknown>) {
+  function processResponse(res: PendingJsonRpcResponse<JsonRpcParams>) {
     const context = idMap[res.id as unknown as string];
     if (!context) {
       console.warn(`StreamMiddleware - Unknown response id "${res.id}"`);
@@ -120,7 +126,7 @@ export default function createStreamMiddleware(options: Options = {}) {
    *
    * @param notif - The notification to process.
    */
-  function processNotification(notif: JsonRpcNotification<unknown>) {
+  function processNotification(notif: JsonRpcNotification<JsonRpcParams>) {
     if (options?.retryOnMessage && notif.method === options.retryOnMessage) {
       retryStuckRequests();
     }

@@ -1,5 +1,5 @@
 import { Duplex } from 'stream';
-import { JsonRpcEngine } from 'json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import PortStream from 'extension-port-stream';
 import type { Runtime } from 'webextension-polyfill-ts';
 import { createStreamMiddleware, createEngineStream } from '.';

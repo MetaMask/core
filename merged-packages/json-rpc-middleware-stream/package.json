@@ -24,8 +24,9 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@metamask/json-rpc-engine": "^7.1.1",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "json-rpc-engine": "^6.1.0",
+    "@metamask/utils": "^8.1.0",
     "readable-stream": "^2.3.3"
   },
   "devDependencies": {
@@ -51,7 +52,6 @@
     "extension-port-stream": "^2.0.1",
     "jest": "^27.5.1",
     "jest-it-up": "^2.0.2",
-    "json-rpc-engine": "^6.1.0",
     "prettier": "^2.2.1",
     "prettier-plugin-packagejson": "^2.2.17",
     "rimraf": "^3.0.2",
