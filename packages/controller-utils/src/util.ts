@@ -13,11 +13,7 @@ import {
 import { fromWei, toWei } from 'ethjs-unit';
 import deepEqual from 'fast-deep-equal';
 
-import {
-  MAX_SAFE_CHAIN_ID,
-  NON_MATCHING_CHAIN_ID_TO_NETWORK_ID,
-  NON_MATCHING_NETWORK_ID_TO_CHAIN_IDS,
-} from './constants';
+import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
 

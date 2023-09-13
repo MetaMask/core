@@ -122,6 +122,7 @@ export class EtherscanRemoteTransactionSource
     return {
       blockNumber: txMeta.blockNumber,
       chainId: currentChainId,
+      hash: txMeta.hash,
       id: random({ msecs: time }),
       status: TransactionStatus.confirmed,
       time,
@@ -135,7 +136,6 @@ export class EtherscanRemoteTransactionSource
         to: txMeta.to,
         value: BNToHex(new BN(txMeta.value)),
       },
-      transactionHash: txMeta.hash,
       verifiedOnBlockchain: false,
     };
   }

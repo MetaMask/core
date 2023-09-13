@@ -89,6 +89,7 @@ const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_EMPTY_MOCK: EtherscanTransactionRespo
 const EXPECTED_NORMALISED_TRANSACTION_BASE = {
   blockNumber: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.blockNumber,
   chainId: undefined,
+  hash: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.hash,
   id: ID_MOCK,
   status: TransactionStatus.confirmed,
   time: 1543596356000,
@@ -102,7 +103,6 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
     to: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.to,
     value: '0xb1a2bc2ec50000',
   },
-  transactionHash: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.hash,
   verifiedOnBlockchain: false,
 };
 

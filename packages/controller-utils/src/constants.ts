@@ -1,5 +1,3 @@
-import type { Hex } from '@metamask/utils';
-
 import {
   NetworkType,
   NetworksTicker,
