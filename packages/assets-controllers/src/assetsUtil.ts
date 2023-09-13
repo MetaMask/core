@@ -319,8 +319,12 @@ export function getTotalFiatAccountBalance(
     const { contractBalances: tokenBalances } = tokenBalancesControllerState;
     const { contractExchangeRates: tokenExchangeRates } =
       tokenRatesControllerState;
+
+    console.log("[tokens]: ", tokens);
+
     const tokenValues = tokens.map((item: Token) => {
       if (item.address === undefined || item.balance === undefined) {
+        console.log('[tokens] no address or balance, bailing');
         return 0;
       }
 
@@ -329,6 +333,9 @@ export function getTotalFiatAccountBalance(
         tokenExchangeRates[item.address] !== undefined
           ? tokenExchangeRates[item.address]
           : 0; // What do we do with an undefined exchange rate?
+
+      console.log('[tokens] exchangeRange: ', exchangeRate);
+
       const tokenBalance =
         item.balance ||
         (item.address in tokenBalances
@@ -337,12 +344,18 @@ export function getTotalFiatAccountBalance(
               item.decimals,
             )
           : 0); // What do we do with an undefined balance?
+
+      console.log('[tokens] tokenBalance: ', tokenBalance, item.balance);
+
       const tokenBalanceFiat = balanceToFiatNumber(
         Number(tokenBalance),
         finalConversionRate,
         Number(exchangeRate),
         decimalsToShow,
       );
+
+      console.log('[tokens] tokenBalanceFiat: ', tokenBalanceFiat, Number(tokenBalance), finalConversionRate, Number(exchangeRate), decimalsToShow); 
+
       return tokenBalanceFiat;
     });
 
