@@ -1,4 +1,3 @@
-import { deprecatedNetworkIdMatchesChainId } from '@metamask/controller-utils';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
 import type {
@@ -14,17 +13,6 @@ const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
 const GAS_PRICE = 'gasPrice';
 const FAIL = 'lol';
 const PASS = '0x1';
-
-jest.mock('@metamask/controller-utils', () => {
-  return {
-    ...jest.requireActual('@metamask/controller-utils'),
-    deprecatedNetworkIdMatchesChainId: jest.fn(),
-  };
-});
-
-const mockDeprecatedNetworkIdMatchesChainId = jest.mocked(
-  deprecatedNetworkIdMatchesChainId,
-);
 
 describe('utils', () => {
   afterEach(() => {
@@ -328,10 +316,10 @@ describe('utils', () => {
   describe('transactionMatchesChainId', () => {
     const mockTransaction: TransactionMeta = {
       chainId: '0x1',
-      networkID: '1',
       id: '1',
       time: 123456,
       transaction: {
+        chainId: '0x1',
         from: '0x123',
         gas: '0x100',
         value: '0x200',
@@ -340,64 +328,75 @@ describe('utils', () => {
       status: TransactionStatus.unapproved,
     };
 
-    describe('transaction has chainId', () => {
+    describe('chainId exists on transaction meta only', () => {
+      const transaction: TransactionMeta = {
+        ...mockTransaction,
+        transaction: {
+          ...mockTransaction.transaction,
+          chainId: undefined,
+        },
+      };
+
+      it('returns false if chainId does not match transaction meta chainId', () => {
+        expect(util.transactionMatchesChainId(transaction, '0x2')).toBe(false);
+      });
+
+      it('returns true if chainId matches transaction meta chainId', () => {
+        expect(util.transactionMatchesChainId(transaction, '0x1')).toBe(true);
+      });
+    });
+
+    describe('chainId exists on transaction only', () => {
       const transaction = {
         ...mockTransaction,
-        networkID: undefined,
-      };
+        chainId: undefined,
+      } as unknown as TransactionMeta;
 
       it('returns false if chainId does not match transaction chainId', () => {
         expect(util.transactionMatchesChainId(transaction, '0x2')).toBe(false);
-        expect(mockDeprecatedNetworkIdMatchesChainId).not.toHaveBeenCalled();
       });
 
       it('returns true if chainId matches transaction chainId', () => {
         expect(util.transactionMatchesChainId(transaction, '0x1')).toBe(true);
-        expect(mockDeprecatedNetworkIdMatchesChainId).not.toHaveBeenCalled();
       });
     });
 
-    describe('transaction only has networkID', () => {
-      const transaction = {
+    describe('chainId exists on transaction meta and transaction', () => {
+      const transaction: TransactionMeta = {
         ...mockTransaction,
-        chainId: undefined,
-      } as unknown as TransactionMeta;
+        transaction: {
+          ...mockTransaction.transaction,
+          chainId: '0x2',
+        },
+      };
 
-      it('returns false if chainId does not match transaction networkID', () => {
-        mockDeprecatedNetworkIdMatchesChainId.mockReturnValue(false);
-
-        expect(util.transactionMatchesChainId(transaction, '0x123')).toBe(
-          false,
-        );
-        expect(mockDeprecatedNetworkIdMatchesChainId).toHaveBeenCalledWith(
-          '1',
-          '0x123',
-        );
+      it('returns false if chainId does not match transaction meta chainId', () => {
+        expect(util.transactionMatchesChainId(transaction, '0x2')).toBe(false);
       });
 
-      it('returns true if chainId matches transaction networkID', () => {
-        mockDeprecatedNetworkIdMatchesChainId.mockReturnValue(true);
-
-        expect(util.transactionMatchesChainId(transaction, '0x123')).toBe(true);
-        expect(mockDeprecatedNetworkIdMatchesChainId).toHaveBeenCalledWith(
-          '1',
-          '0x123',
-        );
+      it('returns true if chainId matches transaction meta chainId', () => {
+        expect(util.transactionMatchesChainId(transaction, '0x1')).toBe(true);
       });
     });
 
-    describe('transaction has neither chainId or networkID', () => {
+    describe('chainId is missing on both transaction meta and transaction', () => {
       const transaction = {
         ...mockTransaction,
-        networkID: undefined,
         chainId: undefined,
+        transaction: {
+          ...mockTransaction.transaction,
+          chainId: undefined,
+        },
       } as unknown as TransactionMeta;
 
-      it('returns false', () => {
-        expect(util.transactionMatchesChainId(transaction, '0x123')).toBe(
-          false,
-        );
-        expect(mockDeprecatedNetworkIdMatchesChainId).not.toHaveBeenCalled();
+      it('returns false if chainId value is provided', () => {
+        expect(util.transactionMatchesChainId(transaction, '0x1')).toBe(false);
+      });
+
+      it('returns true if chainId value is undefined', () => {
+        expect(
+          util.transactionMatchesChainId(transaction, undefined as any),
+        ).toBe(true);
       });
     });
   });

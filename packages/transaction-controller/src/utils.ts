@@ -1,6 +1,5 @@
 import {
   convertHexToDecimal,
-  deprecatedNetworkIdMatchesChainId,
   isValidHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
@@ -222,11 +221,6 @@ export function transactionMatchesChainId(
   transaction: TransactionMeta,
   chainId: Hex,
 ) {
-  if (transaction.chainId !== undefined) {
-    return transaction.chainId === chainId;
-  }
-  if (transaction.networkID !== undefined) {
-    return deprecatedNetworkIdMatchesChainId(transaction.networkID, chainId);
-  }
-  return false;
+  const txChainId = transaction.chainId ?? transaction.transaction.chainId;
+  return txChainId === chainId;
 }
