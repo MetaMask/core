@@ -27,7 +27,7 @@
     "@metamask/json-rpc-engine": "^7.1.1",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^8.1.0",
-    "readable-stream": "^2.3.3"
+    "readable-stream": "^3.6.2"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",
