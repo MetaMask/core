@@ -162,4 +162,25 @@ describe('GasFeeControllerPolling', () => {
       expect(pollingComplete).toHaveBeenCalledTimes(1);
     });
   });
+  describe('multiple networkClientIds', () => {
+    it('should poll for each networkClientId', () => {
+      const executePollMock = jest.fn();
+      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+        executePoll = executePollMock;
+      }
+      const mockMessenger = new ControllerMessenger<any, any>();
+
+      const controller = new MyGasFeeController({
+        messenger: mockMessenger,
+        metadata: {},
+        name: 'GasFeeControllerPolling',
+        state: { foo: 'bar' },
+      });
+      controller.start('mainnet');
+      controller.start('rinkeby');
+      jest.advanceTimersByTime(2200);
+      expect(executePollMock).toHaveBeenCalledTimes(4);
+      controller.stop();
+    });
+  });
 });
