@@ -1,19 +1,9 @@
-import { ControllerMessenger, RestrictedControllerMessenger } from "@metamask/base-controller";
-import GasFeeControllerPolling, { PollingCompleteType } from './GasFeeControllerPolling';
+import { ControllerMessenger } from '@metamask/base-controller';
+
+import type { PollingCompleteType } from './GasFeeControllerPolling';
+import GasFeeControllerPolling from './GasFeeControllerPolling';
 
 describe('GasFeeControllerPolling', () => {
-  // let controller: GasFeeControllerPolling<
-  //   'GasFeeControllerPolling',
-  //   { foo: string },
-  //   RestrictedControllerMessenger<
-  //     'GasFeeControllerPolling',
-  //     any,
-  //     any,
-  //     string,
-  //     string
-  //   >
-  // >;
-
   describe('start', () => {
     it('should start polling if not polling', () => {
       jest.useFakeTimers();
