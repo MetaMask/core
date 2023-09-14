@@ -7,8 +7,10 @@ import type { Operation } from 'fast-json-patch';
 export type TransactionMeta =
   | ({
       status: Exclude<TransactionStatus, TransactionStatus.failed>;
-    } & TransactionMetaBase)
-  | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
+    } & TransactionMetaBase &
+      TransactionMetaGasValues)
+  | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase &
+      TransactionMetaGasValues);
 
 /**
  * Information about a single transaction such as status and block number.
@@ -18,11 +20,6 @@ type TransactionMetaBase = {
    * Unique ID to prevent duplicate requests.
    */
   actionId?: string;
-
-  /**
-   * Base fee of the block as a hex value, introduced in EIP-1559.
-   */
-  baseFeePerGas?: Hex;
 
   /**
    * Number of the block where the transaction has been included.
@@ -40,19 +37,9 @@ type TransactionMetaBase = {
   chainId?: Hex;
 
   /**
-   * Gas values provided by the dApp.
-   */
-  dappSuggestedGasFees?: DappSuggestedGasFees;
-
-  /**
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
-
-  /**
-   * The estimated base fee of the transaction.
-   */
-  estimatedBaseFee?: string;
 
   /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
@@ -183,6 +170,56 @@ export type SendFlowHistoryEntry = {
 };
 
 /**
+ * Gas values associated with a TransactionMeta.
+ */
+export interface TransactionMetaGasValues {
+  /**
+   * Base fee of the block as a hex value, introduced in EIP-1559.
+   */
+  baseFeePerGas?: Hex;
+
+  /**
+   * Gas values provided by the dApp.
+   */
+  dappSuggestedGasFees?: DappSuggestedGasFees;
+
+  /**
+   * The default estimate for gas.
+   */
+  defaultGasEstimates?: string;
+
+  /**
+   * Which estimate level was used
+   */
+  estimateUsed?: string;
+
+  /**
+   * The estimated base fee of the transaction.
+   */
+  estimatedBaseFee?: string;
+
+  /**
+   * Which estimate level that the API suggested.
+   */
+  estimateSuggested?: string;
+
+  /**
+   * Original estimate for gas.
+   */
+  originalGasEstimate?: string;
+
+  /**
+   * The gas limit supplied by user.
+   */
+  userEditedGasLimit?: boolean;
+
+  /**
+   * Estimate level user selected.
+   */
+  userFeeLevel?: string;
+}
+
+/**
  * The status of the transaction. Each status represents the state of the transaction internally
  * in the wallet. Some of these correspond with the state of the transaction on the network, but
  * some are wallet-specific.
@@ -238,31 +275,6 @@ export interface TransactionParams {
   from: string;
 
   /**
-   * Gas to send with this transaction.
-   */
-  gas?: string;
-
-  /**
-   * Price of gas with this transaction.
-   */
-  gasPrice?: string;
-
-  /**
-   * Gas used in the transaction.
-   */
-  gasUsed?: string;
-
-  /**
-   * Maximum fee per gas for this transaction.
-   */
-  maxFeePerGas?: string;
-
-  /**
-   * Maximum priority fee per gas for this transaction.
-   */
-  maxPriorityFeePerGas?: string;
-
-  /**
    * Unique number to prevent replay attacks.
    */
   nonce?: string;
@@ -276,6 +288,42 @@ export interface TransactionParams {
    * Value associated with this transaction.
    */
   value?: string;
+}
+
+/**
+ * Gas values associated with a transaction.
+ */
+export interface TransactionGasValues {
+  /**
+   * same as gasLimit?
+   */
+  gas?: string;
+
+  /**
+   * Maxmimum number of units of gas to use for this transaction.
+   */
+  gasLimit?: string;
+
+  /**
+   * Price per gas for legacy txs
+   */
+  gasPrice?: string;
+
+  /**
+   * Gas used in the transaction.
+   */
+  gasUsed?: string;
+
+  /**
+   * Maximum amount per gas to pay for the transaction, including the priority
+   * fee.
+   */
+  maxFeePerGas?: string;
+
+  /**
+   * Maximum amount per gas to give to validator as incentive.
+   */
+  maxPriorityFeePerGas?: string;
 }
 
 /**

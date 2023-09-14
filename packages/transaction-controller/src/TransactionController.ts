@@ -36,6 +36,7 @@ import MethodRegistry from 'eth-method-registry';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
+import { merge, pickBy } from 'lodash';
 import NonceTracker from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
@@ -45,8 +46,10 @@ import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   DappSuggestedGasFees,
+  TransactionGasValues,
   TransactionParams,
   TransactionMeta,
+  TransactionMetaGasValues,
   TransactionReceipt,
   SendFlowHistoryEntry,
   WalletDevice,
@@ -65,6 +68,7 @@ import {
   validateMinimumIncrease,
   validateTxParams,
   ESTIMATE_GAS_ERROR,
+  validateIfTransactionUnapproved,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -457,6 +461,7 @@ export class TransactionController extends BaseController<
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
       txParams,
+      userEditedGasLimit: false,
       verifiedOnBlockchain: false,
     };
 
@@ -1044,6 +1049,70 @@ export class TransactionController extends BaseController<
     }
 
     return this.getTransaction(transactionID) as TransactionMeta;
+  }
+
+  /**
+   * Update the gas values of a transaction.
+   * 
+   * @param transactionId - The ID of the transaction to update.
+   * @param gasValues - Multiple gas values to update the transaction with. 
+   * @returns The updated transactionMeta.
+   */
+  updateTransactionGasFees(
+    transactionId: string,
+    {
+      gas,
+      gasLimit,
+      gasPrice,
+      maxPriorityFeePerGas,
+      maxFeePerGas,
+      estimateUsed,
+      estimateSuggested,
+      defaultGasEstimates,
+      originalGasEstimate,
+      userEditedGasLimit,
+      userFeeLevel,
+    }: TransactionGasValues & TransactionMetaGasValues,
+  ): TransactionMeta {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update transaction as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(
+      transactionMeta,
+      'updateTransactionGasFees',
+    );
+
+    let transactionGasFees = {
+      transaction: {
+        gas,
+        gasLimit,
+        gasPrice,
+        maxPriorityFeePerGas,
+        maxFeePerGas,
+      },
+      defaultGasEstimates,
+      estimateUsed,
+      estimateSuggested,
+      originalGasEstimate,
+      userEditedGasLimit,
+      userFeeLevel,
+    } as any;
+
+    // only update what is defined
+    transactionGasFees.transaction = pickBy(transactionGasFees.transaction);
+    transactionGasFees = pickBy(transactionGasFees);
+
+    // merge updated gas values with existing transaction meta
+    const updatedMeta = merge(transactionMeta, transactionGasFees);
+
+    this.updateTransaction(updatedMeta);
+
+    return this.getTransaction(transactionId) as TransactionMeta;
   }
 
   private async processApproval(
