@@ -189,6 +189,11 @@ export interface TransactionMetaGasValues {
   defaultGasEstimates?: string;
 
   /**
+   * Which estimate level that the API suggested.
+   */
+  estimateSuggested?: string;
+
+  /**
    * Which estimate level was used
    */
   estimateUsed?: string;
@@ -197,11 +202,6 @@ export interface TransactionMetaGasValues {
    * The estimated base fee of the transaction.
    */
   estimatedBaseFee?: string;
-
-  /**
-   * Which estimate level that the API suggested.
-   */
-  estimateSuggested?: string;
 
   /**
    * Original estimate for gas.
