@@ -144,7 +144,8 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
   const urlParams = {
     module: 'account',
     address,
-    startBlock: fromBlock?.toString(),
+    // Not previously used in mobile due to bug, temporarily disabled to match existing behaviour.
+    startBlock: undefined,
     apikey: apiKey,
     offset: limit?.toString(),
     sort: 'desc',
