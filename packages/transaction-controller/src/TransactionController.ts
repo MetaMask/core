@@ -319,6 +319,7 @@ export class TransactionController extends BaseController<
       blockTracker,
       getCurrentAccount: getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      getLocalTransactions: () => this.state.transactions,
       getNetworkState,
       isEnabled: incomingTransactions.isEnabled,
       queryEntireHistory: incomingTransactions.queryEntireHistory,
