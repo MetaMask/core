@@ -1679,9 +1679,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-keyring-controller@npm:^13.0.0":
-  version: 13.0.0
-  resolution: "@metamask/eth-keyring-controller@npm:13.0.0"
+"@metamask/eth-keyring-controller@npm:^13.0.1":
+  version: 13.0.1
+  resolution: "@metamask/eth-keyring-controller@npm:13.0.1"
   dependencies:
     "@ethereumjs/tx": ^4.2.0
     "@metamask/browser-passworder": ^4.1.0
@@ -1689,8 +1689,8 @@ __metadata:
     "@metamask/eth-sig-util": ^6.0.0
     "@metamask/eth-simple-keyring": ^5.0.0
     "@metamask/obs-store": ^8.1.0
-    "@metamask/utils": ^6.2.0
-  checksum: 28ee9e844698d6fc9718eb9f434bb3472ed3e4a3875099df3daddb649618d9d0618b9bbf3cae07e54481378b7935242cf452b2d366982456956b5140a2aa3da3
+    "@metamask/utils": ^8.1.0
+  checksum: e8841ad121a7a5894638479e508bb9e394ac7c5bccef0165cfd928327cf882a44364adb4395ee0909fdf55b6d9e038cc6e9d77f74dd9da169ff39e47292b5d85
   languageName: node
   linkType: hard
 
@@ -1800,7 +1800,7 @@ __metadata:
     "@keystonehq/metamask-airgapped-keyring": ^0.13.1
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
-    "@metamask/eth-keyring-controller": ^13.0.0
+    "@metamask/eth-keyring-controller": ^13.0.1
     "@metamask/eth-sig-util": ^7.0.0
     "@metamask/message-manager": ^7.3.1
     "@metamask/preferences-controller": ^4.4.0
