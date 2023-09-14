@@ -131,7 +131,6 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     address,
     apiKey,
     chainId,
-    fromBlock,
     limit,
   }: {
     address: string;
