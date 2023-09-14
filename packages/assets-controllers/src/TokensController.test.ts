@@ -96,9 +96,7 @@ describe('TokensController', () => {
       messenger,
     });
 
-    sinon
-      .stub(tokensController, 'getProvider')
-      .callsFake(() => null as any);
+    sinon.stub(tokensController, 'getProvider').callsFake(() => null as any);
   });
 
   afterEach(() => {

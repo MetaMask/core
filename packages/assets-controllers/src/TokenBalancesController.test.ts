@@ -146,7 +146,7 @@ describe('TokenBalancesController', () => {
         messenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
-            getNetworkClientById: sinon.stub() as any,
+      getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
@@ -186,7 +186,7 @@ describe('TokenBalancesController', () => {
         messenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
-            getNetworkClientById: sinon.stub() as any,
+      getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
     const errorMsg = 'Failed to get balance';
@@ -243,13 +243,11 @@ describe('TokenBalancesController', () => {
         messenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
-            getNetworkClientById: sinon.stub() as any,
+      getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
 
-    sinon
-    .stub(tokensController, 'getProvider')
-    .callsFake(() => null as any);
+    sinon.stub(tokensController, 'getProvider').callsFake(() => null as any);
 
     const stub = stubCreateEthers(tokensController, false);
 
