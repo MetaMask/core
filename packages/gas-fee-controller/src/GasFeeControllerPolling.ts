@@ -5,10 +5,21 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json } from '@metamask/utils';
 import { v1 as random } from 'uuid';
 
+export type PollingCompleteType<N extends string> = {
+  type: `${N}:pollingComplete`;
+  payload: [string];
+};
+
 export default abstract class GasFeeControllerPolling<
   N extends string,
   S extends Record<string, Json>,
-  messenger extends RestrictedControllerMessenger<N, any, any, string, string>
+  messenger extends RestrictedControllerMessenger<
+    N,
+    any,
+    PollingCompleteType<N> | any,
+    string,
+    string
+  >,
 > extends BaseControllerV2<N, S, messenger> {
   private readonly intervalLength = 1000;
 
@@ -63,6 +74,10 @@ export default abstract class GasFeeControllerPolling<
       clearInterval(this.intervalIds[networkClientId]);
       delete this.intervalIds[networkClientId];
       this.networkClientIdTokensMap.delete(networkClientId);
+      this.messagingSystem.publish(
+        `${this.name}:pollingComplete`,
+        networkClientId,
+      );
     }
   }
 
@@ -73,13 +88,9 @@ export default abstract class GasFeeControllerPolling<
       clearInterval(this.intervalIds[networkClientId]);
     }
 
-    // get the poll tokens from the poll tokens map
-    const tokens = this.networkClientIdTokensMap.get(networkClientId);
-    if (tokens && tokens.size > 0) {
-      this.intervalIds[networkClientId] = setInterval(async () => {
-        await safelyExecute(() => this.executePoll(networkClientId));
-      }, this.intervalLength);
-    }
+    this.intervalIds[networkClientId] = setInterval(async () => {
+      await safelyExecute(() => this.executePoll(networkClientId));
+    }, this.intervalLength);
 
     // call _poll with the poll tokens
   }

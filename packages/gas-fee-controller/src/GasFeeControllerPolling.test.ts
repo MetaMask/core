@@ -1,5 +1,5 @@
 import { ControllerMessenger, RestrictedControllerMessenger } from "@metamask/base-controller";
-import GasFeeControllerPolling from './GasFeeControllerPolling';
+import GasFeeControllerPolling, { PollingCompleteType } from './GasFeeControllerPolling';
 
 describe('GasFeeControllerPolling', () => {
   // let controller: GasFeeControllerPolling<
@@ -106,7 +106,7 @@ describe('GasFeeControllerPolling', () => {
     });
   });
   describe('poll', () => {
-    it('should poll if polling', () => {
+    it('should call executePoll if polling', () => {
       jest.useFakeTimers();
 
       const executePollMock = jest.fn();
@@ -125,7 +125,7 @@ describe('GasFeeControllerPolling', () => {
       jest.advanceTimersByTime(2500);
       expect(executePollMock).toHaveBeenCalledTimes(2);
     });
-    it('should continue polling when start is called again with the same networkClientId', () => {
+    it('should continue calling executePoll when start is called again with the same networkClientId', () => {
       jest.useFakeTimers();
 
       const executePollMock = jest.fn();
@@ -145,6 +145,31 @@ describe('GasFeeControllerPolling', () => {
       jest.advanceTimersByTime(2500);
       expect(executePollMock).toHaveBeenCalledTimes(2);
       controller.stop();
+    });
+    it('should publish polligComplete when stop is called', async () => {
+      const executePollMock = jest.fn();
+      const pollingComplete: any = jest.fn();
+      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+        executePoll = executePollMock;
+      }
+      const name = 'GasFeeControllerPolling';
+
+      const mockMessenger = new ControllerMessenger<
+        any,
+        PollingCompleteType<typeof name>
+      >();
+
+      mockMessenger.subscribe(`${name}:pollingComplete`, pollingComplete);
+
+      const controller = new MyGasFeeController({
+        messenger: mockMessenger,
+        metadata: {},
+        name,
+        state: { foo: 'bar' },
+      });
+      const pollingToken = controller.start('mainnet');
+      controller.stop({ pollingToken, networkClientId: 'mainnet' });
+      expect(pollingComplete).toHaveBeenCalledTimes(1);
     });
   });
 });
