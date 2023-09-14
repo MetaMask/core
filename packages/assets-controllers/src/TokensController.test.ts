@@ -92,12 +92,13 @@ describe('TokensController', () => {
         selectedAddress: defaultSelectedAddress,
       },
       getERC20TokenName: sinon.stub(),
+      getNetworkClientById: sinon.stub() as any,
       messenger,
     });
 
     sinon
-      .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .stub(tokensController, 'getProvider')
+      .callsFake(() => null as any);
   });
 
   afterEach(() => {
@@ -117,7 +118,11 @@ describe('TokensController', () => {
 
   it('should add a token', async () => {
     const stub = stubCreateEthers(tokensController, false);
-    await tokensController.addToken('0x01', 'bar', 2);
+    await tokensController.addToken({
+      address: '0x01',
+      symbol: 'bar',
+      decimals: 2,
+    });
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
@@ -128,7 +133,11 @@ describe('TokensController', () => {
       aggregators: [],
       name: undefined,
     });
-    await tokensController.addToken('0x01', 'baz', 2);
+    await tokensController.addToken({
+      address: '0x01',
+      symbol: 'baz',
+      decimals: 2,
+    });
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
@@ -293,7 +302,11 @@ describe('TokensController', () => {
     const secondAddress = '0x321';
 
     preferences.update({ selectedAddress: firstAddress });
-    await tokensController.addToken('0x01', 'bar', 2);
+    await tokensController.addToken({
+      address: '0x01',
+      symbol: 'bar',
+      decimals: 2,
+    });
     preferences.update({ selectedAddress: secondAddress });
     expect(tokensController.state.tokens).toHaveLength(0);
     preferences.update({ selectedAddress: firstAddress });
@@ -314,7 +327,11 @@ describe('TokensController', () => {
   it('should add token by network', async () => {
     const stub = stubCreateEthers(tokensController, false);
     changeNetwork(SEPOLIA);
-    await tokensController.addToken('0x01', 'bar', 2);
+    await tokensController.addToken({
+      address: '0x01',
+      symbol: 'bar',
+      decimals: 2,
+    });
     changeNetwork(GOERLI);
     expect(tokensController.state.tokens).toHaveLength(0);
 
@@ -336,7 +353,11 @@ describe('TokensController', () => {
 
   it('should remove token', async () => {
     const stub = stubCreateEthers(tokensController, false);
-    await tokensController.addToken('0x01', 'bar', 2);
+    await tokensController.addToken({
+      address: '0x01',
+      symbol: 'bar',
+      decimals: 2,
+    });
     tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
     stub.restore();
@@ -347,9 +368,17 @@ describe('TokensController', () => {
     const firstAddress = '0x123';
     const secondAddress = '0x321';
     preferences.update({ selectedAddress: firstAddress });
-    await tokensController.addToken('0x02', 'baz', 2);
+    await tokensController.addToken({
+      address: '0x02',
+      symbol: 'baz',
+      decimals: 2,
+    });
     preferences.update({ selectedAddress: secondAddress });
-    await tokensController.addToken('0x01', 'bar', 2);
+    await tokensController.addToken({
+      address: '0x01',
+      symbol: 'bar',
+      decimals: 2,
+    });
     tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
     preferences.update({ selectedAddress: firstAddress });
@@ -369,9 +398,17 @@ describe('TokensController', () => {
   it('should remove token by provider type', async () => {
     const stub = stubCreateEthers(tokensController, false);
     changeNetwork(SEPOLIA);
-    await tokensController.addToken('0x02', 'baz', 2);
+    await tokensController.addToken({
+      address: '0x02',
+      symbol: 'baz',
+      decimals: 2,
+    });
     changeNetwork(GOERLI);
-    await tokensController.addToken('0x01', 'bar', 2);
+    await tokensController.addToken({
+      address: '0x01',
+      symbol: 'bar',
+      decimals: 2,
+    });
     tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
     changeNetwork(SEPOLIA);
@@ -412,14 +449,26 @@ describe('TokensController', () => {
     });
 
     it('should remove token from ignoredTokens/allIgnoredTokens lists if added back via addToken', async () => {
-      await tokensController.addToken('0x01', 'foo', 2);
-      await tokensController.addToken('0xFAa', 'bar', 3);
+      await tokensController.addToken({
+        address: '0x01',
+        symbol: 'foo',
+        decimals: 2,
+      });
+      await tokensController.addToken({
+        address: '0xFAa',
+        symbol: 'bar',
+        decimals: 3,
+      });
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       expect(tokensController.state.tokens).toHaveLength(2);
       tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(1);
       expect(tokensController.state.ignoredTokens).toHaveLength(1);
-      await tokensController.addToken('0x01', 'baz', 2);
+      await tokensController.addToken({
+        address: '0x01',
+        symbol: 'baz',
+        decimals: 2,
+      });
       expect(tokensController.state.tokens).toHaveLength(2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
     });
@@ -428,8 +477,16 @@ describe('TokensController', () => {
       const selectedAddress = '0x0001';
       preferences.setSelectedAddress(selectedAddress);
       changeNetwork(SEPOLIA);
-      await tokensController.addToken('0x01', 'bar', 2);
-      await tokensController.addToken('0xFAa', 'bar', 3);
+      await tokensController.addToken({
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      });
+      await tokensController.addToken({
+        address: '0xFAa',
+        symbol: 'bar',
+        decimals: 3,
+      });
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       expect(tokensController.state.tokens).toHaveLength(2);
       tokensController.ignoreTokens(['0x01']);
@@ -451,7 +508,11 @@ describe('TokensController', () => {
     });
 
     it('should be able to clear the ignoredToken list', async () => {
-      await tokensController.addToken('0x01', 'bar', 2);
+      await tokensController.addToken({
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      });
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(0);
@@ -474,7 +535,11 @@ describe('TokensController', () => {
       preferences.setSelectedAddress(selectedAddress1);
       changeNetwork(SEPOLIA);
 
-      await tokensController.addToken('0x01', 'bar', 2);
+      await tokensController.addToken({
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      });
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(0);
@@ -483,13 +548,21 @@ describe('TokensController', () => {
       changeNetwork(GOERLI);
 
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      await tokensController.addToken('0x02', 'bazz', 3);
+      await tokensController.addToken({
+        address: '0x02',
+        symbol: 'bazz',
+        decimals: 3,
+      });
       tokensController.ignoreTokens(['0x02']);
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x02']);
 
       preferences.setSelectedAddress(selectedAddress2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      await tokensController.addToken('0x03', 'foo', 4);
+      await tokensController.addToken({
+        address: '0x03',
+        symbol: 'foo',
+        decimals: 4,
+      });
       tokensController.ignoreTokens(['0x03']);
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x03']);
 
@@ -507,8 +580,16 @@ describe('TokensController', () => {
 
   it('should ignore multiple tokens with single ignoreTokens call', async () => {
     const stub = stubCreateEthers(tokensController, false);
-    await tokensController.addToken('0x01', 'A', 4);
-    await tokensController.addToken('0x02', 'B', 5);
+    await tokensController.addToken({
+      address: '0x01',
+      symbol: 'A',
+      decimals: 4,
+    });
+    await tokensController.addToken({
+      address: '0x02',
+      symbol: 'B',
+      decimals: 5,
+    });
     expect(tokensController.state.tokens).toStrictEqual([
       {
         address: '0x01',
@@ -614,7 +695,7 @@ describe('TokensController', () => {
         );
         const address = erc721ContractAddresses[0];
         const { symbol, decimals } = contractMaps[address];
-        await tokensController.addToken(address, symbol, decimals);
+        await tokensController.addToken({ address, symbol, decimals });
 
         expect(tokensController.state.tokens).toStrictEqual([
           expect.objectContaining({
@@ -630,7 +711,11 @@ describe('TokensController', () => {
         const stub = stubCreateEthers(tokensController, true);
         const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
 
-        await tokensController.addToken(tokenAddress, 'REST', 4);
+        await tokensController.addToken({
+          address: tokenAddress,
+          symbol: 'REST',
+          decimals: 4,
+        });
 
         expect(tokensController.state.tokens).toStrictEqual([
           {
@@ -656,7 +741,7 @@ describe('TokensController', () => {
         const address = erc20ContractAddresses[0];
         const { symbol, decimals } = contractMaps[address];
 
-        await tokensController.addToken(address, symbol, decimals);
+        await tokensController.addToken({ address, symbol, decimals });
 
         expect(tokensController.state.tokens).toStrictEqual([
           expect.objectContaining({
@@ -672,7 +757,11 @@ describe('TokensController', () => {
         const stub = stubCreateEthers(tokensController, false);
         const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
 
-        await tokensController.addToken(tokenAddress, 'LEST', 5);
+        await tokensController.addToken({
+          address: tokenAddress,
+          symbol: 'LEST',
+          decimals: 5,
+        });
 
         expect(tokensController.state.tokens).toStrictEqual([
           {
@@ -692,11 +781,11 @@ describe('TokensController', () => {
 
       it('should throw error if switching networks while adding token', async function () {
         const dummyTokenAddress = '0x514910771AF9Ca656af840dff83E8264EcF986CA';
-        const addTokenPromise = tokensController.addToken(
-          dummyTokenAddress,
-          'LINK',
-          18,
-        );
+        const addTokenPromise = tokensController.addToken({
+          address: dummyTokenAddress,
+          symbol: 'LINK',
+          decimals: 18,
+        });
         changeNetwork(GOERLI);
         await expect(addTokenPromise).rejects.toThrow(
           'TokensController Error: Switched networks while adding token',
@@ -718,7 +807,11 @@ describe('TokensController', () => {
         .persist();
 
       await expect(
-        tokensController.addToken(dummyTokenAddress, 'LINK', 18),
+        tokensController.addToken({
+          address: dummyTokenAddress,
+          symbol: 'LINK',
+          decimals: 18,
+        }),
       ).rejects.toThrow(fullErrorMessage);
     });
 
@@ -745,11 +838,11 @@ describe('TokensController', () => {
         dummyDetectedToken,
       ]);
 
-      await tokensController.addToken(
-        dummyDetectedToken.address,
-        dummyDetectedToken.symbol,
-        dummyDetectedToken.decimals,
-      );
+      await tokensController.addToken({
+        address: dummyDetectedToken.address,
+        symbol: dummyDetectedToken.symbol,
+        decimals: dummyDetectedToken.decimals,
+      });
 
       expect(tokensController.state.detectedTokens).toStrictEqual([]);
       expect(tokensController.state.tokens).toStrictEqual([dummyAddedToken]);
@@ -796,12 +889,12 @@ describe('TokensController', () => {
       });
 
       // will add token to currently configured chainId/selectedAddress
-      await tokensController.addToken(
-        directlyAddedToken.address,
-        directlyAddedToken.symbol,
-        directlyAddedToken.decimals,
-        { image: directlyAddedToken.image },
-      );
+      await tokensController.addToken({
+        address: directlyAddedToken.address,
+        symbol: directlyAddedToken.symbol,
+        decimals: directlyAddedToken.decimals,
+        options: { image: directlyAddedToken.image },
+      });
 
       expect(tokensController.state.allDetectedTokens).toStrictEqual({
         [DETECTED_CHAINID]: {
@@ -1152,11 +1245,23 @@ describe('TokensController', () => {
     it('should update tokens list when set address changes', async function () {
       const stub = stubCreateEthers(tokensController, false);
       preferences.setSelectedAddress('0x1');
-      await tokensController.addToken('0x01', 'A', 4);
-      await tokensController.addToken('0x02', 'B', 5);
+      await tokensController.addToken({
+        address: '0x01',
+        symbol: 'A',
+        decimals: 4,
+      });
+      await tokensController.addToken({
+        address: '0x02',
+        symbol: 'B',
+        decimals: 5,
+      });
       preferences.setSelectedAddress('0x2');
       expect(tokensController.state.tokens).toStrictEqual([]);
-      await tokensController.addToken('0x03', 'C', 6);
+      await tokensController.addToken({
+        address: '0x03',
+        symbol: 'C',
+        decimals: 6,
+      });
       preferences.setSelectedAddress('0x1');
       expect(tokensController.state.tokens).toStrictEqual([
         {
@@ -1204,14 +1309,30 @@ describe('TokensController', () => {
 
       changeNetwork(SEPOLIA);
 
-      await tokensController.addToken('0x01', 'A', 4);
-      await tokensController.addToken('0x02', 'B', 5);
+      await tokensController.addToken({
+        address: '0x01',
+        symbol: 'A',
+        decimals: 4,
+      });
+      await tokensController.addToken({
+        address: '0x02',
+        symbol: 'B',
+        decimals: 5,
+      });
       const initialTokensFirst = tokensController.state.tokens;
 
       changeNetwork(GOERLI);
 
-      await tokensController.addToken('0x03', 'C', 4);
-      await tokensController.addToken('0x04', 'D', 5);
+      await tokensController.addToken({
+        address: '0x03',
+        symbol: 'C',
+        decimals: 4,
+      });
+      await tokensController.addToken({
+        address: '0x04',
+        symbol: 'D',
+        decimals: 5,
+      });
 
       const initialTokensSecond = tokensController.state.tokens;
 
@@ -1332,7 +1453,11 @@ describe('TokensController', () => {
   describe('onTokenListStateChange', () => {
     it('onTokenListChange', async () => {
       const stub = stubCreateEthers(tokensController, false);
-      await tokensController.addToken('0x01', 'bar', 2);
+      await tokensController.addToken({
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      });
       expect(tokensController.state.tokens[0]).toStrictEqual({
         address: '0x01',
         decimals: 2,
