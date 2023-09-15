@@ -1271,16 +1271,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/abi-utils@npm:^2.0.1":
-  version: 2.0.1
-  resolution: "@metamask/abi-utils@npm:2.0.1"
-  dependencies:
-    "@metamask/utils": ^6.1.0
-    superstruct: ^1.0.3
-  checksum: 33d2d184d80908d24df0b8cbae223b7e6b72f08ff769105e917647dc099c863fa352622e9b48be8f6afaafc400f2ed6b9015267697ed08294f7aaea248c62ba3
-  languageName: node
-  linkType: hard
-
 "@metamask/abi-utils@npm:^2.0.2":
   version: 2.0.2
   resolution: "@metamask/abi-utils@npm:2.0.2"
@@ -1366,7 +1356,7 @@ __metadata:
     "@ethersproject/bignumber": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
-    "@metamask/abi-utils": ^2.0.1
+    "@metamask/abi-utils": ^2.0.2
     "@metamask/approval-controller": ^3.5.1
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
@@ -2202,7 +2192,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^6.1.0, @metamask/utils@npm:^6.2.0":
+"@metamask/utils@npm:^6.2.0":
   version: 6.2.0
   resolution: "@metamask/utils@npm:6.2.0"
   dependencies:

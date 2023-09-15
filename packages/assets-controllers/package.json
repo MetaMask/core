@@ -32,7 +32,7 @@
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/abi-utils": "^2.0.1",
+    "@metamask/abi-utils": "^2.0.2",
     "@metamask/approval-controller": "^3.5.1",
     "@metamask/base-controller": "^3.2.1",
     "@metamask/contract-metadata": "^2.3.1",
