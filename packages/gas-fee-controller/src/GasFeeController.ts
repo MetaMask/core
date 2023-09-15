@@ -411,7 +411,6 @@ export class GasFeeController extends GasFeeControllerPolling<
         'NetworkController:getEIP1559Compatibility',
         networkClientId,
       );
-
       isEIP1559Compatible = result || false;
     } catch (e) {
       console.error(e);
