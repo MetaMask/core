@@ -458,11 +458,17 @@ export type NetworkControllerGetNetworkClientByIdAction = {
   handler: NetworkController['getNetworkClientById'];
 };
 
+export type NetworkControllerGetEIP1559CompatibilityAction = {
+  type: `NetworkController:getEIP1559Compatibility`;
+  handler: NetworkController['getEIP1559Compatibility'];
+};
+
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetEIP1559CompatibilityAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -610,6 +616,11 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getNetworkClientById`,
       this.getNetworkClientById.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getEIP1559Compatibility`,
+      this.getEIP1559Compatibility.bind(this),
     );
 
     this.#previousProviderConfig = this.state.providerConfig;
@@ -1072,7 +1083,7 @@ export class NetworkController extends BaseControllerV2<
    */
   async getEIP1559Compatibility(networkClientId?: NetworkClientId) {
     if (networkClientId) {
-      return this.get1555CompatibilityWithNetworkClientId(networkClientId);
+      return this.get1559CompatibilityWithNetworkClientId(networkClientId);
     }
     if (!this.#ethQuery) {
       return false;
@@ -1097,7 +1108,7 @@ export class NetworkController extends BaseControllerV2<
     return isEIP1559Compatible;
   }
 
-  async get1555CompatibilityWithNetworkClientId(
+  async get1559CompatibilityWithNetworkClientId(
     networkClientId: NetworkClientId,
   ) {
     let metadata = this.state.networksMetadata[networkClientId];
