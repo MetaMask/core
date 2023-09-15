@@ -947,17 +947,17 @@ __metadata:
   linkType: hard
 
 "@metamask/eslint-config@npm:^12.1.0":
-  version: 12.1.0
-  resolution: "@metamask/eslint-config@npm:12.1.0"
+  version: 12.2.0
+  resolution: "@metamask/eslint-config@npm:12.2.0"
   peerDependencies:
     eslint: ^8.27.0
     eslint-config-prettier: ^8.5.0
-    eslint-plugin-import: ^2.27.5
-    eslint-plugin-jsdoc: ^39.6.2 || ^41
+    eslint-plugin-import: ~2.26.0
+    eslint-plugin-jsdoc: ^39.6.2 || ^41 || ^43.0.7
     eslint-plugin-prettier: ^4.2.1
     eslint-plugin-promise: ^6.1.1
     prettier: ^2.7.1
-  checksum: 03f11538241f82eadb0a61e35c4f1ed3bddc40599188f7af5ee2a1eca0ea6dc9a9e2b5096f59071a41a1a3ceb1ecccff14936ea0712dd20ad0ea66e57080b2a7
+  checksum: dfd913a712a81db528c662dc2d2d97edf8c34b2053b77c7060f9c117a4f9057d66f2fc87634b5d8860c9ab22c690ad79f40d399bda1e1b9863b0f4d198592a09
   languageName: node
   linkType: hard
 
