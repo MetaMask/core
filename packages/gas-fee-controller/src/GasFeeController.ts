@@ -1,10 +1,7 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
-import { ChainId, convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
+import { convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
-  NetworkClientId,
-  NetworkController,
   NetworkControllerGetEIP1559CompatibilityAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -206,10 +203,10 @@ export type GasFeeStateOld =
   | GasFeeStateNoEstimates;
 
 export type GasFeeEstimatesByChainId = {
-  gasFeeEstimatesByChainId: Record<string, GasFeeStateOld>;
+  gasFeeEstimatesByChainId?: Record<string, GasFeeStateOld>;
 };
 
-export type GasFeeState =  GasFeeEstimatesByChainId & GasFeeStateOld;
+export type GasFeeState = GasFeeEstimatesByChainId & GasFeeStateOld;
 
 const name = 'GasFeeController';
 
@@ -445,6 +442,7 @@ export class GasFeeController extends GasFeeControllerPolling<
 
     // update state per chainid?
     this.update((state) => {
+      state.gasFeeEstimatesByChainId = state.gasFeeEstimatesByChainId || {};
       state.gasFeeEstimatesByChainId[networkClient.configuration.chainId] = {
         gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
         estimatedGasFeeTimeBounds: gasFeeCalculations.estimatedGasFeeTimeBounds,

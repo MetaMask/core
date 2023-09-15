@@ -84,6 +84,7 @@ export default abstract class GasFeeControllerPolling<
   abstract executePoll(networkClientId: NetworkClientId): Promise<void>;
 
   #poll(networkClientId: NetworkClientId) {
+    console.log('hit #poll');
     if (this.intervalIds[networkClientId]) {
       clearInterval(this.intervalIds[networkClientId]);
     }
