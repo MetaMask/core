@@ -1034,7 +1034,7 @@ describe('TokensController', () => {
 
     it('should error if passed no type', async function () {
       type = undefined;
-      const result = tokensController.watchAsset(asset, type);
+      const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
         'Asset of type undefined not supported',
       );
@@ -1042,7 +1042,7 @@ describe('TokensController', () => {
 
     it('should error if asset type is not supported', async function () {
       type = 'ERC721';
-      const result = tokensController.watchAsset(asset, type);
+      const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
         'Asset of type ERC721 not supported',
       );
@@ -1050,7 +1050,7 @@ describe('TokensController', () => {
 
     it('should error if address is not defined', async function () {
       asset.address = undefined;
-      const result = tokensController.watchAsset(asset, type);
+      const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
         'Must specify address, symbol, and decimals.',
       );
@@ -1058,7 +1058,7 @@ describe('TokensController', () => {
 
     it('should error if decimals is not defined', async function () {
       asset.decimals = undefined;
-      const result = tokensController.watchAsset(asset, type);
+      const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
         'Must specify address, symbol, and decimals.',
       );
@@ -1066,7 +1066,7 @@ describe('TokensController', () => {
 
     it('should error if symbol is not defined', async function () {
       asset.symbol = undefined;
-      const result = tokensController.watchAsset(asset, type);
+      const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
         'Must specify address, symbol, and decimals.',
       );
@@ -1074,7 +1074,7 @@ describe('TokensController', () => {
 
     it('should error if symbol is empty', async function () {
       asset.symbol = '';
-      const result = tokensController.watchAsset(asset, type);
+      const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
         'Must specify address, symbol, and decimals.',
       );
@@ -1082,7 +1082,7 @@ describe('TokensController', () => {
 
     it('should error if symbol is too long', async function () {
       asset.symbol = 'ABCDEFGHIJKLM';
-      const result = tokensController.watchAsset(asset, type);
+      const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
         'Invalid symbol "ABCDEFGHIJKLM": longer than 11 characters.',
       );
@@ -1090,13 +1090,13 @@ describe('TokensController', () => {
 
     it('should error if decimals is invalid', async function () {
       asset.decimals = -1;
-      const result = tokensController.watchAsset(asset, type);
+      const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow(
         'Invalid decimals "-1": must be 0 <= 36.',
       );
 
       asset.decimals = 37;
-      const result2 = tokensController.watchAsset(asset, type);
+      const result2 = tokensController.watchAsset({ asset, type });
       await expect(result2).rejects.toThrow(
         'Invalid decimals "37": must be 0 <= 36.',
       );
@@ -1104,20 +1104,20 @@ describe('TokensController', () => {
 
     it('should error if address is invalid', async function () {
       asset.address = '0x123';
-      const result = tokensController.watchAsset(asset, type);
+      const result = tokensController.watchAsset({ asset, type });
       await expect(result).rejects.toThrow('Invalid address "0x123".');
     });
 
     it('fails with an invalid type suggested', async () => {
       await expect(
-        tokensController.watchAsset(
-          {
+        tokensController.watchAsset({
+          asset: {
             address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
             decimals: 18,
             symbol: 'TKN',
           },
-          'ERC721',
-        ),
+          type: 'ERC721',
+        }),
       ).rejects.toThrow('Asset of type ERC721 not supported');
     });
 
@@ -1130,7 +1130,7 @@ describe('TokensController', () => {
         .spyOn(messenger, 'call')
         .mockResolvedValue(undefined);
 
-      await tokensController.watchAsset(asset, type);
+      await tokensController.watchAsset({ asset, type });
 
       expect(tokensController.state.tokens).toHaveLength(1);
       expect(tokensController.state.tokens).toStrictEqual([
@@ -1168,7 +1168,7 @@ describe('TokensController', () => {
         .spyOn(messenger, 'call')
         .mockResolvedValue(undefined);
 
-      await tokensController.watchAsset(asset, type, interactingAddress);
+      await tokensController.watchAsset({ asset, type, interactingAddress });
 
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.tokens).toStrictEqual([]);
@@ -1213,9 +1213,9 @@ describe('TokensController', () => {
         .spyOn(messenger, 'call')
         .mockRejectedValue(new Error(errorMessage));
 
-      await expect(tokensController.watchAsset(asset, type)).rejects.toThrow(
-        errorMessage,
-      );
+      await expect(
+        tokensController.watchAsset({ asset, type }),
+      ).rejects.toThrow(errorMessage);
 
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.tokens).toStrictEqual([]);

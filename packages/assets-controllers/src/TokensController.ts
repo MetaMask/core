@@ -287,7 +287,7 @@ export class TokensController extends BaseController<
   /**
    * Adds a token to the stored token list.
    *
-   * @param options - An object.
+   * @param options - The method options.
    * @param options.address - Hex address of the token contract.
    * @param options.symbol - Symbol of the token.
    * @param options.decimals - Number of decimals the token uses.
@@ -348,7 +348,7 @@ export class TokensController extends BaseController<
         image:
           image ||
           formatIconUrlWithProxy({
-            chainId: this.config.chainId,
+            chainId: currentChainId,
             tokenAddress: address,
           }),
         isERC721,
@@ -378,6 +378,7 @@ export class TokensController extends BaseController<
           newIgnoredTokens,
           newDetectedTokens,
           interactingAddress: accountAddress,
+          interactingChainId: currentChainId,
         });
 
       let newState: Partial<TokensState> = {
@@ -698,18 +699,24 @@ export class TokensController extends BaseController<
    * Adds a new suggestedAsset to the list of watched assets.
    * Parameters will be validated according to the asset type being watched.
    *
-   * @param asset - The asset to be watched. For now only ERC20 tokens are accepted.
-   * @param type - The asset type.
-   * @param interactingAddress - The address of the account that is requesting to watch the asset.
-   * @param networkClientId - Network Client ID.
+   * @param options - The method options.
+   * @param options.asset - The asset to be watched. For now only ERC20 tokens are accepted.
+   * @param options.type - The asset type.
+   * @param options.interactingAddress - The address of the account that is requesting to watch the asset.
+   * @param options.networkClientId - Network Client ID.
    * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
    */
-  async watchAsset(
-    asset: Token,
-    type: string,
-    interactingAddress?: string,
-    networkClientId?: NetworkClientId,
-  ): Promise<void> {
+  async watchAsset({
+    asset,
+    type,
+    interactingAddress,
+    networkClientId,
+  }: {
+    asset: Token;
+    type: string;
+    interactingAddress?: string;
+    networkClientId?: NetworkClientId;
+  }): Promise<void> {
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
     }
