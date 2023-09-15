@@ -46,38 +46,38 @@ export default abstract class GasFeeControllerPolling<
     return innerPollToken;
   }
 
-  stop({
-    pollingToken,
-    networkClientId,
-  }: {
-    pollingToken?: string;
-    networkClientId?: NetworkClientId;
-  } = {}) {
-    if (pollingToken && !networkClientId) {
-      throw new Error(
-        'networkClientId is required when pollingToken is passed',
-      );
-    }
-    if (!pollingToken || !networkClientId) {
-      this.networkClientIdTokensMap.forEach((tokens, _networkClientId) => {
-        tokens.forEach((token) => {
-          this.stop({
-            pollingToken: token,
-            networkClientId: _networkClientId,
-          });
-        });
+  stopAll() {
+    this.networkClientIdTokensMap.forEach((tokens, _networkClientId) => {
+      tokens.forEach((token) => {
+        this.stop(token);
       });
-      return;
+    });
+  }
+
+  stop(pollingToken: string) {
+    if (!pollingToken) {
+      throw new Error('pollingToken required');
     }
-    this.networkClientIdTokensMap.get(networkClientId)?.delete(pollingToken);
-    if (this.networkClientIdTokensMap.get(networkClientId)?.size === 0) {
-      clearInterval(this.intervalIds[networkClientId]);
-      delete this.intervalIds[networkClientId];
-      this.networkClientIdTokensMap.delete(networkClientId);
-      this.messagingSystem.publish(
-        `${this.name}:pollingComplete`,
-        networkClientId,
-      );
+    let found = false;
+    this.networkClientIdTokensMap.forEach((tokens, networkClientId) => {
+      if (tokens.has(pollingToken)) {
+        found = true;
+        this.networkClientIdTokensMap
+          .get(networkClientId)
+          ?.delete(pollingToken);
+        if (this.networkClientIdTokensMap.get(networkClientId)?.size === 0) {
+          clearInterval(this.intervalIds[networkClientId]);
+          delete this.intervalIds[networkClientId];
+          this.networkClientIdTokensMap.delete(networkClientId);
+          this.messagingSystem.publish(
+            `${this.name}:pollingComplete`,
+            networkClientId,
+          );
+        }
+      }
+    });
+    if (!found) {
+      throw new Error('pollingToken not found');
     }
   }
 
