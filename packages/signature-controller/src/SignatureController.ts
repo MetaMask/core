@@ -7,6 +7,12 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type {
+  KeyringControllerSignMessageAction,
+  KeyringControllerSignPersonalMessageAction,
+  KeyringControllerSignTypedMessageAction,
+  SignTypedDataVersion,
+} from '@metamask/keyring-controller';
+import type {
   MessageParams,
   MessageParamsMetamask,
   PersonalMessageParams,
@@ -72,7 +78,11 @@ type SignatureControllerState = {
   unapprovedTypedMessagesCount: number;
 };
 
-type AllowedActions = AddApprovalRequest;
+type AllowedActions =
+  | AddApprovalRequest
+  | KeyringControllerSignMessageAction
+  | KeyringControllerSignPersonalMessageAction
+  | KeyringControllerSignTypedMessageAction;
 
 type TypedMessageSigningOptions = {
   parseJsonData: boolean;
@@ -100,20 +110,8 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-export interface KeyringController {
-  signMessage: (messsageParams: MessageParams) => Promise<string>;
-  signPersonalMessage: (
-    messsageParams: PersonalMessageParams,
-  ) => Promise<string>;
-  signTypedMessage: (
-    messsageParams: TypedMessageParams,
-    options: { version: string | undefined },
-  ) => Promise<string>;
-}
-
 export type SignatureControllerOptions = {
   messenger: SignatureControllerMessenger;
-  keyringController: KeyringController;
   isEthSignEnabled: () => boolean;
   getAllState: () => unknown;
   securityProviderRequest?: (
@@ -133,8 +131,6 @@ export class SignatureController extends BaseControllerV2<
 > {
   hub: EventEmitter;
 
-  #keyringController: KeyringController;
-
   #isEthSignEnabled: () => boolean;
 
   #getAllState: () => any;
@@ -150,7 +146,6 @@ export class SignatureController extends BaseControllerV2<
    *
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the sign controller.
-   * @param options.keyringController - An instance of a keyring controller used to perform the signing operations.
    * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
    * @param options.getAllState - Callback to retrieve all user state.
    * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
@@ -158,7 +153,6 @@ export class SignatureController extends BaseControllerV2<
    */
   constructor({
     messenger,
-    keyringController,
     isEthSignEnabled,
     getAllState,
     securityProviderRequest,
@@ -171,7 +165,6 @@ export class SignatureController extends BaseControllerV2<
       state: getDefaultState(),
     });
 
-    this.#keyringController = keyringController;
     this.#isEthSignEnabled = isEthSignEnabled;
     this.#getAllState = getAllState;
 
@@ -525,7 +518,10 @@ export class SignatureController extends BaseControllerV2<
       ApprovalType.EthSign,
       msgParams,
       async (cleanMsgParams) =>
-        await this.#keyringController.signMessage(cleanMsgParams),
+        await this.messagingSystem.call(
+          'KeyringController:signMessage',
+          cleanMsgParams,
+        ),
     );
   }
 
@@ -542,7 +538,10 @@ export class SignatureController extends BaseControllerV2<
       ApprovalType.PersonalSign,
       msgParams,
       async (cleanMsgParams) =>
-        await this.#keyringController.signPersonalMessage(cleanMsgParams),
+        await this.messagingSystem.call(
+          'KeyringController:signPersonalMessage',
+          cleanMsgParams,
+        ),
     );
   }
 
@@ -570,11 +569,10 @@ export class SignatureController extends BaseControllerV2<
           ? this.#removeJsonData(cleanMsgParams, version as string)
           : cleanMsgParams;
 
-        return await this.#keyringController.signTypedMessage(
+        return await this.messagingSystem.call(
+          'KeyringController:signTypedMessage',
           finalMessageParams,
-          {
-            version,
-          },
+          version as SignTypedDataVersion,
         );
       },
     );

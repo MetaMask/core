@@ -125,11 +125,6 @@ type TransactionMetaBase = {
   transaction: Transaction;
 
   /**
-   * Hash of a successful transaction.
-   */
-  transactionHash?: string;
-
-  /**
    * Additional transfer information.
    */
   transferInformation?: {
