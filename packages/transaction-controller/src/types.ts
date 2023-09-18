@@ -99,6 +99,12 @@ type TransactionMetaBase = {
   replacedById?: string;
 
   /**
+   * An array of entries that describe the user's journey through the send flow.
+   * This is purely attached to state logs for troubleshooting and support.
+   */
+  sendFlowHistory?: SendFlowHistoryEntry[];
+
+  /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
   submittedTime?: number;
@@ -141,6 +147,18 @@ type TransactionMetaBase = {
    * Response from security validator.
    */
   securityAlertResponse?: Record<string, unknown>;
+};
+
+export type SendFlowHistoryEntry = {
+  /**
+   * String to indicate user interaction information.
+   */
+  entry: string;
+
+  /**
+   * Timestamp associated with this entry.
+   */
+  timestamp: number;
 };
 
 /**
