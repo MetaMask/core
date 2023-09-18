@@ -23,6 +23,7 @@ const REQUEST_MOCK: EtherscanTransactionRequest = {
 };
 
 const RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> = {
+  status: '1',
   result: [
     { from: ADDERSS_MOCK, nonce: '0x1' } as EtherscanTransactionMeta,
     { from: ADDERSS_MOCK, nonce: '0x2' } as EtherscanTransactionMeta,
@@ -91,18 +92,6 @@ describe('Etherscan', () => {
           `&tag=latest` +
           `&page=1`,
       );
-    });
-
-    it('returns empty result if message is not ok', async () => {
-      handleFetchMock.mockResolvedValueOnce({
-        status: '0',
-        message: 'NOTOK',
-        result: 'test error',
-      });
-
-      const result = await (Etherscan as any)[method](REQUEST_MOCK);
-
-      expect(result).toStrictEqual({ result: [] });
     });
 
     it('throws if chain is not supported', async () => {

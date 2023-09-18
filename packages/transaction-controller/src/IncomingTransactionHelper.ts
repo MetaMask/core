@@ -3,8 +3,8 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import EventEmitter from 'events';
 
+import { incomingTransactionsLogger as log } from './logger';
 import type { RemoteTransactionSource, TransactionMeta } from './types';
-import { incomingTransactionsLogger } from './logger';
 
 const RECENT_HISTORY_BLOCK_RANGE = 10;
 
@@ -12,8 +12,6 @@ const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
   (txMeta) => txMeta.status,
   (txMeta) => txMeta.transaction.gasUsed,
 ];
-
-const log = incomingTransactionsLogger;
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;

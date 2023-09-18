@@ -2,9 +2,7 @@ import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
-import { incomingTransactionsLogger } from './logger';
-
-const log = incomingTransactionsLogger;
+import { incomingTransactionsLogger as log } from './logger';
 
 export interface EtherscanTransactionMetaBase {
   blockNumber: string;
@@ -42,7 +40,9 @@ export interface EtherscanTokenTransactionMeta
 export interface EtherscanTransactionResponse<
   T extends EtherscanTransactionMetaBase,
 > {
-  result: T[];
+  status: '0' | '1';
+  message?: string;
+  result: string | T[];
 }
 
 export interface EtherscanTransactionRequest {
@@ -50,12 +50,6 @@ export interface EtherscanTransactionRequest {
   chainId: Hex;
   fromBlock?: number;
   limit?: number;
-}
-
-interface RawEtherscanResponse<T extends EtherscanTransactionMetaBase> {
-  status: '0' | '1';
-  message: string;
-  result: string | T[];
 }
 
 /**
@@ -148,24 +142,13 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     action,
   });
 
+  log('Sending Etherscan request', etherscanTxUrl);
+
   const response = (await handleFetch(
     etherscanTxUrl,
-  )) as RawEtherscanResponse<T>;
+  )) as EtherscanTransactionResponse<T>;
 
-  let result = response.result as T[];
-
-  if (response.status === '0') {
-    result = [];
-
-    if (response.result?.length) {
-      log('Ignored Etherscan request error', {
-        message: response.result,
-        action,
-      });
-    }
-  }
-
-  return { result };
+  return response;
 }
 
 /**
