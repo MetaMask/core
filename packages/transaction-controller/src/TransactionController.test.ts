@@ -1696,6 +1696,7 @@ describe('TransactionController', () => {
       await expect(result).rejects.toThrow('User cancelled the transaction');
       expect(estimatedBaseFee).toBe('0x123');
       expect(transactions[0].status).toStrictEqual(TransactionStatus.cancelled);
+      expect(transactions[0].type).toStrictEqual(TransactionType.simpleSend);
     });
 
     it('rejects unknown transaction', async () => {

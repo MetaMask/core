@@ -1,12 +1,7 @@
-import type { TransactionDescription } from '@ethersproject/abi';
-import { Interface } from '@ethersproject/abi';
 import {
   convertHexToDecimal,
   isValidHexAddress,
-  query,
 } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
-import { abiERC721, abiERC20, abiERC1155 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
@@ -15,18 +10,10 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './TransactionController';
-import type {
-  InferTransactionTypeResult,
-  Transaction,
-  TransactionMeta,
-} from './types';
-import { TransactionType, TransactionStatus } from './types';
+import type { Transaction, TransactionMeta } from './types';
+import { TransactionStatus } from './types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
-
-const erc20Interface = new Interface(abiERC20);
-const erc721Interface = new Interface(abiERC721);
-const erc1155Interface = new Interface(abiERC1155);
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
   data: (data: string) => addHexPrefix(data),
@@ -264,117 +251,4 @@ export function validateIfTransactionUnapproved(
       Current tx status: ${transactionMeta?.status}`,
     );
   }
-}
-
-/**
- * Determines the type of the transaction by analyzing the txParams.
- * It will never return TRANSACTION_TYPE_CANCEL or TRANSACTION_TYPE_RETRY as these
- * represent specific events that we control from the extension and are added manually
- * at transaction creation.
- *
- * @param txParams - Parameters for the transaction.
- * @param ethQuery - EthQuery instance.
- * @returns A object with the transaction type and the contract code response in Hex.
- */
-export async function determineTransactionType(
-  txParams: Transaction,
-  ethQuery: EthQuery,
-): Promise<InferTransactionTypeResult> {
-  let result;
-  let contractCode;
-  const { data, to } = txParams;
-  const name = parseStandardTokenTransactionData(data)?.name;
-
-  if (data && !to) {
-    result = TransactionType.deployContract;
-  } else {
-    const { contractCode: resultCode, isContractAddress } =
-      await readAddressAsContract(ethQuery, to);
-
-    contractCode = resultCode;
-
-    if (isContractAddress) {
-      const hasValue = txParams.value && Number(txParams.value) !== 0;
-
-      const tokenMethodName = [
-        TransactionType.tokenMethodApprove,
-        TransactionType.tokenMethodSetApprovalForAll,
-        TransactionType.tokenMethodTransfer,
-        TransactionType.tokenMethodTransferFrom,
-        TransactionType.tokenMethodSafeTransferFrom,
-      ].find((methodName) => methodName.toLowerCase() === name?.toLowerCase());
-
-      result =
-        data && tokenMethodName && !hasValue
-          ? tokenMethodName
-          : TransactionType.contractInteraction;
-    } else {
-      result = TransactionType.simpleSend;
-    }
-  }
-
-  return { type: result, getCodeResponse: contractCode };
-}
-
-/**
- * Attempts to decode transaction data using ABIs for three different token standards: ERC20, ERC721, ERC1155.
- * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
- * contract standards
- *
- * @param data - Encoded transaction data.
- * @returns A representation of an ethereum contract call.
- */
-export function parseStandardTokenTransactionData(
-  data?: string,
-): TransactionDescription | undefined {
-  if (!data) {
-    return undefined;
-  }
-
-  try {
-    return erc20Interface.parseTransaction({ data });
-  } catch {
-    // ignore and next try to parse with erc721 ABI
-  }
-
-  try {
-    return erc721Interface.parseTransaction({ data });
-  } catch {
-    // ignore and next try to parse with erc1155 ABI
-  }
-
-  try {
-    return erc1155Interface.parseTransaction({ data });
-  } catch {
-    // ignore and return undefined
-  }
-
-  return undefined;
-}
-
-/**
- * Reads an Ethereum address and determines if it is a contract address.
- *
- * @param ethQuery - The Ethereum query object used to interact with the Ethereum blockchain.
- * @param address - The Ethereum address.
- * @returns An object containing the contract code and a boolean indicating if it is a contract address.
- */
-export async function readAddressAsContract(
-  ethQuery: EthQuery,
-  address?: string,
-): Promise<{
-  contractCode: string | null;
-  isContractAddress: boolean;
-}> {
-  let contractCode;
-  try {
-    contractCode = await query(ethQuery, 'getCode', [address]);
-  } catch (e) {
-    contractCode = null;
-  }
-
-  const isContractAddress = contractCode
-    ? contractCode !== '0x' && contractCode !== '0x0'
-    : false;
-  return { contractCode, isContractAddress };
 }

@@ -532,6 +532,7 @@ export type InferTransactionTypeResult = {
    * '0x' are also indicators of non-existent contract code
    */
   getCodeResponse?: string | null;
+
   /**
    * The type of transaction
    */

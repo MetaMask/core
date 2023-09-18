@@ -43,6 +43,7 @@ import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSo
 import { validateConfirmedExternalTransaction } from './external-transactions';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { determineTransactionType } from './transaction-type';
 import type {
   DappSuggestedGasFees,
   Transaction,
@@ -65,7 +66,6 @@ import {
   validateMinimumIncrease,
   validateTransaction,
   ESTIMATE_GAS_ERROR,
-  determineTransactionType,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -446,6 +446,11 @@ export class TransactionController extends BaseController<
       origin,
     );
 
+    const { type: transactionType } = await determineTransactionType(
+      transaction,
+      this.ethQuery,
+    );
+
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
     const transactionMeta: TransactionMeta = existingTransactionMeta || {
@@ -462,9 +467,7 @@ export class TransactionController extends BaseController<
       time: Date.now(),
       transaction,
       verifiedOnBlockchain: false,
-      type:
-        type ||
-        (await determineTransactionType(transaction, this.ethQuery)).type,
+      type: type ?? transactionType,
     };
 
     try {
