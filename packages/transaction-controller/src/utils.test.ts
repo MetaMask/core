@@ -4,7 +4,7 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './TransactionController';
-import type { Transaction, TransactionMeta } from './types';
+import type { TransactionParams, TransactionMeta } from './types';
 import { TransactionStatus } from './types';
 import * as util from './utils';
 
@@ -19,8 +19,8 @@ describe('utils', () => {
     jest.clearAllMocks();
   });
 
-  it('normalizeTransaction', () => {
-    const normalized = util.normalizeTransaction({
+  it('normalizeTxParams', () => {
+    const normalized = util.normalizeTxParams({
       data: 'data',
       from: 'FROM',
       gas: 'gas',
@@ -46,35 +46,35 @@ describe('utils', () => {
     });
   });
 
-  describe('validateTransaction', () => {
+  describe('validateTxParams', () => {
     it('should throw if no from address', () => {
-      expect(() => util.validateTransaction({} as any)).toThrow(
+      expect(() => util.validateTxParams({} as any)).toThrow(
         'Invalid "from" address: undefined must be a valid string.',
       );
     });
 
     it('should throw if non-string from address', () => {
-      expect(() => util.validateTransaction({ from: 1337 } as any)).toThrow(
+      expect(() => util.validateTxParams({ from: 1337 } as any)).toThrow(
         'Invalid "from" address: 1337 must be a valid string.',
       );
     });
 
     it('should throw if invalid from address', () => {
-      expect(() => util.validateTransaction({ from: '1337' } as any)).toThrow(
+      expect(() => util.validateTxParams({ from: '1337' } as any)).toThrow(
         'Invalid "from" address: 1337 must be a valid string.',
       );
     });
 
     it('should throw if no data', () => {
       expect(() =>
-        util.validateTransaction({
+        util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x',
         } as any),
       ).toThrow('Invalid "to" address: 0x must be a valid string.');
 
       expect(() =>
-        util.validateTransaction({
+        util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
       ).toThrow('Invalid "to" address: undefined must be a valid string.');
@@ -86,13 +86,13 @@ describe('utils', () => {
         from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         to: '0x',
       };
-      util.validateTransaction(transaction);
+      util.validateTxParams(transaction);
       expect(transaction.to).toBeUndefined();
     });
 
     it('should throw if invalid to address', () => {
       expect(() =>
-        util.validateTransaction({
+        util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '1337',
         } as any),
@@ -101,7 +101,7 @@ describe('utils', () => {
 
     it('should throw if value is invalid', () => {
       expect(() =>
-        util.validateTransaction({
+        util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133-7',
@@ -109,7 +109,7 @@ describe('utils', () => {
       ).toThrow('Invalid "value": 133-7 is not a positive number.');
 
       expect(() =>
-        util.validateTransaction({
+        util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133.7',
@@ -117,7 +117,7 @@ describe('utils', () => {
       ).toThrow('Invalid "value": 133.7 number must be denominated in wei.');
 
       expect(() =>
-        util.validateTransaction({
+        util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: 'hello',
@@ -125,7 +125,7 @@ describe('utils', () => {
       ).toThrow('Invalid "value": hello number must be a valid number.');
 
       expect(() =>
-        util.validateTransaction({
+        util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: 'one million dollar$',
@@ -135,7 +135,7 @@ describe('utils', () => {
       );
 
       expect(() =>
-        util.validateTransaction({
+        util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '1',
@@ -146,8 +146,8 @@ describe('utils', () => {
 
   describe('isEIP1559Transaction', () => {
     it('should detect EIP1559 transaction', () => {
-      const tx: Transaction = { from: '' };
-      const eip1559tx: Transaction = {
+      const tx: TransactionParams = { from: '' };
+      const eip1559tx: TransactionParams = {
         ...tx,
         maxFeePerGas: '2',
         maxPriorityFeePerGas: '3',
@@ -257,7 +257,7 @@ describe('utils', () => {
           id: '1',
           chainId: '0x1',
           time: 123456,
-          transaction: {
+          txParams: {
             from: fromAddress,
             gas: '0x100',
             value: '0x200',
@@ -269,7 +269,7 @@ describe('utils', () => {
           id: '2',
           chainId: '0x1',
           time: 123457,
-          transaction: {
+          txParams: {
             from: '0x124',
             gas: '0x101',
             value: '0x201',
@@ -281,7 +281,7 @@ describe('utils', () => {
           id: '3',
           chainId: '0x1',
           time: 123458,
-          transaction: {
+          txParams: {
             from: fromAddress,
             gas: '0x102',
             value: '0x202',
@@ -318,7 +318,7 @@ describe('utils', () => {
       chainId: '0x1',
       id: '1',
       time: 123456,
-      transaction: {
+      txParams: {
         chainId: '0x1',
         from: '0x123',
         gas: '0x100',
@@ -331,8 +331,8 @@ describe('utils', () => {
     describe('chainId exists on transaction meta only', () => {
       const transaction: TransactionMeta = {
         ...mockTransaction,
-        transaction: {
-          ...mockTransaction.transaction,
+        txParams: {
+          ...mockTransaction.txParams,
           chainId: undefined,
         },
       };
@@ -364,8 +364,8 @@ describe('utils', () => {
     describe('chainId exists on transaction meta and transaction', () => {
       const transaction: TransactionMeta = {
         ...mockTransaction,
-        transaction: {
-          ...mockTransaction.transaction,
+        txParams: {
+          ...mockTransaction.txParams,
           chainId: '0x2',
         },
       };
@@ -383,8 +383,8 @@ describe('utils', () => {
       const transaction = {
         ...mockTransaction,
         chainId: undefined,
-        transaction: {
-          ...mockTransaction.transaction,
+        txParams: {
+          ...mockTransaction.txParams,
           chainId: undefined,
         },
       } as unknown as TransactionMeta;

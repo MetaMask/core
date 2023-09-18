@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import type { Operation } from 'fast-json-patch';
 
 /**
  * Representation of transaction metadata.
@@ -44,6 +45,11 @@ type TransactionMetaBase = {
   dappSuggestedGasFees?: DappSuggestedGasFees;
 
   /**
+   * The default estimate for gas.
+   */
+  defaultGasEstimates?: string;
+
+  /**
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
@@ -54,9 +60,24 @@ type TransactionMetaBase = {
   estimatedBaseFee?: string;
 
   /**
+   * Which estimate level that the API suggested.
+   */
+  estimateSuggested?: string;
+
+  /**
+   * Which estimate level was used
+   */
+  estimateUsed?: string;
+
+  /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
   hash?: string;
+
+  /**
+   * A history of mutations to TransactionMeta.
+   */
+  history?: TransactionHistory;
 
   /**
    * Generated UUID associated with this transaction.
@@ -86,6 +107,11 @@ type TransactionMetaBase = {
   originalGasEstimate?: string;
 
   /**
+   * The transaction's 'r' value as a hex string.
+   */
+  r?: string;
+
+  /**
    * Hex representation of the underlying transaction.
    */
   rawTx?: string;
@@ -99,6 +125,22 @@ type TransactionMetaBase = {
    * When the transaction is dropped, this is the replacement transaction ID.
    */
   replacedById?: string;
+
+  /**
+   * The transaction's 's' value as a hex string.
+   */
+  s?: string;
+
+  /**
+   * Response from security validator.
+   */
+  securityAlertResponse?: Record<string, unknown>;
+
+  /**
+   * An array of entries that describe the user's journey through the send flow.
+   * This is purely attached to state logs for troubleshooting and support.
+   */
+  sendFlowHistory?: SendFlowHistoryEntry[];
 
   /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
@@ -116,11 +158,6 @@ type TransactionMetaBase = {
   toSmartContract?: boolean;
 
   /**
-   * Underlying Transaction object.
-   */
-  transaction: Transaction;
-
-  /**
    * Additional transfer information.
    */
   transferInformation?: {
@@ -130,19 +167,46 @@ type TransactionMetaBase = {
   };
 
   /**
+   * Underlying Transaction object.
+   */
+  txParams: TransactionParams;
+
+  /**
    * Transaction receipt.
    */
   txReceipt?: TransactionReceipt;
 
   /**
+   * The transaction's 'v' value as a hex string.
+   */
+  v?: string;
+
+  /**
+   * The gas limit supplied by user.
+   */
+  userEditedGasLimit?: boolean;
+
+  /**
+   * Estimate level user selected.
+   */
+  userFeeLevel?: string;
+
+  /**
    * Whether the transaction is verified on the blockchain.
    */
   verifiedOnBlockchain?: boolean;
+};
+
+export type SendFlowHistoryEntry = {
+  /**
+   * String to indicate user interaction information.
+   */
+  entry: string;
 
   /**
-   * Response from security validator.
+   * Timestamp associated with this entry.
    */
-  securityAlertResponse?: Record<string, unknown>;
+  timestamp: number;
 };
 
 /**
@@ -174,7 +238,7 @@ export enum WalletDevice {
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
  */
-export interface Transaction {
+export interface TransactionParams {
   /**
    * Network ID as per EIP-155.
    */
@@ -201,12 +265,17 @@ export interface Transaction {
   from: string;
 
   /**
-   * Gas to send with this transaction.
+   * same as gasLimit?
    */
   gas?: string;
 
   /**
-   * Price of gas with this transaction.
+   * Maxmimum number of units of gas to use for this transaction.
+   */
+  gasLimit?: string;
+
+  /**
+   * Price per gas for legacy txs
    */
   gasPrice?: string;
 
@@ -216,12 +285,13 @@ export interface Transaction {
   gasUsed?: string;
 
   /**
-   * Maximum fee per gas for this transaction.
+   * Maximum amount per gas to pay for the transaction, including the priority
+   * fee.
    */
   maxFeePerGas?: string;
 
   /**
-   * Maximum priority fee per gas for this transaction.
+   * Maximum amount per gas to give to validator as incentive.
    */
   maxPriorityFeePerGas?: string;
 
@@ -351,3 +421,28 @@ export interface DappSuggestedGasFees {
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
 }
+
+/**
+ * A transaction history operation that includes a note and timestamp.
+ */
+type ExtendedHistoryOperation = Operation & {
+  note?: string;
+  timestamp?: number;
+};
+
+/**
+ * A transaction history entry that includes the ExtendedHistoryOperation as the first element.
+ */
+export type TransactionHistoryEntry = [
+  ExtendedHistoryOperation,
+  ...Operation[],
+];
+
+/**
+ * A transaction history that includes the transaction meta as the first element.
+ * And the rest of the elements are the operation arrays that were applied to the transaction meta.
+ */
+export type TransactionHistory = [
+  TransactionMeta,
+  ...TransactionHistoryEntry[],
+];

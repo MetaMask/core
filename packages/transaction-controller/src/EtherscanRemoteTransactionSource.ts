@@ -83,8 +83,8 @@ export class EtherscanRemoteTransactionSource
 
     return {
       ...base,
-      transaction: {
-        ...base.transaction,
+      txParams: {
+        ...base.txParams,
         data: txMeta.input,
       },
       ...(txMeta.isError === '0'
@@ -126,7 +126,7 @@ export class EtherscanRemoteTransactionSource
       id: random({ msecs: time }),
       status: TransactionStatus.confirmed,
       time,
-      transaction: {
+      txParams: {
         chainId: currentChainId,
         from: txMeta.from,
         gas: BNToHex(new BN(txMeta.gas)),

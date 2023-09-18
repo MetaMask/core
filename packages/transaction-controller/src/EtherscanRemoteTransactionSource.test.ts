@@ -93,7 +93,7 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
   id: ID_MOCK,
   status: TransactionStatus.confirmed,
   time: 1543596356000,
-  transaction: {
+  txParams: {
     chainId: undefined,
     from: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.from,
     gas: '0x51d68',
@@ -108,8 +108,8 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
 
 const EXPECTED_NORMALISED_TRANSACTION_SUCCESS = {
   ...EXPECTED_NORMALISED_TRANSACTION_BASE,
-  transaction: {
-    ...EXPECTED_NORMALISED_TRANSACTION_BASE.transaction,
+  txParams: {
+    ...EXPECTED_NORMALISED_TRANSACTION_BASE.txParams,
     data: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.input,
   },
 };
