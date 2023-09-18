@@ -985,6 +985,21 @@ export class KeyringController extends BaseControllerV2<
       `${name}:getEncryptionPublicKey`,
       this.getEncryptionPublicKey.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getAccounts`,
+      this.getAccounts.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getKeyringsByType`,
+      this.getKeyringsByType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getKeyringForAccount`,
+      this.getKeyringForAccount.bind(this),
+    );
   }
 
   /**

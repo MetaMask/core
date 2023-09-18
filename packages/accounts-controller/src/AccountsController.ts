@@ -162,6 +162,8 @@ export class AccountsController extends BaseControllerV2<
         await this.#handleOnKeyringStateChange(keyringState),
     );
 
+    this.#registerMessageHandlers();
+
     // if somehow the selected account becomes lost then select the first account
     if (
       this.state.internalAccounts.selectedAccount !== '' &&
@@ -541,6 +543,28 @@ export class AccountsController extends BaseControllerV2<
     );
 
     this.setSelectedAccount(newAccount.id);
+  }
+
+  #registerMessageHandlers() {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setCurrentAccount`,
+      this.setSelectedAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:listAccounts`,
+      this.listAccounts.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setAccountName`,
+      this.setAccountName.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateAccounts`,
+      this.updateAccounts.bind(this),
+    );
   }
 }
 
