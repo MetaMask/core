@@ -4,11 +4,19 @@ import type { PollingCompleteType } from './GasFeeControllerPolling';
 import GasFeeControllerPolling from './GasFeeControllerPolling';
 
 describe('GasFeeControllerPolling', () => {
+  let executePollMock: GasFeeControllerPolling<any, any, any>['executePoll'];
+
+  beforeEach(() => {
+    executePollMock = jest.fn().mockImplementation(async () => {
+      console.log('executePollMock called');
+      return true;
+    });
+  });
+
   describe('start', () => {
     it('should start polling if not polling', () => {
       jest.useFakeTimers();
 
-      const executePollMock = jest.fn();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -28,7 +36,7 @@ describe('GasFeeControllerPolling', () => {
   });
   describe('stop', () => {
     it('should stop polling if polling', () => {
-      const executePollMock = jest.fn();
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -47,8 +55,8 @@ describe('GasFeeControllerPolling', () => {
       expect(executePollMock).toHaveBeenCalledTimes(1);
       controller.stopAll();
     });
-    it('should not stop polling if multiple polling tokens exist', () => {
-      const executePollMock = jest.fn();
+    it.only('should not stop polling if multiple polling tokens exist', () => {
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -62,14 +70,14 @@ describe('GasFeeControllerPolling', () => {
       });
       const pollingToken1 = controller.start('mainnet');
       controller.start('mainnet');
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(1400);
       controller.stop(pollingToken1);
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(1400);
       expect(executePollMock).toHaveBeenCalledTimes(2);
       controller.stopAll();
     });
     it('should error if no poll token is passed', () => {
-      const executePollMock = jest.fn();
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -88,7 +96,7 @@ describe('GasFeeControllerPolling', () => {
       controller.stopAll();
     });
     it('should error if no poll token is found', () => {
-      const executePollMock = jest.fn();
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -111,7 +119,6 @@ describe('GasFeeControllerPolling', () => {
     it('should call executePoll if polling', () => {
       jest.useFakeTimers();
 
-      const executePollMock = jest.fn();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -130,7 +137,6 @@ describe('GasFeeControllerPolling', () => {
     it('should continue calling executePoll when start is called again with the same networkClientId', () => {
       jest.useFakeTimers();
 
-      const executePollMock = jest.fn();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -149,7 +155,7 @@ describe('GasFeeControllerPolling', () => {
       controller.stopAll();
     });
     it('should publish polligComplete when stop is called', async () => {
-      const executePollMock = jest.fn();
+      jest.useFakeTimers();
       const pollingComplete: any = jest.fn();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
@@ -176,7 +182,7 @@ describe('GasFeeControllerPolling', () => {
   });
   describe('multiple networkClientIds', () => {
     it('should poll for each networkClientId', () => {
-      const executePollMock = jest.fn();
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }

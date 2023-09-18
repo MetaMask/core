@@ -1,6 +1,6 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import { safelyExecute } from '@metamask/controller-utils';
+import { safelyExecute, safelyExecuteWithTimeout } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json } from '@metamask/utils';
 import { v1 as random } from 'uuid';
@@ -66,7 +66,7 @@ export default abstract class GasFeeControllerPolling<
           .get(networkClientId)
           ?.delete(pollingToken);
         if (this.networkClientIdTokensMap.get(networkClientId)?.size === 0) {
-          clearInterval(this.intervalIds[networkClientId]);
+          clearTimeout(this.intervalIds[networkClientId]);
           delete this.intervalIds[networkClientId];
           this.networkClientIdTokensMap.delete(networkClientId);
           this.messagingSystem.publish(
@@ -84,12 +84,16 @@ export default abstract class GasFeeControllerPolling<
   abstract executePoll(networkClientId: NetworkClientId): Promise<void>;
 
   #poll(networkClientId: NetworkClientId) {
+    console.log('inside poll');
     if (this.intervalIds[networkClientId]) {
-      clearInterval(this.intervalIds[networkClientId]);
+      clearTimeout(this.intervalIds[networkClientId]);
     }
 
-    this.intervalIds[networkClientId] = setInterval(async () => {
-      await safelyExecute(() => this.executePoll(networkClientId));
+    this.intervalIds[networkClientId] = setTimeout(async () => {
+      console.log('before safelyExecute')
+      await safelyExecuteWithTimeout(() => this.executePoll(networkClientId));
+      console.log('after safelyExecute')
+      this.#poll(networkClientId);
     }, this.intervalLength);
 
     // call _poll with the poll tokens
