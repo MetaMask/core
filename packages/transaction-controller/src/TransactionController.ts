@@ -1036,7 +1036,10 @@ export class TransactionController extends BaseController<
         ...(transactionMeta?.sendFlowHistory ?? []),
         ...sendFlowHistoryToAdd,
       ];
-      this.updateTransaction(transactionMeta);
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController:updateTransactionSendFlowHistory - sendFlowHistory updated',
+      );
     }
 
     return this.getTransaction(transactionID) as TransactionMeta;
