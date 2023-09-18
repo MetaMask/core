@@ -17,7 +17,7 @@
     "lint": "yarn lint:eslint && yarn lint:misc --check",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "prepublishOnly": "yarn build:clean && yarn lint && yarn test",
     "setup": "yarn install && yarn allow-scripts",
     "test": "jest && jest-it-up",
@@ -60,6 +60,7 @@
     "typescript": "^4.2.4",
     "webextension-polyfill-ts": "^0.26.0"
   },
+  "packageManager": "yarn@3.6.3",
   "engines": {
     "node": "^16.20 || ^18.16 || >=20"
   },
