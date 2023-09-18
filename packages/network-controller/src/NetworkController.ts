@@ -326,7 +326,6 @@ export type NetworksMetadata = {
  * @type NetworkState
  *
  * Network controller state
- * @property network - Network ID as per net_version of the currently connected network
  * @property providerConfig - RPC URL and network name provider settings of the currently connected network
  * @property properties - an additional set of network properties for the currently connected network
  * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.

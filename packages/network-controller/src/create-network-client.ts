@@ -144,7 +144,7 @@ function createInfuraNetworkMiddleware({
  *
  * @param args - The Arguments.
  * @param args.network - The Infura network to use.
- * @returns The middleware that implements eth_chainId & net_version methods.
+ * @returns The middleware that implements the eth_chainId method.
  */
 function createNetworkAndChainIdMiddleware({
   network,

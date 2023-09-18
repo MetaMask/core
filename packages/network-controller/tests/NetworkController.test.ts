@@ -2028,8 +2028,6 @@ describe('NetworkController', () => {
                         },
                         response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                         beforeCompleting: () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
                           controller.setActiveNetwork(
                             'testNetworkConfigurationId',
                           );
@@ -2112,14 +2110,6 @@ describe('NetworkController', () => {
                       // Called during provider initialization
                       {
                         request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
                           method: 'eth_getBlockByNumber',
                         },
                         response: {
@@ -2129,22 +2119,12 @@ describe('NetworkController', () => {
                       // Called via `lookupNetwork` directly
                       {
                         request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
                           method: 'eth_getBlockByNumber',
                         },
                         response: {
                           result: POST_1559_BLOCK,
                         },
                         beforeCompleting: () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
                           controller.setActiveNetwork(
                             'testNetworkConfigurationId',
                           );
@@ -2153,14 +2133,6 @@ describe('NetworkController', () => {
                     ]),
                     buildFakeProvider([
                       // Called when switching networks
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '2',
-                        },
-                      },
                       {
                         request: {
                           method: 'eth_getBlockByNumber',
@@ -2247,8 +2219,6 @@ describe('NetworkController', () => {
                         },
                         error: BLOCKED_INFURA_JSON_RPC_ERROR,
                         beforeCompleting: () => {
-                          // Intentionally not awaited because don't want this to
-                          // block the `net_version` request
                           controller.setActiveNetwork(
                             'testNetworkConfigurationId',
                           );
@@ -2363,8 +2333,6 @@ describe('NetworkController', () => {
                     },
                     response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                     beforeCompleting: () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
                       controller.setProviderType(NetworkType.goerli);
                     },
                   },
@@ -2440,14 +2408,6 @@ describe('NetworkController', () => {
                   // Called during provider initialization
                   {
                     request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
                       method: 'eth_getBlockByNumber',
                     },
                     response: {
@@ -2457,36 +2417,18 @@ describe('NetworkController', () => {
                   // Called via `lookupNetwork` directly
                   {
                     request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
                       method: 'eth_getBlockByNumber',
                     },
                     response: {
                       result: POST_1559_BLOCK,
                     },
                     beforeCompleting: () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
                       controller.setProviderType(NetworkType.goerli);
                     },
                   },
                 ]),
                 buildFakeProvider([
                   // Called when switching networks
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '2',
-                    },
-                  },
                   {
                     request: {
                       method: 'eth_getBlockByNumber',
@@ -2570,8 +2512,6 @@ describe('NetworkController', () => {
                     },
                     response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                     beforeCompleting: () => {
-                      // Intentionally not awaited because don't want this to
-                      // block the `net_version` request
                       controller.setProviderType(NetworkType.goerli);
                     },
                   },
