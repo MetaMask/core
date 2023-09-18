@@ -11,11 +11,11 @@ import type {
   FeeMarketEIP1559Values,
 } from './TransactionController';
 import { TransactionStatus } from './types';
-import type { Transaction, TransactionMeta } from './types';
+import type { TransactionParams, TransactionMeta } from './types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
-const NORMALIZERS: { [param in keyof Transaction]: any } = {
+const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
   data: (data: string) => addHexPrefix(data),
   from: (from: string) => addHexPrefix(from).toLowerCase(),
   gas: (gas: string) => addHexPrefix(gas),
@@ -31,58 +31,55 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
 };
 
 /**
- * Normalizes properties on a Transaction object.
+ * Normalizes properties on transaction params.
  *
- * @param transaction - Transaction object to normalize.
- * @returns Normalized Transaction object.
+ * @param txParams - The transaction params to normalize.
+ * @returns Normalized transaction params.
  */
-export function normalizeTransaction(transaction: Transaction) {
-  const normalizedTransaction: Transaction = { from: '' };
-  let key: keyof Transaction;
+export function normalizeTxParams(txParams: TransactionParams) {
+  const normalizedTxParams: TransactionParams = { from: '' };
+  let key: keyof TransactionParams;
   for (key in NORMALIZERS) {
-    if (transaction[key as keyof Transaction]) {
-      normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
+    if (txParams[key as keyof TransactionParams]) {
+      normalizedTxParams[key] = NORMALIZERS[key](txParams[key]) as never;
     }
   }
-  return normalizedTransaction;
+  return normalizedTxParams;
 }
 
 /**
- * Validates a Transaction object for required properties and throws in
+ * Validates the transaction params for required properties and throws in
  * the event of any validation error.
  *
- * @param transaction - Transaction object to validate.
+ * @param txParams - Transaction params object to validate.
  */
-export function validateTransaction(transaction: Transaction) {
+export function validateTxParams(txParams: TransactionParams) {
   if (
-    !transaction.from ||
-    typeof transaction.from !== 'string' ||
-    !isValidHexAddress(transaction.from)
+    !txParams.from ||
+    typeof txParams.from !== 'string' ||
+    !isValidHexAddress(txParams.from)
   ) {
     throw new Error(
-      `Invalid "from" address: ${transaction.from} must be a valid string.`,
+      `Invalid "from" address: ${txParams.from} must be a valid string.`,
     );
   }
 
-  if (transaction.to === '0x' || transaction.to === undefined) {
-    if (transaction.data) {
-      delete transaction.to;
+  if (txParams.to === '0x' || txParams.to === undefined) {
+    if (txParams.data) {
+      delete txParams.to;
     } else {
       throw new Error(
-        `Invalid "to" address: ${transaction.to} must be a valid string.`,
+        `Invalid "to" address: ${txParams.to} must be a valid string.`,
       );
     }
-  } else if (
-    transaction.to !== undefined &&
-    !isValidHexAddress(transaction.to)
-  ) {
+  } else if (txParams.to !== undefined && !isValidHexAddress(txParams.to)) {
     throw new Error(
-      `Invalid "to" address: ${transaction.to} must be a valid string.`,
+      `Invalid "to" address: ${txParams.to} must be a valid string.`,
     );
   }
 
-  if (transaction.value !== undefined) {
-    const value = transaction.value.toString();
+  if (txParams.value !== undefined) {
+    const value = txParams.value.toString();
     if (value.includes('-')) {
       throw new Error(`Invalid "value": ${value} is not a positive number.`);
     }
@@ -92,7 +89,7 @@ export function validateTransaction(transaction: Transaction) {
         `Invalid "value": ${value} number must be denominated in wei.`,
       );
     }
-    const intValue = parseInt(transaction.value, 10);
+    const intValue = parseInt(txParams.value, 10);
     const isValid =
       Number.isFinite(intValue) &&
       !Number.isNaN(intValue) &&
@@ -110,15 +107,15 @@ export function validateTransaction(transaction: Transaction) {
  * Checks if a transaction is EIP-1559 by checking for the existence of
  * maxFeePerGas and maxPriorityFeePerGas within its parameters.
  *
- * @param transaction - Transaction object to add.
+ * @param txParams - Transaction params object to add.
  * @returns Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false.
  */
-export const isEIP1559Transaction = (transaction: Transaction): boolean => {
-  const hasOwnProp = (obj: Transaction, key: string) =>
+export const isEIP1559Transaction = (txParams: TransactionParams): boolean => {
+  const hasOwnProp = (obj: TransactionParams, key: string) =>
     Object.prototype.hasOwnProperty.call(obj, key);
   return (
-    hasOwnProp(transaction, 'maxFeePerGas') &&
-    hasOwnProp(transaction, 'maxPriorityFeePerGas')
+    hasOwnProp(txParams, 'maxFeePerGas') &&
+    hasOwnProp(txParams, 'maxPriorityFeePerGas')
   );
 };
 
@@ -189,11 +186,11 @@ export function getAndFormatTransactionsForNonceTracker(
 ): NonceTrackerTransaction[] {
   return transactions
     .filter(
-      ({ status, transaction: { from } }) =>
+      ({ status, txParams: { from } }) =>
         status === transactionStatus &&
         from.toLowerCase() === fromAddress.toLowerCase(),
     )
-    .map(({ status, transaction: { from, gas, value, nonce } }) => {
+    .map(({ status, txParams: { from, gas, value, nonce } }) => {
       // the only value we care about is the nonce
       // but we need to return the other values to satisfy the type
       // TODO: refactor nonceTracker to not require this
