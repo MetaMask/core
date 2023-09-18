@@ -986,7 +986,6 @@ describe('AccountsController', () => {
       'Lattice Hardware',
       'QR Hardware Wallet Device',
       'Custody',
-      'Unknown',
     ])('should add accounts for %s type', async (keyringType) => {
       mockUUID.mockReturnValue('mock-id');
 
@@ -1023,6 +1022,35 @@ describe('AccountsController', () => {
       await accountsController.updateAccounts();
 
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
+
+    it('should throw an error if the keyring type is unknown', async () => {
+      mockUUID.mockReturnValue('mock-id');
+
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValue([mockAddress1]),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: 'unknown' }),
+      );
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        keyringApiEnabled: false,
+        messenger,
+      });
+
+      await expect(accountsController.updateAccounts()).rejects.toThrow(
+        'Unknown keyring unknown',
+      );
     });
   });
 

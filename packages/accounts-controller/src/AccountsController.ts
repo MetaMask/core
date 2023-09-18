@@ -601,8 +601,7 @@ export function keyringTypeToName(keyringType: string): string {
       return 'Custody';
     }
     default: {
-      console.warn(`Unknown keyring ${keyringType}`);
-      return 'Unknown';
+      throw new Error(`Unknown keyring ${keyringType}`);
     }
   }
 }
