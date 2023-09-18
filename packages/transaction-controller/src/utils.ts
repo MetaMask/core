@@ -10,11 +10,8 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './TransactionController';
-import type {
-  TransactionParams,
-  TransactionMeta,
-  TransactionStatus,
-} from './types';
+import { TransactionStatus } from './types';
+import type { TransactionParams, TransactionMeta } from './types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -231,4 +228,23 @@ export function transactionMatchesNetwork(
     return transaction.networkID === networkId;
   }
   return false;
+}
+
+/**
+ * Validates that a transaction is unapproved.
+ * Throws if the transaction is not unapproved.
+ *
+ * @param transactionMeta - The transaction metadata to check.
+ * @param fnName - The name of the function calling this helper.
+ */
+export function validateIfTransactionUnapproved(
+  transactionMeta: TransactionMeta | undefined,
+  fnName: string,
+) {
+  if (transactionMeta?.status !== TransactionStatus.unapproved) {
+    throw new Error(
+      `Can only call ${fnName} on an unapproved transaction.
+      Current tx status: ${transactionMeta?.status}`,
+    );
+  }
 }
