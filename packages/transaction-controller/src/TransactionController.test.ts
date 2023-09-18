@@ -981,6 +981,7 @@ describe('TransactionController', () => {
         status: TransactionStatus.unapproved,
         time: expect.any(Number),
         txParams: expect.anything(),
+        userEditedGasLimit: false,
         verifiedOnBlockchain: expect.any(Boolean),
       };
 
@@ -2374,6 +2375,91 @@ describe('TransactionController', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(blockNumber);
+    });
+  });
+
+  describe('updateTransactionGasFees', () => {
+    it('throws if transaction does not exist', async () => {
+      const controller = newController();
+      expect(() =>
+        controller.updateTransactionGasFees('123', {
+          gasPrice: '0x1',
+        }),
+      ).toThrow('Cannot update transaction as no transaction metadata found');
+    });
+
+    it('throws if transaction not unapproved status', async () => {
+      const transactionId = '123';
+      const fnName = 'updateTransactionGasFees';
+      const status = TransactionStatus.failed;
+      const controller = newController();
+      controller.state.transactions.push({
+        id: transactionId,
+        status,
+      } as any);
+      expect(() =>
+        controller.updateTransactionGasFees(transactionId, {
+          gasPrice: '0x1',
+        }),
+      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
+      Current tx status: ${status}`);
+    });
+
+    it('updates provided gas values', async () => {
+      const transactionId = '123';
+      const controller = newController();
+
+      const gas = '0xgas';
+      const gasLimit = '0xgasLimit';
+      const gasPrice = '0xgasPrice';
+      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
+      const maxFeePerGas = '0xmaxFeePerGas';
+      const estimateUsed = '0xestimateUsed';
+      const estimateSuggested = '0xestimateSuggested';
+      const defaultGasEstimates = '0xdefaultGasEstimates';
+      const originalGasEstimate = '0xoriginalGasEstimate';
+      const userEditedGasLimit = true;
+      const userFeeLevel = '0xuserFeeLevel';
+
+      controller.state.transactions.push({
+        id: transactionId,
+        status: TransactionStatus.unapproved,
+        history: [{}],
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as any);
+
+      controller.updateTransactionGasFees(transactionId, {
+        gas,
+        gasLimit,
+        gasPrice,
+        maxPriorityFeePerGas,
+        maxFeePerGas,
+        estimateUsed,
+        estimateSuggested,
+        defaultGasEstimates,
+        originalGasEstimate,
+        userEditedGasLimit,
+        userFeeLevel,
+      });
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.txParams?.gas).toBe(gas);
+      expect(transaction?.txParams?.gasLimit).toBe(gasLimit);
+      expect(transaction?.txParams?.gasPrice).toBe(gasPrice);
+      expect(transaction?.txParams?.maxPriorityFeePerGas).toBe(
+        maxPriorityFeePerGas,
+      );
+      expect(transaction?.txParams?.maxFeePerGas).toBe(maxFeePerGas);
+      expect(transaction?.estimateUsed).toBe(estimateUsed);
+      expect(transaction?.estimateSuggested).toBe(estimateSuggested);
+      expect(transaction?.defaultGasEstimates).toBe(defaultGasEstimates);
+      expect(transaction?.originalGasEstimate).toBe(originalGasEstimate);
+      expect(transaction?.userEditedGasLimit).toBe(userEditedGasLimit);
+      expect(transaction?.userFeeLevel).toBe(userFeeLevel);
     });
   });
 });

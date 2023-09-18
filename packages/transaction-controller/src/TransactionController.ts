@@ -36,6 +36,7 @@ import MethodRegistry from 'eth-method-registry';
 import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
+import { merge, pickBy } from 'lodash';
 import NonceTracker from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
@@ -457,6 +458,7 @@ export class TransactionController extends BaseController<
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
       txParams,
+      userEditedGasLimit: false,
       verifiedOnBlockchain: false,
     };
 
@@ -532,13 +534,13 @@ export class TransactionController extends BaseController<
    * Attempts to cancel a transaction based on its ID by setting its status to "rejected"
    * and emitting a `<tx.id>:finished` hub event.
    *
-   * @param transactionID - The ID of the transaction to cancel.
+   * @param transactionId - The ID of the transaction to cancel.
    * @param gasValues - The gas values to use for the cancellation transaction.
    * @param options - The options for the cancellation transaction.
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
    */
   async stopTransaction(
-    transactionID: string,
+    transactionId: string,
     gasValues?: GasPriceValue | FeeMarketEIP1559Values,
     { estimatedBaseFee }: { estimatedBaseFee?: string } = {},
   ) {
@@ -546,7 +548,7 @@ export class TransactionController extends BaseController<
       validateGasValues(gasValues);
     }
     const transactionMeta = this.state.transactions.find(
-      ({ id }) => id === transactionID,
+      ({ id }) => id === transactionId,
     );
     if (!transactionMeta) {
       return;
@@ -637,14 +639,14 @@ export class TransactionController extends BaseController<
   /**
    * Attempts to speed up a transaction increasing transaction gasPrice by ten percent.
    *
-   * @param transactionID - The ID of the transaction to speed up.
+   * @param transactionId - The ID of the transaction to speed up.
    * @param gasValues - The gas values to use for the speed up transaction.
    * @param options - The options for the speed up transaction.
    * @param options.actionId - Unique ID to prevent duplicate requests
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
    */
   async speedUpTransaction(
-    transactionID: string,
+    transactionId: string,
     gasValues?: GasPriceValue | FeeMarketEIP1559Values,
     {
       actionId,
@@ -660,7 +662,7 @@ export class TransactionController extends BaseController<
       validateGasValues(gasValues);
     }
     const transactionMeta = this.state.transactions.find(
-      ({ id }) => id === transactionID,
+      ({ id }) => id === transactionId,
     );
     /* istanbul ignore next */
     if (!transactionMeta) {
@@ -1046,6 +1048,96 @@ export class TransactionController extends BaseController<
     return this.getTransaction(transactionID) as TransactionMeta;
   }
 
+  /**
+   * Update the gas values of a transaction.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param gasValues - Gas values to update.
+   * @param gasValues.gas - Same as transaction.gasLimit.
+   * @param gasValues.gasLimit - Maxmimum number of units of gas to use for this transaction.
+   * @param gasValues.gasPrice - Price per gas for legacy transactions.
+   * @param gasValues.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
+   * @param gasValues.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
+   * @param gasValues.estimateUsed - Which estimate level was used.
+   * @param gasValues.estimateSuggested - Which estimate level that the API suggested.
+   * @param gasValues.defaultGasEstimates - The default estimate for gas.
+   * @param gasValues.originalGasEstimate - Original estimate for gas.
+   * @param gasValues.userEditedGasLimit - The gas limit supplied by user.
+   * @param gasValues.userFeeLevel - Estimate level user selected.
+   * @returns The updated transactionMeta.
+   */
+  updateTransactionGasFees(
+    transactionId: string,
+    {
+      defaultGasEstimates,
+      estimateUsed,
+      estimateSuggested,
+      gas,
+      gasLimit,
+      gasPrice,
+      maxPriorityFeePerGas,
+      maxFeePerGas,
+      originalGasEstimate,
+      userEditedGasLimit,
+      userFeeLevel,
+    }: {
+      defaultGasEstimates?: string;
+      estimateUsed?: string;
+      estimateSuggested?: string;
+      gas?: string;
+      gasLimit?: string;
+      gasPrice?: string;
+      maxPriorityFeePerGas?: string;
+      maxFeePerGas?: string;
+      originalGasEstimate?: string;
+      userEditedGasLimit?: boolean;
+      userFeeLevel?: string;
+    },
+  ): TransactionMeta {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update transaction as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(
+      transactionMeta,
+      'updateTransactionGasFees',
+    );
+
+    let transactionGasFees = {
+      txParams: {
+        gas,
+        gasLimit,
+        gasPrice,
+        maxPriorityFeePerGas,
+        maxFeePerGas,
+      },
+      defaultGasEstimates,
+      estimateUsed,
+      estimateSuggested,
+      originalGasEstimate,
+      userEditedGasLimit,
+      userFeeLevel,
+    } as any;
+
+    // only update what is defined
+    transactionGasFees.txParams = pickBy(transactionGasFees.txParams);
+    transactionGasFees = pickBy(transactionGasFees);
+
+    // merge updated gas values with existing transaction meta
+    const updatedMeta = merge(transactionMeta, transactionGasFees);
+
+    this.updateTransaction(
+      updatedMeta,
+      'TransactionController:updateTransactionGasFees - gas values updated',
+    );
+
+    return this.getTransaction(transactionId) as TransactionMeta;
+  }
+
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
@@ -1134,13 +1226,13 @@ export class TransactionController extends BaseController<
    * using the sign configuration property, then published to the blockchain.
    * A `<tx.id>:finished` hub event is fired after success or failure.
    *
-   * @param transactionID - The ID of the transaction to approve.
+   * @param transactionId - The ID of the transaction to approve.
    */
-  private async approveTransaction(transactionID: string) {
+  private async approveTransaction(transactionId: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const { chainId } = this.getChainAndNetworkId();
-    const index = transactions.findIndex(({ id }) => transactionID === id);
+    const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
     const {
       txParams: { nonce, from },
@@ -1235,11 +1327,11 @@ export class TransactionController extends BaseController<
    * Cancels a transaction based on its ID by setting its status to "rejected"
    * and emitting a `<tx.id>:finished` hub event.
    *
-   * @param transactionID - The ID of the transaction to cancel.
+   * @param transactionId - The ID of the transaction to cancel.
    */
-  private cancelTransaction(transactionID: string) {
+  private cancelTransaction(transactionId: string) {
     const transactionMeta = this.state.transactions.find(
-      ({ id }) => id === transactionID,
+      ({ id }) => id === transactionId,
     );
     if (!transactionMeta) {
       return;
@@ -1247,7 +1339,7 @@ export class TransactionController extends BaseController<
     transactionMeta.status = TransactionStatus.rejected;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     const transactions = this.state.transactions.filter(
-      ({ id }) => id !== transactionID,
+      ({ id }) => id !== transactionId,
     );
     this.update({ transactions: this.trimTransactionsForState(transactions) });
   }

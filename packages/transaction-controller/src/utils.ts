@@ -19,6 +19,7 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
   data: (data: string) => addHexPrefix(data),
   from: (from: string) => addHexPrefix(from).toLowerCase(),
   gas: (gas: string) => addHexPrefix(gas),
+  gasLimit: (gas: string) => addHexPrefix(gas),
   gasPrice: (gasPrice: string) => addHexPrefix(gasPrice),
   nonce: (nonce: string) => addHexPrefix(nonce),
   to: (to: string) => addHexPrefix(to).toLowerCase(),

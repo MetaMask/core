@@ -45,6 +45,11 @@ type TransactionMetaBase = {
   dappSuggestedGasFees?: DappSuggestedGasFees;
 
   /**
+   * The default estimate for gas.
+   */
+  defaultGasEstimates?: string;
+
+  /**
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
@@ -53,6 +58,16 @@ type TransactionMetaBase = {
    * The estimated base fee of the transaction.
    */
   estimatedBaseFee?: string;
+
+  /**
+   * Which estimate level that the API suggested.
+   */
+  estimateSuggested?: string;
+
+  /**
+   * Which estimate level was used
+   */
+  estimateUsed?: string;
 
   /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
@@ -165,6 +180,16 @@ type TransactionMetaBase = {
   v?: string;
 
   /**
+   * The gas limit supplied by user.
+   */
+  userEditedGasLimit?: boolean;
+
+  /**
+   * Estimate level user selected.
+   */
+  userFeeLevel?: string;
+
+  /**
    * Whether the transaction is verified on the blockchain.
    */
   verifiedOnBlockchain?: boolean;
@@ -238,12 +263,17 @@ export interface TransactionParams {
   from: string;
 
   /**
-   * Gas to send with this transaction.
+   * same as gasLimit?
    */
   gas?: string;
 
   /**
-   * Price of gas with this transaction.
+   * Maxmimum number of units of gas to use for this transaction.
+   */
+  gasLimit?: string;
+
+  /**
+   * Price per gas for legacy txs
    */
   gasPrice?: string;
 
@@ -253,12 +283,13 @@ export interface TransactionParams {
   gasUsed?: string;
 
   /**
-   * Maximum fee per gas for this transaction.
+   * Maximum amount per gas to pay for the transaction, including the priority
+   * fee.
    */
   maxFeePerGas?: string;
 
   /**
-   * Maximum priority fee per gas for this transaction.
+   * Maximum amount per gas to give to validator as incentive.
    */
   maxPriorityFeePerGas?: string;
 
