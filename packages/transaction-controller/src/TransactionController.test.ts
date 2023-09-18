@@ -980,7 +980,7 @@ describe('TransactionController', () => {
         sendFlowHistory: expect.any(Array),
         status: TransactionStatus.unapproved,
         time: expect.any(Number),
-        transaction: expect.anything(),
+        txParams: expect.anything(),
         verifiedOnBlockchain: expect.any(Boolean),
       };
 
@@ -1820,7 +1820,7 @@ describe('TransactionController', () => {
 
   describe('initApprovals', () => {
     it('creates approvals for all unapproved transaction', async () => {
-      const transaction = {
+      const txParams = {
         from: ACCOUNT_MOCK,
         hash: '1337',
         id: 'mocked',
@@ -1828,9 +1828,9 @@ describe('TransactionController', () => {
         status: TransactionStatus.unapproved,
       };
       const controller = newController();
-      controller.state.transactions.push(transaction as any);
+      controller.state.transactions.push(txParams as any);
       controller.state.transactions.push({
-        ...transaction,
+        ...txParams,
         id: 'mocked1',
         hash: '1338',
       } as any);
@@ -1919,7 +1919,7 @@ describe('TransactionController', () => {
         networkID: '1',
         chainId: toHex(1),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           gasUsed: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
@@ -1943,7 +1943,7 @@ describe('TransactionController', () => {
         networkID: '1',
         status: TransactionStatus.confirmed,
         to: ACCOUNT_2_MOCK,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           gasUsed: undefined,
@@ -1959,7 +1959,7 @@ describe('TransactionController', () => {
         {
           note: expect.any(String),
           op: 'remove',
-          path: '/transaction/gasUsed',
+          path: '/txParams/gasUsed',
           timestamp: expect.any(Number),
         },
         {
