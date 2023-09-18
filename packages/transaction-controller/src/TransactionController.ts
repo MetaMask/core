@@ -448,7 +448,7 @@ export class TransactionController extends BaseController<
     );
 
     const { type: transactionType } = await determineTransactionType(
-      transaction,
+      txParams,
       this.ethQuery,
     );
 
