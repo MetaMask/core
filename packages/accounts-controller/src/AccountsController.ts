@@ -37,9 +37,27 @@ export type AccountsControllerSetCurrentAccount = {
   handler: AccountsController['setSelectedAccount'];
 };
 
+export type AccountsControllerSetAccountName = {
+  type: `${typeof controllerName}:setAccountName`;
+  handler: AccountsController['setAccountName'];
+};
+
+export type AccountsControllerListAccounts = {
+  type: `${typeof controllerName}:listAccounts`;
+  handler: AccountsController['listAccounts'];
+};
+
+export type AccountsControllerUpdateAccounts = {
+  type: `${typeof controllerName}:updateAccounts`;
+  handler: AccountsController['updateAccounts'];
+};
+
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetCurrentAccount
+  | AccountsControllerListAccounts
+  | AccountsControllerSetAccountName
+  | AccountsControllerUpdateAccounts
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetAccountsAction;
