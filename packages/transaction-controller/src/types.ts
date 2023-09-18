@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import type { Operation } from 'fast-json-patch';
 
 /**
  * Representation of transaction metadata.
@@ -59,6 +60,11 @@ type TransactionMetaBase = {
   hash?: string;
 
   /**
+   * A history of mutations to TransactionMeta.
+   */
+  history?: TransactionHistory;
+
+  /**
    * Generated UUID associated with this transaction.
    */
   id: string;
@@ -97,6 +103,12 @@ type TransactionMetaBase = {
    * When the transaction is dropped, this is the replacement transaction ID.
    */
   replacedById?: string;
+
+  /**
+   * An array of entries that describe the user's journey through the send flow.
+   * This is purely attached to state logs for troubleshooting and support.
+   */
+  sendFlowHistory?: SendFlowHistoryEntry[];
 
   /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
@@ -141,6 +153,18 @@ type TransactionMetaBase = {
    * Response from security validator.
    */
   securityAlertResponse?: Record<string, unknown>;
+};
+
+export type SendFlowHistoryEntry = {
+  /**
+   * String to indicate user interaction information.
+   */
+  entry: string;
+
+  /**
+   * Timestamp associated with this entry.
+   */
+  timestamp: number;
 };
 
 /**
@@ -354,3 +378,28 @@ export interface DappSuggestedGasFees {
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
 }
+
+/**
+ * A transaction history operation that includes a note and timestamp.
+ */
+type ExtendedHistoryOperation = Operation & {
+  note?: string;
+  timestamp?: number;
+};
+
+/**
+ * A transaction history entry that includes the ExtendedHistoryOperation as the first element.
+ */
+export type TransactionHistoryEntry = [
+  ExtendedHistoryOperation,
+  ...Operation[],
+];
+
+/**
+ * A transaction history that includes the transaction meta as the first element.
+ * And the rest of the elements are the operation arrays that were applied to the transaction meta.
+ */
+export type TransactionHistory = [
+  TransactionMeta,
+  ...TransactionHistoryEntry[],
+];

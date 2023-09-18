@@ -2588,7 +2588,9 @@ __metadata:
     eth-rpc-errors: ^4.0.2
     ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
+    fast-json-patch: ^3.1.1
     jest: ^27.5.1
+    lodash: ^4.17.21
     nonce-tracker: ^1.1.0
     sinon: ^9.2.4
     ts-jest: ^27.1.4
@@ -5710,6 +5712,13 @@ __metadata:
     merge2: ^1.3.0
     micromatch: ^4.0.4
   checksum: 20df62be28eb5426fe8e40e0d05601a63b1daceb7c3d87534afcad91bdcf1e4b1743cf2d5247d6e225b120b46df0b9053a032b2691ba34ee121e033acd81f547
+  languageName: node
+  linkType: hard
+
+"fast-json-patch@npm:^3.1.1":
+  version: 3.1.1
+  resolution: "fast-json-patch@npm:3.1.1"
+  checksum: c4525b61b2471df60d4b025b4118b036d99778a93431aa44d1084218182841d82ce93056f0f3bbd731a24e6a8e69820128adf1873eb2199a26c62ef58d137833
   languageName: node
   linkType: hard
 
