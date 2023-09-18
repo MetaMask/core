@@ -1745,6 +1745,37 @@ describe('TransactionController', () => {
       );
     });
 
+    it('verifies s,r and v values are correctly populated', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+        config: {
+          sign: async (transaction: any) => {
+            transaction.r = '1b';
+            transaction.s = 'abc';
+            transaction.v = '123';
+            return transaction;
+          },
+        },
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction.r).toBe('0x1b');
+      expect(speedUpTransaction.s).toBe('0xabc');
+      expect(speedUpTransaction.v).toBe('0x123');
+    });
+
     it('creates additional transaction specifying the gasPrice', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
