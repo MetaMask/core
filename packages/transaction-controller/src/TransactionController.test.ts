@@ -981,6 +981,7 @@ describe('TransactionController', () => {
         status: TransactionStatus.unapproved,
         time: expect.any(Number),
         txParams: expect.anything(),
+        userEditedGasLimit: false,
         verifiedOnBlockchain: expect.any(Boolean),
       };
 
@@ -2423,6 +2424,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: transactionId,
         status: TransactionStatus.unapproved,
+        history: [{}],
         transaction: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,

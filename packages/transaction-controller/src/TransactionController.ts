@@ -46,10 +46,8 @@ import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   DappSuggestedGasFees,
-  TransactionGasValues,
   TransactionParams,
   TransactionMeta,
-  TransactionMetaGasValues,
   TransactionReceipt,
   SendFlowHistoryEntry,
   WalletDevice,
@@ -68,7 +66,6 @@ import {
   validateMinimumIncrease,
   validateTxParams,
   ESTIMATE_GAS_ERROR,
-  validateIfTransactionUnapproved,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -1053,26 +1050,49 @@ export class TransactionController extends BaseController<
 
   /**
    * Update the gas values of a transaction.
-   * 
+   *
    * @param transactionId - The ID of the transaction to update.
-   * @param gasValues - Multiple gas values to update the transaction with. 
+   * @param gasValues - Gas values to update.
+   * @param gasValues.gas - Same as transaction.gasLimit.
+   * @param gasValues.gasLimit - Maxmimum number of units of gas to use for this transaction.
+   * @param gasValues.gasPrice - Price per gas for legacy transactions.
+   * @param gasValues.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
+   * @param gasValues.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
+   * @param gasValues.estimateUsed - Which estimate level was used.
+   * @param gasValues.estimateSuggested - Which estimate level that the API suggested.
+   * @param gasValues.defaultGasEstimates - The default estimate for gas.
+   * @param gasValues.originalGasEstimate - Original estimate for gas.
+   * @param gasValues.userEditedGasLimit - The gas limit supplied by user.
+   * @param gasValues.userFeeLevel - Estimate level user selected.
    * @returns The updated transactionMeta.
    */
   updateTransactionGasFees(
     transactionId: string,
     {
+      defaultGasEstimates,
+      estimateUsed,
+      estimateSuggested,
       gas,
       gasLimit,
       gasPrice,
       maxPriorityFeePerGas,
       maxFeePerGas,
-      estimateUsed,
-      estimateSuggested,
-      defaultGasEstimates,
       originalGasEstimate,
       userEditedGasLimit,
       userFeeLevel,
-    }: TransactionGasValues & TransactionMetaGasValues,
+    }: {
+      defaultGasEstimates?: string;
+      estimateUsed?: string;
+      estimateSuggested?: string;
+      gas?: string;
+      gasLimit?: string;
+      gasPrice?: string;
+      maxPriorityFeePerGas?: string;
+      maxFeePerGas?: string;
+      originalGasEstimate?: string;
+      userEditedGasLimit?: boolean;
+      userFeeLevel?: string;
+    },
   ): TransactionMeta {
     const transactionMeta = this.getTransaction(transactionId);
 
@@ -1110,7 +1130,10 @@ export class TransactionController extends BaseController<
     // merge updated gas values with existing transaction meta
     const updatedMeta = merge(transactionMeta, transactionGasFees);
 
-    this.updateTransaction(updatedMeta);
+    this.updateTransaction(
+      updatedMeta,
+      'TransactionController:updateTransactionGasFees - gas values updated',
+    );
 
     return this.getTransaction(transactionId) as TransactionMeta;
   }
