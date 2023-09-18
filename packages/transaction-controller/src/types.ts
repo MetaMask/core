@@ -333,8 +333,22 @@ export interface RemoteTransactionSourceRequest {
  * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
 export interface RemoteTransactionSource {
+  /**
+   * @param chainId - The chainId of the current network.
+   * @param networkId - The networkId of the current network.
+   * @returns Whether the remote transaction source supports the specified network.
+   */
   isSupportedNetwork: (chainId: Hex, networkId: string) => boolean;
 
+  /**
+   * @returns An array of additional keys to use when caching the last fetched block number.
+   */
+  getLastBlockVariations?: () => string[];
+
+  /**
+   * @param request - A request object containing data such as the address and chain ID.
+   * @returns An array of transaction metadata for the retrieved transactions.
+   */
   fetchTransactions: (
     request: RemoteTransactionSourceRequest,
   ) => Promise<TransactionMeta[]>;

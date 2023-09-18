@@ -123,7 +123,14 @@ export class IncomingTransactionHelper {
         16,
       );
 
-      const fromBlock = this.#getFromBlock(latestBlockNumber);
+      const additionalLastFetchedKeys =
+        this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
+
+      const fromBlock = this.#getFromBlock(
+        latestBlockNumber,
+        additionalLastFetchedKeys,
+      );
+
       const address = this.#getCurrentAccount();
       const currentChainId = this.#getCurrentChainId();
       const currentNetworkId = this.#getCurrentNetworkId();
@@ -179,7 +186,10 @@ export class IncomingTransactionHelper {
         });
       }
 
-      this.#updateLastFetchedBlockNumber(remoteTransactions);
+      this.#updateLastFetchedBlockNumber(
+        remoteTransactions,
+        additionalLastFetchedKeys,
+      );
     } finally {
       releaseLock();
     }
@@ -220,8 +230,11 @@ export class IncomingTransactionHelper {
     );
   }
 
-  #getFromBlock(latestBlockNumber: number): number | undefined {
-    const lastFetchedKey = this.#getBlockNumberKey();
+  #getFromBlock(
+    latestBlockNumber: number,
+    additionalKeys: string[],
+  ): number | undefined {
+    const lastFetchedKey = this.#getBlockNumberKey(additionalKeys);
 
     const lastFetchedBlockNumber =
       this.#getLastFetchedBlockNumbers()[lastFetchedKey];
@@ -235,7 +248,10 @@ export class IncomingTransactionHelper {
       : latestBlockNumber - RECENT_HISTORY_BLOCK_RANGE;
   }
 
-  #updateLastFetchedBlockNumber(remoteTxs: TransactionMeta[]) {
+  #updateLastFetchedBlockNumber(
+    remoteTxs: TransactionMeta[],
+    additionalKeys: string[],
+  ) {
     let lastFetchedBlockNumber = -1;
 
     for (const tx of remoteTxs) {
@@ -253,11 +269,11 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    const lastFetchedKey = this.#getBlockNumberKey();
+    const lastFetchedKey = this.#getBlockNumberKey(additionalKeys);
     const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
     const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
 
-    if (previousValue === lastFetchedBlockNumber) {
+    if (previousValue >= lastFetchedBlockNumber) {
       return;
     }
 
@@ -269,8 +285,11 @@ export class IncomingTransactionHelper {
     });
   }
 
-  #getBlockNumberKey(): string {
-    return `${this.#getCurrentChainId()}#${this.#getCurrentAccount().toLowerCase()}`;
+  #getBlockNumberKey(additionalKeys: string[]): string {
+    const currentChainId = this.#getCurrentChainId();
+    const currentAccount = this.#getCurrentAccount().toLowerCase();
+
+    return [currentChainId, currentAccount, ...additionalKeys].join('#');
   }
 
   #canStart(): boolean {

@@ -190,6 +190,31 @@ describe('EtherscanRemoteTransactionSource', () => {
     });
   });
 
+  describe('getLastBlockVariations', () => {
+    it('returns normal if normal request', () => {
+      expect(
+        new EtherscanRemoteTransactionSource().getLastBlockVariations(),
+      ).toStrictEqual(['normal']);
+    });
+
+    it('returns token if token request', async () => {
+      const remoteSource = new EtherscanRemoteTransactionSource();
+      await remoteSource.fetchTransactions({} as any);
+
+      expect(remoteSource.getLastBlockVariations()).toStrictEqual(['token']);
+    });
+
+    it('always returns normal if token requests disabled', async () => {
+      const remoteSource = new EtherscanRemoteTransactionSource({
+        includeTokenTransfers: false,
+      });
+
+      await remoteSource.fetchTransactions({} as any);
+
+      expect(remoteSource.getLastBlockVariations()).toStrictEqual(['normal']);
+    });
+  });
+
   describe('fetchTransactions', () => {
     it('returns normalized transactions fetched from Etherscan', async () => {
       fetchEtherscanTransactionsMock.mockResolvedValueOnce(

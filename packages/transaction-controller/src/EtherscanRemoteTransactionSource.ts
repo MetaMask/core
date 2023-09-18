@@ -44,6 +44,10 @@ export class EtherscanRemoteTransactionSource
     return Object.keys(ETHERSCAN_SUPPORTED_NETWORKS).includes(chainId);
   }
 
+  getLastBlockVariations(): string[] {
+    return [this.#isTokenRequestPending ? 'token' : 'normal'];
+  }
+
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {
