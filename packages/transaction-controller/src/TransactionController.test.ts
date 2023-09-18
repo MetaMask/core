@@ -2425,7 +2425,7 @@ describe('TransactionController', () => {
         id: transactionId,
         status: TransactionStatus.unapproved,
         history: [{}],
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
         },
@@ -2447,13 +2447,13 @@ describe('TransactionController', () => {
 
       const transaction = controller.state.transactions[0];
 
-      expect(transaction?.transaction?.gas).toBe(gas);
-      expect(transaction?.transaction?.gasLimit).toBe(gasLimit);
-      expect(transaction?.transaction?.gasPrice).toBe(gasPrice);
-      expect(transaction?.transaction?.maxPriorityFeePerGas).toBe(
+      expect(transaction?.txParams?.gas).toBe(gas);
+      expect(transaction?.txParams?.gasLimit).toBe(gasLimit);
+      expect(transaction?.txParams?.gasPrice).toBe(gasPrice);
+      expect(transaction?.txParams?.maxPriorityFeePerGas).toBe(
         maxPriorityFeePerGas,
       );
-      expect(transaction?.transaction?.maxFeePerGas).toBe(maxFeePerGas);
+      expect(transaction?.txParams?.maxFeePerGas).toBe(maxFeePerGas);
       expect(transaction?.estimateUsed).toBe(estimateUsed);
       expect(transaction?.estimateSuggested).toBe(estimateSuggested);
       expect(transaction?.defaultGasEstimates).toBe(defaultGasEstimates);

@@ -1108,7 +1108,7 @@ export class TransactionController extends BaseController<
     );
 
     let transactionGasFees = {
-      transaction: {
+      txParams: {
         gas,
         gasLimit,
         gasPrice,
@@ -1124,7 +1124,7 @@ export class TransactionController extends BaseController<
     } as any;
 
     // only update what is defined
-    transactionGasFees.transaction = pickBy(transactionGasFees.transaction);
+    transactionGasFees.txParams = pickBy(transactionGasFees.txParams);
     transactionGasFees = pickBy(transactionGasFees);
 
     // merge updated gas values with existing transaction meta
