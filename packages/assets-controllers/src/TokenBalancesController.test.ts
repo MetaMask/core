@@ -247,8 +247,6 @@ describe('TokenBalancesController', () => {
       messenger: undefined as unknown as TokensControllerMessenger,
     });
 
-    sinon.stub(tokensController, 'getProvider').callsFake(() => null as any);
-
     const stub = stubCreateEthers(tokensController, false);
 
     const tokenBalances = new TokenBalancesController(

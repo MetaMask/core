@@ -95,8 +95,6 @@ describe('TokensController', () => {
       getNetworkClientById: sinon.stub() as any,
       messenger,
     });
-
-    sinon.stub(tokensController, 'getProvider').callsFake(() => null as any);
   });
 
   afterEach(() => {

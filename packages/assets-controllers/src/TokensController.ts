@@ -276,7 +276,7 @@ export class TokensController extends BaseController<
    * @param networkClientId - Network Client ID.
    * @returns Web3Provider instance.
    */
-  getProvider(networkClientId?: NetworkClientId): Web3Provider {
+  #getProvider(networkClientId?: NetworkClientId): Web3Provider {
     const provider = networkClientId
       ? this.getNetworkClientById(networkClientId).provider
       : this.config?.provider;
@@ -287,31 +287,30 @@ export class TokensController extends BaseController<
   /**
    * Adds a token to the stored token list.
    *
-   * @param options - The method options.
-   * @param options.address - Hex address of the token contract.
-   * @param options.symbol - Symbol of the token.
-   * @param options.decimals - Number of decimals the token uses.
-   * @param options.options - Object containing name and image of the token
-   * @param options.options.name - Name of the token
-   * @param options.options.image - Image of the token
-   * @param options.options.interactingAddress - The address of the account to add a token to.
-   * @param networkClientId - Network Client ID.
+   * @param args - The method argument object.
+   * @param args.address - Hex address of the token contract.
+   * @param args.symbol - Symbol of the token.
+   * @param args.decimals - Number of decimals the token uses.
+   * @param args.options - Object containing name and image of the token
+   * @param args.options.name - Name of the token
+   * @param args.options.image - Image of the token
+   * @param args.options.interactingAddress - The address of the account to add a token to.
+   * @param args.networkClientId - Network Client ID.
    * @returns Current token list.
    */
-  async addToken(
-    {
-      address,
-      symbol,
-      decimals,
-      options: { name, image, interactingAddress } = {},
-    }: {
-      address: string;
-      symbol: string;
-      decimals: number;
-      options?: { name?: string; image?: string; interactingAddress?: string };
-    },
-    networkClientId?: NetworkClientId,
-  ): Promise<Token[]> {
+  async addToken({
+    address,
+    symbol,
+    decimals,
+    options: { name, image, interactingAddress } = {},
+    networkClientId,
+  }: {
+    address: string;
+    symbol: string;
+    decimals: number;
+    options?: { name?: string; image?: string; interactingAddress?: string };
+    networkClientId?: NetworkClientId;
+  }): Promise<Token[]> {
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId, selectedAddress } = this.config;
     let currentChainId = chainId;
@@ -669,7 +668,7 @@ export class TokensController extends BaseController<
     const tokenContract = this._createEthersContract(
       tokenAddress,
       abiERC721,
-      this.getProvider(networkClientId),
+      networkClientId,
     );
     try {
       return await tokenContract.supportsInterface(ERC721_INTERFACE_ID);
@@ -685,9 +684,10 @@ export class TokensController extends BaseController<
   _createEthersContract(
     tokenAddress: string,
     abi: string,
-    ethersProvider: any,
+    networkClientId?: NetworkClientId,
   ): Contract {
-    const tokenContract = new Contract(tokenAddress, abi, ethersProvider);
+    const provider = this.#getProvider(networkClientId);
+    const tokenContract = new Contract(tokenAddress, abi, provider);
     return tokenContract;
   }
 
@@ -743,19 +743,17 @@ export class TokensController extends BaseController<
     }
 
     const { address, symbol, decimals, image } = asset;
-    await this.addToken(
-      {
-        address,
-        symbol,
-        decimals,
-        options: {
-          name,
-          image,
-          interactingAddress: suggestedAssetMeta.interactingAddress,
-        },
+    await this.addToken({
+      address,
+      symbol,
+      decimals,
+      options: {
+        name,
+        image,
+        interactingAddress: suggestedAssetMeta.interactingAddress,
       },
       networkClientId,
-    );
+    });
   }
 
   /**

@@ -170,7 +170,7 @@ describe('TokenDetectionController', () => {
     preferences = new PreferencesController({}, { useTokenDetection: true });
     controllerMessenger = getControllerMessenger();
     sinon
-      .stub(TokensController.prototype, 'getProvider')
+      .stub(TokensController.prototype, '_createEthersContract')
       .callsFake(() => null as any);
 
     tokensController = new TokensController({
