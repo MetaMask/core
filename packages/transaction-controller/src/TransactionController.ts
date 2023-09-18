@@ -41,6 +41,7 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { validateConfirmedExternalTransaction } from './external-transactions';
+import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   DappSuggestedGasFees,
@@ -176,6 +177,8 @@ export class TransactionController extends BaseController<
 > {
   private ethQuery: EthQuery;
 
+  private readonly isHistoryDisabled: boolean;
+
   private readonly isSendFlowHistoryDisabled: boolean;
 
   private readonly nonceTracker: NonceTracker;
@@ -200,7 +203,10 @@ export class TransactionController extends BaseController<
       error,
       status: TransactionStatus.failed,
     };
-    this.updateTransaction(newTransactionMeta);
+    this.updateTransaction(
+      newTransactionMeta,
+      'TransactionController#failTransaction - Add error message and set status to failed',
+    );
     this.hub.emit(`${transactionMeta.id}:finished`, newTransactionMeta);
   }
 
@@ -233,6 +239,7 @@ export class TransactionController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
+   * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
@@ -251,6 +258,7 @@ export class TransactionController extends BaseController<
   constructor(
     {
       blockTracker,
+      disableHistory,
       disableSendFlowHistory,
       getNetworkState,
       getSelectedAddress,
@@ -260,6 +268,7 @@ export class TransactionController extends BaseController<
       provider,
     }: {
       blockTracker: BlockTracker;
+      disableHistory: boolean;
       disableSendFlowHistory: boolean;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
@@ -297,6 +306,7 @@ export class TransactionController extends BaseController<
     this.getNetworkState = getNetworkState;
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
+    this.isHistoryDisabled = disableHistory ?? false;
     this.registry = new MethodRegistry({ provider });
 
     this.nonceTracker = new NonceTracker({
@@ -435,19 +445,19 @@ export class TransactionController extends BaseController<
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
     const transactionMeta: TransactionMeta = existingTransactionMeta || {
+      // Add actionId to txMeta to check if same actionId is seen again
+      actionId,
+      chainId,
+      dappSuggestedGasFees,
+      deviceConfirmedOn,
       id: random(),
       networkID: networkId ?? undefined,
-      chainId,
       origin,
+      securityAlertResponse,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
       transaction,
-      deviceConfirmedOn,
       verifiedOnBlockchain: false,
-      dappSuggestedGasFees,
-      securityAlertResponse,
-      // Add actionId to txMeta to check if same actionId is seen again
-      actionId,
     };
 
     try {
@@ -463,6 +473,10 @@ export class TransactionController extends BaseController<
     if (!existingTransactionMeta) {
       if (!this.isSendFlowHistoryDisabled) {
         transactionMeta.sendFlowHistory = sendFlowHistory ?? [];
+      }
+      // Initial history push
+      if (!this.isHistoryDisabled) {
+        addInitialHistorySnapshot(transactionMeta);
       }
       transactions.push(transactionMeta);
       this.update({
@@ -880,13 +894,17 @@ export class TransactionController extends BaseController<
    * Updates an existing transaction in state.
    *
    * @param transactionMeta - The new transaction to store in state.
+   * @param note - A note or update reason to include in the transaction history.
    */
-  updateTransaction(transactionMeta: TransactionMeta) {
+  updateTransaction(transactionMeta: TransactionMeta, note: string) {
     const { transactions } = this.state;
     transactionMeta.transaction = normalizeTransaction(
       transactionMeta.transaction,
     );
     validateTransaction(transactionMeta.transaction);
+    if (!this.isHistoryDisabled) {
+      updateTransactionHistory(transactionMeta, note);
+    }
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
     this.update({ transactions: this.trimTransactionsForState(transactions) });
@@ -969,7 +987,10 @@ export class TransactionController extends BaseController<
       this.markNonceDuplicatesDropped(transactionId);
 
       // Update external provided transaction with updated gas values and confirmed status.
-      this.updateTransaction(transactionMeta);
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController:confirmExternalTransaction - Add external transaction',
+      );
     } catch (error) {
       console.error(error);
     }
@@ -1015,7 +1036,10 @@ export class TransactionController extends BaseController<
         ...(transactionMeta?.sendFlowHistory ?? []),
         ...sendFlowHistoryToAdd,
       ];
-      this.updateTransaction(transactionMeta);
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController:updateTransactionSendFlowHistory - sendFlowHistory updated',
+      );
     }
 
     return this.getTransaction(transactionID) as TransactionMeta;
@@ -1175,16 +1199,25 @@ export class TransactionController extends BaseController<
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
       const signedTx = await this.sign(unsignedEthTx, from);
       transactionMeta.status = TransactionStatus.signed;
-      this.updateTransaction(transactionMeta);
-      const rawTx = bufferToHex(signedTx.serialize());
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController#approveTransaction - Transaction signed',
+      );
 
+      const rawTx = bufferToHex(signedTx.serialize());
       transactionMeta.rawTx = rawTx;
-      this.updateTransaction(transactionMeta);
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController#approveTransaction - RawTransaction added',
+      );
       const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
-      this.updateTransaction(transactionMeta);
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController#approveTransaction - Transaction submitted',
+      );
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
@@ -1591,6 +1624,13 @@ export class TransactionController extends BaseController<
       pendingTxs,
     );
 
+    // Make sure provided external transaction has non empty history array
+    if (!(transactionMeta.history ?? []).length) {
+      if (!this.isHistoryDisabled) {
+        addInitialHistorySnapshot(transactionMeta);
+      }
+    }
+
     const updatedTransactions = [...transactions, transactionMeta];
     this.update({
       transactions: this.trimTransactionsForState(updatedTransactions),
@@ -1640,7 +1680,10 @@ export class TransactionController extends BaseController<
    */
   private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
     transactionMeta.status = TransactionStatus.dropped;
-    this.updateTransaction(transactionMeta);
+    this.updateTransaction(
+      transactionMeta,
+      'TransactionController#setTransactionStatusDropped - Transaction dropped',
+    );
   }
 
   /**
