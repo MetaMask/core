@@ -90,6 +90,21 @@ export type KeyringControllerGetEncryptionPublicKeyAction = {
   handler: KeyringController['getEncryptionPublicKey'];
 };
 
+export type KeyringControllerGetKeyringsByTypeAction = {
+  type: `${typeof name}:getKeyringsByType`;
+  handler: KeyringController['getKeyringsByType'];
+};
+
+export type KeyringControllerGetKeyringForAccountAction = {
+  type: `${typeof name}:getKeyringForAccount`;
+  handler: KeyringController['getKeyringForAccount'];
+};
+
+export type KeyringControllerGetAccountsAction = {
+  type: `${typeof name}:getAccounts`;
+  handler: KeyringController['getAccounts'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -116,7 +131,10 @@ export type KeyringControllerActions =
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
   | KeyringControllerDecryptMessageAction
-  | KeyringControllerGetEncryptionPublicKeyAction;
+  | KeyringControllerGetEncryptionPublicKeyAction
+  | KeyringControllerGetAccountsAction
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerGetKeyringForAccountAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent

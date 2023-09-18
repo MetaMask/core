@@ -101,7 +101,7 @@ function createExpectedInternalAccount({
   if (snapId) {
     account.metadata.snap = {
       id: snapId,
-      name: '',
+      name: 'snap-name',
       enabled: Boolean(snapEnabled),
     };
   }
@@ -151,6 +151,11 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:accountRemoved',
       'KeyringController:stateChange',
     ],
+    allowedActions: [
+      'KeyringController:getAccounts',
+      'KeyringController:getKeyringForAccount',
+      'KeyringController:getKeyringsByType',
+    ],
   });
 }
 
@@ -181,9 +186,6 @@ function setupAccountsController({
   const accountsController = new AccountsController({
     messenger: accountsControllerMessenger,
     state: { ...defaultState, ...initialState },
-    getKeyringForAccount: mockGetKeyringForAccount,
-    getKeyringByType: mockGetKeyringByType,
-    getAccounts: mockGetAccounts,
     keyringApiEnabled,
   });
   return accountsController;
@@ -381,11 +383,20 @@ describe('AccountsController', () => {
     it('should add new accounts', async () => {
       const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      mockGetAccounts.mockResolvedValue([
-        mockAccount.address,
-        mockAccount2.address,
-      ]);
-      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValueOnce([
+          mockAccount.address,
+          mockAccount2.address,
+        ]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
+      );
+
       const mockNewKeyringState = {
         isUnlocked: true,
         keyrings: [
@@ -439,8 +450,17 @@ describe('AccountsController', () => {
         keyringType: 'HD Key Tree',
       });
       mockUUID.mockReturnValueOnce('mock-id2');
-      mockGetAccounts.mockResolvedValue([mockReinitialisedAccount.address]);
-      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValueOnce([
+          mockReinitialisedAccount.address,
+        ]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
+      );
       const mockNewKeyringState = {
         isUnlocked: true,
         keyrings: [
@@ -482,8 +502,16 @@ describe('AccountsController', () => {
     it('should delete accounts if its gone from the keyring state', async () => {
       const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id2');
-      mockGetAccounts.mockResolvedValue([mockAccount2.address]);
-      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValueOnce([mockAccount2.address]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
+      );
+
       const mockNewKeyringState = {
         isUnlocked: true,
         keyrings: [
@@ -526,11 +554,19 @@ describe('AccountsController', () => {
     it('should delete accounts and set the most recent lastSelected account', async () => {
       const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      mockGetAccounts.mockResolvedValue([
-        mockAccount.address,
-        mockAccount2.address,
-      ]);
-      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValue([
+          mockAccount.address,
+          mockAccount2.address,
+        ]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
+      );
+
       const mockNewKeyringState = {
         isUnlocked: true,
         keyrings: [
@@ -579,11 +615,19 @@ describe('AccountsController', () => {
     it('should delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
       const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      mockGetAccounts.mockResolvedValue([
-        mockAccount.address,
-        mockAccount2.address,
-      ]);
-      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValue([
+          mockAccount.address,
+          mockAccount2.address,
+        ]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
+      );
+
       const mockAccount2WithoutLastSelected = {
         ...mockAccount2,
         metadata: {
@@ -687,7 +731,7 @@ describe('AccountsController', () => {
         snap: {
           enabled: true,
           id: 'mock-snap-id2',
-          name: '',
+          name: 'snap-name',
         },
         lastSelected: undefined,
       },
@@ -695,8 +739,16 @@ describe('AccountsController', () => {
 
     it('should update accounts with legacy accounts', async () => {
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      mockGetAccounts.mockResolvedValue([mockAddress1, mockAddress2]);
-      mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' });
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValueOnce([mockAddress1, mockAddress2]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
+      );
 
       const accountsController = setupAccountsController({
         initialState: {
@@ -706,6 +758,7 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: false,
+        messenger,
       });
       const expectedAccounts = [
         createExpectedInternalAccount({
@@ -728,13 +781,21 @@ describe('AccountsController', () => {
     });
 
     it('should update accounts with snap accounts when snap keyring is defined and has accounts', async () => {
-      mockGetAccounts.mockResolvedValue([]);
-      mockGetKeyringByType.mockReturnValueOnce([
-        {
-          type: 'Snap Keyring',
-          listAccounts: async () => [mockSnapAccount, mockSnapAccount2],
-        },
-      ]);
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValueOnce([]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockResolvedValue([
+          {
+            type: 'Snap Keyring',
+            listAccounts: async () => [mockSnapAccount, mockSnapAccount2],
+          },
+        ]),
+      );
 
       const accountsController = setupAccountsController({
         initialState: {
@@ -744,6 +805,7 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: true,
+        messenger,
       });
 
       const expectedAccount1 = {
@@ -769,69 +831,17 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('should not delete snap accounts that are not enabled, or accounts where the communication with the snap is interrupted', async () => {
-      const mockDisabledSnapAccount = {
-        ...mockSnapAccount,
-        id: 'mock-disabled-snap',
-        metadata: {
-          ...mockSnapAccount.metadata,
-          name: 'Snap Account 3',
-          snap: {
-            ...mockSnapAccount.metadata.snap,
-            enabled: false,
-          },
-        },
-      };
-      mockGetAccounts.mockResolvedValue([]);
-      mockGetKeyringByType.mockReturnValueOnce([
-        {
-          type: 'Snap Keyring',
-          listAccounts: async () => [mockSnapAccount, mockSnapAccount2],
-        },
-      ]);
-
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              'mock-disabled-snap': mockDisabledSnapAccount,
-            },
-            selectedAccount: '',
-          },
-        },
-        keyringApiEnabled: true,
-      });
-
-      const expectedAccount1 = {
-        ...mockSnapAccount,
-        metadata: {
-          ...mockSnapAccount.metadata,
-          name: 'Snap Account 1',
-        },
-      };
-
-      const expectedAccount2 = {
-        ...mockSnapAccount2,
-        metadata: {
-          ...mockSnapAccount2.metadata,
-          name: 'Snap Account 2',
-        },
-      };
-
-      const expectedAccounts = [
-        expectedAccount1,
-        expectedAccount2,
-        mockDisabledSnapAccount,
-      ];
-
-      await accountsController.updateAccounts();
-
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
-    });
-
     it('should return an empty array if the snap keyring is not defined', async () => {
-      mockGetAccounts.mockResolvedValue([]);
-      mockGetKeyringByType.mockReturnValueOnce([undefined]);
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValueOnce([]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValueOnce([undefined]),
+      );
 
       const accountsController = setupAccountsController({
         initialState: {
@@ -841,6 +851,7 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: true,
+        messenger,
       });
 
       const expectedAccounts: InternalAccount[] = [];
@@ -852,18 +863,28 @@ describe('AccountsController', () => {
 
     it('should filter snap accounts from legacyAccounts', async () => {
       mockUUID.mockReturnValueOnce('mock-id');
-      mockGetKeyringByType.mockReturnValueOnce([
-        {
-          type: 'Snap Keyring',
-          listAccounts: async () => [mockSnapAccount2],
-        },
-      ]);
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValueOnce([
+          {
+            type: 'Snap Keyring',
+            listAccounts: async () => [mockSnapAccount2],
+          },
+        ]),
+      );
 
       // first account will be legacy, second will be a snap account
-      mockGetAccounts.mockResolvedValue([mockAddress1, '0x1234']);
-      mockGetKeyringForAccount
-        .mockResolvedValueOnce({ type: 'HD Key Tree' })
-        .mockResolvedValueOnce({ type: 'Snap Keyring' });
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValue([mockAddress1, '0x1234']),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount
+          .mockResolvedValueOnce({ type: 'HD Key Tree' })
+          .mockResolvedValueOnce({ type: 'Snap Keyring' }),
+      );
 
       const accountsController = setupAccountsController({
         initialState: {
@@ -873,6 +894,7 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: true,
+        messenger,
       });
       const expectedAccounts = [
         createExpectedInternalAccount({
@@ -897,18 +919,28 @@ describe('AccountsController', () => {
 
     it('should filter snap accounts from legacyAccounts even if the snap account is listed before legacy accounts', async () => {
       mockUUID.mockReturnValue('mock-id');
-      mockGetKeyringByType.mockReturnValueOnce([
-        {
-          type: 'Snap Keyring',
-          listAccounts: async () => [mockSnapAccount2],
-        },
-      ]);
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValueOnce([
+          {
+            type: 'Snap Keyring',
+            listAccounts: async () => [mockSnapAccount2],
+          },
+        ]),
+      );
 
       // first account will be legacy, second will be a snap account
-      mockGetAccounts.mockResolvedValue(['0x1234', mockAddress1]);
-      mockGetKeyringForAccount
-        .mockResolvedValueOnce({ type: 'Snap Keyring' })
-        .mockResolvedValueOnce({ type: 'HD Key Tree' });
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValue(['0x1234', mockAddress1]),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount
+          .mockResolvedValueOnce({ type: 'Snap Keyring' })
+          .mockResolvedValueOnce({ type: 'HD Key Tree' }),
+      );
 
       const accountsController = setupAccountsController({
         initialState: {
@@ -918,6 +950,7 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: true,
+        messenger,
       });
       const expectedAccounts = [
         createExpectedInternalAccount({
@@ -932,6 +965,7 @@ describe('AccountsController', () => {
           address: mockSnapAccount2.address,
           keyringType: 'Snap Keyring',
           snapId: 'mock-snap-id2',
+          snapEnabled: true,
         }),
       ];
 
@@ -951,8 +985,16 @@ describe('AccountsController', () => {
       'Unknown',
     ])('should add accounts for %s type', async (keyringType) => {
       mockUUID.mockReturnValue('mock-id');
-      mockGetAccounts.mockResolvedValue([mockAddress1]);
-      mockGetKeyringForAccount.mockResolvedValue({ type: keyringType });
+
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValue([mockAddress1]),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: keyringType }),
+      );
 
       const accountsController = setupAccountsController({
         initialState: {
@@ -962,6 +1004,7 @@ describe('AccountsController', () => {
           },
         },
         keyringApiEnabled: false,
+        messenger,
       });
 
       const expectedAccounts = [
@@ -1079,8 +1122,6 @@ describe('AccountsController', () => {
           },
         },
       });
-
-      console.log(mockAccount, mockAccount2);
 
       const result = accountsController.listAccounts();
 

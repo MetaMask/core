@@ -5,8 +5,10 @@ import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
 import type {
   KeyringControllerState,
-  KeyringController,
   KeyringControllerEvents,
+  KeyringControllerGetKeyringForAccountAction,
+  KeyringControllerGetKeyringsByTypeAction,
+  KeyringControllerGetAccountsAction,
 } from '@metamask/keyring-controller';
 import type {
   SnapControllerEvents,
@@ -30,7 +32,17 @@ export type AccountsControllerGetStateAction = {
   handler: () => AccountsControllerState;
 };
 
-export type AccountsControllerActions = AccountsControllerGetStateAction;
+export type AccountsControllerSetCurrentAccount = {
+  type: `${typeof controllerName}:setCurrentAccount`;
+  handler: AccountsController['setSelectedAccount'];
+};
+
+export type AccountsControllerActions =
+  | AccountsControllerGetStateAction
+  | AccountsControllerSetCurrentAccount
+  | KeyringControllerGetKeyringForAccountAction
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerGetAccountsAction;
 
 export type AccountsControllerChangeEvent = {
   type: `${typeof controllerName}:stateChange`;
@@ -87,12 +99,6 @@ export class AccountsController extends BaseControllerV2<
   AccountsControllerState,
   AccountsControllerMessenger
 > {
-  getKeyringForAccount: KeyringController['getKeyringForAccount'];
-
-  getKeyringByType: KeyringController['getKeyringsByType'];
-
-  getAccounts: KeyringController['getAccounts'];
-
   keyringApiEnabled: boolean;
 
   /**
@@ -102,24 +108,15 @@ export class AccountsController extends BaseControllerV2<
    * @param options.messenger - The messenger object.
    * @param options.state - Initial state to set on this controller
    * @param [options.keyringApiEnabled] - The keyring API enabled flag.
-   * @param options.getKeyringForAccount - Gets the keyring for a given account from the keyring controller.
-   * @param options.getKeyringByType - Gets the keyring instance for the given type from the keyring controller.
-   * @param options.getAccounts - Gets all the accounts from the keyring controller.
    */
   constructor({
     messenger,
     state,
     keyringApiEnabled,
-    getKeyringForAccount,
-    getKeyringByType,
-    getAccounts,
   }: {
     messenger: AccountsControllerMessenger;
     state: AccountsControllerState;
     keyringApiEnabled?: boolean;
-    getKeyringForAccount: KeyringController['getKeyringForAccount'];
-    getKeyringByType: KeyringController['getKeyringsByType'];
-    getAccounts: KeyringController['getAccounts'];
   }) {
     super({
       messenger,
@@ -131,9 +128,6 @@ export class AccountsController extends BaseControllerV2<
       },
     });
 
-    this.getKeyringForAccount = getKeyringForAccount;
-    this.getKeyringByType = getKeyringByType;
-    this.getAccounts = getAccounts;
     this.keyringApiEnabled = Boolean(keyringApiEnabled);
 
     if (this.keyringApiEnabled) {
@@ -352,7 +346,11 @@ export class AccountsController extends BaseControllerV2<
    * @returns A promise that resolves to an array of InternalAccount objects.
    */
   async #listSnapAccounts(): Promise<InternalAccount[]> {
-    const [snapKeyring] = this.getKeyringByType(SnapKeyring.type);
+    // const [snapKeyring] = this.getKeyringByType(SnapKeyring.type);
+    const [snapKeyring] = await this.messagingSystem.call(
+      'KeyringController:getKeyringsByType',
+      SnapKeyring.type,
+    );
     // snap keyring is not available until the first account is created in the keyring controller
     if (!snapKeyring) {
       return [];
@@ -360,24 +358,7 @@ export class AccountsController extends BaseControllerV2<
 
     const snapAccounts = await (snapKeyring as SnapKeyring).listAccounts(false);
 
-    // missing accounts should be included as well but with the snap metadata enabled as false
-    const missingSnapAccounts = Object.values(
-      this.state.internalAccounts.accounts,
-    )
-      .filter((currentAccount) =>
-        snapAccounts.some(
-          (account) =>
-            account.id !== currentAccount.id && currentAccount.metadata.snap,
-        ),
-      )
-      .map((account) => {
-        if (account.metadata?.snap) {
-          account.metadata.snap.enabled = false;
-        }
-        return account;
-      });
-
-    return [...snapAccounts, ...missingSnapAccounts];
+    return snapAccounts;
   }
 
   /**
@@ -388,10 +369,15 @@ export class AccountsController extends BaseControllerV2<
    * @returns A Promise that resolves to an array of InternalAccount objects.
    */
   async #listLegacyAccounts(): Promise<InternalAccount[]> {
-    const addresses = await this.getAccounts();
+    const addresses = await this.messagingSystem.call(
+      'KeyringController:getAccounts',
+    );
     const internalAccounts: InternalAccount[] = [];
     for (const address of addresses) {
-      const keyring = await this.getKeyringForAccount(address);
+      const keyring = await this.messagingSystem.call(
+        'KeyringController:getKeyringForAccount',
+        address,
+      );
       const v4options = {
         random: sha256FromString(address).slice(0, 16),
       };
@@ -574,7 +560,7 @@ export function keyringTypeToName(keyringType: string): string {
     }
     default: {
       console.warn(`Unknown keyring ${keyringType}`);
-      return 'Account';
+      return 'Unknown';
     }
   }
 }
