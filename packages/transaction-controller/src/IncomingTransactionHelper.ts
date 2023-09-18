@@ -10,7 +10,7 @@ const RECENT_HISTORY_BLOCK_RANGE = 10;
 
 const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
   (txMeta) => txMeta.status,
-  (txMeta) => txMeta.transaction.gasUsed,
+  (txMeta) => txMeta.txParams.gasUsed,
 ];
 
 export class IncomingTransactionHelper {
@@ -153,7 +153,7 @@ export class IncomingTransactionHelper {
 
       if (!this.#updateTransactions) {
         remoteTransactions = remoteTransactions.filter(
-          (tx) => tx.transaction.to?.toLowerCase() === address.toLowerCase(),
+          (tx) => tx.txParams.to?.toLowerCase() === address.toLowerCase(),
         );
       }
 
