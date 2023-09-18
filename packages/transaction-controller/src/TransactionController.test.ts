@@ -24,7 +24,7 @@ import type {
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
-import { WalletDevice, TransactionStatus } from './types';
+import { WalletDevice, TransactionStatus, TransactionType } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -981,6 +981,7 @@ describe('TransactionController', () => {
         status: TransactionStatus.unapproved,
         time: expect.any(Number),
         transaction: expect.anything(),
+        type: TransactionType.simpleSend,
         verifiedOnBlockchain: expect.any(Boolean),
       };
 
