@@ -41,10 +41,7 @@ import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { validateConfirmedExternalTransaction } from './external-transactions';
-import {
-  updateTransactionHistory,
-  snapshotFromTransactionMeta,
-} from './history';
+import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   DappSuggestedGasFees,
@@ -479,7 +476,7 @@ export class TransactionController extends BaseController<
       }
       // Initial history push
       if (!this.isHistoryDisabled) {
-        this.addInitialHistorySnapshot(transactionMeta);
+        addInitialHistorySnapshot(transactionMeta);
       }
       transactions.push(transactionMeta);
       this.update({
@@ -1627,7 +1624,7 @@ export class TransactionController extends BaseController<
     // Make sure provided external transaction has non empty history array
     if (!(transactionMeta.history ?? []).length) {
       if (!this.isHistoryDisabled) {
-        this.addInitialHistorySnapshot(transactionMeta);
+        addInitialHistorySnapshot(transactionMeta);
       }
     }
 
@@ -1706,16 +1703,6 @@ export class TransactionController extends BaseController<
         resolve(txMeta);
       });
     });
-  }
-
-  /**
-   * Add initial history snapshot to the provided transactionMeta history.
-   *
-   * @param transactionMeta - TransactionMeta to add initial history snapshot to.
-   */
-  private addInitialHistorySnapshot(transactionMeta: TransactionMeta) {
-    const snapshot = snapshotFromTransactionMeta(transactionMeta);
-    transactionMeta.history = [snapshot];
   }
 }
 
