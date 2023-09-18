@@ -155,6 +155,10 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:getAccounts',
       'KeyringController:getKeyringForAccount',
       'KeyringController:getKeyringsByType',
+      'AccountsController:listAccounts',
+      'AccountsController:setAccountName',
+      'AccountsController:setSelectedAccount',
+      'AccountsController:updateAccounts',
     ],
   });
 }
@@ -1296,6 +1300,112 @@ describe('AccountsController', () => {
       expect(() =>
         accountsController.setAccountName('unknown account', 'new name'),
       ).toThrow(`Account Id unknown account not found`);
+    });
+  });
+
+  describe('actions', () => {
+    beforeEach(() => {
+      jest.spyOn(AccountsController.prototype, 'setSelectedAccount');
+      jest.spyOn(AccountsController.prototype, 'listAccounts');
+      jest.spyOn(AccountsController.prototype, 'setAccountName');
+      jest.spyOn(AccountsController.prototype, 'updateAccounts');
+    });
+
+    describe('setSelectedAccount', () => {
+      it('should set the selected account', async () => {
+        const messenger = buildMessenger();
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        await messenger.call(
+          'AccountsController:setSelectedAccount',
+          'mock-id',
+        );
+        expect(accountsController.setSelectedAccount).toHaveBeenCalledWith(
+          'mock-id',
+        );
+      });
+    });
+
+    describe('listAccounts', () => {
+      it('should retrieve a list of accounts', async () => {
+        const messenger = buildMessenger();
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        await messenger.call('AccountsController:listAccounts');
+        expect(accountsController.listAccounts).toHaveBeenCalledWith();
+      });
+    });
+
+    describe('setAccountName', () => {
+      it('should set the account name', async () => {
+        const messenger = buildMessenger();
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        await messenger.call(
+          'AccountsController:setAccountName',
+          'mock-id',
+          'new name',
+        );
+        expect(accountsController.setAccountName).toHaveBeenCalledWith(
+          'mock-id',
+          'new name',
+        );
+      });
+    });
+
+    describe('updateAccounts', () => {
+      it('should update accounts', async () => {
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getAccounts',
+          mockGetAccounts.mockResolvedValueOnce([]),
+        );
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockResolvedValueOnce([]),
+        );
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringForAccount',
+          mockGetKeyringForAccount.mockResolvedValueOnce([]),
+        );
+
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        await messenger.call('AccountsController:updateAccounts');
+        expect(accountsController.updateAccounts).toHaveBeenCalledWith();
+      });
     });
   });
 });

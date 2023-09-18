@@ -32,8 +32,8 @@ export type AccountsControllerGetStateAction = {
   handler: () => AccountsControllerState;
 };
 
-export type AccountsControllerSetCurrentAccount = {
-  type: `${typeof controllerName}:setCurrentAccount`;
+export type AccountsControllerSetSelectedAccount = {
+  type: `${typeof controllerName}:setSelectedAccount`;
   handler: AccountsController['setSelectedAccount'];
 };
 
@@ -54,7 +54,7 @@ export type AccountsControllerUpdateAccounts = {
 
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
-  | AccountsControllerSetCurrentAccount
+  | AccountsControllerSetSelectedAccount
   | AccountsControllerListAccounts
   | AccountsControllerSetAccountName
   | AccountsControllerUpdateAccounts
@@ -547,7 +547,7 @@ export class AccountsController extends BaseControllerV2<
 
   #registerMessageHandlers() {
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:setCurrentAccount`,
+      `${controllerName}:setSelectedAccount`,
       this.setSelectedAccount.bind(this),
     );
 
