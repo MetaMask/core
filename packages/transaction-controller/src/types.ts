@@ -144,7 +144,9 @@ type TransactionMetaBase = {
    */
   txReceipt?: TransactionReceipt;
 
-  /** The type of transaction this txMeta represents. */
+  /**
+   * The type of transaction such as `cancel` or `swap`.
+   */
   type?: TransactionType;
 
   /**
@@ -529,7 +531,7 @@ export type TransactionHistory = [
 export type InferTransactionTypeResult = {
   /**
    * The contract code, in hex format if it exists. '0x0' or
-   * '0x' are also indicators of non-existent contract code
+   * '0x' are also indicators of non-existent contract code.
    */
   getCodeResponse?: string | null;
 

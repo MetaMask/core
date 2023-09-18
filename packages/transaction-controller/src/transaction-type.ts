@@ -16,8 +16,7 @@ const ERC1155Interface = new Interface(abiERC1155);
 /**
  * Determines the type of the transaction by analyzing the txParams.
  * It will never return TRANSACTION_TYPE_CANCEL or TRANSACTION_TYPE_RETRY as these
- * represent specific events that we control from the extension and are added manually
- * at transaction creation.
+ * represent specific events that we specify manually at transaction creation.
  *
  * @param txParams - Parameters for the transaction.
  * @param ethQuery - EthQuery instance.
