@@ -42,6 +42,8 @@
     "eth-method-registry": "1.1.0",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
+    "fast-json-patch": "^3.1.1",
+    "lodash": "^4.17.21",
     "nonce-tracker": "^1.1.0",
     "uuid": "^8.3.2"
   },
