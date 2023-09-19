@@ -82,7 +82,7 @@ export type UpdateProposedNamesResult = {
 export type SetNameRequest = {
   value: string;
   type: NameType;
-  name: string;
+  name: string | null;
   sourceId?: string;
 };
 
@@ -136,9 +136,10 @@ export class NameController extends BaseControllerV2<
   setName(request: SetNameRequest) {
     this.#validateSetNameRequest(request);
 
-    const { value, type, name, sourceId } = request;
+    const { value, type, name, sourceId: requestSourceId } = request;
+    const sourceId = requestSourceId ?? null;
 
-    this.#updateEntry(value, type, { name, sourceId: sourceId ?? null });
+    this.#updateEntry(value, type, { name, sourceId: sourceId });
   }
 
   /**
@@ -205,8 +206,11 @@ export class NameController extends BaseControllerV2<
     const existingProposedNames =
       this.state.names[type]?.[value]?.[variationKey]?.proposedNames;
 
+    const existingProposedNamesWithoutDormant =
+      this.#removeDormantProposedNames(existingProposedNames, type);
+
     const proposedNames = {
-      ...existingProposedNames,
+      ...existingProposedNamesWithoutDormant,
       ...newProposedNames,
     };
 
@@ -370,7 +374,7 @@ export class NameController extends BaseControllerV2<
     this.#validateValue(value, errorMessages);
     this.#validateType(type, errorMessages);
     this.#validateName(name, errorMessages);
-    this.#validateSourceId(sourceId, type, errorMessages);
+    this.#validateSourceId(sourceId, type, name, errorMessages);
 
     if (errorMessages.length) {
       throw new Error(errorMessages.join(' '));
@@ -407,9 +411,13 @@ export class NameController extends BaseControllerV2<
     }
   }
 
-  #validateName(name: string, errorMessages: string[]) {
+  #validateName(name: string | null, errorMessages: string[]) {
+    if (name === null) {
+      return;
+    }
+
     if (!name?.length || typeof name !== 'string') {
-      errorMessages.push('Must specify a non-empty string for name.');
+      errorMessages.push('Must specify a non-empty string or null for name.');
     }
   }
 
@@ -442,9 +450,17 @@ export class NameController extends BaseControllerV2<
   #validateSourceId(
     sourceId: string | undefined,
     type: NameType,
+    name: string | null,
     errorMessages: string[],
   ) {
     if (sourceId === null || sourceId === undefined) {
+      return;
+    }
+
+    if (name === null) {
+      errorMessages.push(
+        `Cannot specify a source ID when clearing the saved name: ${sourceId}`,
+      );
       return;
     }
 
@@ -487,5 +503,26 @@ export class NameController extends BaseControllerV2<
 
   #getSourceIds(provider: NameProvider, type: NameType): string[] {
     return provider.getMetadata().sourceIds[type];
+  }
+
+  #removeDormantProposedNames(
+    proposedNames: Record<string, string[] | null>,
+    type: NameType,
+  ): Record<string, string[] | null> {
+    if (!proposedNames || Object.keys(proposedNames).length === 0) {
+      return proposedNames;
+    }
+
+    const typeSourceIds = this.#getAllSourceIds(type);
+
+    return Object.keys(proposedNames)
+      .filter((sourceId) => typeSourceIds.includes(sourceId))
+      .reduce(
+        (acc, sourceId) => ({
+          ...acc,
+          [sourceId]: proposedNames[sourceId],
+        }),
+        {},
+      );
   }
 }
