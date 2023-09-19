@@ -447,10 +447,8 @@ export class TransactionController extends BaseController<
       origin,
     );
 
-    const { type: transactionType } = await determineTransactionType(
-      txParams,
-      this.ethQuery,
-    );
+    const transactionType =
+      type ?? (await determineTransactionType(txParams, this.ethQuery)).type;
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
@@ -469,7 +467,7 @@ export class TransactionController extends BaseController<
       txParams,
       userEditedGasLimit: false,
       verifiedOnBlockchain: false,
-      type: type ?? transactionType,
+      type: transactionType,
     };
 
     try {
