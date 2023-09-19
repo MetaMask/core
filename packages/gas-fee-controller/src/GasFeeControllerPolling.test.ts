@@ -4,11 +4,18 @@ import type { PollingCompleteType } from './GasFeeControllerPolling';
 import GasFeeControllerPolling from './GasFeeControllerPolling';
 
 describe('GasFeeControllerPolling', () => {
+  let executePollMock: GasFeeControllerPolling<any, any, any>['executePoll'];
+
+  beforeEach(() => {
+    executePollMock = jest.fn().mockImplementation(async () => {
+      return true;
+    });
+  });
+
   describe('start', () => {
     it('should start polling if not polling', () => {
       jest.useFakeTimers();
 
-      const executePollMock = jest.fn();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -28,7 +35,7 @@ describe('GasFeeControllerPolling', () => {
   });
   describe('stop', () => {
     it('should stop polling if polling', () => {
-      const executePollMock = jest.fn();
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -47,8 +54,8 @@ describe('GasFeeControllerPolling', () => {
       expect(executePollMock).toHaveBeenCalledTimes(1);
       controller.stopAll();
     });
-    it('should not stop polling if multiple polling tokens exist', () => {
-      const executePollMock = jest.fn();
+    it('should not stop polling if multiple polling tokens exist', async () => {
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -62,14 +69,16 @@ describe('GasFeeControllerPolling', () => {
       });
       const pollingToken1 = controller.start('mainnet');
       controller.start('mainnet');
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(1400);
+      await Promise.resolve();
       controller.stop(pollingToken1);
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(1400);
+      await Promise.resolve();
       expect(executePollMock).toHaveBeenCalledTimes(2);
       controller.stopAll();
     });
     it('should error if no poll token is passed', () => {
-      const executePollMock = jest.fn();
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -88,7 +97,7 @@ describe('GasFeeControllerPolling', () => {
       controller.stopAll();
     });
     it('should error if no poll token is found', () => {
-      const executePollMock = jest.fn();
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -108,10 +117,9 @@ describe('GasFeeControllerPolling', () => {
     });
   });
   describe('poll', () => {
-    it('should call executePoll if polling', () => {
+    it('should call executePoll if polling', async () => {
       jest.useFakeTimers();
 
-      const executePollMock = jest.fn();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -124,13 +132,15 @@ describe('GasFeeControllerPolling', () => {
         state: { foo: 'bar' },
       });
       controller.start('mainnet');
-      jest.advanceTimersByTime(2500);
+      jest.advanceTimersByTime(1200);
+      await Promise.resolve();
+      jest.advanceTimersByTime(1200);
+      await Promise.resolve();
       expect(executePollMock).toHaveBeenCalledTimes(2);
     });
-    it('should continue calling executePoll when start is called again with the same networkClientId', () => {
+    it('should continue calling executePoll when start is called again with the same networkClientId', async () => {
       jest.useFakeTimers();
 
-      const executePollMock = jest.fn();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -144,12 +154,15 @@ describe('GasFeeControllerPolling', () => {
       });
       controller.start('mainnet');
       controller.start('mainnet');
-      jest.advanceTimersByTime(2500);
+      jest.advanceTimersByTime(1200);
+      await Promise.resolve();
+      jest.advanceTimersByTime(1200);
+      await Promise.resolve();
       expect(executePollMock).toHaveBeenCalledTimes(2);
       controller.stopAll();
     });
     it('should publish polligComplete when stop is called', async () => {
-      const executePollMock = jest.fn();
+      jest.useFakeTimers();
       const pollingComplete: any = jest.fn();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
@@ -175,8 +188,8 @@ describe('GasFeeControllerPolling', () => {
     });
   });
   describe('multiple networkClientIds', () => {
-    it('should poll for each networkClientId', () => {
-      const executePollMock = jest.fn();
+    it('should poll for each networkClientId', async () => {
+      jest.useFakeTimers();
       class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
         executePoll = executePollMock;
       }
@@ -190,7 +203,10 @@ describe('GasFeeControllerPolling', () => {
       });
       controller.start('mainnet');
       controller.start('rinkeby');
-      jest.advanceTimersByTime(2200);
+      jest.advanceTimersByTime(1200);
+      await Promise.resolve();
+      jest.advanceTimersByTime(1200);
+      await Promise.resolve();
       expect(executePollMock).toHaveBeenCalledTimes(4);
       controller.stopAll();
     });
