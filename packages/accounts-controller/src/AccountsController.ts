@@ -366,7 +366,6 @@ export class AccountsController extends BaseControllerV2<
    * @returns A promise that resolves to an array of InternalAccount objects.
    */
   async #listSnapAccounts(): Promise<InternalAccount[]> {
-    // const [snapKeyring] = this.getKeyringByType(SnapKeyring.type);
     const [snapKeyring] = await this.messagingSystem.call(
       'KeyringController:getKeyringsByType',
       SnapKeyring.type,
