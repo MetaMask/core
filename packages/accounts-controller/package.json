@@ -29,8 +29,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
-    "@metamask/eth-snap-keyring": "^0.2.0",
-    "@metamask/keyring-api": "^0.2.4",
+    "@metamask/eth-snap-keyring": "^0.2.2",
+    "@metamask/keyring-api": "^0.2.5",
     "@metamask/keyring-controller": "^7.4.0",
     "@metamask/snaps-controllers": "^1.0.1",
     "@metamask/snaps-utils": "^1.0.1",

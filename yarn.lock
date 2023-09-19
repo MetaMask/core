@@ -1293,8 +1293,8 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
-    "@metamask/eth-snap-keyring": ^0.2.0
-    "@metamask/keyring-api": ^0.2.4
+    "@metamask/eth-snap-keyring": ^0.2.2
+    "@metamask/keyring-api": ^0.2.5
     "@metamask/keyring-controller": ^7.4.0
     "@metamask/snaps-controllers": ^1.0.1
     "@metamask/snaps-utils": ^1.0.1
@@ -1731,7 +1731,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-sig-util@npm:^5.0.1, @metamask/eth-sig-util@npm:^5.0.2, @metamask/eth-sig-util@npm:^5.1.0":
+"@metamask/eth-sig-util@npm:^5.0.1, @metamask/eth-sig-util@npm:^5.0.2":
   version: 5.1.0
   resolution: "@metamask/eth-sig-util@npm:5.1.0"
   dependencies:
@@ -1786,19 +1786,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-snap-keyring@npm:^0.2.0":
-  version: 0.2.0
-  resolution: "@metamask/eth-snap-keyring@npm:0.2.0"
+"@metamask/eth-snap-keyring@npm:^0.2.2":
+  version: 0.2.2
+  resolution: "@metamask/eth-snap-keyring@npm:0.2.2"
   dependencies:
-    "@ethereumjs/tx": ^4.1.2
-    "@metamask/eth-sig-util": ^5.1.0
-    "@metamask/keyring-api": ^0.2.2
+    "@ethereumjs/tx": ^4.2.0
+    "@metamask/eth-sig-util": ^7.0.0
+    "@metamask/keyring-api": ^0.2.3
     "@metamask/snaps-controllers": ^0.38.2-flask.1
     "@metamask/utils": ^8.1.0
     "@types/uuid": ^9.0.1
     superstruct: ^1.0.3
     uuid: ^9.0.0
-  checksum: 61383c837a114601a53bc16aa0b4d4db81335c741a890a09fcb68259fccfb3e330c20ef6f5e2c489502eb7350076a5669d313f940862b8f0c985e704ba34dc53
+  checksum: 3a3a3f68a04191ae3961eeb4ca1f7062e592a255a6f1db4a0a63b4f07f9b4ec2c62fe1278b0ea365044cda0748c95402c6c5604e149853b730c79943c835bc06
   languageName: node
   linkType: hard
 
@@ -1872,27 +1872,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^0.2.2":
-  version: 0.2.2
-  resolution: "@metamask/keyring-api@npm:0.2.2"
+"@metamask/keyring-api@npm:^0.2.3, @metamask/keyring-api@npm:^0.2.5":
+  version: 0.2.5
+  resolution: "@metamask/keyring-api@npm:0.2.5"
   dependencies:
-    "@metamask/providers": ^11.0.0
-    "@metamask/rpc-methods": ^0.38.1-flask.1
-    "@metamask/snaps-controllers": ^0.38.2-flask.1
-    "@metamask/snaps-utils": ^0.38.2-flask.1
-    "@metamask/utils": ^8.0.0
-    "@types/uuid": ^9.0.1
-    superstruct: ^1.0.3
-    uuid: ^9.0.0
-  checksum: eefa5408c04e203db4d3a711e0b621193fd5d15c31e155331a0af8da9d150629074ca847aeb55654f39c104eff01060452d7d3ac43b5122f8b565b249581a8df
-  languageName: node
-  linkType: hard
-
-"@metamask/keyring-api@npm:^0.2.4":
-  version: 0.2.4
-  resolution: "@metamask/keyring-api@npm:0.2.4"
-  dependencies:
-    "@metamask/providers": ^12.0.0
+    "@metamask/providers": ^13.0.0
     "@metamask/rpc-methods": ^0.38.1-flask.1
     "@metamask/snaps-controllers": ^0.38.2-flask.1
     "@metamask/snaps-utils": ^0.38.2-flask.1
@@ -1900,7 +1884,7 @@ __metadata:
     "@types/uuid": ^9.0.1
     superstruct: ^1.0.3
     uuid: ^9.0.0
-  checksum: b557321bf85b1d264467cbddf3551942dee882fb544706537fa9dc544ec7f0e6900fe75b5280af0637d47014073ebfe7b9ab68f8e99ce8b31bdd8e3859c883d2
+  checksum: ca567388f5963f7c6adaf9d7bfdfa783f5869ab85d906181cc32d2c3c1328af78c15eea661522d1c5dfb7b23b7dd3c6a9917b4c9eae794d187e03483ba42cd3e
   languageName: node
   linkType: hard
 
@@ -2185,7 +2169,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/providers@npm:^11.0.0, @metamask/providers@npm:^11.1.1":
+"@metamask/providers@npm:^11.1.1":
   version: 11.1.1
   resolution: "@metamask/providers@npm:11.1.1"
   dependencies:
@@ -2204,9 +2188,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/providers@npm:^12.0.0":
-  version: 12.0.0
-  resolution: "@metamask/providers@npm:12.0.0"
+"@metamask/providers@npm:^13.0.0":
+  version: 13.0.0
+  resolution: "@metamask/providers@npm:13.0.0"
   dependencies:
     "@metamask/json-rpc-engine": ^7.1.1
     "@metamask/object-multiplex": ^1.1.0
@@ -2218,9 +2202,8 @@ __metadata:
     fast-deep-equal: ^3.1.3
     is-stream: ^2.0.0
     json-rpc-middleware-stream: ^4.2.1
-    pump: ^3.0.0
     webextension-polyfill: ^0.10.0
-  checksum: 4e466322b3e020607ddb16599555bacc1c4fe8bfe2f781e123c012019f79bbc8206207adc3150d04fb7e36fbd959abf5fc54a6edd072fbed4f4edcabf7dd1ce2
+  checksum: b41748cf179794bf7a68d3028e84234e876498611221ba40846ed0859b4470a806c4cf99ff9fcdc60fde1af2f0d999281e6edbdd42113223d8f7018a009ff0ab
   languageName: node
   linkType: hard
 
