@@ -463,4 +463,35 @@ describe('CurrencyRateController', () => {
       usdConversionRate: null,
     });
   });
+
+  it('should handle concurrent currency updates', async () => {
+    const rates = new Map([
+      ['BNB', 1],
+      ['MATIC', 2],
+    ]);
+
+    const fetchExchangeRateStub = jest
+      .fn()
+      .mockImplementation((_, nativeCurrency) => ({
+        conversionRate: rates.get(nativeCurrency),
+      }));
+
+    const controller = new CurrencyRateController({
+      fetchExchangeRate: fetchExchangeRateStub,
+      messenger: getRestrictedMessenger(),
+    });
+
+    await controller.start();
+
+    await Promise.all(
+      [...rates].map(([symbol, rate]) =>
+        controller.setNativeCurrency(symbol).then(() => {
+          expect(controller.state.nativeCurrency).toBe(symbol);
+          expect(controller.state.conversionRate).toBe(rate);
+        }),
+      ),
+    );
+
+    controller.destroy();
+  });
 });

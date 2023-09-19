@@ -163,10 +163,7 @@ export class CurrencyRateController extends BaseControllerV2<
    * @param currentCurrency - ISO 4217 currency code.
    */
   async setCurrentCurrency(currentCurrency: string) {
-    this.update((state) => {
-      state.pendingCurrentCurrency = currentCurrency;
-    });
-    await this.updateExchangeRate();
+    await this.updateExchangeRate(currentCurrency);
   }
 
   /**
@@ -175,10 +172,7 @@ export class CurrencyRateController extends BaseControllerV2<
    * @param symbol - Symbol for the base asset.
    */
   async setNativeCurrency(symbol: string) {
-    this.update((state) => {
-      state.pendingNativeCurrency = symbol;
-    });
-    await this.updateExchangeRate();
+    await this.updateExchangeRate(undefined, symbol);
   }
 
   private stopPolling() {
@@ -202,30 +196,44 @@ export class CurrencyRateController extends BaseControllerV2<
   }
 
   /**
-   * Updates exchange rate for the current currency.
+   * Updates exchange rates for the network.
    *
+   * @param newCurrentCurrency - An optional new ISO 4217 currency code
+   * to switch to. If omitted, the existing currency code will be used.
+   * @param newNativeCurrency - An optional new symbol for the network's
+   * base asset. If omitted, the existing native currency will be used.
    * @returns The controller state.
    */
-  async updateExchangeRate(): Promise<CurrencyRateState | void> {
+  async updateExchangeRate(
+    newCurrentCurrency?: string,
+    newNativeCurrency?: string,
+  ): Promise<CurrencyRateState | void> {
     if (!this.#enabled) {
       console.info(
         '[CurrencyRateController] Not updating exchange rate since network requests have been disabled',
       );
       return this.state;
     }
+
     const releaseLock = await this.mutex.acquire();
-    const {
-      currentCurrency: stateCurrentCurrency,
-      nativeCurrency: stateNativeCurrency,
-      pendingCurrentCurrency,
-      pendingNativeCurrency,
-    } = this.state;
+
+    if (newCurrentCurrency !== undefined) {
+      this.update((state) => {
+        state.pendingCurrentCurrency = newCurrentCurrency;
+      });
+    }
+
+    if (newNativeCurrency !== undefined) {
+      this.update((state) => {
+        state.pendingNativeCurrency = newNativeCurrency;
+      });
+    }
 
     let conversionDate: number | null = null;
     let conversionRate: number | null = null;
     let usdConversionRate: number | null = null;
-    const currentCurrency = pendingCurrentCurrency ?? stateCurrentCurrency;
-    const nativeCurrency = pendingNativeCurrency ?? stateNativeCurrency;
+    const currentCurrency = newCurrentCurrency ?? this.state.currentCurrency;
+    const nativeCurrency = newNativeCurrency ?? this.state.nativeCurrency;
 
     // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
     const nativeCurrencyForExchangeRate = Object.values(
