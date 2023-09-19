@@ -139,7 +139,7 @@ export class NameController extends BaseControllerV2<
     const { value, type, name, sourceId: requestSourceId } = request;
     const sourceId = requestSourceId ?? null;
 
-    this.#updateEntry(value, type, { name, sourceId: sourceId });
+    this.#updateEntry(value, type, { name, sourceId });
   }
 
   /**
