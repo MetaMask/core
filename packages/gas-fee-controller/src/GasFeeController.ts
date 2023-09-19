@@ -1,5 +1,9 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
+import {
+  convertHexToDecimal,
+  safelyExecute,
+  ControllerPolling,
+} from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkControllerGetEIP1559CompatibilityAction,
@@ -21,7 +25,7 @@ import {
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
 } from './gas-util';
-import GasFeeControllerPolling from './GasFeeControllerPolling';
+
 
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
@@ -243,7 +247,7 @@ const defaultState: GasFeeState = {
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends GasFeeControllerPolling<
+export class GasFeeController extends ControllerPolling<
   typeof name,
   GasFeeState,
   GasFeeMessenger

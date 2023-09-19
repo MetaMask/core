@@ -9,7 +9,7 @@ export type PollingCompleteType<N extends string> = {
   payload: [string];
 };
 
-export default abstract class GasFeeControllerPolling<
+export default abstract class ControllerPolling<
   N extends string,
   S extends Record<string, Json>,
   messenger extends RestrictedControllerMessenger<

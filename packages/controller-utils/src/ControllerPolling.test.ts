@@ -1,9 +1,9 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 
-import type { PollingCompleteType } from './GasFeeControllerPolling';
-import GasFeeControllerPolling from './GasFeeControllerPolling';
+import type { PollingCompleteType } from './ControllerPolling';
+import GasFeeControllerPolling from './ControllerPolling';
 
-describe('GasFeeControllerPolling', () => {
+describe('ControllerPolling', () => {
   let executePollMock: GasFeeControllerPolling<any, any, any>['executePoll'];
 
   beforeEach(() => {
