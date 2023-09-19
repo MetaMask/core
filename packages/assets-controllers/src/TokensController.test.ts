@@ -347,6 +347,44 @@ describe('TokensController', () => {
     stub.restore();
   });
 
+  it('should add token by networkClientId', async () => {
+    const stub = stubCreateEthers(tokensController, false);
+    const getNetworkClientByIdStub = jest
+      .spyOn(tokensController as any, 'getNetworkClientById')
+      .mockReturnValue({ configuration: { chainId: '0x5' } });
+    await tokensController.addToken({
+      address: '0x01',
+      symbol: 'bar',
+      decimals: 2,
+      networkClientId: 'networkClientId1',
+    });
+    expect(tokensController.state.tokens[0]).toStrictEqual({
+      address: '0x01',
+      decimals: 2,
+      image:
+        'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x01.png',
+      symbol: 'bar',
+      isERC721: false,
+      aggregators: [],
+      name: undefined,
+    });
+    expect(tokensController.state.allTokens['0x5']['0x1']).toStrictEqual([
+      {
+        address: '0x01',
+        decimals: 2,
+        image:
+          'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x01.png',
+        symbol: 'bar',
+        isERC721: false,
+        aggregators: [],
+        name: undefined,
+      },
+    ]);
+
+    expect(getNetworkClientByIdStub).toHaveBeenCalledWith('networkClientId1');
+    stub.restore();
+  });
+
   it('should remove token', async () => {
     const stub = stubCreateEthers(tokensController, false);
     await tokensController.addToken({
@@ -1008,7 +1046,7 @@ describe('TokensController', () => {
     });
   });
 
-  describe('on watchAsset', function () {
+  describe('watchAsset', function () {
     let asset: any, type: any;
     const interactingAddress = '0x2';
     const requestId = '12345';
@@ -1198,6 +1236,65 @@ describe('TokensController', () => {
         true,
       );
 
+      generateRandomIdStub.mockRestore();
+    });
+
+    it('stores token correctly using networkClientId if provided', async function () {
+      const getNetworkClientByIdStub = jest
+        .spyOn(tokensController as any, 'getNetworkClientById')
+        .mockReturnValue({ configuration: { chainId: '0x5' } });
+      const getERC20TokenNameStub = jest
+        .spyOn(tokensController as any, 'getERC20TokenName')
+        .mockReturnValue(undefined);
+      const generateRandomIdStub = jest
+        .spyOn(tokensController, '_generateRandomId')
+        .mockReturnValue(requestId);
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockResolvedValue(undefined);
+
+      await tokensController.watchAsset({
+        asset,
+        type,
+        interactingAddress,
+        networkClientId: 'networkClientId1',
+      });
+
+      expect(tokensController.state.tokens).toHaveLength(0);
+      expect(tokensController.state.tokens).toStrictEqual([]);
+      expect(
+        tokensController.state.allTokens['0x5'][interactingAddress],
+      ).toHaveLength(1);
+      expect(
+        tokensController.state.allTokens['0x5'][interactingAddress],
+      ).toStrictEqual([
+        {
+          isERC721: false,
+          aggregators: [],
+          ...asset,
+        },
+      ]);
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: ORIGIN_METAMASK,
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress,
+            asset,
+          },
+        },
+        true,
+      );
+      expect(getERC20TokenNameStub).toHaveBeenCalledWith(
+        asset.address,
+        'networkClientId1',
+      );
+      expect(getNetworkClientByIdStub).toHaveBeenCalledWith('networkClientId1');
       generateRandomIdStub.mockRestore();
     });
 
