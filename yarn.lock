@@ -1465,7 +1465,9 @@ __metadata:
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
+    "@metamask/base-controller": ^3.2.1
     "@metamask/eth-query": ^3.0.1
+    "@metamask/network-controller": ^12.1.2
     "@metamask/utils": ^6.2.0
     "@spruceid/siwe-parser": 1.1.3
     "@types/jest": ^27.4.1
@@ -1482,6 +1484,7 @@ __metadata:
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
+    uuid: ^8.3.2
   languageName: unknown
   linkType: soft
 

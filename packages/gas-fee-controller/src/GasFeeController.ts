@@ -26,7 +26,6 @@ import {
   calculateTimeEstimate,
 } from './gas-util';
 
-
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
 export type unknownString = 'unknown';
