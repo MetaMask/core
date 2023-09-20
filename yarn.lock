@@ -2382,12 +2382,12 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
+    "@metamask/json-rpc-engine": ^7.1.1
     "@metamask/network-controller": ^14.0.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^27.5.1
-    json-rpc-engine: ^6.1.0
     lodash: ^4.17.21
     nock: ^13.3.1
     sinon: ^9.2.4
