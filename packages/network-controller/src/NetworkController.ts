@@ -969,7 +969,8 @@ export class NetworkController extends BaseControllerV2<
     }
 
     const networkClient = this.getNetworkClientById(networkClientId);
-    const ethQuery = new EthQuery(networkClient.provider);
+    // TODO: Provider type alignment
+    const ethQuery = new EthQuery(networkClient.provider as any);
 
     return new Promise((resolve, reject) => {
       ethQuery.sendAsync(
@@ -1534,6 +1535,7 @@ export class NetworkController extends BaseControllerV2<
       });
     }
 
-    this.#ethQuery = new EthQuery(this.#providerProxy);
+    // TODO: Provider type alignment
+    this.#ethQuery = new EthQuery(this.#providerProxy as any);
   }
 }
