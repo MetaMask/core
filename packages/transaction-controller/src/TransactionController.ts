@@ -65,7 +65,6 @@ import {
   validateMinimumIncrease,
   validateTxParams,
   ESTIMATE_GAS_ERROR,
-  transactionMatchesChainId,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -516,7 +515,7 @@ export class TransactionController extends BaseController<
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
-        transactionMatchesChainId(transaction, chainId),
+        transaction.chainId === chainId
     );
 
     for (const txMeta of unapprovedTxs) {
@@ -869,7 +868,7 @@ export class TransactionController extends BaseController<
         transactions.map(async (meta, index) => {
           if (
             !meta.verifiedOnBlockchain &&
-            transactionMatchesChainId(meta, currentChainId)
+            meta.chainId === currentChainId
           ) {
             const [reconciledTx, updateRequired] =
               await this.blockchainTransactionStateReconciler(meta);
@@ -1359,10 +1358,7 @@ export class TransactionController extends BaseController<
         const { chainId, status, txParams, time } = tx;
 
         if (txParams) {
-          const txChainId = chainId ?? txParams.chainId;
-          const key = `${txParams.nonce}-${convertHexToDecimal(
-            txChainId,
-          )}-${new Date(time).toDateString()}`;
+          const key = `${txParams.nonce}-${convertHexToDecimal(chainId)}-${new Date(time).toDateString()}`;
 
           if (nonceNetworkSet.has(key)) {
             return true;
@@ -1687,7 +1683,7 @@ export class TransactionController extends BaseController<
     const sameFromAndNetworkTransactions = transactions.filter(
       (transaction) =>
         transaction.txParams.from === fromAddress &&
-        transactionMatchesChainId(transaction, chainId),
+        transaction.chainId === chainId
     );
     const confirmedTxs = sameFromAndNetworkTransactions.filter(
       (transaction) => transaction.status === TransactionStatus.confirmed,
@@ -1730,7 +1726,7 @@ export class TransactionController extends BaseController<
       (transaction) =>
         transaction.txParams.from === from &&
         transaction.txParams.nonce === nonce &&
-        transactionMatchesChainId(transaction, chainId),
+        transaction.chainId === chainId
     );
 
     if (!sameNonceTxs.length) {

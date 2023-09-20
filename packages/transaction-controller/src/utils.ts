@@ -209,22 +209,6 @@ export function getAndFormatTransactionsForNonceTracker(
 }
 
 /**
- * Checks whether a given transaction matches the specified chain ID.
- * This function is used to determine if a transaction is relevant to the current chain.
- *
- * @param transaction - The transaction metadata to check.
- * @param chainId - The chain ID of the current network.
- * @returns A boolean value indicating whether the transaction matches the current chain ID.
- */
-export function transactionMatchesChainId(
-  transaction: TransactionMeta,
-  chainId: Hex,
-) {
-  const txChainId = transaction.chainId ?? transaction.txParams.chainId;
-  return txChainId === chainId;
-}
-
-/**
  * Validates that a transaction is unapproved.
  * Throws if the transaction is not unapproved.
  *
