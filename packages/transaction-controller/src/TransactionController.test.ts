@@ -398,7 +398,7 @@ const TRANSACTION_META_MOCK = {
   hash: '0x1',
   status: TransactionStatus.confirmed,
   time: 123456789,
-  transaction: {
+  txParams: {
     from: ACCOUNT_MOCK,
   },
 } as TransactionMeta;
@@ -407,7 +407,7 @@ const TRANSACTION_META_2_MOCK = {
   hash: '0x2',
   status: TransactionStatus.confirmed,
   time: 987654321,
-  transaction: {
+  txParams: {
     from: '0x3',
   },
 } as TransactionMeta;
@@ -942,7 +942,7 @@ describe('TransactionController', () => {
 
       const transactionMeta = controller.state.transactions[0];
 
-      expect(transactionMeta.transaction.from).toBe(ACCOUNT_MOCK);
+      expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
       expect(transactionMeta.networkID).toBe(MOCK_NETWORK.state.networkId);
       expect(transactionMeta.chainId).toBe(
         MOCK_NETWORK.state.providerConfig.chainId,
@@ -980,7 +980,8 @@ describe('TransactionController', () => {
         sendFlowHistory: expect.any(Array),
         status: TransactionStatus.unapproved,
         time: expect.any(Number),
-        transaction: expect.anything(),
+        txParams: expect.anything(),
+        userEditedGasLimit: false,
         verifiedOnBlockchain: expect.any(Boolean),
       };
 
@@ -1070,7 +1071,7 @@ describe('TransactionController', () => {
           to: ACCOUNT_MOCK,
         });
 
-        expect(controller.state.transactions[0].transaction.from).toBe(
+        expect(controller.state.transactions[0].txParams.from).toBe(
           ACCOUNT_MOCK,
         );
         expect(controller.state.transactions[0].networkID).toBe(
@@ -1130,11 +1131,11 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(2);
       const secondTransaction = controller.state.transactions[1];
 
-      expect(firstTransaction.transaction.nonce).toBe(
+      expect(firstTransaction.txParams.nonce).toBe(
         `0x${NONCE_MOCK.toString(16)}`,
       );
 
-      expect(secondTransaction.transaction.nonce).toBe(
+      expect(secondTransaction.txParams.nonce).toBe(
         `0x${(NONCE_MOCK + 1).toString(16)}`,
       );
     });
@@ -1193,7 +1194,7 @@ describe('TransactionController', () => {
         });
 
         const {
-          transaction: { estimateGasError },
+          txParams: { estimateGasError },
         } = controller.state.transactions[0];
 
         expect(estimateGasError).toBe(ESTIMATE_GAS_ERROR);
@@ -1214,10 +1215,10 @@ describe('TransactionController', () => {
 
         await result;
 
-        const { transaction, status, submittedTime } =
+        const { txParams, status, submittedTime } =
           controller.state.transactions[0];
-        expect(transaction.from).toBe(ACCOUNT_MOCK);
-        expect(transaction.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
+        expect(txParams.from).toBe(ACCOUNT_MOCK);
+        expect(txParams.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
         expect(status).toBe(TransactionStatus.submitted);
         expect(submittedTime).toStrictEqual(expect.any(Number));
       });
@@ -1273,9 +1274,9 @@ describe('TransactionController', () => {
 
           await expect(result).rejects.toThrow(expectedError);
 
-          const { transaction, status } = controller.state.transactions[0];
-          expect(transaction.from).toBe(ACCOUNT_MOCK);
-          expect(transaction.to).toBe(ACCOUNT_MOCK);
+          const { txParams, status } = controller.state.transactions[0];
+          expect(txParams.from).toBe(ACCOUNT_MOCK);
+          expect(txParams.to).toBe(ACCOUNT_MOCK);
           expect(status).toBe(TransactionStatus.failed);
         }
 
@@ -1388,8 +1389,8 @@ describe('TransactionController', () => {
 
         await expect(result).rejects.toThrow('User rejected the transaction');
 
-        const { transaction, status } = await finishedPromise;
-        expect(transaction.from).toBe(ACCOUNT_MOCK);
+        const { txParams, status } = await finishedPromise;
+        expect(txParams.from).toBe(ACCOUNT_MOCK);
         expect(status).toBe(TransactionStatus.rejected);
       });
     });
@@ -1443,7 +1444,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '1',
         chainId: mockCurrentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount1,
         },
       } as any);
@@ -1451,7 +1452,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '2',
         chainId: mockCurrentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount2,
         },
       } as any);
@@ -1474,7 +1475,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '1',
         chainId: mockCurrentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount1,
         },
       } as any);
@@ -1482,7 +1483,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '4',
         chainId: mockDifferentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount1,
         },
       } as any);
@@ -1571,7 +1572,7 @@ describe('TransactionController', () => {
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           gasUsed: undefined,
         },
         verifiedOnBlockchain: false,
@@ -1581,7 +1582,7 @@ describe('TransactionController', () => {
 
       const transactionMeta = controller.state.transactions[0];
       expect(transactionMeta.verifiedOnBlockchain).toBe(true);
-      expect(transactionMeta.transaction.gasUsed).toBe('0x5208');
+      expect(transactionMeta.txParams.gasUsed).toBe('0x5208');
       expect(transactionMeta.blockTimestamp).toBe('628dc0c8');
       expect(transactionMeta.baseFeePerGas).toBe('0x14');
       expect(transactionMeta.txReceipt?.transactionIndex).toBe(1337);
@@ -1740,9 +1741,40 @@ describe('TransactionController', () => {
 
       const { transactions } = controller.state;
       expect(transactions).toHaveLength(2);
-      expect(transactions[1].transaction.gasPrice).toBe(
+      expect(transactions[1].txParams.gasPrice).toBe(
         '0x5916a6d6', // 1.1 * 0x50fd51da
       );
+    });
+
+    it('verifies s,r and v values are correctly populated', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+        config: {
+          sign: async (transaction: any) => {
+            transaction.r = '1b';
+            transaction.s = 'abc';
+            transaction.v = '123';
+            return transaction;
+          },
+        },
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction.r).toBe('0x1b');
+      expect(speedUpTransaction.s).toBe('0xabc');
+      expect(speedUpTransaction.v).toBe('0x123');
     });
 
     it('creates additional transaction specifying the gasPrice', async () => {
@@ -1764,7 +1796,7 @@ describe('TransactionController', () => {
 
       const { transactions } = controller.state;
       expect(transactions).toHaveLength(2);
-      expect(transactions[1].transaction.gasPrice).toBe('0x62DEF4DA');
+      expect(transactions[1].txParams.gasPrice).toBe('0x62DEF4DA');
     });
 
     it('uses the same nonce', async () => {
@@ -1786,9 +1818,9 @@ describe('TransactionController', () => {
       const { transactions } = controller.state;
       expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
       expect(transactions).toHaveLength(2);
-      expect(transactions[0].transaction.nonce).toBeDefined();
-      expect(transactions[0].transaction.nonce).toStrictEqual(
-        transactions[1].transaction.nonce,
+      expect(transactions[0].txParams.nonce).toBeDefined();
+      expect(transactions[0].txParams.nonce).toStrictEqual(
+        transactions[1].txParams.nonce,
       );
       expect(transactions[1].estimatedBaseFee).toBe('0x123');
       expect(transactions[1].originalGasEstimate).toBe('0x1');
@@ -1820,7 +1852,7 @@ describe('TransactionController', () => {
 
   describe('initApprovals', () => {
     it('creates approvals for all unapproved transaction', async () => {
-      const transaction = {
+      const txParams = {
         from: ACCOUNT_MOCK,
         hash: '1337',
         id: 'mocked',
@@ -1828,9 +1860,9 @@ describe('TransactionController', () => {
         status: TransactionStatus.unapproved,
       };
       const controller = newController();
-      controller.state.transactions.push(transaction as any);
+      controller.state.transactions.push(txParams as any);
       controller.state.transactions.push({
-        ...transaction,
+        ...txParams,
         id: 'mocked1',
         hash: '1338',
       } as any);
@@ -1881,7 +1913,7 @@ describe('TransactionController', () => {
         networkID: '1',
         chainId: toHex(1),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           gasUsed: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
@@ -1919,7 +1951,7 @@ describe('TransactionController', () => {
         networkID: '1',
         chainId: toHex(1),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           gasUsed: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
@@ -1943,7 +1975,7 @@ describe('TransactionController', () => {
         networkID: '1',
         status: TransactionStatus.confirmed,
         to: ACCOUNT_2_MOCK,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           gasUsed: undefined,
@@ -1959,7 +1991,7 @@ describe('TransactionController', () => {
         {
           note: expect.any(String),
           op: 'remove',
-          path: '/transaction/gasUsed',
+          path: '/txParams/gasUsed',
           timestamp: expect.any(Number),
         },
         {
@@ -1991,7 +2023,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -2011,7 +2043,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.unapproved,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -2047,7 +2079,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -2067,7 +2099,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.failed,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -2343,6 +2375,91 @@ describe('TransactionController', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(blockNumber);
+    });
+  });
+
+  describe('updateTransactionGasFees', () => {
+    it('throws if transaction does not exist', async () => {
+      const controller = newController();
+      expect(() =>
+        controller.updateTransactionGasFees('123', {
+          gasPrice: '0x1',
+        }),
+      ).toThrow('Cannot update transaction as no transaction metadata found');
+    });
+
+    it('throws if transaction not unapproved status', async () => {
+      const transactionId = '123';
+      const fnName = 'updateTransactionGasFees';
+      const status = TransactionStatus.failed;
+      const controller = newController();
+      controller.state.transactions.push({
+        id: transactionId,
+        status,
+      } as any);
+      expect(() =>
+        controller.updateTransactionGasFees(transactionId, {
+          gasPrice: '0x1',
+        }),
+      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
+      Current tx status: ${status}`);
+    });
+
+    it('updates provided gas values', async () => {
+      const transactionId = '123';
+      const controller = newController();
+
+      const gas = '0xgas';
+      const gasLimit = '0xgasLimit';
+      const gasPrice = '0xgasPrice';
+      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
+      const maxFeePerGas = '0xmaxFeePerGas';
+      const estimateUsed = '0xestimateUsed';
+      const estimateSuggested = '0xestimateSuggested';
+      const defaultGasEstimates = '0xdefaultGasEstimates';
+      const originalGasEstimate = '0xoriginalGasEstimate';
+      const userEditedGasLimit = true;
+      const userFeeLevel = '0xuserFeeLevel';
+
+      controller.state.transactions.push({
+        id: transactionId,
+        status: TransactionStatus.unapproved,
+        history: [{}],
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as any);
+
+      controller.updateTransactionGasFees(transactionId, {
+        gas,
+        gasLimit,
+        gasPrice,
+        maxPriorityFeePerGas,
+        maxFeePerGas,
+        estimateUsed,
+        estimateSuggested,
+        defaultGasEstimates,
+        originalGasEstimate,
+        userEditedGasLimit,
+        userFeeLevel,
+      });
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.txParams?.gas).toBe(gas);
+      expect(transaction?.txParams?.gasLimit).toBe(gasLimit);
+      expect(transaction?.txParams?.gasPrice).toBe(gasPrice);
+      expect(transaction?.txParams?.maxPriorityFeePerGas).toBe(
+        maxPriorityFeePerGas,
+      );
+      expect(transaction?.txParams?.maxFeePerGas).toBe(maxFeePerGas);
+      expect(transaction?.estimateUsed).toBe(estimateUsed);
+      expect(transaction?.estimateSuggested).toBe(estimateSuggested);
+      expect(transaction?.defaultGasEstimates).toBe(defaultGasEstimates);
+      expect(transaction?.originalGasEstimate).toBe(originalGasEstimate);
+      expect(transaction?.userEditedGasLimit).toBe(userEditedGasLimit);
+      expect(transaction?.userFeeLevel).toBe(userFeeLevel);
     });
   });
 });
