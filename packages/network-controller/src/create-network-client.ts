@@ -22,8 +22,8 @@ import {
   createScaffoldMiddleware,
   JsonRpcEngine,
   mergeMiddleware,
-} from 'json-rpc-engine';
-import type { JsonRpcMiddleware } from 'json-rpc-engine';
+} from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 
 import type {
   BlockTracker,
