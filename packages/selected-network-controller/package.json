@@ -29,8 +29,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
-    "@metamask/network-controller": "^13.0.0",
-    "json-rpc-engine": "^6.1.0"
+    "@metamask/json-rpc-engine": "^7.1.1",
+    "@metamask/network-controller": "^13.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
