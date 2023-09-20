@@ -80,16 +80,6 @@ export interface Result {
   transactionMeta: TransactionMeta;
 }
 
-/**
- * @type Fetch All Options
- * @property fromBlock - String containing a specific block decimal number
- * @property etherscanApiKey - API key to be used to fetch token transactions
- */
-export interface FetchAllOptions {
-  fromBlock?: string;
-  etherscanApiKey?: string;
-}
-
 export interface GasPriceValue {
   gasPrice: string;
 }
@@ -245,7 +235,6 @@ export class TransactionController extends BaseController<
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
-   * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
    * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
    * @param options.incomingTransactions.queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
@@ -274,7 +263,6 @@ export class TransactionController extends BaseController<
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
-        apiKey?: string;
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
         queryEntireHistory?: boolean;
@@ -335,7 +323,6 @@ export class TransactionController extends BaseController<
       isEnabled: incomingTransactions.isEnabled,
       queryEntireHistory: incomingTransactions.queryEntireHistory,
       remoteTransactionSource: new EtherscanRemoteTransactionSource({
-        apiKey: incomingTransactions.apiKey,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
       }),
       transactionLimit: this.config.txHistoryLimit,
