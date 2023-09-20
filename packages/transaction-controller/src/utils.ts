@@ -3,6 +3,7 @@ import {
   isValidHexAddress,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+import { ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
@@ -60,7 +61,7 @@ export function validateTxParams(txParams: TransactionParams) {
     typeof txParams.from !== 'string' ||
     !isValidHexAddress(txParams.from)
   ) {
-    throw new Error(
+    throw ethErrors.rpc.invalidParams(
       `Invalid "from" address: ${txParams.from} must be a valid string.`,
     );
   }
@@ -69,12 +70,12 @@ export function validateTxParams(txParams: TransactionParams) {
     if (txParams.data) {
       delete txParams.to;
     } else {
-      throw new Error(
+      throw ethErrors.rpc.invalidParams(
         `Invalid "to" address: ${txParams.to} must be a valid string.`,
       );
     }
   } else if (txParams.to !== undefined && !isValidHexAddress(txParams.to)) {
-    throw new Error(
+    throw ethErrors.rpc.invalidParams(
       `Invalid "to" address: ${txParams.to} must be a valid string.`,
     );
   }
@@ -82,11 +83,13 @@ export function validateTxParams(txParams: TransactionParams) {
   if (txParams.value !== undefined) {
     const value = txParams.value.toString();
     if (value.includes('-')) {
-      throw new Error(`Invalid "value": ${value} is not a positive number.`);
+      throw ethErrors.rpc.invalidParams(
+        `Invalid "value": ${value} is not a positive number.`,
+      );
     }
 
     if (value.includes('.')) {
-      throw new Error(
+      throw ethErrors.rpc.invalidParams(
         `Invalid "value": ${value} number must be denominated in wei.`,
       );
     }
@@ -97,7 +100,7 @@ export function validateTxParams(txParams: TransactionParams) {
       !isNaN(Number(value)) &&
       Number.isSafeInteger(intValue);
     if (!isValid) {
-      throw new Error(
+      throw ethErrors.rpc.invalidParams(
         `Invalid "value": ${value} number must be a valid number.`,
       );
     }
