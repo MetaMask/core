@@ -347,7 +347,7 @@ describe('TokenDetectionController', () => {
       address: sampleTokenB.address,
       symbol: sampleTokenB.symbol,
       decimals: sampleTokenB.decimals,
-      options: { name: sampleTokenB.name },
+      name: sampleTokenB.name,
     });
 
     tokensController.ignoreTokens([sampleTokenA.address]);

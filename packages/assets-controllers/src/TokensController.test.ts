@@ -347,7 +347,7 @@ describe('TokensController', () => {
     stub.restore();
   });
 
-  it('should add token by networkClientId', async () => {
+  it('should add token to the correct chainId when passed a networkClientId', async () => {
     const stub = stubCreateEthers(tokensController, false);
     const getNetworkClientByIdStub = jest
       .spyOn(tokensController as any, 'getNetworkClientById')
@@ -927,7 +927,7 @@ describe('TokensController', () => {
         address: directlyAddedToken.address,
         symbol: directlyAddedToken.symbol,
         decimals: directlyAddedToken.decimals,
-        options: { image: directlyAddedToken.image },
+        image: directlyAddedToken.image,
       });
 
       expect(tokensController.state.allDetectedTokens).toStrictEqual({
@@ -1239,7 +1239,7 @@ describe('TokensController', () => {
       generateRandomIdStub.mockRestore();
     });
 
-    it('stores token correctly using networkClientId if provided', async function () {
+    it('stores token correctly when passed a networkClientId', async function () {
       const getNetworkClientByIdStub = jest
         .spyOn(tokensController as any, 'getNetworkClientById')
         .mockReturnValue({ configuration: { chainId: '0x5' } });
