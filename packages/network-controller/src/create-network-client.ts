@@ -68,7 +68,8 @@ export function createNetworkClient(
           rpcUrl: networkConfig.rpcUrl,
         });
 
-  const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
+  // FIXME: types
+  const rpcProvider = providerFromMiddleware(rpcApiMiddleware as any);
 
   const blockTrackerOpts =
     // eslint-disable-next-line n/no-process-env
@@ -77,7 +78,8 @@ export function createNetworkClient(
       : {};
   const blockTracker = new PollingBlockTracker({
     ...blockTrackerOpts,
-    provider: rpcProvider,
+    // FIXME: types
+    provider: rpcProvider as any,
   });
 
   const networkMiddleware =

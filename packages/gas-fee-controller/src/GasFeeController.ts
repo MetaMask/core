@@ -342,7 +342,7 @@ export class GasFeeController extends PollingController<
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
 
-    this.ethQuery = new EthQuery(this.#getProvider());
+    this.ethQuery = new EthQuery(this.#getProvider() as any);
 
     if (onNetworkStateChange && getChainId) {
       this.currentChainId = getChainId();
@@ -417,7 +417,8 @@ export class GasFeeController extends PollingController<
       isEIP1559Compatible = false;
     }
 
-    const ethQuery = new EthQuery(networkClient.provider);
+    // TODO: provider type alignment
+    const ethQuery = new EthQuery(networkClient.provider as any);
 
     const gasFeeCalculations = await determineGasFeeCalculations({
       isEIP1559Compatible,
@@ -588,7 +589,7 @@ export class GasFeeController extends PollingController<
     const newChainId = networkControllerState.providerConfig.chainId;
 
     if (newChainId !== this.currentChainId) {
-      this.ethQuery = new EthQuery(this.#getProvider());
+      this.ethQuery = new EthQuery(this.#getProvider() as any);
       await this.resetPolling();
 
       this.currentChainId = newChainId;
