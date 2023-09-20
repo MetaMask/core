@@ -741,7 +741,7 @@ describe('AccountsController', () => {
       },
     };
 
-    it('should update accounts with legacy accounts', async () => {
+    it('should update accounts with normal accounts', async () => {
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
       const messenger = buildMessenger();
       messenger.registerActionHandler(

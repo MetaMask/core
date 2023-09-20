@@ -285,18 +285,18 @@ export class AccountsController extends BaseControllerV2<
   }
 
   /**
-   * Updates the internal accounts list by retrieving legacy and snap accounts,
+   * Updates the internal accounts list by retrieving normal and snap accounts,
    * removing duplicates, and updating the metadata of each account.
    *
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
-    let legacyAccounts = await this.#listLegacyAccounts();
+    let normalAccounts = await this.#listNormalAccounts();
     let snapAccounts: InternalAccount[] = [];
     if (this.keyringApiEnabled) {
       snapAccounts = await this.#listSnapAccounts();
       // remove duplicate accounts that are retrieved from the snap keyring.
-      legacyAccounts = legacyAccounts.filter(
+      normalAccounts = normalAccounts.filter(
         (account) =>
           !snapAccounts.find(
             (snapAccount) => snapAccount.address === account.address,
@@ -309,7 +309,7 @@ export class AccountsController extends BaseControllerV2<
     const previousAccounts = this.state.internalAccounts.accounts;
 
     const accounts: Record<string, InternalAccount> = [
-      ...legacyAccounts,
+      ...normalAccounts,
       ...snapAccounts,
     ].reduce((internalAccountMap, internalAccount) => {
       const keyringTypeName = keyringTypeToName(
@@ -381,13 +381,13 @@ export class AccountsController extends BaseControllerV2<
   }
 
   /**
-   * Returns a list of legacy accounts.
-   * Note: listLegacyAccounts is a temporary method until the keyrings all implement the InternalAccount interface.
+   * Returns a list of normal accounts.
+   * Note: listNormalAccounts is a temporary method until the keyrings all implement the InternalAccount interface.
    * Once all keyrings implement the InternalAccount interface, this method can be removed and getAccounts can be used instead.
    *
    * @returns A Promise that resolves to an array of InternalAccount objects.
    */
-  async #listLegacyAccounts(): Promise<InternalAccount[]> {
+  async #listNormalAccounts(): Promise<InternalAccount[]> {
     const addresses = await this.messagingSystem.call(
       'KeyringController:getAccounts',
     );
