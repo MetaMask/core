@@ -1,7 +1,7 @@
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import type { JsonRpcRequest, JsonRpcResponse } from 'json-rpc-engine';
-import { JsonRpcEngine } from 'json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
 import util from 'util';
 
 import type {
@@ -122,8 +122,8 @@ function getFakeProvider({
     .spyOn(provider, 'sendAsync')
     .mockImplementation(
       (
-        request: JsonRpcRequest<unknown>,
-        callback: (err: unknown, response?: JsonRpcResponse<unknown>) => void,
+        request: JsonRpcRequest,
+        callback: (err: unknown, response?: JsonRpcResponse<any>) => void,
       ) => {
         const index = stubs.findIndex(
           (stub) => stub.methodName === request.method,

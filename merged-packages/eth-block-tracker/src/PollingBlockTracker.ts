@@ -1,6 +1,6 @@
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import type { JsonRpcRequest } from 'json-rpc-engine';
+import type { JsonRpcRequest } from '@metamask/utils';
 import getCreateRandomId from 'json-rpc-random-id';
 import pify from 'pify';
 
@@ -25,7 +25,7 @@ export interface PollingBlockTrackerOptions {
   usePastBlocks?: boolean;
 }
 
-interface ExtendedJsonRpcRequest<T> extends JsonRpcRequest<T> {
+interface ExtendedJsonRpcRequest extends JsonRpcRequest<[]> {
   skipCache?: boolean;
 }
 
@@ -283,7 +283,7 @@ export class PollingBlockTracker
   }
 
   private async _fetchLatestBlock(): Promise<string> {
-    const req: ExtendedJsonRpcRequest<[]> = {
+    const req: ExtendedJsonRpcRequest = {
       jsonrpc: '2.0',
       id: createRandomId(),
       method: 'eth_blockNumber',
