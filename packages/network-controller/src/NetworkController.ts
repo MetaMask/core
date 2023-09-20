@@ -9,6 +9,7 @@ import {
   isSafeChainId,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
@@ -18,7 +19,6 @@ import {
   isPlainObject,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
-import { errorCodes } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 import { v4 as random } from 'uuid';
 
