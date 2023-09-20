@@ -29,6 +29,7 @@ const NETWORK_STATE_MOCK: NetworkState = {
 const ADDERSS_MOCK = '0x1';
 const FROM_BLOCK_HEX_MOCK = '0x20';
 const FROM_BLOCK_DECIMAL_MOCK = 32;
+const LAST_BLOCK_VARIATION_MOCK = 'test-variation';
 
 const BLOCK_TRACKER_MOCK = {
   addListener: jest.fn(),
@@ -67,9 +68,17 @@ const createRemoteTransactionSourceMock = (
   {
     isSupportedNetwork,
     error,
-  }: { isSupportedNetwork?: boolean; error?: boolean } = {},
+    noGetLastBlockVariations,
+  }: {
+    isSupportedNetwork?: boolean;
+    error?: boolean;
+    noGetLastBlockVariations?: boolean;
+  } = {},
 ): RemoteTransactionSource => ({
   isSupportedNetwork: jest.fn(() => isSupportedNetwork ?? true),
+  getLastBlockVariations: noGetLastBlockVariations
+    ? undefined
+    : jest.fn(() => [LAST_BLOCK_VARIATION_MOCK]),
   fetchTransactions: jest.fn(() =>
     error
       ? Promise.reject(new Error('Test Error'))
@@ -200,7 +209,7 @@ describe('IncomingTransactionHelper', () => {
           ...CONTROLLER_ARGS_MOCK,
           remoteTransactionSource,
           getLastFetchedBlockNumbers: () => ({
-            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
+            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
               FROM_BLOCK_DECIMAL_MOCK,
           }),
         });
@@ -467,7 +476,7 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(lastFetchedBlockNumbers).toStrictEqual({
-          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
+          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
             parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
         });
       });
@@ -525,7 +534,7 @@ describe('IncomingTransactionHelper', () => {
             TRANSACTION_MOCK_2,
           ]),
           getLastFetchedBlockNumbers: () => ({
-            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
+            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
               parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
           }),
         });
@@ -535,6 +544,25 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(blockNumberListener).not.toHaveBeenCalled();
+      });
+
+      it('using no additional last block keys if remote source does not implement method', async () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          remoteTransactionSource: createRemoteTransactionSourceMock(
+            [TRANSACTION_MOCK_2],
+            { noGetLastBlockVariations: true },
+          ),
+        });
+
+        const { lastFetchedBlockNumbers } = await emitBlockTrackerLatestEvent(
+          helper,
+        );
+
+        expect(lastFetchedBlockNumbers).toStrictEqual({
+          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
+            parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
+        });
       });
     });
   });

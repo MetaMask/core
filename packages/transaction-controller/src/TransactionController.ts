@@ -79,16 +79,6 @@ export interface Result {
   transactionMeta: TransactionMeta;
 }
 
-/**
- * @type Fetch All Options
- * @property fromBlock - String containing a specific block decimal number
- * @property etherscanApiKey - API key to be used to fetch token transactions
- */
-export interface FetchAllOptions {
-  fromBlock?: string;
-  etherscanApiKey?: string;
-}
-
 export interface GasPriceValue {
   gasPrice: string;
 }
@@ -244,7 +234,6 @@ export class TransactionController extends BaseController<
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
-   * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
    * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
    * @param options.incomingTransactions.queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
@@ -273,7 +262,6 @@ export class TransactionController extends BaseController<
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
-        apiKey?: string;
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
         queryEntireHistory?: boolean;
@@ -334,7 +322,6 @@ export class TransactionController extends BaseController<
       isEnabled: incomingTransactions.isEnabled,
       queryEntireHistory: incomingTransactions.queryEntireHistory,
       remoteTransactionSource: new EtherscanRemoteTransactionSource({
-        apiKey: incomingTransactions.apiKey,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
       }),
       transactionLimit: this.config.txHistoryLimit,
@@ -515,7 +502,7 @@ export class TransactionController extends BaseController<
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId
+        transaction.chainId === chainId,
     );
 
     for (const txMeta of unapprovedTxs) {
@@ -866,10 +853,7 @@ export class TransactionController extends BaseController<
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          if (
-            !meta.verifiedOnBlockchain &&
-            meta.chainId === currentChainId
-          ) {
+          if (!meta.verifiedOnBlockchain && meta.chainId === currentChainId) {
             const [reconciledTx, updateRequired] =
               await this.blockchainTransactionStateReconciler(meta);
             if (updateRequired) {
@@ -1358,7 +1342,9 @@ export class TransactionController extends BaseController<
         const { chainId, status, txParams, time } = tx;
 
         if (txParams) {
-          const key = `${txParams.nonce}-${convertHexToDecimal(chainId)}-${new Date(time).toDateString()}`;
+          const key = `${txParams.nonce}-${convertHexToDecimal(
+            chainId,
+          )}-${new Date(time).toDateString()}`;
 
           if (nonceNetworkSet.has(key)) {
             return true;
@@ -1683,7 +1669,7 @@ export class TransactionController extends BaseController<
     const sameFromAndNetworkTransactions = transactions.filter(
       (transaction) =>
         transaction.txParams.from === fromAddress &&
-        transaction.chainId === chainId
+        transaction.chainId === chainId,
     );
     const confirmedTxs = sameFromAndNetworkTransactions.filter(
       (transaction) => transaction.status === TransactionStatus.confirmed,
@@ -1726,7 +1712,7 @@ export class TransactionController extends BaseController<
       (transaction) =>
         transaction.txParams.from === from &&
         transaction.txParams.nonce === nonce &&
-        transaction.chainId === chainId
+        transaction.chainId === chainId,
     );
 
     if (!sameNonceTxs.length) {

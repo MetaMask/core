@@ -2,7 +2,6 @@ import {
   convertHexToDecimal,
   isValidHexAddress,
 } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 

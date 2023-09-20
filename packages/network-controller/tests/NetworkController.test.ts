@@ -2641,7 +2641,7 @@ describe('NetworkController', () => {
         );
       });
 
-      it(`updates state.selectedNetworkId, setting it to ${networkType}`, async () => {
+      it(`updates state.selectedNetworkClientId, setting it to ${networkType}`, async () => {
         await withController({}, async ({ controller }) => {
           const fakeProvider = buildFakeProvider();
           const fakeNetworkClient = buildFakeClient(fakeProvider);
@@ -3118,7 +3118,7 @@ describe('NetworkController', () => {
       });
     });
 
-    describe('if a provider has been set but networksMetadata[selectedNetworkId].EIPS in state already has a "1559" property', () => {
+    describe('if a provider has been set but networksMetadata[selectedNetworkClientId].EIPS in state already has a "1559" property', () => {
       it('does not make any state changes', async () => {
         await withController(
           {
@@ -3178,7 +3178,7 @@ describe('NetworkController', () => {
       });
     });
 
-    describe('if a provider has been set and networksMetadata[selectedNetworkId].EIPS in state does not already have a "1559" property', () => {
+    describe('if a provider has been set and networksMetadata[selectedNetworkClientId].EIPS in state does not already have a "1559" property', () => {
       describe('if the request for the latest block is successful', () => {
         describe('if the latest block has a "baseFeePerGas" property', () => {
           it('sets the "1559" property to true', async () => {

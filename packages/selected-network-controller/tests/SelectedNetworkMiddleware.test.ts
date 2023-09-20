@@ -98,10 +98,10 @@ describe('createSelectedNetworkMiddleware', () => {
         end();
       });
     engine.push(mockNextMiddleware);
-    const testNetworkId = 'testNetworkId';
+    const testNetworkClientId = 'testNetworkClientId';
     const mockGetNetworkClientIdForDomain = jest
       .fn()
-      .mockReturnValue(testNetworkId);
+      .mockReturnValue(testNetworkClientId);
     messenger.registerActionHandler(
       SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
       mockGetNetworkClientIdForDomain,
@@ -114,14 +114,14 @@ describe('createSelectedNetworkMiddleware', () => {
     });
     expect(mockNextMiddleware).toHaveBeenCalledWith(
       expect.objectContaining({
-        networkClientId: testNetworkId,
+        networkClientId: testNetworkClientId,
       }),
       expect.any(Object),
       expect.any(Function),
       expect.any(Function),
     );
     expect(result).toStrictEqual(
-      expect.objectContaining({ result: testNetworkId }),
+      expect.objectContaining({ result: testNetworkClientId }),
     );
   });
 });
