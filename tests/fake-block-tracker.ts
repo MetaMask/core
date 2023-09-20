@@ -1,6 +1,6 @@
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider/dist/safe-event-emitter-provider';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { JsonRpcEngine } from 'json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 /**
  * Acts like a PollingBlockTracker, but doesn't start the polling loop or
