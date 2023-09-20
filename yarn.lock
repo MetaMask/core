@@ -2020,6 +2020,7 @@ __metadata:
     "@metamask/eth-json-rpc-middleware": ^11.0.2
     "@metamask/eth-json-rpc-provider": ^2.1.0
     "@metamask/eth-query": ^3.0.1
+    "@metamask/rpc-errors": ^6.0.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
@@ -2028,7 +2029,6 @@ __metadata:
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
     eth-block-tracker: ^7.0.1
-    eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^27.5.1
     jest-when: ^3.4.2
@@ -2277,9 +2277,9 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
+    "@metamask/rpc-errors": ^6.0.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
-    eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^27.5.1
     ts-jest: ^27.1.4
@@ -2411,10 +2411,10 @@ __metadata:
     "@metamask/keyring-controller": ^8.0.2
     "@metamask/logging-controller": ^1.0.3
     "@metamask/message-manager": ^7.3.5
+    "@metamask/rpc-errors": ^6.0.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
-    eth-rpc-errors: ^4.0.2
     ethereumjs-util: ^7.0.10
     immer: ^9.0.6
     jest: ^27.5.1

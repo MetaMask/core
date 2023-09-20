@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.3",
-    "eth-rpc-errors": "^4.0.2",
+    "@metamask/rpc-errors": "^6.0.0",
     "immer": "^9.0.6"
   },
   "devDependencies": {
