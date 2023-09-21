@@ -35,8 +35,6 @@ const mockAccount: InternalAccount = {
   metadata: {
     name: 'Account 1',
     keyring: { type: 'HD Key Tree' },
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     lastSelected: 1691565967656,
   },
 };
@@ -50,23 +48,21 @@ const mockAccount2: InternalAccount = {
   metadata: {
     name: 'Account 2',
     keyring: { type: 'HD Key Tree' },
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     lastSelected: 1955565967656,
   },
 };
 
 /**
- * Creates an `InternalAccount` object from the given legacy account properties.
+ * Creates an `InternalAccount` object from the given normal account properties.
  *
- * @param props - The properties of the legacy account.
+ * @param props - The properties of the normal account.
  * @param props.id - The ID of the account.
  * @param props.name - The name of the account.
  * @param props.address - The address of the account.
  * @param props.keyringType - The type of the keyring associated with the account.
  * @param props.snapId - The id of the snap.
  * @param props.snapEnabled - The status of the snap
- * @returns The `InternalAccount` object created from the legacy account properties.
+ * @returns The `InternalAccount` object created from the normal account properties.
  */
 function createExpectedInternalAccount({
   id,
@@ -945,7 +941,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('should filter snap accounts from legacyAccounts', async () => {
+    it('should filter snap accounts from normalAccounts', async () => {
       mockUUID.mockReturnValueOnce('mock-id');
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -958,7 +954,7 @@ describe('AccountsController', () => {
         ]),
       );
 
-      // first account will be legacy, second will be a snap account
+      // first account will be normal, second will be a snap account
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
         mockGetAccounts.mockResolvedValue([mockAddress1, '0x1234']),
@@ -1001,7 +997,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('should filter snap accounts from legacyAccounts even if the snap account is listed before legacy accounts', async () => {
+    it('should filter snap accounts from normalAccounts even if the snap account is listed before normal accounts', async () => {
       mockUUID.mockReturnValue('mock-id');
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1014,7 +1010,7 @@ describe('AccountsController', () => {
         ]),
       );
 
-      // first account will be legacy, second will be a snap account
+      // first account will be normal, second will be a snap account
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
         mockGetAccounts.mockResolvedValue(['0x1234', mockAddress1]),
