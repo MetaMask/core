@@ -29,7 +29,7 @@ import type {
   ProviderConfig,
 } from '../src/NetworkController';
 import { NetworkController } from '../src/NetworkController';
-import type { Provider } from '../src/types';
+import type { BlockTracker, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
 
 jest.mock('../src/create-network-client');
@@ -6957,7 +6957,7 @@ function buildFakeClient(
       rpcUrl: 'https://test.network',
     },
     provider,
-    blockTracker: new FakeBlockTracker(),
+    blockTracker: new FakeBlockTracker() as BlockTracker,
     destroy: () => {
       // do nothing
     },

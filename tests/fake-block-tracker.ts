@@ -13,10 +13,9 @@ export class FakeBlockTracker extends PollingBlockTracker {
     super({
       provider: new SafeEventEmitterProvider({ engine: new JsonRpcEngine() }),
     });
-  }
-
-  override async _start() {
     // Don't start the polling loop
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    (this as any).start = () => {};
   }
 
   /**

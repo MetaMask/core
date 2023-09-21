@@ -1,10 +1,13 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import type { Hex } from '@metamask/utils';
-export type { BlockTracker } from 'eth-block-tracker';
+import type { BlockTracker as BaseBlockTracker } from 'eth-block-tracker';
 
 export type Provider = SafeEventEmitterProvider;
 
+export type BlockTracker = BaseBlockTracker & {
+  checkForLatestBlock(): Promise<string>;
+};
 
 /**
  * The type of network client that can be created.
