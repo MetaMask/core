@@ -2035,7 +2035,7 @@ describe('KeyringController', () => {
     });
 
     describe('getKeyringsByType', () => {
-      beforeEach(() => {
+      it('should return correct keyring by type', async () => {
         jest
           .spyOn(KeyringController.prototype, 'getKeyringsByType')
           .mockReturnValue([
@@ -2044,9 +2044,6 @@ describe('KeyringController', () => {
               accounts: ['0x1234'],
             },
           ]);
-      });
-
-      it('should return correct keyring by type', async () => {
         await withController(async ({ controller, messenger }) => {
           messenger.call('KeyringController:getKeyringsByType', 'HD Key Tree');
 
@@ -2058,16 +2055,13 @@ describe('KeyringController', () => {
     });
 
     describe('getKeyringForAccount', () => {
-      beforeEach(() => {
+      it('should return the keyring for the account', async () => {
         jest
           .spyOn(KeyringController.prototype, 'getKeyringForAccount')
           .mockResolvedValue({
             type: 'HD Key Tree',
             accounts: ['0x1234'],
           });
-      });
-
-      it('should return the keyring for the account', async () => {
         await withController(async ({ controller, messenger }) => {
           await messenger.call('KeyringController:getKeyringForAccount', '0x0');
 
@@ -2077,13 +2071,10 @@ describe('KeyringController', () => {
     });
 
     describe('getAccounts', () => {
-      beforeEach(() => {
+      it('should return all accounts', async () => {
         jest
           .spyOn(KeyringController.prototype, 'getAccounts')
           .mockResolvedValue(['0x1234']);
-      });
-
-      it('should return all accounts', async () => {
         await withController(async ({ controller, messenger }) => {
           await messenger.call('KeyringController:getAccounts');
 
