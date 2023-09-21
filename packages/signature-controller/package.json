@@ -31,7 +31,7 @@
     "@metamask/approval-controller": "^3.5.1",
     "@metamask/base-controller": "^3.2.1",
     "@metamask/controller-utils": "^4.3.2",
-    "@metamask/message-manager": "^7.3.1",
+    "@metamask/message-manager": "^7.3.2",
     "@metamask/utils": "^6.2.0",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
-    "@metamask/keyring-controller": "^7.4.0",
+    "@metamask/keyring-controller": "^7.5.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

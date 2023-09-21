@@ -1295,7 +1295,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/eth-snap-keyring": ^0.2.2
     "@metamask/keyring-api": ^0.2.5
-    "@metamask/keyring-controller": ^7.4.0
+    "@metamask/keyring-controller": ^7.5.0
     "@metamask/snaps-controllers": ^1.0.1
     "@metamask/snaps-utils": ^1.0.1
     "@metamask/utils": ^6.2.0
@@ -1313,7 +1313,7 @@ __metadata:
     typescript: ~4.6.3
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/keyring-controller": ^7.4.0
+    "@metamask/keyring-controller": ^7.5.0
   languageName: unknown
   linkType: soft
 
@@ -1400,7 +1400,7 @@ __metadata:
     "@metamask/controller-utils": ^4.3.2
     "@metamask/eth-query": ^3.0.1
     "@metamask/metamask-eth-abis": 3.0.0
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
     "@metamask/preferences-controller": ^4.4.0
     "@metamask/rpc-errors": ^5.1.1
     "@metamask/utils": ^6.2.0
@@ -1426,7 +1426,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": ^3.5.1
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
     "@metamask/preferences-controller": ^4.4.0
   languageName: unknown
   linkType: soft
@@ -1587,7 +1587,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^4.3.2
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -1599,7 +1599,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
   peerDependencies:
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
   languageName: unknown
   linkType: soft
 
@@ -1809,7 +1809,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^4.3.2
     "@metamask/eth-query": ^3.0.1
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
@@ -1828,7 +1828,7 @@ __metadata:
     typescript: ~4.6.3
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
   languageName: unknown
   linkType: soft
 
@@ -1887,7 +1887,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@^7.4.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@^7.5.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -1899,7 +1899,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/eth-keyring-controller": ^13.0.1
     "@metamask/eth-sig-util": ^7.0.0
-    "@metamask/message-manager": ^7.3.1
+    "@metamask/message-manager": ^7.3.2
     "@metamask/preferences-controller": ^4.4.0
     "@metamask/scure-bip39": ^2.1.0
     "@metamask/utils": ^6.2.0
@@ -1939,7 +1939,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/message-manager@^7.3.1, @metamask/message-manager@workspace:packages/message-manager":
+"@metamask/message-manager@^7.3.2, @metamask/message-manager@workspace:packages/message-manager":
   version: 0.0.0-use.local
   resolution: "@metamask/message-manager@workspace:packages/message-manager"
   dependencies:
@@ -1986,7 +1986,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@^12.1.2, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@^12.2.0, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -2310,7 +2310,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     immer: ^9.0.6
@@ -2324,7 +2324,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
   peerDependencies:
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
   languageName: unknown
   linkType: soft
 
@@ -2336,8 +2336,8 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^4.3.2
-    "@metamask/keyring-controller": ^7.4.0
-    "@metamask/message-manager": ^7.3.1
+    "@metamask/keyring-controller": ^7.5.0
+    "@metamask/message-manager": ^7.3.2
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2559,7 +2559,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^4.3.2
     "@metamask/eth-query": ^3.0.1
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.24
@@ -2582,7 +2582,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": ^3.5.1
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
     babel-runtime: ^6.26.0
   languageName: unknown
   linkType: soft

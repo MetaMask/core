@@ -34,7 +34,7 @@
     "@metamask/base-controller": "^3.2.1",
     "@metamask/controller-utils": "^4.3.2",
     "@metamask/eth-query": "^3.0.1",
-    "@metamask/network-controller": "^12.1.2",
+    "@metamask/network-controller": "^12.2.0",
     "@metamask/utils": "^6.2.0",
     "async-mutex": "^0.2.6",
     "eth-method-registry": "1.1.0",
@@ -61,7 +61,7 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^3.5.1",
-    "@metamask/network-controller": "^12.1.2",
+    "@metamask/network-controller": "^12.2.0",
     "babel-runtime": "^6.26.0"
   },
   "engines": {
