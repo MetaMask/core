@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `KeyringController:getKeyringsByType`
   - `KeyringController:getKeyringForAccount`
 
+### Changed
+- Bump `@metamask/eth-sig-util` from 6.0.0 to 7.0.0 ([#1669](https://github.com/MetaMask/core/pull/1669))
+
 ## [7.4.0]
 ### Added
 - Add `KeyringController` messenger actions ([#1654](https://github.com/MetaMask/core/pull/1654))

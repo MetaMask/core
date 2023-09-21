@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [12.2.0]
 ### Added
 - Add `NetworkController:getNetworkClientById` action ([#1638](https://github.com/MetaMask/core/pull/1638))
+- Add `lookupNetworkByClientId` and `get1555CompatibilityWithNetworkClientId` methods ([#1557](https://github.com/MetaMask/core/pull/1557))
 
 ### Changed
-- Add optional `networkClientId` argument for `getEIP1559Compatibility` method ([#1557](https://github.com/MetaMask/core/pull/1557))
+- Add optional `networkClientId` argument to methods `lookupNetwork` and  `getEIP1559Compatibility` ([#1557](https://github.com/MetaMask/core/pull/1557))
 
 ## [12.1.2]
 ### Changed
