@@ -184,6 +184,10 @@ export class TransactionController extends BaseController<
 
   private readonly getNetworkState: () => NetworkState;
 
+  private readonly getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
+
+  private readonly getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+
   private readonly messagingSystem: TransactionControllerMessenger;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
@@ -232,6 +236,8 @@ export class TransactionController extends BaseController<
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
+   * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
+   * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
@@ -250,6 +256,8 @@ export class TransactionController extends BaseController<
       blockTracker,
       disableHistory,
       disableSendFlowHistory,
+      getCurrentAccountEIP1559Compatibility,
+      getCurrentNetworkEIP1559Compatibility,
       getNetworkState,
       getSelectedAddress,
       incomingTransactions = {},
@@ -260,6 +268,8 @@ export class TransactionController extends BaseController<
       blockTracker: BlockTracker;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
+      getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
+      getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
@@ -297,6 +307,10 @@ export class TransactionController extends BaseController<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.registry = new MethodRegistry({ provider });
+    this.getCurrentAccountEIP1559Compatibility =
+      getCurrentAccountEIP1559Compatibility;
+    this.getCurrentNetworkEIP1559Compatibility =
+      getCurrentNetworkEIP1559Compatibility;
 
     this.nonceTracker = new NonceTracker({
       provider,
@@ -423,7 +437,8 @@ export class TransactionController extends BaseController<
     const { chainId, networkId } = this.getChainAndNetworkId();
     const { transactions } = this.state;
     txParams = normalizeTxParams(txParams);
-    validateTxParams(txParams);
+    const isEIP1559Compatible = await this.getEIP1559Compatibility();
+    validateTxParams(txParams, isEIP1559Compatible);
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       txParams,
@@ -1810,6 +1825,17 @@ export class TransactionController extends BaseController<
     if (signedTx.v) {
       transactionMeta.v = addHexPrefix(signedTx.v.toString(16));
     }
+  }
+
+  private async getEIP1559Compatibility() {
+    const currentNetworkIsEIP1559Compatible =
+      await this.getCurrentNetworkEIP1559Compatibility();
+    const currentAccountIsEIP1559Compatible =
+      this.getCurrentAccountEIP1559Compatibility?.() ?? true;
+
+    return (
+      currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
   }
 }
 
