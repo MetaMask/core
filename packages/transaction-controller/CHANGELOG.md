@@ -26,10 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Defaults to `false` but will increase state size considerably unless disabled
 - **BREAKING**: Rename the `transactionHash` property to `hash` in the transaction metadata
 - Add `incomingTransactions.queryEntireHistory` constructor option
-- Only use the `incomingTransactions.apiKey` when querying the standard Etherscan domain. ([#1652](https://github.com/MetaMask/core/pull/1652))
 
 ### Fixed
 - Fix the sorting of incoming and updated transactions ([#1652](https://github.com/MetaMask/core/pull/1652))
+- Prevent rate limit errors when `incomingTransactions.includeTokenTransfers` is `true` by by alternating Etherscan request types on each update ([#1668](https://github.com/MetaMask/core/pull/1668))
 
 ## [10.0.0]
 ### Added
