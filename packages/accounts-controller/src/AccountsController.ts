@@ -418,7 +418,7 @@ export class AccountsController extends BaseControllerV2<
         metadata: {
           name: '',
           keyring: {
-            type: (keyring as any).type as string,
+            type: (keyring as Keyring<Json>).type,
           },
         },
       });
