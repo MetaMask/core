@@ -542,6 +542,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@ethereumjs/util@npm:^8.1.0":
+  version: 8.1.0
+  resolution: "@ethereumjs/util@npm:8.1.0"
+  dependencies:
+    "@ethereumjs/rlp": ^4.0.1
+    ethereum-cryptography: ^2.0.0
+    micro-ftch: ^0.3.1
+  checksum: 9ae5dee8f12b0faf81cd83f06a41560e79b0ba96a48262771d897a510ecae605eb6d84f687da001ab8ccffd50f612ae50f988ef76e6312c752897f462f3ac08d
+  languageName: node
+  linkType: hard
+
 "@gar/promisify@npm:^1.1.3":
   version: 1.1.3
   resolution: "@gar/promisify@npm:1.1.3"
@@ -897,6 +908,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/abi-utils@npm:^2.0.2":
+  version: 2.0.2
+  resolution: "@metamask/abi-utils@npm:2.0.2"
+  dependencies:
+    "@metamask/utils": ^8.0.0
+    superstruct: ^1.0.3
+  checksum: 5ec153e7691a4e1dc8738a0ba1a99a354ddb13851fa88a40a19f002f6308310e71c2cee28c3a25d9f7f67e839c7dffe4760e93e308dd17fa725b08d0dc73a3d4
+  languageName: node
+  linkType: hard
+
 "@metamask/auto-changelog@npm:^3.1.0":
   version: 3.2.0
   resolution: "@metamask/auto-changelog@npm:3.2.0"
@@ -973,7 +994,7 @@ __metadata:
     "@metamask/eslint-config-nodejs": ^12.1.0
     "@metamask/eslint-config-typescript": ^12.1.0
     "@metamask/eth-json-rpc-provider": ^1.0.0
-    "@metamask/eth-sig-util": ^6.0.0
+    "@metamask/eth-sig-util": ^7.0.0
     "@metamask/utils": ^8.1.0
     "@types/btoa": ^1.2.3
     "@types/clone": ^2.1.0
@@ -1016,17 +1037,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-sig-util@npm:^6.0.0":
-  version: 6.0.0
-  resolution: "@metamask/eth-sig-util@npm:6.0.0"
+"@metamask/eth-sig-util@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "@metamask/eth-sig-util@npm:7.0.0"
   dependencies:
-    "@ethereumjs/util": ^8.0.6
-    bn.js: ^4.12.0
-    ethereum-cryptography: ^2.0.0
+    "@ethereumjs/util": ^8.1.0
+    "@metamask/abi-utils": ^2.0.2
+    "@metamask/utils": ^8.1.0
+    ethereum-cryptography: ^2.1.2
     ethjs-util: ^0.1.6
     tweetnacl: ^1.0.3
     tweetnacl-util: ^0.15.1
-  checksum: 76c173faed20d0d896561dbf3eb4ec3173e33288bf8844919643fd3e9fb6bc78f1ba8bd8a82252f4d13526ded4cc1aee27ae78f5b32642d9f97ef15fa230a12e
+  checksum: bcb6bd23333e0b4dcb49f8772483dcb4c27e75405a2b111f1eafe0b341b221cf86ba4843e91c567d8836e80b6049d8e2f89c6766c62bbd256533e0f256f6d846
   languageName: node
   linkType: hard
 
@@ -1057,7 +1079,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^8.1.0":
+"@metamask/utils@npm:^8.0.0, @metamask/utils@npm:^8.1.0":
   version: 8.1.0
   resolution: "@metamask/utils@npm:8.1.0"
   dependencies:
@@ -1080,6 +1102,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/curves@npm:1.1.0, @noble/curves@npm:~1.1.0":
+  version: 1.1.0
+  resolution: "@noble/curves@npm:1.1.0"
+  dependencies:
+    "@noble/hashes": 1.3.1
+  checksum: 2658cdd3f84f71079b4e3516c47559d22cf4b55c23ac8ee9d2b1f8e5b72916d9689e59820e0f9d9cb4a46a8423af5b56dc6bb7782405c88be06a015180508db5
+  languageName: node
+  linkType: hard
+
 "@noble/hashes@npm:1.3.0, @noble/hashes@npm:^1.3.0, @noble/hashes@npm:~1.3.0":
   version: 1.3.0
   resolution: "@noble/hashes@npm:1.3.0"
@@ -1087,7 +1118,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:^1.3.1":
+"@noble/hashes@npm:1.3.1":
+  version: 1.3.1
+  resolution: "@noble/hashes@npm:1.3.1"
+  checksum: 7fdefc0f7a0c1ec27acc6ff88841793e3f93ec4ce6b8a6a12bfc0dd70ae6b7c4c82fe305fdfeda1735d5ad4a9eebe761e6693b3d355689c559e91242f4bc95b1
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:^1.3.1, @noble/hashes@npm:~1.3.1":
   version: 1.3.2
   resolution: "@noble/hashes@npm:1.3.2"
   checksum: fe23536b436539d13f90e4b9be843cc63b1b17666a07634a2b1259dded6f490be3d050249e6af98076ea8f2ea0d56f578773c2197f2aa0eeaa5fba5bc18ba474
@@ -1204,6 +1242,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@scure/bip32@npm:1.3.1":
+  version: 1.3.1
+  resolution: "@scure/bip32@npm:1.3.1"
+  dependencies:
+    "@noble/curves": ~1.1.0
+    "@noble/hashes": ~1.3.1
+    "@scure/base": ~1.1.0
+  checksum: 394d65f77a40651eba21a5096da0f4233c3b50d422864751d373fcf142eeedb94a1149f9ab1dbb078086dab2d0bc27e2b1afec8321bf22d4403c7df2fea5bfe2
+  languageName: node
+  linkType: hard
+
 "@scure/bip39@npm:1.2.0":
   version: 1.2.0
   resolution: "@scure/bip39@npm:1.2.0"
@@ -1211,6 +1260,16 @@ __metadata:
     "@noble/hashes": ~1.3.0
     "@scure/base": ~1.1.0
   checksum: 980d761f53e63de04a9e4db840eb13bfb1bd1b664ecb04a71824c12c190f4972fd84146f3ed89b2a8e4c6bd2c17c15f8b592b7ac029e903323b0f9e2dae6916b
+  languageName: node
+  linkType: hard
+
+"@scure/bip39@npm:1.2.1":
+  version: 1.2.1
+  resolution: "@scure/bip39@npm:1.2.1"
+  dependencies:
+    "@noble/hashes": ~1.3.0
+    "@scure/base": ~1.1.0
+  checksum: c5bd6f1328fdbeae2dcdd891825b1610225310e5e62a4942714db51066866e4f7bef242c7b06a1b9dcc8043a4a13412cf5c5df76d3b10aa9e36b82e9b6e3eeaa
   languageName: node
   linkType: hard
 
@@ -1974,13 +2033,6 @@ __metadata:
     read-cmd-shim: ^4.0.0
     write-file-atomic: ^5.0.0
   checksum: a806561750039bcd7d4234efe5c0b8b7ba0ea8495086740b0da6395abe311e2cdb75f8324787354193f652d2ac5ab038c4ca926ed7bcc6ce9bc2001607741104
-  languageName: node
-  linkType: hard
-
-"bn.js@npm:^4.12.0":
-  version: 4.12.0
-  resolution: "bn.js@npm:4.12.0"
-  checksum: 39afb4f15f4ea537b55eaf1446c896af28ac948fdcf47171961475724d1bb65118cca49fa6e3d67706e4790955ec0e74de584e45c8f1ef89f46c812bee5b5a12
   languageName: node
   linkType: hard
 
@@ -3075,6 +3127,18 @@ __metadata:
     "@scure/bip32": 1.3.0
     "@scure/bip39": 1.2.0
   checksum: 958f8aab2d1b32aa759fb27a27877b3647410e8bb9aca7d65d1d477db4864cf7fc46b918eb52a1e246c25e98ee0a35a632c88b496aeaefa13469ee767a76c8db
+  languageName: node
+  linkType: hard
+
+"ethereum-cryptography@npm:^2.1.2":
+  version: 2.1.2
+  resolution: "ethereum-cryptography@npm:2.1.2"
+  dependencies:
+    "@noble/curves": 1.1.0
+    "@noble/hashes": 1.3.1
+    "@scure/bip32": 1.3.1
+    "@scure/bip39": 1.2.1
+  checksum: 2e8f7b8cc90232ae838ab6a8167708e8362621404d26e79b5d9e762c7b53d699f7520aff358d9254de658fcd54d2d0af168ff909943259ed27dc4cef2736410c
   languageName: node
   linkType: hard
 
