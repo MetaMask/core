@@ -2033,6 +2033,64 @@ describe('KeyringController', () => {
         );
       });
     });
+
+    describe('getKeyringsByType', () => {
+      beforeEach(() => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringsByType')
+          .mockReturnValue([
+            {
+              type: 'HD Key Tree',
+              accounts: ['0x1234'],
+            },
+          ]);
+      });
+
+      it('should return correct keyring by type', async () => {
+        await withController(async ({ controller, messenger }) => {
+          messenger.call('KeyringController:getKeyringsByType', 'HD Key Tree');
+
+          expect(controller.getKeyringsByType).toHaveBeenCalledWith(
+            'HD Key Tree',
+          );
+        });
+      });
+    });
+
+    describe('getKeyringForAccount', () => {
+      beforeEach(() => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringForAccount')
+          .mockResolvedValue({
+            type: 'HD Key Tree',
+            accounts: ['0x1234'],
+          });
+      });
+
+      it('should return the keyring for the account', async () => {
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getKeyringForAccount', '0x0');
+
+          expect(controller.getKeyringForAccount).toHaveBeenCalledWith('0x0');
+        });
+      });
+    });
+
+    describe('getAccounts', () => {
+      beforeEach(() => {
+        jest
+          .spyOn(KeyringController.prototype, 'getAccounts')
+          .mockResolvedValue(['0x1234']);
+      });
+
+      it('should return all accounts', async () => {
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getAccounts');
+
+          expect(controller.getAccounts).toHaveBeenCalledWith();
+        });
+      });
+    });
   });
 });
 
@@ -2091,6 +2149,9 @@ function buildKeyringControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:signTypedMessage',
       'KeyringController:decryptMessage',
       'KeyringController:getEncryptionPublicKey',
+      'KeyringController:getKeyringsByType',
+      'KeyringController:getKeyringForAccount',
+      'KeyringController:getAccounts',
     ],
     allowedEvents: [
       'KeyringController:stateChange',
