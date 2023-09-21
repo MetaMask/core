@@ -1,4 +1,9 @@
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import {
+  SigningMethod,
+  SigningStage,
+  LogType,
+} from '@metamask/logging-controller';
 import type {
   AbstractMessage,
   OriginalRequest,
@@ -378,9 +383,9 @@ describe('SignatureController', () => {
         undefined,
       );
 
-      expect(messengerMock.call).toHaveBeenCalledTimes(2);
+      expect(messengerMock.call).toHaveBeenCalledTimes(4);
       expect(messengerMock.call).toHaveBeenNthCalledWith(
-        1,
+        2,
         'ApprovalController:addRequest',
         {
           id: messageIdMock,
@@ -412,7 +417,7 @@ describe('SignatureController', () => {
       expect(listenerMock).toHaveBeenCalledWith({
         error,
       });
-      expect(messengerMock.call).toHaveBeenCalledTimes(2);
+      expect(messengerMock.call).toHaveBeenCalledTimes(3);
       expect(error.message).toBe(keyringErrorMessageMock);
       expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
       expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
@@ -452,7 +457,7 @@ describe('SignatureController', () => {
         undefined,
       );
 
-      expect(messengerMock.call).toHaveBeenCalledTimes(2);
+      expect(messengerMock.call).toHaveBeenCalledTimes(4);
       expect(messengerMock.call).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
@@ -465,14 +470,16 @@ describe('SignatureController', () => {
         true,
       );
       expect(messengerMock.call).toHaveBeenNthCalledWith(
-        2,
+        3,
         'KeyringController:signPersonalMessage',
         messageParamsWithoutIdMock,
       );
     });
 
     it('throws if approval rejected', async () => {
-      messengerMock.call.mockRejectedValueOnce({});
+      messengerMock.call
+        .mockResolvedValueOnce({}) // LoggerController:add
+        .mockRejectedValueOnce({}); // ApprovalController:addRequest
       const error: any = await getError(
         async () =>
           await signatureController.newUnsignedPersonalMessage(
@@ -497,10 +504,10 @@ describe('SignatureController', () => {
           ),
       );
 
-      expect(messengerMock.call).toHaveBeenCalledTimes(2);
+      expect(messengerMock.call).toHaveBeenCalledTimes(3);
       expect(error.message).toBe(keyringErrorMessageMock);
       expect(messengerMock.call).toHaveBeenNthCalledWith(
-        2,
+        3,
         'KeyringController:signPersonalMessage',
         messageParamsWithoutIdMock,
       );
@@ -544,9 +551,9 @@ describe('SignatureController', () => {
         versionMock,
       );
 
-      expect(messengerMock.call).toHaveBeenCalledTimes(2);
+      expect(messengerMock.call).toHaveBeenCalledTimes(4);
       expect(messengerMock.call).toHaveBeenNthCalledWith(
-        1,
+        2,
         'ApprovalController:addRequest',
         {
           id: messageIdMock,
@@ -558,7 +565,7 @@ describe('SignatureController', () => {
         true,
       );
       expect(messengerMock.call).toHaveBeenNthCalledWith(
-        2,
+        3,
         'KeyringController:signTypedMessage',
         messageParamsWithoutIdMock,
         versionMock,
@@ -605,7 +612,7 @@ describe('SignatureController', () => {
       );
 
       expect(messengerMock.call).toHaveBeenNthCalledWith(
-        2,
+        3,
         'KeyringController:signTypedMessage',
         { ...messageParamsMock2, data: jsonData, deferSetAsSigned: false },
         'V2',
@@ -613,7 +620,9 @@ describe('SignatureController', () => {
     });
 
     it('throws if approval rejected', async () => {
-      messengerMock.call.mockRejectedValueOnce({});
+      messengerMock.call
+        .mockResolvedValueOnce({}) // LoggerController:add
+        .mockRejectedValueOnce({}); // ApprovalController:addRequest
       const error: any = await getError(
         async () =>
           await signatureController.newUnsignedTypedMessage(
@@ -926,6 +935,79 @@ describe('SignatureController', () => {
         unapprovedPersonalMsgCount: 0,
         unapprovedTypedMessagesCount: 5,
       });
+    });
+  });
+
+  describe('logging controller events', () => {
+    it('sends proposed sign log event after approval is shown', async () => {
+      await signatureController.newUnsignedTypedMessage(
+        messageParamsMock,
+        requestMock,
+        versionMock,
+        { parseJsonData: false },
+      );
+
+      expect(messengerMock.call).toHaveBeenNthCalledWith(
+        1,
+        'LoggingController:add',
+        {
+          type: LogType.EthSignLog,
+          data: {
+            signingMethod: SigningMethod.EthSignTypedData,
+            stage: SigningStage.Proposed,
+            signingData: expect.anything(),
+          },
+        },
+      );
+    });
+
+    it('sends rejected sign log event if approval is rejected', async () => {
+      messengerMock.call
+        .mockResolvedValueOnce({}) // LoggerController:add
+        .mockRejectedValueOnce({}); // ApprovalController:addRequest
+      await getError(
+        async () =>
+          await signatureController.newUnsignedTypedMessage(
+            messageParamsMock,
+            requestMock,
+            'V3',
+            { parseJsonData: true },
+          ),
+      );
+      expect(messengerMock.call).toHaveBeenNthCalledWith(
+        3,
+        'LoggingController:add',
+        {
+          type: LogType.EthSignLog,
+          data: {
+            signingMethod: SigningMethod.EthSignTypedDataV3,
+            stage: SigningStage.Rejected,
+            signingData: expect.anything(),
+          },
+        },
+      );
+    });
+
+    it('sends signed log event if signature operation is complete', async () => {
+      await signatureController.newUnsignedTypedMessage(
+        messageParamsMock,
+        requestMock,
+        'V4',
+        { parseJsonData: false },
+      );
+
+      expect(messengerMock.call).toHaveBeenNthCalledWith(
+        4,
+        'LoggingController:add',
+        {
+          type: LogType.EthSignLog,
+          data: {
+            signingMethod: SigningMethod.EthSignTypedDataV4,
+            stage: SigningStage.Signed,
+            signingData: expect.anything(),
+          },
+        },
+      );
     });
   });
 });

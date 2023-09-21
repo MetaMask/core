@@ -32,6 +32,7 @@
     "@metamask/base-controller": "^3.2.1",
     "@metamask/controller-utils": "^4.3.2",
     "@metamask/message-manager": "^7.3.2",
+    "@metamask/logging-controller": "^1.0.1",
     "@metamask/utils": "^6.2.0",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
@@ -50,7 +51,8 @@
     "typescript": "~4.6.3"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^3.5.1"
+    "@metamask/approval-controller": "^3.5.1",
+    "@metamask/logging-controller": "^1.0.1"
   },
   "engines": {
     "node": ">=16.0.0"
