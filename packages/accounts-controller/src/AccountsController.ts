@@ -14,6 +14,7 @@ import type {
   SnapControllerEvents,
   SnapControllerState,
 } from '@metamask/snaps-controllers';
+import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
 import type { Patch } from 'immer';
 import { v4 as uuid } from 'uuid';
