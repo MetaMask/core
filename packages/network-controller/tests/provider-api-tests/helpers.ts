@@ -456,7 +456,7 @@ export async function withNetworkClient(
 
   const { provider, blockTracker } = clientUnderTest;
 
-  const ethQuery = new EthQuery(provider);
+  const ethQuery = new EthQuery(provider as any);
   const curriedMakeRpcCall = (request: Request) =>
     makeRpcCall(ethQuery, request);
   const makeRpcCallsInSeries = async (requests: Request[]) => {
