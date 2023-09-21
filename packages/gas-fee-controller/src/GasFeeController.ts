@@ -323,7 +323,7 @@ export class GasFeeController extends BaseControllerV2<
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
 
-    this.ethQuery = new EthQuery(this.#getProvider());
+    this.ethQuery = new EthQuery(this.#getProvider() as any);
 
     if (onNetworkStateChange && getChainId) {
       this.currentChainId = getChainId();
@@ -508,7 +508,7 @@ export class GasFeeController extends BaseControllerV2<
     const newChainId = networkControllerState.providerConfig.chainId;
 
     if (newChainId !== this.currentChainId) {
-      this.ethQuery = new EthQuery(this.#getProvider());
+      this.ethQuery = new EthQuery(this.#getProvider() as any);
       await this.resetPolling();
 
       this.currentChainId = newChainId;
