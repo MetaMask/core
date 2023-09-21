@@ -22,7 +22,7 @@ import {
   mergeMiddleware,
 } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
 
 import type {
