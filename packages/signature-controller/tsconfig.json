@@ -18,6 +18,9 @@
     },
     {
       "path": "../keyring-controller"
+    },
+    {
+      "path": "../logging-controller"
     }
   ],
   "include": ["../../types", "./src"]
