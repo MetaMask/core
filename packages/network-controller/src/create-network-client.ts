@@ -128,7 +128,7 @@ function createInfuraNetworkMiddleware({
   blockTracker: PollingBlockTracker;
   network: InfuraNetworkType;
   rpcProvider: SafeEventEmitterProvider;
-  rpcApiMiddleware: JsonRpcMiddleware<unknown, unknown>;
+  rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 }) {
   return mergeMiddleware([
     createNetworkAndChainIdMiddleware({ network }),
@@ -160,7 +160,7 @@ function createNetworkAndChainIdMiddleware({
 
 const createChainIdMiddleware = (
   chainId: Hex,
-): JsonRpcMiddleware<unknown, unknown> => {
+): JsonRpcMiddleware<JsonRpcParams, Json> => {
   return (req, res, next, end) => {
     if (req.method === 'eth_chainId') {
       res.result = chainId;
