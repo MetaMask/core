@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `sendFlowHistory` property to the transaction metadata ([#1665](https://github.com/MetaMask/core/pull/1665))
 - Add `updateTransactionSendFlowHistory` method to `TransactionController` ([#1665](https://github.com/MetaMask/core/pull/1665))
 - Add `originalGasEstimate` property to the transaction metadata ([#1656](https://github.com/MetaMask/core/pull/1656))
+- Add `incomingTransactions.queryEntireHistory` constructor option ([#1652](https://github.com/MetaMask/core/pull/1652))
 
 ### Changed
 - **BREAKING**: Remove `apiKey` property from `RemoteTransactionSourceRequest` type ([#1668](https://github.com/MetaMask/core/pull/1668))
@@ -25,7 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Add `disableSendFlowHistory` constructor option ([#1665](https://github.com/MetaMask/core/pull/1665))
   - Defaults to `false` but will increase state size considerably unless disabled
 - **BREAKING**: Rename the `transactionHash` property to `hash` in the transaction metadata
-- Add `incomingTransactions.queryEntireHistory` constructor option
 
 ### Fixed
 - Fix the sorting of incoming and updated transactions ([#1652](https://github.com/MetaMask/core/pull/1652))
