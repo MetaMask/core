@@ -167,9 +167,10 @@ export class AccountsController extends BaseControllerV2<
     // if somehow the selected account becomes lost then select the first account
     if (
       this.state.internalAccounts.selectedAccount !== '' &&
-      !this.getAccount(this.state.internalAccounts.selectedAccount)
+      !this.getAccount(this.state.internalAccounts.selectedAccount) &&
+      this.listAccounts().length > 0
     ) {
-      this.setSelectedAccount(this.listAccounts()[0]?.id);
+      this.setSelectedAccount(this.listAccounts()[0].id);
     }
   }
 
@@ -439,8 +440,8 @@ export class AccountsController extends BaseControllerV2<
       .sort((accountA, accountB) => {
         // sort by lastSelected descending
         return (
-          (accountB.metadata?.lastSelected ?? 0) -
-          (accountA.metadata?.lastSelected ?? 0)
+          (accountB.metadata.lastSelected ?? 0) -
+          (accountA.metadata.lastSelected ?? 0)
         );
       })[0];
 
@@ -510,7 +511,7 @@ export class AccountsController extends BaseControllerV2<
       accounts.forEach((account) => {
         const currentAccount =
           currentState.internalAccounts.accounts[account.id];
-        if (currentAccount?.metadata?.snap) {
+        if (currentAccount.metadata.snap) {
           currentAccount.metadata.snap.enabled =
             snaps[currentAccount.metadata.snap.id].enabled &&
             !snaps[currentAccount.metadata.snap.id].blocked;

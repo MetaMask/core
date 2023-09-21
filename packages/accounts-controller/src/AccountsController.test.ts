@@ -683,6 +683,86 @@ describe('AccountsController', () => {
         setLastSelectedAsAny(mockAccount),
       );
     });
+
+    it('should delete the account and select the account with the most recent lastSelected', async () => {
+      const messenger = buildMessenger();
+      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValue([
+          mockAccount.address,
+          mockAccount2.address,
+        ]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
+      );
+
+      const mockAccountWithoutLastSelected = {
+        ...mockAccount,
+        metadata: {
+          ...mockAccount.metadata,
+          lastSelected: undefined,
+        },
+      };
+
+      const mockAccount2WithoutLastSelected = {
+        ...mockAccount2,
+        metadata: {
+          ...mockAccount2.metadata,
+          lastSelected: undefined,
+        },
+      };
+
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [
+              mockAccountWithoutLastSelected.address,
+              mockAccount2.address,
+            ],
+          },
+        ],
+      };
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              'missing-account': {
+                address: '0x999',
+              } as InternalAccount,
+              [mockAccount2.id]: mockAccount2WithoutLastSelected,
+              [mockAccount.id]: mockAccountWithoutLastSelected,
+            },
+            selectedAccount: 'missing-account',
+          },
+        },
+        keyringApiEnabled: false,
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const accounts = accountsController.listAccounts();
+
+      expect(accounts).toStrictEqual([
+        setLastSelectedAsAny(mockAccountWithoutLastSelected),
+        mockAccount2WithoutLastSelected,
+      ]);
+      expect(accountsController.getSelectedAccount()).toStrictEqual(
+        setLastSelectedAsAny(mockAccountWithoutLastSelected),
+      );
+    });
   });
 
   describe('constructor', () => {
