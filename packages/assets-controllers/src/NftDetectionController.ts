@@ -372,9 +372,7 @@ export class NftDetectionController extends BaseController<
           last_sale && { lastSale: last_sale },
         );
 
-        await this.addNft({
-          tokenAddress: address,
-          tokenId: token_id,
+        await this.addNft(address, token_id, {
           nftMetadata,
           userAddress: selectedAddress,
           chainId,

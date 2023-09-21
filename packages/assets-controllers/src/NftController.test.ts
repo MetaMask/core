@@ -781,9 +781,7 @@ describe('NftController', () => {
       const { nftController } = setupController();
 
       const { selectedAddress, chainId } = nftController.config;
-      await nftController.addNft({
-        tokenAddress: '0x01',
-        tokenId: '1',
+      await nftController.addNft('0x01', '1', {
         nftMetadata: {
           name: 'name',
           image: 'image',
@@ -823,9 +821,7 @@ describe('NftController', () => {
         includeOnNftAdded: true,
       });
 
-      await nftController.addNft({
-        tokenAddress: '0x01',
-        tokenId: '1',
+      await nftController.addNft('0x01', '1', {
         nftMetadata: {
           name: 'name',
           image: 'image',
@@ -850,9 +846,7 @@ describe('NftController', () => {
       });
 
       const detectedUserAddress = '0x123';
-      await nftController.addNft({
-        tokenAddress: '0x01',
-        tokenId: '2',
+      await nftController.addNft('0x01', '2', {
         nftMetadata: {
           name: 'name',
           image: 'image',
@@ -906,11 +900,13 @@ describe('NftController', () => {
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        favorite: false,
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        },
       });
 
       expect(
@@ -927,11 +923,13 @@ describe('NftController', () => {
       });
 
       await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image-updated',
-        description: 'description',
-        standard: 'standard',
-        favorite: false,
+        nftMetadata: {
+          name: 'name',
+          image: 'image-updated',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        },
       });
 
       expect(
@@ -952,19 +950,23 @@ describe('NftController', () => {
       const { nftController } = setupController();
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        favorite: false,
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        },
       });
 
       await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        favorite: false,
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        },
       });
 
       expect(
@@ -1483,13 +1485,11 @@ describe('NftController', () => {
         description: 'description',
       });
 
-      await nftController.addNft(
-        '0x01234abcdefg',
-        '1234',
-        undefined,
-        { chainId: GOERLI.chainId, userAddress: '0x123' },
-        Source.Dapp,
-      );
+      await nftController.addNft('0x01234abcdefg', '1234', {
+        chainId: GOERLI.chainId,
+        userAddress: '0x123',
+        source: Source.Dapp,
+      });
 
       expect(nftController.state.allNftContracts).toStrictEqual({
         '0x123': {
@@ -1555,12 +1555,11 @@ describe('NftController', () => {
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
-        undefined,
         {
           userAddress: selectedAddress,
           chainId,
+          source: Source.Detected,
         },
-        Source.Detected,
       );
 
       expect(
@@ -1571,16 +1570,11 @@ describe('NftController', () => {
         nftController.state.allNftContracts[selectedAddress]?.[chainId],
       ).toBeUndefined();
 
-      await nftController.addNft(
-        ERC721_KUDOSADDRESS,
-        ERC721_KUDOS_TOKEN_ID,
-        undefined,
-        {
-          userAddress: selectedAddress,
-          chainId,
-        },
-        Source.Detected,
-      );
+      await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID, {
+        userAddress: selectedAddress,
+        chainId,
+        source: Source.Detected,
+      });
 
       expect(
         nftController.state.allNfts[selectedAddress][chainId],
@@ -1642,24 +1636,18 @@ describe('NftController', () => {
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
-        undefined,
         {
           userAddress: selectedAddress,
           chainId,
+          source: Source.Detected,
         },
-        Source.Detected,
       );
 
-      await nftController.addNft(
-        ERC721_KUDOSADDRESS,
-        ERC721_KUDOS_TOKEN_ID,
-        undefined,
-        {
-          userAddress: selectedAddress,
-          chainId,
-        },
-        Source.Detected,
-      );
+      await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID, {
+        userAddress: selectedAddress,
+        chainId,
+        source: Source.Detected,
+      });
 
       expect(nftController.state.allNfts).toStrictEqual({});
 
@@ -1673,17 +1661,21 @@ describe('NftController', () => {
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+        },
       });
 
       await nftController.addNft('0x01', '2', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+        },
       });
 
       expect(
@@ -1698,10 +1690,12 @@ describe('NftController', () => {
       expect(nftController.state.ignoredNfts).toHaveLength(1);
 
       await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+        },
       });
 
       expect(
@@ -2015,10 +2009,12 @@ describe('NftController', () => {
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+        },
       });
       nftController.removeNft('0x01', '1');
       expect(
@@ -2035,17 +2031,21 @@ describe('NftController', () => {
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+        },
       });
 
       await nftController.addNft('0x01', '2', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+        },
       });
       nftController.removeNft('0x01', '1');
       expect(
@@ -2125,11 +2125,13 @@ describe('NftController', () => {
     const { selectedAddress, chainId } = nftController.config;
 
     await nftController.addNft('0x02', '1', {
-      name: 'name',
-      image: 'image',
-      description: 'description',
-      standard: 'standard',
-      favorite: false,
+      nftMetadata: {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      },
     });
 
     expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
@@ -2457,10 +2459,12 @@ describe('NftController', () => {
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
         {
-          image: 'new_image',
-          name: 'new_name',
-          description: 'new_description',
-          standard: 'ERC721',
+          nftMetadata: {
+            image: 'new_image',
+            name: 'new_name',
+            description: 'new_description',
+            standard: 'ERC721',
+          },
         },
       );
 
@@ -2506,10 +2510,12 @@ describe('NftController', () => {
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
         {
-          image: 'new_image',
-          name: 'new_name',
-          description: 'new_description',
-          standard: 'ERC721',
+          nftMetadata: {
+            image: 'new_image',
+            name: 'new_name',
+            description: 'new_description',
+            standard: 'ERC721',
+          },
         },
       );
 
@@ -2540,11 +2546,13 @@ describe('NftController', () => {
 
           const { selectedAddress, chainId } = nftController.config;
           await nftController.addNft('0x02', '1', {
-            name: 'name',
-            image: 'image',
-            description: 'description',
-            standard: 'standard',
-            favorite: false,
+            nftMetadata: {
+              name: 'name',
+              image: 'image',
+              description: 'description',
+              standard: 'standard',
+              favorite: false,
+            },
           });
 
           expect(
@@ -2566,11 +2574,13 @@ describe('NftController', () => {
 
         const { selectedAddress, chainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
+          nftMetadata: {
+            name: 'name',
+            image: 'image',
+            description: 'description',
+            standard: 'standard',
+            favorite: false,
+          },
         });
 
         expect(
@@ -2593,11 +2603,13 @@ describe('NftController', () => {
 
         const { selectedAddress, chainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
+          nftMetadata: {
+            name: 'name',
+            image: 'image',
+            description: 'description',
+            standard: 'standard',
+            favorite: false,
+          },
         });
 
         expect(
@@ -2626,7 +2638,9 @@ describe('NftController', () => {
             favorite: false,
           };
 
-          await nftController.addNft(nft.address, nft.tokenId, nft);
+          await nftController.addNft(nft.address, nft.tokenId, {
+            nftMetadata: nft,
+          });
 
           expect(
             nftController.state.allNfts[selectedAddress][chainId][0]
@@ -2660,7 +2674,9 @@ describe('NftController', () => {
           favorite: false,
         };
 
-        await nftController.addNft(nft.address, nft.tokenId, nft);
+        await nftController.addNft(nft.address, nft.tokenId, {
+          nftMetadata: nft,
+        });
 
         expect(
           nftController.state.allNfts[selectedAddress][chainId][0]
@@ -2697,7 +2713,9 @@ describe('NftController', () => {
           favorite: false,
         };
 
-        await nftController.addNft(nft.address, nft.tokenId, nft);
+        await nftController.addNft(nft.address, nft.tokenId, {
+          nftMetadata: nft,
+        });
 
         expect(
           nftController.state.allNfts[selectedAddress][chainId][0]
