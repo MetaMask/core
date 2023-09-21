@@ -15,8 +15,6 @@ import {
   providerFromEngine,
   providerFromMiddleware,
 } from '@metamask/eth-json-rpc-provider';
-import type { Hex } from '@metamask/utils';
-import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   createAsyncMiddleware,
   createScaffoldMiddleware,
@@ -24,6 +22,8 @@ import {
   mergeMiddleware,
 } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
+import { PollingBlockTracker } from 'eth-block-tracker';
 
 import type {
   BlockTracker,
@@ -126,7 +126,7 @@ function createInfuraNetworkMiddleware({
   blockTracker: PollingBlockTracker;
   network: InfuraNetworkType;
   rpcProvider: SafeEventEmitterProvider;
-  rpcApiMiddleware: JsonRpcMiddleware<unknown, unknown>;
+  rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 }) {
   return mergeMiddleware([
     createNetworkAndChainIdMiddleware({ network }),
@@ -158,7 +158,7 @@ function createNetworkAndChainIdMiddleware({
 
 const createChainIdMiddleware = (
   chainId: Hex,
-): JsonRpcMiddleware<unknown, unknown> => {
+): JsonRpcMiddleware<JsonRpcParams, Json> => {
   return (req, res, next, end) => {
     if (req.method === 'eth_chainId') {
       res.result = chainId;
