@@ -212,6 +212,7 @@ function setupController({
     getERC1155TokenURI:
       getERC1155TokenURIStub ??
       assetsContract.getERC1155TokenURI.bind(assetsContract),
+    getNetworkClientById: jest.fn(),
     onNftAdded: onNftAddedSpy,
     messenger: nftControllerMessenger,
   });
@@ -780,12 +781,16 @@ describe('NftController', () => {
       const { nftController } = setupController();
 
       const { selectedAddress, chainId } = nftController.config;
-      await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        favorite: false,
+      await nftController.addNft({
+        tokenAddress: '0x01',
+        tokenId: '1',
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        },
       });
 
       expect(
@@ -818,12 +823,16 @@ describe('NftController', () => {
         includeOnNftAdded: true,
       });
 
-      await nftController.addNft('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'ERC1155',
-        favorite: false,
+      await nftController.addNft({
+        tokenAddress: '0x01',
+        tokenId: '1',
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'ERC1155',
+          favorite: false,
+        },
       });
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({
@@ -841,19 +850,20 @@ describe('NftController', () => {
       });
 
       const detectedUserAddress = '0x123';
-      await nftController.addNft(
-        '0x01',
-        '2',
-        {
+      await nftController.addNft({
+        tokenAddress: '0x01',
+        tokenId: '2',
+        nftMetadata: {
           name: 'name',
           image: 'image',
           description: 'description',
           standard: 'ERC721',
           favorite: false,
         },
-        { userAddress: detectedUserAddress, chainId: toHex(2) },
-        Source.Detected,
-      );
+        userAddress: detectedUserAddress,
+        chainId: toHex(2),
+        source: Source.Detected,
+      });
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({
         source: 'detected',
