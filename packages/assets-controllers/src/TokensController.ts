@@ -396,8 +396,9 @@ export class TokensController extends BaseController<
    * Add a batch of tokens.
    *
    * @param tokensToImport - Array of tokens to import.
+   * @param networkClientId - Optional network client ID used to determine interacting chain ID.
    */
-  async addTokens(tokensToImport: Token[]) {
+  async addTokens(tokensToImport: Token[], networkClientId?: NetworkClientId) {
     const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
@@ -432,11 +433,18 @@ export class TokensController extends BaseController<
         (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
       );
 
+      let interactingChainId;
+      if (networkClientId) {
+        interactingChainId =
+          this.getNetworkClientById(networkClientId).configuration.chainId;
+      }
+
       const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
         this._getNewAllTokensState({
           newTokens,
           newDetectedTokens,
           newIgnoredTokens,
+          interactingChainId,
         });
 
       this.update({
@@ -637,7 +645,7 @@ export class TokensController extends BaseController<
    * Detects whether or not a token is ERC-721 compatible.
    *
    * @param tokenAddress - The token contract address.
-   * @param networkClientId - Network Client ID.
+   * @param networkClientId - Optional network client ID to fetch contract info with.
    * @returns A boolean indicating whether the token address passed in supports the EIP-721
    * interface.
    */

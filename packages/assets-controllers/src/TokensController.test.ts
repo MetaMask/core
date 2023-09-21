@@ -987,6 +987,39 @@ describe('TokensController', () => {
       expect(tokensController.state.detectedTokens).toStrictEqual([]);
       expect(tokensController.state.tokens).toStrictEqual(dummyAddedTokens);
     });
+
+    it('should add tokens to the correct chainId when passed a networkClientId', async () => {
+      const getNetworkClientByIdStub = jest
+        .spyOn(tokensController as any, 'getNetworkClientById')
+        .mockReturnValue({ configuration: { chainId: '0x5' } });
+
+      const dummyTokens: Token[] = [
+        {
+          address: '0x01',
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+          image: undefined,
+          name: undefined,
+        },
+        {
+          address: '0x02',
+          symbol: 'barB',
+          decimals: 2,
+          aggregators: [],
+          image: undefined,
+          name: undefined,
+        },
+      ];
+
+      await tokensController.addTokens(dummyTokens, 'networkClientId1');
+
+      expect(tokensController.state.tokens).toStrictEqual(dummyTokens);
+      expect(tokensController.state.allTokens['0x5']['0x1']).toStrictEqual(
+        dummyTokens,
+      );
+      expect(getNetworkClientByIdStub).toHaveBeenCalledWith('networkClientId1');
+    });
   });
 
   describe('_getNewAllTokensState method', () => {
