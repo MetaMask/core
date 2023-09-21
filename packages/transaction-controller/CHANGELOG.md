@@ -6,6 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+### Added
+- Add optional `getLastBlockVariations` method to `RemoteTransactionSource` type ([#1668](https://github.com/MetaMask/core/pull/1668))
+- Add `updateTransactionGasFees` public method to `TransactionController` ([#1674](https://github.com/MetaMask/core/pull/1674))
+- Add `r`, `s` and `v`  properties to `TransactionMeta` ([#1664](https://github.com/MetaMask/core/pull/1664))
+- Add `sendFlowHistory` property to transaction meta. ([#1665](https://github.com/MetaMask/core/pull/1665))
+- Add `updateTransactionSendFlowHistory` function to the public API of the controller. ([#1665](https://github.com/MetaMask/core/pull/1665))
+- Persist `originalGasEstimate` in transaction metadata ([#1656](https://github.com/MetaMask/core/pull/1656))
+
+### Changed
+- **BREAKING**: Remove `apiKey` property from `RemoteTransactionSourceRequest` type ([#1668](https://github.com/MetaMask/core/pull/1668))
+- **BREAKING**: Remove unused `FetchAllOptions` type from `TransactionController` ([#1668](https://github.com/MetaMask/core/pull/1668))
+- **BREAKING**: Remove `incomingTransactions.apiKey` property from `TransactionController` constructor arguments ([#1668](https://github.com/MetaMask/core/pull/1668))
+- **BREAKING**: Rename the `transaction` object to `txParams` in the persisted `TransactionMeta` ([#1651](https://github.com/MetaMask/core/pull/1651))
+- **BREAKING**: Added `disableHistory` constructor option ([#1657](https://github.com/MetaMask/core/pull/1657))
+- **BREAKING**: Added `disableSendFlowHistory` constructor option ([#1665](https://github.com/MetaMask/core/pull/1665))
+- **BREAKING**: Rename the `transactionHash` property to `hash` in the persisted `TransactionMeta`.
+- Add the `incomingTransactions.queryEntireHistory` constructor option.
+- Only use the `incomingTransactions.apiKey` when querying the standard Etherscan domain. ([#1652](https://github.com/MetaMask/core/pull/1652))
+
+### Fixed
+- Fix the sorting of incoming and updated transactions ([#1652](https://github.com/MetaMask/core/pull/1652))
+
 ## [10.0.0]
 ### Added
 - Add `submittedTime` to the transaction metadata ([#1645](https://github.com/MetaMask/core/pull/1645))
@@ -160,7 +183,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@10.0.0...@metamask/transaction-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.2.0...@metamask/transaction-controller@10.0.0
 [9.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.1.0...@metamask/transaction-controller@9.2.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.0.0...@metamask/transaction-controller@9.1.0
