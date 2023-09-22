@@ -4,7 +4,8 @@
 
 - Install [Node.js](https://nodejs.org) version 16.
   - If you're using [NVM](https://github.com/creationix/nvm#installation) (recommended), `nvm use` will ensure that the right version is installed.
-- Install [Yarn v3](https://yarnpkg.com/getting-started/install).
+- Enable Corepack by executing the command `corepack enable` from the project root directory.
+  - Corepack is a utility included with Node.js by default. It manages Yarn on a per-project basis, using the version specified by the `packageManager` property in the project's package.json file.
 - Run `yarn install` to install dependencies and run any required post-install scripts.
 - Run `yarn simple-git-hooks` to add a [Git hook](https://github.com/toplenboren/simple-git-hooks#what-is-a-git-hook) to your local development environment which will ensure that all files pass linting before you push a branch.
 
