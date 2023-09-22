@@ -1,3 +1,4 @@
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
 import type {
@@ -139,6 +140,28 @@ describe('utils', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '1',
+        } as any),
+      ).not.toThrow();
+    });
+
+    it('throws if data is invalid', () => {
+      expect(() =>
+        util.validateTxParams({
+          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+          to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+          data: '0xa9059cbb00000000000000000000000011b6A5fE2906F3354145613DB0d99CEB51f604C90000000000000000000000000000000000000000000000004563918244F400',
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid transaction params: data out-of-bounds, BUFFER_OVERRUN.',
+        ),
+      );
+
+      expect(() =>
+        util.validateTxParams({
+          from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+          value: '0x01',
+          data: 'INVALID_ARGUMENT',
         } as any),
       ).not.toThrow();
     });

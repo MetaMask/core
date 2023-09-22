@@ -1,7 +1,10 @@
+import { Interface } from '@ethersproject/abi';
 import {
   convertHexToDecimal,
   isValidHexAddress,
 } from '@metamask/controller-utils';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
@@ -55,16 +58,78 @@ export function normalizeTxParams(txParams: TransactionParams) {
  * @param txParams - Transaction params object to validate.
  */
 export function validateTxParams(txParams: TransactionParams) {
-  if (
-    !txParams.from ||
-    typeof txParams.from !== 'string' ||
-    !isValidHexAddress(txParams.from)
-  ) {
-    throw new Error(
-      `Invalid "from" address: ${txParams.from} must be a valid string.`,
-    );
-  }
+  validateFrom(txParams);
+  validateRecipient(txParams);
+  validateInputValue(txParams.value);
+  validateInputData(txParams.data);
+}
 
+/**
+ * Validates input data for transactions.
+ *
+ * @param value - The input data to validate.
+ * @throws Throws invalid params if the input data is invalid.
+ */
+function validateInputData(value?: string) {
+  if (value) {
+    const ERC20Interface = new Interface(abiERC20);
+    try {
+      ERC20Interface.parseTransaction({ data: value });
+    } catch (error: any) {
+      if (error.message.match(/BUFFER_OVERRUN/u)) {
+        throw rpcErrors.invalidParams(
+          'Invalid transaction params: data out-of-bounds, BUFFER_OVERRUN.',
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Validates an input value, ensuring it is a valid positive integer number
+ * denominated in wei.
+ *
+ * @param value - The input value to validate, expressed as a string.
+ * @throws Throws an error if the input value is not a valid positive integer
+ * number denominated in wei.
+ * - If the input value contains a hyphen (-), it is considered invalid.
+ * - If the input value contains a decimal point (.), it is considered invalid.
+ * - If the input value is not a finite number, is NaN, or is not a safe integer, it is considered invalid.
+ */
+function validateInputValue(value?: string) {
+  if (value !== undefined) {
+    if (value.includes('-')) {
+      throw new Error(`Invalid "value": ${value} is not a positive number.`);
+    }
+
+    if (value.includes('.')) {
+      throw new Error(
+        `Invalid "value": ${value} number must be denominated in wei.`,
+      );
+    }
+    const intValue = parseInt(value, 10);
+    const isValid =
+      Number.isFinite(intValue) &&
+      !Number.isNaN(intValue) &&
+      !isNaN(Number(value)) &&
+      Number.isSafeInteger(intValue);
+    if (!isValid) {
+      throw new Error(
+        `Invalid "value": ${value} number must be a valid number.`,
+      );
+    }
+  }
+}
+/**
+ * Validates the recipient address in a transaction's parameters.
+ *
+ * @param txParams - The transaction parameters object to validate.
+ * @throws Throws an error if the recipient address is invalid:
+ * - If the recipient address is an empty string ('0x') or undefined and the transaction contains data,
+ * the "to" field is removed from the transaction parameters.
+ * - If the recipient address is not a valid hexadecimal Ethereum address, an error is thrown.
+ */
+function validateRecipient(txParams: TransactionParams) {
   if (txParams.to === '0x' || txParams.to === undefined) {
     if (txParams.data) {
       delete txParams.to;
@@ -78,29 +143,25 @@ export function validateTxParams(txParams: TransactionParams) {
       `Invalid "to" address: ${txParams.to} must be a valid string.`,
     );
   }
-
-  if (txParams.value !== undefined) {
-    const value = txParams.value.toString();
-    if (value.includes('-')) {
-      throw new Error(`Invalid "value": ${value} is not a positive number.`);
-    }
-
-    if (value.includes('.')) {
-      throw new Error(
-        `Invalid "value": ${value} number must be denominated in wei.`,
-      );
-    }
-    const intValue = parseInt(txParams.value, 10);
-    const isValid =
-      Number.isFinite(intValue) &&
-      !Number.isNaN(intValue) &&
-      !isNaN(Number(value)) &&
-      Number.isSafeInteger(intValue);
-    if (!isValid) {
-      throw new Error(
-        `Invalid "value": ${value} number must be a valid number.`,
-      );
-    }
+}
+/**
+ * Validates the recipient address in a transaction's parameters.
+ *
+ * @param txParams - The transaction parameters object to validate.
+ * @throws Throws an error if the recipient address is invalid:
+ * - If the recipient address is an empty string ('0x') or undefined and the transaction contains data,
+ * the "to" field is removed from the transaction parameters.
+ * - If the recipient address is not a valid hexadecimal Ethereum address, an error is thrown.
+ */
+function validateFrom(txParams: TransactionParams) {
+  if (
+    !txParams.from ||
+    typeof txParams.from !== 'string' ||
+    !isValidHexAddress(txParams.from)
+  ) {
+    throw new Error(
+      `Invalid "from" address: ${txParams.from} must be a valid string.`,
+    );
   }
 }
 
