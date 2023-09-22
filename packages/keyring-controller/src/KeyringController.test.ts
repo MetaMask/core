@@ -188,9 +188,9 @@ describe('KeyringController', () => {
             ],
           },
           async ({ controller, initialState, preferences }) => {
-            const mockKeyring = await controller.addNewKeyring(
+            const mockKeyring = (await controller.addNewKeyring(
               MockShallowGetAccountsKeyring.type,
-            );
+            )) as Keyring<Json>;
 
             const addedAccountAddress =
               await controller.addNewAccountForKeyring(mockKeyring);
@@ -1490,6 +1490,7 @@ describe('KeyringController', () => {
     };
 
     let signProcessKeyringController: KeyringController;
+    let signProcessKeyringControllerMessenger: KeyringControllerMessenger;
 
     let requestSignatureStub: sinon.SinonStub;
     let readAccountSub: sinon.SinonStub;
@@ -1510,11 +1511,18 @@ describe('KeyringController', () => {
     };
 
     beforeEach(async () => {
-      signProcessKeyringController = await withController(
-        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
-        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
-        ({ controller }) => controller,
+      const { controller, messenger } = await withController(
+        {
+          // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
+          keyringBuilders: [keyringBuilderFactory(QRKeyring)],
+          cacheEncryptionKey: true,
+        },
+        (args) => args,
       );
+
+      signProcessKeyringController = controller;
+      signProcessKeyringControllerMessenger = messenger;
+
       const qrkeyring = await signProcessKeyringController.getOrAddQRKeyring();
       qrkeyring.forgetDevice();
 
@@ -1527,6 +1535,21 @@ describe('KeyringController', () => {
         qrkeyring.getInteraction(),
         'readCryptoHDKeyOrCryptoAccount',
       );
+    });
+
+    describe('getQRKeyring', () => {
+      it('should return QR keyring', async () => {
+        const qrKeyring = signProcessKeyringController.getQRKeyring();
+        expect(qrKeyring).toBeDefined();
+        expect(qrKeyring).toBeInstanceOf(QRKeyring);
+      });
+
+      it('should return undefined if QR keyring is not present', async () => {
+        await withController(async ({ controller }) => {
+          const qrKeyring = controller.getQRKeyring();
+          expect(qrKeyring).toBeUndefined();
+        });
+      });
     });
 
     describe('connectQRHardware', () => {
@@ -1935,6 +1958,112 @@ describe('KeyringController', () => {
         expect(cancelSyncRequestStub.called).toBe(true);
       });
     });
+
+    describe('QRKeyring store events', () => {
+      describe('KeyringController:qrKeyringStateChange', () => {
+        it('should emit KeyringController:qrKeyringStateChange event after `getOrAddQRKeyring()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          const qrKeyring =
+            await signProcessKeyringController.getOrAddQRKeyring();
+
+          qrKeyring.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should emit KeyringController:qrKeyringStateChange after `submitPassword()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          // We ensure there is a QRKeyring before locking
+          await signProcessKeyringController.getOrAddQRKeyring();
+          // Locking the keyring will dereference the QRKeyring
+          await signProcessKeyringController.setLocked();
+          // ..and unlocking it should add a new instance of QRKeyring
+          await signProcessKeyringController.submitPassword(password);
+          // We call `getQRKeyring` instead of `getOrAddQRKeyring` so that
+          // we are able to test if the subscription to the internal QR keyring
+          // was made while unlocking the keyring.
+          const qrKeyring = signProcessKeyringController.getQRKeyring();
+
+          // As we added a QR keyring before lock/unlock, this must be defined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          qrKeyring!.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          // Only one call ensures that the first subscription made by
+          // QR keyring before locking was removed
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should emit KeyringController:qrKeyringStateChange after `submitEncryptionKey()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          const salt = signProcessKeyringController.state
+            .encryptionSalt as string;
+          // We ensure there is a QRKeyring before locking
+          await signProcessKeyringController.getOrAddQRKeyring();
+          // Locking the keyring will dereference the QRKeyring
+          await signProcessKeyringController.setLocked();
+          // ..and unlocking it should add a new instance of QRKeyring
+          await signProcessKeyringController.submitEncryptionKey(
+            mockKey.toString('hex'),
+            salt,
+          );
+          // We call `getQRKeyring` instead of `getOrAddQRKeyring` so that
+          // we are able to test if the subscription to the internal QR keyring
+          // was made while unlocking the keyring.
+          const qrKeyring = signProcessKeyringController.getQRKeyring();
+
+          // As we added a QR keyring before lock/unlock, this must be defined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          qrKeyring!.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          // Only one call ensures that the first subscription made by
+          // QR keyring before locking was removed
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should emit KeyringController:qrKeyringStateChange after `addNewKeyring()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          const qrKeyring = (await signProcessKeyringController.addNewKeyring(
+            KeyringTypes.qr,
+          )) as QRKeyring;
+
+          qrKeyring.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+      });
+    });
   });
 
   describe('actions', () => {
@@ -2181,6 +2310,7 @@ function buildKeyringControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:lock',
       'KeyringController:unlock',
       'KeyringController:accountRemoved',
+      'KeyringController:qrKeyringStateChange',
     ],
   });
 }
