@@ -6,7 +6,7 @@
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/gas-fee-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/polling-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
