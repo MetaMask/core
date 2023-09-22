@@ -8,7 +8,7 @@ module.exports = {
     'dist',
     'docs',
     'coverage',
-    'merged-packages',
+    // 'merged-packages',
   ],
   overrides: [
     {
