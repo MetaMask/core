@@ -1986,7 +1986,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@^12.1.2, @metamask/network-controller@^12.2.0, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@^12.2.0, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -2129,7 +2129,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^4.3.2
     "@metamask/eth-query": ^3.0.1
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
@@ -2148,7 +2148,7 @@ __metadata:
     typescript: ~4.6.3
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^12.1.2
+    "@metamask/network-controller": ^12.2.0
   languageName: unknown
   linkType: soft
 
