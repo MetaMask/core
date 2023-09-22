@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/message-manager",
-  "version": "7.3.2",
-  "description": "Stores and manages interactions with signing requests",
+  "name": "@metamask/accounts-controller",
+  "version": "1.0.0",
+  "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/message-manager#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/accounts-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -22,30 +22,38 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/message-manager",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/accounts-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^4.3.2",
-    "@metamask/eth-sig-util": "^7.0.0",
+    "@metamask/eth-snap-keyring": "^0.2.2",
+    "@metamask/keyring-api": "^0.2.5",
+    "@metamask/snaps-utils": "^1.0.1",
     "@metamask/utils": "^6.2.0",
-    "@types/uuid": "^8.3.0",
+    "deepmerge": "^4.2.2",
+    "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
-    "jsonschema": "^1.2.4",
+    "immer": "^9.0.6",
+    "nanoid": "^3.1.31",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/keyring-controller": "^7.5.0",
+    "@metamask/snaps-controllers": "^1.0.1",
     "@types/jest": "^27.4.1",
-    "deepmerge": "^4.2.2",
+    "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
+  },
+  "peerDependencies": {
+    "@metamask/keyring-controller": "^7.5.0"
   },
   "engines": {
     "node": ">=16.0.0"
