@@ -171,13 +171,17 @@ export const phishingListKeyNameMap = {
 
 const controllerName = 'PhishingController';
 
-const stateMetadata = {
+const metadata = {
   phishingLists: { persist: false, anonymous: false },
   whitelist: { persist: false, anonymous: false },
   hotlistLastFetched: { persist: false, anonymous: false },
   stalelistLastFetched: { persist: false, anonymous: false },
 };
 
+/**
+ * Get a default empty state for the controller.
+ * @returns The default empty state.
+ */
 const getDefaultState = (): PhishingControllerState => {
   return {
     phishingLists: [],
@@ -257,11 +261,10 @@ export class PhishingController extends BaseController<
    * Construct a Phishing Controller.
    *
    * @param config - Initial options used to configure this controller.
-   * @param config.stalelistRefreshInterval
-   * @param state - Initial state to set on this controller.
-   * @param config.hotlistRefreshInterval
-   * @param config.messenger
-   * @param config.state
+   * @param config.stalelistRefreshInterval - Polling interval used to fetch stale list.
+   * @param config.hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
+   * @param config.messenger - The controller restricted messenger.
+   * @param config.state - Initial state to set on this controller.
    */
   constructor({
     stalelistRefreshInterval = STALELIST_REFRESH_INTERVAL,
@@ -271,7 +274,7 @@ export class PhishingController extends BaseController<
   }: PhishingControllerOptions) {
     super({
       name: controllerName,
-      metadata: stateMetadata,
+      metadata,
       messenger,
       state: {
         ...getDefaultState(),

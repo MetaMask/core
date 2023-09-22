@@ -16,7 +16,9 @@ import {
 const controllerName = 'PhishingController';
 
 /**
+ * Constructs a restricted controller messenger.
  *
+ * @returns A restricted controller messenger.
  */
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<
@@ -36,8 +38,9 @@ function getRestrictedMessenger() {
 }
 
 /**
- *
- * @param options
+ * Contruct a Phishing Controller with the given options if any.
+ * @param options - The Phishing Controller options.
+ * @returns The contstructed Phishing Controller.
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   return new PhishingController({
