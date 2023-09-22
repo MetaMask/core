@@ -1,8 +1,4 @@
-import type {
-  BaseConfig,
-  BaseState,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
@@ -10,23 +6,18 @@ import { toASCII } from 'punycode/';
 
 import { applyDiffs, fetchTimeNow } from './utils';
 
-const controllerName = 'PhishingController';
+export const PHISHING_CONFIG_BASE_URL =
+  'https://phishing-detection.metafi.codefi.network';
 
-const stateMetadata = {
-  phishingLists: { persist: false, anonymous: false },
-  whitelist: { persist: false, anonymous: false },
-  hotlistLastFetched: { persist: false, anonymous: false },
-  stalelistLastFetched: { persist: false, anonymous: false },
-};
+export const METAMASK_STALELIST_FILE = '/v1/stalelist';
 
-const getDefaultState = (): PhishingControllerState => {
-  return {
-    phishingLists: [],
-    whitelist: [],
-    hotlistLastFetched: 0,
-    stalelistLastFetched: 0,
-  };
-};
+export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
+
+export const HOTLIST_REFRESH_INTERVAL = 30 * 60; // 30 mins in seconds
+export const STALELIST_REFRESH_INTERVAL = 4 * 24 * 60 * 60; // 4 days in seconds
+
+export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`;
+export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
 
 /**
  * @type ListTypes
@@ -144,33 +135,6 @@ export type DataResultWrapper<T> = {
 export type Hotlist = HotlistDiff[];
 
 /**
- * @type PhishingState
- *
- * Phishing controller state
- * @property phishing - eth-phishing-detect configuration
- * @property whitelist - array of temporarily-approved origins
- */
-export type PhishingControllerState = {
-  phishingLists: PhishingListState[];
-  whitelist: string[];
-  hotlistLastFetched: number;
-  stalelistLastFetched: number;
-};
-
-export const PHISHING_CONFIG_BASE_URL =
-  'https://phishing-detection.metafi.codefi.network';
-
-export const METAMASK_STALELIST_FILE = '/v1/stalelist';
-
-export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
-
-export const HOTLIST_REFRESH_INTERVAL = 30 * 60; // 30 mins in seconds
-export const STALELIST_REFRESH_INTERVAL = 4 * 24 * 60 * 60; // 4 days in seconds
-
-export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`;
-export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
-
-/**
  * Enum containing upstream data provider source list keys.
  * These are the keys denoting lists consumed by the upstream data provider.
  */
@@ -203,6 +167,38 @@ const phishingListNameKeyMap = {
 export const phishingListKeyNameMap = {
   [ListKeys.EthPhishingDetectConfig]: ListNames.MetaMask,
   [ListKeys.PhishfortHotlist]: ListNames.Phishfort,
+};
+
+const controllerName = 'PhishingController';
+
+const stateMetadata = {
+  phishingLists: { persist: false, anonymous: false },
+  whitelist: { persist: false, anonymous: false },
+  hotlistLastFetched: { persist: false, anonymous: false },
+  stalelistLastFetched: { persist: false, anonymous: false },
+};
+
+const getDefaultState = (): PhishingControllerState => {
+  return {
+    phishingLists: [],
+    whitelist: [],
+    hotlistLastFetched: 0,
+    stalelistLastFetched: 0,
+  };
+};
+
+/**
+ * @type PhishingControllerState
+ *
+ * Phishing controller state
+ * @property phishing - eth-phishing-detect configuration
+ * @property whitelist - array of temporarily-approved origins
+ */
+export type PhishingControllerState = {
+  phishingLists: PhishingListState[];
+  whitelist: string[];
+  hotlistLastFetched: number;
+  stalelistLastFetched: number;
 };
 
 /**
@@ -256,11 +252,16 @@ export class PhishingController extends BaseController<
   #inProgressHotlistUpdate?: Promise<void>;
 
   #inProgressStalelistUpdate?: Promise<void>;
+
   /**
    * Construct a Phishing Controller.
    *
    * @param config - Initial options used to configure this controller.
+   * @param config.stalelistRefreshInterval
    * @param state - Initial state to set on this controller.
+   * @param config.hotlistRefreshInterval
+   * @param config.messenger
+   * @param config.state
    */
   constructor({
     stalelistRefreshInterval = STALELIST_REFRESH_INTERVAL,

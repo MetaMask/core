@@ -1,3 +1,4 @@
+import { ControllerMessenger } from '@metamask/base-controller';
 import { strict as assert } from 'assert';
 import nock from 'nock';
 import * as sinon from 'sinon';
@@ -8,16 +9,15 @@ import {
   METAMASK_STALELIST_FILE,
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
-  PhishingControllerActions,
-  PhishingControllerOptions,
+  type PhishingControllerActions,
+  type PhishingControllerOptions,
 } from './PhishingController';
-import { ControllerMessenger } from '@metamask/base-controller';
-
-const defaultHotlistRefreshInterval = 30 * 60;
-const defaultStalelistRefreshInterval = 4 * 24 * 60 * 60;
 
 const controllerName = 'PhishingController';
 
+/**
+ *
+ */
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<
     PhishingControllerActions,
@@ -35,6 +35,10 @@ function getRestrictedMessenger() {
   return messenger;
 }
 
+/**
+ *
+ * @param options
+ */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   return new PhishingController({
     messenger: getRestrictedMessenger(),
@@ -56,14 +60,6 @@ describe('PhishingController', () => {
     const controller = getPhishingController();
     expect(controller.state.whitelist).toStrictEqual([]);
   });
-
-  // it('should use default stalelist & hotlist refresh intervals', () => {
-  //   const controller = getPhishingController();
-  //   expect(controller.config).toStrictEqual({
-  //     stalelistRefreshInterval: defaultStalelistRefreshInterval,
-  //     hotlistRefreshInterval: defaultHotlistRefreshInterval,
-  //   });
-  // });
 
   it('does not call update stalelist or hotlist upon construction', async () => {
     const nockScope = nock(PHISHING_CONFIG_BASE_URL)
@@ -1046,70 +1042,6 @@ describe('PhishingController', () => {
         },
       ]);
     });
-
-    // it('should not update stale list if disabled', async () => {
-    //   const controller = getPhishingController(
-    //     { disabled: true },
-    //     {
-    //       phishingLists: [
-    //         {
-    //           allowlist: [],
-    //           blocklist: [],
-    //           fuzzylist: [],
-    //           tolerance: 3,
-    //           version: 1,
-    //           name: ListNames.MetaMask,
-    //           lastUpdated: 0,
-    //         },
-    //       ],
-    //     },
-    //   );
-    //   await controller.updateStalelist();
-
-    //   expect(controller.state.phishingLists).toStrictEqual([
-    //     {
-    //       allowlist: [],
-    //       blocklist: [],
-    //       fuzzylist: [],
-    //       tolerance: 3,
-    //       version: 1,
-    //       name: ListNames.MetaMask,
-    //       lastUpdated: 0,
-    //     },
-    //   ]);
-    // });
-
-    // it.todo('should not update hotlist lists if disabled', async () => {
-    //   const controller = getPhishingController(
-    //     { disabled: true },
-    //     {
-    //       phishingLists: [
-    //         {
-    //           allowlist: [],
-    //           blocklist: [],
-    //           fuzzylist: [],
-    //           tolerance: 3,
-    //           version: 1,
-    //           name: ListNames.MetaMask,
-    //           lastUpdated: 0,
-    //         },
-    //       ],
-    //     },
-    //   );
-    //   await controller.updateHotlist();
-
-    //   expect(controller.state.phishingLists).toStrictEqual([
-    //     {
-    //       allowlist: [],
-    //       blocklist: [],
-    //       fuzzylist: [],
-    //       tolerance: 3,
-    //       version: 1,
-    //       name: ListNames.MetaMask,
-    //       lastUpdated: 0,
-    //     },
-    //   ]);
-    // });
 
     it('should not update phishing lists if fetch returns 304', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
