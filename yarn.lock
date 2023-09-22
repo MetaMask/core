@@ -2337,8 +2337,8 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^4.3.2
     "@metamask/keyring-controller": ^7.5.0
-    "@metamask/message-manager": ^7.3.2
     "@metamask/logging-controller": ^1.0.1
+    "@metamask/message-manager": ^7.3.2
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
