@@ -14,6 +14,7 @@ This repository houses the following packages:
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/ens-controller`](packages/ens-controller)
+- [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/message-manager`](packages/message-manager)
@@ -43,6 +44,7 @@ linkStyle default opacity:0.5
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   ens_controller(["@metamask/ens-controller"]);
+  eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
@@ -83,6 +85,7 @@ linkStyle default opacity:0.5
   name_controller --> base_controller;
   network_controller --> base_controller;
   network_controller --> controller_utils;
+  network_controller --> eth_json_rpc_provider;
   notification_controller --> base_controller;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
