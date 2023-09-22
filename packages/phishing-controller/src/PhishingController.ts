@@ -224,7 +224,12 @@ export type MaybeUpdateState = {
   handler: PhishingController['maybeUpdateState'];
 };
 
-export type PhishingControllerActions = MaybeUpdateState;
+export type TestOrigin = {
+  type: `${typeof controllerName}:testOrigin`;
+  handler: PhishingController['test'];
+};
+
+export type PhishingControllerActions = MaybeUpdateState | TestOrigin;
 
 export type PhishingControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
