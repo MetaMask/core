@@ -180,6 +180,8 @@ function setupController({
 
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
 
+  const getNetworkClientByIdSpy = jest.fn();
+
   const nftControllerMessenger = messenger.getRestricted<
     typeof controllerName,
     ApprovalActions['type'],
@@ -212,7 +214,7 @@ function setupController({
     getERC1155TokenURI:
       getERC1155TokenURIStub ??
       assetsContract.getERC1155TokenURI.bind(assetsContract),
-    getNetworkClientById: jest.fn(),
+    getNetworkClientById: getNetworkClientByIdSpy,
     onNftAdded: onNftAddedSpy,
     messenger: nftControllerMessenger,
   });
@@ -226,6 +228,7 @@ function setupController({
     assetsContract,
     nftController,
     onNftAddedSpy,
+    getNetworkClientByIdSpy,
     preferences,
     changeNetwork,
     messenger,
@@ -1957,6 +1960,147 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
         tokenURI: '',
       });
+    });
+
+    it('should add NFT using networkClientId with correct chainId and metadata fetched using networkClientId', async () => {
+      nock('https://testtokenuri-1.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'test-image-1',
+            name: 'test-name-1',
+            description: 'test-description-1',
+          }),
+        );
+
+      nock('https://testtokenuri-2.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'test-image-2',
+            name: 'test-name-2',
+            description: 'test-description-2',
+          }),
+        );
+
+      nock('https://testtokenuri-3.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'test-image-3',
+            name: 'test-name-3',
+            description: 'test-description-3',
+          }),
+        );
+
+      const { nftController, getNetworkClientByIdSpy } = setupController({
+        getERC721TokenURIStub: jest.fn().mockImplementation((tokenAddress) => {
+          switch (tokenAddress) {
+            case '0x01':
+              return 'https://testtokenuri-1.com';
+            case '0x02':
+              return 'https://testtokenuri-2.com';
+            default:
+              throw new Error('Not an ERC721 token');
+          }
+        }),
+        getERC1155TokenURIStub: jest.fn().mockImplementation((tokenAddress) => {
+          switch (tokenAddress) {
+            case '0x03':
+              return 'https://testtokenuri-3.com';
+            default:
+              throw new Error('Not an ERC1155 token');
+          }
+        }),
+      });
+
+      getNetworkClientByIdSpy.mockImplementation((networkClientId) => {
+        switch (networkClientId) {
+          case 'sepolia':
+            return {
+              configuration: {
+                chainId: SEPOLIA.chainId,
+              },
+            };
+          case 'goerli':
+            return {
+              configuration: {
+                chainId: GOERLI.chainId,
+              },
+            };
+          case 'customNetworkClientId-1':
+            return {
+              configuration: {
+                chainId: '0xa',
+              },
+            };
+          default:
+            return {
+              configuration: {
+                chainId: '0x1',
+              },
+            };
+        }
+      });
+
+      await nftController.addNft('0x01', '1234', {
+        networkClientId: 'sepolia',
+      });
+      await nftController.addNft('0x02', '4321', {
+        networkClientId: 'goerli',
+      });
+      await nftController.addNft('0x03', '5678', {
+        networkClientId: 'customNetworkClientId-1',
+      });
+
+      expect(
+        nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId],
+      ).toStrictEqual([
+        {
+          address: '0x01',
+          description: 'test-description-1',
+          image: 'test-image-1',
+          name: 'test-name-1',
+          tokenId: '1234',
+          favorite: false,
+          standard: ERC721,
+          tokenURI: 'https://testtokenuri-1.com',
+          isCurrentlyOwned: true,
+        },
+      ]);
+
+      expect(
+        nftController.state.allNfts[OWNER_ADDRESS][GOERLI.chainId],
+      ).toStrictEqual([
+        {
+          address: '0x02',
+          description: 'test-description-2',
+          image: 'test-image-2',
+          name: 'test-name-2',
+          tokenId: '4321',
+          favorite: false,
+          standard: ERC721,
+          tokenURI: 'https://testtokenuri-2.com',
+          isCurrentlyOwned: true,
+        },
+      ]);
+
+      expect(nftController.state.allNfts[OWNER_ADDRESS]['0xa']).toStrictEqual([
+        {
+          address: '0x03',
+          description: 'test-description-3',
+          image: 'test-image-3',
+          name: 'test-name-3',
+          tokenId: '5678',
+          favorite: false,
+          standard: ERC1155,
+          tokenURI: 'https://testtokenuri-3.com',
+          isCurrentlyOwned: true,
+        },
+      ]);
     });
   });
 

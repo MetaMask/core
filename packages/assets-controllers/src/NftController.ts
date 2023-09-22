@@ -1281,8 +1281,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenId: string,
     {
       nftMetadata,
-      // TODO remove and replace chainId arg with fetch chainId using getNetworkClientById(networkClientId).configuration.chainId once polling refactor is complete
-      chainId,
+      chainId, // TODO remove and replace chainId arg with fetch chainId using getNetworkClientById(networkClientId).configuration.chainId once polling refactor is complete
       userAddress,
       source,
       networkClientId,
