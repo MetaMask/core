@@ -1,10 +1,32 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type {
+  BaseConfig,
+  BaseState,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { toASCII } from 'punycode/';
 
 import { applyDiffs, fetchTimeNow } from './utils';
+
+const controllerName = 'PhishingController';
+
+const stateMetadata = {
+  phishingLists: { persist: false, anonymous: false },
+  whitelist: { persist: false, anonymous: false },
+  hotlistLastFetched: { persist: false, anonymous: false },
+  stalelistLastFetched: { persist: false, anonymous: false },
+};
+
+const getDefaultState = (): PhishingControllerState => {
+  return {
+    phishingLists: [],
+    whitelist: [],
+    hotlistLastFetched: 0,
+    stalelistLastFetched: 0,
+  };
+};
 
 /**
  * @type ListTypes
@@ -24,36 +46,36 @@ export type ListTypes = 'fuzzylist' | 'blocklist' | 'allowlist';
  * @property version - Version number of this configuration
  * @property whitelist - List of approved origins
  */
-export interface EthPhishingResponse {
+export type EthPhishingResponse = {
   blacklist: string[];
   fuzzylist: string[];
   tolerance: number;
   version: number;
   whitelist: string[];
-}
+};
 
 /**
  * @type PhishingStalelist
  *
- * Interface defining expected type of the stalelist.json file.
+ * type defining expected type of the stalelist.json file.
  * @property eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
  * @property phishfort_hotlist - Stale list sourced from phishfort's hotlist.json. Only includes blocklist. Deduplicated entries from eth_phishing_detect_config.
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
  * @property version - Stalelist data structure iteration.
  */
-export interface PhishingStalelist {
+export type PhishingStalelist = {
   eth_phishing_detect_config: Record<ListTypes, string[]>;
   phishfort_hotlist: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
   lastUpdated: number;
-}
+};
 
 /**
  * @type PhishingListState
  *
- * Interface defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
+ * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
  * @property fuzzylist - List of fuzzy-matched unapproved origins
@@ -62,7 +84,7 @@ export interface PhishingStalelist {
  * @property version - Version of the phishing list state.
  * @property name - Name of the list. Used for attribution.
  */
-export interface PhishingListState {
+export type PhishingListState = {
   allowlist: string[];
   blocklist: string[];
   fuzzylist: string[];
@@ -70,45 +92,45 @@ export interface PhishingListState {
   version: number;
   lastUpdated: number;
   name: ListNames;
-}
+};
 
 /**
  * @type EthPhishingDetectResult
  *
- * Interface that describes the result of the `test` method.
+ * type that describes the result of the `test` method.
  * @property name - Name of the config on which a match was found.
  * @property version - Version of the config on which a match was found.
  * @property result - Whether a domain was detected as a phishing domain. True means an unsafe domain.
  * @property match - The matching fuzzylist origin when a fuzzylist match is found. Returned as undefined for non-fuzzy true results.
  * @property type - The field of the config on which a match was found.
  */
-export interface EthPhishingDetectResult {
+export type EthPhishingDetectResult = {
   name?: string;
   version?: string;
   result: boolean;
   match?: string; // Returned as undefined for non-fuzzy true results.
   type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist';
-}
+};
 
 /**
  * @type HotlistDiff
  *
- * Interface defining the expected type of the diffs in hotlist.json file.
+ * type defining the expected type of the diffs in hotlist.json file.
  * @property url - Url of the diff entry.
  * @property timestamp - Timestamp at which the diff was identified.
  * @property targetList - The list name where the diff was identified.
  * @property isRemoval - Was the diff identified a removal type.
  */
-export interface HotlistDiff {
+export type HotlistDiff = {
   url: string;
   timestamp: number;
   targetList: `${ListKeys}.${ListTypes}`;
   isRemoval?: boolean;
-}
+};
 
-export interface DataResultWrapper<T> {
+export type DataResultWrapper<T> = {
   data: T;
-}
+};
 
 /**
  * @type Hotlist
@@ -122,30 +144,18 @@ export interface DataResultWrapper<T> {
 export type Hotlist = HotlistDiff[];
 
 /**
- * @type PhishingConfig
- *
- * Phishing controller configuration
- * @property stalelistRefreshInterval - Polling interval used to fetch stale list.
- * @property hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
- */
-export interface PhishingConfig extends BaseConfig {
-  stalelistRefreshInterval: number;
-  hotlistRefreshInterval: number;
-}
-
-/**
  * @type PhishingState
  *
  * Phishing controller state
  * @property phishing - eth-phishing-detect configuration
  * @property whitelist - array of temporarily-approved origins
  */
-export interface PhishingState extends BaseState {
+export type PhishingControllerState = {
   phishingLists: PhishingListState[];
   whitelist: string[];
   hotlistLastFetched: number;
   stalelistLastFetched: number;
-}
+};
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.metafi.codefi.network';
@@ -196,55 +206,96 @@ export const phishingListKeyNameMap = {
 };
 
 /**
+ * @type PhishingControllerOptions
+ *
+ * Phishing controller options
+ * @property stalelistRefreshInterval - Polling interval used to fetch stale list.
+ * @property hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
+ */
+export type PhishingControllerOptions = {
+  stalelistRefreshInterval?: number;
+  hotlistRefreshInterval?: number;
+  messenger: PhishingControllerMessenger;
+  state?: Partial<PhishingControllerState>;
+};
+
+export type MaybeUpdateState = {
+  type: `${typeof controllerName}:maybeUpdateState`;
+  handler: PhishingController['maybeUpdateState'];
+};
+
+export type PhishingControllerActions = MaybeUpdateState;
+
+export type PhishingControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  PhishingControllerActions,
+  never,
+  never,
+  never
+>;
+
+/**
  * Controller that manages community-maintained lists of approved and unapproved website origins.
  */
 export class PhishingController extends BaseController<
-  PhishingConfig,
-  PhishingState
+  typeof controllerName,
+  PhishingControllerState,
+  PhishingControllerMessenger
 > {
-  private detector: any;
+  #detector: any;
 
-  #inProgressHotlistUpdate: Promise<void> | undefined;
+  #stalelistRefreshInterval: number;
 
-  #inProgressStalelistUpdate: Promise<void> | undefined;
+  #hotlistRefreshInterval: number;
 
+  #inProgressHotlistUpdate?: Promise<void>;
+
+  #inProgressStalelistUpdate?: Promise<void>;
   /**
-   * Name of this controller used during composition
-   */
-  override name = 'PhishingController';
-
-  /**
-   * Creates a PhishingController instance.
+   * Construct a Phishing Controller.
    *
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
-  constructor(
-    config?: Partial<PhishingConfig>,
-    state?: Partial<PhishingState>,
-  ) {
-    super(config, state);
-    this.defaultConfig = {
-      stalelistRefreshInterval: STALELIST_REFRESH_INTERVAL,
-      hotlistRefreshInterval: HOTLIST_REFRESH_INTERVAL,
-    };
+  constructor({
+    stalelistRefreshInterval = STALELIST_REFRESH_INTERVAL,
+    hotlistRefreshInterval = HOTLIST_REFRESH_INTERVAL,
+    messenger,
+    state = {},
+  }: PhishingControllerOptions) {
+    super({
+      name: controllerName,
+      metadata: stateMetadata,
+      messenger,
+      state: {
+        ...getDefaultState(),
+        ...state,
+      },
+    });
 
-    this.defaultState = {
-      phishingLists: [],
-      whitelist: [],
-      hotlistLastFetched: 0,
-      stalelistLastFetched: 0,
-    };
+    this.#stalelistRefreshInterval = stalelistRefreshInterval;
+    this.#hotlistRefreshInterval = hotlistRefreshInterval;
+    this.#registerMessageHandlers();
 
-    this.initialize();
     this.updatePhishingDetector();
+  }
+
+  /**
+   * Constructor helper for registering this controller's messaging system
+   * actions.
+   */
+  #registerMessageHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:maybeUpdateState` as const,
+      this.maybeUpdateState.bind(this),
+    );
   }
 
   /**
    * Updates this.detector with an instance of PhishingDetector using the current state.
    */
   updatePhishingDetector() {
-    this.detector = new PhishingDetector(this.state.phishingLists);
+    this.#detector = new PhishingDetector(this.state.phishingLists);
   }
 
   /**
@@ -255,7 +306,7 @@ export class PhishingController extends BaseController<
    * @param interval - the new interval, in ms.
    */
   setStalelistRefreshInterval(interval: number) {
-    this.configure({ stalelistRefreshInterval: interval }, false, false);
+    this.#stalelistRefreshInterval = interval;
   }
 
   /**
@@ -266,7 +317,7 @@ export class PhishingController extends BaseController<
    * @param interval - the new interval, in ms.
    */
   setHotlistRefreshInterval(interval: number) {
-    this.configure({ hotlistRefreshInterval: interval }, false, false);
+    this.#hotlistRefreshInterval = interval;
   }
 
   /**
@@ -277,7 +328,7 @@ export class PhishingController extends BaseController<
   isStalelistOutOfDate() {
     return (
       fetchTimeNow() - this.state.stalelistLastFetched >=
-      this.config.stalelistRefreshInterval
+      this.#stalelistRefreshInterval
     );
   }
 
@@ -289,7 +340,7 @@ export class PhishingController extends BaseController<
   isHotlistOutOfDate() {
     return (
       fetchTimeNow() - this.state.hotlistLastFetched >=
-      this.config.hotlistRefreshInterval
+      this.#hotlistRefreshInterval
     );
   }
 
@@ -328,7 +379,7 @@ export class PhishingController extends BaseController<
     if (this.state.whitelist.includes(punycodeOrigin)) {
       return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
     }
-    return this.detector.check(punycodeOrigin);
+    return this.#detector.check(punycodeOrigin);
   }
 
   /**
@@ -342,7 +393,9 @@ export class PhishingController extends BaseController<
     if (whitelist.includes(punycodeOrigin)) {
       return;
     }
-    this.update({ whitelist: [...whitelist, punycodeOrigin] });
+    this.update((draftState) => {
+      draftState.whitelist.push(punycodeOrigin);
+    });
   }
 
   /**
@@ -392,10 +445,6 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateStalelist() {
-    if (this.disabled) {
-      return;
-    }
-
     let stalelistResponse;
     let hotlistDiffsResponse;
     try {
@@ -414,9 +463,9 @@ export class PhishingController extends BaseController<
       // Set `stalelistLastFetched` and `hotlistLastFetched` even for failed requests to prevent server
       // from being overwhelmed with traffic after a network disruption.
       const timeNow = fetchTimeNow();
-      this.update({
-        stalelistLastFetched: timeNow,
-        hotlistLastFetched: timeNow,
+      this.update((draftState) => {
+        draftState.stalelistLastFetched = timeNow;
+        draftState.hotlistLastFetched = timeNow;
       });
     }
 
@@ -451,8 +500,8 @@ export class PhishingController extends BaseController<
       ListKeys.EthPhishingDetectConfig,
     );
 
-    this.update({
-      phishingLists: [newMetaMaskListState, newPhishfortListState],
+    this.update((draftState) => {
+      draftState.phishingLists = [newMetaMaskListState, newPhishfortListState];
     });
     this.updatePhishingDetector();
   }
@@ -464,9 +513,6 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateHotlist() {
-    if (this.disabled) {
-      return;
-    }
     const lastDiffTimestamp = Math.max(
       ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
     );
@@ -479,8 +525,8 @@ export class PhishingController extends BaseController<
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
       // traffic after a network disruption.
-      this.update({
-        hotlistLastFetched: fetchTimeNow(),
+      this.update((draftState) => {
+        draftState.hotlistLastFetched = fetchTimeNow();
       });
     }
 
@@ -496,8 +542,8 @@ export class PhishingController extends BaseController<
       ),
     );
 
-    this.update({
-      phishingLists: newPhishingLists,
+    this.update((draftState) => {
+      draftState.phishingLists = newPhishingLists;
     });
     this.updatePhishingDetector();
   }
