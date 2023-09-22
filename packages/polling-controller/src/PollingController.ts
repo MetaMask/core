@@ -9,6 +9,12 @@ export type PollingCompleteType<N extends string> = {
   payload: [string];
 };
 
+/**
+ * PollingController is an abstract class that implements the polling
+ * functionality for a controller. It is meant to be extended by a controller
+ * that needs to poll for data by networkClientId.
+ *
+ */
 export default abstract class ControllerPolling<
   Name extends string,
   State extends Record<string, Json>,
@@ -27,6 +33,12 @@ export default abstract class ControllerPolling<
 
   private readonly intervalIds: Record<NetworkClientId, NodeJS.Timeout> = {};
 
+  /**
+   * Starts polling for a networkClientId
+   *
+   * @param networkClientId - The networkClientId to start polling for
+   * @returns void
+   */
   start(networkClientId: NetworkClientId) {
     const innerPollToken = random();
     if (this.networkClientIdTokensMap.has(networkClientId)) {
@@ -42,6 +54,9 @@ export default abstract class ControllerPolling<
     return innerPollToken;
   }
 
+  /**
+   * Stops polling for all networkClientIds
+   */
   stopAll() {
     this.networkClientIdTokensMap.forEach((tokens, _networkClientId) => {
       tokens.forEach((token) => {
@@ -50,6 +65,11 @@ export default abstract class ControllerPolling<
     });
   }
 
+  /**
+   * Stops polling for a networkClientId
+   *
+   * @param pollingToken - The polling token to stop polling for
+   */
   stop(pollingToken: string) {
     if (!pollingToken) {
       throw new Error('pollingToken required');
@@ -77,6 +97,11 @@ export default abstract class ControllerPolling<
     }
   }
 
+  /**
+   * Executes the poll for a networkClientId
+   *
+   * @param networkClientId - The networkClientId to execute the poll for
+   */
   abstract executePoll(networkClientId: NetworkClientId): Promise<void>;
 
   #poll(networkClientId: NetworkClientId) {
