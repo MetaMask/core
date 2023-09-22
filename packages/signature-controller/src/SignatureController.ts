@@ -373,12 +373,7 @@ export class SignatureController extends BaseControllerV2<
     version: string,
     signingOpts: TypedMessageSigningOptions,
   ): Promise<string> {
-    let signTypeForLogger = SigningMethod.EthSignTypedData;
-    if (version === 'V3') {
-      signTypeForLogger = SigningMethod.EthSignTypedDataV3;
-    } else if (version === 'V4') {
-      signTypeForLogger = SigningMethod.EthSignTypedDataV4;
-    }
+    const signTypeForLogger = this.#getSignTypeForLogger(version);
     return this.#newUnsignedAbstractMessage(
       this.#typedMessageManager,
       ApprovalType.EthSignTypedData,
@@ -898,5 +893,15 @@ export class SignatureController extends BaseControllerV2<
         signingData,
       },
     });
+  }
+
+  #getSignTypeForLogger(version: string): SigningMethod {
+    let signTypeForLogger = SigningMethod.EthSignTypedData;
+    if (version === 'V3') {
+      signTypeForLogger = SigningMethod.EthSignTypedDataV3;
+    } else if (version === 'V4') {
+      signTypeForLogger = SigningMethod.EthSignTypedDataV4;
+    }
+    return signTypeForLogger;
   }
 }
