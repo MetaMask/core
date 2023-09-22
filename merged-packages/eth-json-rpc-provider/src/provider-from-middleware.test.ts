@@ -1,4 +1,4 @@
-import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { type JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { promisify } from 'util';
 
 import { providerFromMiddleware } from './provider-from-middleware';
