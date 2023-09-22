@@ -940,10 +940,11 @@ describe('SignatureController', () => {
 
   describe('logging controller events', () => {
     it('sends proposed sign log event after approval is shown', async () => {
+      const testVersion = 'V1';
       await signatureController.newUnsignedTypedMessage(
         messageParamsMock,
         requestMock,
-        versionMock,
+        testVersion,
         { parseJsonData: false },
       );
 
@@ -955,13 +956,19 @@ describe('SignatureController', () => {
           data: {
             signingMethod: SigningMethod.EthSignTypedData,
             stage: SigningStage.Proposed,
-            signingData: expect.anything(),
+            signingData: expect.objectContaining({
+              version: testVersion,
+              from: messageParamsMock.from,
+              data: messageParamsMock.data,
+              origin: messageParamsMock.origin,
+            }),
           },
         },
       );
     });
 
     it('sends rejected sign log event if approval is rejected', async () => {
+      const testVersion = 'V3';
       messengerMock.call
         .mockResolvedValueOnce({}) // LoggerController:add
         .mockRejectedValueOnce({}); // ApprovalController:addRequest
@@ -970,7 +977,7 @@ describe('SignatureController', () => {
           await signatureController.newUnsignedTypedMessage(
             messageParamsMock,
             requestMock,
-            'V3',
+            testVersion,
             { parseJsonData: true },
           ),
       );
@@ -982,17 +989,23 @@ describe('SignatureController', () => {
           data: {
             signingMethod: SigningMethod.EthSignTypedDataV3,
             stage: SigningStage.Rejected,
-            signingData: expect.anything(),
+            signingData: expect.objectContaining({
+              version: testVersion,
+              from: messageParamsMock.from,
+              data: messageParamsMock.data,
+              origin: messageParamsMock.origin,
+            }),
           },
         },
       );
     });
 
     it('sends signed log event if signature operation is complete', async () => {
+      const testVersion = 'V4';
       await signatureController.newUnsignedTypedMessage(
         messageParamsMock,
         requestMock,
-        'V4',
+        testVersion,
         { parseJsonData: false },
       );
 
@@ -1004,7 +1017,12 @@ describe('SignatureController', () => {
           data: {
             signingMethod: SigningMethod.EthSignTypedDataV4,
             stage: SigningStage.Signed,
-            signingData: expect.anything(),
+            signingData: expect.objectContaining({
+              version: testVersion,
+              from: messageParamsMock.from,
+              data: messageParamsMock.data,
+              origin: messageParamsMock.origin,
+            }),
           },
         },
       );
