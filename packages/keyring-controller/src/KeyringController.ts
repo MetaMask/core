@@ -368,17 +368,21 @@ export class KeyringController extends BaseControllerV2<
     keyring: Keyring<Json>,
     accountCount?: number,
   ): Promise<Hex> {
-    const oldAccounts = await keyring.getAccounts();
+    const oldAccounts = await this.getAccounts();
 
     if (accountCount && oldAccounts.length !== accountCount) {
       if (accountCount > oldAccounts.length) {
         throw new Error('Account out of sequence');
       }
-      return oldAccounts[accountCount];
+
+      const existingAccount = oldAccounts[accountCount];
+      assertIsStrictHexString(existingAccount);
+
+      return existingAccount;
     }
 
     await this.#keyring.addNewAccount(keyring);
-    const addedAccountAddress = (await keyring.getAccounts()).find(
+    const addedAccountAddress = (await this.getAccounts()).find(
       (selectedAddress) => !oldAccounts.includes(selectedAddress),
     );
     assertIsStrictHexString(addedAccountAddress);
