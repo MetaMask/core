@@ -1,10 +1,10 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 
 import type { PollingCompleteType } from './PollingController';
-import GasFeeControllerPolling from './PollingController';
+import PollingController from './PollingController';
 
 describe('PollingController', () => {
-  let executePollMock: GasFeeControllerPolling<any, any, any>['executePoll'];
+  let executePollMock: PollingController<any, any, any>['executePoll'];
 
   beforeEach(() => {
     executePollMock = jest.fn().mockImplementation(async () => {
@@ -16,7 +16,7 @@ describe('PollingController', () => {
     it('should start polling if not polling', () => {
       jest.useFakeTimers();
 
-      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+      class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
       }
       const mockMessenger = new ControllerMessenger<any, any>();
@@ -24,7 +24,7 @@ describe('PollingController', () => {
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
-        name: 'GasFeeControllerPolling',
+        name: 'PollingController',
         state: { foo: 'bar' },
       });
       controller.start('mainnet');
@@ -36,7 +36,7 @@ describe('PollingController', () => {
   describe('stop', () => {
     it('should stop polling if polling', () => {
       jest.useFakeTimers();
-      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+      class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
       }
       const mockMessenger = new ControllerMessenger<any, any>();
@@ -44,7 +44,7 @@ describe('PollingController', () => {
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
-        name: 'GasFeeControllerPolling',
+        name: 'PollingController',
         state: { foo: 'bar' },
       });
       const pollingToken = controller.start('mainnet');
@@ -56,7 +56,7 @@ describe('PollingController', () => {
     });
     it('should not stop polling if multiple polling tokens exist', async () => {
       jest.useFakeTimers();
-      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+      class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
       }
       const mockMessenger = new ControllerMessenger<any, any>();
@@ -64,7 +64,7 @@ describe('PollingController', () => {
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
-        name: 'GasFeeControllerPolling',
+        name: 'PollingController',
         state: { foo: 'bar' },
       });
       const pollingToken1 = controller.start('mainnet');
@@ -79,7 +79,7 @@ describe('PollingController', () => {
     });
     it('should error if no poll token is passed', () => {
       jest.useFakeTimers();
-      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+      class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
       }
       const mockMessenger = new ControllerMessenger<any, any>();
@@ -87,7 +87,7 @@ describe('PollingController', () => {
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
-        name: 'GasFeeControllerPolling',
+        name: 'PollingController',
         state: { foo: 'bar' },
       });
       controller.start('mainnet');
@@ -98,7 +98,7 @@ describe('PollingController', () => {
     });
     it('should error if no poll token is found', () => {
       jest.useFakeTimers();
-      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+      class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
       }
       const mockMessenger = new ControllerMessenger<any, any>();
@@ -106,7 +106,7 @@ describe('PollingController', () => {
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
-        name: 'GasFeeControllerPolling',
+        name: 'PollingController',
         state: { foo: 'bar' },
       });
       controller.start('mainnet');
@@ -120,7 +120,7 @@ describe('PollingController', () => {
     it('should call executePoll if polling', async () => {
       jest.useFakeTimers();
 
-      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+      class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
       }
       const mockMessenger = new ControllerMessenger<any, any>();
@@ -128,7 +128,7 @@ describe('PollingController', () => {
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
-        name: 'GasFeeControllerPolling',
+        name: 'PollingController',
         state: { foo: 'bar' },
       });
       controller.start('mainnet');
@@ -141,7 +141,7 @@ describe('PollingController', () => {
     it('should continue calling executePoll when start is called again with the same networkClientId', async () => {
       jest.useFakeTimers();
 
-      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+      class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
       }
       const mockMessenger = new ControllerMessenger<any, any>();
@@ -149,7 +149,7 @@ describe('PollingController', () => {
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
-        name: 'GasFeeControllerPolling',
+        name: 'PollingController',
         state: { foo: 'bar' },
       });
       controller.start('mainnet');
@@ -164,10 +164,10 @@ describe('PollingController', () => {
     it('should publish polligComplete when stop is called', async () => {
       jest.useFakeTimers();
       const pollingComplete: any = jest.fn();
-      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+      class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
       }
-      const name = 'GasFeeControllerPolling';
+      const name = 'PollingController';
 
       const mockMessenger = new ControllerMessenger<
         any,
@@ -190,7 +190,7 @@ describe('PollingController', () => {
   describe('multiple networkClientIds', () => {
     it('should poll for each networkClientId', async () => {
       jest.useFakeTimers();
-      class MyGasFeeController extends GasFeeControllerPolling<any, any, any> {
+      class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
       }
       const mockMessenger = new ControllerMessenger<any, any>();
@@ -198,7 +198,7 @@ describe('PollingController', () => {
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
-        name: 'GasFeeControllerPolling',
+        name: 'PollingController',
         state: { foo: 'bar' },
       });
       controller.start('mainnet');

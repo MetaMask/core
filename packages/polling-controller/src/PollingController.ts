@@ -10,17 +10,17 @@ export type PollingCompleteType<N extends string> = {
 };
 
 export default abstract class ControllerPolling<
-  N extends string,
-  S extends Record<string, Json>,
+  Name extends string,
+  State extends Record<string, Json>,
   messenger extends RestrictedControllerMessenger<
-    N,
+    Name,
     any,
-    PollingCompleteType<N> | any,
+    PollingCompleteType<Name> | any,
     string,
     string
   >,
-> extends BaseControllerV2<N, S, messenger> {
-  private readonly intervalLength = 1000;
+> extends BaseControllerV2<Name, State, messenger> {
+  readonly #intervalLength = 1000;
 
   private readonly networkClientIdTokensMap: Map<NetworkClientId, Set<string>> =
     new Map();
@@ -39,9 +39,6 @@ export default abstract class ControllerPolling<
       this.networkClientIdTokensMap.set(networkClientId, set);
     }
     this.#poll(networkClientId);
-
-    // call _poll
-    // add the inner poll token to the poll tokens set
     return innerPollToken;
   }
 
@@ -94,6 +91,6 @@ export default abstract class ControllerPolling<
         console.error(error);
       }
       this.#poll(networkClientId);
-    }, this.intervalLength);
+    }, this.#intervalLength);
   }
 }
