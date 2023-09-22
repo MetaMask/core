@@ -2,12 +2,21 @@
   "name": "@metamask/eth-json-rpc-provider",
   "version": "2.1.0",
   "description": "Create an Ethereum provider using a JSON-RPC engine or middleware",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/eth-json-rpc-provider#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/eth-json-rpc-provider.git"
+    "url": "https://github.com/MetaMask/core.git"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist/"
   ],
@@ -15,13 +24,15 @@
     "build": "tsc --project tsconfig.build.json",
     "build:clean": "rimraf dist && yarn build",
     "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eth-json-rpc-provider",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn lint:dependencies",
     "lint:dependencies": "depcheck",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "prepack": "./scripts/prepack.sh",
-    "test": "jest && jest-it-up",
+    "publish:preview": "yarn npm publish --tag preview",
+    "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
