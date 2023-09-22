@@ -24,7 +24,7 @@ import type {
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
-import { WalletDevice, TransactionStatus } from './types';
+import { WalletDevice, TransactionStatus, TransactionType } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -974,6 +974,7 @@ describe('TransactionController', () => {
         time: expect.any(Number),
         txParams: expect.anything(),
         userEditedGasLimit: false,
+        type: TransactionType.simpleSend,
         verifiedOnBlockchain: expect.any(Boolean),
       };
 
@@ -1637,6 +1638,7 @@ describe('TransactionController', () => {
       await expect(result).rejects.toThrow('User cancelled the transaction');
       expect(estimatedBaseFee).toBe('0x123');
       expect(transactions[0].status).toStrictEqual(TransactionStatus.cancelled);
+      expect(transactions[0].type).toStrictEqual(TransactionType.simpleSend);
     });
 
     it('rejects unknown transaction', async () => {
