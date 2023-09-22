@@ -2048,6 +2048,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/rpc-errors@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "@metamask/rpc-errors@npm:6.0.0"
+  dependencies:
+    "@metamask/utils": ^8.0.0
+    fast-safe-stringify: ^2.0.6
+  checksum: 7e1ee1a98972266af4a34f0bbc842cdc11dc565056f0b8fbc93aa95663a7027eab8ff1fecbe3e09c38a1dc199f8219a6c69b2237015b2fdb8de0e5b35027c3f8
+  languageName: node
+  linkType: hard
+
 "@metamask/safe-event-emitter@npm:^2.0.0":
   version: 2.0.0
   resolution: "@metamask/safe-event-emitter@npm:2.0.0"
@@ -2142,6 +2152,7 @@ __metadata:
     "@metamask/controller-utils": ^4.3.2
     "@metamask/eth-query": ^3.0.1
     "@metamask/network-controller": ^12.1.2
+    "@metamask/rpc-errors": ^6.0.0
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.24
@@ -2149,7 +2160,6 @@ __metadata:
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
     eth-method-registry: 1.1.0
-    eth-rpc-errors: ^4.0.2
     ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
     fast-json-patch: ^3.1.1

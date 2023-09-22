@@ -1,4 +1,4 @@
-import { ethErrors } from 'eth-rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
 import type {
@@ -50,7 +50,7 @@ describe('utils', () => {
   describe('validateTxParams', () => {
     it('should throw if no from address', () => {
       expect(() => util.validateTxParams({} as any)).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "from" address: undefined must be a valid string.',
         ),
       );
@@ -58,7 +58,7 @@ describe('utils', () => {
 
     it('should throw if non-string from address', () => {
       expect(() => util.validateTxParams({ from: 1337 } as any)).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "from" address: 1337 must be a valid string.',
         ),
       );
@@ -66,7 +66,7 @@ describe('utils', () => {
 
     it('should throw if invalid from address', () => {
       expect(() => util.validateTxParams({ from: '1337' } as any)).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "from" address: 1337 must be a valid string.',
         ),
       );
@@ -79,7 +79,7 @@ describe('utils', () => {
           to: '0x',
         } as any),
       ).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "to" address: 0x must be a valid string.',
         ),
       );
@@ -89,7 +89,7 @@ describe('utils', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
       ).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "to" address: undefined must be a valid string.',
         ),
       );
@@ -112,7 +112,7 @@ describe('utils', () => {
           to: '1337',
         } as any),
       ).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "to" address: 1337 must be a valid string.',
         ),
       );
@@ -126,7 +126,7 @@ describe('utils', () => {
           value: '133-7',
         } as any),
       ).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "value": 133-7 is not a positive number.',
         ),
       );
@@ -138,7 +138,7 @@ describe('utils', () => {
           value: '133.7',
         } as any),
       ).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "value": 133.7 number must be denominated in wei.',
         ),
       );
@@ -150,7 +150,7 @@ describe('utils', () => {
           value: 'hello',
         } as any),
       ).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "value": hello number must be a valid number.',
         ),
       );
@@ -162,7 +162,7 @@ describe('utils', () => {
           value: 'one million dollar$',
         } as any),
       ).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid "value": one million dollar$ number must be a valid number.',
         ),
       );
