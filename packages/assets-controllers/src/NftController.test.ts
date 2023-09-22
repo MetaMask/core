@@ -596,7 +596,6 @@ describe('NftController', () => {
       // change the network and selectedAddress before accepting the request
       preferences.setSelectedAddress('0xDifferentAddress');
       changeNetwork(SEPOLIA);
-
       // now accept the request
       approvalController.accept(requestId);
       await acceptedRequest;

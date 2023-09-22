@@ -663,8 +663,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
     tokenId: string;
     nftMetadata: NftMetadata;
     nftContract: NftContract;
-    chainId?: Hex;
-    userAddress?: string;
+    chainId: Hex;
+    userAddress: string;
     source?: Source;
   }): Promise<Nft[]> {
     // TODO: Remove unused return
@@ -673,10 +673,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       tokenAddress = toChecksumHexAddress(tokenAddress);
       const { allNfts } = this.state;
 
-      const currentChainId = chainId ?? this.config.chainId;
-      const selectedAddress = userAddress ?? this.config.selectedAddress;
-
-      const nfts = allNfts[selectedAddress]?.[currentChainId] || [];
+      const nfts = allNfts[userAddress]?.[chainId] || [];
 
       const existingEntry: Nft | undefined = nfts.find(
         (nft) =>
@@ -715,8 +712,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
       const newNfts = [...nfts, newEntry];
       this.updateNestedNftState(newNfts, ALL_NFTS_STATE_KEY, {
-        chainId: currentChainId,
-        userAddress: selectedAddress,
+        chainId,
+        userAddress,
       });
 
       if (this.onNftAdded) {
@@ -763,7 +760,10 @@ export class NftController extends BaseController<NftConfig, NftState> {
     try {
       tokenAddress = toChecksumHexAddress(tokenAddress);
       const { allNftContracts } = this.state;
-      const currentChainId = chainId ?? this.config.chainId;
+      const currentChainId = this.getCorrectChainId({
+        chainId,
+        networkClientId,
+      });
       const selectedAddress = userAddress ?? this.config.selectedAddress;
 
       const nftContracts =
@@ -776,6 +776,9 @@ export class NftController extends BaseController<NftConfig, NftState> {
       if (existingEntry) {
         return nftContracts;
       }
+
+      // this doesn't work currently for detection if the user switches networks while the detection is processing
+      // will be fixed once detection uses networkClientIds
       const contractInformation = await this.getNftContractInformation(
         tokenAddress,
         networkClientId,
@@ -1104,6 +1107,23 @@ export class NftController extends BaseController<NftConfig, NftState> {
     }
   }
 
+  // temporary method to get the correct chainId until we remove chainId from the config & the chainId arg from the detection logic
+  // Just a helper method to prefer the networkClient chainId first then the chainId argument and then finally the config chainId
+  getCorrectChainId({
+    chainId,
+    networkClientId,
+  }: {
+    chainId?: Hex;
+    networkClientId?: NetworkClientId;
+  }) {
+    if (networkClientId) {
+      return this.getNetworkClientById(networkClientId).configuration.chainId;
+    } else if (chainId) {
+      return chainId;
+    }
+    return this.config.chainId;
+  }
+
   /**
    * Adds a new suggestedAsset to state. Parameters will be validated according to
    * asset type being watched. A `<suggestedNftMeta.id>:pending` hub event will be emitted once added.
@@ -1123,10 +1143,6 @@ export class NftController extends BaseController<NftConfig, NftState> {
     networkClientId?: NetworkClientId,
   ) {
     const { selectedAddress, chainId } = this.config;
-
-    const currentChainId = networkClientId
-      ? this.getNetworkClientById(networkClientId).configuration.chainId
-      : chainId;
 
     await this.validateWatchNft(asset, type, selectedAddress);
 
@@ -1161,7 +1177,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         image: image ?? null,
         standard: standard ?? null,
       },
-      chainId: currentChainId,
+      chainId,
       userAddress: selectedAddress,
       source: Source.Dapp,
       networkClientId,
@@ -1272,7 +1288,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       networkClientId,
     }: {
       nftMetadata?: NftMetadata;
-      chainId?: Hex;
+      chainId?: Hex; // TODO remove
       userAddress?: string;
       source?: Source;
       networkClientId?: NetworkClientId;
@@ -1280,15 +1296,17 @@ export class NftController extends BaseController<NftConfig, NftState> {
   ) {
     tokenAddress = toChecksumHexAddress(tokenAddress);
 
-    const currentChainId = chainId ?? this.config.chainId;
+    const currentChainId = this.getCorrectChainId({ chainId, networkClientId });
     const selectedAddress = userAddress ?? this.config.selectedAddress;
 
     const newNftContracts = await this.addNftContract({
       tokenAddress,
       chainId: currentChainId,
       userAddress: selectedAddress,
+      networkClientId,
       source,
     });
+
     nftMetadata =
       nftMetadata ||
       (await this.getNftInformation(tokenAddress, tokenId, networkClientId));
@@ -1303,11 +1321,11 @@ export class NftController extends BaseController<NftConfig, NftState> {
     if (nftContract) {
       await this.addIndividualNft({
         tokenAddress,
-        userAddress: selectedAddress,
         tokenId,
         nftMetadata,
         nftContract,
-        chainId,
+        userAddress: selectedAddress,
+        chainId: currentChainId,
         source,
       });
     }
