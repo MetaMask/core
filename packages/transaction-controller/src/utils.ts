@@ -286,6 +286,7 @@ export function transactionMatchesNetwork(
   if (transaction.chainId) {
     return transaction.chainId === chainId;
   }
+
   if (transaction.networkID) {
     return transaction.networkID === networkId;
   }
