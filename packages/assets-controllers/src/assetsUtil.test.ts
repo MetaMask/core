@@ -3,7 +3,10 @@ import {
   ChainId,
   convertHexToDecimal,
   toHex,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
+import { BN } from 'ethereumjs-util';
+import { toWei } from 'ethjs-unit';
 
 import * as assetsUtil from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
@@ -434,6 +437,249 @@ describe('assetsUtil', () => {
 
     it('should return a URL as is if https:// is already prepended', () => {
       expect(assetsUtil.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
+    });
+  });
+
+  describe('renderFromTokenMinimalUnit', () => {
+    it('should return proper value', () => {
+      const value = assetsUtil.renderFromTokenMinimalUnit(
+        new BN(1.23456789),
+        18,
+      );
+      expect(value).toBe(1.23456);
+    });
+  });
+
+  describe('fastSplit', () => {
+    it('should return proper value', () => {
+      const value = assetsUtil.fastSplit('20000.10');
+      expect(value).toBe('20000');
+    });
+  });
+
+  describe('getTotalFiatAccountBalance', () => {
+    const ADDRESS = '0x0000000000000000000000000000000008675309';
+    const CURRENCY = 'usd';
+    const CURRENCY_CONVERSION_RATE = 1560.51;
+
+    const NATIVE_CURRENCY = 'ETH';
+    const NATIVE_BALANCE = '0x0';
+
+    const CHAINLINK_ADDRESS = toChecksumHexAddress(
+      '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+    );
+    const CHAINLINK_SYMBOL = 'LINK';
+    const CHAINLINK_DECIMALS = 18;
+    const CHAINLINK_BALANCE = 10;
+    const CHAINLINK_EXCHANGE_RATE = 0.00373542;
+
+    const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+    const USDC_SYMBOL = 'USDC';
+    const USDC_DECIMALS = 6;
+    const USDC_BALANCE = 100;
+    const USDC_EXCHANGE_RATE = 0.00063984;
+
+    const DEFAULT_CURRENCY_RATE_STATE = {
+      conversionDate: 1694449179.414,
+      conversionRate: CURRENCY_CONVERSION_RATE,
+      currentCurrency: CURRENCY,
+      nativeCurrency: NATIVE_CURRENCY,
+      pendingCurrentCurrency: null,
+      pendingNativeCurrency: null,
+      usdConversionRate: CURRENCY_CONVERSION_RATE,
+    };
+
+    const DEFAULT_PREFERENCES_STATE = {
+      featureFlags: {},
+      identities: {},
+      ipfsGateway: 'https://ipfs.io/ipfs/',
+      lostIdentities: {},
+      selectedAddress: ADDRESS,
+      useTokenDetection: true,
+      useNftDetection: false,
+      openSeaEnabled: false,
+      securityAlertsEnabled: false,
+      isMultiAccountBalancesEnabled: true,
+      disabledRpcMethodPreferences: {
+        eth_sign: false,
+      },
+      showTestNetworks: false,
+    };
+
+    const DEFAULT_ACCOUNT_TRACKER_STATE = {
+      accounts: { [ADDRESS]: { balance: NATIVE_BALANCE } },
+    };
+
+    const DEFAULT_TOKEN_BALANCES_STATE = {
+      contractBalances: {
+        [CHAINLINK_ADDRESS]: new BN(CHAINLINK_BALANCE),
+      },
+    };
+
+    const DEFAULT_TOKEN_RATES_STATE = {
+      contractExchangeRates: {},
+    };
+
+    const DEFAULT_TOKENS_STATE = {
+      tokens: [],
+      ignoredTokens: [],
+      detectedTokens: [],
+      allTokens: {},
+      allIgnoredTokens: {},
+      allDetectedTokens: {},
+    };
+
+    it('should return 0 balance when no ETH and no tokens', () => {
+      const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
+        // CurrencyRateController
+        DEFAULT_CURRENCY_RATE_STATE,
+        // PreferencesController
+        DEFAULT_PREFERENCES_STATE,
+        // AccountTrackerController,
+        DEFAULT_ACCOUNT_TRACKER_STATE,
+        // TokenBalancesController
+        DEFAULT_TOKEN_BALANCES_STATE,
+        // TokenRatesController
+        DEFAULT_TOKEN_RATES_STATE,
+        // TokensController
+        DEFAULT_TOKENS_STATE,
+      );
+
+      expect(fiatBalance).toBe(0);
+    });
+
+    it('should return correct balance when some ETH and no tokens', () => {
+      const ethBalance = 2.5;
+      const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
+        // CurrencyRateController
+        DEFAULT_CURRENCY_RATE_STATE,
+        // PreferencesController
+        DEFAULT_PREFERENCES_STATE,
+        // AccountTrackerController
+        {
+          ...DEFAULT_ACCOUNT_TRACKER_STATE,
+          accounts: { [ADDRESS]: { balance: toWei(ethBalance, 'ether') } },
+        },
+        // TokenBalancesController
+        DEFAULT_TOKEN_BALANCES_STATE,
+        // TokenRatesController
+        DEFAULT_TOKEN_RATES_STATE,
+        // TokensController
+        DEFAULT_TOKENS_STATE,
+      );
+
+      expect(fiatBalance).toBe(ethBalance * CURRENCY_CONVERSION_RATE);
+    });
+
+    it('should return correct balance when no ETH and 10 LINK', () => {
+      const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
+        // CurrencyRateController
+        DEFAULT_CURRENCY_RATE_STATE,
+        // PreferencesController
+        DEFAULT_PREFERENCES_STATE,
+        // AccountTrackerController,
+        DEFAULT_ACCOUNT_TRACKER_STATE,
+        // TokenBalancesController
+        DEFAULT_TOKEN_BALANCES_STATE,
+        // TokenRatesController
+        {
+          ...DEFAULT_TOKEN_RATES_STATE,
+          contractExchangeRates: {
+            [CHAINLINK_ADDRESS]: CHAINLINK_EXCHANGE_RATE,
+          },
+        },
+        // TokensController
+        {
+          ...DEFAULT_TOKENS_STATE,
+          tokens: [
+            {
+              address: CHAINLINK_ADDRESS,
+              symbol: CHAINLINK_SYMBOL,
+              decimals: CHAINLINK_DECIMALS,
+              balance: new BN(CHAINLINK_BALANCE).toString(),
+            },
+          ],
+        },
+      );
+
+      expect(fiatBalance).toBe(58.29);
+    });
+
+    it('should return correct balance when no ETH and 100 USDC', () => {
+      const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
+        // CurrencyRateController
+        DEFAULT_CURRENCY_RATE_STATE,
+        // PreferencesController
+        DEFAULT_PREFERENCES_STATE,
+        // AccountTrackerController,
+        DEFAULT_ACCOUNT_TRACKER_STATE,
+        // TokenBalancesController
+        DEFAULT_TOKEN_BALANCES_STATE,
+        // TokenRatesController
+        {
+          ...DEFAULT_TOKEN_RATES_STATE,
+          contractExchangeRates: {
+            [USDC_ADDRESS]: USDC_EXCHANGE_RATE,
+          },
+        },
+        // TokensController
+        {
+          ...DEFAULT_TOKENS_STATE,
+          tokens: [
+            {
+              address: USDC_ADDRESS,
+              symbol: USDC_SYMBOL,
+              decimals: USDC_DECIMALS,
+              balance: new BN(USDC_BALANCE).toString(),
+            },
+          ],
+        },
+      );
+
+      expect(fiatBalance).toBe(99.84);
+    });
+
+    it('should return correct balance when 2 ETH, 2 LINK, and 100 USDC', () => {
+      const fiatBalance = assetsUtil.getTotalFiatAccountBalance(
+        // CurrencyRateController
+        DEFAULT_CURRENCY_RATE_STATE,
+        // PreferencesController
+        DEFAULT_PREFERENCES_STATE,
+        // AccountTrackerController,
+        {
+          ...DEFAULT_ACCOUNT_TRACKER_STATE,
+          accounts: { [ADDRESS]: { balance: toWei(2, 'ether') } },
+        },
+        // TokenBalancesController
+        DEFAULT_TOKEN_BALANCES_STATE,
+        // TokenRatesController
+        {
+          ...DEFAULT_TOKEN_RATES_STATE,
+          contractExchangeRates: {
+            [USDC_ADDRESS]: USDC_EXCHANGE_RATE,
+          },
+        },
+        // TokensController
+        {
+          ...DEFAULT_TOKENS_STATE,
+          tokens: [
+            {
+              address: USDC_ADDRESS,
+              symbol: USDC_SYMBOL,
+              decimals: USDC_DECIMALS,
+              balance: new BN(2).toString(),
+            },
+            {
+              address: CHAINLINK_ADDRESS,
+              symbol: CHAINLINK_SYMBOL,
+              decimals: CHAINLINK_DECIMALS,
+              balance: new BN(CHAINLINK_BALANCE).toString(),
+            },
+          ],
+        },
+      );
+
+      expect(fiatBalance).toBe(3122.99);
     });
   });
 });

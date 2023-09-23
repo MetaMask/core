@@ -1412,6 +1412,7 @@ __metadata:
     deepmerge: ^4.2.2
     ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
+    ethjs-unit: ^0.1.6
     immer: ^9.0.6
     jest: ^27.5.1
     jest-environment-jsdom: ^27.5.1

@@ -46,9 +46,10 @@ export interface CoinGeckoPlatform {
  * @property image - Image of the token, url or bit32 image
  */
 export interface Token {
-  address: string;
+  address?: string;
   decimals: number;
   symbol: string;
+  balance?: string;
   aggregators?: string[];
   image?: string;
   balanceError?: unknown;
