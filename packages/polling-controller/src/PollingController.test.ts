@@ -27,7 +27,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: 1000,
+        pollingIntervalLength: TICK_TIME,
       });
       controller.start('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
@@ -48,7 +48,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: 1000,
+        pollingIntervalLength: TICK_TIME,
       });
       const pollingToken = controller.start('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
@@ -69,7 +69,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: 1000,
+        pollingIntervalLength: TICK_TIME,
       });
       const pollingToken1 = controller.start('mainnet');
       controller.start('mainnet');
@@ -93,7 +93,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: 1000,
+        pollingIntervalLength: TICK_TIME,
       });
       controller.start('mainnet');
       expect(() => {
@@ -113,7 +113,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: 1000,
+        pollingIntervalLength: TICK_TIME,
       });
       controller.start('mainnet');
       expect(() => {
@@ -136,7 +136,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: 1000,
+        pollingIntervalLength: TICK_TIME,
       });
       controller.start('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
@@ -158,7 +158,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: 1000,
+        pollingIntervalLength: TICK_TIME,
       });
       controller.start('mainnet');
       controller.start('mainnet');
@@ -189,7 +189,7 @@ describe('PollingController', () => {
         metadata: {},
         name,
         state: { foo: 'bar' },
-        pollingIntervalLength: 1000,
+        pollingIntervalLength: TICK_TIME,
       });
       const pollingToken = controller.start('mainnet');
       controller.stop(pollingToken);
@@ -209,15 +209,24 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: 1000,
+        pollingIntervalLength: TICK_TIME,
       });
       controller.start('mainnet');
       controller.start('rinkeby');
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
+      expect(controller.executePoll.mock.calls).toMatchObject([
+        ['mainnet'],
+        ['rinkeby'],
+      ]);
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
-      expect(controller.executePoll).toHaveBeenCalledTimes(4);
+      expect(controller.executePoll.mock.calls).toMatchObject([
+        ['mainnet'],
+        ['rinkeby'],
+        ['mainnet'],
+        ['rinkeby'],
+      ]);
       controller.stopAll();
     });
   });
