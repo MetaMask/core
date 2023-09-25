@@ -23,6 +23,7 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
     addHexPrefix(maxPriorityFeePerGas),
   estimatedBaseFee: (maxPriorityFeePerGas: string) =>
     addHexPrefix(maxPriorityFeePerGas),
+  type: (type: string) => (type === '0x0' ? '0x0' : undefined),
 };
 
 /**
@@ -66,6 +67,7 @@ export function normalizeTransaction(transaction: Transaction) {
       normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
     }
   }
+
   return normalizedTransaction;
 }
 
