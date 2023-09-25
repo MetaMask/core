@@ -25,10 +25,11 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import type {
-  BlockTracker,
-  NetworkState,
-  Provider,
+import {
+  NetworkStatus,
+  type BlockTracker,
+  type NetworkState,
+  type Provider,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -1590,7 +1591,12 @@ export class TransactionController extends BaseController<
     const {
       networkId,
       providerConfig: { type: chain, chainId, nickname: name },
+      networksMetadata,
     } = this.getNetworkState();
+
+    const networkStatus = networkId
+      ? networksMetadata[networkId]?.status
+      : NetworkStatus.Unknown;
 
     if (
       chain !== RPC &&
@@ -1603,7 +1609,10 @@ export class TransactionController extends BaseController<
     const customChainParams: Partial<ChainConfig> = {
       name,
       chainId: parseInt(chainId, 16),
-      networkId: networkId === null ? NaN : parseInt(networkId, undefined),
+      networkId:
+        networkId && networkStatus === NetworkStatus.Available
+          ? parseInt(networkId, undefined)
+          : 0,
       defaultHardfork: HARDFORK,
     };
 
