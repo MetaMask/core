@@ -90,6 +90,21 @@ export type KeyringControllerGetEncryptionPublicKeyAction = {
   handler: KeyringController['getEncryptionPublicKey'];
 };
 
+export type KeyringControllerGetKeyringsByTypeAction = {
+  type: `${typeof name}:getKeyringsByType`;
+  handler: KeyringController['getKeyringsByType'];
+};
+
+export type KeyringControllerGetKeyringForAccountAction = {
+  type: `${typeof name}:getKeyringForAccount`;
+  handler: KeyringController['getKeyringForAccount'];
+};
+
+export type KeyringControllerGetAccountsAction = {
+  type: `${typeof name}:getAccounts`;
+  handler: KeyringController['getAccounts'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -116,7 +131,10 @@ export type KeyringControllerActions =
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
   | KeyringControllerDecryptMessageAction
-  | KeyringControllerGetEncryptionPublicKeyAction;
+  | KeyringControllerGetEncryptionPublicKeyAction
+  | KeyringControllerGetAccountsAction
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerGetKeyringForAccountAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -350,17 +368,21 @@ export class KeyringController extends BaseControllerV2<
     keyring: Keyring<Json>,
     accountCount?: number,
   ): Promise<Hex> {
-    const oldAccounts = await keyring.getAccounts();
+    const oldAccounts = await this.getAccounts();
 
     if (accountCount && oldAccounts.length !== accountCount) {
       if (accountCount > oldAccounts.length) {
         throw new Error('Account out of sequence');
       }
-      return oldAccounts[accountCount];
+
+      const existingAccount = oldAccounts[accountCount];
+      assertIsStrictHexString(existingAccount);
+
+      return existingAccount;
     }
 
     await this.#keyring.addNewAccount(keyring);
-    const addedAccountAddress = (await keyring.getAccounts()).find(
+    const addedAccountAddress = (await this.getAccounts()).find(
       (selectedAddress) => !oldAccounts.includes(selectedAddress),
     );
     assertIsStrictHexString(addedAccountAddress);
@@ -966,6 +988,21 @@ export class KeyringController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${name}:getEncryptionPublicKey`,
       this.getEncryptionPublicKey.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getAccounts`,
+      this.getAccounts.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getKeyringsByType`,
+      this.getKeyringsByType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getKeyringForAccount`,
+      this.getKeyringForAccount.bind(this),
     );
   }
 

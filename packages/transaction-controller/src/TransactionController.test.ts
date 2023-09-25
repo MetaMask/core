@@ -24,7 +24,7 @@ import type {
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
-import { WalletDevice, TransactionStatus } from './types';
+import { WalletDevice, TransactionStatus, TransactionType } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -84,12 +84,10 @@ jest.mock('@metamask/eth-query', () =>
       },
       getTransactionByHash: (_hash: string, callback: any) => {
         const txs: any = [
-          { transactionHash: '1337', blockNumber: '0x1' },
-          { transactionHash: '1338', blockNumber: null },
+          { blockNumber: '0x1', hash: '1337' },
+          { blockNumber: null, hash: '1338' },
         ];
-        const tx: any = txs.find(
-          (element: any) => element.transactionHash === _hash,
-        );
+        const tx: any = txs.find((element: any) => element.hash === _hash);
         callback(undefined, tx);
       },
       getTransactionCount: (_from: any, _to: any, callback: any) => {
@@ -101,30 +99,28 @@ jest.mock('@metamask/eth-query', () =>
       getTransactionReceipt: (_hash: any, callback: any) => {
         const txs: any = [
           {
-            transactionHash: '1337',
+            blockHash: '1337',
             gasUsed: '0x5208',
+            hash: '1337',
             status: '0x1',
             transactionIndex: 1337,
-            blockHash: '1337',
           },
           {
-            transactionHash: '1111',
             gasUsed: '0x1108',
+            hash: '1111',
             status: '0x0',
             transactionIndex: 1111,
           },
         ];
-        const tx: any = txs.find(
-          (element: any) => element.transactionHash === _hash,
-        );
+        const tx: any = txs.find((element: any) => element.hash === _hash);
         callback(undefined, tx);
       },
       getBlockByHash: (_blockHash: any, callback: any) => {
         const blocks: any = [
           {
+            baseFeePerGas: '0x14',
             hash: '1337',
             number: '0x1',
-            baseFeePerGas: '0x14',
             timestamp: '628dc0c8',
           },
           { hash: '1338', number: '0x2' },
@@ -399,21 +395,21 @@ const NONCE_MOCK = 12;
 const ACTION_ID_MOCK = '123456';
 
 const TRANSACTION_META_MOCK = {
+  hash: '0x1',
   status: TransactionStatus.confirmed,
-  transaction: {
+  time: 123456789,
+  txParams: {
     from: ACCOUNT_MOCK,
   },
-  transactionHash: '0x1',
-  time: 123456789,
 } as TransactionMeta;
 
 const TRANSACTION_META_2_MOCK = {
+  hash: '0x2',
   status: TransactionStatus.confirmed,
-  transaction: {
+  time: 987654321,
+  txParams: {
     from: '0x3',
   },
-  transactionHash: '0x2',
-  time: 987654321,
 } as TransactionMeta;
 
 describe('TransactionController', () => {
@@ -924,7 +920,13 @@ describe('TransactionController', () => {
           operator: '0x92a3b9773b1763efa556f55ccbeb20441962d9b2',
         },
       };
-
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
       await controller.addTransaction(
         {
           from: ACCOUNT_MOCK,
@@ -934,28 +936,60 @@ describe('TransactionController', () => {
           deviceConfirmedOn: mockDeviceConfirmedOn,
           origin: mockOrigin,
           securityAlertResponse: mockSecurityAlertResponse,
+          sendFlowHistory: mockSendFlowHistory,
         },
       );
 
-      expect(controller.state.transactions[0].transaction.from).toBe(
-        ACCOUNT_MOCK,
-      );
-      expect(controller.state.transactions[0].networkID).toBe(
-        MOCK_NETWORK.state.networkId,
-      );
-      expect(controller.state.transactions[0].chainId).toBe(
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
+      expect(transactionMeta.networkID).toBe(MOCK_NETWORK.state.networkId);
+      expect(transactionMeta.chainId).toBe(
         MOCK_NETWORK.state.providerConfig.chainId,
       );
-      expect(controller.state.transactions[0].deviceConfirmedOn).toBe(
-        mockDeviceConfirmedOn,
-      );
-      expect(controller.state.transactions[0].origin).toBe(mockOrigin);
-      expect(controller.state.transactions[0].status).toBe(
-        TransactionStatus.unapproved,
-      );
-      expect(controller.state.transactions[0].securityAlertResponse).toBe(
+      expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
+      expect(transactionMeta.origin).toBe(mockOrigin);
+      expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
+      expect(transactionMeta.securityAlertResponse).toBe(
         mockSecurityAlertResponse,
       );
+      expect(transactionMeta.originalGasEstimate).toBe('0x0');
+      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
+        mockSendFlowHistory,
+      );
+    });
+
+    it('generates initial history', async () => {
+      const controller = newController();
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      const expectedInitialSnapshot = {
+        actionId: undefined,
+        chainId: expect.any(String),
+        dappSuggestedGasFees: undefined,
+        deviceConfirmedOn: undefined,
+        id: expect.any(String),
+        networkID: expect.any(String),
+        origin: undefined,
+        originalGasEstimate: expect.any(String),
+        securityAlertResponse: undefined,
+        sendFlowHistory: expect.any(Array),
+        status: TransactionStatus.unapproved,
+        time: expect.any(Number),
+        txParams: expect.anything(),
+        userEditedGasLimit: false,
+        type: TransactionType.simpleSend,
+        verifiedOnBlockchain: expect.any(Boolean),
+      };
+
+      // Expect initial snapshot to be in place
+      expect(controller.state.transactions[0]?.history).toStrictEqual([
+        expectedInitialSnapshot,
+      ]);
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
@@ -1038,7 +1072,7 @@ describe('TransactionController', () => {
           to: ACCOUNT_MOCK,
         });
 
-        expect(controller.state.transactions[0].transaction.from).toBe(
+        expect(controller.state.transactions[0].txParams.from).toBe(
           ACCOUNT_MOCK,
         );
         expect(controller.state.transactions[0].networkID).toBe(
@@ -1098,11 +1132,11 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(2);
       const secondTransaction = controller.state.transactions[1];
 
-      expect(firstTransaction.transaction.nonce).toBe(
+      expect(firstTransaction.txParams.nonce).toBe(
         `0x${NONCE_MOCK.toString(16)}`,
       );
 
-      expect(secondTransaction.transaction.nonce).toBe(
+      expect(secondTransaction.txParams.nonce).toBe(
         `0x${(NONCE_MOCK + 1).toString(16)}`,
       );
     });
@@ -1161,7 +1195,7 @@ describe('TransactionController', () => {
         });
 
         const {
-          transaction: { estimateGasError },
+          txParams: { estimateGasError },
         } = controller.state.transactions[0];
 
         expect(estimateGasError).toBe(ESTIMATE_GAS_ERROR);
@@ -1182,10 +1216,10 @@ describe('TransactionController', () => {
 
         await result;
 
-        const { transaction, status, submittedTime } =
+        const { txParams, status, submittedTime } =
           controller.state.transactions[0];
-        expect(transaction.from).toBe(ACCOUNT_MOCK);
-        expect(transaction.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
+        expect(txParams.from).toBe(ACCOUNT_MOCK);
+        expect(txParams.nonce).toBe(`0x${NONCE_MOCK.toString(16)}`);
         expect(status).toBe(TransactionStatus.submitted);
         expect(submittedTime).toStrictEqual(expect.any(Number));
       });
@@ -1241,9 +1275,9 @@ describe('TransactionController', () => {
 
           await expect(result).rejects.toThrow(expectedError);
 
-          const { transaction, status } = controller.state.transactions[0];
-          expect(transaction.from).toBe(ACCOUNT_MOCK);
-          expect(transaction.to).toBe(ACCOUNT_MOCK);
+          const { txParams, status } = controller.state.transactions[0];
+          expect(txParams.from).toBe(ACCOUNT_MOCK);
+          expect(txParams.to).toBe(ACCOUNT_MOCK);
           expect(status).toBe(TransactionStatus.failed);
         }
 
@@ -1356,8 +1390,8 @@ describe('TransactionController', () => {
 
         await expect(result).rejects.toThrow('User rejected the transaction');
 
-        const { transaction, status } = await finishedPromise;
-        expect(transaction.from).toBe(ACCOUNT_MOCK);
+        const { txParams, status } = await finishedPromise;
+        expect(txParams.from).toBe(ACCOUNT_MOCK);
         expect(status).toBe(TransactionStatus.rejected);
       });
     });
@@ -1388,10 +1422,10 @@ describe('TransactionController', () => {
 
       controller.state.transactions.push({
         from: MOCK_PREFERENCES.state.selectedAddress,
+        hash: '1337',
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
-        transactionHash: '1337',
       } as any);
 
       controller.wipeTransactions();
@@ -1411,7 +1445,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '1',
         chainId: mockCurrentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount1,
         },
       } as any);
@@ -1419,7 +1453,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '2',
         chainId: mockCurrentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount2,
         },
       } as any);
@@ -1442,7 +1476,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '1',
         chainId: mockCurrentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount1,
         },
       } as any);
@@ -1450,7 +1484,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         id: '4',
         chainId: mockDifferentChainId,
-        transaction: {
+        txParams: {
           from: mockFromAccount1,
         },
       } as any);
@@ -1467,12 +1501,12 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
+        chainId: toHex(5),
         from: MOCK_PREFERENCES.state.selectedAddress,
+        hash: '1337',
         id: 'foo',
         networkID: '5',
-        chainId: toHex(5),
         status: TransactionStatus.submitted,
-        transactionHash: '1337',
       } as any);
 
       controller.state.transactions.push({} as any);
@@ -1494,10 +1528,10 @@ describe('TransactionController', () => {
 
       controller.state.transactions.push({
         from: MOCK_PREFERENCES.state.selectedAddress,
+        hash: '1337',
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
-        transactionHash: '1337',
       } as any);
 
       controller.state.transactions.push({} as any);
@@ -1520,7 +1554,7 @@ describe('TransactionController', () => {
         id: 'foo',
         networkID: '5',
         status: TransactionStatus.submitted,
-        transactionHash: '1338',
+        hash: '1338',
       } as any);
 
       await controller.queryTransactionStatuses();
@@ -1533,23 +1567,23 @@ describe('TransactionController', () => {
       const controller = newController();
 
       controller.state.transactions.push({
+        chainId: toHex(5),
         from: MOCK_PREFERENCES.state.selectedAddress,
+        hash: '1337',
         id: 'foo',
         networkID: '5',
-        chainId: toHex(5),
         status: TransactionStatus.confirmed,
-        transactionHash: '1337',
-        verifiedOnBlockchain: false,
-        transaction: {
+        txParams: {
           gasUsed: undefined,
         },
+        verifiedOnBlockchain: false,
       } as any);
 
       await controller.queryTransactionStatuses();
 
       const transactionMeta = controller.state.transactions[0];
       expect(transactionMeta.verifiedOnBlockchain).toBe(true);
-      expect(transactionMeta.transaction.gasUsed).toBe('0x5208');
+      expect(transactionMeta.txParams.gasUsed).toBe('0x5208');
       expect(transactionMeta.blockTimestamp).toBe('628dc0c8');
       expect(transactionMeta.baseFeePerGas).toBe('0x14');
       expect(transactionMeta.txReceipt?.transactionIndex).toBe(1337);
@@ -1663,6 +1697,7 @@ describe('TransactionController', () => {
       await expect(result).rejects.toThrow('User cancelled the transaction');
       expect(estimatedBaseFee).toBe('0x123');
       expect(transactions[0].status).toStrictEqual(TransactionStatus.cancelled);
+      expect(transactions[0].type).toStrictEqual(TransactionType.simpleSend);
     });
 
     it('rejects unknown transaction', async () => {
@@ -1708,9 +1743,40 @@ describe('TransactionController', () => {
 
       const { transactions } = controller.state;
       expect(transactions).toHaveLength(2);
-      expect(transactions[1].transaction.gasPrice).toBe(
+      expect(transactions[1].txParams.gasPrice).toBe(
         '0x5916a6d6', // 1.1 * 0x50fd51da
       );
+    });
+
+    it('verifies s,r and v values are correctly populated', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+        config: {
+          sign: async (transaction: any) => {
+            transaction.r = '1b';
+            transaction.s = 'abc';
+            transaction.v = '123';
+            return transaction;
+          },
+        },
+      });
+
+      const { transactionMeta } = await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: ACCOUNT_MOCK,
+        value: '0x0',
+      });
+
+      await controller.speedUpTransaction(transactionMeta.id);
+
+      const { transactions } = controller.state;
+      expect(transactions).toHaveLength(2);
+      const speedUpTransaction = transactions[1];
+      expect(speedUpTransaction.r).toBe('0x1b');
+      expect(speedUpTransaction.s).toBe('0xabc');
+      expect(speedUpTransaction.v).toBe('0x123');
     });
 
     it('creates additional transaction specifying the gasPrice', async () => {
@@ -1732,7 +1798,7 @@ describe('TransactionController', () => {
 
       const { transactions } = controller.state;
       expect(transactions).toHaveLength(2);
-      expect(transactions[1].transaction.gasPrice).toBe('0x62DEF4DA');
+      expect(transactions[1].txParams.gasPrice).toBe('0x62DEF4DA');
     });
 
     it('uses the same nonce', async () => {
@@ -1740,7 +1806,7 @@ describe('TransactionController', () => {
 
       const { transactionMeta, result } = await controller.addTransaction({
         from: ACCOUNT_MOCK,
-        gas: '0x0',
+        gas: '0x1',
         gasPrice: '0x50fd51da',
         to: ACCOUNT_MOCK,
         value: '0x0',
@@ -1754,11 +1820,12 @@ describe('TransactionController', () => {
       const { transactions } = controller.state;
       expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
       expect(transactions).toHaveLength(2);
-      expect(transactions[0].transaction.nonce).toBeDefined();
-      expect(transactions[0].transaction.nonce).toStrictEqual(
-        transactions[1].transaction.nonce,
+      expect(transactions[0].txParams.nonce).toBeDefined();
+      expect(transactions[0].txParams.nonce).toStrictEqual(
+        transactions[1].txParams.nonce,
       );
       expect(transactions[1].estimatedBaseFee).toBe('0x123');
+      expect(transactions[1].originalGasEstimate).toBe('0x1');
     });
 
     it('allows transaction count to exceed txHistorylimit', async () => {
@@ -1787,19 +1854,19 @@ describe('TransactionController', () => {
 
   describe('initApprovals', () => {
     it('creates approvals for all unapproved transaction', async () => {
-      const transaction = {
+      const txParams = {
         from: ACCOUNT_MOCK,
+        hash: '1337',
         id: 'mocked',
         networkID: '5',
         status: TransactionStatus.unapproved,
-        transactionHash: '1337',
       };
       const controller = newController();
-      controller.state.transactions.push(transaction as any);
+      controller.state.transactions.push(txParams as any);
       controller.state.transactions.push({
-        ...transaction,
+        ...txParams,
         id: 'mocked1',
-        transactionHash: '1338',
+        hash: '1338',
       } as any);
 
       controller.initApprovals();
@@ -1848,7 +1915,7 @@ describe('TransactionController', () => {
         networkID: '1',
         chainId: toHex(1),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           gasUsed: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
@@ -1876,8 +1943,78 @@ describe('TransactionController', () => {
       );
     });
 
-    it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
+    it('generates initial history', async () => {
       const controller = newController();
+
+      const externalTransactionToConfirm = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        id: '1',
+        networkID: '1',
+        chainId: toHex(1),
+        status: TransactionStatus.confirmed,
+        txParams: {
+          gasUsed: undefined,
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as any;
+      const externalTransactionReceipt = {
+        gasUsed: '0x5208',
+      };
+      const externalBaseFeePerGas = '0x14';
+
+      await controller.confirmExternalTransaction(
+        externalTransactionToConfirm,
+        externalTransactionReceipt,
+        externalBaseFeePerGas,
+      );
+
+      const expectedInitialSnapshot = {
+        chainId: '0x1',
+        from: ACCOUNT_MOCK,
+        id: '1',
+        networkID: '1',
+        status: TransactionStatus.confirmed,
+        to: ACCOUNT_2_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          gasUsed: undefined,
+        },
+      };
+
+      // Expect initial snapshot to be the first history item
+      expect(controller.state.transactions[0]?.history?.[0]).toStrictEqual(
+        expectedInitialSnapshot,
+      );
+      // Expect modification history to be present
+      expect(controller.state.transactions[0]?.history?.[1]).toStrictEqual([
+        {
+          note: expect.any(String),
+          op: 'remove',
+          path: '/txParams/gasUsed',
+          timestamp: expect.any(Number),
+        },
+        {
+          op: 'add',
+          path: '/txReceipt',
+          value: expect.anything(),
+        },
+        {
+          op: 'add',
+          path: '/baseFeePerGas',
+          value: expect.any(String),
+        },
+      ]);
+    });
+
+    it('marks the same nonce local transactions statuses as dropped and defines replacedBy properties', async () => {
+      const controller = newController({
+        options: {
+          disableHistory: true,
+        },
+      });
       const externalTransactionId = '1';
       const externalTransactionHash = '0x1';
       const externalTransactionToConfirm = {
@@ -1888,7 +2025,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -1908,7 +2045,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.unapproved,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -1944,7 +2081,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.confirmed,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -1964,7 +2101,7 @@ describe('TransactionController', () => {
         networkID: '5',
         chainId: toHex(5),
         status: TransactionStatus.failed,
-        transaction: {
+        txParams: {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
           nonce: NONCE_MOCK,
@@ -1986,6 +2123,170 @@ describe('TransactionController', () => {
       expect(failedTx?.replacedById).toBe(externalTransactionId);
 
       expect(failedTx?.replacedBy).toBe(externalTransactionHash);
+    });
+  });
+
+  describe('updateTransactionSendFlowHistory', () => {
+    it('appends sendFlowHistory entries to transaction meta', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+      const addedTxId = controller.state.transactions[0].id;
+      controller.updateTransactionSendFlowHistory(
+        addedTxId,
+        0,
+        mockSendFlowHistory,
+      );
+
+      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
+        mockSendFlowHistory,
+      );
+    });
+
+    it('appends sendFlowHistory entries to existing entries in transaction meta', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      const mockExistingSendFlowHistory = [
+        {
+          entry: 'sendFlow - user selected transfer to my accounts',
+          timestamp: 1650663928210,
+        },
+      ];
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          sendFlowHistory: mockExistingSendFlowHistory,
+        },
+      );
+      const addedTxId = controller.state.transactions[0].id;
+      controller.updateTransactionSendFlowHistory(
+        addedTxId,
+        1,
+        mockSendFlowHistory,
+      );
+
+      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual([
+        ...mockExistingSendFlowHistory,
+        ...mockSendFlowHistory,
+      ]);
+    });
+
+    it('doesnt append if current sendFlowHistory lengths doesnt match', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+      const addedTxId = controller.state.transactions[0].id;
+      controller.updateTransactionSendFlowHistory(
+        addedTxId,
+        5,
+        mockSendFlowHistory,
+      );
+
+      expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
+        [],
+      );
+    });
+
+    it('throws if sendFlowHistory persistence is disabled', async () => {
+      const controller = newController({
+        options: { disableSendFlowHistory: true },
+      });
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+      const addedTxId = controller.state.transactions[0].id;
+      expect(() =>
+        controller.updateTransactionSendFlowHistory(
+          addedTxId,
+          0,
+          mockSendFlowHistory,
+        ),
+      ).toThrow(
+        'Send flow history is disabled for the current transaction controller',
+      );
+    });
+
+    it('throws if transactionMeta is not found', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      expect(() =>
+        controller.updateTransactionSendFlowHistory(
+          'foo',
+          0,
+          mockSendFlowHistory,
+        ),
+      ).toThrow(
+        'Cannot update send flow history as no transaction metadata found',
+      );
+    });
+
+    it('throws if the transaction is not unapproved status', async () => {
+      const controller = newController();
+      const mockSendFlowHistory = [
+        {
+          entry:
+            'sendFlow - user selected transfer to my accounts on recipient screen',
+          timestamp: 1650663928211,
+        },
+      ];
+      controller.state.transactions.push({
+        from: MOCK_PREFERENCES.state.selectedAddress,
+        id: 'foo',
+        networkID: '5',
+        chainId: toHex(5),
+        status: TransactionStatus.submitted,
+        transactionHash: '1337',
+      } as any);
+      expect(() =>
+        controller.updateTransactionSendFlowHistory(
+          'foo',
+          0,
+          mockSendFlowHistory,
+        ),
+      )
+        .toThrow(`Can only call updateTransactionSendFlowHistory on an unapproved transaction.
+      Current tx status: submitted`);
     });
   });
 
@@ -2076,6 +2377,91 @@ describe('TransactionController', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(blockNumber);
+    });
+  });
+
+  describe('updateTransactionGasFees', () => {
+    it('throws if transaction does not exist', async () => {
+      const controller = newController();
+      expect(() =>
+        controller.updateTransactionGasFees('123', {
+          gasPrice: '0x1',
+        }),
+      ).toThrow('Cannot update transaction as no transaction metadata found');
+    });
+
+    it('throws if transaction not unapproved status', async () => {
+      const transactionId = '123';
+      const fnName = 'updateTransactionGasFees';
+      const status = TransactionStatus.failed;
+      const controller = newController();
+      controller.state.transactions.push({
+        id: transactionId,
+        status,
+      } as any);
+      expect(() =>
+        controller.updateTransactionGasFees(transactionId, {
+          gasPrice: '0x1',
+        }),
+      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
+      Current tx status: ${status}`);
+    });
+
+    it('updates provided gas values', async () => {
+      const transactionId = '123';
+      const controller = newController();
+
+      const gas = '0xgas';
+      const gasLimit = '0xgasLimit';
+      const gasPrice = '0xgasPrice';
+      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
+      const maxFeePerGas = '0xmaxFeePerGas';
+      const estimateUsed = '0xestimateUsed';
+      const estimateSuggested = '0xestimateSuggested';
+      const defaultGasEstimates = '0xdefaultGasEstimates';
+      const originalGasEstimate = '0xoriginalGasEstimate';
+      const userEditedGasLimit = true;
+      const userFeeLevel = '0xuserFeeLevel';
+
+      controller.state.transactions.push({
+        id: transactionId,
+        status: TransactionStatus.unapproved,
+        history: [{}],
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as any);
+
+      controller.updateTransactionGasFees(transactionId, {
+        gas,
+        gasLimit,
+        gasPrice,
+        maxPriorityFeePerGas,
+        maxFeePerGas,
+        estimateUsed,
+        estimateSuggested,
+        defaultGasEstimates,
+        originalGasEstimate,
+        userEditedGasLimit,
+        userFeeLevel,
+      });
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.txParams?.gas).toBe(gas);
+      expect(transaction?.txParams?.gasLimit).toBe(gasLimit);
+      expect(transaction?.txParams?.gasPrice).toBe(gasPrice);
+      expect(transaction?.txParams?.maxPriorityFeePerGas).toBe(
+        maxPriorityFeePerGas,
+      );
+      expect(transaction?.txParams?.maxFeePerGas).toBe(maxFeePerGas);
+      expect(transaction?.estimateUsed).toBe(estimateUsed);
+      expect(transaction?.estimateSuggested).toBe(estimateSuggested);
+      expect(transaction?.defaultGasEstimates).toBe(defaultGasEstimates);
+      expect(transaction?.originalGasEstimate).toBe(originalGasEstimate);
+      expect(transaction?.userEditedGasLimit).toBe(userEditedGasLimit);
+      expect(transaction?.userFeeLevel).toBe(userFeeLevel);
     });
   });
 });

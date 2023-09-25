@@ -3,13 +3,14 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import EventEmitter from 'events';
 
+import { incomingTransactionsLogger as log } from './logger';
 import type { RemoteTransactionSource, TransactionMeta } from './types';
 
 const RECENT_HISTORY_BLOCK_RANGE = 10;
 
 const UPDATE_CHECKS: ((txMeta: TransactionMeta) => any)[] = [
   (txMeta) => txMeta.status,
-  (txMeta) => txMeta.transaction.gasUsed,
+  (txMeta) => txMeta.txParams.gasUsed,
 ];
 
 export class IncomingTransactionHelper {
@@ -110,6 +111,8 @@ export class IncomingTransactionHelper {
   async update(latestBlockNumberHex?: Hex): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
 
+    log('Checking for incoming transactions');
+
     try {
       if (!this.#canStart()) {
         return;
@@ -120,7 +123,14 @@ export class IncomingTransactionHelper {
         16,
       );
 
-      const fromBlock = this.#getFromBlock(latestBlockNumber);
+      const additionalLastFetchedKeys =
+        this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
+
+      const fromBlock = this.#getFromBlock(
+        latestBlockNumber,
+        additionalLastFetchedKeys,
+      );
+
       const address = this.#getCurrentAccount();
       const currentChainId = this.#getCurrentChainId();
       const currentNetworkId = this.#getCurrentNetworkId();
@@ -137,12 +147,13 @@ export class IncomingTransactionHelper {
             limit: this.#transactionLimit,
           });
       } catch (error: any) {
+        log('Error while fetching remote transactions', error);
         return;
       }
 
       if (!this.#updateTransactions) {
         remoteTransactions = remoteTransactions.filter(
-          (tx) => tx.transaction.to?.toLowerCase() === address.toLowerCase(),
+          (tx) => tx.txParams.to?.toLowerCase() === address.toLowerCase(),
         );
       }
 
@@ -164,13 +175,21 @@ export class IncomingTransactionHelper {
         this.#sortTransactionsByTime(newTransactions);
         this.#sortTransactionsByTime(updatedTransactions);
 
+        log('Found incoming transactions', {
+          new: newTransactions,
+          updated: updatedTransactions,
+        });
+
         this.hub.emit('transactions', {
           added: newTransactions,
           updated: updatedTransactions,
         });
       }
 
-      this.#updateLastFetchedBlockNumber(remoteTransactions);
+      this.#updateLastFetchedBlockNumber(
+        remoteTransactions,
+        additionalLastFetchedKeys,
+      );
     } finally {
       releaseLock();
     }
@@ -185,10 +204,7 @@ export class IncomingTransactionHelper {
     localTxs: TransactionMeta[],
   ): TransactionMeta[] {
     return remoteTxs.filter(
-      (tx) =>
-        !localTxs.some(
-          ({ transactionHash }) => transactionHash === tx.transactionHash,
-        ),
+      (tx) => !localTxs.some(({ hash }) => hash === tx.hash),
     );
   }
 
@@ -199,7 +215,7 @@ export class IncomingTransactionHelper {
     return remoteTxs.filter((remoteTx) =>
       localTxs.some(
         (localTx) =>
-          remoteTx.transactionHash === localTx.transactionHash &&
+          remoteTx.hash === localTx.hash &&
           this.#isTransactionOutdated(remoteTx, localTx),
       ),
     );
@@ -214,8 +230,11 @@ export class IncomingTransactionHelper {
     );
   }
 
-  #getFromBlock(latestBlockNumber: number): number | undefined {
-    const lastFetchedKey = this.#getBlockNumberKey();
+  #getFromBlock(
+    latestBlockNumber: number,
+    additionalKeys: string[],
+  ): number | undefined {
+    const lastFetchedKey = this.#getBlockNumberKey(additionalKeys);
 
     const lastFetchedBlockNumber =
       this.#getLastFetchedBlockNumbers()[lastFetchedKey];
@@ -229,7 +248,10 @@ export class IncomingTransactionHelper {
       : latestBlockNumber - RECENT_HISTORY_BLOCK_RANGE;
   }
 
-  #updateLastFetchedBlockNumber(remoteTxs: TransactionMeta[]) {
+  #updateLastFetchedBlockNumber(
+    remoteTxs: TransactionMeta[],
+    additionalKeys: string[],
+  ) {
     let lastFetchedBlockNumber = -1;
 
     for (const tx of remoteTxs) {
@@ -247,11 +269,11 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    const lastFetchedKey = this.#getBlockNumberKey();
+    const lastFetchedKey = this.#getBlockNumberKey(additionalKeys);
     const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
     const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
 
-    if (previousValue === lastFetchedBlockNumber) {
+    if (previousValue >= lastFetchedBlockNumber) {
       return;
     }
 
@@ -263,8 +285,11 @@ export class IncomingTransactionHelper {
     });
   }
 
-  #getBlockNumberKey(): string {
-    return `${this.#getCurrentChainId()}#${this.#getCurrentAccount().toLowerCase()}`;
+  #getBlockNumberKey(additionalKeys: string[]): string {
+    const currentChainId = this.#getCurrentChainId();
+    const currentAccount = this.#getCurrentAccount().toLowerCase();
+
+    return [currentChainId, currentAccount, ...additionalKeys].join('#');
   }
 
   #canStart(): boolean {

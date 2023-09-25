@@ -146,6 +146,7 @@ describe('TokenBalancesController', () => {
         messenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
+      getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
@@ -185,6 +186,7 @@ describe('TokenBalancesController', () => {
         messenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
+      getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
     const errorMsg = 'Failed to get balance';
@@ -232,6 +234,7 @@ describe('TokenBalancesController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
+      getNetworkClientById: jest.fn(),
     });
     const tokensController = new TokensController({
       chainId: toHex(1),
@@ -240,6 +243,7 @@ describe('TokenBalancesController', () => {
         messenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
+      getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
 
@@ -255,7 +259,11 @@ describe('TokenBalancesController', () => {
       { interval: 1337 },
     );
     const updateBalances = sinon.stub(tokenBalances, 'updateBalances');
-    await tokensController.addToken('0x00', 'FOO', 18);
+    await tokensController.addToken({
+      address: '0x00',
+      symbol: 'FOO',
+      decimals: 18,
+    });
     const { tokens } = tokensController.state;
     const found = tokens.filter((token: Token) => token.address === '0x00');
     expect(found.length > 0).toBe(true);

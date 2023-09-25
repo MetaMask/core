@@ -1972,6 +1972,35 @@ describe('NetworkController', () => {
   });
 
   describe('lookupNetwork', () => {
+    describe('if a networkClientId param is passed', () => {
+      it('updates the network status', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            const fakeNetworkClient = buildFakeClient();
+            mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
+            await controller.lookupNetwork('mainnet');
+
+            expect(controller.state.networksMetadata.mainnet.status).toBe(
+              'available',
+            );
+          },
+        );
+      });
+      it('throws an error if the network is not found', async () => {
+        await withController(
+          { infuraProjectId: 'some-infura-project-id' },
+          async ({ controller }) => {
+            await expect(() =>
+              controller.lookupNetwork('non-existent-network-id'),
+            ).rejects.toThrow(
+              'No custom network client was found with the ID "non-existent-network-id".',
+            );
+          },
+        );
+      });
+    });
+
     describe('if a provider has not been set', () => {
       it('does not change network in state', async () => {
         await withController(async ({ controller, messenger }) => {
@@ -4253,6 +4282,87 @@ describe('NetworkController', () => {
 
           expect(isEIP1559Compatible).toBe(false);
         });
+      });
+    });
+
+    describe('if a networkClientId is passed in', () => {
+      it('uses the built in state for networksMetadata', async () => {
+        await withController(
+          {
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {
+                    1559: true,
+                  },
+                  status: NetworkStatus.Unknown,
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
+      });
+      it('uses the built in false state for networksMetadata', async () => {
+        await withController(
+          {
+            state: {
+              networksMetadata: {
+                'linea-mainnet': {
+                  EIPS: {
+                    1559: false,
+                  },
+                  status: NetworkStatus.Unknown,
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+
+            expect(isEIP1559Compatible).toBe(false);
+          },
+        );
+      });
+      it('calls provider of the networkClientId and returns true', async () => {
+        await withController(
+          {
+            infuraProjectId: 'some-infura-project-id',
+          },
+          async ({ controller }) => {
+            await setFakeProvider(controller, {
+              stubs: [
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                    params: ['latest', false],
+                  },
+                  response: {
+                    result: POST_1559_BLOCK,
+                  },
+                },
+              ],
+            });
+            const isEIP1559Compatible =
+              await controller.getEIP1559Compatibility('linea-mainnet');
+            expect(isEIP1559Compatible).toBe(true);
+          },
+        );
       });
     });
 
