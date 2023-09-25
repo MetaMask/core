@@ -2562,7 +2562,7 @@ __metadata:
     "@metamask/eth-query": ^3.0.1
     "@metamask/metamask-eth-abis": ^3.0.0
     "@metamask/network-controller": ^12.2.0
-    "@metamask/rpc-errors": ^6.0.0
+    "@metamask/rpc-errors": ^5.1.1
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.24
