@@ -3,6 +3,8 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import type { PollingCompleteType } from './PollingController';
 import PollingController from './PollingController';
 
+const TICK_TIME = 1000;
+
 const createExecutePollMock = () => {
   const executePollMock = jest.fn().mockImplementation(async () => {
     return true;
@@ -27,7 +29,7 @@ describe('PollingController', () => {
         state: { foo: 'bar' },
       });
       controller.start('mainnet');
-      jest.advanceTimersByTime(1500);
+      jest.advanceTimersByTime(TICK_TIME);
       controller.stopAll();
       expect(controller.executePoll).toHaveBeenCalledTimes(1);
     });
@@ -47,9 +49,9 @@ describe('PollingController', () => {
         state: { foo: 'bar' },
       });
       const pollingToken = controller.start('mainnet');
-      jest.advanceTimersByTime(1500);
+      jest.advanceTimersByTime(TICK_TIME);
       controller.stop(pollingToken);
-      jest.advanceTimersByTime(1500);
+      jest.advanceTimersByTime(TICK_TIME);
       expect(controller.executePoll).toHaveBeenCalledTimes(1);
       controller.stopAll();
     });
@@ -68,10 +70,10 @@ describe('PollingController', () => {
       });
       const pollingToken1 = controller.start('mainnet');
       controller.start('mainnet');
-      jest.advanceTimersByTime(1400);
+      jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       controller.stop(pollingToken1);
-      jest.advanceTimersByTime(1400);
+      jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(2);
       controller.stopAll();
@@ -131,9 +133,9 @@ describe('PollingController', () => {
         state: { foo: 'bar' },
       });
       controller.start('mainnet');
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(2);
     });
@@ -153,9 +155,9 @@ describe('PollingController', () => {
       });
       controller.start('mainnet');
       controller.start('mainnet');
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(2);
       controller.stopAll();
@@ -202,9 +204,9 @@ describe('PollingController', () => {
       });
       controller.start('mainnet');
       controller.start('rinkeby');
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
-      jest.advanceTimersByTime(1200);
+      jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(4);
       controller.stopAll();
