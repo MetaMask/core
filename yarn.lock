@@ -1401,7 +1401,7 @@ __metadata:
     "@metamask/eth-query": ^3.0.1
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": ^13.0.0
-    "@metamask/preferences-controller": ^4.4.0
+    "@metamask/preferences-controller": ^4.4.1
     "@metamask/rpc-errors": ^5.1.1
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
@@ -1427,7 +1427,7 @@ __metadata:
   peerDependencies:
     "@metamask/approval-controller": ^3.5.1
     "@metamask/network-controller": ^13.0.0
-    "@metamask/preferences-controller": ^4.4.0
+    "@metamask/preferences-controller": ^4.4.1
   languageName: unknown
   linkType: soft
 
@@ -1899,8 +1899,8 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/eth-keyring-controller": ^13.0.1
     "@metamask/eth-sig-util": ^7.0.0
-    "@metamask/message-manager": ^7.3.2
-    "@metamask/preferences-controller": ^4.4.0
+    "@metamask/message-manager": ^7.3.3
+    "@metamask/preferences-controller": ^4.4.1
     "@metamask/scure-bip39": ^2.1.0
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
@@ -1917,11 +1917,11 @@ __metadata:
     typescript: ~4.6.3
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/preferences-controller": ^4.4.0
+    "@metamask/preferences-controller": ^4.4.1
   languageName: unknown
   linkType: soft
 
-"@metamask/logging-controller@^1.0.1, @metamask/logging-controller@workspace:packages/logging-controller":
+"@metamask/logging-controller@^1.0.2, @metamask/logging-controller@workspace:packages/logging-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/logging-controller@workspace:packages/logging-controller"
   dependencies:
@@ -1939,7 +1939,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/message-manager@^7.3.2, @metamask/message-manager@workspace:packages/message-manager":
+"@metamask/message-manager@^7.3.3, @metamask/message-manager@workspace:packages/message-manager":
   version: 0.0.0-use.local
   resolution: "@metamask/message-manager@workspace:packages/message-manager"
   dependencies:
@@ -2131,7 +2131,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/preferences-controller@^4.4.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@^4.4.1, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
@@ -2337,8 +2337,8 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^5.0.0
     "@metamask/keyring-controller": ^8.0.0
-    "@metamask/logging-controller": ^1.0.1
-    "@metamask/message-manager": ^7.3.2
+    "@metamask/logging-controller": ^1.0.2
+    "@metamask/message-manager": ^7.3.3
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2353,7 +2353,7 @@ __metadata:
     typescript: ~4.6.3
   peerDependencies:
     "@metamask/approval-controller": ^3.5.1
-    "@metamask/logging-controller": ^1.0.1
+    "@metamask/logging-controller": ^1.0.2
   languageName: unknown
   linkType: soft
 
