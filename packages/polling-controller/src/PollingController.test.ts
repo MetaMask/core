@@ -54,7 +54,7 @@ describe('PollingController', () => {
       expect(executePollMock).toHaveBeenCalledTimes(1);
       controller.stopAll();
     });
-    it('should not stop polling if multiple polling tokens exist', async () => {
+    it('should not stop polling if called with one of multiple active polling tokens for a given networkClient', async () => {
       jest.useFakeTimers();
       class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
