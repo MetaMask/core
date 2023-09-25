@@ -61,18 +61,6 @@ export const ChainId = {
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
-/**
- * Decimal string network IDs of built-in Infura networks, by name.
- */
-export const NetworkId = {
-  [InfuraNetworkType.mainnet]: '1',
-  [InfuraNetworkType.goerli]: '5',
-  [InfuraNetworkType.sepolia]: '11155111',
-  [InfuraNetworkType['linea-goerli']]: '59140',
-  [InfuraNetworkType['linea-mainnet']]: '59144',
-} as const;
-export type NetworkId = (typeof NetworkId)[keyof typeof NetworkId];
-
 export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
