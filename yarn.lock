@@ -1962,7 +1962,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/metamask-eth-abis@npm:3.0.0":
+"@metamask/metamask-eth-abis@npm:3.0.0, @metamask/metamask-eth-abis@npm:^3.0.0":
   version: 3.0.0
   resolution: "@metamask/metamask-eth-abis@npm:3.0.0"
   checksum: a9e3020dd8deda91b4957cc38f0041944fd60a374d7f9d19b3bc2706c5ca70b3c2a5f679b5ef390b722a2c047a2852ebecd3aaa91c054cf5a60d9ca02ee45fe6
@@ -2554,11 +2554,13 @@ __metadata:
   dependencies:
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
+    "@ethersproject/abi": ^5.7.0
     "@metamask/approval-controller": ^3.5.1
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^4.3.2
     "@metamask/eth-query": ^3.0.1
+    "@metamask/metamask-eth-abis": ^3.0.0
     "@metamask/network-controller": ^12.2.0
     "@metamask/rpc-errors": ^5.1.1
     "@metamask/utils": ^6.2.0
