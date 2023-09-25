@@ -28,6 +28,7 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
     addHexPrefix(maxPriorityFeePerGas),
   estimatedBaseFee: (maxPriorityFeePerGas: string) =>
     addHexPrefix(maxPriorityFeePerGas),
+  type: (type: string) => (type === '0x0' ? '0x0' : undefined),
 };
 
 /**

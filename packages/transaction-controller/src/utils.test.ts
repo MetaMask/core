@@ -20,17 +20,22 @@ describe('utils', () => {
   });
 
   it('normalizeTxParams', () => {
+  const commonInput = {
+    data: 'data',
+    from: 'FROM',
+    gas: 'gas',
+    gasPrice: 'gasPrice',
+    nonce: 'nonce',
+    to: 'TO',
+    value: 'value',
+    maxFeePerGas: 'maxFeePerGas',
+    maxPriorityFeePerGas: 'maxPriorityFeePerGas',
+    estimatedBaseFee: 'estimatedBaseFee',
+  };
+
+  it('normalizeTransaction', () => {
     const normalized = util.normalizeTxParams({
-      data: 'data',
-      from: 'FROM',
-      gas: 'gas',
-      gasPrice: 'gasPrice',
-      nonce: 'nonce',
-      to: 'TO',
-      value: 'value',
-      maxFeePerGas: 'maxFeePerGas',
-      maxPriorityFeePerGas: 'maxPriorityFeePerGas',
-      estimatedBaseFee: 'estimatedBaseFee',
+      ...commonInput,
     });
     expect(normalized).toStrictEqual({
       data: '0xdata',
@@ -45,6 +50,26 @@ describe('utils', () => {
       estimatedBaseFee: '0xestimatedBaseFee',
     });
   });
+  it('normalizeTransaction if type is zero', () => {
+    const normalized = util.normalizeTxParams({
+      ...commonInput,
+      type: '0x0',
+    });
+    expect(normalized).toStrictEqual({
+      data: '0xdata',
+      from: '0xfrom',
+      gas: '0xgas',
+      gasPrice: '0xgasPrice',
+      nonce: '0xnonce',
+      to: '0xto',
+      value: '0xvalue',
+      maxFeePerGas: '0xmaxFeePerGas',
+      maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
+      estimatedBaseFee: '0xestimatedBaseFee',
+      type: '0x0',
+    });
+  });
+});
 
   describe('validateTxParams', () => {
     it('should throw if no from address', () => {
