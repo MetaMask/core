@@ -2147,6 +2147,69 @@ describe('NftController', () => {
       const error = 'This NFT is not owned by the user';
       await expect(result).rejects.toThrow(error);
     });
+
+    it('should verify ownership by selected address and add NFT by the correct chainId when passed networkClientId', async () => {
+      const { nftController, preferences, getNetworkClientByIdSpy } =
+        setupController();
+
+      getNetworkClientByIdSpy.mockImplementation((networkClientId) => {
+        switch (networkClientId) {
+          case 'sepolia':
+            return {
+              configuration: {
+                chainId: SEPOLIA.chainId,
+              },
+            };
+          case 'goerli':
+            return {
+              configuration: {
+                chainId: GOERLI.chainId,
+              },
+            };
+          default:
+            return {
+              configuration: {
+                chainId: '0x1',
+              },
+            };
+        }
+      });
+      const firstAddress = '0x123';
+      const secondAddress = '0x321';
+
+      sinon.stub(nftController, 'isNftOwner' as any).returns(true);
+
+      sinon
+        .stub(nftController, 'getNftInformation' as any)
+        .returns({ name: 'name', image: 'url', description: 'description' });
+      preferences.update({ selectedAddress: firstAddress });
+      await nftController.addNftVerifyOwnership('0x01', '1234', 'sepolia');
+      preferences.update({ selectedAddress: secondAddress });
+      await nftController.addNftVerifyOwnership('0x02', '4321', 'goerli');
+
+      expect(
+        nftController.state.allNfts[firstAddress][SEPOLIA.chainId][0],
+      ).toStrictEqual({
+        address: '0x01',
+        description: 'description',
+        image: 'url',
+        name: 'name',
+        tokenId: '1234',
+        favorite: false,
+        isCurrentlyOwned: true,
+      });
+      expect(
+        nftController.state.allNfts[secondAddress][GOERLI.chainId][0],
+      ).toStrictEqual({
+        address: '0x02',
+        description: 'description',
+        image: 'url',
+        name: 'name',
+        tokenId: '4321',
+        favorite: false,
+        isCurrentlyOwned: true,
+      });
+    });
   });
 
   describe('removeNft', () => {
