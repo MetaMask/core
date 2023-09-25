@@ -20,6 +20,9 @@ module.exports = {
     {
       files: ['*.test.ts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
+      rules: {
+        'import/no-nodejs-modules': 'off',
+      },
     },
   ],
 

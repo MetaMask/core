@@ -1,11 +1,12 @@
-import { Duplex } from 'stream';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import PortStream from 'extension-port-stream';
+import type { Duplex } from 'stream';
 import type { Runtime } from 'webextension-polyfill-ts';
+
 import { createStreamMiddleware, createEngineStream } from '.';
 
-const artificialDelay = (t = 0) =>
-  new Promise((resolve) => setTimeout(resolve, t));
+const artificialDelay = async (time = 0) =>
+  new Promise((resolve) => setTimeout(resolve, time));
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 const noop = function (_a: any) {};
 
@@ -35,10 +36,10 @@ describe('createStreamMiddleware', () => {
         () => {
           reject(new Error('should not call next'));
         },
-        (err) => {
+        (errorObj) => {
           try {
             // eslint-disable-next-line jest/no-restricted-matchers
-            expect(err).toBeFalsy();
+            expect(errorObj).toBeFalsy();
             expect(initRes).toStrictEqual(res);
           } catch (error) {
             return reject(error);
@@ -73,12 +74,18 @@ describe('createEngineStream', () => {
         return resolve();
       });
 
-      stream.on('error', (err) => {
-        reject(err);
+      stream.on('error', (errorObj) => {
+        reject(errorObj);
       });
 
       stream.write(req);
     });
+  });
+
+  it('throw error when engine stream options not available', async () => {
+    expect(() => {
+      createEngineStream({} as any);
+    }).toThrow('Missing engine parameter!');
   });
 });
 
@@ -128,15 +135,15 @@ describe('retry logic in middleware connected to a port', () => {
     messages = [];
     const extensionPort = {
       onMessage: {
-        addListener: (cb: any) => {
-          messageConsumer = cb;
+        addListener: (messageCallback: any) => {
+          messageConsumer = messageCallback;
         },
       },
       onDisconnect: {
         addListener: noop,
       },
-      postMessage(m: any) {
-        messages.push(m);
+      postMessage(message: any) {
+        messages.push(message);
       },
     };
 
@@ -159,6 +166,8 @@ describe('retry logic in middleware connected to a port', () => {
 
     // Initially sent once
     const responsePromise1 = engineA?.handle(req1);
+    // intentionally not awaited
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     engineA?.handle(req2);
     await artificialDelay();
 
@@ -193,6 +202,8 @@ describe('retry logic in middleware connected to a port', () => {
     const req = { id: 1, jsonrpc, method: 'test' };
 
     // Initially sent once, message count at 1
+    // intentionally not awaited
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     engineA?.handle(req);
     await artificialDelay();
     expect(messages).toHaveLength(1);
@@ -242,6 +253,8 @@ describe('retry logic in middleware connected to a port', () => {
     const req = { id: undefined, jsonrpc, method: 'test' };
 
     // Initially sent once, message count at 1
+    // intentionally not awaited
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     engineA?.handle(req);
     await artificialDelay();
     expect(messages).toHaveLength(1);

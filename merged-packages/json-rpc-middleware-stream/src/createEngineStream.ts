@@ -1,10 +1,10 @@
+import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { JsonRpcRequest } from '@metamask/utils';
 import { Duplex } from 'readable-stream';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import { JsonRpcRequest, JsonRpcParams } from '@metamask/utils';
 
-interface EngineStreamOptions {
+type EngineStreamOptions = {
   engine: JsonRpcEngine;
-}
+};
 
 /**
  * Takes a JsonRpcEngine and returns a Duplex stream wrapping it.
@@ -14,7 +14,7 @@ interface EngineStreamOptions {
  * @returns The stream wrapping the engine.
  */
 export default function createEngineStream(opts: EngineStreamOptions): Duplex {
-  if (!opts || !opts.engine) {
+  if (!opts?.engine) {
     throw new Error('Missing engine parameter!');
   }
 
@@ -33,16 +33,16 @@ export default function createEngineStream(opts: EngineStreamOptions): Duplex {
    *
    * @param req - The JSON-rpc request.
    * @param _encoding - The stream encoding, not used.
-   * @param cb - The stream write callback.
+   * @param streamWriteCallback - The stream write callback.
    */
   function write(
-    req: JsonRpcRequest<JsonRpcParams>,
+    req: JsonRpcRequest,
     _encoding: unknown,
-    cb: (error?: Error | null) => void,
+    streamWriteCallback: (error?: Error | null) => void,
   ) {
     engine.handle(req, (_err, res) => {
       stream.push(res);
     });
-    cb();
+    streamWriteCallback();
   }
 }
