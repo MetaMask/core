@@ -6,8 +6,8 @@ import type {
   JsonRpcParams,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import clone from 'clone';
 import type { PollingBlockTracker } from 'eth-block-tracker';
+import { klona } from 'klona/full';
 import pify from 'pify';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
@@ -60,7 +60,7 @@ export function createBlockRefMiddleware({
     );
 
     // create child request with specific block-ref
-    const childRequest = clone(req);
+    const childRequest = klona(req);
 
     if (Array.isArray(childRequest.params)) {
       childRequest.params[blockRefIndex] = latestBlockNumber;

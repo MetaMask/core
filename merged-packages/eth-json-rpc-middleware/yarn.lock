@@ -987,13 +987,11 @@ __metadata:
     "@metamask/rpc-errors": ^6.0.0
     "@metamask/utils": ^8.1.0
     "@types/btoa": ^1.2.3
-    "@types/clone": ^2.1.0
     "@types/jest": ^27.4.1
     "@types/node": ^17.0.23
-    "@types/pify": ^3.0.2
+    "@types/pify": ^5.0.2
     "@typescript-eslint/eslint-plugin": ^5.42.1
     "@typescript-eslint/parser": ^5.42.1
-    clone: ^2.1.1
     eslint: ^8.44.0
     eslint-config-prettier: ^8.1.0
     eslint-plugin-import: ^2.27.5
@@ -1004,11 +1002,12 @@ __metadata:
     eslint-plugin-promise: ^6.1.1
     eth-block-tracker: ^8.0.0
     jest: ^27.5.1
-    pify: ^3.0.0
+    klona: ^2.0.6
+    pify: ^5.0.0
     prettier: ^2.2.1
     prettier-plugin-packagejson: ^2.2.11
     rimraf: ^3.0.2
-    safe-stable-stringify: ^2.3.2
+    safe-stable-stringify: ^2.4.3
     ts-jest: ^27.1.4
     ts-node: ^10.7.0
     typescript: ~4.8.4
@@ -1336,13 +1335,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/clone@npm:^2.1.0":
-  version: 2.1.1
-  resolution: "@types/clone@npm:2.1.1"
-  checksum: bda9668b9d6e0875d64bbe00763676f566e8647bc224333a03ac7fd66655dfed56a98a9f8304d0145c4411b964649c84c4d1a03adbdb6547eafb9ab8f303d254
-  languageName: node
-  linkType: hard
-
 "@types/debug@npm:^4.1.7":
   version: 4.1.7
   resolution: "@types/debug@npm:4.1.7"
@@ -1448,10 +1440,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/pify@npm:^3.0.2":
-  version: 3.0.2
-  resolution: "@types/pify@npm:3.0.2"
-  checksum: 965f0fb0d7e414332cf952c8e7e3af002878ebf99811845ab78750d574119abc3ccf7d5e7ad7d71f579b1e43c2c40f9ac9ba89c3d55a5d8e4688f43fb1213044
+"@types/pify@npm:^5.0.2":
+  version: 5.0.2
+  resolution: "@types/pify@npm:5.0.2"
+  checksum: dcfa7aad04cdab4cf006d7c4af651137080749678ab87abdb768d3f3228872c23fa7516e4a169b20b325ef3fe38668ca28b9a00155c3911eb1c2c1ba1bdc59af
   languageName: node
   linkType: hard
 
@@ -2220,13 +2212,6 @@ __metadata:
     strip-ansi: ^6.0.0
     wrap-ansi: ^7.0.0
   checksum: ce2e8f578a4813806788ac399b9e866297740eecd4ad1823c27fd344d78b22c5f8597d548adbcc46f0573e43e21e751f39446c5a5e804a12aace402b7a315d7f
-  languageName: node
-  linkType: hard
-
-"clone@npm:^2.1.1":
-  version: 2.1.2
-  resolution: "clone@npm:2.1.2"
-  checksum: aaf106e9bc025b21333e2f4c12da539b568db4925c0501a1bf4070836c9e848c892fa22c35548ce0d1132b08bbbfa17a00144fe58fccdab6fa900fec4250f67d
   languageName: node
   linkType: hard
 
@@ -4734,6 +4719,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"klona@npm:^2.0.6":
+  version: 2.0.6
+  resolution: "klona@npm:2.0.6"
+  checksum: ac9ee3732e42b96feb67faae4d27cf49494e8a3bf3fa7115ce242fe04786788e0aff4741a07a45a2462e2079aa983d73d38519c85d65b70ef11447bbc3c58ce7
+  languageName: node
+  linkType: hard
+
 "leven@npm:^3.1.0":
   version: 3.1.0
   resolution: "leven@npm:3.1.0"
@@ -5474,13 +5466,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pify@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "pify@npm:3.0.0"
-  checksum: 6cdcbc3567d5c412450c53261a3f10991665d660961e06605decf4544a61a97a54fefe70a68d5c37080ff9d6f4cf51444c90198d1ba9f9309a6c0d6e9f5c4fde
-  languageName: node
-  linkType: hard
-
 "pify@npm:^5.0.0":
   version: 5.0.0
   resolution: "pify@npm:5.0.0"
@@ -5795,10 +5780,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"safe-stable-stringify@npm:^2.3.2":
-  version: 2.4.2
-  resolution: "safe-stable-stringify@npm:2.4.2"
-  checksum: 0324ba2e40f78cae63e31a02b1c9bdf1b786621f9e8760845608eb9e81aef401944ac2078e5c9c1533cf516aea34d08fa8052ca853637ced84b791caaf1e394e
+"safe-stable-stringify@npm:^2.4.3":
+  version: 2.4.3
+  resolution: "safe-stable-stringify@npm:2.4.3"
+  checksum: 3aeb64449706ee1f5ad2459fc99648b131d48e7a1fbb608d7c628020177512dc9d94108a5cb61bbc953985d313d0afea6566d243237743e02870490afef04b43
   languageName: node
   linkType: hard
 

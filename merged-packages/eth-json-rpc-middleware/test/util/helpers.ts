@@ -6,7 +6,7 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
 } from '@metamask/utils';
-import clone from 'clone';
+import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
 
 /**
@@ -212,7 +212,7 @@ export function stubProviderRequests(
   provider: SafeEventEmitterProvider,
   stubs: ProviderRequestStub<any, any>[],
 ) {
-  const remainingStubs = clone(stubs);
+  const remainingStubs = klona(stubs);
   const callNumbersByRequest = new Map<Partial<JsonRpcRequest>, number>();
   return jest.spyOn(provider, 'sendAsync').mockImplementation((request, cb) => {
     const stubIndex = remainingStubs.findIndex((stub) =>

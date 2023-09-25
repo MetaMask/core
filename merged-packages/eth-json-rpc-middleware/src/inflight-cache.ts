@@ -4,7 +4,7 @@ import type {
   Json,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import clone from 'clone';
+import { klona } from 'klona/full';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import type { JsonRpcRequestToCache, JsonRpcCacheMiddleware } from './types';
@@ -78,8 +78,8 @@ export function createInflightCacheMiddleware(): JsonRpcCacheMiddleware<
     const { resolve, promise } = deferredPromise();
     activeRequestHandlers.push((handledRes: PendingJsonRpcResponse<Json>) => {
       // append a copy of the result and error to the response
-      res.result = clone(handledRes.result);
-      res.error = clone(handledRes.error);
+      res.result = klona(handledRes.result);
+      res.error = klona(handledRes.error);
       resolve();
     });
     return promise;
