@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0]
+### Changed
+- Use `providerConfig.chainId` instead of `providerConfig.networkId` to determine ENS compatability ([#1633](https://github.com/MetaMask/core/pull/1633))
+
 ## [4.1.1]
 ### Changed
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
@@ -60,7 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.2.0...HEAD
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.1...@metamask/ens-controller@4.2.0
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.0...@metamask/ens-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.0.0...@metamask/ens-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.1.0...@metamask/ens-controller@4.0.0
