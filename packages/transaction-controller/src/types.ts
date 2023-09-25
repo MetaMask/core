@@ -37,7 +37,7 @@ type TransactionMetaBase = {
   /**
    * Network code as per EIP-155 for this transaction.
    */
-  chainId?: Hex;
+  chainId: Hex;
 
   /**
    * Gas values provided by the dApp.
@@ -90,9 +90,11 @@ type TransactionMetaBase = {
   isTransfer?: boolean;
 
   /**
-   * Network code as per EIP-155 for this transaction.
+   * Network code as per EIP-155 for this transaction
+   *
+   * @deprecated Use `chainId` instead.
    */
-  networkID?: string;
+  readonly networkID?: string;
 
   /**
    * Origin this transaction was sent from.
@@ -504,11 +506,6 @@ export interface RemoteTransactionSourceRequest {
   currentChainId: Hex;
 
   /**
-   * The networkId of the current network.
-   */
-  currentNetworkId: string;
-
-  /**
    * Block number to start fetching transactions from.
    */
   fromBlock?: number;
@@ -526,10 +523,9 @@ export interface RemoteTransactionSourceRequest {
 export interface RemoteTransactionSource {
   /**
    * @param chainId - The chainId of the current network.
-   * @param networkId - The networkId of the current network.
    * @returns Whether the remote transaction source supports the specified network.
    */
-  isSupportedNetwork: (chainId: Hex, networkId: string) => boolean;
+  isSupportedNetwork: (chainId: Hex) => boolean;
 
   /**
    * @returns An array of additional keys to use when caching the last fetched block number.

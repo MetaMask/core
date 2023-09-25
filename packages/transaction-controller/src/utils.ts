@@ -2,7 +2,6 @@ import {
   convertHexToDecimal,
   isValidHexAddress,
 } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
@@ -206,30 +205,6 @@ export function getAndFormatTransactionsForNonceTracker(
         },
       };
     });
-}
-
-/**
- * Checks whether a given transaction matches the specified network or chain ID.
- * This function is used to determine if a transaction is relevant to the current network or chain.
- *
- * @param transaction - The transaction metadata to check.
- * @param chainId - The chain ID of the current network.
- * @param networkId - The network ID of the current network.
- * @returns A boolean value indicating whether the transaction matches the current network or chain ID.
- */
-export function transactionMatchesNetwork(
-  transaction: TransactionMeta,
-  chainId: Hex,
-  networkId: string | null,
-) {
-  if (transaction.chainId) {
-    return transaction.chainId === chainId;
-  }
-
-  if (transaction.networkID) {
-    return transaction.networkID === networkId;
-  }
-  return false;
 }
 
 /**
