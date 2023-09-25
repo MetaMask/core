@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.1.0]
 ### Changed
-- Add `LoggingController`` logs on signature operation stages ([#1692](https://github.com/MetaMask/core/pull/1692))
+- Add `LoggingController` logs on signature operation stages ([#1692](https://github.com/MetaMask/core/pull/1692))
 
 ## [6.0.0]
 ### Changed
