@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CHANGED**: `TokensController.watchAsset` options now accepts optional `networkClientId` which is used to get the ERC-20 token name if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
 - Bump dependency on `@metamask/controller-utils` to ^5.0.0
 - Bump dependency on `@metamask/network-controller` to ^13.0.0
+- Bump dependency on `@metamask/preferences-controller` to ^4.4.1
 
 ## [12.0.0]
 ### Added

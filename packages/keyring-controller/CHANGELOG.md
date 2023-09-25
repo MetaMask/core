@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **BREAKING:** addNewKeyring(type) return type changed from Promise<Keyring<Json>> to Promise<unknown>
   - When calling with QRKeyring type the keyring instance is retrieved or created (no multiple QRKeyring instances possible)
+- Bump dependency on `@metamask/message-manager` to ^7.3.3
+- Bump dependency on `@metamask/preferences-controller` to ^4.4.1
 
 ### Fixed
 - Fix `addNewAccountForKeyring` for `CustodyKeyring` ([#1694](https://github.com/MetaMask/core/pull/1694))
@@ -33,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add `KeyringController` messenger actions ([#1654](https://github.com/MetaMask/core/pull/1654))
   - `KeyringController:signMessage`
-  - `KeyringController:signPersonalMessage` 
+  - `KeyringController:signPersonalMessage`
   - `KeyringController:signTypedMessage`
   - `KeyringController:decryptMessage`
   - `KeyringController:getEncryptionPublicKey`
