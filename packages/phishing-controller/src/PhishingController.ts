@@ -172,10 +172,10 @@ export const phishingListKeyNameMap = {
 const controllerName = 'PhishingController';
 
 const metadata = {
-  phishingLists: { persist: false, anonymous: false },
-  whitelist: { persist: false, anonymous: false },
-  hotlistLastFetched: { persist: false, anonymous: false },
-  stalelistLastFetched: { persist: false, anonymous: false },
+  phishingLists: { persist: true, anonymous: false },
+  whitelist: { persist: true, anonymous: false },
+  hotlistLastFetched: { persist: true, anonymous: false },
+  stalelistLastFetched: { persist: true, anonymous: false },
 };
 
 /**
@@ -297,6 +297,11 @@ export class PhishingController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:maybeUpdateState` as const,
       this.maybeUpdateState.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:testOrigin` as const,
+      this.test.bind(this),
     );
   }
 
@@ -457,14 +462,14 @@ export class PhishingController extends BaseController<
     let stalelistResponse;
     let hotlistDiffsResponse;
     try {
-      stalelistResponse = await this.queryConfig<
+      stalelistResponse = await this.#queryConfig<
         DataResultWrapper<PhishingStalelist>
       >(METAMASK_STALELIST_URL).then((d) => d);
 
       // Fetching hotlist diffs relies on having a lastUpdated timestamp to do `GET /v1/diffsSince/:timestamp`,
       // so it doesn't make sense to call if there is not a timestamp to begin with.
       if (stalelistResponse?.data && stalelistResponse.data.lastUpdated > 0) {
-        hotlistDiffsResponse = await this.queryConfig<
+        hotlistDiffsResponse = await this.#queryConfig<
           DataResultWrapper<Hotlist>
         >(`${METAMASK_HOTLIST_DIFF_URL}/${stalelistResponse.data.lastUpdated}`);
       }
@@ -528,7 +533,7 @@ export class PhishingController extends BaseController<
     let hotlistResponse: DataResultWrapper<Hotlist> | null;
 
     try {
-      hotlistResponse = await this.queryConfig<DataResultWrapper<Hotlist>>(
+      hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
         `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
       );
     } finally {
@@ -557,7 +562,7 @@ export class PhishingController extends BaseController<
     this.updatePhishingDetector();
   }
 
-  private async queryConfig<ResponseType>(
+  async #queryConfig<ResponseType>(
     input: RequestInfo,
   ): Promise<ResponseType | null> {
     const response = await safelyExecute(

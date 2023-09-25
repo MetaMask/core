@@ -335,7 +335,7 @@ describe('PhishingController', () => {
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
-      await clock.tick(1000 * 5);
+      clock.tick(1000 * 5);
 
       expect(controller.isStalelistOutOfDate()).toBe(false);
     });
@@ -412,7 +412,7 @@ describe('PhishingController', () => {
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
-      await clock.tick(1000 * 5);
+      clock.tick(1000 * 5);
 
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
