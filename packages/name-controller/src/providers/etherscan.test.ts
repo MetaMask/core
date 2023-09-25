@@ -10,7 +10,6 @@ const CHAIN_ID_MOCK = '0x1';
 const SOURCE_ID = 'etherscan';
 const CONTRACT_NAME_MOCK = 'TestContractName';
 const CONTRACT_NAME_2_MOCK = 'TestContractName2';
-const API_KEY_MOCK = 'TestApiKey';
 
 describe('EtherscanNameProvider', () => {
   const handleFetchMock = jest.mocked(handleFetch);

@@ -1977,6 +1977,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
+    async-mutex: ^0.2.6
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^27.5.1
