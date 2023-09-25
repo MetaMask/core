@@ -889,11 +889,7 @@ export class KeyringController extends BaseControllerV2<
    * @returns The added keyring
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
-    const keyring =
-      (this.#keyring.getKeyringsByType(
-        KeyringTypes.qr,
-      )[0] as unknown as QRKeyring) || (await this.#addQRKeyring());
-    return keyring;
+    return this.getQRKeyring() || (await this.#addQRKeyring());
   }
 
   async restoreQRKeyring(serialized: any): Promise<void> {
