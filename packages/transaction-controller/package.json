@@ -33,7 +33,7 @@
     "@ethersproject/abi": "^5.7.0",
     "@metamask/approval-controller": "^3.5.1",
     "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^4.3.2",
+    "@metamask/controller-utils": "^5.0.0",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/metamask-eth-abis": "^3.0.0",
     "@metamask/network-controller": "^13.0.0",

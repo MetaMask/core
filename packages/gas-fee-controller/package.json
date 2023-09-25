@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^4.3.2",
+    "@metamask/controller-utils": "^5.0.0",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/network-controller": "^13.0.0",
     "@metamask/utils": "^6.2.0",
