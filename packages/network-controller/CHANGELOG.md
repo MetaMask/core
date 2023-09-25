@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+### Removed
+- **BREAKING**: Remove `NetworkId` type ([#1633](https://github.com/MetaMask/core/pull/1633))
+- **BREAKING**:  Remove `networkId` property from `NetworkState` type ([#1633](https://github.com/MetaMask/core/pull/1633))
+
+### Changed
+- Update scaffold RPC middleware for built-in Infura networks to no longer resolve `net_version` locally ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Stop making `net_version` request to determine network status ([#1633](https://github.com/MetaMask/core/pull/1633))
+
 ## [12.2.0]
 ### Added
 - Add `NetworkController:getNetworkClientById` action ([#1638](https://github.com/MetaMask/core/pull/1638))
@@ -253,7 +262,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.2.0...@metamask/network-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.2...@metamask/network-controller@12.2.0
 [12.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.1...@metamask/network-controller@12.1.2
 [12.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.0...@metamask/network-controller@12.1.1
