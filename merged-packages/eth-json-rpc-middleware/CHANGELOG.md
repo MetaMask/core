@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+### Changed
+- **BREAKING:** Minimum Node.js version is now v16 ([#243](https://github.com/MetaMask/eth-json-rpc-middleware/pull/243))
+- **BREAKING:** Bump `@metamask/utils` from `^5.0.2` to `^8.1.0` ([#241](https://github.com/MetaMask/eth-json-rpc-middleware/pull/241))
+- **BREAKING:** Bump `@metamask/eth-json-rpc-provider` from `^1.0.0` to `^2.1.0` ([#245](https://github.com/MetaMask/eth-json-rpc-middleware/pull/245))
+- **BREAKING:** Migrate from eth-rpc-errors `^4.0.3` to `@metamask/rpc-errors` `^6.0.0` ([#245](https://github.com/MetaMask/eth-json-rpc-middleware/pull/245))
+- **BREAKING:** Migrate from json-rpc-engine `^6.1.0` to `@metamask/json-rpc-engine` `^7.1.1` ([#245](https://github.com/MetaMask/eth-json-rpc-middleware/pull/245))
+- Bump `@metamask/eth-sig-util` from `^6.0.0` to `^7.0.0` ([#248](https://github.com/MetaMask/eth-json-rpc-middleware/pull/248))
+- Bump `@metamask/eth-block-tracker` from `^7.0.1` to `^8.0.0` ([#245](https://github.com/MetaMask/eth-json-rpc-middleware/pull/245))
+- Replace deep-cloning implemantation `clone` with `klona/full`([#250](https://github.com/MetaMask/eth-json-rpc-middleware/pull/250))
+
 ## [11.0.2]
 ### Changed
 - Bump @metamask/eth-sig-util from ^5.0.0 to ^6.0.0 ([#236](https://github.com/MetaMask/eth-json-rpc-middleware/pull/236))
@@ -134,7 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v11.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v11.0.2...v12.0.0
 [11.0.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v11.0.1...v11.0.2
 [11.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v11.0.0...v11.0.1
 [11.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v10.0.0...v11.0.0
