@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.0.0]
 ### Changed
-- **BREAKING**: `TokensController` now expects `getNetworkClientById` in constructor options 
+- **BREAKING**: `TokensController` now expects `getNetworkClientById` in constructor options
 - **BREAKING**: `TokensController.addToken` now accepts a single options object ([#1676](https://github.com/MetaMask/core/pull/1676))
   ```
     {
@@ -20,12 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       interactingAddress?: string;
       networkClientId?: NetworkClientId;
     }
-  ``` 
+  ```
 - **CHANGED**: `TokensController.addToken` will use the chain ID value derived from state for `networkClientId` if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
 - **CHANGED**: `TokensController.addTokens` now accepts an optional `networkClientId` as the last parameter ([#1676](https://github.com/MetaMask/core/pull/1676))
 - **CHANGED**: `TokensController.addTokens` will use the chain ID value derived from state for `networkClientId` if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
 - **CHANGED**: `TokensController.watchAsset` options now accepts optional `networkClientId` which is used to get the ERC-20 token name if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
-
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+- Bump dependency on `@metamask/network-controller` to ^13.0.0
 
 ## [12.0.0]
 ### Added
@@ -99,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `getERC20TokenName` method is used to get the token name for tokens added via `wallet_watchAsset`
   - The `onTokenListStateChange` method is used to trigger a name update when the token list changes. On each change, token names are copied from the token list if they're missing from token controller state.
 - **BREAKING:** The signature of the tokens controller method `addToken` has changed
-  - The fourth and fifth positional parameters (`image` and `interactingAddress`) have been replaced by an `options` object 
+  - The fourth and fifth positional parameters (`image` and `interactingAddress`) have been replaced by an `options` object
   - The new options parameter includes the `image` and `interactingAddress` properties, and a new `name` property
 - The token detection controller now sets the token name when new tokens are detected ([#1127](https://github.com/MetaMask/core/pull/1127))
 - The `Token` type now includes an optional `name` field ([#1127](https://github.com/MetaMask/core/pull/1127))
@@ -178,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove the `networkType` configuration option from the NFT detection controller, NFT controller, and tokens controller ([#1360](https://github.com/MetaMask/core/pull/1360), [#1359](https://github.com/MetaMask/core/pull/1359))
 - **BREAKING:** Remove the `SuggestedAssetMeta` and `SuggestedAssetMetaBase` types from the token controller ([#1268](https://github.com/MetaMask/core/pull/1268))
 - **BREAKING:** Remove the `acceptWatchAsset` and `rejectWatchAsset` methods from the token controller ([#1268](https://github.com/MetaMask/core/pull/1268))
-  - Suggested assets can be accepted or rejected using the approval controller instead 
+  - Suggested assets can be accepted or rejected using the approval controller instead
 
 ## [7.0.0]
 ### Changed

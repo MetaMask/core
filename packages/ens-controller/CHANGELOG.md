@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.2.0]
 ### Changed
 - Use `providerConfig.chainId` instead of `providerConfig.networkId` to determine ENS compatability ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+- Bump dependency on `@metamask/network-controller` to ^13.0.0
 
 ## [4.1.1]
 ### Changed
