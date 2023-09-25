@@ -6,7 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [7.5.1]
+## [8.0.0]
+### Changed
+- **BREAKING:** addNewKeyring(type) return type changed from Promise<Keyring<Json>> to Promise<unknown>
+  - When calling with QRKeyring type the keyring instance is retrieved or created (no multiple QRKeyring instances possible)
+
+### Added
+- Add `getQRKeyring(): QRKeyring | undefined` method
+- Add `KeyringController:qrKeyringStateChange` messenger event
+- The event emits updates from the internal `QRKeyring` instance, if there's one
+
 ### Fixed
 - Fix `addNewAccountForKeyring` for `CustodyKeyring` ([#1694](https://github.com/MetaMask/core/pull/1694))
 
