@@ -35,6 +35,7 @@ import {
   KeyringTypes,
 } from './KeyringController';
 import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 
 jest.mock('uuid', () => {
   return {
@@ -173,6 +174,37 @@ describe('KeyringController', () => {
               preferences.updateIdentities.calledWith(
                 controller.state.keyrings[0].accounts,
               ),
+            ).toBe(true);
+            expect(preferences.setSelectedAddress.called).toBe(false);
+          },
+        );
+      });
+
+      it('should not throw when `keyring.getAccounts()` returns a shallow copy', async () => {
+        await withController(
+          {
+            keyringBuilders: [
+              keyringBuilderFactory(MockShallowGetAccountsKeyring),
+            ],
+          },
+          async ({ controller, initialState, preferences }) => {
+            const mockKeyring = await controller.addNewKeyring(
+              MockShallowGetAccountsKeyring.type,
+            );
+
+            const addedAccountAddress =
+              await controller.addNewAccountForKeyring(mockKeyring);
+
+            expect(controller.state.keyrings).toHaveLength(2);
+            expect(controller.state.keyrings[1].accounts).toHaveLength(1);
+            expect(addedAccountAddress).toBe(
+              controller.state.keyrings[1].accounts[0],
+            );
+            expect(
+              preferences.updateIdentities.calledWith([
+                ...initialState.keyrings[0].accounts,
+                addedAccountAddress,
+              ]),
             ).toBe(true);
             expect(preferences.setSelectedAddress.called).toBe(false);
           },
@@ -2033,6 +2065,55 @@ describe('KeyringController', () => {
         );
       });
     });
+
+    describe('getKeyringsByType', () => {
+      it('should return correct keyring by type', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringsByType')
+          .mockReturnValue([
+            {
+              type: 'HD Key Tree',
+              accounts: ['0x1234'],
+            },
+          ]);
+        await withController(async ({ controller, messenger }) => {
+          messenger.call('KeyringController:getKeyringsByType', 'HD Key Tree');
+
+          expect(controller.getKeyringsByType).toHaveBeenCalledWith(
+            'HD Key Tree',
+          );
+        });
+      });
+    });
+
+    describe('getKeyringForAccount', () => {
+      it('should return the keyring for the account', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringForAccount')
+          .mockResolvedValue({
+            type: 'HD Key Tree',
+            accounts: ['0x1234'],
+          });
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getKeyringForAccount', '0x0');
+
+          expect(controller.getKeyringForAccount).toHaveBeenCalledWith('0x0');
+        });
+      });
+    });
+
+    describe('getAccounts', () => {
+      it('should return all accounts', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getAccounts')
+          .mockResolvedValue(['0x1234']);
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getAccounts');
+
+          expect(controller.getAccounts).toHaveBeenCalledWith();
+        });
+      });
+    });
   });
 });
 
@@ -2091,6 +2172,9 @@ function buildKeyringControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:signTypedMessage',
       'KeyringController:decryptMessage',
       'KeyringController:getEncryptionPublicKey',
+      'KeyringController:getKeyringsByType',
+      'KeyringController:getKeyringForAccount',
+      'KeyringController:getAccounts',
     ],
     allowedEvents: [
       'KeyringController:stateChange',

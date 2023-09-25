@@ -5,22 +5,10 @@
   },
   "references": [
     {
-      "path": "../approval-controller"
-    },
-    {
       "path": "../base-controller"
     },
     {
-      "path": "../controller-utils"
-    },
-    {
-      "path": "../message-manager"
-    },
-    {
       "path": "../keyring-controller"
-    },
-    {
-      "path": "../logging-controller"
     }
   ],
   "include": ["../../types", "./src"]

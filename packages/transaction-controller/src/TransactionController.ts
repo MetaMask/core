@@ -44,6 +44,7 @@ import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSo
 import { validateConfirmedExternalTransaction } from './external-transactions';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { determineTransactionType } from './transaction-type';
 import type {
   DappSuggestedGasFees,
   TransactionParams,
@@ -52,7 +53,7 @@ import type {
   SendFlowHistoryEntry,
   WalletDevice,
 } from './types';
-import { TransactionStatus } from './types';
+import { TransactionType, TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
@@ -78,16 +79,6 @@ export const HARDFORK = Hardfork.London;
 export interface Result {
   result: Promise<string>;
   transactionMeta: TransactionMeta;
-}
-
-/**
- * @type Fetch All Options
- * @property fromBlock - String containing a specific block decimal number
- * @property etherscanApiKey - API key to be used to fetch token transactions
- */
-export interface FetchAllOptions {
-  fromBlock?: string;
-  etherscanApiKey?: string;
 }
 
 export interface GasPriceValue {
@@ -245,7 +236,6 @@ export class TransactionController extends BaseController<
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
-   * @param options.incomingTransactions.apiKey - An optional API key to use when fetching remote transaction data.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
    * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
    * @param options.incomingTransactions.queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
@@ -274,7 +264,6 @@ export class TransactionController extends BaseController<
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
-        apiKey?: string;
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
         queryEntireHistory?: boolean;
@@ -335,7 +324,6 @@ export class TransactionController extends BaseController<
       isEnabled: incomingTransactions.isEnabled,
       queryEntireHistory: incomingTransactions.queryEntireHistory,
       remoteTransactionSource: new EtherscanRemoteTransactionSource({
-        apiKey: incomingTransactions.apiKey,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
       }),
       transactionLimit: this.config.txHistoryLimit,
@@ -413,6 +401,7 @@ export class TransactionController extends BaseController<
    * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param opts.securityAlertResponse - Response from security validator.
    * @param opts.sendFlowHistory - The sendFlowHistory entries to add.
+   * @param opts.type - Type of transaction to add, such as 'cancel' or 'swap'.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -424,6 +413,7 @@ export class TransactionController extends BaseController<
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
+      type,
     }: {
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
@@ -431,6 +421,7 @@ export class TransactionController extends BaseController<
       requireApproval?: boolean | undefined;
       securityAlertResponse?: Record<string, unknown>;
       sendFlowHistory?: SendFlowHistoryEntry[];
+      type?: TransactionType;
     } = {},
   ): Promise<Result> {
     const { chainId, networkId } = this.getChainAndNetworkId();
@@ -442,6 +433,9 @@ export class TransactionController extends BaseController<
       txParams,
       origin,
     );
+
+    const transactionType =
+      type ?? (await determineTransactionType(txParams, this.ethQuery)).type;
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
@@ -460,6 +454,7 @@ export class TransactionController extends BaseController<
       txParams,
       userEditedGasLimit: false,
       verifiedOnBlockchain: false,
+      type: transactionType,
     };
 
     try {
@@ -751,6 +746,7 @@ export class TransactionController extends BaseController<
       hash,
       actionId,
       originalGasEstimate: transactionMeta.txParams.gas,
+      type: TransactionType.retry,
     };
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
