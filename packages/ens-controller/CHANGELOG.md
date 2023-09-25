@@ -67,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     All changes listed after this point were applied to this package following the monorepo conversion.
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.0...HEAD
-[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.2.0...@metamask/ens-controller@5.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.2.0...@metamask/ens-controller@5.0.0
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.1...@metamask/ens-controller@4.2.0
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.0...@metamask/ens-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.0.0...@metamask/ens-controller@4.1.0
