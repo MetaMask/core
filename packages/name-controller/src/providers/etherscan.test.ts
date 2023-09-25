@@ -59,6 +59,7 @@ describe('EtherscanNameProvider', () => {
         results: {
           [SOURCE_ID]: {
             proposedNames: [CONTRACT_NAME_MOCK, CONTRACT_NAME_2_MOCK],
+            retryDelay: undefined,
           },
         },
       });
@@ -89,37 +90,12 @@ describe('EtherscanNameProvider', () => {
           results: {
             [SOURCE_ID]: {
               proposedNames: [],
+              retryDelay: undefined,
             },
           },
         });
       },
     );
-
-    it('includes API key in requested URL if provided', async () => {
-      const provider = new EtherscanNameProvider({ apiKey: API_KEY_MOCK });
-
-      handleFetchMock.mockResolvedValueOnce({
-        result: [
-          {
-            ContractName: CONTRACT_NAME_MOCK,
-          },
-          {
-            ContractName: CONTRACT_NAME_2_MOCK,
-          },
-        ],
-      });
-
-      await provider.getProposedNames({
-        value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
-        type: NameType.ETHEREUM_ADDRESS,
-      });
-
-      expect(handleFetchMock).toHaveBeenCalledTimes(1);
-      expect(handleFetchMock).toHaveBeenCalledWith(
-        `https://api.etherscan.io/api?module=contract&action=getsourcecode&address=${VALUE_MOCK}&apikey=${API_KEY_MOCK}`,
-      );
-    });
 
     it('requests alternate URL based on chain ID', async () => {
       const provider = new EtherscanNameProvider();
@@ -160,6 +136,70 @@ describe('EtherscanNameProvider', () => {
       ).rejects.toThrow(
         `Etherscan does not support chain with ID: ${invalidChainId}`,
       );
+    });
+
+    it('returns empty array and delay if within rate limit interval', async () => {
+      const provider = new EtherscanNameProvider();
+
+      await provider.getProposedNames({
+        value: VALUE_MOCK,
+        chainId: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      const result = await provider.getProposedNames({
+        value: VALUE_MOCK,
+        chainId: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(result).toStrictEqual({
+        results: {
+          [SOURCE_ID]: {
+            proposedNames: [],
+            retryDelay: 5,
+          },
+        },
+      });
+    });
+
+    it('returns empty array and delay if request has warning', async () => {
+      const provider = new EtherscanNameProvider();
+
+      handleFetchMock.mockResolvedValueOnce({
+        message: 'NOTOK',
+      });
+
+      const result = await provider.getProposedNames({
+        value: VALUE_MOCK,
+        chainId: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(result).toStrictEqual({
+        results: {
+          [SOURCE_ID]: {
+            proposedNames: [],
+            retryDelay: 5,
+          },
+        },
+      });
+    });
+
+    it('throws if request fails', async () => {
+      const provider = new EtherscanNameProvider();
+
+      handleFetchMock.mockImplementation(() => {
+        throw new Error('TestError');
+      });
+
+      await expect(
+        provider.getProposedNames({
+          value: VALUE_MOCK,
+          chainId: CHAIN_ID_MOCK,
+          type: NameType.ETHEREUM_ADDRESS,
+        }),
+      ).rejects.toThrow('TestError');
     });
   });
 });

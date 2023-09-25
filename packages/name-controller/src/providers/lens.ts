@@ -1,3 +1,4 @@
+import { createModuleLogger, projectLogger } from '../logger';
 import type {
   NameProvider,
   NameProviderMetadata,
@@ -19,6 +20,8 @@ query HandlesForAddress($address: EthereumAddress!) {
     }
   }
 }`;
+
+const log = createModuleLogger(projectLogger, 'lens');
 
 type LensResponse = {
   profiles: {
@@ -42,20 +45,32 @@ export class LensNameProvider implements NameProvider {
     request: NameProviderRequest,
   ): Promise<NameProviderResult> {
     const { value } = request;
+    const variables = { address: value };
 
-    const responseData = await graphQL<LensResponse>(LENS_URL, QUERY, {
-      address: value,
-    });
+    log('Sending request', { variables });
 
-    const profiles = responseData?.profiles?.items ?? [];
-    const proposedNames = profiles.map((profile) => profile.handle);
+    try {
+      const responseData = await graphQL<LensResponse>(
+        LENS_URL,
+        QUERY,
+        variables,
+      );
 
-    return {
-      results: {
-        [ID]: {
-          proposedNames,
+      const profiles = responseData?.profiles?.items ?? [];
+      const proposedNames = profiles.map((profile) => profile.handle);
+
+      log('New proposed names', proposedNames);
+
+      return {
+        results: {
+          [ID]: {
+            proposedNames,
+          },
         },
-      },
-    };
+      };
+    } catch (error) {
+      log('Request failed', error);
+      throw error;
+    }
   }
 }

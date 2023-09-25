@@ -1,4 +1,7 @@
+import { Mutex } from 'async-mutex';
+
 import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
+import { createModuleLogger, projectLogger } from '../logger';
 import type {
   NameProvider,
   NameProviderMetadata,
@@ -10,6 +13,9 @@ import { handleFetch } from '../util';
 
 const ID = 'etherscan';
 const LABEL = 'Etherscan (Verified Contract Name)';
+const RATE_LIMIT_INTERVAL = 5; // 5 seconds
+
+const log = createModuleLogger(projectLogger, 'etherscan');
 
 type EtherscanGetSourceCodeResponse = {
   status: '1' | '0';
@@ -35,6 +41,10 @@ type EtherscanGetSourceCodeResponse = {
 export class EtherscanNameProvider implements NameProvider {
   #apiKey?: string;
 
+  #lastRequestTime = 0;
+
+  #mutex = new Mutex();
+
   constructor({ apiKey }: { apiKey?: string } = {}) {
     this.#apiKey = apiKey;
   }
@@ -49,26 +59,71 @@ export class EtherscanNameProvider implements NameProvider {
   async getProposedNames(
     request: NameProviderRequest,
   ): Promise<NameProviderResult> {
-    const { value, chainId } = request;
+    const releaseLock = await this.#mutex.acquire();
 
-    const url = this.#getUrl(chainId, {
-      module: 'contract',
-      action: 'getsourcecode',
-      address: value,
-      apikey: this.#apiKey,
-    });
+    try {
+      const { value, chainId } = request;
 
-    const responseData = (await handleFetch(
-      url,
-    )) as EtherscanGetSourceCodeResponse;
+      const time = Date.now();
+      const timeSinceLastRequest = time - this.#lastRequestTime;
 
-    const results = responseData?.result ?? [];
-    const proposedNames = results.map((result) => result.ContractName);
+      if (timeSinceLastRequest < RATE_LIMIT_INTERVAL) {
+        log('Skipping request to avoid rate limit');
+        return this.#buildResult([], RATE_LIMIT_INTERVAL);
+      }
 
+      const url = this.#getUrl(chainId, {
+        module: 'contract',
+        action: 'getsourcecode',
+        address: value,
+        apikey: this.#apiKey,
+      });
+
+      const { responseData, error } = await this.#sendRequest(url);
+
+      if (error) {
+        log('Request failed', error);
+        throw error;
+      }
+
+      if (responseData?.message === 'NOTOK') {
+        log('Request warning', responseData.result);
+        return this.#buildResult([], RATE_LIMIT_INTERVAL);
+      }
+
+      const results = responseData?.result ?? [];
+      const proposedNames = results.map((result) => result.ContractName);
+
+      log('New proposed names', proposedNames);
+
+      return this.#buildResult(proposedNames);
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async #sendRequest(url: string) {
+    try {
+      log('Sending request', url);
+
+      const responseData = (await handleFetch(
+        url,
+      )) as EtherscanGetSourceCodeResponse;
+
+      return { responseData };
+    } catch (error) {
+      return { error };
+    } finally {
+      this.#lastRequestTime = Date.now();
+    }
+  }
+
+  #buildResult(proposedNames: string[], retryDelay?: number) {
     return {
       results: {
         [ID]: {
           proposedNames,
+          retryDelay,
         },
       },
     };

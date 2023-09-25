@@ -9,6 +9,8 @@ import type {
 } from './types';
 import { NameType } from './types';
 
+const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
+
 const controllerName = 'NameController';
 
 const stateMetadata = {
@@ -23,11 +25,16 @@ const getDefaultState = () => ({
   nameSources: {},
 });
 
+export type ProposedNamesEntry = {
+  proposedNames: string[] | null;
+  lastRequestTime: number | null;
+  retryDelay: number | null;
+};
+
 export type NameEntry = {
   name: string | null;
   sourceId: string | null;
-  proposedNames: Record<string, string[] | null>;
-  proposedNamesLastUpdated: number | null;
+  proposedNames: Record<string, ProposedNamesEntry>;
 };
 
 export type SourceEntry = {
@@ -73,6 +80,7 @@ export type UpdateProposedNamesRequest = {
   value: string;
   type: NameType;
   sourceIds?: string[];
+  onlyUpdateAfterDelay?: boolean;
 };
 
 export type UpdateProposedNamesResult = {
@@ -139,7 +147,10 @@ export class NameController extends BaseControllerV2<
     const { value, type, name, sourceId: requestSourceId } = request;
     const sourceId = requestSourceId ?? null;
 
-    this.#updateEntry(value, type, { name, sourceId });
+    this.#updateEntry(value, type, (entry: NameEntry) => {
+      entry.name = name;
+      entry.sourceId = sourceId;
+    });
   }
 
   /**
@@ -177,14 +188,11 @@ export class NameController extends BaseControllerV2<
     providerResponses: NameProviderResult[],
   ) {
     const { value, type } = request;
-    const newProposedNames: { [sourceId: string]: string[] | null } = {};
+    const newProposedNames: { [sourceId: string]: ProposedNamesEntry } = {};
+    const currentTime = this.#getCurrentTimeSeconds();
 
     for (const providerResponse of providerResponses) {
-      const { results, error: responseError } = providerResponse;
-
-      if (responseError) {
-        continue;
-      }
+      const { results } = providerResponse;
 
       for (const sourceId of Object.keys(providerResponse.results)) {
         const result = results[sourceId];
@@ -197,26 +205,20 @@ export class NameController extends BaseControllerV2<
           );
         }
 
-        newProposedNames[sourceId] = finalProposedNames;
+        newProposedNames[sourceId] = {
+          proposedNames: finalProposedNames,
+          lastRequestTime: currentTime,
+          retryDelay: result.retryDelay ?? null,
+        };
       }
     }
 
-    const variationKey = this.#getTypeVariationKey(type);
-
-    const existingProposedNames =
-      this.state.names[type]?.[value]?.[variationKey]?.proposedNames;
-
-    const existingProposedNamesWithoutDormant =
-      this.#removeDormantProposedNames(existingProposedNames, type);
-
-    const proposedNames = {
-      ...existingProposedNamesWithoutDormant,
-      ...newProposedNames,
-    };
-
-    const proposedNamesLastUpdated = this.#getCurrentTimeSeconds();
-
-    this.#updateEntry(value, type, { proposedNames, proposedNamesLastUpdated });
+    this.#updateEntry(value, type, (entry: NameEntry) => {
+      entry.proposedNames = {
+        ...this.#removeDormantProposedNames(entry.proposedNames, type),
+        ...newProposedNames,
+      };
+    });
   }
 
   #updateSourceState(providers: NameProvider[]) {
@@ -275,15 +277,39 @@ export class NameController extends BaseControllerV2<
     chainId: string,
     provider: NameProvider,
   ): Promise<NameProviderResult | undefined> {
-    const { value, type, sourceIds: requestedSourceIds } = request;
+    const {
+      value,
+      type,
+      sourceIds: requestedSourceIds,
+      onlyUpdateAfterDelay,
+    } = request;
+
+    const variationKey = this.#getTypeVariationKey(type);
     const supportedSourceIds = this.#getSourceIds(provider, type);
+    const currentTime = this.#getCurrentTimeSeconds();
 
-    const matchingSourceIds =
-      requestedSourceIds?.filter((sourceId) =>
-        supportedSourceIds.includes(sourceId),
-      ) ?? supportedSourceIds;
+    const matchingSourceIds = supportedSourceIds.filter((sourceId) => {
+      if (requestedSourceIds && !requestedSourceIds.includes(sourceId)) {
+        return false;
+      }
 
-    if (requestedSourceIds && !matchingSourceIds.length) {
+      if (onlyUpdateAfterDelay) {
+        const entry = this.state.names[type]?.[value]?.[variationKey] ?? {};
+        const proposedNamesEntry = entry.proposedNames?.[sourceId] ?? {};
+        const lastRequestTime = proposedNamesEntry.lastRequestTime ?? 0;
+
+        const retryDelay =
+          proposedNamesEntry.retryDelay ?? DEFAULT_UPDATE_DELAY;
+
+        if (currentTime - lastRequestTime < retryDelay) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    if (!matchingSourceIds.length) {
       return undefined;
     }
 
@@ -332,7 +358,11 @@ export class NameController extends BaseControllerV2<
     return { results, error: responseError };
   }
 
-  #updateEntry(value: string, type: NameType, data: Partial<NameEntry>) {
+  #updateEntry(
+    value: string,
+    type: NameType,
+    callback: (entry: NameEntry) => void,
+  ) {
     const variationKey = this.#getTypeVariationKey(type);
 
     this.update((state) => {
@@ -342,16 +372,14 @@ export class NameController extends BaseControllerV2<
       const variationEntries = typeEntries[value] || {};
       typeEntries[value] = variationEntries;
 
-      const currentEntry = variationEntries[variationKey] ?? {
+      const entry = variationEntries[variationKey] ?? {
         proposedNames: {},
-        proposedNamesLastUpdated: null,
         name: null,
         sourceId: null,
       };
+      variationEntries[variationKey] = entry;
 
-      const updatedEntry = { ...currentEntry, ...data };
-
-      variationEntries[variationKey] = updatedEntry;
+      callback(entry);
     });
   }
 
@@ -506,9 +534,9 @@ export class NameController extends BaseControllerV2<
   }
 
   #removeDormantProposedNames(
-    proposedNames: Record<string, string[] | null>,
+    proposedNames: Record<string, ProposedNamesEntry>,
     type: NameType,
-  ): Record<string, string[] | null> {
+  ): Record<string, ProposedNamesEntry> {
     if (!proposedNames || Object.keys(proposedNames).length === 0) {
       return proposedNames;
     }
