@@ -15,7 +15,7 @@ export type PollingCompleteType<N extends string> = {
  * that needs to poll for data by networkClientId.
  *
  */
-export default abstract class ControllerPolling<
+export default abstract class PollingController<
   Name extends string,
   State extends Record<string, Json>,
   messenger extends RestrictedControllerMessenger<
