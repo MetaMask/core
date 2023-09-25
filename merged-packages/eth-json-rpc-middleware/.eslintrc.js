@@ -8,6 +8,7 @@ module.exports = {
       files: ['*.ts'],
       extends: ['@metamask/eslint-config-typescript'],
       rules: {
+        '@typescript-eslint/prefer-nullish-coalescing': 'off',
         // TODO: resolve warnings and remove to make into errors
         '@typescript-eslint/consistent-type-definitions': 'off',
         '@typescript-eslint/naming-convention': 'off',

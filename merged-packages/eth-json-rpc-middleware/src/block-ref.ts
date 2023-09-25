@@ -1,11 +1,13 @@
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type {
+  Json,
+  JsonRpcParams,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 import clone from 'clone';
 import type { PollingBlockTracker } from 'eth-block-tracker';
-import type {
-  JsonRpcMiddleware,
-  PendingJsonRpcResponse,
-} from 'json-rpc-engine';
-import { createAsyncMiddleware } from 'json-rpc-engine';
 import pify from 'pify';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
@@ -22,7 +24,7 @@ const log = createModuleLogger(projectLogger, 'block-ref');
 export function createBlockRefMiddleware({
   provider,
   blockTracker,
-}: BlockRefMiddlewareOptions = {}): JsonRpcMiddleware<unknown, unknown> {
+}: BlockRefMiddlewareOptions = {}): JsonRpcMiddleware<JsonRpcParams, Json> {
   if (!provider) {
     throw Error('BlockRefMiddleware - mandatory "provider" option is missing.');
   }

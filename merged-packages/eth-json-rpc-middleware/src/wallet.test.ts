@@ -1,5 +1,5 @@
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngine } from 'json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import pify from 'pify';
 
 import type { TransactionParams, MessageParams } from '.';

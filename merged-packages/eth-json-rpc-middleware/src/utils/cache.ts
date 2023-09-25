@@ -1,4 +1,4 @@
-import type { JsonRpcRequest } from 'json-rpc-engine';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { configure } from 'safe-stable-stringify';
 
 const stringify = configure({ bigint: false, circularValue: Error });
@@ -41,7 +41,7 @@ export enum CacheStrategy {
  * cached.
  */
 export function cacheIdentifierForRequest(
-  request: JsonRpcRequest<unknown>,
+  request: JsonRpcRequest,
   skipBlockRef?: boolean,
 ): string | null {
   const simpleParams = skipBlockRef
@@ -69,7 +69,7 @@ export function canCache(method: string): boolean {
  * @param request - The JSON-RPC request.
  * @returns The block parameter in the given request, or `undefined` if none was found.
  */
-export function blockTagForRequest(request: JsonRpcRequest<unknown>): unknown {
+export function blockTagForRequest(request: JsonRpcRequest): Json | undefined {
   if (!request.params) {
     return undefined;
   }
@@ -93,7 +93,7 @@ export function blockTagForRequest(request: JsonRpcRequest<unknown>): unknown {
  * @param request - The JSON-RPC request.
  * @returns The request parameters with the block parameter removed, if one was found.
  */
-function paramsWithoutBlockTag(request: JsonRpcRequest<unknown>): unknown {
+function paramsWithoutBlockTag(request: JsonRpcRequest): Json {
   if (!request.params) {
     return [];
   }

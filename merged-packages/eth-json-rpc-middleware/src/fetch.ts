@@ -1,7 +1,8 @@
-import type { EthereumRpcError } from 'eth-rpc-errors';
-import { ethErrors } from 'eth-rpc-errors';
-import type { JsonRpcMiddleware, JsonRpcRequest } from 'json-rpc-engine';
-import { createAsyncMiddleware } from 'json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
+import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import type { Block } from './types';
 import { timeout } from './utils/timeout';
@@ -17,7 +18,7 @@ const RETRIABLE_ERRORS: string[] = [
   'Failed to fetch',
 ];
 
-export interface PayloadWithOrigin extends JsonRpcRequest<unknown> {
+export interface PayloadWithOrigin extends JsonRpcRequest {
   origin?: string;
 }
 interface Request {
@@ -53,7 +54,7 @@ export function createFetchMiddleware({
   fetch: typeof global.fetch;
   rpcUrl: string;
   originHttpHeaderKey?: string;
-}): JsonRpcMiddleware<unknown, unknown> {
+}): JsonRpcMiddleware<JsonRpcParams, Json> {
   return createAsyncMiddleware(async (req, res, _next) => {
     const { fetchUrl, fetchParams } = createFetchConfigFromReq({
       btoa,
@@ -104,7 +105,7 @@ function checkForHttpErrors(fetchRes: Response): void {
   // check for errors
   switch (fetchRes.status) {
     case 405:
-      throw ethErrors.rpc.methodNotFound();
+      throw rpcErrors.methodNotFound();
 
     case 418:
       throw createRatelimitError();
@@ -121,7 +122,7 @@ function checkForHttpErrors(fetchRes: Response): void {
 function parseResponse(fetchRes: Response, body: Record<string, Block>): Block {
   // check for error code
   if (fetchRes.status !== 200) {
-    throw ethErrors.rpc.internal({
+    throw rpcErrors.internal({
       message: `Non-200 status code: '${fetchRes.status}'`,
       data: body,
     });
@@ -129,7 +130,7 @@ function parseResponse(fetchRes: Response, body: Record<string, Block>): Block {
 
   // check for rpc error
   if (body.error) {
-    throw ethErrors.rpc.internal({
+    throw rpcErrors.internal({
       data: body.error,
     });
   }
@@ -165,7 +166,7 @@ export function createFetchConfigFromReq({
 
   // prepare payload
   // copy only canonical json rpc properties
-  const payload: JsonRpcRequest<unknown> = {
+  const payload: JsonRpcRequest = {
     id: req.id,
     jsonrpc: req.jsonrpc,
     method: req.method,
@@ -215,12 +216,12 @@ function normalizeUrlFromParsed(parsedUrl: URL): string {
   return result;
 }
 
-function createRatelimitError(): EthereumRpcError<unknown> {
-  return ethErrors.rpc.internal({ message: `Request is being rate limited.` });
+function createRatelimitError(): JsonRpcError<DataWithOptionalCause> {
+  return rpcErrors.internal({ message: `Request is being rate limited.` });
 }
 
-function createTimeoutError(): EthereumRpcError<unknown> {
+function createTimeoutError(): JsonRpcError<DataWithOptionalCause> {
   let msg = `Gateway timeout. The request took too long to process. `;
   msg += `This can happen when querying logs over too wide a block range.`;
-  return ethErrors.rpc.internal({ message: msg });
+  return rpcErrors.internal({ message: msg });
 }

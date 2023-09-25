@@ -1,6 +1,6 @@
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import type { PollingBlockTracker } from 'eth-block-tracker';
-import type { JsonRpcRequest } from 'json-rpc-engine';
-import { createAsyncMiddleware } from 'json-rpc-engine';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import type {
@@ -51,7 +51,7 @@ class BlockCacheStrategy {
   }
 
   async get(
-    request: JsonRpcRequest<unknown>,
+    request: JsonRpcRequest,
     requestedBlockNumber: string,
   ): Promise<Block | undefined> {
     // lookup block cache
@@ -62,7 +62,7 @@ class BlockCacheStrategy {
   }
 
   async set(
-    request: JsonRpcRequest<unknown>,
+    request: JsonRpcRequest,
     requestedBlockNumber: string,
     result: Block,
   ): Promise<void> {
@@ -81,7 +81,7 @@ class BlockCacheStrategy {
     blockCache[identifier] = result;
   }
 
-  canCacheRequest(request: JsonRpcRequest<unknown>): boolean {
+  canCacheRequest(request: JsonRpcRequest): boolean {
     // check request method
     if (!canCache(request.method)) {
       return false;
@@ -96,7 +96,7 @@ class BlockCacheStrategy {
     return true;
   }
 
-  canCacheResult(request: JsonRpcRequest<unknown>, result: Block): boolean {
+  canCacheResult(request: JsonRpcRequest, result: Block): boolean {
     // never cache empty values (e.g. undefined)
     if (emptyValues.includes(result as any)) {
       return false;
@@ -135,7 +135,10 @@ class BlockCacheStrategy {
 
 export function createBlockCacheMiddleware({
   blockTracker,
-}: BlockCacheMiddlewareOptions = {}): JsonRpcCacheMiddleware<unknown, unknown> {
+}: BlockCacheMiddlewareOptions = {}): JsonRpcCacheMiddleware<
+  JsonRpcParams,
+  Json
+> {
   // validate options
   if (!blockTracker) {
     throw new Error(
@@ -153,7 +156,7 @@ export function createBlockCacheMiddleware({
   };
 
   return createAsyncMiddleware(
-    async (req: JsonRpcRequestToCache<unknown>, res, next) => {
+    async (req: JsonRpcRequestToCache<JsonRpcParams>, res, next) => {
       // allow cach to be skipped if so specified
       if (req.skipCache) {
         return next();

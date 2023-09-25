@@ -1,8 +1,9 @@
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import type { JsonRpcMiddleware, JsonRpcRequest } from 'json-rpc-engine';
-import { JsonRpcEngine } from 'json-rpc-engine';
 
 import { createRetryOnEmptyMiddleware } from '.';
 import type { ProviderRequestStub } from '../test/util/helpers';
@@ -220,7 +221,11 @@ describe('createRetryOnEmptyMiddleware', () => {
 
               expect(await promiseForResponse).toMatchObject({
                 error: expect.objectContaining({
-                  message: 'RetryOnEmptyMiddleware - retries exhausted',
+                  data: expect.objectContaining({
+                    cause: expect.objectContaining({
+                      message: 'RetryOnEmptyMiddleware - retries exhausted',
+                    }),
+                  }),
                 }),
               });
             },
@@ -671,7 +676,9 @@ async function withTestSetup<T>(
  * @param requestStub - The request/response pair.
  * @returns The request/response pair, properly typed.
  */
-function stubGenericRequest<T, U>(requestStub: ProviderRequestStub<T, U>) {
+function stubGenericRequest<T extends JsonRpcParams, U extends Json>(
+  requestStub: ProviderRequestStub<T, U>,
+) {
   return requestStub;
 }
 
@@ -687,7 +694,10 @@ function stubGenericRequest<T, U>(requestStub: ProviderRequestStub<T, U>) {
  * return when called past `numberOfTimesToFail`.
  * @returns The request/response pair, properly typed.
  */
-function stubRequestThatFailsThenFinallySucceeds<T, U>({
+function stubRequestThatFailsThenFinallySucceeds<
+  T extends JsonRpcParams,
+  U extends Json,
+>({
   request,
   numberOfTimesToFail,
   successfulResponse,
@@ -742,7 +752,7 @@ async function waitForRequestToBeRetried({
   numberOfTimes,
 }: {
   sendAsyncSpy: jest.SpyInstance;
-  request: JsonRpcRequest<unknown>;
+  request: JsonRpcRequest;
   numberOfTimes: number;
 }) {
   let iterationNumber = 1;

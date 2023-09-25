@@ -1,10 +1,12 @@
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import clone from 'clone';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type {
+  Json,
+  JsonRpcParams,
   JsonRpcRequest,
   JsonRpcResponse,
-  JsonRpcMiddleware,
-} from 'json-rpc-engine';
+} from '@metamask/utils';
+import clone from 'clone';
 import { isDeepStrictEqual } from 'util';
 
 /**
@@ -26,7 +28,10 @@ import { isDeepStrictEqual } from 'util';
  * again, there will be no matching stub and an error will be thrown. This
  * feature is useful for making sure that all requests have canned responses.
  */
-export interface ProviderRequestStub<Params, Result> {
+export interface ProviderRequestStub<
+  Params extends JsonRpcParams,
+  Result extends Json,
+> {
   request: Partial<JsonRpcRequest<Params>>;
   response: (
     request: JsonRpcRequest<Params>,
@@ -45,8 +50,8 @@ export interface ProviderRequestStub<Params, Result> {
  * @returns The created middleware, as a mock function.
  */
 export function buildFinalMiddlewareWithDefaultResponse<
-  Params,
-  Result,
+  Params extends JsonRpcParams,
+  Result extends Json,
 >(): JsonRpcMiddleware<Params, Result | 'default response'> {
   return jest.fn((req, res, _next, end) => {
     if (res.id === undefined) {
@@ -84,7 +89,7 @@ export function buildSimpleFinalMiddleware() {
  * it is optional. Given this, this function builds a `params` array for such an
  * endpoint with the given "block" param added at the end.
  *
- * @param index - The index within the `params` array to add the "block" param.
+ * @param blockParamIndex - The index within the `params` array to add the "block" param.
  * @param blockParam - The desired "block" param to add.
  * @returns The mock params.
  */
@@ -110,7 +115,7 @@ export function buildMockParamsWithBlockParamAt(
  * such an endpoint, filling it with arbitrary values, but with the "block"
  * param missing.
  *
- * @param index - The index within the `params` array where the "block" param
+ * @param blockParamIndex - The index within the `params` array where the "block" param
  * would* appear.
  * @returns The mock params.
  */
@@ -136,7 +141,7 @@ export function buildMockParamsWithoutBlockParamAt(
  */
 export function buildStubForBlockNumberRequest(
   blockNumber = '0x0',
-): ProviderRequestStub<undefined[], string> {
+): ProviderRequestStub<JsonRpcParams, string> {
   return {
     request: {
       method: 'eth_blockNumber',
@@ -160,9 +165,10 @@ export function buildStubForBlockNumberRequest(
  * @param requestStub - The request/response pair.
  * @returns The request/response pair, properly typed.
  */
-export function buildStubForGenericRequest<Params, Result>(
-  requestStub: ProviderRequestStub<Params, Result>,
-) {
+export function buildStubForGenericRequest<
+  Params extends JsonRpcParams,
+  Result extends Json,
+>(requestStub: ProviderRequestStub<Params, Result>) {
   return requestStub;
 }
 
@@ -177,7 +183,7 @@ export function buildStubForGenericRequest<Params, Result>(
  */
 export function expectProviderRequestNotToHaveBeenMade(
   sendAsyncSpy: jest.SpyInstance,
-  requestMatcher: Partial<JsonRpcRequest<unknown>>,
+  requestMatcher: Partial<JsonRpcRequest>,
 ) {
   expect(
     sendAsyncSpy.mock.calls.some((args) =>
@@ -207,10 +213,7 @@ export function stubProviderRequests(
   stubs: ProviderRequestStub<any, any>[],
 ) {
   const remainingStubs = clone(stubs);
-  const callNumbersByRequest = new Map<
-    Partial<JsonRpcRequest<unknown>>,
-    number
-  >();
+  const callNumbersByRequest = new Map<Partial<JsonRpcRequest>, number>();
   return jest.spyOn(provider, 'sendAsync').mockImplementation((request, cb) => {
     const stubIndex = remainingStubs.findIndex((stub) =>
       requestMatches(stub.request, request),
@@ -248,8 +251,8 @@ export function stubProviderRequests(
  * inside" the real request object.
  */
 export function requestMatches(
-  requestMatcher: Partial<JsonRpcRequest<unknown>>,
-  request: JsonRpcRequest<unknown>,
+  requestMatcher: Partial<JsonRpcRequest>,
+  request: JsonRpcRequest,
 ): boolean {
   return (Object.keys(requestMatcher) as (keyof typeof requestMatcher)[]).every(
     (key) => isDeepStrictEqual(requestMatcher[key], request[key]),

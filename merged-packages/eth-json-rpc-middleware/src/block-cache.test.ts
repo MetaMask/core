@@ -1,6 +1,6 @@
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { PollingBlockTracker } from 'eth-block-tracker';
-import { JsonRpcEngine } from 'json-rpc-engine';
 import pify from 'pify';
 
 import { createBlockCacheMiddleware } from '.';

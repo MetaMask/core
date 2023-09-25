@@ -1,14 +1,19 @@
-import type { JsonRpcMiddleware, JsonRpcRequest } from 'json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-export interface JsonRpcRequestToCache<T> extends JsonRpcRequest<T> {
+export interface JsonRpcRequestToCache<Params extends JsonRpcParams>
+  extends JsonRpcRequest<Params> {
   skipCache?: boolean;
 }
 
-export type JsonRpcCacheMiddleware<T, U> = JsonRpcMiddleware<T, U> extends (
-  req: JsonRpcRequest<T>,
+export type JsonRpcCacheMiddleware<
+  Params extends JsonRpcParams,
+  Result extends Json,
+> = JsonRpcMiddleware<Params, Result> extends (
+  req: JsonRpcRequest<Params>,
   ...args: infer X
 ) => infer Y
-  ? (req: JsonRpcRequestToCache<T>, ...args: X) => Y
+  ? (req: JsonRpcRequestToCache<Params>, ...args: X) => Y
   : never;
 
 export type BlockData = string | string[];

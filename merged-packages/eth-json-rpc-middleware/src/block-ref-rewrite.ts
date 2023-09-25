@@ -1,6 +1,7 @@
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type { Json, JsonRpcParams } from '@metamask/utils';
 import type { PollingBlockTracker } from 'eth-block-tracker';
-import type { JsonRpcMiddleware } from 'json-rpc-engine';
-import { createAsyncMiddleware } from 'json-rpc-engine';
 
 import { blockTagParamIndex } from './utils/cache';
 
@@ -10,7 +11,10 @@ interface BlockRefRewriteMiddlewareOptions {
 
 export function createBlockRefRewriteMiddleware({
   blockTracker,
-}: BlockRefRewriteMiddlewareOptions = {}): JsonRpcMiddleware<unknown, unknown> {
+}: BlockRefRewriteMiddlewareOptions = {}): JsonRpcMiddleware<
+  JsonRpcParams,
+  Json
+> {
   if (!blockTracker) {
     throw Error(
       'BlockRefRewriteMiddleware - mandatory "blockTracker" option is missing.',
@@ -24,13 +28,11 @@ export function createBlockRefRewriteMiddleware({
       return next();
     }
     // skip if not "latest"
-    let blockRef: string | undefined = Array.isArray(req.params)
-      ? req.params[blockRefIndex]
-      : undefined;
-    // omitted blockRef implies "latest"
-    if (blockRef === undefined) {
-      blockRef = 'latest';
-    }
+    const blockRef: string | undefined =
+      Array.isArray(req.params) && req.params[blockRefIndex]
+        ? (req.params[blockRefIndex] as string)
+        : // omitted blockRef implies "latest"
+          'latest';
 
     if (blockRef !== 'latest') {
       return next();

@@ -1,68 +1,82 @@
 import * as sigUtil from '@metamask/eth-sig-util';
-import { ethErrors } from 'eth-rpc-errors';
-import type {
-  JsonRpcMiddleware,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-} from 'json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import {
   createAsyncMiddleware,
   createScaffoldMiddleware,
-} from 'json-rpc-engine';
+} from '@metamask/json-rpc-engine';
+import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import type {
+  Json,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 
 import type { Block } from './types';
 
-export interface TransactionParams {
+/*
+export type TransactionParams = {
+  [prop: string]: Json;
   from: string;
 }
+*/
 
-export interface MessageParams extends TransactionParams {
+/*
+export type TransactionParams = JsonRpcParams & {
+  from: string;
+}
+*/
+
+export type TransactionParams = {
+  from: string;
+};
+
+export type MessageParams = TransactionParams & {
   data: string;
-}
+};
 
-export interface TypedMessageParams extends MessageParams {
+export type TypedMessageParams = MessageParams & {
   version: string;
-}
+};
 
 export interface WalletMiddlewareOptions {
-  getAccounts: (req: JsonRpcRequest<unknown>) => Promise<string[]>;
+  getAccounts: (req: JsonRpcRequest) => Promise<string[]>;
   processDecryptMessage?: (
     msgParams: MessageParams,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
   ) => Promise<string>;
   processEncryptionPublicKey?: (
     address: string,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
   ) => Promise<string>;
   processEthSignMessage?: (
     msgParams: MessageParams,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
   ) => Promise<string>;
   processPersonalMessage?: (
     msgParams: MessageParams,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
   ) => Promise<string>;
   processTransaction?: (
     txParams: TransactionParams,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
   ) => Promise<string>;
   processSignTransaction?: (
     txParams: TransactionParams,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
   ) => Promise<string>;
   processTypedMessage?: (
     msgParams: MessageParams,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
     version: string,
   ) => Promise<string>;
   processTypedMessageV3?: (
     msgParams: TypedMessageParams,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
     version: string,
   ) => Promise<string>;
   processTypedMessageV4?: (
     msgParams: TypedMessageParams,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
     version: string,
   ) => Promise<string>;
 }
@@ -78,7 +92,8 @@ export function createWalletMiddleware({
   processTypedMessage,
   processTypedMessageV3,
   processTypedMessageV4,
-}: WalletMiddlewareOptions): JsonRpcMiddleware<string, Block> {
+}: // }: WalletMiddlewareOptions): JsonRpcMiddleware<string, Block> {
+WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
   if (!getAccounts) {
     throw new Error('opts.getAccounts is required');
   }
@@ -106,15 +121,15 @@ export function createWalletMiddleware({
   //
 
   async function lookupAccounts(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     res.result = await getAccounts(req);
   }
 
   async function lookupDefaultAccount(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     const accounts = await getAccounts(req);
     res.result = accounts[0] || null;
@@ -125,30 +140,46 @@ export function createWalletMiddleware({
   //
 
   async function sendTransaction(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     if (!processTransaction) {
-      throw ethErrors.rpc.methodNotSupported();
+      throw rpcErrors.methodNotSupported();
+    }
+    if (
+      !req.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 1)
+    ) {
+      throw rpcErrors.invalidInput();
     }
 
-    const txParams: TransactionParams =
-      (req.params as TransactionParams[])[0] || {};
-    txParams.from = await validateAndNormalizeKeyholder(txParams.from, req);
+    const params = req.params as [TransactionParams?];
+    const txParams: TransactionParams = {
+      from: await validateAndNormalizeKeyholder(params[0]?.from || '', req),
+    };
     res.result = await processTransaction(txParams, req);
   }
 
   async function signTransaction(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     if (!processSignTransaction) {
-      throw ethErrors.rpc.methodNotSupported();
+      throw rpcErrors.methodNotSupported();
+    }
+    if (
+      !req.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 1)
+    ) {
+      throw rpcErrors.invalidInput();
     }
 
-    const txParams: TransactionParams =
-      (req.params as TransactionParams[])[0] || {};
-    txParams.from = await validateAndNormalizeKeyholder(txParams.from, req);
+    const params = req.params as [TransactionParams?];
+    const txParams: TransactionParams = {
+      from: await validateAndNormalizeKeyholder(params[0]?.from || '', req),
+    };
     res.result = await processSignTransaction(txParams, req);
   }
 
@@ -157,20 +188,24 @@ export function createWalletMiddleware({
   //
 
   async function ethSign(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     if (!processEthSignMessage) {
-      throw ethErrors.rpc.methodNotSupported();
+      throw rpcErrors.methodNotSupported();
+    }
+    if (
+      !req?.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 2)
+    ) {
+      throw rpcErrors.invalidInput();
     }
 
-    const address: string = await validateAndNormalizeKeyholder(
-      (req.params as string[])[0],
-      req,
-    );
-    const message: string = (req.params as string[])[1];
-    const extraParams: Record<string, unknown> =
-      (req.params as Record<string, unknown>[])[2] || {};
+    const params = req.params as [string, string, Record<string, string>?];
+    const address: string = await validateAndNormalizeKeyholder(params[0], req);
+    const message = params[1];
+    const extraParams = params[2] || {};
     const msgParams: MessageParams = {
       ...extraParams,
       from: address,
@@ -181,21 +216,25 @@ export function createWalletMiddleware({
   }
 
   async function signTypedData(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     if (!processTypedMessage) {
-      throw ethErrors.rpc.methodNotSupported();
+      throw rpcErrors.methodNotSupported();
+    }
+    if (
+      !req?.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 2)
+    ) {
+      throw rpcErrors.invalidInput();
     }
 
-    const message: string = (req.params as string[])[0];
-    const address: string = await validateAndNormalizeKeyholder(
-      (req.params as string[])[1],
-      req,
-    );
+    const params = req.params as [string, string, Record<string, string>?];
+    const message = params[0];
+    const address = await validateAndNormalizeKeyholder(params[1], req);
     const version = 'V1';
-    const extraParams: Record<string, unknown> =
-      (req.params as Record<string, unknown>[])[2] || {};
+    const extraParams = params[2] || {};
     const msgParams: MessageParams = {
       ...extraParams,
       from: address,
@@ -206,18 +245,24 @@ export function createWalletMiddleware({
   }
 
   async function signTypedDataV3(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     if (!processTypedMessageV3) {
-      throw ethErrors.rpc.methodNotSupported();
+      throw rpcErrors.methodNotSupported();
+    }
+    if (
+      !req?.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 2)
+    ) {
+      throw rpcErrors.invalidInput();
     }
 
-    const address: string = await validateAndNormalizeKeyholder(
-      (req.params as string[])[0],
-      req,
-    );
-    const message: string = (req.params as string[])[1];
+    const params = req.params as [string, string];
+
+    const address = await validateAndNormalizeKeyholder(params[0], req);
+    const message = params[1];
     const version = 'V3';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -229,18 +274,24 @@ export function createWalletMiddleware({
   }
 
   async function signTypedDataV4(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     if (!processTypedMessageV4) {
-      throw ethErrors.rpc.methodNotSupported();
+      throw rpcErrors.methodNotSupported();
+    }
+    if (
+      !req?.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 2)
+    ) {
+      throw rpcErrors.invalidInput();
     }
 
-    const address: string = await validateAndNormalizeKeyholder(
-      (req.params as string[])[0],
-      req,
-    );
-    const message: string = (req.params as string[])[1];
+    const params = req.params as [string, string];
+
+    const address = await validateAndNormalizeKeyholder(params[0], req);
+    const message = params[1];
     const version = 'V4';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -252,19 +303,27 @@ export function createWalletMiddleware({
   }
 
   async function personalSign(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     if (!processPersonalMessage) {
-      throw ethErrors.rpc.methodNotSupported();
+      throw rpcErrors.methodNotSupported();
+    }
+    if (
+      !req?.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 2)
+    ) {
+      throw rpcErrors.invalidInput();
     }
 
+    const params = req.params as [string, string, TransactionParams?];
+
     // process normally
-    const firstParam: string = (req.params as string[])[0];
-    const secondParam: string = (req.params as string[])[1];
+    const firstParam = params[0];
+    const secondParam = params[1];
     // non-standard "extraParams" to be appended to our "msgParams" obj
-    const extraParams: Record<string, unknown> =
-      (req.params as Record<string, unknown>[])[2] || {};
+    const extraParams = params[2] || {};
 
     // We initially incorrectly ordered these parameters.
     // To gracefully respect users who adopted this API early,
@@ -300,12 +359,21 @@ export function createWalletMiddleware({
   }
 
   async function personalRecover(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
-    const message: string = (req.params as string[])[0];
-    const signature: string = (req.params as string[])[1];
-    const signerAddress: string = sigUtil.recoverPersonalSignature({
+    if (
+      !req?.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 2)
+    ) {
+      throw rpcErrors.invalidInput();
+    }
+
+    const params = req.params as [string, string];
+    const message = params[0];
+    const signature = params[1];
+    const signerAddress = sigUtil.recoverPersonalSignature({
       data: message,
       signature,
     });
@@ -314,36 +382,46 @@ export function createWalletMiddleware({
   }
 
   async function encryptionPublicKey(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     if (!processEncryptionPublicKey) {
-      throw ethErrors.rpc.methodNotSupported();
+      throw rpcErrors.methodNotSupported();
+    }
+    if (
+      !req?.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 1)
+    ) {
+      throw rpcErrors.invalidInput();
     }
 
-    const address: string = await validateAndNormalizeKeyholder(
-      (req.params as string[])[0],
-      req,
-    );
+    const params = req.params as [string];
+
+    const address = await validateAndNormalizeKeyholder(params[0], req);
 
     res.result = await processEncryptionPublicKey(address, req);
   }
 
   async function decryptMessage(
-    req: JsonRpcRequest<unknown>,
-    res: PendingJsonRpcResponse<unknown>,
+    req: JsonRpcRequest,
+    res: PendingJsonRpcResponse<Json>,
   ): Promise<void> {
     if (!processDecryptMessage) {
-      throw ethErrors.rpc.methodNotSupported();
+      throw rpcErrors.methodNotSupported();
     }
+    if (
+      !req?.params ||
+      !Array.isArray(req.params) ||
+      !(req.params.length >= 1)
+    ) {
+      throw rpcErrors.invalidInput();
+    }
+    const params = req.params as [string, string, Record<string, Json>?];
 
-    const ciphertext: string = (req.params as string[])[0];
-    const address: string = await validateAndNormalizeKeyholder(
-      (req.params as string[])[1],
-      req,
-    );
-    const extraParams: Record<string, unknown> =
-      (req.params as Record<string, unknown>[])[2] || {};
+    const ciphertext: string = params[0];
+    const address: string = await validateAndNormalizeKeyholder(params[1], req);
+    const extraParams = params[2] || {};
     const msgParams: MessageParams = {
       ...extraParams,
       from: address,
@@ -368,7 +446,7 @@ export function createWalletMiddleware({
    */
   async function validateAndNormalizeKeyholder(
     address: string,
-    req: JsonRpcRequest<unknown>,
+    req: JsonRpcRequest,
   ): Promise<string> {
     if (
       typeof address === 'string' &&
@@ -386,9 +464,9 @@ export function createWalletMiddleware({
       if (normalizedAccounts.includes(normalizedAddress)) {
         return normalizedAddress;
       }
-      throw ethErrors.provider.unauthorized();
+      throw providerErrors.unauthorized();
     }
-    throw ethErrors.rpc.invalidParams({
+    throw rpcErrors.invalidParams({
       message: `Invalid parameters: must provide an Ethereum address.`,
     });
   }

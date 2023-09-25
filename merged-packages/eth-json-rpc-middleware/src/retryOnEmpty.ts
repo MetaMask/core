@@ -1,11 +1,13 @@
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type {
+  Json,
+  JsonRpcParams,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 import clone from 'clone';
 import type { PollingBlockTracker } from 'eth-block-tracker';
-import type {
-  JsonRpcMiddleware,
-  PendingJsonRpcResponse,
-} from 'json-rpc-engine';
-import { createAsyncMiddleware } from 'json-rpc-engine';
 import pify from 'pify';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
@@ -37,7 +39,7 @@ interface RetryOnEmptyMiddlewareOptions {
 export function createRetryOnEmptyMiddleware({
   provider,
   blockTracker,
-}: RetryOnEmptyMiddlewareOptions = {}): JsonRpcMiddleware<unknown, unknown> {
+}: RetryOnEmptyMiddlewareOptions = {}): JsonRpcMiddleware<JsonRpcParams, Json> {
   if (!provider) {
     throw Error(
       'RetryOnEmptyMiddleware - mandatory "provider" option is missing.',
@@ -57,9 +59,10 @@ export function createRetryOnEmptyMiddleware({
       return next();
     }
     // skip if not exact block references
-    let blockRef: string | undefined = Array.isArray(req.params)
-      ? req.params[blockRefIndex]
-      : undefined;
+    let blockRef: string | undefined =
+      Array.isArray(req.params) && req.params[blockRefIndex]
+        ? (req.params[blockRefIndex] as string)
+        : undefined;
     // omitted blockRef implies "latest"
     if (blockRef === undefined) {
       blockRef = 'latest';

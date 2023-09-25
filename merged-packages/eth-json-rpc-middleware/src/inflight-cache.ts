@@ -1,12 +1,16 @@
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
+import type {
+  JsonRpcParams,
+  Json,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 import clone from 'clone';
-import type { PendingJsonRpcResponse } from 'json-rpc-engine';
-import { createAsyncMiddleware } from 'json-rpc-engine';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import type { JsonRpcRequestToCache, JsonRpcCacheMiddleware } from './types';
 import { cacheIdentifierForRequest } from './utils/cache';
 
-type RequestHandlers = (handledRes: PendingJsonRpcResponse<unknown>) => void;
+type RequestHandlers = (handledRes: PendingJsonRpcResponse<Json>) => void;
 interface InflightRequest {
   [cacheId: string]: RequestHandlers[];
 }
@@ -14,13 +18,13 @@ interface InflightRequest {
 const log = createModuleLogger(projectLogger, 'inflight-cache');
 
 export function createInflightCacheMiddleware(): JsonRpcCacheMiddleware<
-  unknown,
-  unknown
+  JsonRpcParams,
+  Json
 > {
   const inflightRequests: InflightRequest = {};
 
   return createAsyncMiddleware(
-    async (req: JsonRpcRequestToCache<unknown>, res, next) => {
+    async (req: JsonRpcRequestToCache<JsonRpcParams>, res, next) => {
       // allow cach to be skipped if so specified
       if (req.skipCache) {
         return next();
@@ -68,23 +72,21 @@ export function createInflightCacheMiddleware(): JsonRpcCacheMiddleware<
   );
 
   async function createActiveRequestHandler(
-    res: PendingJsonRpcResponse<unknown>,
+    res: PendingJsonRpcResponse<Json>,
     activeRequestHandlers: RequestHandlers[],
   ): Promise<void> {
     const { resolve, promise } = deferredPromise();
-    activeRequestHandlers.push(
-      (handledRes: PendingJsonRpcResponse<unknown>) => {
-        // append a copy of the result and error to the response
-        res.result = clone(handledRes.result);
-        res.error = clone(handledRes.error);
-        resolve();
-      },
-    );
+    activeRequestHandlers.push((handledRes: PendingJsonRpcResponse<Json>) => {
+      // append a copy of the result and error to the response
+      res.result = clone(handledRes.result);
+      res.error = clone(handledRes.error);
+      resolve();
+    });
     return promise;
   }
 
   function handleActiveRequest(
-    res: PendingJsonRpcResponse<unknown>,
+    res: PendingJsonRpcResponse<Json>,
     activeRequestHandlers: RequestHandlers[],
   ): void {
     // use setTimeout so we can resolve our original request first
