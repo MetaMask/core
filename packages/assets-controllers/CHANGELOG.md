@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [13.0.0]
-### Uncategorized
-- TokensController.addToken use networkClientId ([#1676](https://github.com/MetaMask/core/pull/1676))
+### Changed
+- **BREAKING**: `TokensController.addToken` now accepts a single options object
+  ```
+    {
+      address: string;
+      symbol: string;
+      decimals: number;
+      name?: string;
+      image?: string;
+      interactingAddress?: string;
+      networkClientId?: NetworkClientId;
+    }
+  ```  
+- **CHANGED**: `TokensController.addToken` will use the chain ID value derived from state for `networkClientId` if provided
+- **CHANGED**: `TokensController.addTokens` now accepts an optional `networkClientId` as the last parameter
+- **CHANGED**: `TokensController.addTokens` will use the chain ID value derived from state for `networkClientId` if provided
+- **CHANGED**: `TokensController.watchAsset` options now accepts optional `networkClientId` which is used to get the ERC-20 token name if provided
+
 
 ## [12.0.0]
 ### Added

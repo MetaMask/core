@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [11.1.0]
-### Uncategorized
-- Add `type` to transaction metadata ([#1670](https://github.com/MetaMask/core/pull/1670))
+### Added
+- Add `type` property to the transaction metadata ([#1670](https://github.com/MetaMask/core/pull/1670))
 
 ## [11.0.0]
 ### Added

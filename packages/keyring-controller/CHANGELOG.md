@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.5.1]
-### Uncategorized
+### Fixed
 - Fix `addNewAccountForKeyring` for `CustodyKeyring` ([#1694](https://github.com/MetaMask/core/pull/1694))
 
 ## [7.5.0]
