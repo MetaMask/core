@@ -1,5 +1,8 @@
 import { BaseControllerV2 } from '@metamask/base-controller';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  RestrictedControllerMessenger,
+  StateMetadata,
+} from '@metamask/base-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json } from '@metamask/utils';
 import { v1 as random } from 'uuid';
@@ -26,12 +29,39 @@ export default abstract class PollingController<
     string
   >,
 > extends BaseControllerV2<Name, State, messenger> {
-  readonly #intervalLength = 1000;
+  readonly #intervalLength: number;
 
   private readonly networkClientIdTokensMap: Map<NetworkClientId, Set<string>> =
     new Map();
 
   private readonly intervalIds: Record<NetworkClientId, NodeJS.Timeout> = {};
+
+  constructor({
+    name,
+    state,
+    messenger,
+    metadata,
+    pollingIntervalLength,
+  }: {
+    name: Name;
+    state: State;
+    metadata: StateMetadata<State>;
+    messenger: messenger;
+    pollingIntervalLength: number;
+  }) {
+    super({
+      name,
+      state,
+      messenger,
+      metadata,
+    });
+
+    if (!pollingIntervalLength) {
+      throw new Error('pollingIntervalLength required for PollingController');
+    }
+
+    this.#intervalLength = pollingIntervalLength;
+  }
 
   /**
    * Starts polling for a networkClientId

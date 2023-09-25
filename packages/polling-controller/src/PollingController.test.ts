@@ -27,6 +27,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
+        pollingIntervalLength: 1000,
       });
       controller.start('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
@@ -47,6 +48,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
+        pollingIntervalLength: 1000,
       });
       const pollingToken = controller.start('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
@@ -67,6 +69,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
+        pollingIntervalLength: 1000,
       });
       const pollingToken1 = controller.start('mainnet');
       controller.start('mainnet');
@@ -90,6 +93,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
+        pollingIntervalLength: 1000,
       });
       controller.start('mainnet');
       expect(() => {
@@ -109,6 +113,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
+        pollingIntervalLength: 1000,
       });
       controller.start('mainnet');
       expect(() => {
@@ -131,6 +136,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
+        pollingIntervalLength: 1000,
       });
       controller.start('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
@@ -152,6 +158,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
+        pollingIntervalLength: 1000,
       });
       controller.start('mainnet');
       controller.start('mainnet');
@@ -182,6 +189,7 @@ describe('PollingController', () => {
         metadata: {},
         name,
         state: { foo: 'bar' },
+        pollingIntervalLength: 1000,
       });
       const pollingToken = controller.start('mainnet');
       controller.stop(pollingToken);
@@ -201,6 +209,7 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
+        pollingIntervalLength: 1000,
       });
       controller.start('mainnet');
       controller.start('rinkeby');
