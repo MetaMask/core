@@ -1109,7 +1109,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
   // temporary method to get the correct chainId until we remove chainId from the config & the chainId arg from the detection logic
   // Just a helper method to prefer the networkClient chainId first then the chainId argument and then finally the config chainId
-  getCorrectChainId({
+  private getCorrectChainId({
     chainId,
     networkClientId,
   }: {
@@ -1210,10 +1210,15 @@ export class NftController extends BaseController<NftConfig, NftState> {
   ): Promise<boolean> {
     // Checks the ownership for ERC-721.
     try {
-      const owner = await this.getERC721OwnerOf(nftAddress, tokenId);
+      const owner = await this.getERC721OwnerOf(
+        nftAddress,
+        tokenId,
+        networkClientId,
+      );
       return ownerAddress.toLowerCase() === owner.toLowerCase();
       // eslint-disable-next-line no-empty
-    } catch {
+    } catch (e) {
+      console.log('ERRRROR:', e);
       // Ignore ERC-721 contract error
     }
 

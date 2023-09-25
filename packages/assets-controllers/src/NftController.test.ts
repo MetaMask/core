@@ -49,6 +49,9 @@ const ERC721_DEPRESSIONIST_ID = '36';
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/ad3a368836ff4596becc3be8e2f137ac',
 );
+const SEPOLIA_PROVIDER = new HttpProvider(
+  'https://sepolia.infura.io/v3/ad3a368836ff4596becc3be8e2f137ac',
+);
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const SECOND_OWNER_ADDRESS = '0x500017171kasdfbou081';
 
@@ -170,17 +173,17 @@ function setupController({
     showApprovalRequest: jest.fn(),
   });
 
+  const getNetworkClientByIdSpy = jest.fn();
+
   const assetsContract = new AssetsContractController({
     chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
-    getNetworkClientById: jest.fn(),
+    getNetworkClientById: getNetworkClientByIdSpy,
   });
 
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
-
-  const getNetworkClientByIdSpy = jest.fn();
 
   const nftControllerMessenger = messenger.getRestricted<
     typeof controllerName,
@@ -1962,7 +1965,7 @@ describe('NftController', () => {
       });
     });
 
-    it('should add NFT using networkClientId with correct chainId and metadata fetched using networkClientId', async () => {
+    it('should, when passed a networkClientId, add an NFT with the correct chainId and metadata fetched using networkClientId', async () => {
       nock('https://testtokenuri-1.com')
         .get('/')
         .reply(
@@ -2299,12 +2302,49 @@ describe('NftController', () => {
   });
 
   describe('isNftOwner', () => {
+    // ANCHOR
+    it('should verify the ownership of an NFT when passed a networkClientId', async () => {
+      nock('https://sepolia.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x2b26675403a063d92ccad0293d387485471a7d3a',
+              data: '0x6352211e0000000000000000000000000000000000000000000000000000000000000001',
+            },
+            'latest',
+          ],
+          id: 21,
+          jsonrpc: '2.0',
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 21,
+          result:
+            '0x0000000000000000000000005a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D',
+        });
+      const { nftController, getNetworkClientByIdSpy } = setupController();
+      // const contractAddress = '0x2b26675403a063d92ccad0293d387485471a7d3a';
+      getNetworkClientByIdSpy.mockImplementation(() => ({
+        provider: SEPOLIA_PROVIDER,
+      }));
+
+      // assetsContract.configure({ provider: MAINNET_PROVIDER });
+      const isOwner = await nftController.isNftOwner(
+        OWNER_ADDRESS,
+        '0x2b26675403a063d92ccad0293d387485471a7d3a',
+        String(1),
+        'sepolia',
+      );
+      expect(isOwner).toBe(true);
+    });
+
     it('should verify the ownership of an ERC-721 NFT with the correct owner address', async () => {
       const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 21,
+          id: 22,
           method: 'eth_call',
           params: [
             {
@@ -2316,7 +2356,7 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 21,
+          id: 22,
           result:
             '0x0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
         });
@@ -2335,7 +2375,7 @@ describe('NftController', () => {
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 22,
+          id: 23,
           method: 'eth_call',
           params: [
             {
@@ -2347,7 +2387,7 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 22,
+          id: 23,
           result:
             '0x0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
         });
@@ -2366,7 +2406,7 @@ describe('NftController', () => {
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 23,
+          id: 24,
           method: 'eth_call',
           params: [
             {
@@ -2378,12 +2418,12 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 23,
+          id: 24,
           error: { code: -32000, message: 'execution reverted' },
         })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 24,
+          id: 25,
           method: 'eth_call',
           params: [
             {
@@ -2395,7 +2435,7 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 24,
+          id: 25,
           result:
             '0x0000000000000000000000000000000000000000000000000000000000000001',
         });
@@ -2413,7 +2453,7 @@ describe('NftController', () => {
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 25,
+          id: 26,
           method: 'eth_call',
           params: [
             {
@@ -2425,12 +2465,12 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 25,
+          id: 26,
           error: { code: -32000, message: 'execution reverted' },
         })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 26,
+          id: 27,
           method: 'eth_call',
           params: [
             {
@@ -2442,7 +2482,7 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 26,
+          id: 27,
           result:
             '0x0000000000000000000000000000000000000000000000000000000000000000',
         });

@@ -155,7 +155,6 @@ export class AssetsContractController extends BaseController<
     const provider = networkClientId
       ? this.getNetworkClientById(networkClientId).provider
       : this._provider;
-
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
