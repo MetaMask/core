@@ -426,6 +426,8 @@ export interface TransactionParams {
    */
   to?: string;
 
+  type?: string;
+
   /**
    * Value associated with this transaction.
    */
