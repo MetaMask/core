@@ -94,6 +94,15 @@ describe('KeyringController', () => {
           },
         );
       });
+
+      it('should emit accountAdded', async () => {
+        await withController(async ({ controller, messenger }) => {
+          const listener = sinon.spy();
+          messenger.subscribe('KeyringController:accountAdded', listener);
+          const { addedAccountAddress } = await controller.addNewAccount();
+          expect(listener.calledWith(addedAccountAddress)).toBe(true);
+        });
+      });
     });
 
     describe('when accountCount is provided', () => {
@@ -144,6 +153,15 @@ describe('KeyringController', () => {
           expect(controller.state.keyrings[0].accounts).toHaveLength(
             accountCount + 1,
           );
+        });
+      });
+
+      it('should emit accountAdded', async () => {
+        await withController(async ({ controller, messenger }) => {
+          const listener = sinon.spy();
+          messenger.subscribe('KeyringController:accountAdded', listener);
+          const { addedAccountAddress } = await controller.addNewAccount();
+          expect(listener.calledWith(addedAccountAddress)).toBe(true);
         });
       });
     });
@@ -207,6 +225,29 @@ describe('KeyringController', () => {
               ]),
             ).toBe(true);
             expect(preferences.setSelectedAddress.called).toBe(false);
+          },
+        );
+      });
+
+      it('should emit accountAdded', async () => {
+        await withController(
+          {
+            keyringBuilders: [
+              keyringBuilderFactory(MockShallowGetAccountsKeyring),
+            ],
+          },
+          async ({ controller, messenger }) => {
+            const mockKeyring = await controller.addNewKeyring(
+              MockShallowGetAccountsKeyring.type,
+            );
+
+            const listener = sinon.spy();
+            messenger.subscribe('KeyringController:accountAdded', listener);
+
+            const addedAccountAddress =
+              await controller.addNewAccountForKeyring(mockKeyring);
+
+            expect(listener.calledWith(addedAccountAddress)).toBe(true);
           },
         );
       });
@@ -277,6 +318,29 @@ describe('KeyringController', () => {
           );
         });
       });
+
+      it('should emit accountAdded', async () => {
+        await withController(
+          {
+            keyringBuilders: [
+              keyringBuilderFactory(MockShallowGetAccountsKeyring),
+            ],
+          },
+          async ({ controller, messenger }) => {
+            const mockKeyring = await controller.addNewKeyring(
+              MockShallowGetAccountsKeyring.type,
+            );
+
+            const listener = sinon.spy();
+            messenger.subscribe('KeyringController:accountAdded', listener);
+
+            const addedAccountAddress =
+              await controller.addNewAccountForKeyring(mockKeyring);
+
+            expect(listener.calledWith(addedAccountAddress)).toBe(true);
+          },
+        );
+      });
     });
   });
 
@@ -299,6 +363,19 @@ describe('KeyringController', () => {
           );
         },
       );
+    });
+
+    it('should emit accountAdded', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const listener = sinon.spy();
+        messenger.subscribe('KeyringController:accountAdded', listener);
+
+        await controller.addNewAccountWithoutUpdate();
+
+        const newAccounts = controller.state.keyrings[0].accounts;
+
+        expect(listener.calledWith(newAccounts[1])).toBe(true);
+      });
     });
   });
 
@@ -2310,6 +2387,7 @@ function buildKeyringControllerMessenger(messenger = buildMessenger()) {
       'KeyringController:lock',
       'KeyringController:unlock',
       'KeyringController:accountRemoved',
+      'KeyringController:accountAdded',
       'KeyringController:qrKeyringStateChange',
     ],
   });
