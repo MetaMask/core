@@ -12,6 +12,12 @@ import type {
   KeyringControllerSignTypedMessageAction,
   SignTypedDataVersion,
 } from '@metamask/keyring-controller';
+import {
+  SigningMethod,
+  SigningStage,
+  LogType,
+} from '@metamask/logging-controller';
+import type { AddLog } from '@metamask/logging-controller';
 import type {
   MessageParams,
   MessageParamsMetamask,
@@ -82,7 +88,8 @@ type AllowedActions =
   | AddApprovalRequest
   | KeyringControllerSignMessageAction
   | KeyringControllerSignPersonalMessageAction
-  | KeyringControllerSignTypedMessageAction;
+  | KeyringControllerSignTypedMessageAction
+  | AddLog;
 
 type TypedMessageSigningOptions = {
   parseJsonData: boolean;
@@ -315,6 +322,7 @@ export class SignatureController extends BaseControllerV2<
     return this.#newUnsignedAbstractMessage(
       this.#messageManager,
       ApprovalType.EthSign,
+      SigningMethod.EthSign,
       'Message',
       this.#signMessage.bind(this),
       messageParams,
@@ -341,6 +349,7 @@ export class SignatureController extends BaseControllerV2<
     return this.#newUnsignedAbstractMessage(
       this.#personalMessageManager,
       ApprovalType.PersonalSign,
+      SigningMethod.PersonalSign,
       'Personal Message',
       this.#signPersonalMessage.bind(this),
       messageParams,
@@ -364,9 +373,11 @@ export class SignatureController extends BaseControllerV2<
     version: string,
     signingOpts: TypedMessageSigningOptions,
   ): Promise<string> {
+    const signTypeForLogger = this.#getSignTypeForLogger(version);
     return this.#newUnsignedAbstractMessage(
       this.#typedMessageManager,
       ApprovalType.EthSignTypedData,
+      signTypeForLogger,
       'Typed Message',
       this.#signTypedMessage.bind(this),
       messageParams,
@@ -447,6 +458,7 @@ export class SignatureController extends BaseControllerV2<
   >(
     messageManager: AbstractMessageManager<M, P, PM>,
     approvalType: ApprovalType,
+    signTypeForLogger: SigningMethod,
     messageName: string,
     signMessage: (messageParams: PM, signingOpts?: SO) => void,
     messageParams: PM,
@@ -479,6 +491,13 @@ export class SignatureController extends BaseControllerV2<
       );
 
       try {
+        // Signature request is proposed to the user
+        this.#addLog(
+          signTypeForLogger,
+          SigningStage.Proposed,
+          messageParamsWithId,
+        );
+
         const acceptResult = await this.#requestApproval(
           messageParamsWithId,
           approvalType,
@@ -486,6 +505,13 @@ export class SignatureController extends BaseControllerV2<
 
         resultCallbacks = acceptResult.resultCallbacks;
       } catch {
+        // User rejected the signature request
+        this.#addLog(
+          signTypeForLogger,
+          SigningStage.Rejected,
+          messageParamsWithId,
+        );
+
         this.#cancelAbstractMessage(messageManager, messageId);
         throw ethErrors.provider.userRejectedRequest(
           'User rejected the request.',
@@ -495,6 +521,9 @@ export class SignatureController extends BaseControllerV2<
       await signMessage(messageParamsWithId, signingOpts);
 
       const signatureResult = await signaturePromise;
+
+      // Signature operation is completed
+      this.#addLog(signTypeForLogger, SigningStage.Signed, messageParamsWithId);
 
       /* istanbul ignore next */
       resultCallbacks?.success(signatureResult);
@@ -849,5 +878,30 @@ export class SignatureController extends BaseControllerV2<
       ...messageParams,
       data: JSON.parse(messageParams.data),
     };
+  }
+
+  #addLog(
+    signingMethod: SigningMethod,
+    stage: SigningStage,
+    signingData: AbstractMessageParamsMetamask,
+  ): void {
+    this.messagingSystem.call('LoggingController:add', {
+      type: LogType.EthSignLog,
+      data: {
+        signingMethod,
+        stage,
+        signingData,
+      },
+    });
+  }
+
+  #getSignTypeForLogger(version: string): SigningMethod {
+    let signTypeForLogger = SigningMethod.EthSignTypedData;
+    if (version === 'V3') {
+      signTypeForLogger = SigningMethod.EthSignTypedDataV3;
+    } else if (version === 'V4') {
+      signTypeForLogger = SigningMethod.EthSignTypedDataV4;
+    }
+    return signTypeForLogger;
   }
 }

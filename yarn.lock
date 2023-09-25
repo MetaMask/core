@@ -1921,7 +1921,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/logging-controller@workspace:packages/logging-controller":
+"@metamask/logging-controller@^1.0.1, @metamask/logging-controller@workspace:packages/logging-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/logging-controller@workspace:packages/logging-controller"
   dependencies:
@@ -2337,6 +2337,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^4.3.2
     "@metamask/keyring-controller": ^7.5.0
+    "@metamask/logging-controller": ^1.0.1
     "@metamask/message-manager": ^7.3.2
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
@@ -2352,6 +2353,7 @@ __metadata:
     typescript: ~4.6.3
   peerDependencies:
     "@metamask/approval-controller": ^3.5.1
+    "@metamask/logging-controller": ^1.0.1
   languageName: unknown
   linkType: soft
 
