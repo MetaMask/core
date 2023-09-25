@@ -77,7 +77,7 @@ describe('PollingController', () => {
       expect(executePollMock).toHaveBeenCalledTimes(2);
       controller.stopAll();
     });
-    it('should error if no poll token is passed', () => {
+    it('should error if no pollingToken is passed', () => {
       jest.useFakeTimers();
       class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
