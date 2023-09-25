@@ -1295,7 +1295,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.1
     "@metamask/eth-snap-keyring": ^0.2.2
     "@metamask/keyring-api": ^0.2.5
-    "@metamask/keyring-controller": ^7.5.0
+    "@metamask/keyring-controller": ^7.5.1
     "@metamask/snaps-controllers": ^1.0.1
     "@metamask/snaps-utils": ^1.0.1
     "@metamask/utils": ^6.2.0
@@ -1313,7 +1313,7 @@ __metadata:
     typescript: ~4.6.3
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/keyring-controller": ^7.5.0
+    "@metamask/keyring-controller": ^7.5.1
   languageName: unknown
   linkType: soft
 
@@ -1887,7 +1887,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@^7.5.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@^7.5.1, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -2336,7 +2336,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
     "@metamask/controller-utils": ^4.3.2
-    "@metamask/keyring-controller": ^7.5.0
+    "@metamask/keyring-controller": ^7.5.1
     "@metamask/logging-controller": ^1.0.1
     "@metamask/message-manager": ^7.3.2
     "@metamask/utils": ^6.2.0
