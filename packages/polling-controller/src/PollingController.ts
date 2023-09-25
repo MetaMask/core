@@ -42,7 +42,6 @@ export default abstract class PollingController<
   start(networkClientId: NetworkClientId) {
     const innerPollToken = random();
     if (this.networkClientIdTokensMap.has(networkClientId)) {
-      //
       const set = this.networkClientIdTokensMap.get(networkClientId);
       set?.add(innerPollToken);
     } else {

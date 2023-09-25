@@ -3,21 +3,20 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import type { PollingCompleteType } from './PollingController';
 import PollingController from './PollingController';
 
-describe('PollingController', () => {
-  let executePollMock: PollingController<any, any, any>['executePoll'];
-
-  beforeEach(() => {
-    executePollMock = jest.fn().mockImplementation(async () => {
-      return true;
-    });
+const createExecutePollMock = () => {
+  const executePollMock = jest.fn().mockImplementation(async () => {
+    return true;
   });
+  return executePollMock;
+};
 
+describe('PollingController', () => {
   describe('start', () => {
     it('should start polling if not polling', () => {
       jest.useFakeTimers();
 
       class MyGasFeeController extends PollingController<any, any, any> {
-        executePoll = executePollMock;
+        executePoll = createExecutePollMock();
       }
       const mockMessenger = new ControllerMessenger<any, any>();
 
@@ -30,14 +29,14 @@ describe('PollingController', () => {
       controller.start('mainnet');
       jest.advanceTimersByTime(1500);
       controller.stopAll();
-      expect(executePollMock).toHaveBeenCalledTimes(1);
+      expect(controller.executePoll).toHaveBeenCalledTimes(1);
     });
   });
   describe('stop', () => {
-    it('should stop polling when called with a valid polling that was the only active pollingToken for a given networkClient ', () => {
+    it('should stop polling when called with a valid polling that was the only active pollingToken for a given networkClient', () => {
       jest.useFakeTimers();
       class MyGasFeeController extends PollingController<any, any, any> {
-        executePoll = executePollMock;
+        executePoll = createExecutePollMock();
       }
       const mockMessenger = new ControllerMessenger<any, any>();
 
@@ -51,13 +50,13 @@ describe('PollingController', () => {
       jest.advanceTimersByTime(1500);
       controller.stop(pollingToken);
       jest.advanceTimersByTime(1500);
-      expect(executePollMock).toHaveBeenCalledTimes(1);
+      expect(controller.executePoll).toHaveBeenCalledTimes(1);
       controller.stopAll();
     });
     it('should not stop polling if called with one of multiple active polling tokens for a given networkClient', async () => {
       jest.useFakeTimers();
       class MyGasFeeController extends PollingController<any, any, any> {
-        executePoll = executePollMock;
+        executePoll = createExecutePollMock();
       }
       const mockMessenger = new ControllerMessenger<any, any>();
 
@@ -74,13 +73,13 @@ describe('PollingController', () => {
       controller.stop(pollingToken1);
       jest.advanceTimersByTime(1400);
       await Promise.resolve();
-      expect(executePollMock).toHaveBeenCalledTimes(2);
+      expect(controller.executePoll).toHaveBeenCalledTimes(2);
       controller.stopAll();
     });
     it('should error if no pollingToken is passed', () => {
       jest.useFakeTimers();
       class MyGasFeeController extends PollingController<any, any, any> {
-        executePoll = executePollMock;
+        executePoll = createExecutePollMock();
       }
       const mockMessenger = new ControllerMessenger<any, any>();
 
@@ -99,7 +98,7 @@ describe('PollingController', () => {
     it('should error if no matching pollingToken is found', () => {
       jest.useFakeTimers();
       class MyGasFeeController extends PollingController<any, any, any> {
-        executePoll = executePollMock;
+        executePoll = createExecutePollMock();
       }
       const mockMessenger = new ControllerMessenger<any, any>();
 
@@ -121,7 +120,7 @@ describe('PollingController', () => {
       jest.useFakeTimers();
 
       class MyGasFeeController extends PollingController<any, any, any> {
-        executePoll = executePollMock;
+        executePoll = createExecutePollMock();
       }
       const mockMessenger = new ControllerMessenger<any, any>();
 
@@ -136,13 +135,13 @@ describe('PollingController', () => {
       await Promise.resolve();
       jest.advanceTimersByTime(1200);
       await Promise.resolve();
-      expect(executePollMock).toHaveBeenCalledTimes(2);
+      expect(controller.executePoll).toHaveBeenCalledTimes(2);
     });
     it('should continue calling executePoll when start is called again with the same networkClientId', async () => {
       jest.useFakeTimers();
 
       class MyGasFeeController extends PollingController<any, any, any> {
-        executePoll = executePollMock;
+        executePoll = createExecutePollMock();
       }
       const mockMessenger = new ControllerMessenger<any, any>();
 
@@ -158,14 +157,14 @@ describe('PollingController', () => {
       await Promise.resolve();
       jest.advanceTimersByTime(1200);
       await Promise.resolve();
-      expect(executePollMock).toHaveBeenCalledTimes(2);
+      expect(controller.executePoll).toHaveBeenCalledTimes(2);
       controller.stopAll();
     });
     it('should publish "pollingComplete" when stop is called', async () => {
       jest.useFakeTimers();
       const pollingComplete: any = jest.fn();
       class MyGasFeeController extends PollingController<any, any, any> {
-        executePoll = executePollMock;
+        executePoll = createExecutePollMock();
       }
       const name = 'PollingController';
 
@@ -191,7 +190,7 @@ describe('PollingController', () => {
     it('should poll for each networkClientId', async () => {
       jest.useFakeTimers();
       class MyGasFeeController extends PollingController<any, any, any> {
-        executePoll = executePollMock;
+        executePoll = createExecutePollMock();
       }
       const mockMessenger = new ControllerMessenger<any, any>();
 
@@ -207,7 +206,7 @@ describe('PollingController', () => {
       await Promise.resolve();
       jest.advanceTimersByTime(1200);
       await Promise.resolve();
-      expect(executePollMock).toHaveBeenCalledTimes(4);
+      expect(controller.executePoll).toHaveBeenCalledTimes(4);
       controller.stopAll();
     });
   });
