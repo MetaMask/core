@@ -34,7 +34,7 @@ describe('PollingController', () => {
     });
   });
   describe('stop', () => {
-    it('should stop polling if polling', () => {
+    it('should stop polling when called with a valid polling that was the only active pollingToken for a given networkClient ', () => {
       jest.useFakeTimers();
       class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
