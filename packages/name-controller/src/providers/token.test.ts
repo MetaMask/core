@@ -54,5 +54,39 @@ describe('TokenNameProvider', () => {
         `https://token-api.metaswap.codefi.network/token/${CHAIN_ID_MOCK}?address=${VALUE_MOCK}`,
       );
     });
+
+    it('returns empty array if no token name in infura response', async () => {
+      const provider = new TokenNameProvider();
+
+      handleFetchMock.mockResolvedValueOnce({ name: undefined });
+
+      const response = await provider.getProposedNames({
+        value: VALUE_MOCK,
+        chainId: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(response).toStrictEqual({
+        results: {
+          [SOURCE_ID]: { proposedNames: [] },
+        },
+      });
+    });
+
+    it('throws if request fails', async () => {
+      handleFetchMock.mockImplementation(() => {
+        throw new Error('TestError');
+      });
+
+      const provider = new TokenNameProvider();
+
+      await expect(
+        provider.getProposedNames({
+          value: VALUE_MOCK,
+          chainId: CHAIN_ID_MOCK,
+          type: NameType.ETHEREUM_ADDRESS,
+        }),
+      ).rejects.toThrow('TestError');
+    });
   });
 });
