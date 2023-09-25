@@ -161,7 +161,7 @@ describe('PollingController', () => {
       expect(executePollMock).toHaveBeenCalledTimes(2);
       controller.stopAll();
     });
-    it('should publish 'pollingComplete' when stop is called', async () => {
+    it('should publish "pollingComplete" when stop is called', async () => {
       jest.useFakeTimers();
       const pollingComplete: any = jest.fn();
       class MyGasFeeController extends PollingController<any, any, any> {
