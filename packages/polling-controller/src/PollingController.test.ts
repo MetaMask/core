@@ -195,6 +195,35 @@ describe('PollingController', () => {
       controller.stop(pollingToken);
       expect(pollingComplete).toHaveBeenCalledTimes(1);
     });
+    it('should poll at the interval length passed via the constructor', async () => {
+      jest.useFakeTimers();
+
+      class MyGasFeeController extends PollingController<any, any, any> {
+        executePoll = createExecutePollMock();
+      }
+      const mockMessenger = new ControllerMessenger<any, any>();
+
+      const controller = new MyGasFeeController({
+        messenger: mockMessenger,
+        metadata: {},
+        name: 'PollingController',
+        state: { foo: 'bar' },
+        pollingIntervalLength: TICK_TIME * 3,
+      });
+      controller.start('mainnet');
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll).not.toHaveBeenCalled();
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(TICK_TIME * 3);
+      await Promise.resolve();
+      expect(controller.executePoll).toHaveBeenCalledTimes(2);
+    });
   });
   describe('multiple networkClientIds', () => {
     it('should poll for each networkClientId', async () => {
@@ -228,6 +257,52 @@ describe('PollingController', () => {
         ['rinkeby'],
       ]);
       controller.stopAll();
+    });
+
+    it('should poll multiple networkClientIds at the interval length passed via the constructor', async () => {
+      jest.useFakeTimers();
+
+      class MyGasFeeController extends PollingController<any, any, any> {
+        executePoll = createExecutePollMock();
+      }
+      const mockMessenger = new ControllerMessenger<any, any>();
+
+      const controller = new MyGasFeeController({
+        messenger: mockMessenger,
+        metadata: {},
+        name: 'PollingController',
+        state: { foo: 'bar' },
+        pollingIntervalLength: TICK_TIME * 2,
+      });
+      controller.start('mainnet');
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      controller.start('sepolia');
+      expect(controller.executePoll.mock.calls).toMatchObject([]);
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll.mock.calls).toMatchObject([['mainnet']]);
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll.mock.calls).toMatchObject([
+        ['mainnet'],
+        ['sepolia'],
+      ]);
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll.mock.calls).toMatchObject([
+        ['mainnet'],
+        ['sepolia'],
+        ['mainnet'],
+      ]);
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll.mock.calls).toMatchObject([
+        ['mainnet'],
+        ['sepolia'],
+        ['mainnet'],
+        ['sepolia'],
+      ]);
     });
   });
 });
