@@ -44,6 +44,7 @@ import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSo
 import { validateConfirmedExternalTransaction } from './external-transactions';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { determineTransactionType } from './transaction-type';
 import type {
   DappSuggestedGasFees,
   TransactionParams,
@@ -52,7 +53,7 @@ import type {
   SendFlowHistoryEntry,
   WalletDevice,
 } from './types';
-import { TransactionStatus } from './types';
+import { TransactionType, TransactionStatus } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
@@ -414,6 +415,7 @@ export class TransactionController extends BaseController<
    * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param opts.securityAlertResponse - Response from security validator.
    * @param opts.sendFlowHistory - The sendFlowHistory entries to add.
+   * @param opts.type - Type of transaction to add, such as 'cancel' or 'swap'.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -425,6 +427,7 @@ export class TransactionController extends BaseController<
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
+      type,
     }: {
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
@@ -432,6 +435,7 @@ export class TransactionController extends BaseController<
       requireApproval?: boolean | undefined;
       securityAlertResponse?: Record<string, unknown>;
       sendFlowHistory?: SendFlowHistoryEntry[];
+      type?: TransactionType;
     } = {},
   ): Promise<Result> {
     const { chainId, networkId } = this.getChainAndNetworkId();
@@ -444,6 +448,9 @@ export class TransactionController extends BaseController<
       txParams,
       origin,
     );
+
+    const transactionType =
+      type ?? (await determineTransactionType(txParams, this.ethQuery)).type;
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
@@ -462,6 +469,7 @@ export class TransactionController extends BaseController<
       txParams,
       userEditedGasLimit: false,
       verifiedOnBlockchain: false,
+      type: transactionType,
     };
 
     try {
@@ -753,6 +761,7 @@ export class TransactionController extends BaseController<
       hash,
       actionId,
       originalGasEstimate: transactionMeta.txParams.gas,
+      type: TransactionType.retry,
     };
     const newTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
