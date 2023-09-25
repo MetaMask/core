@@ -102,6 +102,7 @@ export interface Transaction {
   maxPriorityFeePerGas?: string;
   estimatedBaseFee?: string;
   estimateGasError?: string;
+  type?: string;
 }
 
 /**
