@@ -1217,8 +1217,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       );
       return ownerAddress.toLowerCase() === owner.toLowerCase();
       // eslint-disable-next-line no-empty
-    } catch (e) {
-      console.log('ERRRROR:', e);
+    } catch {
       // Ignore ERC-721 contract error
     }
 
