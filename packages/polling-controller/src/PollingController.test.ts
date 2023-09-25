@@ -96,7 +96,7 @@ describe('PollingController', () => {
       }).toThrow('pollingToken required');
       controller.stopAll();
     });
-    it('should error if no poll token is found', () => {
+    it('should error if no matching pollingToken is found', () => {
       jest.useFakeTimers();
       class MyGasFeeController extends PollingController<any, any, any> {
         executePoll = executePollMock;
