@@ -1549,7 +1549,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^28.1.3
     nanoid: ^3.1.31
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -1581,7 +1581,7 @@ __metadata:
     "@types/jest": ^28.1.6
     deepmerge: ^4.2.2
     jest: ^28.1.3
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -1598,7 +1598,7 @@ __metadata:
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^28.1.3
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -1619,7 +1619,7 @@ __metadata:
     jest: ^28.1.3
     nanoid: ^3.1.31
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -1660,7 +1660,7 @@ __metadata:
     nock: ^13.3.1
     single-call-balance-checker-abi: ^1.0.0
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -1698,7 +1698,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^28.1.3
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -1723,7 +1723,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^28.1.3
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -1754,7 +1754,7 @@ __metadata:
     fast-deep-equal: ^3.1.3
     jest: ^28.1.3
     nock: ^13.3.1
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -1834,7 +1834,7 @@ __metadata:
     ethereum-ens-network-map: ^1.0.2
     jest: ^28.1.3
     punycode: ^2.1.1
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2062,7 +2062,7 @@ __metadata:
     jest-when: ^3.4.2
     nock: ^13.3.1
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2151,7 +2151,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^28.1.3
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2171,7 +2171,7 @@ __metadata:
     "@types/jest": ^28.1.6
     deepmerge: ^4.2.2
     jest: ^28.1.3
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2194,7 +2194,7 @@ __metadata:
     ethereumjs-util: ^7.0.10
     jest: ^28.1.3
     jsonschema: ^1.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2221,7 +2221,7 @@ __metadata:
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^28.1.3
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2256,7 +2256,7 @@ __metadata:
     lodash: ^4.17.21
     nock: ^13.3.1
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2276,7 +2276,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^28.1.3
     nanoid: ^3.1.31
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2332,7 +2332,7 @@ __metadata:
     jest: ^28.1.3
     json-rpc-engine: ^6.1.0
     nanoid: ^3.1.31
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2356,7 +2356,7 @@ __metadata:
     nock: ^13.3.1
     punycode: ^2.1.1
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2376,7 +2376,7 @@ __metadata:
     "@types/uuid": ^8.3.0
     deepmerge: ^4.2.2
     jest: ^28.1.3
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2406,7 +2406,7 @@ __metadata:
     "@types/jest": ^28.1.6
     deepmerge: ^4.2.2
     jest: ^28.1.3
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2482,7 +2482,7 @@ __metadata:
     eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^28.1.3
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2584,7 +2584,7 @@ __metadata:
     lodash: ^4.17.21
     nock: ^13.3.1
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2612,7 +2612,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^28.1.3
     lodash: ^4.17.21
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -2844,7 +2844,7 @@ __metadata:
     lodash: ^4.17.21
     nonce-tracker: ^1.1.0
     sinon: ^9.2.4
-    ts-jest: ^27.1.4
+    ts-jest: ^28.0.7
     typedoc: ^0.23.15
     typedoc-plugin-missing-exports: ^0.23.0
     typescript: ~4.6.3
@@ -7608,7 +7608,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest-util@npm:^27.0.0, jest-util@npm:^27.5.1":
+"jest-util@npm:^27.5.1":
   version: 27.5.1
   resolution: "jest-util@npm:27.5.1"
   dependencies:
@@ -7622,7 +7622,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest-util@npm:^28.1.3":
+"jest-util@npm:^28.0.0, jest-util@npm:^28.1.3":
   version: 28.1.3
   resolution: "jest-util@npm:28.1.3"
   dependencies:
@@ -7895,15 +7895,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"json5@npm:2.x, json5@npm:^2.2.3":
-  version: 2.2.3
-  resolution: "json5@npm:2.2.3"
-  bin:
-    json5: lib/cli.js
-  checksum: 2a7436a93393830bce797d4626275152e37e877b265e94ca69c99e3d20c2b9dab021279146a39cdb700e71b2dd32a4cebd1514cd57cee102b1af906ce5040349
-  languageName: node
-  linkType: hard
-
 "json5@npm:^1.0.2":
   version: 1.0.2
   resolution: "json5@npm:1.0.2"
@@ -7912,6 +7903,15 @@ __metadata:
   bin:
     json5: lib/cli.js
   checksum: 866458a8c58a95a49bef3adba929c625e82532bcff1fe93f01d29cb02cac7c3fe1f4b79951b7792c2da9de0b32871a8401a6e3c5b36778ad852bf5b8a61165d7
+  languageName: node
+  linkType: hard
+
+"json5@npm:^2.2.1, json5@npm:^2.2.3":
+  version: 2.2.3
+  resolution: "json5@npm:2.2.3"
+  bin:
+    json5: lib/cli.js
+  checksum: 2a7436a93393830bce797d4626275152e37e877b265e94ca69c99e3d20c2b9dab021279146a39cdb700e71b2dd32a4cebd1514cd57cee102b1af906ce5040349
   languageName: node
   linkType: hard
 
@@ -10080,28 +10080,28 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-jest@npm:^27.1.4":
-  version: 27.1.5
-  resolution: "ts-jest@npm:27.1.5"
+"ts-jest@npm:^28.0.7":
+  version: 28.0.8
+  resolution: "ts-jest@npm:28.0.8"
   dependencies:
     bs-logger: 0.x
     fast-json-stable-stringify: 2.x
-    jest-util: ^27.0.0
-    json5: 2.x
+    jest-util: ^28.0.0
+    json5: ^2.2.1
     lodash.memoize: 4.x
     make-error: 1.x
     semver: 7.x
-    yargs-parser: 20.x
+    yargs-parser: ^21.0.1
   peerDependencies:
     "@babel/core": ">=7.0.0-beta.0 <8"
-    "@types/jest": ^27.0.0
-    babel-jest: ">=27.0.0 <28"
-    jest: ^27.0.0
-    typescript: ">=3.8 <5.0"
+    "@jest/types": ^28.0.0
+    babel-jest: ^28.0.0
+    jest: ^28.0.0
+    typescript: ">=4.3"
   peerDependenciesMeta:
     "@babel/core":
       optional: true
-    "@types/jest":
+    "@jest/types":
       optional: true
     babel-jest:
       optional: true
@@ -10109,7 +10109,7 @@ __metadata:
       optional: true
   bin:
     ts-jest: cli.js
-  checksum: 3ef51c538b82f49b3f529331c1a017871a2f90e7a9a6e69333304755036d121818c6b120e2ce32dd161ff8bb2487efec0c790753ecd39b46a9ed1ce0d241464c
+  checksum: c72e9292709e77ce47ac7813cb24feaa9d01dc983598d29a821f224b5cc190dc7d67e17379cef089095404c00b9d582ee91c727916f9ec289cb1b723df408ae3
   languageName: node
   linkType: hard
 
@@ -10810,14 +10810,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"yargs-parser@npm:20.x, yargs-parser@npm:^20.2.2":
+"yargs-parser@npm:^20.2.2":
   version: 20.2.9
   resolution: "yargs-parser@npm:20.2.9"
   checksum: 8bb69015f2b0ff9e17b2c8e6bfe224ab463dd00ca211eece72a4cd8a906224d2703fb8a326d36fdd0e68701e201b2a60ed7cf81ce0fd9b3799f9fe7745977ae3
   languageName: node
   linkType: hard
 
-"yargs-parser@npm:^21.1.1":
+"yargs-parser@npm:^21.0.1, yargs-parser@npm:^21.1.1":
   version: 21.1.1
   resolution: "yargs-parser@npm:21.1.1"
   checksum: ed2d96a616a9e3e1cc7d204c62ecc61f7aaab633dcbfab2c6df50f7f87b393993fe6640d017759fe112d0cb1e0119f2b4150a87305cc873fd90831c6a58ccf1c
