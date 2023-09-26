@@ -30,6 +30,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
+    "@metamask/utils": "^6.2.0",
+    "async-mutex": "^0.2.6",
     "immer": "^9.0.6"
   },
   "devDependencies": {
