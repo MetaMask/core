@@ -1,13 +1,15 @@
-import type { Json } from '@metamask/utils';
-import { createAsyncMiddleware } from 'json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   JsonRpcEngine,
   JsonRpcMiddleware,
   AsyncJsonRpcEngineNextCallback,
-  PendingJsonRpcResponse,
+} from '@metamask/json-rpc-engine';
+import type {
+  Json,
   JsonRpcRequest,
-} from 'json-rpc-engine';
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 
 import type {
   GenericPermissionController,
@@ -60,7 +62,7 @@ export function getPermissionMiddlewareFactory({
     }
 
     const permissionsMiddleware = async (
-      req: JsonRpcRequest<RestrictedMethodParameters>,
+      req: JsonRpcRequest,
       res: PendingJsonRpcResponse<Json>,
       next: AsyncJsonRpcEngineNextCallback,
     ): Promise<void> => {

@@ -1,7 +1,7 @@
 import { isPlainObject } from '@metamask/controller-utils';
+import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { ethErrors } from 'eth-rpc-errors';
-import type { JsonRpcEngineEndCallback } from 'json-rpc-engine';
 
 import { invalidParams } from '../errors';
 import type { PermissionConstraint, RequestedPermissions } from '../Permission';

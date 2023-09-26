@@ -2079,6 +2079,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.2
     "@metamask/controller-utils": ^5.0.1
+    "@metamask/json-rpc-engine": ^7.1.1
     "@metamask/utils": ^8.1.0
     "@types/deep-freeze-strict": ^1.1.0
     "@types/jest": ^27.4.1
@@ -2087,7 +2088,6 @@ __metadata:
     eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^27.5.1
-    json-rpc-engine: ^6.1.0
     nanoid: ^3.1.31
     ts-jest: ^27.1.4
     typedoc: ^0.24.8

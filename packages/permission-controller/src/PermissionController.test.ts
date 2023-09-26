@@ -6,11 +6,10 @@ import type {
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
-import type { Json } from '@metamask/utils';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { hasProperty } from '@metamask/utils';
+import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
 import assert from 'assert';
-import { JsonRpcEngine } from 'json-rpc-engine';
-import type { PendingJsonRpcResponse } from 'json-rpc-engine';
 
 import type {
   AsyncRestrictedMethod,
