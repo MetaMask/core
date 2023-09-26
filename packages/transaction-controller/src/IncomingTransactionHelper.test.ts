@@ -24,7 +24,6 @@ const NETWORK_STATE_MOCK: NetworkState = {
     chainId: '0x1',
     type: NetworkType.mainnet,
   },
-  networkId: '1',
 } as unknown as NetworkState;
 
 const ADDERSS_MOCK = '0x1';
@@ -155,7 +154,6 @@ describe('IncomingTransactionHelper', () => {
         expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
           address: ADDERSS_MOCK,
           currentChainId: NETWORK_STATE_MOCK.providerConfig.chainId,
-          currentNetworkId: NETWORK_STATE_MOCK.networkId,
           fromBlock: undefined,
           limit: CONTROLLER_ARGS_MOCK.transactionLimit,
         });

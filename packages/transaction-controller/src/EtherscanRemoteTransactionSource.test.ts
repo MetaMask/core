@@ -104,10 +104,10 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
   chainId: undefined,
   hash: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.hash,
   id: ID_MOCK,
-  networkID: undefined,
   status: TransactionStatus.confirmed,
   time: 1543596356000,
   txParams: {
+    chainId: undefined,
     from: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.from,
     gas: '0x51d68',
     gasPrice: '0x4a817c800',
@@ -175,7 +175,6 @@ describe('EtherscanRemoteTransactionSource', () => {
       expect(
         new EtherscanRemoteTransactionSource().isSupportedNetwork(
           CHAIN_IDS.MAINNET,
-          '1',
         ),
       ).toBe(true);
     });
@@ -184,7 +183,6 @@ describe('EtherscanRemoteTransactionSource', () => {
       expect(
         new EtherscanRemoteTransactionSource().isSupportedNetwork(
           '0x1324567891234',
-          '1',
         ),
       ).toBe(false);
     });
