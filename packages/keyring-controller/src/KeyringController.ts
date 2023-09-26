@@ -1,7 +1,7 @@
 import type { TxData, TypedTransaction } from '@ethereumjs/tx';
-import {
-  type MetaMaskKeyring as QRKeyring,
-  type IKeyringState as IQRKeyringState,
+import type {
+  MetaMaskKeyring as QRKeyring,
+  IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
@@ -90,6 +90,21 @@ export type KeyringControllerGetEncryptionPublicKeyAction = {
   handler: KeyringController['getEncryptionPublicKey'];
 };
 
+export type KeyringControllerGetKeyringsByTypeAction = {
+  type: `${typeof name}:getKeyringsByType`;
+  handler: KeyringController['getKeyringsByType'];
+};
+
+export type KeyringControllerGetKeyringForAccountAction = {
+  type: `${typeof name}:getKeyringForAccount`;
+  handler: KeyringController['getKeyringForAccount'];
+};
+
+export type KeyringControllerGetAccountsAction = {
+  type: `${typeof name}:getAccounts`;
+  handler: KeyringController['getAccounts'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -110,19 +125,28 @@ export type KeyringControllerUnlockEvent = {
   payload: [];
 };
 
+export type KeyringControllerQRKeyringStateChangeEvent = {
+  type: `${typeof name}:qrKeyringStateChange`;
+  payload: [ReturnType<IQRKeyringState['getState']>];
+};
+
 export type KeyringControllerActions =
   | KeyringControllerGetStateAction
   | KeyringControllerSignMessageAction
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
   | KeyringControllerDecryptMessageAction
-  | KeyringControllerGetEncryptionPublicKeyAction;
+  | KeyringControllerGetEncryptionPublicKeyAction
+  | KeyringControllerGetAccountsAction
+  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerGetKeyringForAccountAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | KeyringControllerAccountRemovedEvent;
+  | KeyringControllerAccountRemovedEvent
+  | KeyringControllerQRKeyringStateChangeEvent;
 
 export type KeyringControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -227,6 +251,10 @@ export class KeyringController extends BaseControllerV2<
   private readonly setAccountLabel?: PreferencesController['setAccountLabel'];
 
   #keyring: EthKeyringController;
+
+  #qrKeyringStateListener?: (
+    state: ReturnType<IQRKeyringState['getState']>,
+  ) => void;
 
   /**
    * Creates a KeyringController instance.
@@ -350,17 +378,21 @@ export class KeyringController extends BaseControllerV2<
     keyring: Keyring<Json>,
     accountCount?: number,
   ): Promise<Hex> {
-    const oldAccounts = await keyring.getAccounts();
+    const oldAccounts = await this.getAccounts();
 
     if (accountCount && oldAccounts.length !== accountCount) {
       if (accountCount > oldAccounts.length) {
         throw new Error('Account out of sequence');
       }
-      return oldAccounts[accountCount];
+
+      const existingAccount = oldAccounts[accountCount];
+      assertIsStrictHexString(existingAccount);
+
+      return existingAccount;
     }
 
     await this.#keyring.addNewAccount(keyring);
-    const addedAccountAddress = (await keyring.getAccounts()).find(
+    const addedAccountAddress = (await this.getAccounts()).find(
       (selectedAddress) => !oldAccounts.includes(selectedAddress),
     );
     assertIsStrictHexString(addedAccountAddress);
@@ -445,7 +477,11 @@ export class KeyringController extends BaseControllerV2<
   async addNewKeyring(
     type: KeyringTypes | string,
     opts?: unknown,
-  ): Promise<Keyring<Json>> {
+  ): Promise<unknown> {
+    if (type === KeyringTypes.qr) {
+      return this.getOrAddQRKeyring();
+    }
+
     return this.#keyring.addNewKeyring(type, opts);
   }
 
@@ -656,6 +692,7 @@ export class KeyringController extends BaseControllerV2<
    * @returns Promise resolving to current state.
    */
   async setLocked(): Promise<KeyringControllerMemState> {
+    this.#unsubscribeFromQRKeyringsEvents();
     await this.#keyring.setLocked();
     return this.#getMemState();
   }
@@ -749,6 +786,14 @@ export class KeyringController extends BaseControllerV2<
     encryptionSalt: string,
   ): Promise<KeyringControllerMemState> {
     await this.#keyring.submitEncryptionKey(encryptionKey, encryptionSalt);
+
+    const qrKeyring = this.getQRKeyring();
+    if (qrKeyring) {
+      // if there is a QR keyring, we need to subscribe
+      // to its events after unlocking the vault
+      this.#subscribeToQRKeyringEvents(qrKeyring);
+    }
+
     return this.#getMemState();
   }
 
@@ -762,6 +807,14 @@ export class KeyringController extends BaseControllerV2<
   async submitPassword(password: string): Promise<KeyringControllerMemState> {
     await this.#keyring.submitPassword(password);
     const accounts = await this.#keyring.getAccounts();
+
+    const qrKeyring = this.getQRKeyring();
+    if (qrKeyring) {
+      // if there is a QR keyring, we need to subscribe
+      // to its events after unlocking the vault
+      this.#subscribeToQRKeyringEvents(qrKeyring);
+    }
+
     await this.syncIdentities(accounts);
     return this.#getMemState();
   }
@@ -819,16 +872,24 @@ export class KeyringController extends BaseControllerV2<
   // QR Hardware related methods
 
   /**
-   * Get qr hardware keyring.
+   * Get QR Hardware keyring.
+   *
+   * @returns The QR Keyring if defined, otherwise undefined
+   */
+  getQRKeyring(): QRKeyring | undefined {
+    // QRKeyring is not yet compatible with Keyring type from @metamask/utils
+    return this.#keyring.getKeyringsByType(
+      KeyringTypes.qr,
+    )[0] as unknown as QRKeyring;
+  }
+
+  /**
+   * Get QR hardware keyring. If it doesn't exist, add it.
    *
    * @returns The added keyring
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
-    const keyring =
-      (this.#keyring.getKeyringsByType(
-        KeyringTypes.qr,
-      )[0] as unknown as QRKeyring) || (await this.#addQRKeyring());
-    return keyring;
+    return this.getQRKeyring() || (await this.#addQRKeyring());
   }
 
   async restoreQRKeyring(serialized: any): Promise<void> {
@@ -967,6 +1028,21 @@ export class KeyringController extends BaseControllerV2<
       `${name}:getEncryptionPublicKey`,
       this.getEncryptionPublicKey.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getAccounts`,
+      this.getAccounts.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getKeyringsByType`,
+      this.getKeyringsByType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getKeyringForAccount`,
+      this.getKeyringForAccount.bind(this),
+    );
   }
 
   /**
@@ -978,7 +1054,39 @@ export class KeyringController extends BaseControllerV2<
    */
   async #addQRKeyring(): Promise<QRKeyring> {
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
-    return this.#keyring.addNewKeyring(KeyringTypes.qr) as unknown as QRKeyring;
+    const qrKeyring = (await this.#keyring.addNewKeyring(
+      KeyringTypes.qr,
+    )) as unknown as QRKeyring;
+
+    this.#subscribeToQRKeyringEvents(qrKeyring);
+
+    return qrKeyring;
+  }
+
+  /**
+   * Subscribe to a QRKeyring state change events and
+   * forward them through the messaging system.
+   *
+   * @param qrKeyring - The QRKeyring instance to subscribe to
+   */
+  #subscribeToQRKeyringEvents(qrKeyring: QRKeyring) {
+    this.#qrKeyringStateListener = (state) => {
+      this.messagingSystem.publish(`${name}:qrKeyringStateChange`, state);
+    };
+
+    qrKeyring.getMemStore().subscribe(this.#qrKeyringStateListener);
+  }
+
+  #unsubscribeFromQRKeyringsEvents() {
+    const qrKeyrings = this.#keyring.getKeyringsByType(
+      KeyringTypes.qr,
+    ) as unknown as QRKeyring[];
+
+    qrKeyrings.forEach((qrKeyring) => {
+      if (this.#qrKeyringStateListener) {
+        qrKeyring.getMemStore().unsubscribe(this.#qrKeyringStateListener);
+      }
+    });
   }
 
   /**

@@ -8,17 +8,17 @@ describe('validateConfirmedExternalTransaction', () => {
   const mockTransactionMeta = (status: TransactionStatus, nonce: string) => {
     const meta = {
       status,
-      transaction: { nonce },
+      txParams: { nonce },
     } as TransactionMeta;
     return meta;
   };
 
-  it('should throw if transactionMeta or transaction is missing', () => {
+  it('should throw if transactionMeta or txParams is missing', () => {
     expect(() =>
       validateConfirmedExternalTransaction(undefined, [], []),
     ).toThrow(
       ethErrors.rpc.invalidParams(
-        '"transactionMeta" or "transactionMeta.transaction" is missing',
+        '"transactionMeta" or "transactionMeta.txParams" is missing',
       ),
     );
 
@@ -26,7 +26,7 @@ describe('validateConfirmedExternalTransaction', () => {
       validateConfirmedExternalTransaction({} as TransactionMeta, [], []),
     ).toThrow(
       ethErrors.rpc.invalidParams(
-        '"transactionMeta" or "transactionMeta.transaction" is missing',
+        '"transactionMeta" or "transactionMeta.txParams" is missing',
       ),
     );
   });

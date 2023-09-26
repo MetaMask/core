@@ -2,7 +2,6 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
-  convertHexToDecimal,
   NetworksTicker,
   ChainId,
   InfuraNetworkType,
@@ -17,7 +16,6 @@ import {
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
-  isStrictHexString,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
 import { errorCodes } from 'eth-rpc-errors';
@@ -175,25 +173,6 @@ function pick<Obj extends Record<any, any>, Keys extends keyof Obj>(
 }
 
 /**
- * Convert the given value into a valid network ID. The ID is accepted
- * as either a number, a decimal string, or a 0x-prefixed hex string.
- *
- * @param value - The network ID to convert, in an unknown format.
- * @returns A valid network ID (as a decimal string)
- * @throws If the given value cannot be safely parsed.
- */
-function convertNetworkId(value: unknown): NetworkId {
-  if (typeof value === 'number' && !Number.isNaN(value)) {
-    return `${value}`;
-  } else if (isStrictHexString(value)) {
-    return `${convertHexToDecimal(value)}`;
-  } else if (typeof value === 'string' && /^\d+$/u.test(value)) {
-    return value as NetworkId;
-  }
-  throw new Error(`Cannot parse as a valid network ID: '${value}'`);
-}
-
-/**
  * Type guard for determining whether the given value is an error object with a
  * `code` property, such as an instance of Error.
  *
@@ -344,22 +323,15 @@ export type NetworksMetadata = {
 };
 
 /**
- * The network ID of a network.
- */
-export type NetworkId = `${number}`;
-
-/**
  * @type NetworkState
  *
  * Network controller state
- * @property network - Network ID as per net_version of the currently connected network
  * @property providerConfig - RPC URL and network name provider settings of the currently connected network
  * @property properties - an additional set of network properties for the currently connected network
  * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
  */
 export type NetworkState = {
   selectedNetworkClientId: NetworkClientId;
-  networkId: NetworkId | null;
   providerConfig: ProviderConfig;
   networkConfigurations: NetworkConfigurations;
   networksMetadata: NetworksMetadata;
@@ -481,7 +453,6 @@ export type NetworkControllerOptions = {
 
 export const defaultState: NetworkState = {
   selectedNetworkClientId: NetworkType.mainnet,
-  networkId: null,
   providerConfig: {
     type: NetworkType.mainnet,
     chainId: ChainId.mainnet,
@@ -565,10 +536,6 @@ export class NetworkController extends BaseControllerV2<
       name,
       metadata: {
         selectedNetworkClientId: {
-          persist: true,
-          anonymous: false,
-        },
-        networkId: {
           persist: true,
           anonymous: false,
         },
@@ -719,9 +686,6 @@ export class NetworkController extends BaseControllerV2<
    */
   async #refreshNetwork() {
     this.messagingSystem.publish('NetworkController:networkWillChange');
-    this.update((state) => {
-      state.networkId = null;
-    });
     this.#applyNetworkSelection();
     this.messagingSystem.publish('NetworkController:networkDidChange');
     await this.lookupNetwork();
@@ -736,41 +700,6 @@ export class NetworkController extends BaseControllerV2<
 
     this.#applyNetworkSelection();
     await this.lookupNetwork();
-  }
-
-  /**
-   * Fetches the network ID for the network, ensuring that it is a hex string.
-   *
-   * @param networkClientId - The ID of the network client to fetch the network
-   * @returns A promise that either resolves to the network ID, or rejects with
-   * an error.
-   * @throws If the network ID of the network is not a valid hex string.
-   */
-  async #getNetworkId(networkClientId: NetworkClientId): Promise<NetworkId> {
-    const possibleNetworkId = await new Promise<string>((resolve, reject) => {
-      let ethQuery = this.#ethQuery;
-      if (networkClientId) {
-        const networkClient = this.getNetworkClientById(networkClientId);
-        ethQuery = new EthQuery(networkClient.provider);
-      }
-      if (!ethQuery) {
-        throw new Error('Provider has not been initialized');
-      }
-
-      ethQuery.sendAsync(
-        { method: 'net_version' },
-        (error: unknown, result?: unknown) => {
-          if (error) {
-            reject(error);
-          } else {
-            // TODO: Validate this type
-            resolve(result as string);
-          }
-        },
-      );
-    });
-
-    return convertNetworkId(possibleNetworkId);
   }
 
   /**
@@ -884,16 +813,13 @@ export class NetworkController extends BaseControllerV2<
     );
 
     let updatedNetworkStatus: NetworkStatus;
-    let updatedNetworkId: NetworkId | null = null;
     let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
-      const [networkId, isEIP1559Compatible] = await Promise.all([
-        this.#getNetworkId(this.state.selectedNetworkClientId),
-        this.#determineEIP1559Compatibility(this.state.selectedNetworkClientId),
-      ]);
+      const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
+        this.state.selectedNetworkClientId,
+      );
       updatedNetworkStatus = NetworkStatus.Available;
-      updatedNetworkId = networkId;
       updatedIsEIP1559Compatible = isEIP1559Compatible;
     } catch (error) {
       if (isErrorWithCode(error)) {
@@ -937,7 +863,6 @@ export class NetworkController extends BaseControllerV2<
     );
 
     this.update((state) => {
-      state.networkId = updatedNetworkId;
       const meta = state.networksMetadata[state.selectedNetworkClientId];
       meta.status = updatedNetworkStatus;
       if (updatedIsEIP1559Compatible === undefined) {

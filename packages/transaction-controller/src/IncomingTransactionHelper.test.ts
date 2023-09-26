@@ -24,12 +24,12 @@ const NETWORK_STATE_MOCK: NetworkState = {
     chainId: '0x1',
     type: NetworkType.mainnet,
   },
-  networkId: '1',
 } as unknown as NetworkState;
 
 const ADDERSS_MOCK = '0x1';
 const FROM_BLOCK_HEX_MOCK = '0x20';
 const FROM_BLOCK_DECIMAL_MOCK = 32;
+const LAST_BLOCK_VARIATION_MOCK = 'test-variation';
 
 const BLOCK_TRACKER_MOCK = {
   addListener: jest.fn(),
@@ -52,7 +52,7 @@ const TRANSACTION_MOCK: TransactionMeta = {
   hash: '0x1',
   status: TransactionStatus.submitted,
   time: 0,
-  transaction: { to: '0x1', gasUsed: '0x1' },
+  txParams: { to: '0x1', gasUsed: '0x1' },
 } as unknown as TransactionMeta;
 
 const TRANSACTION_MOCK_2: TransactionMeta = {
@@ -60,7 +60,7 @@ const TRANSACTION_MOCK_2: TransactionMeta = {
   hash: '0x2',
   chainId: '0x1',
   time: 1,
-  transaction: { to: '0x1' },
+  txParams: { to: '0x1' },
 } as unknown as TransactionMeta;
 
 const createRemoteTransactionSourceMock = (
@@ -68,9 +68,17 @@ const createRemoteTransactionSourceMock = (
   {
     isSupportedNetwork,
     error,
-  }: { isSupportedNetwork?: boolean; error?: boolean } = {},
+    noGetLastBlockVariations,
+  }: {
+    isSupportedNetwork?: boolean;
+    error?: boolean;
+    noGetLastBlockVariations?: boolean;
+  } = {},
 ): RemoteTransactionSource => ({
   isSupportedNetwork: jest.fn(() => isSupportedNetwork ?? true),
+  getLastBlockVariations: noGetLastBlockVariations
+    ? undefined
+    : jest.fn(() => [LAST_BLOCK_VARIATION_MOCK]),
   fetchTransactions: jest.fn(() =>
     error
       ? Promise.reject(new Error('Test Error'))
@@ -146,7 +154,6 @@ describe('IncomingTransactionHelper', () => {
         expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
           address: ADDERSS_MOCK,
           currentChainId: NETWORK_STATE_MOCK.providerConfig.chainId,
-          currentNetworkId: NETWORK_STATE_MOCK.networkId,
           fromBlock: undefined,
           limit: CONTROLLER_ARGS_MOCK.transactionLimit,
         });
@@ -202,7 +209,7 @@ describe('IncomingTransactionHelper', () => {
           ...CONTROLLER_ARGS_MOCK,
           remoteTransactionSource,
           getLastFetchedBlockNumbers: () => ({
-            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
+            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
               FROM_BLOCK_DECIMAL_MOCK,
           }),
         });
@@ -241,8 +248,8 @@ describe('IncomingTransactionHelper', () => {
       it('if new outgoing transaction fetched and update transactions enabled', async () => {
         const outgoingTransaction = {
           ...TRANSACTION_MOCK_2,
-          transaction: {
-            ...TRANSACTION_MOCK_2.transaction,
+          txParams: {
+            ...TRANSACTION_MOCK_2.txParams,
             from: '0x1',
             to: '0x2',
           },
@@ -290,8 +297,8 @@ describe('IncomingTransactionHelper', () => {
       it('if existing transaction fetched with different gas used and update transactions enabled', async () => {
         const updatedTransaction = {
           ...TRANSACTION_MOCK,
-          transaction: {
-            ...TRANSACTION_MOCK.transaction,
+          txParams: {
+            ...TRANSACTION_MOCK.txParams,
             gasUsed: '0x2',
           },
         } as TransactionMeta;
@@ -406,11 +413,11 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource: createRemoteTransactionSourceMock([
             {
               ...TRANSACTION_MOCK,
-              transaction: { to: '0x2' },
+              txParams: { to: '0x2' },
             } as TransactionMeta,
             {
               ...TRANSACTION_MOCK,
-              transaction: { to: undefined },
+              txParams: { to: undefined },
             } as TransactionMeta,
           ]),
         });
@@ -469,7 +476,7 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(lastFetchedBlockNumbers).toStrictEqual({
-          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
+          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
             parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
         });
       });
@@ -508,7 +515,7 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource: createRemoteTransactionSourceMock([
             {
               ...TRANSACTION_MOCK_2,
-              transaction: { to: '0x2' },
+              txParams: { to: '0x2' },
             } as TransactionMeta,
           ]),
         });
@@ -527,7 +534,7 @@ describe('IncomingTransactionHelper', () => {
             TRANSACTION_MOCK_2,
           ]),
           getLastFetchedBlockNumbers: () => ({
-            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
+            [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
               parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
           }),
         });
@@ -537,6 +544,25 @@ describe('IncomingTransactionHelper', () => {
         );
 
         expect(blockNumberListener).not.toHaveBeenCalled();
+      });
+
+      it('using no additional last block keys if remote source does not implement method', async () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          remoteTransactionSource: createRemoteTransactionSourceMock(
+            [TRANSACTION_MOCK_2],
+            { noGetLastBlockVariations: true },
+          ),
+        });
+
+        const { lastFetchedBlockNumbers } = await emitBlockTrackerLatestEvent(
+          helper,
+        );
+
+        expect(lastFetchedBlockNumbers).toStrictEqual({
+          [`${NETWORK_STATE_MOCK.providerConfig.chainId}#${ADDERSS_MOCK}`]:
+            parseInt(TRANSACTION_MOCK_2.blockNumber as string, 10),
+        });
       });
     });
   });
