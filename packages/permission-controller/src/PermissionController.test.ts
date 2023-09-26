@@ -7,12 +7,8 @@ import type {
 import { ControllerMessenger } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
-import type {
-  Json,
-  PendingJsonRpcResponse,
-  JsonRpcParams,
-} from '@metamask/utils';
 import assert from 'assert';
 
 import type {
@@ -254,7 +250,7 @@ function getDefaultPermissionSpecifications() {
         CaveatTypes.filterArrayResponse,
         CaveatTypes.reverseArrayResponse,
       ],
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<Json[]>) => {
         return ['a', 'b', 'c'];
       },
     },
@@ -265,7 +261,9 @@ function getDefaultPermissionSpecifications() {
         CaveatTypes.filterObjectResponse,
         CaveatTypes.noopCaveat,
       ],
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (
+        _args: RestrictedMethodOptions<Record<string, Json>>,
+      ) => {
         return { a: 'x', b: 'y', c: 'z' };
       },
       validator: (permission: PermissionConstraint) => {
@@ -295,7 +293,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noop,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
         return null;
       },
     },
@@ -303,7 +301,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
         return null;
       },
       sideEffect: {
@@ -315,7 +313,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
         return null;
       },
       sideEffect: {
@@ -327,7 +325,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithPermittedSideEffects,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
         return null;
       },
       sideEffect: {
@@ -338,7 +336,7 @@ function getDefaultPermissionSpecifications() {
     [PermissionKeys.wallet_noopWithValidator]: {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithValidator,
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
         return null;
       },
       allowedCaveats: [CaveatTypes.noopCaveat, CaveatTypes.filterArrayResponse],
@@ -355,7 +353,7 @@ function getDefaultPermissionSpecifications() {
     [PermissionKeys.wallet_noopWithRequiredCaveat]: {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithRequiredCaveat,
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
         return null;
       },
       allowedCaveats: [CaveatTypes.noopCaveat],
@@ -391,7 +389,7 @@ function getDefaultPermissionSpecifications() {
     [PermissionKeys.wallet_noopWithFactory]: {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithFactory,
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
         return null;
       },
       allowedCaveats: [CaveatTypes.filterArrayResponse],
@@ -418,7 +416,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.snap_foo,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<JsonRpcParams>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
         return null;
       },
       subjectTypes: [SubjectType.Snap],
@@ -1853,7 +1851,7 @@ describe('PermissionController', () => {
       expect(() =>
         controller.removeCaveat(
           origin,
-          PermissionNames.wallet_noopWithRequiredCaveat,
+          PermissionNames.wallet_noopWithRequiredCaveat as any,
           CaveatTypes.noopCaveat,
         ),
       ).toThrow(

@@ -7,8 +7,8 @@ import type {
 } from '@metamask/json-rpc-engine';
 import type {
   Json,
-  JsonRpcRequest,
   PendingJsonRpcResponse,
+  JsonRpcRequest,
 } from '@metamask/utils';
 
 import type {
@@ -62,7 +62,7 @@ export function getPermissionMiddlewareFactory({
     }
 
     const permissionsMiddleware = async (
-      req: JsonRpcRequest,
+      req: JsonRpcRequest<RestrictedMethodParameters>,
       res: PendingJsonRpcResponse<Json>,
       next: AsyncJsonRpcEngineNextCallback,
     ): Promise<void> => {

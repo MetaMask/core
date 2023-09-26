@@ -2,7 +2,7 @@ import {
   JsonRpcEngine,
   createAsyncMiddleware,
 } from '@metamask/json-rpc-engine';
-import { ethErrors, serializeError } from 'eth-rpc-errors';
+import { rpcErrors, serializeError } from '@metamask/rpc-errors';
 
 import { requestPermissionsHandler } from './requestPermissions';
 
@@ -94,7 +94,7 @@ describe('requestPermissions RPC method', () => {
         params: [], // doesn't matter
       };
 
-      const expectedError = ethErrors.rpc
+      const expectedError = rpcErrors
         .invalidRequest({
           message: 'Invalid request: Must specify a valid id.',
           data: { request: { ...req } },
@@ -128,7 +128,7 @@ describe('requestPermissions RPC method', () => {
         params: invalidParams,
       };
 
-      const expectedError = ethErrors.rpc
+      const expectedError = rpcErrors
         .invalidParams({
           data: { request: { ...req } },
         })

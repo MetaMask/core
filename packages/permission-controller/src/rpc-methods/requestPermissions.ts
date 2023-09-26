@@ -1,7 +1,7 @@
 import { isPlainObject } from '@metamask/controller-utils';
 import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
-import { ethErrors } from 'eth-rpc-errors';
 
 import { invalidParams } from '../errors';
 import type { PermissionConstraint, RequestedPermissions } from '../Permission';
@@ -56,7 +56,7 @@ async function requestPermissionsImplementation(
     (typeof id === 'string' && !id)
   ) {
     return end(
-      ethErrors.rpc.invalidRequest({
+      rpcErrors.invalidRequest({
         message: 'Invalid request: Must specify a valid id.',
         data: { request: req },
       }),
