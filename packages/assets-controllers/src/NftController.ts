@@ -1289,7 +1289,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       userAddress?: string;
       source?: Source;
       networkClientId?: NetworkClientId;
-    } = { source: Source.Custom },
+    } = {},
   ) {
     tokenAddress = toChecksumHexAddress(tokenAddress);
 
