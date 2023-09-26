@@ -23,7 +23,6 @@ import type {
 } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
-import { AbortController as WhatwgAbortController } from 'abort-controller';
 import { Mutex } from 'async-mutex';
 import { EventEmitter } from 'events';
 import { v1 as random } from 'uuid';
@@ -125,7 +124,7 @@ export class TokensController extends BaseController<
 > {
   private readonly mutex = new Mutex();
 
-  private abortController: WhatwgAbortController;
+  private abortController: AbortController;
 
   private readonly messagingSystem: TokensControllerMessenger;
 
@@ -231,7 +230,7 @@ export class TokensController extends BaseController<
     };
 
     this.initialize();
-    this.abortController = new WhatwgAbortController();
+    this.abortController = new AbortController();
     this.getERC20TokenName = getERC20TokenName;
     this.getNetworkClientById = getNetworkClientById;
 
@@ -253,7 +252,7 @@ export class TokensController extends BaseController<
       const { selectedAddress } = this.config;
       const { chainId } = providerConfig;
       this.abortController.abort();
-      this.abortController = new WhatwgAbortController();
+      this.abortController = new AbortController();
       this.configure({ chainId });
       this.update({
         tokens: allTokens[chainId]?.[selectedAddress] || [],

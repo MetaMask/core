@@ -1,6 +1,6 @@
 {
   "name": "@metamask/message-manager",
-  "version": "7.3.2",
+  "version": "7.3.3",
   "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "MetaMask",
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^4.3.2",
+    "@metamask/controller-utils": "^5.0.0",
     "@metamask/eth-sig-util": "^7.0.0",
     "@metamask/utils": "^8.1.0",
     "@types/uuid": "^8.3.0",
@@ -43,8 +43,8 @@
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.22.15",
-    "typedoc-plugin-missing-exports": "^0.22.6",
+    "typedoc": "^0.23.15",
+    "typedoc-plugin-missing-exports": "^0.23.0",
     "typescript": "~4.6.3"
   },
   "engines": {
