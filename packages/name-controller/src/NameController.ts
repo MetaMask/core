@@ -75,6 +75,7 @@ export type NameControllerOptions = {
   messenger: NameControllerMessenger;
   providers: NameProvider[];
   state?: Partial<NameControllerState>;
+  updateDelay?: number;
 };
 
 export type UpdateProposedNamesRequest = {
@@ -107,6 +108,8 @@ export class NameController extends BaseControllerV2<
 
   #providers: NameProvider[];
 
+  #updateDelay: number;
+
   /**
    * Construct a Name controller.
    *
@@ -115,12 +118,14 @@ export class NameController extends BaseControllerV2<
    * @param options.messenger - Restricted controller messenger for the name controller.
    * @param options.providers - Array of name provider instances to propose names.
    * @param options.state - Initial state to set on the controller.
+   * @param options.updateDelay - The delay in seconds before a new request to a source should be made.
    */
   constructor({
     getChainId,
     messenger,
     providers,
     state,
+    updateDelay,
   }: NameControllerOptions) {
     super({
       name: controllerName,
@@ -131,6 +136,7 @@ export class NameController extends BaseControllerV2<
 
     this.#getChainId = getChainId;
     this.#providers = providers;
+    this.#updateDelay = updateDelay ?? DEFAULT_UPDATE_DELAY;
   }
 
   /**
@@ -285,9 +291,7 @@ export class NameController extends BaseControllerV2<
         const entry = this.state.names[type]?.[value]?.[variationKey] ?? {};
         const proposedNamesEntry = entry.proposedNames?.[sourceId] ?? {};
         const lastRequestTime = proposedNamesEntry.lastRequestTime ?? 0;
-
-        const updateDelay =
-          proposedNamesEntry.updateDelay ?? DEFAULT_UPDATE_DELAY;
+        const updateDelay = proposedNamesEntry.updateDelay ?? this.#updateDelay;
 
         if (currentTime - lastRequestTime < updateDelay) {
           return false;

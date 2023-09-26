@@ -1614,13 +1614,14 @@ describe('NameController', () => {
     });
 
     describe('with onlyUpdateAfterDelay', () => {
-      it('does not update if no updateDelay and default delay not elapsed', async () => {
+      it('does not update if no updateDelay and controller delay not elapsed', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
 
         const controller = new NameController({
           ...CONTROLLER_ARGS_MOCK,
           providers: [provider1, provider2],
+          updateDelay: 123,
         });
 
         controller.state.names = {
@@ -1632,12 +1633,12 @@ describe('NameController', () => {
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
-                    lastRequestTime: 12,
+                    lastRequestTime: TIME_MOCK - 122,
                     updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
-                    lastRequestTime: 13,
+                    lastRequestTime: TIME_MOCK - 121,
                     updateDelay: null,
                   },
                 },
@@ -1661,12 +1662,12 @@ describe('NameController', () => {
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
-                    lastRequestTime: 12,
+                    lastRequestTime: TIME_MOCK - 122,
                     updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
-                    lastRequestTime: 13,
+                    lastRequestTime: TIME_MOCK - 121,
                     updateDelay: null,
                   },
                 },
@@ -1746,13 +1747,14 @@ describe('NameController', () => {
         });
       });
 
-      it('updates if default delay elapsed', async () => {
+      it('updates if controller delay elapsed', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
 
         const controller = new NameController({
           ...CONTROLLER_ARGS_MOCK,
           providers: [provider1, provider2],
+          updateDelay: 123,
         });
 
         controller.state.names = {
@@ -1764,12 +1766,12 @@ describe('NameController', () => {
                 proposedNames: {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
-                    lastRequestTime: TIME_MOCK - 120,
+                    lastRequestTime: TIME_MOCK - 123,
                     updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
-                    lastRequestTime: TIME_MOCK - 121,
+                    lastRequestTime: TIME_MOCK - 124,
                     updateDelay: null,
                   },
                 },
