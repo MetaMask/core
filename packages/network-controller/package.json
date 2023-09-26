@@ -46,7 +46,7 @@
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/auto-changelog": "^3.1.0",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^28.1.6",
     "@types/jest-when": "^2.7.3",
     "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",

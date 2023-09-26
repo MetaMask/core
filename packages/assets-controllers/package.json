@@ -53,7 +53,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^28.1.6",
     "@types/node": "^16.18.24",
     "deepmerge": "^4.2.2",
     "ethjs-provider-http": "^0.1.6",
