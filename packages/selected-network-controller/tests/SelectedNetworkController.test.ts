@@ -1,11 +1,6 @@
-import { defaultState as networkControllerDefaultState } from '@metamask/network-controller';
-
 import type { SelectedNetworkControllerOptions } from '../src/SelectedNetworkController';
 import { SelectedNetworkController } from '../src/SelectedNetworkController';
-import {
-  buildSelectedNetworkControllerMessenger,
-  buildMessenger,
-} from './utils';
+import { buildSelectedNetworkControllerMessenger } from './utils';
 
 describe('SelectedNetworkController', () => {
   it('can be instantiated with default values', () => {
@@ -71,58 +66,5 @@ describe('SelectedNetworkController', () => {
       expect(result1).toBe(networkClientId1);
       expect(result2).toBe(networkClientId2);
     });
-  });
-
-  it('updates the networkClientId for the metamask domain when the networkControllers selectedNetworkClientId changes', () => {
-    const messenger = buildMessenger();
-    const options: SelectedNetworkControllerOptions = {
-      messenger: buildSelectedNetworkControllerMessenger(messenger),
-    };
-    const controller = new SelectedNetworkController(options);
-    controller.setNetworkClientIdForMetamask('oldNetwork');
-    expect(controller.state.domains.metamask).toBe('oldNetwork');
-
-    const patch = [
-      {
-        path: ['selectedNetworkClientId'],
-        op: 'replace' as const,
-        value: 'newNetwork',
-      },
-    ];
-
-    const state = {
-      ...networkControllerDefaultState,
-      selectedNetworkClientId: 'newNetwork',
-    };
-    messenger.publish('NetworkController:stateChange', state, patch);
-    expect(controller.state.domains.metamask).toBe('newNetwork');
-  });
-
-  it("does not update the state if the network controller state changes but the selected network hasn't", () => {
-    const mockMessagingSystem = {
-      registerActionHandler: jest.fn(),
-      subscribe: jest.fn(),
-      publish: () => jest.fn(),
-    };
-    const options: SelectedNetworkControllerOptions = {
-      messenger: mockMessagingSystem as any,
-    };
-    const controller = new SelectedNetworkController(options);
-    controller.setNetworkClientIdForMetamask('oldNetwork');
-    expect(controller.state.domains.metamask).toBe('oldNetwork');
-
-    const stateChangeHandler = mockMessagingSystem.subscribe.mock.calls[0][1];
-    const state: any = {
-      selectedNetworkClientId: 'newNetwork',
-    };
-    const patch = [
-      {
-        path: ['anythingelse'],
-        op: 'replace',
-        value: 'abc',
-      },
-    ];
-    stateChangeHandler(state, patch);
-    expect(controller.state.domains.metamask).toBe('oldNetwork');
   });
 });

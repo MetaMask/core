@@ -1,0 +1,323 @@
+import type { AddApprovalRequest } from '@metamask/approval-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerSetActiveNetworkAction,
+  NetworkControllerSetProviderTypeAction,
+} from '@metamask/network-controller';
+import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
+import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
+
+import type { QueuedRequestControllerEnqueueRequestAction } from '../src/QueuedRequestController';
+import { createQueuedRequestMiddleware } from '../src/QueuedRequestMiddleware';
+
+const buildMessenger = () => {
+  return new ControllerMessenger<
+    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
+    | QueuedRequestControllerEnqueueRequestAction
+    | NetworkControllerGetStateAction
+    | NetworkControllerSetActiveNetworkAction
+    | NetworkControllerSetProviderTypeAction
+    | NetworkControllerGetNetworkClientByIdAction
+    | AddApprovalRequest,
+    never
+  >();
+};
+
+const buildMocks = (messenger: any, mocks: any = {}) => {
+  const mockGetNetworkClientById =
+    mocks.getNetworkClientById ||
+    jest.fn().mockReturnValue({
+      configuration: {
+        chainId: '0x1',
+      },
+    });
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    mockGetNetworkClientById,
+  );
+
+  const mockGetProviderConfig =
+    mocks.getProviderConfig ||
+    jest.fn().mockReturnValue({
+      providerConfig: {
+        chainId: '0x1',
+      },
+    });
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    mockGetProviderConfig,
+  );
+
+  const mockEnqueueRequest = jest.fn().mockImplementation((cb) => cb());
+  messenger.registerActionHandler(
+    'QueuedRequestController:enqueueRequest',
+    mockEnqueueRequest,
+  );
+
+  const mockAddRequest = mocks.addRequest || jest.fn().mockResolvedValue(true);
+  messenger.registerActionHandler(
+    'ApprovalController:addRequest',
+    mockAddRequest,
+  );
+
+  const mockSetProviderType = jest.fn().mockResolvedValue(true);
+  messenger.registerActionHandler(
+    'NetworkController:setProviderType',
+    mockSetProviderType,
+  );
+
+  const mockSetActiveNetwork = jest.fn().mockResolvedValue(true);
+  messenger.registerActionHandler(
+    'NetworkController:setActiveNetwork',
+    mockSetActiveNetwork,
+  );
+
+  const mockSetNetworkClientIdForDomain = jest.fn().mockResolvedValue(true);
+  messenger.registerActionHandler(
+    SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
+    mockSetNetworkClientIdForDomain,
+  );
+
+  return {
+    getProviderConfig: mockGetProviderConfig,
+    getNetworkClientById: mockGetNetworkClientById,
+    enqueueRequest: mockEnqueueRequest,
+    addRequest: mockAddRequest,
+    setActiveNetwork: mockSetActiveNetwork,
+    setProviderType: mockSetProviderType,
+    setNetworkClientIdForDomain: mockSetNetworkClientIdForDomain,
+  };
+};
+
+const noop = jest.fn();
+
+describe('createQueuedRequesMitddleware', () => {
+  it('should not enqueue the request when useRequestQueue is false', async () => {
+    const messenger = buildMessenger();
+    const middleware = createQueuedRequestMiddleware(messenger, () => false);
+    const mocks = buildMocks(messenger);
+
+    const req = {
+      origin: 'example.com',
+    } as any;
+
+    await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+
+    expect(mocks.enqueueRequest).not.toHaveBeenCalled();
+  });
+
+  it('should not enqueue the request when there is no confirmation', async () => {
+    const messenger = buildMessenger();
+    const middleware = createQueuedRequestMiddleware(messenger, () => true);
+    const mocks = buildMocks(messenger);
+
+    const req = {
+      origin: 'example.com',
+      method: 'eth_chainId',
+    } as any;
+
+    await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+
+    expect(mocks.enqueueRequest).not.toHaveBeenCalled();
+  });
+
+  describe('confirmations', () => {
+    it('should resolve requests that require confirmations', async () => {
+      const messenger = buildMessenger();
+      const middleware = createQueuedRequestMiddleware(messenger, () => true);
+      const mocks = buildMocks(messenger);
+
+      const req = {
+        origin: 'example.com',
+        method: 'eth_sendTransaction',
+      } as any;
+
+      await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+
+      expect(mocks.addRequest).not.toHaveBeenCalled();
+      expect(mocks.enqueueRequest).toHaveBeenCalled();
+      expect(mocks.getNetworkClientById).toHaveBeenCalled();
+      expect(mocks.getProviderConfig).toHaveBeenCalled();
+    });
+
+    it('switchEthereumChain calls get queued but we dont check the current network', async () => {
+      const messenger = buildMessenger();
+      const middleware = createQueuedRequestMiddleware(messenger, () => true);
+      const mocks = buildMocks(messenger);
+
+      const req = {
+        origin: 'example.com',
+        method: 'wallet_switchEthereumChain',
+      } as any;
+
+      await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+
+      expect(mocks.addRequest).not.toHaveBeenCalled();
+      expect(mocks.enqueueRequest).toHaveBeenCalled();
+      expect(mocks.getNetworkClientById).not.toHaveBeenCalled();
+      expect(mocks.getProviderConfig).not.toHaveBeenCalled();
+    });
+
+    describe('requiring switch', () => {
+      it('calls addRequest to switchEthChain if the current network is wrong', async () => {
+        const messenger = buildMessenger();
+        const middleware = createQueuedRequestMiddleware(messenger, () => true);
+        const mockGetProviderConfig = jest.fn().mockReturnValue({
+          providerConfig: {
+            chainId: '0x5',
+          },
+        });
+        const mocks = buildMocks(messenger, {
+          getProviderConfig: mockGetProviderConfig,
+        });
+
+        const req = {
+          origin: 'example.com',
+          method: 'eth_sendTransaction',
+        } as any;
+
+        await new Promise((resolve) =>
+          middleware(req, {} as any, resolve, noop),
+        );
+
+        expect(mocks.addRequest).toHaveBeenCalled();
+        expect(mocks.enqueueRequest).toHaveBeenCalled();
+        expect(mocks.getNetworkClientById).toHaveBeenCalled();
+        expect(mocks.getProviderConfig).toHaveBeenCalled();
+        expect(mocks.setNetworkClientIdForDomain).toHaveBeenCalled();
+      });
+
+      it('if the switchEthConfirmation is rejected, the original request is rejected', async () => {
+        const messenger = buildMessenger();
+        const middleware = createQueuedRequestMiddleware(messenger, () => true);
+        const rejected = new Error('big bad rejected');
+        const mockAddRequest = jest.fn().mockRejectedValue(rejected);
+        const mockGetProviderConfig = jest.fn().mockReturnValue({
+          providerConfig: {
+            chainId: '0x5',
+          },
+        });
+        const mocks = buildMocks(messenger, {
+          addRequest: mockAddRequest,
+          getProviderConfig: mockGetProviderConfig,
+        });
+
+        const req = {
+          origin: 'example.com',
+          method: 'eth_sendTransaction',
+        } as any;
+
+        const res: any = {};
+        await new Promise((resolve) => middleware(req, res, noop, resolve));
+
+        expect(mocks.addRequest).toHaveBeenCalled();
+        expect(mocks.enqueueRequest).toHaveBeenCalled();
+        expect(mocks.getNetworkClientById).toHaveBeenCalled();
+        expect(mocks.getProviderConfig).toHaveBeenCalled();
+        expect(mocks.setNetworkClientIdForDomain).not.toHaveBeenCalled();
+        expect(res.error).toBe(rejected);
+      });
+
+      it('uses setProviderType when the network is an infura one', async () => {
+        const messenger = buildMessenger();
+        const middleware = createQueuedRequestMiddleware(messenger, () => true);
+        const mocks = buildMocks(messenger, {
+          getProviderConfig: jest.fn().mockReturnValue({
+            providerConfig: {
+              chainId: '0x5',
+            },
+          }),
+        });
+
+        const req = {
+          origin: 'example.com',
+          method: 'eth_sendTransaction',
+          networkClientId: 'mainnet',
+        } as any;
+
+        await new Promise((resolve) =>
+          middleware(req, {} as any, resolve, noop),
+        );
+
+        expect(mocks.setProviderType).toHaveBeenCalled();
+        expect(mocks.setActiveNetwork).not.toHaveBeenCalled();
+      });
+
+      it('uses setActiveNetwork when the network is a custom one', async () => {
+        const messenger = buildMessenger();
+        const middleware = createQueuedRequestMiddleware(messenger, () => true);
+        const mocks = buildMocks(messenger, {
+          getProviderConfig: jest.fn().mockReturnValue({
+            providerConfig: {
+              chainId: '0x1',
+            },
+          }),
+          getNetworkClientById: jest.fn().mockReturnValue({
+            configuration: {
+              chainId: '0x1234',
+            },
+          }),
+        });
+
+        const req = {
+          origin: 'example.com',
+          method: 'eth_sendTransaction',
+          networkClientId: 'https://some-rpc-url.com',
+        } as any;
+
+        await new Promise((resolve) =>
+          middleware(req, {} as any, resolve, noop),
+        );
+
+        expect(mocks.setProviderType).not.toHaveBeenCalled();
+        expect(mocks.setActiveNetwork).toHaveBeenCalled();
+      });
+    });
+  });
+  describe('concurrent requests', () => {
+    it('rejecting one call does not cause others to be rejected', async () => {
+      const messenger = buildMessenger();
+      const middleware = createQueuedRequestMiddleware(messenger, () => true);
+      const rejectedError = new Error('big bad rejected');
+      const mockAddRequest = jest
+        .fn()
+        .mockRejectedValueOnce(rejectedError)
+        .mockResolvedValueOnce(true);
+
+      const mockGetProviderConfig = jest.fn().mockReturnValue({
+        providerConfig: {
+          chainId: '0x5',
+        },
+      });
+
+      const mocks = buildMocks(messenger, {
+        addRequest: mockAddRequest,
+        getProviderConfig: mockGetProviderConfig,
+      });
+
+      const req1 = {
+        origin: 'example.com',
+        method: 'eth_sendTransaction',
+      } as any;
+
+      const req2 = {
+        origin: 'example.com',
+        method: 'eth_sendTransaction',
+      } as any;
+
+      const res1: any = {};
+      const res2: any = {};
+
+      await Promise.all([
+        new Promise((resolve) => middleware(req1, res1, resolve, resolve)),
+        new Promise((resolve) => middleware(req2, res2, resolve, resolve)),
+      ]);
+
+      expect(mocks.addRequest).toHaveBeenCalledTimes(2);
+      expect(res1.error).toBe(rejectedError);
+      expect(res2.error).toBeUndefined();
+    });
+  });
+});

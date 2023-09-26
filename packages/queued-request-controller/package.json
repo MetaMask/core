@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/phishing-controller",
-  "version": "7.0.1",
-  "description": "Maintains a periodically updated list of approved and unapproved website origins",
+  "name": "@metamask/queued-request-controller",
+  "version": "1.0.0",
+  "description": "Includes a controller and middleware that implements a request queue",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/phishing-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/queued-request-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -22,30 +22,39 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/phishing-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/queued-request-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@metamask/approval-controller": "^4.0.0",
     "@metamask/base-controller": "^3.2.3",
     "@metamask/controller-utils": "^5.0.2",
-    "@types/punycode": "^2.1.0",
-    "eth-phishing-detect": "^1.2.0",
-    "punycode": "^2.1.1"
+    "@metamask/network-controller": "^14.0.0",
+    "@metamask/selected-network-controller": "^2.0.1",
+    "@metamask/swappable-obj-proxy": "^2.1.0",
+    "json-rpc-engine": "^6.1.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.0",
+    "@metamask/auto-changelog": "^3.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
+    "immer": "^9.0.6",
     "jest": "^27.5.1",
+    "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
+  },
+  "peerDependencies": {
+    "@metamask/approval-controller": "^4.0.0",
+    "@metamask/network-controller": "^14.0.0",
+    "@metamask/selected-network-controller": "^2.0.1"
   },
   "engines": {
     "node": ">=16.0.0"

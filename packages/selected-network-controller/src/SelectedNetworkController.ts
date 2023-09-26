@@ -1,10 +1,13 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import type {
+  BlockTrackerProxy,
   NetworkClientId,
+  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerStateChangeEvent,
-  NetworkState,
+  ProviderProxy,
 } from '@metamask/network-controller';
+import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Patch } from 'immer';
 
 const controllerName = 'SelectedNetworkController';
@@ -68,7 +71,8 @@ export type SelectedNetworkControllerSetNetworkClientIdForDomainAction = {
 export type SelectedNetworkControllerAction =
   | SelectedNetworkControllerGetSelectedNetworkStateAction
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-  | SelectedNetworkControllerSetNetworkClientIdForDomainAction;
+  | SelectedNetworkControllerSetNetworkClientIdForDomainAction
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type SelectedNetworkControllerEvent =
   SelectedNetworkControllerStateChangeEvent;
@@ -85,6 +89,11 @@ export type SelectedNetworkControllerOptions = {
   messenger: SelectedNetworkControllerMessenger;
 };
 
+export type NetworkProxy = {
+  provider: ProviderProxy;
+  blockTracker: BlockTrackerProxy;
+};
+
 /**
  * Controller for getting and setting the network for a particular domain.
  */
@@ -93,6 +102,8 @@ export class SelectedNetworkController extends BaseControllerV2<
   SelectedNetworkControllerState,
   SelectedNetworkControllerMessenger
 > {
+  #proxies = new Map<Domain, NetworkProxy>();
+
   /**
    * Construct a SelectedNetworkController controller.
    *
@@ -119,24 +130,6 @@ export class SelectedNetworkController extends BaseControllerV2<
       SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
       this.setNetworkClientIdForDomain.bind(this),
     );
-
-    // subscribe to networkController statechange:: selectedNetworkClientId changed
-    // update the value for the domain 'metamask'
-    this.messagingSystem.subscribe(
-      'NetworkController:stateChange',
-      (state: NetworkState, patch: Patch[]) => {
-        const isChangingNetwork = patch.some(
-          (p) => p.path[0] === 'selectedNetworkClientId',
-        );
-        if (!isChangingNetwork) {
-          return;
-        }
-
-        // set it for the 'global' network to preserve functionality for the
-        // selectedNetworkController.perDomainNetwork feature flag being off
-        this.setNetworkClientIdForMetamask(state.selectedNetworkClientId);
-      },
-    );
   }
 
   setNetworkClientIdForMetamask(networkClientId: NetworkClientId) {
@@ -147,6 +140,23 @@ export class SelectedNetworkController extends BaseControllerV2<
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    const networkProxy = this.#proxies.get(domain);
+    if (networkProxy === undefined) {
+      this.#proxies.set(domain, {
+        provider: createEventEmitterProxy(networkClient.provider),
+        blockTracker: createEventEmitterProxy(networkClient.blockTracker, {
+          eventFilter: 'skipInternal',
+        }),
+      });
+    } else {
+      networkProxy.provider.setTarget(networkClient.provider);
+      networkProxy.blockTracker.setTarget(networkClient.blockTracker);
+    }
+
     this.update((state) => {
       if (state.perDomainNetwork) {
         state.domains[domain] = networkClientId;
@@ -161,5 +171,30 @@ export class SelectedNetworkController extends BaseControllerV2<
       return this.state.domains[domain];
     }
     return this.state.domains[METAMASK_DOMAIN];
+  }
+
+  /**
+   * Accesses the provider and block tracker for the currently selected network.
+   *
+   * @param domain - the domain for the provider
+   * @returns The proxy and block tracker proxies.
+   */
+  getProviderAndBlockTracker(domain: Domain): NetworkProxy | undefined {
+    let networkProxy = this.#proxies.get(domain);
+    if (networkProxy === undefined) {
+      const networkClient = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        this.getNetworkClientIdForDomain(domain),
+      );
+      networkProxy = {
+        provider: createEventEmitterProxy(networkClient.provider),
+        blockTracker: createEventEmitterProxy(networkClient.blockTracker, {
+          eventFilter: 'skipInternal',
+        }),
+      };
+      this.#proxies.set(domain, networkProxy);
+    }
+
+    return networkProxy;
   }
 }
