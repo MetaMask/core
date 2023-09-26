@@ -8,10 +8,6 @@ import type {
 import type { TransactionParams, TransactionMeta } from './types';
 import { TransactionStatus } from './types';
 import * as util from './utils';
-import {
-  getAndFormatTransactionsForNonceTracker,
-  transactionMatchesNetwork,
-} from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -20,6 +16,10 @@ const FAIL = 'lol';
 const PASS = '0x1';
 
 describe('utils', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('normalizeTxParams', () => {
     const normalized = util.normalizeTxParams({
       data: 'data',
@@ -278,6 +278,7 @@ describe('utils', () => {
       const inputTransactions: TransactionMeta[] = [
         {
           id: '1',
+          chainId: '0x1',
           time: 123456,
           txParams: {
             from: fromAddress,
@@ -289,6 +290,7 @@ describe('utils', () => {
         },
         {
           id: '2',
+          chainId: '0x1',
           time: 123457,
           txParams: {
             from: '0x124',
@@ -300,6 +302,7 @@ describe('utils', () => {
         },
         {
           id: '3',
+          chainId: '0x1',
           time: 123458,
           txParams: {
             from: fromAddress,
@@ -324,83 +327,12 @@ describe('utils', () => {
         },
       ];
 
-      const result = getAndFormatTransactionsForNonceTracker(
+      const result = util.getAndFormatTransactionsForNonceTracker(
         fromAddress,
         TransactionStatus.confirmed,
         inputTransactions,
       );
       expect(result).toStrictEqual(expectedResult);
-    });
-  });
-
-  describe('transactionMatchesNetwork', () => {
-    const transaction: TransactionMeta = {
-      chainId: '0x1',
-      networkID: '1',
-      id: '1',
-      time: 123456,
-      txParams: {
-        from: '0x123',
-        gas: '0x100',
-        value: '0x200',
-        nonce: '0x1',
-      },
-      status: TransactionStatus.unapproved,
-    };
-    it('returns true if chainId matches', () => {
-      const chainId = '0x1';
-      const networkId = '1';
-      expect(transactionMatchesNetwork(transaction, chainId, networkId)).toBe(
-        true,
-      );
-    });
-
-    it('returns false if chainId does not match', () => {
-      const chainId = '0x1';
-      const networkId = '1';
-      expect(
-        transactionMatchesNetwork(
-          { ...transaction, chainId: '0x2' },
-          chainId,
-          networkId,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns true if networkID matches', () => {
-      const chainId = '0x1';
-      const networkId = '1';
-      expect(
-        transactionMatchesNetwork(
-          { ...transaction, chainId: undefined },
-          chainId,
-          networkId,
-        ),
-      ).toBe(true);
-    });
-
-    it('returns false if networkID does not match', () => {
-      const chainId = '0x1';
-      const networkId = '1';
-      expect(
-        transactionMatchesNetwork(
-          { ...transaction, networkID: '2', chainId: undefined },
-          chainId,
-          networkId,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns true if chainId and networkID are undefined', () => {
-      const chainId = '0x2';
-      const networkId = '1';
-      expect(
-        transactionMatchesNetwork(
-          { ...transaction, chainId: undefined, networkID: undefined },
-          chainId,
-          networkId,
-        ),
-      ).toBe(false);
     });
   });
 });
