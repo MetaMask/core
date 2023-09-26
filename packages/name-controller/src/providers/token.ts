@@ -14,6 +14,12 @@ const LABEL = 'Blockchain (Token Name)';
 const log = createModuleLogger(projectLogger, 'token');
 
 export class TokenNameProvider implements NameProvider {
+  #isEnabled: () => boolean;
+
+  constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
+    this.#isEnabled = isEnabled || (() => true);
+  }
+
   getMetadata(): NameProviderMetadata {
     return {
       sourceIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
@@ -24,6 +30,18 @@ export class TokenNameProvider implements NameProvider {
   async getProposedNames(
     request: NameProviderRequest,
   ): Promise<NameProviderResult> {
+    if (!this.#isEnabled()) {
+      log('Skipping request as disabled');
+
+      return {
+        results: {
+          [ID]: {
+            proposedNames: [],
+          },
+        },
+      };
+    }
+
     const { value, chainId } = request;
     const url = `https://token-api.metaswap.codefi.network/token/${chainId}?address=${value}`;
 

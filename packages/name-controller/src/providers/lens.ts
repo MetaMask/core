@@ -34,6 +34,12 @@ type LensResponse = {
 };
 
 export class LensNameProvider implements NameProvider {
+  #isEnabled: () => boolean;
+
+  constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
+    this.#isEnabled = isEnabled || (() => true);
+  }
+
   getMetadata(): NameProviderMetadata {
     return {
       sourceIds: { [NameType.ETHEREUM_ADDRESS]: [ID] },
@@ -44,6 +50,18 @@ export class LensNameProvider implements NameProvider {
   async getProposedNames(
     request: NameProviderRequest,
   ): Promise<NameProviderResult> {
+    if (!this.#isEnabled()) {
+      log('Skipping request as disabled');
+
+      return {
+        results: {
+          [ID]: {
+            proposedNames: [],
+          },
+        },
+      };
+    }
+
     const { value } = request;
     const variables = { address: value };
 

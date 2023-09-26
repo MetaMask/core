@@ -6,6 +6,7 @@ import type {
   NameProvider,
   NameProviderRequest,
   NameProviderResult,
+  NameProviderSourceResult,
 } from './types';
 import { NameType } from './types';
 
@@ -26,7 +27,7 @@ const getDefaultState = () => ({
 });
 
 export type ProposedNamesEntry = {
-  proposedNames: string[] | null;
+  proposedNames: string[];
   lastRequestTime: number | null;
   retryDelay: number | null;
 };
@@ -188,36 +189,34 @@ export class NameController extends BaseControllerV2<
     providerResponses: NameProviderResult[],
   ) {
     const { value, type } = request;
-    const newProposedNames: { [sourceId: string]: ProposedNamesEntry } = {};
     const currentTime = this.#getCurrentTimeSeconds();
 
-    for (const providerResponse of providerResponses) {
-      const { results } = providerResponse;
-
-      for (const sourceId of Object.keys(providerResponse.results)) {
-        const result = results[sourceId];
-        const { proposedNames } = result;
-        let finalProposedNames = result.error ? null : proposedNames ?? [];
-
-        if (finalProposedNames) {
-          finalProposedNames = finalProposedNames.filter(
-            (proposedName) => proposedName?.length,
-          );
-        }
-
-        newProposedNames[sourceId] = {
-          proposedNames: finalProposedNames,
-          lastRequestTime: currentTime,
-          retryDelay: result.retryDelay ?? null,
-        };
-      }
-    }
-
     this.#updateEntry(value, type, (entry: NameEntry) => {
-      entry.proposedNames = {
-        ...this.#removeDormantProposedNames(entry.proposedNames, type),
-        ...newProposedNames,
-      };
+      this.#removeDormantProposedNames(entry.proposedNames, type);
+
+      for (const providerResponse of providerResponses) {
+        const { results } = providerResponse;
+
+        for (const sourceId of Object.keys(providerResponse.results)) {
+          const result = results[sourceId];
+          const { proposedNames, retryDelay } = result;
+
+          const proposedNameEntry = entry.proposedNames[sourceId] ?? {
+            proposedNames: [],
+            lastRequestTime: null,
+            retryDelay: null,
+          };
+
+          entry.proposedNames[sourceId] = proposedNameEntry;
+
+          if (proposedNames) {
+            proposedNameEntry.proposedNames = proposedNames;
+          }
+
+          proposedNameEntry.lastRequestTime = currentTime;
+          proposedNameEntry.retryDelay = retryDelay ?? null;
+        }
+      }
     });
   }
 
@@ -247,22 +246,11 @@ export class NameController extends BaseControllerV2<
         const { results } = providerResponse;
 
         for (const sourceId of Object.keys(results)) {
-          const { proposedNames: resultProposedNames, error: resultError } =
-            results[sourceId];
-
-          let proposedNames = resultError
-            ? undefined
-            : resultProposedNames ?? [];
-
-          if (proposedNames) {
-            proposedNames = proposedNames.filter(
-              (proposedName) => proposedName?.length,
-            );
-          }
+          const { proposedNames, error } = results[sourceId];
 
           acc.results[sourceId] = {
             proposedNames,
-            error: resultError,
+            error,
           };
         }
 
@@ -330,32 +318,56 @@ export class NameController extends BaseControllerV2<
       responseError = error;
     }
 
-    let results = {};
+    return this.#normalizeProviderResult(
+      response,
+      responseError,
+      matchingSourceIds,
+    );
+  }
 
-    if (response?.results) {
-      results = Object.keys(response.results).reduce(
-        (acc: NameProviderResult['results'], sourceId) => {
-          if (!requestedSourceIds || requestedSourceIds.includes(sourceId)) {
-            acc[sourceId] = (response as NameProviderResult).results[sourceId];
-          }
+  #normalizeProviderResult(
+    result: NameProviderResult | undefined,
+    responseError: unknown,
+    matchingSourceIds: string[],
+  ): NameProviderResult {
+    const error = responseError ?? undefined;
 
-          return acc;
-        },
-        {},
+    const results = matchingSourceIds.reduce((acc, sourceId) => {
+      const sourceResult = result?.results?.[sourceId];
+
+      const normalizedSourceResult = this.#normalizeProviderSourceResult(
+        sourceResult,
+        responseError,
+      );
+
+      return {
+        ...acc,
+        [sourceId]: normalizedSourceResult,
+      };
+    }, {});
+
+    return { results, error };
+  }
+
+  #normalizeProviderSourceResult(
+    result: NameProviderSourceResult | undefined,
+    responseError: unknown,
+  ): NameProviderSourceResult | undefined {
+    const error = result?.error ?? responseError ?? undefined;
+    const retryDelay = result?.retryDelay ?? undefined;
+    let proposedNames = error ? undefined : result?.proposedNames ?? undefined;
+
+    if (proposedNames) {
+      proposedNames = proposedNames.filter(
+        (proposedName) => proposedName?.length,
       );
     }
 
-    if (responseError) {
-      results = supportedSourceIds.reduce(
-        (acc: NameProviderResult['results'], sourceId) => {
-          acc[sourceId] = { proposedNames: [], error: responseError };
-          return acc;
-        },
-        {},
-      );
-    }
-
-    return { results, error: responseError };
+    return {
+      proposedNames,
+      error,
+      retryDelay,
+    };
   }
 
   #updateEntry(
@@ -536,21 +548,19 @@ export class NameController extends BaseControllerV2<
   #removeDormantProposedNames(
     proposedNames: Record<string, ProposedNamesEntry>,
     type: NameType,
-  ): Record<string, ProposedNamesEntry> {
-    if (!proposedNames || Object.keys(proposedNames).length === 0) {
-      return proposedNames;
+  ) {
+    if (Object.keys(proposedNames).length === 0) {
+      return;
     }
 
     const typeSourceIds = this.#getAllSourceIds(type);
 
-    return Object.keys(proposedNames)
-      .filter((sourceId) => typeSourceIds.includes(sourceId))
-      .reduce(
-        (acc, sourceId) => ({
-          ...acc,
-          [sourceId]: proposedNames[sourceId],
-        }),
-        {},
-      );
+    const dormantSourceIds = Object.keys(proposedNames).filter(
+      (sourceId) => !typeSourceIds.includes(sourceId),
+    );
+
+    for (const dormantSourceId of dormantSourceIds) {
+      delete proposedNames[dormantSourceId];
+    }
   }
 }

@@ -185,6 +185,22 @@ describe('EtherscanNameProvider', () => {
       });
     });
 
+    it('returns empty result if disabled', async () => {
+      const provider = new EtherscanNameProvider({
+        isEnabled: () => false,
+      });
+
+      const response = await provider.getProposedNames({
+        value: VALUE_MOCK,
+        chainId: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(response).toStrictEqual({
+        results: { [SOURCE_ID]: { proposedNames: [], retryDelay: undefined } },
+      });
+    });
+
     it('throws if request fails', async () => {
       const provider = new EtherscanNameProvider();
 

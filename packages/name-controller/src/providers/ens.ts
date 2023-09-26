@@ -18,9 +18,18 @@ const LABEL = 'Ethereum Name Service (ENS)';
 const log = createModuleLogger(projectLogger, 'ens');
 
 export class ENSNameProvider implements NameProvider {
+  #isEnabled: () => boolean;
+
   #reverseLookup: ReverseLookupCallback;
 
-  constructor({ reverseLookup }: { reverseLookup: ReverseLookupCallback }) {
+  constructor({
+    isEnabled,
+    reverseLookup,
+  }: {
+    isEnabled?: () => boolean;
+    reverseLookup: ReverseLookupCallback;
+  }) {
+    this.#isEnabled = isEnabled || (() => true);
     this.#reverseLookup = reverseLookup;
   }
 
@@ -34,6 +43,18 @@ export class ENSNameProvider implements NameProvider {
   async getProposedNames(
     request: NameProviderRequest,
   ): Promise<NameProviderResult> {
+    if (!this.#isEnabled()) {
+      log('Skipping request as disabled');
+
+      return {
+        results: {
+          [ID]: {
+            proposedNames: [],
+          },
+        },
+      };
+    }
+
     const { value, chainId } = request;
 
     log('Invoking callback', { value, chainId });

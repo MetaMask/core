@@ -39,14 +39,14 @@ type EtherscanGetSourceCodeResponse = {
 };
 
 export class EtherscanNameProvider implements NameProvider {
-  #apiKey?: string;
+  #isEnabled: () => boolean;
 
   #lastRequestTime = 0;
 
   #mutex = new Mutex();
 
-  constructor({ apiKey }: { apiKey?: string } = {}) {
-    this.#apiKey = apiKey;
+  constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
+    this.#isEnabled = isEnabled || (() => true);
   }
 
   getMetadata(): NameProviderMetadata {
@@ -59,6 +59,11 @@ export class EtherscanNameProvider implements NameProvider {
   async getProposedNames(
     request: NameProviderRequest,
   ): Promise<NameProviderResult> {
+    if (!this.#isEnabled()) {
+      log('Skipping request as disabled');
+      return this.#buildResult([]);
+    }
+
     const releaseLock = await this.#mutex.acquire();
 
     try {
@@ -76,7 +81,6 @@ export class EtherscanNameProvider implements NameProvider {
         module: 'contract',
         action: 'getsourcecode',
         address: value,
-        apikey: this.#apiKey,
       });
 
       const { responseData, error } = await this.#sendRequest(url);
@@ -143,11 +147,6 @@ export class EtherscanNameProvider implements NameProvider {
 
     Object.keys(params).forEach((key, index) => {
       const value = params[key];
-
-      if (!value) {
-        return;
-      }
-
       url += `${index === 0 ? '?' : '&'}${key}=${value}`;
     });
 

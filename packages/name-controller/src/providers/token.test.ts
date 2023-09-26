@@ -73,6 +73,22 @@ describe('TokenNameProvider', () => {
       });
     });
 
+    it('returns empty result if disabled', async () => {
+      const provider = new TokenNameProvider({
+        isEnabled: () => false,
+      });
+
+      const response = await provider.getProposedNames({
+        value: VALUE_MOCK,
+        chainId: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(response).toStrictEqual({
+        results: { [SOURCE_ID]: { proposedNames: [] } },
+      });
+    });
+
     it('throws if request fails', async () => {
       handleFetchMock.mockImplementation(() => {
         throw new Error('TestError');
