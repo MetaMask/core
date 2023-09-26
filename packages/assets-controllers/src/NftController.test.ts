@@ -1965,7 +1965,7 @@ describe('NftController', () => {
       });
     });
 
-    it('should, when passed a networkClientId, add an NFT with the correct chainId and metadata fetched using networkClientId', async () => {
+    it('should add an NFT with the correct chainId and metadata when passed a networkClientId', async () => {
       nock('https://testtokenuri-1.com')
         .get('/')
         .reply(
@@ -2041,11 +2041,7 @@ describe('NftController', () => {
               },
             };
           default:
-            return {
-              configuration: {
-                chainId: '0x1',
-              },
-            };
+            throw new Error('Invalid network client id');
         }
       });
 
@@ -2365,7 +2361,6 @@ describe('NftController', () => {
   });
 
   describe('isNftOwner', () => {
-    // ANCHOR
     it('should verify the ownership of an NFT when passed a networkClientId', async () => {
       nock('https://sepolia.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
@@ -2387,12 +2382,10 @@ describe('NftController', () => {
             '0x0000000000000000000000005a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D',
         });
       const { nftController, getNetworkClientByIdSpy } = setupController();
-      // const contractAddress = '0x2b26675403a063d92ccad0293d387485471a7d3a';
       getNetworkClientByIdSpy.mockImplementation(() => ({
         provider: SEPOLIA_PROVIDER,
       }));
 
-      // assetsContract.configure({ provider: MAINNET_PROVIDER });
       const isOwner = await nftController.isNftOwner(
         OWNER_ADDRESS,
         '0x2b26675403a063d92ccad0293d387485471a7d3a',

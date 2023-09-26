@@ -599,13 +599,14 @@ export class NftController extends BaseController<NftConfig, NftState> {
       );
     });
 
-    let { chainId } = this.config;
-    if (networkClientId) {
-      chainId =
-        this.getNetworkClientById(networkClientId).configuration.chainId;
-    }
+    const { chainId } = this.config;
+    const getCurrentChainId = this.getCorrectChainId({
+      chainId,
+      networkClientId,
+    });
+
     let openSeaContractData: Partial<ApiNftContract> | undefined;
-    if (this.config.openSeaEnabled && chainId === '0x1') {
+    if (this.config.openSeaEnabled && getCurrentChainId === '0x1') {
       openSeaContractData = await safelyExecute(async () => {
         return await this.getNftContractInformationFromApi(contractAddress);
       });
@@ -748,7 +749,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     chainId,
     userAddress,
     networkClientId,
-    source,
+    source = Source.Custom,
   }: {
     tokenAddress: string;
     chainId?: Hex;
@@ -1247,11 +1248,13 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param address - Hex address of the NFT contract.
    * @param tokenId - The NFT identifier.
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp.
    */
   async addNftVerifyOwnership(
     address: string,
     tokenId: string,
     networkClientId?: NetworkClientId,
+    source?: Source,
   ) {
     const { selectedAddress } = this.config;
     if (
@@ -1264,7 +1267,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     ) {
       throw new Error('This NFT is not owned by the user');
     }
-    await this.addNft(address, tokenId, { networkClientId });
+    await this.addNft(address, tokenId, { networkClientId, source });
   }
 
   /**
