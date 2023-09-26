@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 ### Changed
-- Bump dependency on `@metamask/keyring-controller` to ^8.0.0
+- **BREAKING:** Bump peer dependency on `@metamask/keyring-controller` to ^8.0.0
 
 ## [1.0.0]
 ### Added
