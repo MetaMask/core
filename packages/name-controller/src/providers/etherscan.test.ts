@@ -58,7 +58,7 @@ describe('EtherscanNameProvider', () => {
         results: {
           [SOURCE_ID]: {
             proposedNames: [CONTRACT_NAME_MOCK, CONTRACT_NAME_2_MOCK],
-            retryDelay: undefined,
+            updateDelay: undefined,
           },
         },
       });
@@ -89,7 +89,7 @@ describe('EtherscanNameProvider', () => {
           results: {
             [SOURCE_ID]: {
               proposedNames: [],
-              retryDelay: undefined,
+              updateDelay: undefined,
             },
           },
         });
@@ -156,7 +156,7 @@ describe('EtherscanNameProvider', () => {
         results: {
           [SOURCE_ID]: {
             proposedNames: [],
-            retryDelay: 5,
+            updateDelay: 5,
           },
         },
       });
@@ -179,7 +179,7 @@ describe('EtherscanNameProvider', () => {
         results: {
           [SOURCE_ID]: {
             proposedNames: [],
-            retryDelay: 5,
+            updateDelay: 5,
           },
         },
       });
@@ -197,7 +197,7 @@ describe('EtherscanNameProvider', () => {
       });
 
       expect(response).toStrictEqual({
-        results: { [SOURCE_ID]: { proposedNames: [], retryDelay: undefined } },
+        results: { [SOURCE_ID]: { proposedNames: [], updateDelay: undefined } },
       });
     });
 

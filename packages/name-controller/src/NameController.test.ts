@@ -34,12 +34,12 @@ Date.now = jest.fn().mockReturnValue(TIME_MOCK * 1000);
  *
  * @param index - Index of the provider used to generate unique values.
  * @param options - Additional options to configure the mock provider.
- * @param options.retryDelay - Optional retry delay to return.
+ * @param options.updateDelay - Optional update delay to return.
  * @returns Mock instance of a name provider.
  */
 function createMockProvider(
   index: number,
-  { retryDelay }: { retryDelay?: number } = {},
+  { updateDelay }: { updateDelay?: number } = {},
 ): jest.Mocked<NameProvider> {
   return {
     getMetadata: jest.fn().mockReturnValue({
@@ -57,7 +57,7 @@ function createMockProvider(
             PROPOSED_NAME_MOCK + String(index),
             `${PROPOSED_NAME_MOCK + String(index)}_2`,
           ],
-          retryDelay,
+          updateDelay,
         },
       },
     }),
@@ -112,7 +112,7 @@ describe('NameController', () => {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
                   lastRequestTime: null,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -137,7 +137,7 @@ describe('NameController', () => {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
                   lastRequestTime: null,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -159,7 +159,7 @@ describe('NameController', () => {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
                   lastRequestTime: null,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -183,7 +183,7 @@ describe('NameController', () => {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
                   lastRequestTime: null,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -211,7 +211,7 @@ describe('NameController', () => {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -235,7 +235,7 @@ describe('NameController', () => {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -267,7 +267,7 @@ describe('NameController', () => {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
                   lastRequestTime: null,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -291,7 +291,7 @@ describe('NameController', () => {
                 [SOURCE_ID_MOCK]: {
                   proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
                   lastRequestTime: null,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -410,7 +410,7 @@ describe('NameController', () => {
       'creates entry with proposed names if value is new%s',
       async (_, getExistingState) => {
         const provider1 = createMockProvider(1);
-        const provider2 = createMockProvider(2, { retryDelay: 3 });
+        const provider2 = createMockProvider(2, { updateDelay: 3 });
 
         const controller = new NameController({
           ...CONTROLLER_ARGS_MOCK,
@@ -437,7 +437,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}1_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: [
@@ -445,7 +445,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}2_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: 3,
+                    updateDelay: 3,
                   },
                 },
               },
@@ -493,12 +493,12 @@ describe('NameController', () => {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldBeDeleted1'],
                   lastRequestTime: 12,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
                 [`${SOURCE_ID_MOCK}2`]: {
                   proposedNames: ['ShouldBeDeleted2'],
                   lastRequestTime: 12,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -524,7 +524,7 @@ describe('NameController', () => {
                     `${PROPOSED_NAME_MOCK}1_2`,
                   ],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
                 [`${SOURCE_ID_MOCK}2`]: {
                   proposedNames: [
@@ -532,7 +532,7 @@ describe('NameController', () => {
                     `${PROPOSED_NAME_MOCK}2_2`,
                   ],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -579,7 +579,7 @@ describe('NameController', () => {
                 [`${SOURCE_ID_MOCK}3`]: {
                   proposedNames: ['ShouldBeDeleted3'],
                   lastRequestTime: 12,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -605,7 +605,7 @@ describe('NameController', () => {
                     `${PROPOSED_NAME_MOCK}1_2`,
                   ],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
                 [`${SOURCE_ID_MOCK}2`]: {
                   proposedNames: [
@@ -613,7 +613,7 @@ describe('NameController', () => {
                     `${PROPOSED_NAME_MOCK}2_2`,
                   ],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -655,7 +655,7 @@ describe('NameController', () => {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: [],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
                 [`${SOURCE_ID_MOCK}2`]: {
                   proposedNames: [
@@ -663,7 +663,7 @@ describe('NameController', () => {
                     `${PROPOSED_NAME_MOCK}2_2`,
                   ],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -748,17 +748,17 @@ describe('NameController', () => {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldNotBeDeleted1'],
                   lastRequestTime: 12,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
                 [`${SOURCE_ID_MOCK}2`]: {
                   proposedNames: ['ShouldNotBeDeleted2'],
                   lastRequestTime: 12,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
                 [`${SOURCE_ID_MOCK}3`]: {
                   proposedNames: ['ShouldNotBeDeleted3'],
                   lastRequestTime: 12,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -781,17 +781,17 @@ describe('NameController', () => {
                 [`${SOURCE_ID_MOCK}1`]: {
                   proposedNames: ['ShouldNotBeDeleted1'],
                   lastRequestTime: 12,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
                 [`${SOURCE_ID_MOCK}2`]: {
                   proposedNames: ['ShouldNotBeDeleted2'],
                   lastRequestTime: 12,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
                 [`${SOURCE_ID_MOCK}3`]: {
                   proposedNames: ['ShouldNotBeDeleted3'],
                   lastRequestTime: 12,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -805,7 +805,7 @@ describe('NameController', () => {
                     `${PROPOSED_NAME_MOCK}1_2`,
                   ],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
                 [`${SOURCE_ID_MOCK}2`]: {
                   proposedNames: [
@@ -813,7 +813,7 @@ describe('NameController', () => {
                     `${PROPOSED_NAME_MOCK}2_2`,
                   ],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -865,7 +865,7 @@ describe('NameController', () => {
                     `${PROPOSED_NAME_MOCK}1_2`,
                   ],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -926,7 +926,7 @@ describe('NameController', () => {
                     `${PROPOSED_NAME_MOCK}1_2`,
                   ],
                   lastRequestTime: TIME_MOCK,
-                  retryDelay: null,
+                  updateDelay: null,
                 },
               },
             },
@@ -977,12 +977,12 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: 11,
-                    retryDelay: 1,
+                    updateDelay: 1,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
                     lastRequestTime: 12,
-                    retryDelay: 2,
+                    updateDelay: 2,
                   },
                 },
               },
@@ -1005,12 +1005,12 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1046,7 +1046,7 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: 11,
-                    retryDelay: 1,
+                    updateDelay: 1,
                   },
                 },
               },
@@ -1069,7 +1069,7 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1105,7 +1105,7 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: 11,
-                    retryDelay: 1,
+                    updateDelay: 1,
                   },
                 },
               },
@@ -1128,7 +1128,7 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1166,7 +1166,7 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: [
@@ -1174,7 +1174,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}2_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1229,7 +1229,7 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: [
@@ -1237,7 +1237,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}2_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1295,7 +1295,7 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: [
@@ -1303,7 +1303,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}2_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1350,17 +1350,17 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeDeleted1'],
                     lastRequestTime: 12,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldBeDeleted2'],
                     lastRequestTime: 12,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}3`]: {
                     proposedNames: ['ShouldNotBeDeleted3'],
                     lastRequestTime: 12,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1384,7 +1384,7 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: [`ShouldNotBeDeleted1`],
                     lastRequestTime: 12,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: [
@@ -1392,12 +1392,12 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}2_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}3`]: {
                     proposedNames: ['ShouldNotBeDeleted3'],
                     lastRequestTime: 12,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1503,7 +1503,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}1_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1614,7 +1614,7 @@ describe('NameController', () => {
     });
 
     describe('with onlyUpdateAfterDelay', () => {
-      it('does not update if no retryDelay and default delay not elapsed', async () => {
+      it('does not update if no updateDelay and default delay not elapsed', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
 
@@ -1633,12 +1633,12 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: 12,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
                     lastRequestTime: 13,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1662,12 +1662,12 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: 12,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
                     lastRequestTime: 13,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1680,7 +1680,7 @@ describe('NameController', () => {
         });
       });
 
-      it('does not update if retryDelay not elapsed', async () => {
+      it('does not update if updateDelay not elapsed', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
 
@@ -1699,12 +1699,12 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: TIME_MOCK - 9,
-                    retryDelay: 10,
+                    updateDelay: 10,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
                     lastRequestTime: TIME_MOCK - 6,
-                    retryDelay: 7,
+                    updateDelay: 7,
                   },
                 },
               },
@@ -1728,12 +1728,12 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: TIME_MOCK - 9,
-                    retryDelay: 10,
+                    updateDelay: 10,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
                     lastRequestTime: TIME_MOCK - 6,
-                    retryDelay: 7,
+                    updateDelay: 7,
                   },
                 },
               },
@@ -1765,12 +1765,12 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: TIME_MOCK - 120,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
                     lastRequestTime: TIME_MOCK - 121,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1797,7 +1797,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}1_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: [
@@ -1805,7 +1805,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}2_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1833,7 +1833,7 @@ describe('NameController', () => {
         });
       });
 
-      it('updates if retryDelay elapsed', async () => {
+      it('updates if updateDelay elapsed', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
 
@@ -1852,12 +1852,12 @@ describe('NameController', () => {
                   [`${SOURCE_ID_MOCK}1`]: {
                     proposedNames: ['ShouldNotBeUpdated1'],
                     lastRequestTime: TIME_MOCK - 10,
-                    retryDelay: 10,
+                    updateDelay: 10,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: ['ShouldNotBeUpdated2'],
                     lastRequestTime: TIME_MOCK - 16,
-                    retryDelay: 15,
+                    updateDelay: 15,
                   },
                 },
               },
@@ -1884,7 +1884,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}1_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: [
@@ -1892,7 +1892,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}2_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },
@@ -1950,7 +1950,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}1_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                   [`${SOURCE_ID_MOCK}2`]: {
                     proposedNames: [
@@ -1958,7 +1958,7 @@ describe('NameController', () => {
                       `${PROPOSED_NAME_MOCK}2_2`,
                     ],
                     lastRequestTime: TIME_MOCK,
-                    retryDelay: null,
+                    updateDelay: null,
                   },
                 },
               },

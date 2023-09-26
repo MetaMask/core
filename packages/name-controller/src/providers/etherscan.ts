@@ -122,12 +122,12 @@ export class EtherscanNameProvider implements NameProvider {
     }
   }
 
-  #buildResult(proposedNames: string[], retryDelay?: number) {
+  #buildResult(proposedNames: string[], updateDelay?: number) {
     return {
       results: {
         [ID]: {
           proposedNames,
-          retryDelay,
+          updateDelay,
         },
       },
     };

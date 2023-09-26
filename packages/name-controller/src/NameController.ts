@@ -29,7 +29,7 @@ const getDefaultState = () => ({
 export type ProposedNamesEntry = {
   proposedNames: string[];
   lastRequestTime: number | null;
-  retryDelay: number | null;
+  updateDelay: number | null;
 };
 
 export type NameEntry = {
@@ -199,12 +199,12 @@ export class NameController extends BaseControllerV2<
 
         for (const sourceId of Object.keys(providerResponse.results)) {
           const result = results[sourceId];
-          const { proposedNames, retryDelay } = result;
+          const { proposedNames, updateDelay } = result;
 
           const proposedNameEntry = entry.proposedNames[sourceId] ?? {
             proposedNames: [],
             lastRequestTime: null,
-            retryDelay: null,
+            updateDelay: null,
           };
 
           entry.proposedNames[sourceId] = proposedNameEntry;
@@ -214,7 +214,7 @@ export class NameController extends BaseControllerV2<
           }
 
           proposedNameEntry.lastRequestTime = currentTime;
-          proposedNameEntry.retryDelay = retryDelay ?? null;
+          proposedNameEntry.updateDelay = updateDelay ?? null;
         }
       }
     });
@@ -286,10 +286,10 @@ export class NameController extends BaseControllerV2<
         const proposedNamesEntry = entry.proposedNames?.[sourceId] ?? {};
         const lastRequestTime = proposedNamesEntry.lastRequestTime ?? 0;
 
-        const retryDelay =
-          proposedNamesEntry.retryDelay ?? DEFAULT_UPDATE_DELAY;
+        const updateDelay =
+          proposedNamesEntry.updateDelay ?? DEFAULT_UPDATE_DELAY;
 
-        if (currentTime - lastRequestTime < retryDelay) {
+        if (currentTime - lastRequestTime < updateDelay) {
           return false;
         }
       }
@@ -354,7 +354,7 @@ export class NameController extends BaseControllerV2<
     responseError: unknown,
   ): NameProviderSourceResult | undefined {
     const error = result?.error ?? responseError ?? undefined;
-    const retryDelay = result?.retryDelay ?? undefined;
+    const updateDelay = result?.updateDelay ?? undefined;
     let proposedNames = error ? undefined : result?.proposedNames ?? undefined;
 
     if (proposedNames) {
@@ -366,7 +366,7 @@ export class NameController extends BaseControllerV2<
     return {
       proposedNames,
       error,
-      retryDelay,
+      updateDelay,
     };
   }
 
