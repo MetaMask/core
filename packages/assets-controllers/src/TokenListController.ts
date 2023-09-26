@@ -6,7 +6,6 @@ import type {
   NetworkState,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import { AbortController as WhatwgAbortController } from 'abort-controller';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 
@@ -96,7 +95,7 @@ export class TokenListController extends BaseControllerV2<
 
   private chainId: Hex;
 
-  private abortController: WhatwgAbortController;
+  private abortController: AbortController;
 
   /**
    * Creates a TokenListController instance.
@@ -139,7 +138,7 @@ export class TokenListController extends BaseControllerV2<
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
-    this.abortController = new WhatwgAbortController();
+    this.abortController = new AbortController();
     if (onNetworkStateChange) {
       onNetworkStateChange(async (networkControllerState) => {
         await this.#onNetworkControllerStateChange(networkControllerState);
@@ -163,7 +162,7 @@ export class TokenListController extends BaseControllerV2<
   async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
     if (this.chainId !== networkControllerState.providerConfig.chainId) {
       this.abortController.abort();
-      this.abortController = new WhatwgAbortController();
+      this.abortController = new AbortController();
       this.chainId = networkControllerState.providerConfig.chainId;
       if (this.state.preventPollingOnNetworkRestart) {
         this.clearingTokenListData();
