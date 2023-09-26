@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [13.0.0]
-### Removed
+### Changed
 - **BREAKING**: Remove `NetworkId` type ([#1633](https://github.com/MetaMask/core/pull/1633))
 - **BREAKING**:  Remove `networkId` property from `NetworkState` type ([#1633](https://github.com/MetaMask/core/pull/1633))
 
