@@ -6,6 +6,7 @@ This monorepo is a collection of packages used across multiple MetaMask clients 
 
 This repository houses the following packages:
 
+- [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
@@ -35,6 +36,7 @@ Or, in graph form [^fn1]:
 %%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%
 graph LR;
 linkStyle default opacity:0.5
+  accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   approval_controller(["@metamask/approval-controller"]);
@@ -54,8 +56,11 @@ linkStyle default opacity:0.5
   phishing_controller(["@metamask/phishing-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
+  selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
+  accounts_controller --> base_controller;
+  accounts_controller --> keyring_controller;
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   announcement_controller --> base_controller;
@@ -91,10 +96,13 @@ linkStyle default opacity:0.5
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
   rate_limit_controller --> base_controller;
+  selected_network_controller --> base_controller;
+  selected_network_controller --> network_controller;
   signature_controller --> approval_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
   signature_controller --> message_manager;
+  signature_controller --> keyring_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
