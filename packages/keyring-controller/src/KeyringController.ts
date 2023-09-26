@@ -1,17 +1,28 @@
 import type { TxData, TypedTransaction } from '@ethereumjs/tx';
-import type {
+import {
   MetaMaskKeyring as QRKeyring,
-  IKeyringState as IQRKeyringState,
+  type IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
+import type Transport from '@ledgerhq/hw-transport';
+import LedgerKeyring from '@ledgerhq/metamask-keyring';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import { KeyringController as EthKeyringController } from '@metamask/eth-keyring-controller';
+import {
+  KeyringController as EthKeyringController,
+  keyringBuilderFactory,
+} from '@metamask/eth-keyring-controller';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
 } from '@metamask/message-manager';
 import type { PreferencesController } from '@metamask/preferences-controller';
-import type { Eip1024EncryptedData, Hex, Keyring, Json } from '@metamask/utils';
+import type {
+  Eip1024EncryptedData,
+  Hex,
+  Keyring,
+  Json,
+  KeyringClass,
+} from '@metamask/utils';
 import { assertIsStrictHexString, hasProperty } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import {
@@ -25,6 +36,8 @@ import {
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
 
+import type { SerializedLedgerKeyring } from './types/SerializedKeyringTypes';
+
 const name = 'KeyringController';
 
 /**
@@ -34,6 +47,7 @@ export enum KeyringTypes {
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
+  ledger = 'Ledger',
 }
 
 /**
@@ -299,12 +313,26 @@ export class KeyringController extends BaseControllerV2<
       },
     });
 
-    this.#keyring = new EthKeyringController({
-      initState: state,
-      encryptor,
-      keyringBuilders,
-      cacheEncryptionKey,
-    });
+    const additionalKeyringBuilders = [
+      keyringBuilderFactory(QRKeyring as unknown as KeyringClass<Json>),
+      keyringBuilderFactory(LedgerKeyring as unknown as KeyringClass<Json>),
+    ];
+
+    this.#keyring = new EthKeyringController(
+      Object.assign(
+        { initState: state },
+        {
+          encryptor,
+          cacheEncryptionKey,
+          keyringBuilders: [
+            ...(keyringBuilders && Array.isArray(keyringBuilders)
+              ? keyringBuilders
+              : []),
+            ...additionalKeyringBuilders,
+          ],
+        },
+      ),
+    );
     this.#keyring.memStore.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.store.subscribe(this.#fullUpdate.bind(this));
     this.#keyring.on('lock', this.#handleLock.bind(this));
@@ -1125,6 +1153,132 @@ export class KeyringController extends BaseControllerV2<
       isUnlocked: this.state.isUnlocked,
       keyrings: this.state.keyrings,
     };
+  }
+
+  // Ledger Related methods
+
+  private async addLedgerKeyring(): Promise<LedgerKeyring> {
+    return (await this.#keyring.addNewKeyring(
+      KeyringTypes.ledger,
+    )) as unknown as LedgerKeyring;
+  }
+
+  /**
+   * Retrieve the existing LedgerKeyring or create a new one.
+   *
+   * @returns The stored Ledger Keyring
+   */
+  async getLedgerKeyring(): Promise<LedgerKeyring> {
+    const keyring = this.#keyring.getKeyringsByType(
+      KeyringTypes.ledger,
+    )[0] as unknown as LedgerKeyring;
+
+    if (keyring) {
+      return keyring;
+    }
+
+    return await this.addLedgerKeyring();
+  }
+
+  /**
+   * Restores the Ledger Keyring. This is only used at the time the user resets the account's password at the moment.
+   *
+   * @param keyringSerialized - The serialized keyring;
+   */
+  async restoreLedgerKeyring(
+    keyringSerialized: SerializedLedgerKeyring,
+  ): Promise<void> {
+    (await this.getLedgerKeyring()).deserialize(keyringSerialized);
+    this.updateIdentities(await this.#keyring.getAccounts());
+    await this.#fullUpdate();
+  }
+
+  /**
+   * Connects to the ledger device by requesting some metadata from it.
+   *
+   * @param transport - The transport to use to connect to the device
+   * @param deviceId - The device ID to connect to
+   * @returns The name of the currently open application on the device
+   */
+  async connectLedgerHardware(
+    transport: Transport,
+    deviceId: string,
+  ): Promise<string> {
+    const keyring = await this.getLedgerKeyring();
+    keyring.setTransport(transport, deviceId);
+
+    const { appName } = await keyring.getAppAndVersion();
+
+    return appName;
+  }
+
+  /**
+   * Retrieve the first account from the Ledger device.
+   *
+   * @returns The default (first) account on the device
+   */
+  async unlockLedgerDefaultAccount(): Promise<{
+    address: string;
+    balance: string;
+  }> {
+    const keyring = await this.getLedgerKeyring();
+    const oldAccounts = await this.#keyring.getAccounts();
+    await this.#keyring.addNewAccount(keyring as unknown as Keyring<Json>);
+    const newAccounts = await this.#keyring.getAccounts();
+
+    this.updateIdentities(newAccounts);
+    newAccounts.forEach((address: string) => {
+      if (!oldAccounts.includes(address)) {
+        if (this.setAccountLabel) {
+          // The first ledger account is always returned.
+          this.setAccountLabel(address, `${keyring.getName()} 1`);
+        }
+        this.setSelectedAddress(address);
+      }
+    });
+    await this.#keyring.persistAllKeyrings();
+    await this.#fullUpdate();
+
+    const address = await keyring.getDefaultAccount();
+    return {
+      address,
+      balance: `0x0`,
+    };
+  }
+
+  /**
+   * Automatically opens the Ethereum app on the Ledger device.
+   */
+  async openEthereumAppOnLedger(): Promise<void> {
+    const keyring = await this.getLedgerKeyring();
+    await keyring.openEthApp();
+  }
+
+  /**
+   * Automatically closes the current app on the Ledger device.
+   */
+  async closeRunningAppOnLedger(): Promise<void> {
+    const keyring = await this.getLedgerKeyring();
+    const { appName } = await keyring.getAppAndVersion();
+
+    // BOLOS means we are on the dashboard we don't need to close anything
+    if (appName !== 'BOLOS') {
+      await keyring.quitApp();
+    }
+  }
+
+  /**
+   * Forgets the ledger keyring's previous device specific state.
+   */
+  async forgetLedger(): Promise<void> {
+    const keyring = await this.getLedgerKeyring();
+    keyring.forgetDevice();
+
+    const accounts: string[] = await this.#keyring.getAccounts();
+    this.setSelectedAddress(accounts[0]);
+
+    await this.#keyring.persistAllKeyrings();
+    await this.#fullUpdate();
   }
 }
 
