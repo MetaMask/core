@@ -2,6 +2,7 @@ import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
+import { incomingTransactionsLogger as log } from './logger';
 
 export interface EtherscanTransactionMetaBase {
   blockNumber: string;
@@ -39,21 +40,16 @@ export interface EtherscanTokenTransactionMeta
 export interface EtherscanTransactionResponse<
   T extends EtherscanTransactionMetaBase,
 > {
-  result: T[];
+  status: '0' | '1';
+  message?: string;
+  result: string | T[];
 }
 
 export interface EtherscanTransactionRequest {
   address: string;
-  apiKey?: string;
   chainId: Hex;
   fromBlock?: number;
   limit?: number;
-}
-
-interface RawEtherscanResponse<T extends EtherscanTransactionMetaBase> {
-  status: '0' | '1';
-  message: string;
-  result: string | T[];
 }
 
 /**
@@ -61,7 +57,6 @@ interface RawEtherscanResponse<T extends EtherscanTransactionMetaBase> {
  *
  * @param request - Configuration required to fetch transactions.
  * @param request.address - Address to retrieve transactions for.
- * @param request.apiKey - Etherscan API key.
  * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching transactions from.
  * @param request.limit - Number of transactions to retrieve.
@@ -69,7 +64,6 @@ interface RawEtherscanResponse<T extends EtherscanTransactionMetaBase> {
  */
 export async function fetchEtherscanTransactions({
   address,
-  apiKey,
   chainId,
   fromBlock,
   limit,
@@ -78,7 +72,6 @@ export async function fetchEtherscanTransactions({
 > {
   return await fetchTransactions('txlist', {
     address,
-    apiKey,
     chainId,
     fromBlock,
     limit,
@@ -90,7 +83,6 @@ export async function fetchEtherscanTransactions({
  *
  * @param request - Configuration required to fetch token transactions.
  * @param request.address - Address to retrieve token transactions for.
- * @param request.apiKey - Etherscan API key.
  * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching token transactions from.
  * @param request.limit - Number of token transactions to retrieve.
@@ -98,7 +90,6 @@ export async function fetchEtherscanTransactions({
  */
 export async function fetchEtherscanTokenTransactions({
   address,
-  apiKey,
   chainId,
   fromBlock,
   limit,
@@ -107,7 +98,6 @@ export async function fetchEtherscanTokenTransactions({
 > {
   return await fetchTransactions('tokentx', {
     address,
-    apiKey,
     chainId,
     fromBlock,
     limit,
@@ -120,7 +110,6 @@ export async function fetchEtherscanTokenTransactions({
  * @param action - The Etherscan endpoint to use.
  * @param options - Options bag.
  * @param options.address - Address to retrieve transactions for.
- * @param options.apiKey - Etherscan API key.
  * @param options.chainId - Current chain ID used to determine subdomain and domain.
  * @param options.fromBlock - Block number to start fetching transactions from.
  * @param options.limit - Number of transactions to retrieve.
@@ -130,13 +119,11 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
   action: string,
   {
     address,
-    apiKey,
     chainId,
     fromBlock,
     limit,
   }: {
     address: string;
-    apiKey?: string;
     chainId: Hex;
     fromBlock?: number;
     limit?: number;
@@ -146,9 +133,8 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     module: 'account',
     address,
     startBlock: fromBlock?.toString(),
-    apikey: apiKey,
     offset: limit?.toString(),
-    order: 'desc',
+    sort: 'desc',
   };
 
   const etherscanTxUrl = getEtherscanApiUrl(chainId, {
@@ -156,15 +142,13 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     action,
   });
 
+  log('Sending Etherscan request', etherscanTxUrl);
+
   const response = (await handleFetch(
     etherscanTxUrl,
-  )) as RawEtherscanResponse<T>;
+  )) as EtherscanTransactionResponse<T>;
 
-  if (response.status === '0' && response.message === 'NOTOK') {
-    throw new Error(`Etherscan request failed - ${response.result}`);
-  }
-
-  return { result: response.result as T[] };
+  return response;
 }
 
 /**
