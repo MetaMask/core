@@ -160,6 +160,14 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
 >;
 
 /**
+ * A function for verifying a transaction, whether it is malicious or not
+ */
+export type SecurityProviderRequest = (
+  requestData: TransactionMeta,
+  messageType: string,
+) => Promise<any>;
+
+/**
  * Controller responsible for submitting and managing transactions.
  */
 export class TransactionController extends BaseController<
@@ -191,6 +199,8 @@ export class TransactionController extends BaseController<
   private readonly messagingSystem: TransactionControllerMessenger;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
+
+  private readonly securityProviderRequest?: SecurityProviderRequest;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -248,6 +258,7 @@ export class TransactionController extends BaseController<
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
+   * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -264,6 +275,7 @@ export class TransactionController extends BaseController<
       messenger,
       onNetworkStateChange,
       provider,
+      securityProviderRequest,
     }: {
       blockTracker: BlockTracker;
       disableHistory: boolean;
@@ -281,6 +293,7 @@ export class TransactionController extends BaseController<
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: Provider;
+      securityProviderRequest?: SecurityProviderRequest;
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
@@ -311,6 +324,7 @@ export class TransactionController extends BaseController<
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
+    this.securityProviderRequest = securityProviderRequest;
 
     this.nonceTracker = new NonceTracker({
       provider,
@@ -410,6 +424,7 @@ export class TransactionController extends BaseController<
    * @param opts - Additional options to control how the transaction is added.
    * @param opts.actionId - Unique ID to prevent duplicate requests.
    * @param opts.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
+   * @param opts.method - RPC method that requested the transaction.
    * @param opts.origin - The origin of the transaction request, such as a dApp hostname.
    * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param opts.securityAlertResponse - Response from security validator.
@@ -422,6 +437,7 @@ export class TransactionController extends BaseController<
     {
       actionId,
       deviceConfirmedOn,
+      method,
       origin,
       requireApproval,
       securityAlertResponse,
@@ -430,6 +446,7 @@ export class TransactionController extends BaseController<
     }: {
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
+      method?: string;
       origin?: string;
       requireApproval?: boolean | undefined;
       securityAlertResponse?: Record<string, unknown>;
@@ -482,6 +499,15 @@ export class TransactionController extends BaseController<
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
+      // Set security provider response
+      if (method && this.securityProviderRequest) {
+        const securityProviderResponse = await this.securityProviderRequest(
+          transactionMeta,
+          method,
+        );
+        transactionMeta.securityProviderResponse = securityProviderResponse;
+      }
+
       if (!this.isSendFlowHistoryDisabled) {
         transactionMeta.sendFlowHistory = sendFlowHistory ?? [];
       }
