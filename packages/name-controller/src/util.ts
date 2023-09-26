@@ -64,6 +64,7 @@ export async function successfulFetch(request: string, options?: RequestInit) {
  *
  * TODO: Migrate this to @metamask/utils
  *
+ * @param error - The value that we expect to be an error.
  * @throws Throws an error wrapping the given value if it's not an error.
  */
 export function assertIsError(error: unknown): asserts error is Error {
