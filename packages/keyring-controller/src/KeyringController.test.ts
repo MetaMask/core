@@ -245,7 +245,9 @@ describe('KeyringController', () => {
             messenger.subscribe('KeyringController:accountAdded', listener);
 
             const addedAccountAddress =
-              await controller.addNewAccountForKeyring(mockKeyring);
+              await controller.addNewAccountForKeyring(
+                mockKeyring as Keyring<Json>,
+              );
 
             expect(listener.calledWith(addedAccountAddress)).toBe(true);
           },
@@ -335,7 +337,9 @@ describe('KeyringController', () => {
             messenger.subscribe('KeyringController:accountAdded', listener);
 
             const addedAccountAddress =
-              await controller.addNewAccountForKeyring(mockKeyring);
+              await controller.addNewAccountForKeyring(
+                mockKeyring as Keyring<Json>,
+              );
 
             expect(listener.calledWith(addedAccountAddress)).toBe(true);
           },
