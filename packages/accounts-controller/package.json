@@ -32,7 +32,7 @@
     "@metamask/eth-snap-keyring": "^0.2.2",
     "@metamask/keyring-api": "^0.2.5",
     "@metamask/snaps-utils": "^1.0.1",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^8.1.0",
     "deepmerge": "^4.2.2",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",

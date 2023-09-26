@@ -31,12 +31,12 @@
     "@metamask/approval-controller": "^3.5.1",
     "@metamask/base-controller": "^3.2.1",
     "@metamask/controller-utils": "^4.3.2",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/json-rpc-engine": "^7.1.1",
+    "@metamask/utils": "^8.1.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
     "eth-rpc-errors": "^4.0.2",
     "immer": "^9.0.6",
-    "json-rpc-engine": "^6.1.0",
     "nanoid": "^3.1.31"
   },
   "devDependencies": {

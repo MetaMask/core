@@ -3,7 +3,7 @@ import type {
   EventConstraint,
 } from '@metamask/base-controller';
 import type { NonEmptyArray } from '@metamask/controller-utils';
-import type { Json } from '@metamask/utils';
+import type { Json, JsonRpcParams } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -210,7 +210,7 @@ type RestrictedMethodContext = Readonly<{
   [key: string]: any;
 }>;
 
-export type RestrictedMethodParameters = Json[] | Record<string, Json> | void;
+export type RestrictedMethodParameters = JsonRpcParams;
 
 /**
  * The arguments passed to a restricted method implementation.
