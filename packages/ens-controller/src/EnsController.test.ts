@@ -119,6 +119,7 @@ describe('EnsController', () => {
       provider: getProvider(),
       onNetworkStateChange: (listener) => {
         listener({
+          networkId: '1',
           providerConfig: {
             chainId: toHex(1),
             type: NetworkType.mainnet,
@@ -444,6 +445,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
+            networkId: null,
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -462,8 +464,9 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
+            networkId: '1544',
             providerConfig: {
-              chainId: toHex(0),
+              chainId: toHex(1),
               type: NetworkType.mainnet,
               ticker: NetworksTicker.mainnet,
             },
@@ -487,6 +490,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
+            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -510,6 +514,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
+            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -532,6 +537,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
+            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -557,6 +563,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
+            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -582,6 +589,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
+            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -609,6 +617,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
+            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,
@@ -635,6 +644,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkStateChange: (listener) => {
           listener({
+            networkId: '1',
             providerConfig: {
               chainId: toHex(1),
               type: NetworkType.mainnet,

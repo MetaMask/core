@@ -6,16 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [7.5.0]
-### Added
-- Add `KeyringController` messenger actions ([#1691](https://github.com/MetaMask/core/pull/1691))
-  - `KeyringController:getAccounts`
-  - `KeyringController:getKeyringsByType`
-  - `KeyringController:getKeyringForAccount`
-
-### Changed
-- Bump `@metamask/eth-sig-util` from 6.0.0 to 7.0.0 ([#1669](https://github.com/MetaMask/core/pull/1669))
-
 ## [7.4.0]
 ### Added
 - Add `KeyringController` messenger actions ([#1654](https://github.com/MetaMask/core/pull/1654))
@@ -181,8 +171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.5.0...HEAD
-[7.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.4.0...@metamask/keyring-controller@7.5.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.4.0...HEAD
 [7.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.3.0...@metamask/keyring-controller@7.4.0
 [7.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.2.0...@metamask/keyring-controller@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.1.0...@metamask/keyring-controller@7.2.0

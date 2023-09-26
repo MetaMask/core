@@ -6,10 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [6.0.0]
-### Changed
-- **BREAKING**: Removed `keyringController` property from constructor option ([#1593](https://github.com/MetaMask/core/pull/1593))
-
 ## [5.3.1]
 ### Changed
 - Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
@@ -70,8 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.0.0...HEAD
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.3.1...@metamask/signature-controller@6.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.3.1...HEAD
 [5.3.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.3.0...@metamask/signature-controller@5.3.1
 [5.3.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.2.0...@metamask/signature-controller@5.3.0
 [5.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.1.0...@metamask/signature-controller@5.2.0

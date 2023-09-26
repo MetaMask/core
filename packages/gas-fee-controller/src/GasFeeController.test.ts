@@ -77,8 +77,8 @@ const setupNetworkController = async ({
   // Call this without awaiting to simulate what the extension or mobile app
   // might do
   networkController.initializeProvider();
-  // Ensure that the request for eth_getBlockByNumber made by the PollingBlockTracker
-  // inside the NetworkController goes through
+  // Ensure that the request for net_version that the network controller makes
+  // goes through
   await clock.nextAsync();
 
   return networkController;

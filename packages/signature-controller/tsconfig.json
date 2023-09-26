@@ -15,12 +15,6 @@
     },
     {
       "path": "../message-manager"
-    },
-    {
-      "path": "../keyring-controller"
-    },
-    {
-      "path": "../logging-controller"
     }
   ],
   "include": ["../../types", "./src"]

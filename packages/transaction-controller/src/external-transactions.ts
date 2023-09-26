@@ -16,9 +16,9 @@ export function validateConfirmedExternalTransaction(
   confirmedTxs?: TransactionMeta[],
   pendingTxs?: TransactionMeta[],
 ) {
-  if (!transactionMeta || !transactionMeta.txParams) {
+  if (!transactionMeta || !transactionMeta.transaction) {
     throw ethErrors.rpc.invalidParams(
-      '"transactionMeta" or "transactionMeta.txParams" is missing',
+      '"transactionMeta" or "transactionMeta.transaction" is missing',
     );
   }
 
@@ -28,10 +28,10 @@ export function validateConfirmedExternalTransaction(
     );
   }
 
-  const externalTxNonce = transactionMeta.txParams.nonce;
+  const externalTxNonce = transactionMeta.transaction.nonce;
   if (pendingTxs && pendingTxs.length > 0) {
     const foundPendingTxByNonce = pendingTxs.find(
-      (tx) => tx.txParams?.nonce === externalTxNonce,
+      (tx) => tx.transaction?.nonce === externalTxNonce,
     );
     if (foundPendingTxByNonce) {
       throw ethErrors.rpc.invalidParams(
@@ -42,7 +42,7 @@ export function validateConfirmedExternalTransaction(
 
   if (confirmedTxs && confirmedTxs.length > 0) {
     const foundConfirmedTxByNonce = confirmedTxs.find(
-      (tx) => tx.txParams?.nonce === externalTxNonce,
+      (tx) => tx.transaction?.nonce === externalTxNonce,
     );
     if (foundConfirmedTxByNonce) {
       throw ethErrors.rpc.invalidParams(

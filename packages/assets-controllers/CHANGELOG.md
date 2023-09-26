@@ -6,28 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [12.0.0]
-### Added
-- Add `AssetsContractController` methods `getProvider`, `getChainId`, `getERC721Standard`, and `getERC1155Standard` ([#1638](https://github.com/MetaMask/core/pull/1638))
-
-### Changed
-- **BREAKING**: Add `getNetworkClientById` to `AssetsContractController` constructor options ([#1638](https://github.com/MetaMask/core/pull/1638))
--  Add optional `networkClientId` parameter to various `AssetContractController` methods ([#1638](https://github.com/MetaMask/core/pull/1638))
-  - The affected methods are:
-    - `getERC20BalanceOf`
-    - `getERC20TokenDecimals`
-    - `getERC20TokenName`
-    - `getERC721NftTokenId`
-    - `getTokenStandardAndDetails`
-    - `getERC721TokenURI`
-    - `getERC721AssetName`
-    - `getERC721AssetSymbol`
-    - `getERC721OwnerOf`
-    - `getERC1155TokenURI`
-    - `getERC1155BalanceOf`
-    - `transferSingleERC1155`
-    - `getBalancesInSingleCall`
-
 ## [11.1.0]
 ### Added
 - Add `tokenURI` to `NftMetadata` type ([#1577](https://github.com/MetaMask/core/pull/1577))
@@ -248,8 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@12.0.0...HEAD
-[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.1.0...@metamask/assets-controllers@12.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.1.0...HEAD
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.1...@metamask/assets-controllers@11.1.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.0...@metamask/assets-controllers@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@10.0.0...@metamask/assets-controllers@11.0.0

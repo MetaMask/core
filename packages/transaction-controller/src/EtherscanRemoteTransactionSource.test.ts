@@ -64,7 +64,6 @@ const ETHERSCAN_TOKEN_TRANSACTION_MOCK: EtherscanTokenTransactionMeta = {
 
 const ETHERSCAN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> =
   {
-    status: '1',
     result: [
       ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
       ETHERSCAN_TRANSACTION_ERROR_MOCK,
@@ -73,7 +72,6 @@ const ETHERSCAN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<Ethersca
 
 const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTokenTransactionMeta> =
   {
-    status: '1',
     result: [
       ETHERSCAN_TOKEN_TRANSACTION_MOCK,
       ETHERSCAN_TOKEN_TRANSACTION_MOCK,
@@ -82,32 +80,20 @@ const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK: EtherscanTransactionResponse<Et
 
 const ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> =
   {
-    status: '0',
-    result: '',
+    result: [],
   };
 
 const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_EMPTY_MOCK: EtherscanTransactionResponse<EtherscanTokenTransactionMeta> =
   ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK as any;
 
-const ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> =
-  {
-    status: '0',
-    message: 'NOTOK',
-    result: 'Test Error',
-  };
-
-const ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_ERROR_MOCK: EtherscanTransactionResponse<EtherscanTokenTransactionMeta> =
-  ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK as any;
-
 const EXPECTED_NORMALISED_TRANSACTION_BASE = {
   blockNumber: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.blockNumber,
   chainId: undefined,
-  hash: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.hash,
   id: ID_MOCK,
+  networkID: undefined,
   status: TransactionStatus.confirmed,
   time: 1543596356000,
-  txParams: {
-    chainId: undefined,
+  transaction: {
     from: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.from,
     gas: '0x51d68',
     gasPrice: '0x4a817c800',
@@ -116,13 +102,14 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
     to: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.to,
     value: '0xb1a2bc2ec50000',
   },
+  transactionHash: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.hash,
   verifiedOnBlockchain: false,
 };
 
 const EXPECTED_NORMALISED_TRANSACTION_SUCCESS = {
   ...EXPECTED_NORMALISED_TRANSACTION_BASE,
-  txParams: {
-    ...EXPECTED_NORMALISED_TRANSACTION_BASE.txParams,
+  transaction: {
+    ...EXPECTED_NORMALISED_TRANSACTION_BASE.transaction,
     data: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.input,
   },
 };
@@ -175,6 +162,7 @@ describe('EtherscanRemoteTransactionSource', () => {
       expect(
         new EtherscanRemoteTransactionSource().isSupportedNetwork(
           CHAIN_IDS.MAINNET,
+          '1',
         ),
       ).toBe(true);
     });
@@ -183,33 +171,9 @@ describe('EtherscanRemoteTransactionSource', () => {
       expect(
         new EtherscanRemoteTransactionSource().isSupportedNetwork(
           '0x1324567891234',
+          '1',
         ),
       ).toBe(false);
-    });
-  });
-
-  describe('getLastBlockVariations', () => {
-    it('returns normal if normal request', () => {
-      expect(
-        new EtherscanRemoteTransactionSource().getLastBlockVariations(),
-      ).toStrictEqual(['normal']);
-    });
-
-    it('returns token if token request', async () => {
-      const remoteSource = new EtherscanRemoteTransactionSource();
-      await remoteSource.fetchTransactions({} as any);
-
-      expect(remoteSource.getLastBlockVariations()).toStrictEqual(['token']);
-    });
-
-    it('always returns normal if token requests disabled', async () => {
-      const remoteSource = new EtherscanRemoteTransactionSource({
-        includeTokenTransfers: false,
-      });
-
-      await remoteSource.fetchTransactions({} as any);
-
-      expect(remoteSource.getLastBlockVariations()).toStrictEqual(['normal']);
     });
   });
 
@@ -235,11 +199,10 @@ describe('EtherscanRemoteTransactionSource', () => {
         ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK,
       );
 
-      const remoteSource = new EtherscanRemoteTransactionSource();
-
-      await remoteSource.fetchTransactions({} as any);
-
-      const transactions = await remoteSource.fetchTransactions({} as any);
+      const transactions =
+        await new EtherscanRemoteTransactionSource().fetchTransactions(
+          {} as any,
+        );
 
       expect(transactions).toStrictEqual([
         EXPECTED_NORMALISED_TOKEN_TRANSACTION,
@@ -247,90 +210,16 @@ describe('EtherscanRemoteTransactionSource', () => {
       ]);
     });
 
-    it('alternates between normal and token transactions', async () => {
-      fetchEtherscanTransactionsMock.mockResolvedValueOnce(
-        ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
-      );
-
-      fetchEtherscanTokenTransactionsMock.mockResolvedValueOnce(
-        ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK,
-      );
-
-      const remoteSource = new EtherscanRemoteTransactionSource();
-
-      await remoteSource.fetchTransactions({} as any);
-      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(0);
-
-      await remoteSource.fetchTransactions({} as any);
-      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
-      expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(1);
-
-      await remoteSource.fetchTransactions({} as any);
-      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(2);
-      expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(1);
-
-      await remoteSource.fetchTransactions({} as any);
-      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(2);
-      expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(2);
-
-      await remoteSource.fetchTransactions({} as any);
-      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(3);
-      expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(2);
-    });
-
     it('returns no normalized token transactions if flag disabled', async () => {
       fetchEtherscanTokenTransactionsMock.mockResolvedValueOnce(
         ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_MOCK,
       );
 
-      const remoteSource = new EtherscanRemoteTransactionSource({
+      const transactions = await new EtherscanRemoteTransactionSource({
         includeTokenTransfers: false,
-      });
+      }).fetchTransactions({} as any);
 
-      await remoteSource.fetchTransactions({} as any);
-      await remoteSource.fetchTransactions({} as any);
-      await remoteSource.fetchTransactions({} as any);
-
-      expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(0);
-      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(3);
+      expect(transactions).toStrictEqual([]);
     });
-
-    it.each([
-      ['no transactions found', ETHERSCAN_TRANSACTION_RESPONSE_EMPTY_MOCK],
-      ['error', ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK],
-    ])(
-      'returns empty array if %s in normal transaction request',
-      async (_, response) => {
-        fetchEtherscanTransactionsMock.mockResolvedValueOnce(response);
-
-        const transactions =
-          await new EtherscanRemoteTransactionSource().fetchTransactions(
-            {} as any,
-          );
-
-        expect(transactions).toStrictEqual([]);
-      },
-    );
-
-    it.each([
-      [
-        'no transactions found',
-        ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_EMPTY_MOCK,
-      ],
-      ['error', ETHERSCAN_TOKEN_TRANSACTION_RESPONSE_ERROR_MOCK],
-    ])(
-      'returns empty array if %s in token transaction request',
-      async (_, response) => {
-        fetchEtherscanTokenTransactionsMock.mockResolvedValueOnce(response);
-
-        const remoteSource = new EtherscanRemoteTransactionSource();
-        await remoteSource.fetchTransactions({} as any);
-
-        const transactions = await remoteSource.fetchTransactions({} as any);
-
-        expect(transactions).toStrictEqual([]);
-      },
-    );
   });
 });

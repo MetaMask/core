@@ -15,7 +15,6 @@ import {
   fetchEtherscanTokenTransactions,
   fetchEtherscanTransactions,
 } from './etherscan';
-import { incomingTransactionsLogger as log } from './logger';
 import type {
   RemoteTransactionSource,
   RemoteTransactionSourceRequest,
@@ -29,23 +28,20 @@ import { TransactionStatus } from './types';
 export class EtherscanRemoteTransactionSource
   implements RemoteTransactionSource
 {
+  #apiKey?: string;
+
   #includeTokenTransfers: boolean;
 
-  #isTokenRequestPending: boolean;
-
   constructor({
+    apiKey,
     includeTokenTransfers,
-  }: { includeTokenTransfers?: boolean } = {}) {
+  }: { apiKey?: string; includeTokenTransfers?: boolean } = {}) {
+    this.#apiKey = apiKey;
     this.#includeTokenTransfers = includeTokenTransfers ?? true;
-    this.#isTokenRequestPending = false;
   }
 
-  isSupportedNetwork(chainId: Hex): boolean {
+  isSupportedNetwork(chainId: Hex, _networkId: string): boolean {
     return Object.keys(ETHERSCAN_SUPPORTED_NETWORKS).includes(chainId);
-  }
-
-  getLastBlockVariations(): string[] {
-    return [this.#isTokenRequestPending ? 'token' : 'normal'];
   }
 
   async fetchTransactions(
@@ -53,79 +49,55 @@ export class EtherscanRemoteTransactionSource
   ): Promise<TransactionMeta[]> {
     const etherscanRequest: EtherscanTransactionRequest = {
       ...request,
+      apiKey: this.#apiKey,
       chainId: request.currentChainId,
     };
 
-    const transactions = this.#isTokenRequestPending
-      ? await this.#fetchTokenTransactions(request, etherscanRequest)
-      : await this.#fetchNormalTransactions(request, etherscanRequest);
+    const transactionPromise = fetchEtherscanTransactions(etherscanRequest);
 
-    if (this.#includeTokenTransfers) {
-      this.#isTokenRequestPending = !this.#isTokenRequestPending;
-    }
+    const tokenTransactionPromise = this.#includeTokenTransfers
+      ? fetchEtherscanTokenTransactions(etherscanRequest)
+      : Promise.resolve({
+          result: [] as EtherscanTokenTransactionMeta[],
+        } as EtherscanTransactionResponse<EtherscanTokenTransactionMeta>);
 
-    return transactions;
-  }
+    const [etherscanTransactions, etherscanTokenTransactions] =
+      await Promise.all([transactionPromise, tokenTransactionPromise]);
 
-  #fetchNormalTransactions = async (
-    request: RemoteTransactionSourceRequest,
-    etherscanRequest: EtherscanTransactionRequest,
-  ) => {
-    const { currentChainId } = request;
-
-    const etherscanTransactions = await fetchEtherscanTransactions(
-      etherscanRequest,
+    const transactions = etherscanTransactions.result.map((tx) =>
+      this.#normalizeTransaction(
+        tx,
+        request.currentNetworkId,
+        request.currentChainId,
+      ),
     );
 
-    return this.#getResponseTransactions(etherscanTransactions).map((tx) =>
-      this.#normalizeTransaction(tx, currentChainId),
-    );
-  };
-
-  #fetchTokenTransactions = async (
-    request: RemoteTransactionSourceRequest,
-    etherscanRequest: EtherscanTransactionRequest,
-  ) => {
-    const { currentChainId } = request;
-
-    const etherscanTransactions = await fetchEtherscanTokenTransactions(
-      etherscanRequest,
+    const tokenTransactions = etherscanTokenTransactions.result.map((tx) =>
+      this.#normalizeTokenTransaction(
+        tx,
+        request.currentNetworkId,
+        request.currentChainId,
+      ),
     );
 
-    return this.#getResponseTransactions(etherscanTransactions).map((tx) =>
-      this.#normalizeTokenTransaction(tx, currentChainId),
-    );
-  };
-
-  #getResponseTransactions<T extends EtherscanTransactionMetaBase>(
-    response: EtherscanTransactionResponse<T>,
-  ): T[] {
-    let result = response.result as T[];
-
-    if (response.status === '0') {
-      result = [];
-
-      if (response.result.length) {
-        log('Ignored Etherscan request error', {
-          message: response.result,
-          type: this.#isTokenRequestPending ? 'token' : 'normal',
-        });
-      }
-    }
-
-    return result;
+    return [...transactions, ...tokenTransactions];
   }
 
   #normalizeTransaction(
     txMeta: EtherscanTransactionMeta,
+    currentNetworkId: string,
     currentChainId: Hex,
   ): TransactionMeta {
-    const base = this.#normalizeTransactionBase(txMeta, currentChainId);
+    const base = this.#normalizeTransactionBase(
+      txMeta,
+      currentNetworkId,
+      currentChainId,
+    );
 
     return {
       ...base,
-      txParams: {
-        ...base.txParams,
+      transaction: {
+        ...base.transaction,
         data: txMeta.input,
       },
       ...(txMeta.isError === '0'
@@ -139,9 +111,14 @@ export class EtherscanRemoteTransactionSource
 
   #normalizeTokenTransaction(
     txMeta: EtherscanTokenTransactionMeta,
+    currentNetworkId: string,
     currentChainId: Hex,
   ): TransactionMeta {
-    const base = this.#normalizeTransactionBase(txMeta, currentChainId);
+    const base = this.#normalizeTransactionBase(
+      txMeta,
+      currentNetworkId,
+      currentChainId,
+    );
 
     return {
       ...base,
@@ -156,6 +133,7 @@ export class EtherscanRemoteTransactionSource
 
   #normalizeTransactionBase(
     txMeta: EtherscanTransactionMetaBase,
+    currentNetworkId: string,
     currentChainId: Hex,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
@@ -163,12 +141,11 @@ export class EtherscanRemoteTransactionSource
     return {
       blockNumber: txMeta.blockNumber,
       chainId: currentChainId,
-      hash: txMeta.hash,
       id: random({ msecs: time }),
+      networkID: currentNetworkId,
       status: TransactionStatus.confirmed,
       time,
-      txParams: {
-        chainId: currentChainId,
+      transaction: {
         from: txMeta.from,
         gas: BNToHex(new BN(txMeta.gas)),
         gasPrice: BNToHex(new BN(txMeta.gasPrice)),
@@ -177,6 +154,7 @@ export class EtherscanRemoteTransactionSource
         to: txMeta.to,
         value: BNToHex(new BN(txMeta.value)),
       },
+      transactionHash: txMeta.hash,
       verifiedOnBlockchain: false,
     };
   }

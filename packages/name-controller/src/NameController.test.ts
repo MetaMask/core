@@ -227,51 +227,6 @@ describe('NameController', () => {
       });
     });
 
-    it('can clear saved name', () => {
-      const provider1 = createMockProvider(1);
-
-      const controller = new NameController({
-        ...CONTROLLER_ARGS_MOCK,
-        providers: [provider1],
-      });
-
-      controller.state.names = {
-        [NameType.ETHEREUM_ADDRESS]: {
-          [VALUE_MOCK]: {
-            [CHAIN_ID_MOCK]: {
-              name: NAME_MOCK,
-              sourceId: SOURCE_ID_MOCK,
-              proposedNamesLastUpdated: null,
-              proposedNames: {
-                [SOURCE_ID_MOCK]: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
-              },
-            },
-          },
-        },
-      };
-
-      controller.setName({
-        value: VALUE_MOCK,
-        type: NameType.ETHEREUM_ADDRESS,
-        name: null,
-      });
-
-      expect(controller.state.names).toStrictEqual({
-        [NameType.ETHEREUM_ADDRESS]: {
-          [VALUE_MOCK]: {
-            [CHAIN_ID_MOCK]: {
-              name: null,
-              sourceId: null,
-              proposedNamesLastUpdated: null,
-              proposedNames: {
-                [SOURCE_ID_MOCK]: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
-              },
-            },
-          },
-        },
-      });
-    });
-
     describe('throws if', () => {
       it.each([
         ['missing', undefined],
@@ -323,7 +278,7 @@ describe('NameController', () => {
             type: NameType.ETHEREUM_ADDRESS,
             name,
           } as any),
-        ).toThrow('Must specify a non-empty string or null for name.');
+        ).toThrow('Must specify a non-empty string for name.');
       });
 
       it.each([
@@ -354,21 +309,6 @@ describe('NameController', () => {
           } as any),
         ).toThrow(
           `Unknown source ID for type '${NameType.ETHEREUM_ADDRESS}': ${SOURCE_ID_MOCK}`,
-        );
-      });
-
-      it('source ID is set but name is being cleared', () => {
-        const controller = new NameController(CONTROLLER_ARGS_MOCK);
-
-        expect(() =>
-          controller.setName({
-            value: VALUE_MOCK,
-            type: NameType.ETHEREUM_ADDRESS,
-            name: null,
-            sourceId: SOURCE_ID_MOCK,
-          } as any),
-        ).toThrow(
-          `Cannot specify a source ID when clearing the saved name: ${SOURCE_ID_MOCK}`,
         );
       });
     });
@@ -458,6 +398,7 @@ describe('NameController', () => {
               proposedNames: {
                 [`${SOURCE_ID_MOCK}1`]: ['ShouldBeDeleted1'],
                 [`${SOURCE_ID_MOCK}2`]: ['ShouldBeDeleted2'],
+                [`${SOURCE_ID_MOCK}3`]: ['ShouldNotBeDeleted3'],
               },
             },
           },
@@ -485,6 +426,7 @@ describe('NameController', () => {
                   `${PROPOSED_NAME_MOCK}2`,
                   `${PROPOSED_NAME_MOCK}2_2`,
                 ],
+                [`${SOURCE_ID_MOCK}3`]: ['ShouldNotBeDeleted3'],
               },
             },
           },
@@ -506,58 +448,6 @@ describe('NameController', () => {
               `${PROPOSED_NAME_MOCK}2_2`,
             ],
             error: undefined,
-          },
-        },
-      });
-    });
-
-    it('removes proposed names if source ID not used by any provider', async () => {
-      const provider1 = createMockProvider(1);
-      const provider2 = createMockProvider(2);
-
-      const controller = new NameController({
-        ...CONTROLLER_ARGS_MOCK,
-        providers: [provider1, provider2],
-      });
-
-      controller.state.names = {
-        [NameType.ETHEREUM_ADDRESS]: {
-          [VALUE_MOCK]: {
-            [CHAIN_ID_MOCK]: {
-              name: null,
-              sourceId: null,
-              proposedNamesLastUpdated: 12,
-              proposedNames: {
-                [`${SOURCE_ID_MOCK}3`]: ['ShouldBeDeleted3'],
-              },
-            },
-          },
-        },
-      };
-
-      await controller.updateProposedNames({
-        value: VALUE_MOCK,
-        type: NameType.ETHEREUM_ADDRESS,
-      });
-
-      expect(controller.state.names).toStrictEqual({
-        [NameType.ETHEREUM_ADDRESS]: {
-          [VALUE_MOCK]: {
-            [CHAIN_ID_MOCK]: {
-              name: null,
-              sourceId: null,
-              proposedNamesLastUpdated: TIME_MOCK,
-              proposedNames: {
-                [`${SOURCE_ID_MOCK}1`]: [
-                  `${PROPOSED_NAME_MOCK}1`,
-                  `${PROPOSED_NAME_MOCK}1_2`,
-                ],
-                [`${SOURCE_ID_MOCK}2`]: [
-                  `${PROPOSED_NAME_MOCK}2`,
-                  `${PROPOSED_NAME_MOCK}2_2`,
-                ],
-              },
-            },
           },
         },
       });
@@ -958,11 +848,10 @@ describe('NameController', () => {
       it('updates entry using matching providers only', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
-        const provider3 = createMockProvider(3);
 
         const controller = new NameController({
           ...CONTROLLER_ARGS_MOCK,
-          providers: [provider1, provider2, provider3],
+          providers: [provider1, provider2],
         });
 
         controller.state.names = {

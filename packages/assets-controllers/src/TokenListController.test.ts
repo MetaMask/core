@@ -519,6 +519,7 @@ function buildNetworkControllerStateWithProviderConfig(
   return {
     selectedNetworkClientId,
     providerConfig,
+    networkId: '1',
     networksMetadata: {
       [selectedNetworkClientId]: {
         EIPS: {},

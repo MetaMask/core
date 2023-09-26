@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
-    "@metamask/network-controller": "^12.2.0",
+    "@metamask/network-controller": "^12.1.2",
     "json-rpc-engine": "^6.1.0"
   },
   "devDependencies": {
@@ -47,7 +47,7 @@
     "typescript": "~4.6.3"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^12.2.0"
+    "@metamask/network-controller": "^12.1.2"
   },
   "engines": {
     "node": ">=16.0.0"

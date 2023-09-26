@@ -5,21 +5,35 @@ import type {
 import { Web3Provider } from '@ethersproject/providers';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
   toChecksumHexAddress,
-  CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
+  NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import { createProjectLogger } from '@metamask/utils';
+import { createProjectLogger, hasProperty } from '@metamask/utils';
 import ensNetworkMap from 'ethereum-ens-network-map';
 import { toASCII } from 'punycode/';
 
 const log = createProjectLogger('ens-controller');
+
+/**
+ * Checks whether the given string is a known network ID.
+ *
+ * @param networkId - Network id.
+ * @returns Boolean indicating if the network ID is recognized.
+ */
+function isKnownNetworkId(
+  networkId: string | null,
+): networkId is keyof typeof NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP {
+  return (
+    networkId !== null &&
+    hasProperty(NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP, networkId)
+  );
+}
 
 const name = 'EnsController';
 
@@ -104,7 +118,9 @@ export class EnsController extends BaseControllerV2<
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
     onNetworkStateChange?: (
-      listener: (networkState: Pick<NetworkState, 'providerConfig'>) => void,
+      listener: (
+        networkState: Pick<NetworkState, 'networkId' | 'providerConfig'>,
+      ) => void,
     ) => void;
   }) {
     super({
@@ -120,14 +136,15 @@ export class EnsController extends BaseControllerV2<
     if (provider && onNetworkStateChange) {
       onNetworkStateChange((networkState) => {
         this.resetState();
-        const currentChainId = networkState.providerConfig.chainId;
-        if (this.#getChainEnsSupport(currentChainId)) {
+        const currentNetwork = networkState.networkId;
+        if (
+          isKnownNetworkId(currentNetwork) &&
+          this.#getNetworkEnsSupport(currentNetwork)
+        ) {
           this.#ethProvider = new Web3Provider(provider, {
-            chainId: convertHexToDecimal(currentChainId),
-            name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[
-              currentChainId as ChainId
-            ],
-            ensAddress: ensNetworkMap[parseInt(currentChainId, 16)],
+            chainId: convertHexToDecimal(networkState.providerConfig.chainId),
+            name: NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP[currentNetwork],
+            ensAddress: ensNetworkMap[currentNetwork],
           });
         } else {
           this.#ethProvider = null;
@@ -252,13 +269,13 @@ export class EnsController extends BaseControllerV2<
   }
 
   /**
-   * Check if the chain supports ENS.
+   * Check if network supports ENS.
    *
-   * @param chainId - chain id.
-   * @returns Boolean indicating if the chain supports ENS.
+   * @param networkId - Network id.
+   * @returns Boolean indicating if the network supports ENS.
    */
-  #getChainEnsSupport(chainId: string) {
-    return Boolean(ensNetworkMap[parseInt(chainId, 16)]);
+  #getNetworkEnsSupport(networkId: string) {
+    return Boolean(ensNetworkMap[networkId]);
   }
 
   /**

@@ -1,9 +1,4 @@
-import {
-  NetworkType,
-  NetworksTicker,
-  ChainId,
-  BuiltInNetworkName,
-} from './types';
+import { NetworkType, NetworksTicker, ChainId, NetworkId } from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
@@ -130,14 +125,13 @@ export enum ApprovalType {
   WatchAsset = 'wallet_watchAsset',
 }
 
-export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
-  ChainId,
-  BuiltInNetworkName
+export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
+  NetworkId,
+  NetworkType
 > = {
-  [ChainId.goerli]: BuiltInNetworkName.Goerli,
-  [ChainId.sepolia]: BuiltInNetworkName.Sepolia,
-  [ChainId.mainnet]: BuiltInNetworkName.Mainnet,
-  [ChainId['linea-goerli']]: BuiltInNetworkName.LineaGoerli,
-  [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
-  [ChainId.aurora]: BuiltInNetworkName.Aurora,
+  [NetworkId.goerli]: NetworkType.goerli,
+  [NetworkId.sepolia]: NetworkType.sepolia,
+  [NetworkId.mainnet]: NetworkType.mainnet,
+  [NetworkId['linea-goerli']]: NetworkType['linea-goerli'],
+  [NetworkId['linea-mainnet']]: NetworkType['linea-mainnet'],
 };
