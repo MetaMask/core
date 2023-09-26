@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json } from '@metamask/utils';
-import { v1 as random } from 'uuid';
+import { v4 as random } from 'uuid';
 
 export type PollingCompleteType<N extends string> = {
   type: `${N}:pollingComplete`;
