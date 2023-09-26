@@ -131,6 +131,54 @@ export class ERC1155Standard {
   };
 
   /**
+   * Query for symbol for a given asset.
+   *
+   * @param address - ERC1155 asset contract address.
+   * @returns Promise resolving to the 'symbol'.
+   */
+  getAssetSymbol = async (address: string): Promise<string> => {
+    const contract = new Contract(
+      address,
+      [
+        {
+          inputs: [],
+          name: 'symbol',
+          outputs: [{ name: '_symbol', type: 'string' }],
+          stateMutability: 'view',
+          type: 'function',
+          payable: false,
+        },
+      ],
+      this.provider,
+    );
+    return contract.symbol();
+  };
+
+  /**
+   * Query for name for a given asset.
+   *
+   * @param address - ERC1155 asset contract address.
+   * @returns Promise resolving to the 'name'.
+   */
+  getAssetName = async (address: string): Promise<string> => {
+    const contract = new Contract(
+      address,
+      [
+        {
+          inputs: [],
+          name: 'name',
+          outputs: [{ name: '_name', type: 'string' }],
+          stateMutability: 'view',
+          type: 'function',
+          payable: false,
+        },
+      ],
+      this.provider,
+    );
+    return contract.name();
+  };
+
+  /**
    * Query if a contract implements an interface.
    *
    * @param address - ERC1155 asset contract address.
@@ -161,13 +209,29 @@ export class ERC1155Standard {
     standard: string;
     tokenURI: string | undefined;
     image: string | undefined;
+    name: string | undefined;
+    symbol: string | undefined;
   }> => {
     const isERC1155 = await this.contractSupportsBase1155Interface(address);
 
     if (!isERC1155) {
       throw new Error("This isn't a valid ERC1155 contract");
     }
-    let tokenURI, image;
+
+    let tokenURI, image, symbol, name;
+
+    const [getNameResult, getSymbolResult] = await Promise.allSettled([
+      this.getAssetName(address),
+      this.getAssetSymbol(address),
+    ]);
+
+    if (getNameResult.status === 'fulfilled') {
+      name = getNameResult.value;
+    }
+
+    if (getSymbolResult.status === 'fulfilled') {
+      symbol = getSymbolResult.value;
+    }
 
     if (tokenId) {
       tokenURI = await this.getTokenURI(address, tokenId);
@@ -192,6 +256,8 @@ export class ERC1155Standard {
       standard: ERC1155,
       tokenURI,
       image,
+      symbol,
+      name,
     };
   };
 }

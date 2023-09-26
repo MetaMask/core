@@ -392,6 +392,38 @@ describe('AssetsContractController', () => {
             params: [
               {
                 to: ERC1155_ADDRESS,
+                data: '0x06fdde03',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001c41706569726f6e20476f6469766572736520436f6c6c656374696f6e00000000',
+          },
+        },
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: ERC1155_ADDRESS,
+                data: '0x95d89b41',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000054150454743000000000000000000000000000000000000000000000000000000',
+          },
+        },
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: ERC1155_ADDRESS,
                 data: '0x01ffc9a7d9b67a2600000000000000000000000000000000000000000000000000000000',
               },
               'latest',
@@ -408,7 +440,11 @@ describe('AssetsContractController', () => {
       ERC1155_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
+
     expect(standardAndDetails.standard).toBe('ERC1155');
+    expect(standardAndDetails.name).toBe('Apeiron Godiverse Collection');
+    expect(standardAndDetails.symbol).toBe('APEGC');
+
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
