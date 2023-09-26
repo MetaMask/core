@@ -58,7 +58,6 @@ describe('EtherscanNameProvider', () => {
         results: {
           [SOURCE_ID]: {
             proposedNames: [CONTRACT_NAME_MOCK, CONTRACT_NAME_2_MOCK],
-            updateDelay: undefined,
           },
         },
       });
@@ -89,7 +88,6 @@ describe('EtherscanNameProvider', () => {
           results: {
             [SOURCE_ID]: {
               proposedNames: [],
-              updateDelay: undefined,
             },
           },
         });
@@ -137,7 +135,7 @@ describe('EtherscanNameProvider', () => {
       );
     });
 
-    it('returns empty array and delay if within rate limit interval', async () => {
+    it('returns delay only if within rate limit interval', async () => {
       const provider = new EtherscanNameProvider();
 
       await provider.getProposedNames({
@@ -155,14 +153,13 @@ describe('EtherscanNameProvider', () => {
       expect(result).toStrictEqual({
         results: {
           [SOURCE_ID]: {
-            proposedNames: [],
             updateDelay: 5,
           },
         },
       });
     });
 
-    it('returns empty array and delay if request has warning', async () => {
+    it('returns delay only if request has warning', async () => {
       const provider = new EtherscanNameProvider();
 
       handleFetchMock.mockResolvedValueOnce({
@@ -178,7 +175,6 @@ describe('EtherscanNameProvider', () => {
       expect(result).toStrictEqual({
         results: {
           [SOURCE_ID]: {
-            proposedNames: [],
             updateDelay: 5,
           },
         },
@@ -197,7 +193,7 @@ describe('EtherscanNameProvider', () => {
       });
 
       expect(response).toStrictEqual({
-        results: { [SOURCE_ID]: { proposedNames: [], updateDelay: undefined } },
+        results: { [SOURCE_ID]: { proposedNames: [] } },
       });
     });
 

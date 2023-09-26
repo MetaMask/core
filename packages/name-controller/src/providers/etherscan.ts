@@ -61,7 +61,14 @@ export class EtherscanNameProvider implements NameProvider {
   ): Promise<NameProviderResult> {
     if (!this.#isEnabled()) {
       log('Skipping request as disabled');
-      return this.#buildResult([]);
+
+      return {
+        results: {
+          [ID]: {
+            proposedNames: [],
+          },
+        },
+      };
     }
 
     const releaseLock = await this.#mutex.acquire();
@@ -74,7 +81,14 @@ export class EtherscanNameProvider implements NameProvider {
 
       if (timeSinceLastRequest < RATE_LIMIT_INTERVAL) {
         log('Skipping request to avoid rate limit');
-        return this.#buildResult([], RATE_LIMIT_INTERVAL);
+
+        return {
+          results: {
+            [ID]: {
+              updateDelay: RATE_LIMIT_INTERVAL,
+            },
+          },
+        };
       }
 
       const url = this.#getUrl(chainId, {
@@ -92,7 +106,14 @@ export class EtherscanNameProvider implements NameProvider {
 
       if (responseData?.message === 'NOTOK') {
         log('Request warning', responseData.result);
-        return this.#buildResult([], RATE_LIMIT_INTERVAL);
+
+        return {
+          results: {
+            [ID]: {
+              updateDelay: RATE_LIMIT_INTERVAL,
+            },
+          },
+        };
       }
 
       const results = responseData?.result ?? [];
@@ -100,7 +121,13 @@ export class EtherscanNameProvider implements NameProvider {
 
       log('New proposed names', proposedNames);
 
-      return this.#buildResult(proposedNames);
+      return {
+        results: {
+          [ID]: {
+            proposedNames,
+          },
+        },
+      };
     } finally {
       releaseLock();
     }
@@ -120,17 +147,6 @@ export class EtherscanNameProvider implements NameProvider {
     } finally {
       this.#lastRequestTime = Date.now();
     }
-  }
-
-  #buildResult(proposedNames: string[], updateDelay?: number) {
-    return {
-      results: {
-        [ID]: {
-          proposedNames,
-          updateDelay,
-        },
-      },
-    };
   }
 
   #getUrl(chainId: string, params: Record<string, string | undefined>): string {
