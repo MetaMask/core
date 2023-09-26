@@ -13,7 +13,8 @@ import { handleFetch } from '../util';
 
 const ID = 'etherscan';
 const LABEL = 'Etherscan (Verified Contract Name)';
-const RATE_LIMIT_INTERVAL = 5; // 5 seconds
+const RATE_LIMIT_UPDATE_DELAY = 5; // 5 Seconds
+const RATE_LIMIT_INTERVAL = RATE_LIMIT_UPDATE_DELAY * 1000;
 
 const log = createModuleLogger(projectLogger, 'etherscan');
 
@@ -85,7 +86,7 @@ export class EtherscanNameProvider implements NameProvider {
         return {
           results: {
             [ID]: {
-              updateDelay: RATE_LIMIT_INTERVAL,
+              updateDelay: RATE_LIMIT_UPDATE_DELAY,
             },
           },
         };
@@ -110,7 +111,7 @@ export class EtherscanNameProvider implements NameProvider {
         return {
           results: {
             [ID]: {
-              updateDelay: RATE_LIMIT_INTERVAL,
+              updateDelay: RATE_LIMIT_UPDATE_DELAY,
             },
           },
         };
