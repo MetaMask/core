@@ -658,7 +658,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     nftContract,
     chainId,
     userAddress,
-    source = Source.Custom,
+    source,
   }: {
     tokenAddress: string;
     tokenId: string;
@@ -749,7 +749,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     chainId,
     userAddress,
     networkClientId,
-    source = Source.Custom,
+    source,
   }: {
     tokenAddress: string;
     chainId?: Hex;
@@ -1294,7 +1294,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       networkClientId,
     }: {
       nftMetadata?: NftMetadata;
-      chainId?: Hex; // TODO remove
+      chainId?: Hex;
       userAddress?: string;
       source?: Source;
       networkClientId?: NetworkClientId;
@@ -1310,7 +1310,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       chainId: currentChainId,
       userAddress: selectedAddress,
       networkClientId,
-      source,
+      source: source ?? Source.Custom,
     });
 
     nftMetadata =
@@ -1332,7 +1332,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
         nftContract,
         userAddress: selectedAddress,
         chainId: currentChainId,
-        source,
+        source: source ?? Source.Custom,
       });
     }
   }
