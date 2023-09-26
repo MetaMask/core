@@ -184,6 +184,10 @@ export class TransactionController extends BaseController<
 
   private readonly getNetworkState: () => NetworkState;
 
+  private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
+
+  private readonly getSelectedAddress: () => string;
+
   private readonly messagingSystem: TransactionControllerMessenger;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
@@ -233,6 +237,7 @@ export class TransactionController extends BaseController<
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.getNetworkState - Gets the state of the network controller.
+   * @param options.getPermittedAccounts - get accounts that an origin has permissions for.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
@@ -251,6 +256,7 @@ export class TransactionController extends BaseController<
       disableHistory,
       disableSendFlowHistory,
       getNetworkState,
+      getPermittedAccounts,
       getSelectedAddress,
       incomingTransactions = {},
       messenger,
@@ -261,6 +267,7 @@ export class TransactionController extends BaseController<
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
       getNetworkState: () => NetworkState;
+      getPermittedAccounts: (origin?: string) => Promise<string[]>;
       getSelectedAddress: () => string;
       incomingTransactions: {
         includeTokenTransfers?: boolean;
@@ -297,6 +304,8 @@ export class TransactionController extends BaseController<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.registry = new MethodRegistry({ provider });
+    this.getPermittedAccounts = getPermittedAccounts;
+    this.getSelectedAddress = getSelectedAddress;
 
     this.nonceTracker = new NonceTracker({
       provider,
@@ -427,6 +436,27 @@ export class TransactionController extends BaseController<
     const { transactions } = this.state;
     txParams = normalizeTxParams(txParams);
     validateTxParams(txParams);
+
+    if (origin === ORIGIN_METAMASK) {
+      // Ensure the 'from' address matches the currently selected address
+      const selectedAddress = this.getSelectedAddress();
+      if (txParams.from !== selectedAddress) {
+        throw ethErrors.rpc.internal({
+          message: `Internally initiated transaction is using invalid account.`,
+          data: {
+            origin,
+            fromAddress: txParams.from,
+            selectedAddress,
+          },
+        });
+      }
+    } else {
+      // Check if the origin has permissions to initiate transactions from the specified address
+      const permittedAddresses = await this.getPermittedAccounts(origin);
+      if (!permittedAddresses.includes(txParams.from)) {
+        throw ethErrors.provider.unauthorized({ data: { origin } });
+      }
+    }
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       txParams,

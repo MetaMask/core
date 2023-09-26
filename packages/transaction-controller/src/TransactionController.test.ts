@@ -13,7 +13,7 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
-import { errorCodes } from 'eth-rpc-errors';
+import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
@@ -460,6 +460,8 @@ describe('TransactionController', () => {
       {
         blockTracker: finalNetwork.blockTracker,
         getNetworkState: () => finalNetwork.state,
+        getPermittedAccounts: () => [ACCOUNT_MOCK],
+        getSelectedAddress: () => ACCOUNT_MOCK,
         messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
@@ -1382,6 +1384,45 @@ describe('TransactionController', () => {
         const { txParams, status } = await finishedPromise;
         expect(txParams.from).toBe(ACCOUNT_MOCK);
         expect(status).toBe(TransactionStatus.rejected);
+      });
+    });
+
+    describe('checks from address origin', () => {
+      it('throws if `from` address is different from current selected address', async () => {
+        const controller = newController();
+        const origin = ORIGIN_METAMASK;
+        const fromMocked = ACCOUNT_2_MOCK;
+        await expect(
+          controller.addTransaction(
+            {
+              from: fromMocked,
+              to: ACCOUNT_MOCK,
+            } as any,
+            { origin: ORIGIN_METAMASK },
+          ),
+        ).rejects.toThrow(
+          ethErrors.rpc.internal({
+            message: `Internally initiated transaction is using invalid account.`,
+            data: {
+              origin,
+              fromAddress: fromMocked,
+              selectedAddress: ACCOUNT_MOCK,
+            },
+          }),
+        );
+      });
+
+      it('throws if the origin does not have permissions to initiate transactions from the specified address', async () => {
+        const controller = newController();
+        const fromMocked = ACCOUNT_2_MOCK;
+        await expect(
+          controller.addTransaction({
+            from: fromMocked,
+            to: ACCOUNT_MOCK,
+          } as any),
+        ).rejects.toThrow(
+          ethErrors.provider.unauthorized({ data: { origin: undefined } }),
+        );
       });
     });
   });
