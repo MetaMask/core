@@ -1,4 +1,4 @@
-import { graphQL } from './util';
+import { assertIsError, graphQL } from './util';
 
 describe('Utils', () => {
   describe('graphQL', () => {
@@ -48,6 +48,18 @@ describe('Utils', () => {
         graphQL(URL_MOCK, QUERY_MOCK, VARIABLES_MOCK),
       ).rejects.toThrow(
         `Fetch failed with status '500' for request '${URL_MOCK}'`,
+      );
+    });
+  });
+
+  describe('assertIsError', () => {
+    it('does not throw if given an error', () => {
+      expect(() => assertIsError(new Error('test'))).not.toThrow();
+    });
+
+    it('throws if passed something that is not an error', () => {
+      expect(() => assertIsError('test')).toThrow(
+        `Invalid error of type 'string'`,
       );
     });
   });
