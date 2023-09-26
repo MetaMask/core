@@ -723,7 +723,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           symbol: nftContract.symbol,
           tokenId: tokenId.toString(),
           standard: nftMetadata.standard,
-          source,
+          source: source ?? Source.Custom,
         });
       }
 
