@@ -69,7 +69,7 @@ export async function successfulFetch(request: string, options?: RequestInit) {
  */
 export function assertIsError(error: unknown): asserts error is Error {
   if (error instanceof Error) {
-    return
+    return;
   }
   throw new Error(`Invalid error of type '${typeof error}'`);
 }
