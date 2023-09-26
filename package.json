@@ -82,5 +82,9 @@
       "ethereumjs-util>ethereum-cryptography>secp256k1": true,
       "simple-git-hooks": false
     }
+  },
+  "resolutions": {
+    "@metamask/rpc-methods@^0.38.1-flask.1": "patch:@metamask/rpc-methods@npm%3A0.38.1-flask.1#./.yarn/patches/@metamask-rpc-methods-npm-0.38.1-flask.1-081e1eb5b3.patch",
+    "@metamask/rpc-methods@^1.0.1": "patch:@metamask/rpc-methods@npm%3A0.38.1-flask.1#./.yarn/patches/@metamask-rpc-methods-npm-0.38.1-flask.1-081e1eb5b3.patch"
   }
 }
