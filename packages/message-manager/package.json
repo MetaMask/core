@@ -31,7 +31,7 @@
     "@metamask/base-controller": "^3.2.1",
     "@metamask/controller-utils": "^5.0.0",
     "@metamask/eth-sig-util": "^7.0.0",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^8.1.0",
     "@types/uuid": "^8.3.0",
     "ethereumjs-util": "^7.0.10",
     "jsonschema": "^1.2.4",

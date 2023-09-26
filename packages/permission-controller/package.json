@@ -31,7 +31,7 @@
     "@metamask/approval-controller": "^3.5.1",
     "@metamask/base-controller": "^3.2.1",
     "@metamask/controller-utils": "^5.0.0",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^8.1.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
     "eth-rpc-errors": "^4.0.2",
