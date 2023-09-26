@@ -5271,7 +5271,13 @@ describe('PermissionController', () => {
       };
 
       const expectedError = errors.unauthorized({
-        data: { origin, method: PermissionNames.wallet_getSecretArray },
+        data: {
+          origin,
+          method: PermissionNames.wallet_getSecretArray,
+          cause: null,
+        },
+        message:
+          'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
       const { error }: any = await engine.handle(request);

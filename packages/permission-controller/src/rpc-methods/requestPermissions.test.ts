@@ -70,7 +70,13 @@ describe('requestPermissions RPC method', () => {
     });
 
     expect(response.result).toBeUndefined();
-    expect(response.error).toStrictEqual(serializeError(new Error('foo')));
+    delete response.error.stack;
+    delete response.error.data.cause.stack;
+    const expectedError = new Error('foo');
+    delete expectedError.stack;
+    expect(response.error).toStrictEqual(
+      serializeError(expectedError, { shouldIncludeStack: false }),
+    );
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledTimes(1);
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledWith({}, '1');
   });

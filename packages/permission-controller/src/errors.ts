@@ -10,6 +10,7 @@ import type { PermissionType } from './Permission';
 
 type UnauthorizedArg = {
   data?: Record<string, unknown>;
+  message?: string;
 };
 
 /**
