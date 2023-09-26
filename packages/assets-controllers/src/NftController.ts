@@ -641,33 +641,24 @@ export class NftController extends BaseController<NftConfig, NftState> {
   /**
    * Adds an individual NFT to the stored NFT list.
    *
-   * @param options - options.
-   * @param options.tokenAddress - Hex address of the NFT contract.
-   * @param options.tokenId - The NFT identifier.
-   * @param options.nftMetadata - NFT optional information (name, image and description).
-   * @param options.nftContract - An object containing contract data of the NFT being added.
-   * @param options.chainId - The chainId of the network where the NFT is being added.
-   * @param options.userAddress - The address of the account where the NFT is being added.
-   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
+   * @param tokenAddress - Hex address of the NFT contract.
+   * @param tokenId - The NFT identifier.
+   * @param nftMetadata - NFT optional information (name, image and description).
+   * @param nftContract - An object containing contract data of the NFT being added.
+   * @param chainId - The chainId of the network where the NFT is being added.
+   * @param userAddress - The address of the account where the NFT is being added.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @returns Promise resolving to the current NFT list.
    */
-  private async addIndividualNft({
-    tokenAddress,
-    tokenId,
-    nftMetadata,
-    nftContract,
-    chainId,
-    userAddress,
-    source,
-  }: {
-    tokenAddress: string;
-    tokenId: string;
-    nftMetadata: NftMetadata;
-    nftContract: NftContract;
-    chainId: Hex;
-    userAddress: string;
-    source?: Source;
-  }): Promise<Nft[]> {
+  private async addIndividualNft(
+    tokenAddress: string,
+    tokenId: string,
+    nftMetadata: NftMetadata,
+    nftContract: NftContract,
+    chainId: Hex,
+    userAddress: string,
+    source: Source,
+  ): Promise<Nft[]> {
     // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
     try {
@@ -723,7 +714,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           symbol: nftContract.symbol,
           tokenId: tokenId.toString(),
           standard: nftMetadata.standard,
-          source: source ?? Source.Custom,
+          source,
         });
       }
 
@@ -1290,7 +1281,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       nftMetadata,
       chainId, // TODO remove and replace chainId arg with fetch chainId using getNetworkClientById(networkClientId).configuration.chainId once polling refactor is complete
       userAddress,
-      source,
+      source = Source.Custom,
       networkClientId,
     }: {
       nftMetadata?: NftMetadata;
@@ -1310,7 +1301,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       chainId: currentChainId,
       userAddress: selectedAddress,
       networkClientId,
-      source: source ?? Source.Custom,
+      source,
     });
 
     nftMetadata =
@@ -1325,15 +1316,15 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     // If NFT contract information, add individual NFT
     if (nftContract) {
-      await this.addIndividualNft({
+      await this.addIndividualNft(
         tokenAddress,
         tokenId,
         nftMetadata,
         nftContract,
-        userAddress: selectedAddress,
-        chainId: currentChainId,
-        source: source ?? Source.Custom,
-      });
+        currentChainId,
+        selectedAddress,
+        source,
+      );
     }
   }
 
