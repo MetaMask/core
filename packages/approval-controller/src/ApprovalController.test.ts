@@ -1,7 +1,7 @@
 /* eslint-disable jest/expect-expect */
 
 import { ControllerMessenger } from '@metamask/base-controller';
-import { errorCodes, EthereumRpcError } from 'eth-rpc-errors';
+import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 
 import type {
   ApprovalControllerActions,
@@ -642,7 +642,7 @@ describe('approval controller', () => {
       approvalController.reject('2', new Error('foo'));
       expect(approvalController.getTotalApprovalCount()).toBe(2);
 
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
+      approvalController.clear(new JsonRpcError(1, 'clear'));
       expect(approvalController.getTotalApprovalCount()).toBe(0);
     });
 
@@ -666,7 +666,7 @@ describe('approval controller', () => {
       approvalController.reject('2', new Error('foo'));
       expect(approvalController.getTotalApprovalCount()).toBe(1);
 
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
+      approvalController.clear(new JsonRpcError(1, 'clear'));
       expect(approvalController.getTotalApprovalCount()).toBe(0);
     });
   });
@@ -1025,7 +1025,7 @@ describe('approval controller', () => {
   describe('clear', () => {
     it('does nothing if state is already empty', () => {
       expect(() =>
-        approvalController.clear(new EthereumRpcError(1, 'clear')),
+        approvalController.clear(new JsonRpcError(1, 'clear')),
       ).not.toThrow();
     });
 
@@ -1040,7 +1040,7 @@ describe('approval controller', () => {
         .add({ id: 'foo3', origin: 'fizz.buzz', type: 'myType' })
         .catch((_error) => undefined);
 
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
+      approvalController.clear(new JsonRpcError(1, 'clear'));
 
       expect(
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
@@ -1055,16 +1055,16 @@ describe('approval controller', () => {
         type: 'myType',
       });
 
-      approvalController.clear(new EthereumRpcError(1000, 'foo'));
+      approvalController.clear(new JsonRpcError(1000, 'foo'));
       await expect(rejectPromise).rejects.toThrow(
-        new EthereumRpcError(1000, 'foo'),
+        new JsonRpcError(1000, 'foo'),
       );
     });
 
     it('does not clear approval flows', async () => {
       approvalController.startFlow();
 
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
+      approvalController.clear(new JsonRpcError(1, 'clear'));
 
       expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
         1,
