@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.0.0]
 ### Changed
-- **BREAKING**: `TokensController` now expects `getNetworkClientById` in constructor options
+- **BREAKING**: `TokensController` now expects `getNetworkClientById` in constructor options ([#1676](https://github.com/MetaMask/core/pull/1676))
 - **BREAKING**: `TokensController.addToken` now accepts a single options object ([#1676](https://github.com/MetaMask/core/pull/1676))
   ```
     {
@@ -21,13 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       networkClientId?: NetworkClientId;
     }
   ```
+- **BREAKING**: Bump dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
 - **CHANGED**: `TokensController.addToken` will use the chain ID value derived from state for `networkClientId` if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
 - **CHANGED**: `TokensController.addTokens` now accepts an optional `networkClientId` as the last parameter ([#1676](https://github.com/MetaMask/core/pull/1676))
 - **CHANGED**: `TokensController.addTokens` will use the chain ID value derived from state for `networkClientId` if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
 - **CHANGED**: `TokensController.watchAsset` options now accepts optional `networkClientId` which is used to get the ERC-20 token name if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
-- Bump dependency on `@metamask/controller-utils` to ^5.0.0
-- Bump dependency on `@metamask/network-controller` to ^13.0.0
-- Bump dependency on `@metamask/preferences-controller` to ^4.4.1
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Bump dependency on `@metamask/preferences-controller` to ^4.4.1 ([#1676](https://github.com/MetaMask/core/pull/1676))
 
 ## [12.0.0]
 ### Added
