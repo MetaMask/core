@@ -9,9 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [13.0.0]
 ### Changed
 - **BREAKING**: Remove `NetworkId` type ([#1633](https://github.com/MetaMask/core/pull/1633))
-- **BREAKING**:  Remove `networkId` property from `NetworkState` type ([#1633](https://github.com/MetaMask/core/pull/1633))
-
-### Changed
+- **BREAKING**: Remove `networkId` property from `NetworkState` type ([#1633](https://github.com/MetaMask/core/pull/1633))
 - Update scaffold RPC middleware for built-in Infura networks to no longer resolve `net_version` locally ([#1633](https://github.com/MetaMask/core/pull/1633))
 - Stop making `net_version` request to determine network status ([#1633](https://github.com/MetaMask/core/pull/1633))
 - Bump dependency on `@metamask/controller-utils` to ^5.0.0
