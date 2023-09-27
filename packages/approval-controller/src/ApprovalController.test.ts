@@ -462,8 +462,9 @@ describe('approval controller', () => {
 
   describe('get', () => {
     it('gets entry', () => {
-      // eslint-disable-next-line no-void
-      void approvalController.add({
+      // We only want to test the stored entity in the controller state hence disabling floating promises here.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
         type: 'myType',
@@ -482,8 +483,9 @@ describe('approval controller', () => {
     });
 
     it('returns undefined for non-existing entry', () => {
-      // eslint-disable-next-line no-void
-      void approvalController.add({
+      // We only want to test the stored entity in the controller state hence disabling floating promises here.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
         type: 'type',
@@ -708,8 +710,9 @@ describe('approval controller', () => {
     });
 
     it('returns true for existing entry by id', async () => {
-      // eslint-disable-next-line no-void
-      void approvalController.add({
+      // We only want to check the stored entity is exist in the state hence disabling floating promises here.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
         type: TYPE,
