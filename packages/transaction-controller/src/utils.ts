@@ -31,6 +31,7 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
     addHexPrefix(maxPriorityFeePerGas),
   estimatedBaseFee: (maxPriorityFeePerGas: string) =>
     addHexPrefix(maxPriorityFeePerGas),
+  type: (type: string) => (type === '0x0' ? '0x0' : undefined),
 };
 
 /**
@@ -55,8 +56,18 @@ export function normalizeTxParams(txParams: TransactionParams) {
  * the event of any validation error.
  *
  * @param txParams - Transaction params object to validate.
+ * @param isEIP1559Compatible - whether or not the current network supports EIP-1559 transactions.
  */
-export function validateTxParams(txParams: TransactionParams) {
+export function validateTxParams(
+  txParams: TransactionParams,
+  isEIP1559Compatible = true,
+) {
+  if (isEIP1559Transaction(txParams) && !isEIP1559Compatible) {
+    throw rpcErrors.invalidParams(
+      'Invalid transaction params: params specify an EIP-1559 transaction but the current network does not support EIP-1559',
+    );
+  }
+
   validateFrom(txParams);
   validateRecipient(txParams);
   validateInputValue(txParams.value);
@@ -98,11 +109,13 @@ function validateInputData(value?: string) {
 function validateInputValue(value?: string) {
   if (value !== undefined) {
     if (value.includes('-')) {
-      throw new Error(`Invalid "value": ${value} is not a positive number.`);
+      throw rpcErrors.invalidParams(
+        `Invalid "value": ${value} is not a positive number.`,
+      );
     }
 
     if (value.includes('.')) {
-      throw new Error(
+      throw rpcErrors.invalidParams(
         `Invalid "value": ${value} number must be denominated in wei.`,
       );
     }
@@ -113,7 +126,7 @@ function validateInputValue(value?: string) {
       !isNaN(Number(value)) &&
       Number.isSafeInteger(intValue);
     if (!isValid) {
-      throw new Error(
+      throw rpcErrors.invalidParams(
         `Invalid "value": ${value} number must be a valid number.`,
       );
     }
@@ -171,14 +184,14 @@ function validateFrom(txParams: TransactionParams) {
  * @param txParams - Transaction params object to add.
  * @returns Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false.
  */
-export const isEIP1559Transaction = (txParams: TransactionParams): boolean => {
+export function isEIP1559Transaction(txParams: TransactionParams): boolean {
   const hasOwnProp = (obj: TransactionParams, key: string) =>
     Object.prototype.hasOwnProperty.call(obj, key);
   return (
     hasOwnProp(txParams, 'maxFeePerGas') &&
     hasOwnProp(txParams, 'maxPriorityFeePerGas')
   );
-};
+}
 
 export const validateGasValues = (
   gasValues: GasPriceValue | FeeMarketEIP1559Values,

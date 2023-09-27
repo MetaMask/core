@@ -6,8 +6,11 @@ import type {
   NameProvider,
   NameProviderRequest,
   NameProviderResult,
+  NameProviderSourceResult,
 } from './types';
 import { NameType } from './types';
+
+const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
 
 const controllerName = 'NameController';
 
@@ -23,11 +26,16 @@ const getDefaultState = () => ({
   nameSources: {},
 });
 
+export type ProposedNamesEntry = {
+  proposedNames: string[];
+  lastRequestTime: number | null;
+  updateDelay: number | null;
+};
+
 export type NameEntry = {
   name: string | null;
   sourceId: string | null;
-  proposedNames: Record<string, string[] | null>;
-  proposedNamesLastUpdated: number | null;
+  proposedNames: Record<string, ProposedNamesEntry>;
 };
 
 export type SourceEntry = {
@@ -67,12 +75,14 @@ export type NameControllerOptions = {
   messenger: NameControllerMessenger;
   providers: NameProvider[];
   state?: Partial<NameControllerState>;
+  updateDelay?: number;
 };
 
 export type UpdateProposedNamesRequest = {
   value: string;
   type: NameType;
   sourceIds?: string[];
+  onlyUpdateAfterDelay?: boolean;
 };
 
 export type UpdateProposedNamesResult = {
@@ -98,6 +108,8 @@ export class NameController extends BaseControllerV2<
 
   #providers: NameProvider[];
 
+  #updateDelay: number;
+
   /**
    * Construct a Name controller.
    *
@@ -106,12 +118,14 @@ export class NameController extends BaseControllerV2<
    * @param options.messenger - Restricted controller messenger for the name controller.
    * @param options.providers - Array of name provider instances to propose names.
    * @param options.state - Initial state to set on the controller.
+   * @param options.updateDelay - The delay in seconds before a new request to a source should be made.
    */
   constructor({
     getChainId,
     messenger,
     providers,
     state,
+    updateDelay,
   }: NameControllerOptions) {
     super({
       name: controllerName,
@@ -122,6 +136,7 @@ export class NameController extends BaseControllerV2<
 
     this.#getChainId = getChainId;
     this.#providers = providers;
+    this.#updateDelay = updateDelay ?? DEFAULT_UPDATE_DELAY;
   }
 
   /**
@@ -139,7 +154,10 @@ export class NameController extends BaseControllerV2<
     const { value, type, name, sourceId: requestSourceId } = request;
     const sourceId = requestSourceId ?? null;
 
-    this.#updateEntry(value, type, { name, sourceId });
+    this.#updateEntry(value, type, (entry: NameEntry) => {
+      entry.name = name;
+      entry.sourceId = sourceId;
+    });
   }
 
   /**
@@ -177,46 +195,35 @@ export class NameController extends BaseControllerV2<
     providerResponses: NameProviderResult[],
   ) {
     const { value, type } = request;
-    const newProposedNames: { [sourceId: string]: string[] | null } = {};
+    const currentTime = this.#getCurrentTimeSeconds();
 
-    for (const providerResponse of providerResponses) {
-      const { results, error: responseError } = providerResponse;
+    this.#updateEntry(value, type, (entry: NameEntry) => {
+      this.#removeDormantProposedNames(entry.proposedNames, type);
 
-      if (responseError) {
-        continue;
-      }
+      for (const providerResponse of providerResponses) {
+        const { results } = providerResponse;
 
-      for (const sourceId of Object.keys(providerResponse.results)) {
-        const result = results[sourceId];
-        const { proposedNames } = result;
-        let finalProposedNames = result.error ? null : proposedNames ?? [];
+        for (const sourceId of Object.keys(providerResponse.results)) {
+          const result = results[sourceId];
+          const { proposedNames, updateDelay } = result;
 
-        if (finalProposedNames) {
-          finalProposedNames = finalProposedNames.filter(
-            (proposedName) => proposedName?.length,
-          );
+          const proposedNameEntry = entry.proposedNames[sourceId] ?? {
+            proposedNames: [],
+            lastRequestTime: null,
+            updateDelay: null,
+          };
+
+          entry.proposedNames[sourceId] = proposedNameEntry;
+
+          if (proposedNames) {
+            proposedNameEntry.proposedNames = proposedNames;
+          }
+
+          proposedNameEntry.lastRequestTime = currentTime;
+          proposedNameEntry.updateDelay = updateDelay ?? null;
         }
-
-        newProposedNames[sourceId] = finalProposedNames;
       }
-    }
-
-    const variationKey = this.#getTypeVariationKey(type);
-
-    const existingProposedNames =
-      this.state.names[type]?.[value]?.[variationKey]?.proposedNames;
-
-    const existingProposedNamesWithoutDormant =
-      this.#removeDormantProposedNames(existingProposedNames, type);
-
-    const proposedNames = {
-      ...existingProposedNamesWithoutDormant,
-      ...newProposedNames,
-    };
-
-    const proposedNamesLastUpdated = this.#getCurrentTimeSeconds();
-
-    this.#updateEntry(value, type, { proposedNames, proposedNamesLastUpdated });
+    });
   }
 
   #updateSourceState(providers: NameProvider[]) {
@@ -245,22 +252,11 @@ export class NameController extends BaseControllerV2<
         const { results } = providerResponse;
 
         for (const sourceId of Object.keys(results)) {
-          const { proposedNames: resultProposedNames, error: resultError } =
-            results[sourceId];
-
-          let proposedNames = resultError
-            ? undefined
-            : resultProposedNames ?? [];
-
-          if (proposedNames) {
-            proposedNames = proposedNames.filter(
-              (proposedName) => proposedName?.length,
-            );
-          }
+          const { proposedNames, error } = results[sourceId];
 
           acc.results[sourceId] = {
             proposedNames,
-            error: resultError,
+            error,
           };
         }
 
@@ -275,15 +271,37 @@ export class NameController extends BaseControllerV2<
     chainId: string,
     provider: NameProvider,
   ): Promise<NameProviderResult | undefined> {
-    const { value, type, sourceIds: requestedSourceIds } = request;
+    const {
+      value,
+      type,
+      sourceIds: requestedSourceIds,
+      onlyUpdateAfterDelay,
+    } = request;
+
+    const variationKey = this.#getTypeVariationKey(type);
     const supportedSourceIds = this.#getSourceIds(provider, type);
+    const currentTime = this.#getCurrentTimeSeconds();
 
-    const matchingSourceIds =
-      requestedSourceIds?.filter((sourceId) =>
-        supportedSourceIds.includes(sourceId),
-      ) ?? supportedSourceIds;
+    const matchingSourceIds = supportedSourceIds.filter((sourceId) => {
+      if (requestedSourceIds && !requestedSourceIds.includes(sourceId)) {
+        return false;
+      }
 
-    if (requestedSourceIds && !matchingSourceIds.length) {
+      if (onlyUpdateAfterDelay) {
+        const entry = this.state.names[type]?.[value]?.[variationKey] ?? {};
+        const proposedNamesEntry = entry.proposedNames?.[sourceId] ?? {};
+        const lastRequestTime = proposedNamesEntry.lastRequestTime ?? 0;
+        const updateDelay = proposedNamesEntry.updateDelay ?? this.#updateDelay;
+
+        if (currentTime - lastRequestTime < updateDelay) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    if (!matchingSourceIds.length) {
       return undefined;
     }
 
@@ -304,35 +322,63 @@ export class NameController extends BaseControllerV2<
       responseError = error;
     }
 
-    let results = {};
-
-    if (response?.results) {
-      results = Object.keys(response.results).reduce(
-        (acc: NameProviderResult['results'], sourceId) => {
-          if (!requestedSourceIds || requestedSourceIds.includes(sourceId)) {
-            acc[sourceId] = (response as NameProviderResult).results[sourceId];
-          }
-
-          return acc;
-        },
-        {},
-      );
-    }
-
-    if (responseError) {
-      results = supportedSourceIds.reduce(
-        (acc: NameProviderResult['results'], sourceId) => {
-          acc[sourceId] = { proposedNames: [], error: responseError };
-          return acc;
-        },
-        {},
-      );
-    }
-
-    return { results, error: responseError };
+    return this.#normalizeProviderResult(
+      response,
+      responseError,
+      matchingSourceIds,
+    );
   }
 
-  #updateEntry(value: string, type: NameType, data: Partial<NameEntry>) {
+  #normalizeProviderResult(
+    result: NameProviderResult | undefined,
+    responseError: unknown,
+    matchingSourceIds: string[],
+  ): NameProviderResult {
+    const error = responseError ?? undefined;
+
+    const results = matchingSourceIds.reduce((acc, sourceId) => {
+      const sourceResult = result?.results?.[sourceId];
+
+      const normalizedSourceResult = this.#normalizeProviderSourceResult(
+        sourceResult,
+        responseError,
+      );
+
+      return {
+        ...acc,
+        [sourceId]: normalizedSourceResult,
+      };
+    }, {});
+
+    return { results, error };
+  }
+
+  #normalizeProviderSourceResult(
+    result: NameProviderSourceResult | undefined,
+    responseError: unknown,
+  ): NameProviderSourceResult | undefined {
+    const error = result?.error ?? responseError ?? undefined;
+    const updateDelay = result?.updateDelay ?? undefined;
+    let proposedNames = error ? undefined : result?.proposedNames ?? undefined;
+
+    if (proposedNames) {
+      proposedNames = proposedNames.filter(
+        (proposedName) => proposedName?.length,
+      );
+    }
+
+    return {
+      proposedNames,
+      error,
+      updateDelay,
+    };
+  }
+
+  #updateEntry(
+    value: string,
+    type: NameType,
+    callback: (entry: NameEntry) => void,
+  ) {
     const variationKey = this.#getTypeVariationKey(type);
 
     this.update((state) => {
@@ -342,16 +388,14 @@ export class NameController extends BaseControllerV2<
       const variationEntries = typeEntries[value] || {};
       typeEntries[value] = variationEntries;
 
-      const currentEntry = variationEntries[variationKey] ?? {
+      const entry = variationEntries[variationKey] ?? {
         proposedNames: {},
-        proposedNamesLastUpdated: null,
         name: null,
         sourceId: null,
       };
+      variationEntries[variationKey] = entry;
 
-      const updatedEntry = { ...currentEntry, ...data };
-
-      variationEntries[variationKey] = updatedEntry;
+      callback(entry);
     });
   }
 
@@ -506,23 +550,21 @@ export class NameController extends BaseControllerV2<
   }
 
   #removeDormantProposedNames(
-    proposedNames: Record<string, string[] | null>,
+    proposedNames: Record<string, ProposedNamesEntry>,
     type: NameType,
-  ): Record<string, string[] | null> {
-    if (!proposedNames || Object.keys(proposedNames).length === 0) {
-      return proposedNames;
+  ) {
+    if (Object.keys(proposedNames).length === 0) {
+      return;
     }
 
     const typeSourceIds = this.#getAllSourceIds(type);
 
-    return Object.keys(proposedNames)
-      .filter((sourceId) => typeSourceIds.includes(sourceId))
-      .reduce(
-        (acc, sourceId) => ({
-          ...acc,
-          [sourceId]: proposedNames[sourceId],
-        }),
-        {},
-      );
+    const dormantSourceIds = Object.keys(proposedNames).filter(
+      (sourceId) => !typeSourceIds.includes(sourceId),
+    );
+
+    for (const dormantSourceId of dormantSourceIds) {
+      delete proposedNames[dormantSourceId];
+    }
   }
 }
