@@ -76,7 +76,6 @@ export type SmartTransaction = {
   destinationTokenDecimals?: string;
   destinationTokenSymbol?: string;
   history?: any;
-  metamaskNetworkId?: string;
   nonceDetails?: any;
   origin?: string;
   preTxBalance?: string;

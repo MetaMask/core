@@ -8,7 +8,6 @@ describe('default export', () => {
       onNetworkStateChange: jest.fn(),
       getNonceLock: null,
       provider: jest.fn(),
-      getNetwork: jest.fn(() => '1'),
       confirmExternalTransaction: jest.fn(),
       trackMetaMetricsEvent: jest.fn(),
     });

@@ -266,7 +266,6 @@ describe('SmartTransactionsController', () => {
           releaseLock: jest.fn(),
         };
       }),
-      getNetwork: jest.fn(() => '1'),
       provider: jest.fn(),
       confirmExternalTransaction: confirmExternalMock,
       trackMetaMetricsEvent: trackMetaMetricsEventSpy,

@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Bump dependency on `@metamask/network-controller` to ^13.0.0 ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
+- Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
+
+### Removed
+- **BREAKING:** Remove  `metamaskNetworkId` from smart transaction state ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
+- Remove `getNetwork` from constructor options ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
 
 ## [4.0.0]
 ### Changed

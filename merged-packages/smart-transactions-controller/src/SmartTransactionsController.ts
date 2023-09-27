@@ -66,8 +66,6 @@ export default class SmartTransactionsController extends BaseController<
 
   private getNonceLock: any;
 
-  private getNetwork: any;
-
   public ethersProvider: any;
 
   public confirmExternalTransaction: any;
@@ -92,7 +90,6 @@ export default class SmartTransactionsController extends BaseController<
     {
       onNetworkStateChange,
       getNonceLock,
-      getNetwork,
       provider,
       confirmExternalTransaction,
       trackMetaMetricsEvent,
@@ -101,7 +98,6 @@ export default class SmartTransactionsController extends BaseController<
         listener: (networkState: NetworkState) => void,
       ) => void;
       getNonceLock: any;
-      getNetwork: any;
       provider: any;
       confirmExternalTransaction: any;
       trackMetaMetricsEvent: any;
@@ -131,7 +127,6 @@ export default class SmartTransactionsController extends BaseController<
     };
 
     this.getNonceLock = getNonceLock;
-    this.getNetwork = getNetwork;
     this.ethersProvider = new Web3Provider(provider);
     this.confirmExternalTransaction = confirmExternalTransaction;
     this.trackMetaMetricsEvent = trackMetaMetricsEvent;
@@ -554,7 +549,6 @@ export default class SmartTransactionsController extends BaseController<
       },
     );
     const time = Date.now();
-    const metamaskNetworkId = this.getNetwork();
     let preTxBalance;
     try {
       const preTxBalanceBN = await this.ethersProvider.getBalance(
@@ -575,7 +569,6 @@ export default class SmartTransactionsController extends BaseController<
       this.updateSmartTransaction({
         chainId,
         nonceDetails,
-        metamaskNetworkId,
         preTxBalance,
         status: SmartTransactionStatuses.PENDING,
         time,
