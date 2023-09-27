@@ -60,7 +60,7 @@
     "rimraf": "^3.0.2",
     "ts-jest": "^27.1.4",
     "ts-node": "^10.7.0",
-    "typescript": "~4.6.3",
+    "typescript": "~4.8.4",
     "webextension-polyfill-ts": "^0.26.0"
   },
   "packageManager": "yarn@3.6.3",
