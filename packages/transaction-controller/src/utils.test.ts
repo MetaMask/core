@@ -71,6 +71,170 @@ describe('utils', () => {
     });
   });
 
+  describe('validateTxParams', () => {
+    it('should throw if no from address', () => {
+      expect(() => util.validateTxParams({} as any)).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "from" address: undefined must be a valid string.',
+        ),
+      );
+    });
+
+    it('should throw if non-string from address', () => {
+      expect(() => util.validateTxParams({ from: 1337 } as any)).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "from" address: 1337 must be a valid string.',
+        ),
+      );
+    });
+
+    it('should throw if invalid from address', () => {
+      expect(() => util.validateTxParams({ from: '1337' } as any)).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "from" address: 1337 must be a valid string.',
+        ),
+      );
+    });
+
+    it('should throw if no data', () => {
+      expect(() =>
+        util.validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          to: '0x',
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: 0x must be a valid string.',
+        ),
+      );
+
+      expect(() =>
+        util.validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: undefined must be a valid string.',
+        ),
+      );
+    });
+
+    it('should delete data', () => {
+      const transaction = {
+        data: 'foo',
+        from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+        to: '0x',
+        chainId: '1',
+      } as any;
+      util.validateTxParams(transaction);
+      expect(transaction.to).toBeUndefined();
+    });
+
+    it('should throw if invalid to address', () => {
+      expect(() =>
+        util.validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          to: '1337',
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: 1337 must be a valid string.',
+        ),
+      );
+    });
+
+    it('should throw if value is invalid', () => {
+      expect(() =>
+        util.validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          value: '133-7',
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": 133-7 is not a positive number.',
+        ),
+      );
+
+      expect(() =>
+        util.validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          value: '133.7',
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": 133.7 number must be denominated in wei.',
+        ),
+      );
+
+      expect(() =>
+        util.validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          value: 'hello',
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": hello number must be a valid number.',
+        ),
+      );
+
+      expect(() =>
+        util.validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          value: 'one million dollar$',
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": one million dollar$ number must be a valid number.',
+        ),
+      );
+
+      expect(() =>
+        util.validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          value: '1',
+          chainId: '1',
+        } as any),
+      ).not.toThrow();
+    });
+
+    it('throws if params specifies an EIP-1559 transaction but the current network does not support EIP-1559', () => {
+      expect(() =>
+        util.validateTxParams(
+          {
+            from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            maxFeePerGas: '2',
+            maxPriorityFeePerGas: '3',
+          } as any,
+          false,
+        ),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid transaction params: params specify an EIP-1559 transaction but the current network does not support EIP-1559',
+        ),
+      );
+    });
+
+    it('should throw if chainId is invalid', () => {
+      expect(() =>
+        util.validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          value: '1',
+          chainId: {},
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid transaction params: chainId is not a Number or hex string. got: ([object Object])',
+        ),
+      );
+    });
+  });
+
   describe('isEIP1559Transaction', () => {
     it('should detect EIP1559 transaction', () => {
       const tx: TransactionParams = { from: '' };
