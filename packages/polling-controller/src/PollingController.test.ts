@@ -175,14 +175,13 @@ describe('PollingController', () => {
         PollingCompleteType<typeof name>
       >();
 
-
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
         name,
         state: { foo: 'bar' },
       });
-      controller.onPollingComplete(pollingComplete);
+      controller.onPollingComplete('mainnet', pollingComplete);
       const pollingToken = controller.start('mainnet');
       controller.stop(pollingToken);
       expect(pollingComplete).toHaveBeenCalledTimes(1);

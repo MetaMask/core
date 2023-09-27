@@ -28,7 +28,10 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
 
     readonly #intervalIds: Record<NetworkClientId, NodeJS.Timeout> = {};
 
-    #callbacks: Set<(networkClientId: NetworkClientId) => void> = new Set();
+    #callbacks: Map<
+      NetworkClientId,
+      Set<(networkClientId: NetworkClientId) => void>
+    > = new Map();
 
     #intervalLength = 1000;
 
@@ -91,10 +94,10 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
             clearTimeout(this.#intervalIds[networkClientId]);
             delete this.#intervalIds[networkClientId];
             this.#networkClientIdTokensMap.delete(networkClientId);
-            this.#callbacks.forEach((callback) => {
+            this.#callbacks.get(networkClientId)?.forEach((callback) => {
               callback(networkClientId);
             });
-            this.#callbacks.clear();
+            this.#callbacks.get(networkClientId)?.clear();
           }
         }
       });
@@ -125,8 +128,17 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       }, this.#intervalLength);
     }
 
-    onPollingComplete(callback: (networkClientId: NetworkClientId) => void) {
-      this.#callbacks.add(callback);
+    onPollingComplete(
+      networkClientId: NetworkClientId,
+      callback: (networkClientId: NetworkClientId) => void,
+    ) {
+      if (this.#callbacks.has(networkClientId)) {
+        this.#callbacks.get(networkClientId)?.add(callback);
+      } else {
+        const set = new Set<typeof callback>();
+        set.add(callback);
+        this.#callbacks.set(networkClientId, set);
+      }
     }
   }
   return PollingControllerBase;
