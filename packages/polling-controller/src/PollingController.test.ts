@@ -1,6 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 
-import type { PollingCompleteType } from './PollingController';
 import { PollingController } from './PollingController';
 
 const TICK_TIME = 1000;
@@ -170,10 +169,7 @@ describe('PollingController', () => {
       }
       const name = 'PollingController';
 
-      const mockMessenger = new ControllerMessenger<
-        any,
-        PollingCompleteType<typeof name>
-      >();
+      const mockMessenger = new ControllerMessenger<any, any>();
 
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
