@@ -302,10 +302,10 @@ export class NameController extends BaseControllerV2<
     }
 
     const providerRequest: NameProviderRequest = {
-      value,
+      value: this.#normalizeValue(value, type),
       type,
       sourceIds: requestedSourceIds ? matchingSourceIds : undefined,
-      variation: variationKey,
+      variation: this.#normalizeVariation(variationKey, type),
     };
 
     let responseError: unknown | undefined;
@@ -373,13 +373,22 @@ export class NameController extends BaseControllerV2<
   #normalizeValue(value: string, type: NameType): string {
     /* istanbul ignore next */
     switch (type) {
-      case NameType.ETHEREUM_ADDRESS: {
+      case NameType.ETHEREUM_ADDRESS:
         return value.toLowerCase();
-      }
 
-      default: {
+      default:
         return value;
-      }
+    }
+  }
+
+  #normalizeVariation(variation: string, type: NameType): string {
+    /* istanbul ignore next */
+    switch (type) {
+      case NameType.ETHEREUM_ADDRESS:
+        return variation.toLowerCase();
+
+      default:
+        return variation;
     }
   }
 
@@ -392,6 +401,7 @@ export class NameController extends BaseControllerV2<
     /* istanbul ignore next */
     const variationKey = variation ?? DEFAULT_VARIATION;
     const normalizedValue = this.#normalizeValue(value, type);
+    const normalizedVariation = this.#normalizeVariation(variationKey, type);
 
     this.update((state) => {
       const typeEntries = state.names[type] || {};
@@ -400,12 +410,12 @@ export class NameController extends BaseControllerV2<
       const variationEntries = typeEntries[normalizedValue] || {};
       typeEntries[normalizedValue] = variationEntries;
 
-      const entry = variationEntries[variationKey] ?? {
+      const entry = variationEntries[normalizedVariation] ?? {
         proposedNames: {},
         name: null,
         sourceId: null,
       };
-      variationEntries[variationKey] = entry;
+      variationEntries[normalizedVariation] = entry;
 
       callback(entry);
     });
