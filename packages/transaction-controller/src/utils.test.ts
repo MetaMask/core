@@ -1,3 +1,4 @@
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
 import type {
@@ -74,19 +75,25 @@ describe('utils', () => {
   describe('validateTxParams', () => {
     it('should throw if no from address', () => {
       expect(() => util.validateTxParams({} as any)).toThrow(
-        'Invalid "from" address: undefined must be a valid string.',
+        rpcErrors.invalidParams(
+          'Invalid "from" address: undefined must be a valid string.',
+        ),
       );
     });
 
     it('should throw if non-string from address', () => {
       expect(() => util.validateTxParams({ from: 1337 } as any)).toThrow(
-        'Invalid "from" address: 1337 must be a valid string.',
+        rpcErrors.invalidParams(
+          'Invalid "from" address: 1337 must be a valid string.',
+        ),
       );
     });
 
     it('should throw if invalid from address', () => {
       expect(() => util.validateTxParams({ from: '1337' } as any)).toThrow(
-        'Invalid "from" address: 1337 must be a valid string.',
+        rpcErrors.invalidParams(
+          'Invalid "from" address: 1337 must be a valid string.',
+        ),
       );
     });
 
@@ -96,13 +103,21 @@ describe('utils', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x',
         } as any),
-      ).toThrow('Invalid "to" address: 0x must be a valid string.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: 0x must be a valid string.',
+        ),
+      );
 
       expect(() =>
         util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "to" address: undefined must be a valid string.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: undefined must be a valid string.',
+        ),
+      );
     });
 
     it('should delete data', () => {
@@ -121,7 +136,11 @@ describe('utils', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '1337',
         } as any),
-      ).toThrow('Invalid "to" address: 1337 must be a valid string.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: 1337 must be a valid string.',
+        ),
+      );
     });
 
     it('should throw if value is invalid', () => {
@@ -131,7 +150,11 @@ describe('utils', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133-7',
         } as any),
-      ).toThrow('Invalid "value": 133-7 is not a positive number.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": 133-7 is not a positive number.',
+        ),
+      );
 
       expect(() =>
         util.validateTxParams({
@@ -139,7 +162,11 @@ describe('utils', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133.7',
         } as any),
-      ).toThrow('Invalid "value": 133.7 number must be denominated in wei.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": 133.7 number must be denominated in wei.',
+        ),
+      );
 
       expect(() =>
         util.validateTxParams({
@@ -147,7 +174,11 @@ describe('utils', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: 'hello',
         } as any),
-      ).toThrow('Invalid "value": hello number must be a valid number.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": hello number must be a valid number.',
+        ),
+      );
 
       expect(() =>
         util.validateTxParams({
@@ -156,7 +187,9 @@ describe('utils', () => {
           value: 'one million dollar$',
         } as any),
       ).toThrow(
-        'Invalid "value": one million dollar$ number must be a valid number.',
+        rpcErrors.invalidParams(
+          'Invalid "value": one million dollar$ number must be a valid number.',
+        ),
       );
 
       expect(() =>
