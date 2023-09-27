@@ -1096,9 +1096,16 @@ export class KeyringController extends BaseControllerV2<
    * @fires KeyringController:stateChange
    */
   #fullUpdate() {
+    const { vault } = this.#keyring.store.getState();
+    const { keyrings, isUnlocked, encryptionKey, encryptionSalt } =
+      this.#keyring.memStore.getState();
+
     this.update(() => ({
-      ...this.#keyring.store.getState(),
-      ...this.#keyring.memStore.getState(),
+      vault,
+      keyrings,
+      isUnlocked,
+      encryptionKey,
+      encryptionSalt,
     }));
   }
 
