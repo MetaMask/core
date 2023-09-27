@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.0.0]
-
 ### Changed
 - **BREAKING:** Migrate `PhishingController` to BaseControllerV2 ([#1705](https://github.com/MetaMask/core/pull/1705))
   - `PhishingController` now expects a `messenger` option (and corresponding type `PhishingControllerMessenger` is now available)
