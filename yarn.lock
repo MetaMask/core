@@ -1402,7 +1402,7 @@ __metadata:
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": ^13.0.0
     "@metamask/preferences-controller": ^4.4.1
-    "@metamask/rpc-errors": ^5.1.1
+    "@metamask/rpc-errors": ^6.0.0
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.24
@@ -1973,7 +1973,9 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.1
+    "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
+    async-mutex: ^0.2.6
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^27.5.1
@@ -2244,16 +2246,6 @@ __metadata:
     typescript: ~4.6.3
   languageName: unknown
   linkType: soft
-
-"@metamask/rpc-errors@npm:^5.1.1":
-  version: 5.1.1
-  resolution: "@metamask/rpc-errors@npm:5.1.1"
-  dependencies:
-    "@metamask/utils": ^5.0.0
-    fast-safe-stringify: ^2.0.6
-  checksum: ccd1b24da66af3ae63960b79c04b86efb8b96acb89ca6f7e0bbfe636d23ba5cddeba533c0692eafb87c44ec6f840085372d0f21b39e05df9a80700ff61538a30
-  languageName: node
-  linkType: hard
 
 "@metamask/rpc-errors@npm:^6.0.0":
   version: 6.0.0
@@ -2585,6 +2577,7 @@ __metadata:
     "@metamask/eth-query": ^3.0.1
     "@metamask/metamask-eth-abis": ^3.0.0
     "@metamask/network-controller": ^13.0.0
+    "@metamask/rpc-errors": ^6.0.0
     "@metamask/utils": ^6.2.0
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.24
@@ -2592,7 +2585,6 @@ __metadata:
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
     eth-method-registry: 1.1.0
-    eth-rpc-errors: ^4.0.2
     ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
     fast-json-patch: ^3.1.1
