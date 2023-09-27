@@ -12,7 +12,7 @@
  * @property time - Timestamp associated with this transaction
  * @property toSmartContract - Whether transaction recipient is a smart contract
  * @property transaction - Underlying Transaction object
- * @property transactionHash - Hash of a successful transaction
+ * @property hash - Hash of a successful transaction
  * @property blockNumber - Number of the block where the transaction has been included
  */
 export type TransactionMeta =
@@ -36,7 +36,7 @@ type TransactionMetaBase = {
   time: number;
   toSmartContract?: boolean;
   transaction: Transaction;
-  transactionHash?: string;
+  hash?: string;
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
   verifiedOnBlockchain?: boolean;
