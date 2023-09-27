@@ -200,6 +200,23 @@ describe('utils', () => {
         } as any),
       ).not.toThrow();
     });
+
+    it('throws if params specifies an EIP-1559 transaction but the current network does not support EIP-1559', () => {
+      expect(() =>
+        util.validateTxParams(
+          {
+            from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+            maxFeePerGas: '2',
+            maxPriorityFeePerGas: '3',
+          } as any,
+          false,
+        ),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid transaction params: params specify an EIP-1559 transaction but the current network does not support EIP-1559',
+        ),
+      );
+    });
   });
 
   describe('isEIP1559Transaction', () => {
