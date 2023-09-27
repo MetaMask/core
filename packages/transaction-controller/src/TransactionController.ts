@@ -550,8 +550,8 @@ export class TransactionController extends BaseController<
       unsignedEthTx,
       transactionMeta.transaction.from,
     );
-    const rawTransaction = bufferToHex(signedTx.serialize());
-    await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
+    const rawTx = bufferToHex(signedTx.serialize());
+    await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
     transactionMeta.status = TransactionStatus.cancelled;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
@@ -648,9 +648,9 @@ export class TransactionController extends BaseController<
       unsignedEthTx,
       transactionMeta.transaction.from,
     );
-    const rawTransaction = bufferToHex(signedTx.serialize());
+    const rawTx = bufferToHex(signedTx.serialize());
     const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
-      rawTransaction,
+      rawTx,
     ]);
     const baseTransactionMeta = {
       ...transactionMeta,
@@ -1153,12 +1153,12 @@ export class TransactionController extends BaseController<
       const signedTx = await this.sign(unsignedEthTx, from);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
-      const rawTransaction = bufferToHex(signedTx.serialize());
+      const rawTx = bufferToHex(signedTx.serialize());
 
-      transactionMeta.rawTransaction = rawTransaction;
+      transactionMeta.rawTx = rawTx;
       this.updateTransaction(transactionMeta);
       const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
-        rawTransaction,
+        rawTx,
       ]);
       transactionMeta.transactionHash = transactionHash;
       transactionMeta.status = TransactionStatus.submitted;
