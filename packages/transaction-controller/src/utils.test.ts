@@ -212,7 +212,7 @@ describe('utils', () => {
           false,
         ),
       ).toThrow(
-        ethErrors.rpc.invalidParams(
+        rpcErrors.invalidParams(
           'Invalid transaction params: params specify an EIP-1559 transaction but the current network does not support EIP-1559',
         ),
       );

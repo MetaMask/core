@@ -71,7 +71,7 @@ export function validateTxParams(
   }
 
   if (isEIP1559Transaction(txParams) && !isEIP1559Compatible) {
-    throw ethErrors.rpc.invalidParams(
+    throw rpcErrors.invalidParams(
       'Invalid transaction params: params specify an EIP-1559 transaction but the current network does not support EIP-1559',
     );
   }
