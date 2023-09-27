@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/accounts-controller",
-  "version": "2.0.0",
-  "description": "Manages internal accounts",
+  "name": "@metamask/polling-controller",
+  "version": "0.0.0",
+  "description": "Polling Controller is the base for controllers that polling by networkClientId",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/accounts-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/polling-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -22,30 +22,23 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/accounts-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/polling-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
-    "@metamask/eth-snap-keyring": "^0.2.2",
-    "@metamask/keyring-api": "^0.2.5",
-    "@metamask/snaps-utils": "^1.0.1",
+    "@metamask/controller-utils": "^5.0.0",
+    "@metamask/network-controller": "^13.0.0",
     "@metamask/utils": "^6.2.0",
-    "deepmerge": "^4.2.2",
-    "eth-rpc-errors": "^4.0.2",
-    "ethereumjs-util": "^7.0.10",
-    "immer": "^9.0.6",
-    "nanoid": "^3.1.31",
+    "@types/uuid": "^8.3.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
-    "@metamask/keyring-controller": "^8.0.0",
-    "@metamask/snaps-controllers": "^1.0.1",
     "@types/jest": "^27.4.1",
-    "@types/readable-stream": "^2.3.0",
+    "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.23.15",
@@ -53,7 +46,7 @@
     "typescript": "~4.6.3"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^8.0.0"
+    "@metamask/network-controller": "^13.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
