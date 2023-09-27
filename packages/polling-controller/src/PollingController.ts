@@ -2,11 +2,7 @@ import { BaseController, BaseControllerV2 } from '@metamask/base-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { v4 as random } from 'uuid';
 
-export type PollingCompleteType<N extends string> = {
-  type: `${N}:pollingComplete`;
-  payload: [string];
-};
-
+// eslint-disable-next-line @typescript-eslint/ban-types
 type Constructor = new (...args: any[]) => {};
 
 /**
