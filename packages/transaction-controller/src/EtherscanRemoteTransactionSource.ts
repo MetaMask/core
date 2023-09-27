@@ -40,7 +40,7 @@ export class EtherscanRemoteTransactionSource
     this.#isTokenRequestPending = false;
   }
 
-  isSupportedNetwork(chainId: Hex, _networkId: string): boolean {
+  isSupportedNetwork(chainId: Hex): boolean {
     return Object.keys(ETHERSCAN_SUPPORTED_NETWORKS).includes(chainId);
   }
 
@@ -71,14 +71,14 @@ export class EtherscanRemoteTransactionSource
     request: RemoteTransactionSourceRequest,
     etherscanRequest: EtherscanTransactionRequest,
   ) => {
-    const { currentNetworkId, currentChainId } = request;
+    const { currentChainId } = request;
 
     const etherscanTransactions = await fetchEtherscanTransactions(
       etherscanRequest,
     );
 
     return this.#getResponseTransactions(etherscanTransactions).map((tx) =>
-      this.#normalizeTransaction(tx, currentNetworkId, currentChainId),
+      this.#normalizeTransaction(tx, currentChainId),
     );
   };
 
@@ -86,14 +86,14 @@ export class EtherscanRemoteTransactionSource
     request: RemoteTransactionSourceRequest,
     etherscanRequest: EtherscanTransactionRequest,
   ) => {
-    const { currentNetworkId, currentChainId } = request;
+    const { currentChainId } = request;
 
     const etherscanTransactions = await fetchEtherscanTokenTransactions(
       etherscanRequest,
     );
 
     return this.#getResponseTransactions(etherscanTransactions).map((tx) =>
-      this.#normalizeTokenTransaction(tx, currentNetworkId, currentChainId),
+      this.#normalizeTokenTransaction(tx, currentChainId),
     );
   };
 
@@ -118,14 +118,9 @@ export class EtherscanRemoteTransactionSource
 
   #normalizeTransaction(
     txMeta: EtherscanTransactionMeta,
-    currentNetworkId: string,
     currentChainId: Hex,
   ): TransactionMeta {
-    const base = this.#normalizeTransactionBase(
-      txMeta,
-      currentNetworkId,
-      currentChainId,
-    );
+    const base = this.#normalizeTransactionBase(txMeta, currentChainId);
 
     return {
       ...base,
@@ -144,14 +139,9 @@ export class EtherscanRemoteTransactionSource
 
   #normalizeTokenTransaction(
     txMeta: EtherscanTokenTransactionMeta,
-    currentNetworkId: string,
     currentChainId: Hex,
   ): TransactionMeta {
-    const base = this.#normalizeTransactionBase(
-      txMeta,
-      currentNetworkId,
-      currentChainId,
-    );
+    const base = this.#normalizeTransactionBase(txMeta, currentChainId);
 
     return {
       ...base,
@@ -166,7 +156,6 @@ export class EtherscanRemoteTransactionSource
 
   #normalizeTransactionBase(
     txMeta: EtherscanTransactionMetaBase,
-    currentNetworkId: string,
     currentChainId: Hex,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
@@ -176,10 +165,10 @@ export class EtherscanRemoteTransactionSource
       chainId: currentChainId,
       hash: txMeta.hash,
       id: random({ msecs: time }),
-      networkID: currentNetworkId,
       status: TransactionStatus.confirmed,
       time,
       txParams: {
+        chainId: currentChainId,
         from: txMeta.from,
         gas: BNToHex(new BN(txMeta.gas)),
         gasPrice: BNToHex(new BN(txMeta.gasPrice)),

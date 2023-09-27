@@ -2,8 +2,7 @@ import {
   convertHexToDecimal,
   isValidHexAddress,
 } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
-import { ethErrors } from 'eth-rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
@@ -30,6 +29,7 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
     addHexPrefix(maxPriorityFeePerGas),
   estimatedBaseFee: (maxPriorityFeePerGas: string) =>
     addHexPrefix(maxPriorityFeePerGas),
+  type: (type: string) => (type === '0x0' ? '0x0' : undefined),
 };
 
 /**
@@ -65,7 +65,7 @@ export function validateTxParams(
     typeof txParams.from !== 'string' ||
     !isValidHexAddress(txParams.from)
   ) {
-    throw new Error(
+    throw rpcErrors.invalidParams(
       `Invalid "from" address: ${txParams.from} must be a valid string.`,
     );
   }
@@ -80,12 +80,12 @@ export function validateTxParams(
     if (txParams.data) {
       delete txParams.to;
     } else {
-      throw new Error(
+      throw rpcErrors.invalidParams(
         `Invalid "to" address: ${txParams.to} must be a valid string.`,
       );
     }
   } else if (txParams.to !== undefined && !isValidHexAddress(txParams.to)) {
-    throw new Error(
+    throw rpcErrors.invalidParams(
       `Invalid "to" address: ${txParams.to} must be a valid string.`,
     );
   }
@@ -93,11 +93,13 @@ export function validateTxParams(
   if (txParams.value !== undefined) {
     const value = txParams.value.toString();
     if (value.includes('-')) {
-      throw new Error(`Invalid "value": ${value} is not a positive number.`);
+      throw rpcErrors.invalidParams(
+        `Invalid "value": ${value} is not a positive number.`,
+      );
     }
 
     if (value.includes('.')) {
-      throw new Error(
+      throw rpcErrors.invalidParams(
         `Invalid "value": ${value} number must be denominated in wei.`,
       );
     }
@@ -108,7 +110,7 @@ export function validateTxParams(
       !isNaN(Number(value)) &&
       Number.isSafeInteger(intValue);
     if (!isValid) {
-      throw new Error(
+      throw rpcErrors.invalidParams(
         `Invalid "value": ${value} number must be a valid number.`,
       );
     }
@@ -217,30 +219,6 @@ export function getAndFormatTransactionsForNonceTracker(
         },
       };
     });
-}
-
-/**
- * Checks whether a given transaction matches the specified network or chain ID.
- * This function is used to determine if a transaction is relevant to the current network or chain.
- *
- * @param transaction - The transaction metadata to check.
- * @param chainId - The chain ID of the current network.
- * @param networkId - The network ID of the current network.
- * @returns A boolean value indicating whether the transaction matches the current network or chain ID.
- */
-export function transactionMatchesNetwork(
-  transaction: TransactionMeta,
-  chainId: Hex,
-  networkId: string | null,
-) {
-  if (transaction.chainId) {
-    return transaction.chainId === chainId;
-  }
-
-  if (transaction.networkID) {
-    return transaction.networkID === networkId;
-  }
-  return false;
 }
 
 /**

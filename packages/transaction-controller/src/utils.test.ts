@@ -1,4 +1,4 @@
-import { ethErrors } from 'eth-rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
 import type {
@@ -8,10 +8,6 @@ import type {
 import type { TransactionParams, TransactionMeta } from './types';
 import { TransactionStatus } from './types';
 import * as util from './utils';
-import {
-  getAndFormatTransactionsForNonceTracker,
-  transactionMatchesNetwork,
-} from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -20,8 +16,12 @@ const FAIL = 'lol';
 const PASS = '0x1';
 
 describe('utils', () => {
-  it('normalizeTxParams', () => {
-    const normalized = util.normalizeTxParams({
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('normalizeTxParams', () => {
+    const commonInput = {
       data: 'data',
       from: 'FROM',
       gas: 'gas',
@@ -32,37 +32,68 @@ describe('utils', () => {
       maxFeePerGas: 'maxFeePerGas',
       maxPriorityFeePerGas: 'maxPriorityFeePerGas',
       estimatedBaseFee: 'estimatedBaseFee',
+    };
+
+    it('normalizeTransaction', () => {
+      const normalized = util.normalizeTxParams({
+        ...commonInput,
+      });
+      expect(normalized).toStrictEqual({
+        data: '0xdata',
+        from: '0xfrom',
+        gas: '0xgas',
+        gasPrice: '0xgasPrice',
+        nonce: '0xnonce',
+        to: '0xto',
+        value: '0xvalue',
+        maxFeePerGas: '0xmaxFeePerGas',
+        maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
+        estimatedBaseFee: '0xestimatedBaseFee',
+      });
     });
-    expect(normalized).toStrictEqual({
-      data: '0xdata',
-      from: '0xfrom',
-      gas: '0xgas',
-      gasPrice: '0xgasPrice',
-      nonce: '0xnonce',
-      to: '0xto',
-      value: '0xvalue',
-      maxFeePerGas: '0xmaxFeePerGas',
-      maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
-      estimatedBaseFee: '0xestimatedBaseFee',
+    it('normalizeTransaction if type is zero', () => {
+      const normalized = util.normalizeTxParams({
+        ...commonInput,
+        type: '0x0',
+      });
+      expect(normalized).toStrictEqual({
+        data: '0xdata',
+        from: '0xfrom',
+        gas: '0xgas',
+        gasPrice: '0xgasPrice',
+        nonce: '0xnonce',
+        to: '0xto',
+        value: '0xvalue',
+        maxFeePerGas: '0xmaxFeePerGas',
+        maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
+        estimatedBaseFee: '0xestimatedBaseFee',
+        type: '0x0',
+      });
     });
   });
 
   describe('validateTxParams', () => {
     it('should throw if no from address', () => {
       expect(() => util.validateTxParams({} as any)).toThrow(
-        'Invalid "from" address: undefined must be a valid string.',
+        rpcErrors.invalidParams(
+          'Invalid "from" address: undefined must be a valid string.',
+        ),
       );
     });
 
     it('should throw if non-string from address', () => {
       expect(() => util.validateTxParams({ from: 1337 } as any)).toThrow(
-        'Invalid "from" address: 1337 must be a valid string.',
+        rpcErrors.invalidParams(
+          'Invalid "from" address: 1337 must be a valid string.',
+        ),
       );
     });
 
     it('should throw if invalid from address', () => {
       expect(() => util.validateTxParams({ from: '1337' } as any)).toThrow(
-        'Invalid "from" address: 1337 must be a valid string.',
+        rpcErrors.invalidParams(
+          'Invalid "from" address: 1337 must be a valid string.',
+        ),
       );
     });
 
@@ -72,13 +103,21 @@ describe('utils', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x',
         } as any),
-      ).toThrow('Invalid "to" address: 0x must be a valid string.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: 0x must be a valid string.',
+        ),
+      );
 
       expect(() =>
         util.validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "to" address: undefined must be a valid string.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: undefined must be a valid string.',
+        ),
+      );
     });
 
     it('should delete data', () => {
@@ -97,7 +136,11 @@ describe('utils', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '1337',
         } as any),
-      ).toThrow('Invalid "to" address: 1337 must be a valid string.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: 1337 must be a valid string.',
+        ),
+      );
     });
 
     it('should throw if value is invalid', () => {
@@ -107,7 +150,11 @@ describe('utils', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133-7',
         } as any),
-      ).toThrow('Invalid "value": 133-7 is not a positive number.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": 133-7 is not a positive number.',
+        ),
+      );
 
       expect(() =>
         util.validateTxParams({
@@ -115,7 +162,11 @@ describe('utils', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133.7',
         } as any),
-      ).toThrow('Invalid "value": 133.7 number must be denominated in wei.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": 133.7 number must be denominated in wei.',
+        ),
+      );
 
       expect(() =>
         util.validateTxParams({
@@ -123,7 +174,11 @@ describe('utils', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: 'hello',
         } as any),
-      ).toThrow('Invalid "value": hello number must be a valid number.');
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "value": hello number must be a valid number.',
+        ),
+      );
 
       expect(() =>
         util.validateTxParams({
@@ -132,7 +187,9 @@ describe('utils', () => {
           value: 'one million dollar$',
         } as any),
       ).toThrow(
-        'Invalid "value": one million dollar$ number must be a valid number.',
+        rpcErrors.invalidParams(
+          'Invalid "value": one million dollar$ number must be a valid number.',
+        ),
       );
 
       expect(() =>
@@ -273,6 +330,7 @@ describe('utils', () => {
       const inputTransactions: TransactionMeta[] = [
         {
           id: '1',
+          chainId: '0x1',
           time: 123456,
           txParams: {
             from: fromAddress,
@@ -284,6 +342,7 @@ describe('utils', () => {
         },
         {
           id: '2',
+          chainId: '0x1',
           time: 123457,
           txParams: {
             from: '0x124',
@@ -295,6 +354,7 @@ describe('utils', () => {
         },
         {
           id: '3',
+          chainId: '0x1',
           time: 123458,
           txParams: {
             from: fromAddress,
@@ -319,83 +379,12 @@ describe('utils', () => {
         },
       ];
 
-      const result = getAndFormatTransactionsForNonceTracker(
+      const result = util.getAndFormatTransactionsForNonceTracker(
         fromAddress,
         TransactionStatus.confirmed,
         inputTransactions,
       );
       expect(result).toStrictEqual(expectedResult);
-    });
-  });
-
-  describe('transactionMatchesNetwork', () => {
-    const transaction: TransactionMeta = {
-      chainId: '0x1',
-      networkID: '1',
-      id: '1',
-      time: 123456,
-      txParams: {
-        from: '0x123',
-        gas: '0x100',
-        value: '0x200',
-        nonce: '0x1',
-      },
-      status: TransactionStatus.unapproved,
-    };
-    it('returns true if chainId matches', () => {
-      const chainId = '0x1';
-      const networkId = '1';
-      expect(transactionMatchesNetwork(transaction, chainId, networkId)).toBe(
-        true,
-      );
-    });
-
-    it('returns false if chainId does not match', () => {
-      const chainId = '0x1';
-      const networkId = '1';
-      expect(
-        transactionMatchesNetwork(
-          { ...transaction, chainId: '0x2' },
-          chainId,
-          networkId,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns true if networkID matches', () => {
-      const chainId = '0x1';
-      const networkId = '1';
-      expect(
-        transactionMatchesNetwork(
-          { ...transaction, chainId: undefined },
-          chainId,
-          networkId,
-        ),
-      ).toBe(true);
-    });
-
-    it('returns false if networkID does not match', () => {
-      const chainId = '0x1';
-      const networkId = '1';
-      expect(
-        transactionMatchesNetwork(
-          { ...transaction, networkID: '2', chainId: undefined },
-          chainId,
-          networkId,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns true if chainId and networkID are undefined', () => {
-      const chainId = '0x2';
-      const networkId = '1';
-      expect(
-        transactionMatchesNetwork(
-          { ...transaction, chainId: undefined, networkID: undefined },
-          chainId,
-          networkId,
-        ),
-      ).toBe(false);
     });
   });
 });
