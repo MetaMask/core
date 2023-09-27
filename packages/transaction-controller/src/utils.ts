@@ -62,16 +62,29 @@ export function validateTxParams(
   txParams: TransactionParams,
   isEIP1559Compatible = true,
 ) {
+  validateEIP1559Compatibility(txParams, isEIP1559Compatible);
+  validateFrom(txParams);
+  validateRecipient(txParams);
+  validateInputValue(txParams.value);
+  validateInputData(txParams.data);
+}
+
+/**
+ * Validates EIP-1559 compatibility for transaction creation.
+ *
+ * @param txParams - The transaction parameters to validate.
+ * @param isEIP1559Compatible - Indicates if the current network supports EIP-1559.
+ * @throws Throws invalid params if the transaction specifies EIP-1559 but the network does not support it.
+ */
+function validateEIP1559Compatibility(
+  txParams: TransactionParams,
+  isEIP1559Compatible: boolean,
+) {
   if (isEIP1559Transaction(txParams) && !isEIP1559Compatible) {
     throw rpcErrors.invalidParams(
       'Invalid transaction params: params specify an EIP-1559 transaction but the current network does not support EIP-1559',
     );
   }
-
-  validateFrom(txParams);
-  validateRecipient(txParams);
-  validateInputValue(txParams.value);
-  validateInputData(txParams.data);
 }
 
 /**
