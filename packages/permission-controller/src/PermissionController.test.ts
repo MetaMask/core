@@ -5300,6 +5300,11 @@ describe('PermissionController', () => {
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
       const { error }: any = await engine.handle(request);
+
+      expect(error.message).toStrictEqual(expectedError.message);
+      expect(error.data.cause).toBeNull();
+      delete error.message;
+      delete error.data.cause;
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
 
@@ -5341,6 +5346,10 @@ describe('PermissionController', () => {
       );
 
       const { error }: any = await engine.handle(request);
+      expect(error.message).toStrictEqual(expectedError.message);
+      expect(error.data.cause).toBeNull();
+      delete error.message;
+      delete error.data.cause;
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
   });
