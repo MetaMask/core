@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "MetaMask",
@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.1",
-    "@metamask/network-controller": "^12.2.0",
+    "@metamask/network-controller": "^13.0.0",
     "json-rpc-engine": "^6.1.0"
   },
   "devDependencies": {
@@ -43,12 +43,12 @@
     "nock": "^13.3.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.22.15",
-    "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.6.3"
+    "typedoc": "^0.23.15",
+    "typedoc-plugin-missing-exports": "^0.23.0",
+    "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^12.2.0"
+    "@metamask/network-controller": "^13.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
