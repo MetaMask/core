@@ -1,4 +1,4 @@
-import { ethErrors } from 'eth-rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
 
 import { validateConfirmedExternalTransaction } from './external-transactions';
 import type { TransactionMeta } from './types';
@@ -17,7 +17,7 @@ describe('validateConfirmedExternalTransaction', () => {
     expect(() =>
       validateConfirmedExternalTransaction(undefined, [], []),
     ).toThrow(
-      ethErrors.rpc.invalidParams(
+      rpcErrors.invalidParams(
         '"transactionMeta" or "transactionMeta.txParams" is missing',
       ),
     );
@@ -25,7 +25,7 @@ describe('validateConfirmedExternalTransaction', () => {
     expect(() =>
       validateConfirmedExternalTransaction({} as TransactionMeta, [], []),
     ).toThrow(
-      ethErrors.rpc.invalidParams(
+      rpcErrors.invalidParams(
         '"transactionMeta" or "transactionMeta.txParams" is missing',
       ),
     );
@@ -37,7 +37,7 @@ describe('validateConfirmedExternalTransaction', () => {
       '123',
     );
     expect(() => validateConfirmedExternalTransaction(transactionMeta)).toThrow(
-      ethErrors.rpc.invalidParams(
+      rpcErrors.invalidParams(
         'External transaction status should be "confirmed"',
       ),
     );
@@ -56,7 +56,7 @@ describe('validateConfirmedExternalTransaction', () => {
     expect(() =>
       validateConfirmedExternalTransaction(transactionMeta, [], pendingTxs),
     ).toThrow(
-      ethErrors.rpc.invalidParams(
+      rpcErrors.invalidParams(
         'External transaction nonce should not be in pending txs',
       ),
     );
@@ -75,7 +75,7 @@ describe('validateConfirmedExternalTransaction', () => {
     expect(() =>
       validateConfirmedExternalTransaction(transactionMeta, confirmedTxs, []),
     ).toThrow(
-      ethErrors.rpc.invalidParams(
+      rpcErrors.invalidParams(
         'External transaction nonce should not be in confirmed txs',
       ),
     );
