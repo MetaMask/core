@@ -374,19 +374,33 @@ export class NameController extends BaseControllerV2<
     };
   }
 
+  #normalizeValue(value: string, type: NameType): string {
+    /* istanbul ignore next */
+    switch (type) {
+      case NameType.ETHEREUM_ADDRESS: {
+        return value.toLowerCase();
+      }
+
+      default: {
+        return value;
+      }
+    }
+  }
+
   #updateEntry(
     value: string,
     type: NameType,
     callback: (entry: NameEntry) => void,
   ) {
     const variationKey = this.#getTypeVariationKey(type);
+    const normalizedValue = this.#normalizeValue(value, type);
 
     this.update((state) => {
       const typeEntries = state.names[type] || {};
       state.names[type] = typeEntries;
 
-      const variationEntries = typeEntries[value] || {};
-      typeEntries[value] = variationEntries;
+      const variationEntries = typeEntries[normalizedValue] || {};
+      typeEntries[normalizedValue] = variationEntries;
 
       const entry = variationEntries[variationKey] ?? {
         proposedNames: {},
