@@ -1506,7 +1506,6 @@ __metadata:
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     eth-ens-namehash: ^2.0.8
-    eth-rpc-errors: ^4.0.2
     ethereumjs-util: ^7.0.10
     ethjs-unit: ^0.1.6
     fast-deep-equal: ^3.1.3
