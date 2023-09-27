@@ -229,7 +229,7 @@ export class TokenRatesController extends BaseController<
     }
     this.#updateTokenList();
 
-    onPreferencesStateChange(async ({ selectedAddress }) => {
+    onPreferencesStateChange?.(async ({ selectedAddress }) => {
       if (this.config.selectedAddress !== selectedAddress) {
         this.configure({ selectedAddress });
         this.#updateTokenList();

@@ -261,7 +261,7 @@ export class TokensController extends BaseController<
       });
     });
 
-    onTokenListStateChange(({ tokenList }) => {
+    onTokenListStateChange?.(({ tokenList }) => {
       const { tokens } = this.state;
       if (tokens.length && !tokens[0].name) {
         this.updateTokensAttribute(tokenList, 'name');
