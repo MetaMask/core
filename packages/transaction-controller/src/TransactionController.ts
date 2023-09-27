@@ -30,10 +30,10 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
+import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
-import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { merge, pickBy } from 'lodash';
@@ -1161,7 +1161,7 @@ export class TransactionController extends BaseController<
           if (error.code === errorCodes.provider.userRejectedRequest) {
             this.cancelTransaction(transactionId);
 
-            throw ethErrors.provider.userRejectedRequest(
+            throw providerErrors.userRejectedRequest(
               'User rejected the transaction',
             );
           } else {
@@ -1176,10 +1176,10 @@ export class TransactionController extends BaseController<
     switch (finalMeta?.status) {
       case TransactionStatus.failed:
         resultCallbacks?.error(finalMeta.error);
-        throw ethErrors.rpc.internal(finalMeta.error.message);
+        throw rpcErrors.internal(finalMeta.error.message);
 
       case TransactionStatus.cancelled:
-        const cancelError = ethErrors.rpc.internal(
+        const cancelError = rpcErrors.internal(
           'User cancelled the transaction',
         );
 
@@ -1191,7 +1191,7 @@ export class TransactionController extends BaseController<
         return finalMeta.hash as string;
 
       default:
-        const internalError = ethErrors.rpc.internal(
+        const internalError = rpcErrors.internal(
           `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
             finalMeta || transactionId,
           )}`,

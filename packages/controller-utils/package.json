@@ -40,7 +40,6 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
     "@types/jest": "^27.4.1",
-    "abort-controller": "^3.0.0",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "nock": "^13.3.1",
