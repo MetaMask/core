@@ -8,7 +8,7 @@ import { MethodNames } from '../utils';
 
 export const getPermissionsHandler: PermittedHandlerExport<
   GetPermissionsHooks,
-[],
+  [],
   PermissionConstraint[]
 > = {
   methodNames: [MethodNames.getPermissions],
