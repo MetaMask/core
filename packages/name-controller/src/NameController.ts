@@ -11,6 +11,7 @@ import type {
 import { NameType } from './types';
 
 const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
+const DEFAULT_VARIATION = '';
 
 const controllerName = 'NameController';
 
@@ -71,7 +72,6 @@ export type NameControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type NameControllerOptions = {
-  getChainId: () => string;
   messenger: NameControllerMessenger;
   providers: NameProvider[];
   state?: Partial<NameControllerState>;
@@ -83,6 +83,7 @@ export type UpdateProposedNamesRequest = {
   type: NameType;
   sourceIds?: string[];
   onlyUpdateAfterDelay?: boolean;
+  variation?: string;
 };
 
 export type UpdateProposedNamesResult = {
@@ -94,6 +95,7 @@ export type SetNameRequest = {
   type: NameType;
   name: string | null;
   sourceId?: string;
+  variation?: string;
 };
 
 /**
@@ -104,8 +106,6 @@ export class NameController extends BaseControllerV2<
   NameControllerState,
   NameControllerMessenger
 > {
-  #getChainId: () => string;
-
   #providers: NameProvider[];
 
   #updateDelay: number;
@@ -114,14 +114,12 @@ export class NameController extends BaseControllerV2<
    * Construct a Name controller.
    *
    * @param options - Controller options.
-   * @param options.getChainId - Callback that returns the chain ID of the current network.
    * @param options.messenger - Restricted controller messenger for the name controller.
    * @param options.providers - Array of name provider instances to propose names.
    * @param options.state - Initial state to set on the controller.
    * @param options.updateDelay - The delay in seconds before a new request to a source should be made.
    */
   constructor({
-    getChainId,
     messenger,
     providers,
     state,
@@ -134,7 +132,6 @@ export class NameController extends BaseControllerV2<
       state: { ...getDefaultState(), ...state },
     });
 
-    this.#getChainId = getChainId;
     this.#providers = providers;
     this.#updateDelay = updateDelay ?? DEFAULT_UPDATE_DELAY;
   }
@@ -151,10 +148,10 @@ export class NameController extends BaseControllerV2<
   setName(request: SetNameRequest) {
     this.#validateSetNameRequest(request);
 
-    const { value, type, name, sourceId: requestSourceId } = request;
+    const { value, type, name, sourceId: requestSourceId, variation } = request;
     const sourceId = requestSourceId ?? null;
 
-    this.#updateEntry(value, type, (entry: NameEntry) => {
+    this.#updateEntry(value, type, variation, (entry: NameEntry) => {
       entry.name = name;
       entry.sourceId = sourceId;
     });
@@ -174,12 +171,10 @@ export class NameController extends BaseControllerV2<
   ): Promise<UpdateProposedNamesResult> {
     this.#validateUpdateProposedNamesRequest(request);
 
-    const chainId = this.#getChainId();
-
     const providerResponses = (
       await Promise.all(
         this.#providers.map((provider) =>
-          this.#getProviderResponse(request, chainId, provider),
+          this.#getProviderResponse(request, provider),
         ),
       )
     ).filter((response) => Boolean(response)) as NameProviderResult[];
@@ -194,10 +189,10 @@ export class NameController extends BaseControllerV2<
     request: UpdateProposedNamesRequest,
     providerResponses: NameProviderResult[],
   ) {
-    const { value, type } = request;
+    const { value, type, variation } = request;
     const currentTime = this.#getCurrentTimeSeconds();
 
-    this.#updateEntry(value, type, (entry: NameEntry) => {
+    this.#updateEntry(value, type, variation, (entry: NameEntry) => {
       this.#removeDormantProposedNames(entry.proposedNames, type);
 
       for (const providerResponse of providerResponses) {
@@ -268,7 +263,6 @@ export class NameController extends BaseControllerV2<
 
   async #getProviderResponse(
     request: UpdateProposedNamesRequest,
-    chainId: string,
     provider: NameProvider,
   ): Promise<NameProviderResult | undefined> {
     const {
@@ -276,9 +270,11 @@ export class NameController extends BaseControllerV2<
       type,
       sourceIds: requestedSourceIds,
       onlyUpdateAfterDelay,
+      variation,
     } = request;
 
-    const variationKey = this.#getTypeVariationKey(type);
+    /* istanbul ignore next */
+    const variationKey = variation ?? DEFAULT_VARIATION;
     const supportedSourceIds = this.#getSourceIds(provider, type);
     const currentTime = this.#getCurrentTimeSeconds();
 
@@ -306,10 +302,10 @@ export class NameController extends BaseControllerV2<
     }
 
     const providerRequest: NameProviderRequest = {
-      chainId,
       value,
       type,
       sourceIds: requestedSourceIds ? matchingSourceIds : undefined,
+      variation: variationKey,
     };
 
     let responseError: unknown | undefined;
@@ -390,9 +386,11 @@ export class NameController extends BaseControllerV2<
   #updateEntry(
     value: string,
     type: NameType,
+    variation: string | undefined,
     callback: (entry: NameEntry) => void,
   ) {
-    const variationKey = this.#getTypeVariationKey(type);
+    /* istanbul ignore next */
+    const variationKey = variation ?? DEFAULT_VARIATION;
     const normalizedValue = this.#normalizeValue(value, type);
 
     this.update((state) => {
@@ -413,26 +411,19 @@ export class NameController extends BaseControllerV2<
     });
   }
 
-  #getTypeVariationKey(type: NameType): string {
-    switch (type) {
-      default: {
-        return this.#getChainId();
-      }
-    }
-  }
-
   #getCurrentTimeSeconds(): number {
     return Math.round(Date.now() / 1000);
   }
 
   #validateSetNameRequest(request: SetNameRequest) {
-    const { name, value, type, sourceId } = request;
+    const { name, value, type, sourceId, variation } = request;
     const errorMessages: string[] = [];
 
     this.#validateValue(value, errorMessages);
     this.#validateType(type, errorMessages);
     this.#validateName(name, errorMessages);
     this.#validateSourceId(sourceId, type, name, errorMessages);
+    this.#validateVariation(variation, type, errorMessages);
 
     if (errorMessages.length) {
       throw new Error(errorMessages.join(' '));
@@ -440,13 +431,14 @@ export class NameController extends BaseControllerV2<
   }
 
   #validateUpdateProposedNamesRequest(request: UpdateProposedNamesRequest) {
-    const { value, type, sourceIds } = request;
+    const { value, type, sourceIds, variation } = request;
     const errorMessages: string[] = [];
 
     this.#validateValue(value, errorMessages);
     this.#validateType(type, errorMessages);
     this.#validateSourceIds(sourceIds, type, errorMessages);
     this.#validateDuplicateSourceIds(type, errorMessages);
+    this.#validateVariation(variation, type, errorMessages);
 
     if (errorMessages.length) {
       throw new Error(errorMessages.join(' '));
@@ -546,6 +538,26 @@ export class NameController extends BaseControllerV2<
         `Duplicate source IDs found for type '${type}': ${duplicateSourceIds.join(
           ', ',
         )}`,
+      );
+    }
+  }
+
+  #validateVariation(
+    variation: string | undefined,
+    type: string,
+    errorMessages: string[],
+  ) {
+    if (type !== NameType.ETHEREUM_ADDRESS) {
+      return;
+    }
+
+    if (
+      !variation?.length ||
+      typeof variation !== 'string' ||
+      !variation.match(/^0x[0-9A-Fa-f]+$/u)
+    ) {
+      errorMessages.push(
+        `Must specify a chain ID in hexidecimal format for variation when using '${type}' type.`,
       );
     }
   }

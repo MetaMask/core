@@ -75,7 +75,7 @@ export class EtherscanNameProvider implements NameProvider {
     const releaseLock = await this.#mutex.acquire();
 
     try {
-      const { value, chainId } = request;
+      const { value, variation: chainId } = request;
 
       const time = Date.now();
       const timeSinceLastRequest = time - this.#lastRequestTime;
