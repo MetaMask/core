@@ -1,6 +1,6 @@
 {
   "name": "@metamask/logging-controller",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Manages logging data to assist users and support staff",
   "keywords": [
     "MetaMask",

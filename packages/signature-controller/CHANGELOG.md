@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.1]
+### Uncategorized
+- Update typescript v4.8 ([#1718](https://github.com/MetaMask/core/pull/1718))
+- chore: Update `typedoc` and related packages ([#1717](https://github.com/MetaMask/core/pull/1717))
+
 ## [6.1.0]
 ### Changed
 - Add `LoggingController` logs on signature operation stages ([#1692](https://github.com/MetaMask/core/pull/1692))
@@ -78,7 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.1...HEAD
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.0...@metamask/signature-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.0.0...@metamask/signature-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.3.1...@metamask/signature-controller@6.0.0
 [5.3.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.3.0...@metamask/signature-controller@5.3.1

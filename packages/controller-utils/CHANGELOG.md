@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+### Uncategorized
+- Update typescript v4.8 ([#1718](https://github.com/MetaMask/core/pull/1718))
+- chore: Remove AbortController polyfill ([#1726](https://github.com/MetaMask/core/pull/1726))
+- chore: Update `typedoc` and related packages ([#1717](https://github.com/MetaMask/core/pull/1717))
+
 ## [5.0.0]
 ### Changed
 - **BREAKING**: Rename `NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP` to `CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP` ([#1633](https://github.com/MetaMask/core/pull/1633))
@@ -155,7 +161,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.0...@metamask/controller-utils@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.2...@metamask/controller-utils@5.0.0
 [4.3.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.1...@metamask/controller-utils@4.3.2
 [4.3.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.0...@metamask/controller-utils@4.3.1
