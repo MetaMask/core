@@ -252,7 +252,10 @@ export class AccountsController extends BaseControllerV2<
       currentState.internalAccounts.selectedAccount = account.id;
     });
 
-    this.messagingSystem.publish(`${this.name}:selectedAccountChange`, account);
+    this.messagingSystem.publish(
+      'AccountsController:selectedAccountChange',
+      account,
+    );
   }
 
   /**

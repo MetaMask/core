@@ -1,5 +1,5 @@
 // These utility functions are exclusively used by `confirmExternalTransaction` method in controller
-import { ethErrors } from 'eth-rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
 
 import { TransactionStatus } from './types';
 import type { TransactionMeta } from './types';
@@ -17,13 +17,13 @@ export function validateConfirmedExternalTransaction(
   pendingTxs?: TransactionMeta[],
 ) {
   if (!transactionMeta || !transactionMeta.txParams) {
-    throw ethErrors.rpc.invalidParams(
+    throw rpcErrors.invalidParams(
       '"transactionMeta" or "transactionMeta.txParams" is missing',
     );
   }
 
   if (transactionMeta.status !== TransactionStatus.confirmed) {
-    throw ethErrors.rpc.invalidParams(
+    throw rpcErrors.invalidParams(
       'External transaction status should be "confirmed"',
     );
   }
@@ -34,7 +34,7 @@ export function validateConfirmedExternalTransaction(
       (tx) => tx.txParams?.nonce === externalTxNonce,
     );
     if (foundPendingTxByNonce) {
-      throw ethErrors.rpc.invalidParams(
+      throw rpcErrors.invalidParams(
         'External transaction nonce should not be in pending txs',
       );
     }
@@ -45,7 +45,7 @@ export function validateConfirmedExternalTransaction(
       (tx) => tx.txParams?.nonce === externalTxNonce,
     );
     if (foundConfirmedTxByNonce) {
-      throw ethErrors.rpc.invalidParams(
+      throw rpcErrors.invalidParams(
         'External transaction nonce should not be in confirmed txs',
       );
     }
