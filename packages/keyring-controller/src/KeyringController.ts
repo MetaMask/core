@@ -11,6 +11,7 @@ import {
   KeyringController as EthKeyringController,
   keyringBuilderFactory,
 } from '@metamask/eth-keyring-controller';
+import { normalize as normalizeAddress } from '@metamask/eth-sig-util';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
@@ -769,6 +770,23 @@ export class KeyringController extends BaseControllerV2<
         ].includes(version)
       ) {
         throw new Error(`Unexpected signTypedMessage version: '${version}'`);
+      }
+
+      const ledgerKeyring = await this.getLedgerKeyring();
+      const isLedgerAccount = await ledgerKeyring.managesAccount(
+        normalizeAddress(messageParams.from || '') || '',
+      );
+
+      if (isLedgerAccount) {
+        return await this.#keyring.signTypedMessage(
+          {
+            from: messageParams.from,
+            data: messageParams.data as
+              | Record<string, unknown>
+              | Record<string, unknown>[],
+          },
+          { version },
+        );
       }
 
       return await this.#keyring.signTypedMessage(

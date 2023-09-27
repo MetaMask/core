@@ -2253,6 +2253,12 @@ describe('KeyringController', () => {
   describe('Ledger Keyring', () => {
     let ledgerKeyring: LedgerKeyring;
     let signProcessKeyringController: KeyringController;
+    let ledgerKeyringApp: {
+      signTransaction: sinon.SinonStub;
+      getAddress: sinon.SinonStub;
+      signEIP712HashedMessage: sinon.SinonStub;
+      signPersonalMessage: sinon.SinonStub;
+    };
 
     beforeEach(async () => {
       signProcessKeyringController = await withController(
@@ -2264,14 +2270,15 @@ describe('KeyringController', () => {
       await signProcessKeyringController.createNewVaultAndKeychain(password);
       ledgerKeyring = await signProcessKeyringController.getLedgerKeyring();
 
-      ledgerKeyring.setApp({
+      ledgerKeyringApp = {
         signTransaction: sinon.stub(),
         getAddress: sinon.stub().resolves({
           address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
         }),
         signEIP712HashedMessage: sinon.stub(),
         signPersonalMessage: sinon.stub(),
-      });
+      };
+      ledgerKeyring.setApp(ledgerKeyringApp);
 
       await signProcessKeyringController.unlockLedgerDefaultAccount();
     });
@@ -2517,6 +2524,12 @@ describe('KeyringController', () => {
         version: SignTypedDataVersion.V4,
       });
       expect(account).toBe(recovered);
+      expect(confirmSignatureStub.calledOnce).toBe(true);
+      expect(
+        confirmSignatureStub.calledWith(account, JSON.stringify(msgParams), {
+          version: SignTypedDataVersion.V4,
+        }),
+      ).toBe(true);
     });
 
     it('should forget Ledger Keyring', async () => {
