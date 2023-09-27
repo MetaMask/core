@@ -15,8 +15,6 @@ import {
   providerFromEngine,
   providerFromMiddleware,
 } from '@metamask/eth-json-rpc-provider';
-import type { Hex } from '@metamask/utils';
-import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   createAsyncMiddleware,
   createScaffoldMiddleware,
@@ -24,6 +22,8 @@ import {
   mergeMiddleware,
 } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { Hex } from '@metamask/utils';
+import { PollingBlockTracker } from 'eth-block-tracker';
 
 import type {
   BlockTracker,
