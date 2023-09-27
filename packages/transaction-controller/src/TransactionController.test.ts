@@ -13,7 +13,7 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
-import { errorCodes } from 'eth-rpc-errors';
+import { errorCodes } from '@metamask/rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
@@ -460,6 +460,8 @@ describe('TransactionController', () => {
       {
         blockTracker: finalNetwork.blockTracker,
         getNetworkState: () => finalNetwork.state,
+        getCurrentAccountEIP1559Compatibility: () => true,
+        getCurrentNetworkEIP1559Compatibility: () => true,
         messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
