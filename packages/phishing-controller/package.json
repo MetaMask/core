@@ -28,8 +28,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^5.0.0",
+    "@metamask/base-controller": "^3.2.2",
+    "@metamask/controller-utils": "^5.0.1",
     "@types/punycode": "^2.1.0",
     "eth-phishing-detect": "^1.2.0",
     "punycode": "^2.1.1"

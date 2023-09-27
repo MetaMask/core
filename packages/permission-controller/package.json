@@ -28,9 +28,9 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^3.5.1",
-    "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^5.0.0",
+    "@metamask/approval-controller": "^3.5.2",
+    "@metamask/base-controller": "^3.2.2",
+    "@metamask/controller-utils": "^5.0.1",
     "@metamask/utils": "^6.2.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
@@ -50,7 +50,7 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^3.5.1"
+    "@metamask/approval-controller": "^3.5.2"
   },
   "engines": {
     "node": ">=16.0.0"

@@ -28,8 +28,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^5.0.0",
+    "@metamask/base-controller": "^3.2.2",
+    "@metamask/controller-utils": "^5.0.1",
     "@metamask/utils": "^6.2.0"
   },
   "devDependencies": {

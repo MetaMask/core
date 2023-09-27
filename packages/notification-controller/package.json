@@ -28,7 +28,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.1",
+    "@metamask/base-controller": "^3.2.2",
     "@metamask/utils": "^6.2.0",
     "immer": "^9.0.6",
     "nanoid": "^3.1.31"
