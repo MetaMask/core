@@ -7,10 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.5.2]
-### Uncategorized
-- Fix lint warnings ended up in Github ([#1728](https://github.com/MetaMask/core/pull/1728))
-- Update typescript v4.8 ([#1718](https://github.com/MetaMask/core/pull/1718))
-- chore: Update `typedoc` and related packages ([#1717](https://github.com/MetaMask/core/pull/1717))
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
 
 ## [3.5.1]
 ### Changed

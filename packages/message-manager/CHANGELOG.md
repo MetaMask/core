@@ -7,9 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.3.4]
-### Uncategorized
-- Update typescript v4.8 ([#1718](https://github.com/MetaMask/core/pull/1718))
-- chore: Update `typedoc` and related packages ([#1717](https://github.com/MetaMask/core/pull/1717))
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
 
 ## [7.3.3]
 ### Changed

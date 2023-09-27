@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [8.0.1]
-### Uncategorized
-- `KeyringController`: select only supported properties in `fullUpdate` ([#1710](https://github.com/MetaMask/core/pull/1710))
-- Update typescript v4.8 ([#1718](https://github.com/MetaMask/core/pull/1718))
-- chore: Update `typedoc` and related packages ([#1717](https://github.com/MetaMask/core/pull/1717))
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+### Fixed
+- Removed `keyringTypes` from `memStore` ([#1710](https://github.com/MetaMask/core/pull/1710))
+  - This property was accidentally getting copied into the memstore from the internal keyring controller. It was causing errors because there is no metadata for this state property.
 
 ## [8.0.0]
 ### Added

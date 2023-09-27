@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [7.0.0]
-### Uncategorized
-- Update typescript v4.8 ([#1718](https://github.com/MetaMask/core/pull/1718))
-- Migrate `PhishingController` to BaseControllerV2 ([#1705](https://github.com/MetaMask/core/pull/1705))
-- chore: Update `typedoc` and related packages ([#1717](https://github.com/MetaMask/core/pull/1717))
+
+### Changed
+- **BREAKING:** Migrate `PhishingController` to BaseControllerV2 ([#1705](https://github.com/MetaMask/core/pull/1705))
+  - `PhishingController` now expects a `messenger` option (and corresponding type `PhishingControllerMessenger` is now available)
+  - The constructor takes a single argument, an options bag, instead of three arguments
+  - The `disabled` configuration is no longer supported
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
 
 ## [6.0.2]
 ### Changed

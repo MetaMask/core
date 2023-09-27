@@ -7,12 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [4.1.2]
-### Uncategorized
-- Update typescript v4.8 ([#1718](https://github.com/MetaMask/core/pull/1718))
-- chore: Update `typedoc` and related packages ([#1717](https://github.com/MetaMask/core/pull/1717))
-- Release 78.0.0 ([#1708](https://github.com/MetaMask/core/pull/1708))
-
 ### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
 - Bump dependency on `@metamask/controller-utils` to ^5.0.0
 
 ## [4.1.1]

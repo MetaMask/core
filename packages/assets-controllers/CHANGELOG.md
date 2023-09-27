@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [13.0.1]
-### Uncategorized
-- Update typescript v4.8 ([#1718](https://github.com/MetaMask/core/pull/1718))
-- Enhance transaction validation with standardized RPC errors ([#1690](https://github.com/MetaMask/core/pull/1690))
-- chore: Remove AbortController polyfill ([#1726](https://github.com/MetaMask/core/pull/1726))
-- chore: Update `typedoc` and related packages ([#1717](https://github.com/MetaMask/core/pull/1717))
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+- Update `@metamask/rpc-errors` to `^6.0.0` ([#1690](https://github.com/MetaMask/core/pull/1690))
+
+### Removed
+- **BREAKING:** Remove AbortController polyfill
+  - This package now assumes that the AbortController global exists
 
 ## [13.0.0]
 ### Changed
