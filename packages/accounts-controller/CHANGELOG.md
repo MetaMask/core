@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
 
+### Fixed
+- Remove unused `selectedAccount` from state metadata ([#1734](https://github.com/MetaMask/core/pull/1734))
+
 ## [2.0.0]
 ### Changed
 - **BREAKING:** Bump peer dependency on `@metamask/keyring-controller` to ^8.0.0
