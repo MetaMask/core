@@ -55,7 +55,7 @@ export class ENSNameProvider implements NameProvider {
       };
     }
 
-    const { value, chainId } = request;
+    const { value, variation: chainId } = request;
 
     log('Invoking callback', { value, chainId });
 
