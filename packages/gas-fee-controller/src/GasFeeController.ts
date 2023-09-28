@@ -395,7 +395,7 @@ export class GasFeeController extends PollingController<
   async #fetchGasFeeEstimateForNetworkClientId(networkClientId: string) {
     let isEIP1559Compatible = false;
 
-    const networkClient = await this.messagingSystem.call(
+    const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
