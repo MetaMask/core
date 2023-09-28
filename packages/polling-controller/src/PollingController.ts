@@ -10,7 +10,7 @@ type Constructor = new (...args: any[]) => object;
  * PollingControllerMixin
  *
  * @param Base - The base class to mix onto.
- * @returns The mixin.
+ * @returns The composed class.
  */
 function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
   /**
@@ -36,6 +36,11 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       return this.#intervalLength;
     }
 
+    /**
+     * Sets the length of the polling interval
+     *
+     * @param length - The length of the polling interval in milliseconds
+     */
     setIntervalLength(length: number) {
       this.#intervalLength = length;
     }
@@ -128,6 +133,12 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       }, this.#intervalLength);
     }
 
+    /**
+     * Adds a callback to execute when polling is complete
+     *
+     * @param networkClientId - The networkClientId to listen for polling complete events
+     * @param callback - The callback to execute when polling is complete
+     */
     onPollingComplete(
       networkClientId: NetworkClientId,
       callback: (networkClientId: NetworkClientId) => void,
