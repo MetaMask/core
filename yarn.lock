@@ -1405,7 +1405,7 @@ __metadata:
     "@metamask/rpc-errors": ^6.0.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
-    "@types/node": ^16.18.24
+    "@types/node": ^16.18.54
     "@types/uuid": ^8.3.0
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
@@ -1531,7 +1531,7 @@ __metadata:
     "@metamask/eslint-config-typescript": ^12.1.0
     "@metamask/eth-json-rpc-provider": ^1.0.0
     "@metamask/utils": ^8.1.0
-    "@types/node": ^16.18.24
+    "@types/node": ^16.18.54
     "@typescript-eslint/eslint-plugin": ^5.62.0
     "@typescript-eslint/parser": ^5.62.0
     eslint: ^8.44.0
@@ -2580,7 +2580,7 @@ __metadata:
     "@metamask/rpc-errors": ^6.0.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
-    "@types/node": ^16.18.24
+    "@types/node": ^16.18.54
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
@@ -3179,10 +3179,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^16.18.24":
-  version: 16.18.38
-  resolution: "@types/node@npm:16.18.38"
-  checksum: a3baa141e49ce94486f083eea1240cf38479a73ba663e1bf3f52f85b466125821b6e3ea85ded38fde3901530aca4601291395a50eefcea533a4f3b45171bda28
+"@types/node@npm:^16.18.54":
+  version: 16.18.55
+  resolution: "@types/node@npm:16.18.55"
+  checksum: 6f5fca0063515545203ef7a1d587dd88f57bb15d88e053396648642dfce77cdd7ebf5312494a078c3ee27c0e62b599315e929086240e09f8ed0e8a84c20857a1
   languageName: node
   linkType: hard
 
