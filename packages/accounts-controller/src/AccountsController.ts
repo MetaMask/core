@@ -92,10 +92,6 @@ const accountsControllerMetadata = {
     persist: true,
     anonymous: false,
   },
-  selectedAccount: {
-    persist: true,
-    anonymous: false,
-  },
 };
 
 const defaultState: AccountsControllerState = {
