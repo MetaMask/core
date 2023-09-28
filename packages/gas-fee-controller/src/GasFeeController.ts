@@ -196,17 +196,17 @@ export type FetchGasFeeEstimateOptions = {
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  * @property estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
  */
-export type GasFeeStateOld =
+export type SingleChainGasFeeState =
   | GasFeeStateEthGasPrice
   | GasFeeStateFeeMarket
   | GasFeeStateLegacy
   | GasFeeStateNoEstimates;
 
 export type GasFeeEstimatesByChainId = {
-  gasFeeEstimatesByChainId?: Record<string, GasFeeStateOld>;
+  gasFeeEstimatesByChainId?: Record<string, SingleChainGasFeeState>;
 };
 
-export type GasFeeState = GasFeeEstimatesByChainId & GasFeeStateOld;
+export type GasFeeState = GasFeeEstimatesByChainId & SingleChainGasFeeState;
 
 const name = 'GasFeeController';
 
