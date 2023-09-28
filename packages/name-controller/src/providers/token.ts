@@ -42,7 +42,7 @@ export class TokenNameProvider implements NameProvider {
       };
     }
 
-    const { value, chainId } = request;
+    const { value, variation: chainId } = request;
     const url = `https://token-api.metaswap.codefi.network/token/${chainId}?address=${value}`;
 
     log('Sending request', url);

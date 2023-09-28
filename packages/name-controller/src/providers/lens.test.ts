@@ -51,7 +51,7 @@ describe('LensNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -74,7 +74,7 @@ describe('LensNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -94,7 +94,7 @@ describe('LensNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -113,7 +113,7 @@ describe('LensNameProvider', () => {
       await expect(
         provider.getProposedNames({
           value: VALUE_MOCK,
-          chainId: CHAIN_ID_MOCK,
+          variation: CHAIN_ID_MOCK,
           type: NameType.ETHEREUM_ADDRESS,
         }),
       ).rejects.toThrow('TestError');
