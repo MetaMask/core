@@ -932,16 +932,17 @@ __metadata:
   linkType: hard
 
 "@metamask/auto-changelog@npm:^3.0.0":
-  version: 3.2.0
-  resolution: "@metamask/auto-changelog@npm:3.2.0"
+  version: 3.3.0
+  resolution: "@metamask/auto-changelog@npm:3.3.0"
   dependencies:
     diff: ^5.0.0
     execa: ^5.1.1
+    prettier: ^2.8.8
     semver: ^7.3.5
     yargs: ^17.0.1
   bin:
     auto-changelog: dist/cli.js
-  checksum: 7cd19400bb60d478455fbf9ffe7c295b21df64764a01f90776beda04bfa46242f34751112b862b4bd5955f04a7d28cfa7d6b2e745f3d3baaccda7c493f761658
+  checksum: 1b308f0f6beafb479da19398bc51315888c8fa7e1688ee835a96d5e2ca8dccf2edac80ac835335122b2c3ff6c76f03d202a35316122bbfa7c071954d5227f732
   languageName: node
   linkType: hard
 
@@ -5846,7 +5847,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier@npm:^2.7.1":
+"prettier@npm:^2.7.1, prettier@npm:^2.8.8":
   version: 2.8.8
   resolution: "prettier@npm:2.8.8"
   bin:
