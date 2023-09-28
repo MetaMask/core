@@ -17,6 +17,12 @@ import { errorCodes } from '@metamask/rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { mockNetwork } from '../../../tests/mock-network';
+import type {
+  AcceptResultCallbacks,
+  AddResult,
+} from '../../approval-controller/src';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   TransactionControllerMessenger,
@@ -26,12 +32,6 @@ import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
 import { WalletDevice, TransactionStatus, TransactionType } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { mockNetwork } from '../../../tests/mock-network';
-import type {
-  AcceptResultCallbacks,
-  AddResult,
-} from '../../approval-controller/src';
 
 const v1Stub = jest
   .fn()
