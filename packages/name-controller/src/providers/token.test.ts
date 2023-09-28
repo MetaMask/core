@@ -39,7 +39,7 @@ describe('TokenNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -62,7 +62,7 @@ describe('TokenNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -80,7 +80,7 @@ describe('TokenNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -99,7 +99,7 @@ describe('TokenNameProvider', () => {
       await expect(
         provider.getProposedNames({
           value: VALUE_MOCK,
-          chainId: CHAIN_ID_MOCK,
+          variation: CHAIN_ID_MOCK,
           type: NameType.ETHEREUM_ADDRESS,
         }),
       ).rejects.toThrow('TestError');
