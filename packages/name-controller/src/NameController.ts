@@ -144,6 +144,7 @@ export class NameController extends BaseControllerV2<
    * @param request.sourceId - Optional ID of the source of the proposed name.
    * @param request.type - Type of value to set the name for.
    * @param request.value - Value to set the name for.
+   * @param request.variation - Variation of the raw value to set the name for. The chain ID if the type is Ethereum address.
    */
   setName(request: SetNameRequest) {
     this.#validateSetNameRequest(request);
@@ -164,6 +165,7 @@ export class NameController extends BaseControllerV2<
    * @param request.value - Value to update the proposed names for.
    * @param request.type - Type of value to update the proposed names for.
    * @param request.sourceIds - Optional array of source IDs to limit which sources are used by the providers. If not provided, all sources in all providers will be used.
+   * @param request.variation - Variation of the raw value to update proposed names for. The chain ID if the type is Ethereum address.
    * @returns The updated proposed names for the value.
    */
   async updateProposedNames(
