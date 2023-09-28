@@ -327,9 +327,9 @@ export class GasFeeController extends PollingController<
       metadata,
       messenger,
       state: { ...defaultState, ...state },
-      pollingIntervalLength: interval,
     });
     this.intervalDelay = interval;
+    this.setIntervalLength(interval);
     this.pollTokens = new Set();
     this.getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
