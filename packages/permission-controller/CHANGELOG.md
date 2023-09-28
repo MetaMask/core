@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.2]
 ### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
 - Bump dependency on `@metamask/controller-utils` to ^5.0.0
 
 ## [4.1.1]

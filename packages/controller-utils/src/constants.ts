@@ -78,7 +78,7 @@ export const BUILT_IN_NETWORKS = {
     chainId: ChainId['linea-goerli'],
     ticker: NetworksTicker['linea-goerli'],
     rpcPrefs: {
-      blockExplorerUrl: 'https://explorer.goerli.linea.build',
+      blockExplorerUrl: 'https://goerli.lineascan.build',
     },
   },
   [NetworkType['linea-mainnet']]: {
