@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "12.0.0",
+  "version": "14.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -33,18 +33,17 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/abi-utils": "^2.0.2",
-    "@metamask/approval-controller": "^3.5.1",
-    "@metamask/base-controller": "^3.2.1",
+    "@metamask/approval-controller": "^3.5.2",
+    "@metamask/base-controller": "^3.2.2",
     "@metamask/contract-metadata": "^2.3.1",
-    "@metamask/controller-utils": "^4.3.2",
+    "@metamask/controller-utils": "^5.0.1",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/metamask-eth-abis": "3.0.0",
-    "@metamask/network-controller": "^12.2.0",
-    "@metamask/preferences-controller": "^4.4.0",
-    "@metamask/rpc-errors": "^5.1.1",
+    "@metamask/network-controller": "^13.0.1",
+    "@metamask/preferences-controller": "^4.4.2",
+    "@metamask/rpc-errors": "^6.0.0",
     "@metamask/utils": "^6.2.0",
     "@types/uuid": "^8.3.0",
-    "abort-controller": "^3.0.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
     "immer": "^9.0.6",
@@ -63,14 +62,14 @@
     "nock": "^13.3.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.22.15",
-    "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.6.3"
+    "typedoc": "^0.23.15",
+    "typedoc-plugin-missing-exports": "^0.23.0",
+    "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^3.5.1",
-    "@metamask/network-controller": "^12.2.0",
-    "@metamask/preferences-controller": "^4.4.0"
+    "@metamask/approval-controller": "^3.5.2",
+    "@metamask/network-controller": "^13.0.1",
+    "@metamask/preferences-controller": "^4.4.2"
   },
   "engines": {
     "node": ">=16.0.0"

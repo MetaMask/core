@@ -1,0 +1,58 @@
+{
+  "name": "@metamask/polling-controller",
+  "version": "0.0.0",
+  "description": "Polling Controller is the base for controllers that polling by networkClientId",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/polling-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/polling-controller",
+    "publish:preview": "yarn npm publish --tag preview",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "^3.2.2",
+    "@metamask/controller-utils": "^5.0.1",
+    "@metamask/network-controller": "^13.0.1",
+    "@metamask/utils": "^6.2.0",
+    "@types/uuid": "^8.3.0",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.1.0",
+    "@types/jest": "^27.4.1",
+    "deepmerge": "^4.2.2",
+    "jest": "^27.5.1",
+    "ts-jest": "^27.1.4",
+    "typedoc": "^0.23.15",
+    "typedoc-plugin-missing-exports": "^0.23.0",
+    "typescript": "~4.8.4"
+  },
+  "peerDependencies": {
+    "@metamask/network-controller": "^13.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

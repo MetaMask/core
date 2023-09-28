@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.4]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [7.3.3]
+### Changed
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+
 ## [7.3.2]
 ### Changed
 - Bump @metamask/eth-sig-util from 6.0.0 to 7.0.0 ([#1669](https://github.com/MetaMask/core/pull/1669))
@@ -109,7 +117,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.4...HEAD
+[7.3.4]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.3...@metamask/message-manager@7.3.4
+[7.3.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.2...@metamask/message-manager@7.3.3
 [7.3.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.1...@metamask/message-manager@7.3.2
 [7.3.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.0...@metamask/message-manager@7.3.1
 [7.3.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.2.0...@metamask/message-manager@7.3.0

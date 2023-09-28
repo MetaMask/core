@@ -266,14 +266,14 @@ export function testsForProviderType(providerType: ProviderType) {
 
       describe('eth_chainId', () => {
         it('does not hit the RPC endpoint, instead returning the configured chain id', async () => {
-          const networkId = await withNetworkClient(
+          const chainId = await withNetworkClient(
             { providerType: 'custom', customChainId: '0x1' },
             ({ makeRpcCall }) => {
               return makeRpcCall({ method: 'eth_chainId' });
             },
           );
 
-          expect(networkId).toBe('0x1');
+          expect(chainId).toBe('0x1');
         });
       });
     });
@@ -316,44 +316,29 @@ export function testsForProviderType(providerType: ProviderType) {
 
     describe('other methods', () => {
       describe('net_version', () => {
-        // The Infura middleware includes `net_version` in its scaffold
-        // middleware, whereas the custom RPC middleware does not.
-        if (providerType === 'infura') {
-          it('does not hit Infura, instead returning the network ID that maps to the Infura network, as a decimal string', async () => {
+        const networkArgs = {
+          providerType,
+          infuraNetwork: providerType === 'infura' ? 'goerli' : undefined,
+        } as const;
+        it('hits the RPC endpoint', async () => {
+          await withMockedCommunications(networkArgs, async (comms) => {
+            comms.mockRpcCall({
+              request: { method: 'net_version' },
+              response: { result: '1' },
+            });
+
             const networkId = await withNetworkClient(
-              { providerType: 'infura', infuraNetwork: 'goerli' },
+              networkArgs,
               ({ makeRpcCall }) => {
                 return makeRpcCall({
                   method: 'net_version',
                 });
               },
             );
-            expect(networkId).toBe('5');
-          });
-        } else {
-          it('hits the RPC endpoint', async () => {
-            await withMockedCommunications(
-              { providerType: 'custom' },
-              async (comms) => {
-                comms.mockRpcCall({
-                  request: { method: 'net_version' },
-                  response: { result: '1' },
-                });
 
-                const networkId = await withNetworkClient(
-                  { providerType: 'custom' },
-                  ({ makeRpcCall }) => {
-                    return makeRpcCall({
-                      method: 'net_version',
-                    });
-                  },
-                );
-
-                expect(networkId).toBe('1');
-              },
-            );
+            expect(networkId).toBe('1');
           });
-        }
+        });
       });
     });
   });

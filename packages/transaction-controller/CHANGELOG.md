@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+### Changed
+- **BREAKING**: Add required `getCurrentAccountEIP1559Compatibility`  and `getCurrentNetworkEIP1559Compatibility` callback arguments to constructor ([#1693](https://github.com/MetaMask/core/pull/1693))
+- Update `validateTxParams` to throw standardised errors using the `@metamask/rpc-errors` package ([#1690](https://github.com/MetaMask/core/pull/1690))
+  - The dependency `eth-rpc-errors` has been replaced by `@metamask/rpc-errors`
+- Preserve `type` transaction parameter for legacy transactions ([#1713](https://github.com/MetaMask/core/pull/1713))
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [12.0.0]
+### Changed
+- **BREAKING**: Use only `chainId` to determine if a transaction belongs to the current network ([#1633](https://github.com/MetaMask/core/pull/1633))
+  - No longer uses `networkID` as a fallback if `chainId` is missing
+- **BREAKING**: Change `TransactionMeta.chainId` to be required ([#1633](https://github.com/MetaMask/core/pull/1633))
+- **BREAKING**: Bump peer dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Update `TransactionMeta.networkID` as deprecated ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Change `TransactionMeta.networkID` to be readonly ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+
+### Removed
+- Remove `networkId` param from `RemoteTransactionSource.isSupportedNetwork()` interface ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Remove `currentNetworkId` property from `RemoteTransactionSourceRequest` ([#1633](https://github.com/MetaMask/core/pull/1633))
+
+## [11.1.0]
+### Added
+- Add `type` property to the transaction metadata ([#1670](https://github.com/MetaMask/core/pull/1670))
+
 ## [11.0.0]
 ### Added
 - Add optional `getLastBlockVariations` method to `RemoteTransactionSource` type ([#1668](https://github.com/MetaMask/core/pull/1668))
@@ -70,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add incoming transaction methods ([#1579](https://github.com/MetaMask/core/pull/1579))
   - `startIncomingTransactionPolling`
   - `stopIncomingTransactionPolling`
-  - `updateIncomingTransactions` 
+  - `updateIncomingTransactions`
 - Add `requireApproval` option to `addTransaction` method options ([#1580](https://github.com/MetaMask/core/pull/1580))
 - Add `address` argument to `wipeTransactions` method ([#1573](https://github.com/MetaMask/core/pull/1573))
 
@@ -110,7 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [7.0.0]
 ### Changed
 - **BREAKING**: Change the approveTransaction and cancelTransaction methods to private ([#1435](https://github.com/MetaMask/core/pull/1435))
-  - Consumers should migrate from use of these methods to use of `processApproval`. 
+  - Consumers should migrate from use of these methods to use of `processApproval`.
 - Update the TransactionController to await the approval request promise before automatically performing the relevant logic, either signing and submitting the transaction, or cancelling it ([#1435](https://github.com/MetaMask/core/pull/1435))
 
 ## [6.1.0]
@@ -123,7 +149,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update transaction controller to automatically initiate, finalize, and cancel approval requests as transactions move through states ([#1241](https://github.com/MetaMask/core/pull/1241))
   - The `ApprovalController:addRequest` action will be called when a new transaction is initiated
   - The `ApprovalController:rejectRequest` action will be called if a transaction fails
-  - The `ApprovalController:acceptRequest` action will be called when a transaction is approved 
+  - The `ApprovalController:acceptRequest` action will be called when a transaction is approved
 
 ### Changed
 - **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
@@ -185,7 +211,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@12.0.0...@metamask/transaction-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.1.0...@metamask/transaction-controller@12.0.0
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.0.0...@metamask/transaction-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@10.0.0...@metamask/transaction-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.2.0...@metamask/transaction-controller@10.0.0
 [9.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@9.1.0...@metamask/transaction-controller@9.2.0
