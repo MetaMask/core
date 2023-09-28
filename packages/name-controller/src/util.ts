@@ -57,3 +57,19 @@ export async function successfulFetch(request: string, options?: RequestInit) {
   }
   return response;
 }
+
+/**
+ * Assert that a value is an error. If it's not an error, throw an
+ * error that wraps the given value.
+ *
+ * TODO: Migrate this to @metamask/utils
+ *
+ * @param error - The value that we expect to be an error.
+ * @throws Throws an error wrapping the given value if it's not an error.
+ */
+export function assertIsError(error: unknown): asserts error is Error {
+  if (error instanceof Error) {
+    return;
+  }
+  throw new Error(`Invalid error of type '${typeof error}'`);
+}

@@ -460,6 +460,8 @@ describe('TransactionController', () => {
       {
         blockTracker: finalNetwork.blockTracker,
         getNetworkState: () => finalNetwork.state,
+        getCurrentAccountEIP1559Compatibility: () => true,
+        getCurrentNetworkEIP1559Compatibility: () => true,
         messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,

@@ -9,7 +9,7 @@ import type {
   NameProviderResult,
 } from '../types';
 import { NameType } from '../types';
-import { handleFetch } from '../util';
+import { handleFetch, assertIsError } from '../util';
 
 const ID = 'etherscan';
 const LABEL = 'Etherscan (Verified Contract Name)';
@@ -134,7 +134,10 @@ export class EtherscanNameProvider implements NameProvider {
     }
   }
 
-  async #sendRequest(url: string) {
+  async #sendRequest(url: string): Promise<{
+    responseData?: EtherscanGetSourceCodeResponse;
+    error?: Error;
+  }> {
     try {
       log('Sending request', url);
 
@@ -144,6 +147,7 @@ export class EtherscanNameProvider implements NameProvider {
 
       return { responseData };
     } catch (error) {
+      assertIsError(error);
       return { error };
     } finally {
       this.#lastRequestTime = Date.now();
