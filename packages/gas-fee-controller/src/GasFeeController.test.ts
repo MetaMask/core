@@ -917,8 +917,8 @@ describe('GasFeeController', () => {
     });
   });
 
-  describe('polling', () => {
-    it('should call determineGasFeeCalculations with a URL that contains the chain ID after the interval passed via the constructor', async () => {
+  describe('polling (by networkClientId)', () => {
+    it('should call determineGasFeeCalculations (via executePoll) with a URL that contains the chain ID after the interval passed via the constructor', async () => {
       const pollingInterval = 10000;
       await setupGasFeeController({
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
@@ -941,7 +941,7 @@ describe('GasFeeController', () => {
         interval: pollingInterval,
       });
 
-      gasFeeController.start('goerli');
+      gasFeeController.startPollingByNetworkClientId('goerli');
       await clock.tickAsync(pollingInterval / 2);
       expect(mockedDetermineGasFeeCalculations).not.toHaveBeenCalled();
       await clock.tickAsync(pollingInterval / 2);
