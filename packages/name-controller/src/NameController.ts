@@ -277,6 +277,7 @@ export class NameController extends BaseControllerV2<
     const variationKey = variation ?? DEFAULT_VARIATION;
     const supportedSourceIds = this.#getSourceIds(provider, type);
     const currentTime = this.#getCurrentTimeSeconds();
+    const normalizedValue = this.#normalizeValue(value, type);
 
     const matchingSourceIds = supportedSourceIds.filter((sourceId) => {
       if (requestedSourceIds && !requestedSourceIds.includes(sourceId)) {
@@ -284,7 +285,8 @@ export class NameController extends BaseControllerV2<
       }
 
       if (onlyUpdateAfterDelay) {
-        const entry = this.state.names[type]?.[value]?.[variationKey] ?? {};
+        const entry =
+          this.state.names[type]?.[normalizedValue]?.[variationKey] ?? {};
         const proposedNamesEntry = entry.proposedNames?.[sourceId] ?? {};
         const lastRequestTime = proposedNamesEntry.lastRequestTime ?? 0;
         const updateDelay = proposedNamesEntry.updateDelay ?? this.#updateDelay;
