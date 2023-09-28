@@ -115,6 +115,9 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
         clearTimeout(this.#intervalIds[networkClientId]);
         delete this.#intervalIds[networkClientId];
       }
+      // setTimeout is not `await`ing this async function, which is expected
+      // We're just using async here for improved stack traces
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#intervalIds[networkClientId] = setTimeout(async () => {
         try {
           await this.executePoll(networkClientId);
