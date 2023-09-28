@@ -22,7 +22,7 @@ import { mockNetwork } from '../../../tests/mock-network';
 import type {
   AcceptResultCallbacks,
   AddResult,
-} from '../../approval-controller/src';
+} from '@metamask/approval-controller';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   TransactionControllerMessenger,
