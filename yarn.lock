@@ -1549,7 +1549,7 @@ __metadata:
     json-rpc-engine: ^6.1.0
     nock: ^13.3.1
     prettier: ^2.7.1
-    prettier-plugin-packagejson: ^2.2.17
+    prettier-plugin-packagejson: ^2.4.5
     rimraf: ^3.0.2
     simple-git-hooks: ^2.8.0
     ts-node: ^10.9.1
@@ -8625,7 +8625,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier-plugin-packagejson@npm:^2.2.17":
+"prettier-plugin-packagejson@npm:^2.4.5":
   version: 2.4.5
   resolution: "prettier-plugin-packagejson@npm:2.4.5"
   dependencies:
