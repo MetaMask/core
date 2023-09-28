@@ -1,1 +1,1 @@
-export { default as PollingController } from './PollingController';
+export { PollingController, PollingControllerV1 } from './PollingController';
