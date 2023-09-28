@@ -1532,8 +1532,8 @@ __metadata:
     "@metamask/eth-json-rpc-provider": ^1.0.0
     "@metamask/utils": ^8.1.0
     "@types/node": ^16.18.24
-    "@typescript-eslint/eslint-plugin": ^5.30.7
-    "@typescript-eslint/parser": ^5.30.7
+    "@typescript-eslint/eslint-plugin": ^5.62.0
+    "@typescript-eslint/parser": ^5.62.0
     eslint: ^8.44.0
     eslint-config-prettier: ^8.5.0
     eslint-import-resolver-typescript: ^2.5.0
@@ -3297,7 +3297,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/eslint-plugin@npm:^5.30.7":
+"@typescript-eslint/eslint-plugin@npm:^5.62.0":
   version: 5.62.0
   resolution: "@typescript-eslint/eslint-plugin@npm:5.62.0"
   dependencies:
@@ -3321,7 +3321,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/parser@npm:^5.30.7":
+"@typescript-eslint/parser@npm:^5.62.0":
   version: 5.62.0
   resolution: "@typescript-eslint/parser@npm:5.62.0"
   dependencies:
