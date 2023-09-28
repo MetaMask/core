@@ -430,6 +430,12 @@ export interface TransactionParams {
    * Value associated with this transaction.
    */
   value?: string;
+
+  /**
+   * Type of transaction.
+   * 0x0 indicates a legacy transaction.
+   */
+  type?: string;
 }
 
 /**

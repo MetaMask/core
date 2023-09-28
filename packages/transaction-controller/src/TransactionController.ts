@@ -30,10 +30,10 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
+import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
-import { errorCodes, ethErrors } from 'eth-rpc-errors';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { merge, pickBy } from 'lodash';
@@ -184,6 +184,10 @@ export class TransactionController extends BaseController<
 
   private readonly getNetworkState: () => NetworkState;
 
+  private readonly getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
+
+  private readonly getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+
   private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
 
   private readonly getSelectedAddress: () => string;
@@ -236,6 +240,8 @@ export class TransactionController extends BaseController<
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
+   * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
+   * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPermittedAccounts - get accounts that an origin has permissions for.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
@@ -255,6 +261,8 @@ export class TransactionController extends BaseController<
       blockTracker,
       disableHistory,
       disableSendFlowHistory,
+      getCurrentAccountEIP1559Compatibility,
+      getCurrentNetworkEIP1559Compatibility,
       getNetworkState,
       getPermittedAccounts,
       getSelectedAddress,
@@ -266,6 +274,8 @@ export class TransactionController extends BaseController<
       blockTracker: BlockTracker;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
+      getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
+      getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getNetworkState: () => NetworkState;
       getPermittedAccounts: (origin?: string) => Promise<string[]>;
       getSelectedAddress: () => string;
@@ -304,6 +314,10 @@ export class TransactionController extends BaseController<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.registry = new MethodRegistry({ provider });
+    this.getCurrentAccountEIP1559Compatibility =
+      getCurrentAccountEIP1559Compatibility;
+    this.getCurrentNetworkEIP1559Compatibility =
+      getCurrentNetworkEIP1559Compatibility;
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
 
@@ -435,13 +449,14 @@ export class TransactionController extends BaseController<
     const chainId = this.getChainId();
     const { transactions } = this.state;
     txParams = normalizeTxParams(txParams);
-    validateTxParams(txParams);
+    const isEIP1559Compatible = await this.getEIP1559Compatibility();
+    validateTxParams(txParams, isEIP1559Compatible);
 
     if (origin === ORIGIN_METAMASK) {
       // Ensure the 'from' address matches the currently selected address
       const selectedAddress = this.getSelectedAddress();
       if (txParams.from !== selectedAddress) {
-        throw ethErrors.rpc.internal({
+        throw rpcErrors.internal({
           message: `Internally initiated transaction is using invalid account.`,
           data: {
             origin,
@@ -454,7 +469,7 @@ export class TransactionController extends BaseController<
       // Check if the origin has permissions to initiate transactions from the specified address
       const permittedAddresses = await this.getPermittedAccounts(origin);
       if (!permittedAddresses.includes(txParams.from)) {
-        throw ethErrors.provider.unauthorized({ data: { origin } });
+        throw providerErrors.unauthorized({ data: { origin: origin ?? '' } });
       }
     }
 
@@ -1191,7 +1206,7 @@ export class TransactionController extends BaseController<
           if (error.code === errorCodes.provider.userRejectedRequest) {
             this.cancelTransaction(transactionId);
 
-            throw ethErrors.provider.userRejectedRequest(
+            throw providerErrors.userRejectedRequest(
               'User rejected the transaction',
             );
           } else {
@@ -1206,10 +1221,10 @@ export class TransactionController extends BaseController<
     switch (finalMeta?.status) {
       case TransactionStatus.failed:
         resultCallbacks?.error(finalMeta.error);
-        throw ethErrors.rpc.internal(finalMeta.error.message);
+        throw rpcErrors.internal(finalMeta.error.message);
 
       case TransactionStatus.cancelled:
-        const cancelError = ethErrors.rpc.internal(
+        const cancelError = rpcErrors.internal(
           'User cancelled the transaction',
         );
 
@@ -1221,7 +1236,7 @@ export class TransactionController extends BaseController<
         return finalMeta.hash as string;
 
       default:
-        const internalError = ethErrors.rpc.internal(
+        const internalError = rpcErrors.internal(
           `MetaMask Tx Signature: Unknown problem: ${JSON.stringify(
             finalMeta || transactionId,
           )}`,
@@ -1829,6 +1844,17 @@ export class TransactionController extends BaseController<
     if (signedTx.v) {
       transactionMeta.v = addHexPrefix(signedTx.v.toString(16));
     }
+  }
+
+  private async getEIP1559Compatibility() {
+    const currentNetworkIsEIP1559Compatible =
+      await this.getCurrentNetworkEIP1559Compatibility();
+    const currentAccountIsEIP1559Compatible =
+      this.getCurrentAccountEIP1559Compatibility?.() ?? true;
+
+    return (
+      currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
   }
 }
 

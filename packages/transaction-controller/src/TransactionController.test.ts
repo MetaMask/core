@@ -13,7 +13,7 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
-import { errorCodes, ethErrors } from 'eth-rpc-errors';
+import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
@@ -460,6 +460,8 @@ describe('TransactionController', () => {
       {
         blockTracker: finalNetwork.blockTracker,
         getNetworkState: () => finalNetwork.state,
+        getCurrentAccountEIP1559Compatibility: () => true,
+        getCurrentNetworkEIP1559Compatibility: () => true,
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
         messenger,
@@ -1401,7 +1403,7 @@ describe('TransactionController', () => {
             { origin: ORIGIN_METAMASK },
           ),
         ).rejects.toThrow(
-          ethErrors.rpc.internal({
+          rpcErrors.internal({
             message: `Internally initiated transaction is using invalid account.`,
             data: {
               origin,

@@ -1,4 +1,7 @@
+import { Mutex } from 'async-mutex';
+
 import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
+import { createModuleLogger, projectLogger } from '../logger';
 import type {
   NameProvider,
   NameProviderMetadata,
@@ -6,10 +9,14 @@ import type {
   NameProviderResult,
 } from '../types';
 import { NameType } from '../types';
-import { handleFetch } from '../util';
+import { handleFetch, assertIsError } from '../util';
 
 const ID = 'etherscan';
 const LABEL = 'Etherscan (Verified Contract Name)';
+const RATE_LIMIT_UPDATE_DELAY = 5; // 5 Seconds
+const RATE_LIMIT_INTERVAL = RATE_LIMIT_UPDATE_DELAY * 1000;
+
+const log = createModuleLogger(projectLogger, 'etherscan');
 
 type EtherscanGetSourceCodeResponse = {
   status: '1' | '0';
@@ -33,10 +40,14 @@ type EtherscanGetSourceCodeResponse = {
 };
 
 export class EtherscanNameProvider implements NameProvider {
-  #apiKey?: string;
+  #isEnabled: () => boolean;
 
-  constructor({ apiKey }: { apiKey?: string } = {}) {
-    this.#apiKey = apiKey;
+  #lastRequestTime = 0;
+
+  #mutex = new Mutex();
+
+  constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
+    this.#isEnabled = isEnabled || (() => true);
   }
 
   getMetadata(): NameProviderMetadata {
@@ -49,29 +60,98 @@ export class EtherscanNameProvider implements NameProvider {
   async getProposedNames(
     request: NameProviderRequest,
   ): Promise<NameProviderResult> {
-    const { value, chainId } = request;
+    if (!this.#isEnabled()) {
+      log('Skipping request as disabled');
 
-    const url = this.#getUrl(chainId, {
-      module: 'contract',
-      action: 'getsourcecode',
-      address: value,
-      apikey: this.#apiKey,
-    });
-
-    const responseData = (await handleFetch(
-      url,
-    )) as EtherscanGetSourceCodeResponse;
-
-    const results = responseData?.result ?? [];
-    const proposedNames = results.map((result) => result.ContractName);
-
-    return {
-      results: {
-        [ID]: {
-          proposedNames,
+      return {
+        results: {
+          [ID]: {
+            proposedNames: [],
+          },
         },
-      },
-    };
+      };
+    }
+
+    const releaseLock = await this.#mutex.acquire();
+
+    try {
+      const { value, chainId } = request;
+
+      const time = Date.now();
+      const timeSinceLastRequest = time - this.#lastRequestTime;
+
+      if (timeSinceLastRequest < RATE_LIMIT_INTERVAL) {
+        log('Skipping request to avoid rate limit');
+
+        return {
+          results: {
+            [ID]: {
+              updateDelay: RATE_LIMIT_UPDATE_DELAY,
+            },
+          },
+        };
+      }
+
+      const url = this.#getUrl(chainId, {
+        module: 'contract',
+        action: 'getsourcecode',
+        address: value,
+      });
+
+      const { responseData, error } = await this.#sendRequest(url);
+
+      if (error) {
+        log('Request failed', error);
+        throw error;
+      }
+
+      if (responseData?.message === 'NOTOK') {
+        log('Request warning', responseData.result);
+
+        return {
+          results: {
+            [ID]: {
+              updateDelay: RATE_LIMIT_UPDATE_DELAY,
+            },
+          },
+        };
+      }
+
+      const results = responseData?.result ?? [];
+      const proposedNames = results.map((result) => result.ContractName);
+
+      log('New proposed names', proposedNames);
+
+      return {
+        results: {
+          [ID]: {
+            proposedNames,
+          },
+        },
+      };
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async #sendRequest(url: string): Promise<{
+    responseData?: EtherscanGetSourceCodeResponse;
+    error?: Error;
+  }> {
+    try {
+      log('Sending request', url);
+
+      const responseData = (await handleFetch(
+        url,
+      )) as EtherscanGetSourceCodeResponse;
+
+      return { responseData };
+    } catch (error) {
+      assertIsError(error);
+      return { error };
+    } finally {
+      this.#lastRequestTime = Date.now();
+    }
   }
 
   #getUrl(chainId: string, params: Record<string, string | undefined>): string {
@@ -88,11 +168,6 @@ export class EtherscanNameProvider implements NameProvider {
 
     Object.keys(params).forEach((key, index) => {
       const value = params[key];
-
-      if (!value) {
-        return;
-      }
-
       url += `${index === 0 ? '?' : '&'}${key}=${value}`;
     });
 
