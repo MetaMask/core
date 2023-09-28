@@ -2,8 +2,9 @@ import { BaseController, BaseControllerV2 } from '@metamask/base-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { v4 as random } from 'uuid';
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-type Constructor = new (...args: any[]) => {};
+// Mixin classes require a constructor with an `...any[]` parameter
+// See TS2545
+type Constructor = new (...args: any[]) => object;
 
 /**
  * PollingControllerMixin
