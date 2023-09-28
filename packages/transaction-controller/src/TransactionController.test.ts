@@ -13,7 +13,7 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
-import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
+import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
@@ -1414,16 +1414,24 @@ describe('TransactionController', () => {
         );
       });
 
-      it('throws if the origin does not have permissions to initiate transactions from the specified address', async () => {
+      it.each([
+        {
+          description: 'throws if the origin is undefined',
+          txParams: { from: ACCOUNT_2_MOCK, to: ACCOUNT_MOCK },
+          expectedOrigin: '',
+        },
+        {
+          description:
+            'throws if the origin does not have permissions to initiate transactions from the specified address',
+          txParams: { from: ACCOUNT_2_MOCK, to: ACCOUNT_MOCK },
+          expectedOrigin: 'originMocked',
+        },
+      ])('%s', async ({ txParams, expectedOrigin }) => {
         const controller = newController();
-        const fromMocked = ACCOUNT_2_MOCK;
         await expect(
-          controller.addTransaction({
-            from: fromMocked,
-            to: ACCOUNT_MOCK,
-          } as any),
+          controller.addTransaction(txParams, { origin: expectedOrigin }),
         ).rejects.toThrow(
-          ethErrors.provider.unauthorized({ data: { origin: undefined } }),
+          providerErrors.unauthorized({ data: { origin: expectedOrigin } }),
         );
       });
     });
