@@ -25,6 +25,7 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/signature-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
