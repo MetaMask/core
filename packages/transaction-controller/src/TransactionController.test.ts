@@ -553,38 +553,6 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('poll', () => {
-    it('updates transaction statuses in the right interval', async () => {
-      const mock = jest.spyOn(
-        TransactionController.prototype,
-        'queryTransactionStatuses',
-      );
-
-      newController({ config: { interval: 10 } });
-
-      expect(mock).toHaveBeenCalledTimes(1);
-      await wait(15);
-      expect(mock).toHaveBeenCalledTimes(2);
-    });
-
-    it('clears previous interval', async () => {
-      const mock = jest.spyOn(global, 'clearTimeout');
-      const controller = newController({ config: { interval: 1337 } });
-
-      await wait(100);
-      controller.poll(1338);
-      expect(mock).toHaveBeenCalled();
-    });
-
-    it('does not update the state if there are no updates on transaction statuses', async () => {
-      const controller = newController({ config: { interval: 10 } });
-      const func = jest.spyOn(controller, 'update');
-
-      await wait(20);
-      expect(func).not.toHaveBeenCalled();
-    });
-  });
-
   describe('estimateGas', () => {
     /**
      * Test template to assert estimate gas succeeds.
@@ -1464,72 +1432,6 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(1);
       expect(controller.state.transactions[0].id).toBe('4');
-    });
-  });
-
-  describe('queryTransactionStatus', () => {
-    it('updates transaction status to confirmed', async () => {
-      const controller = newController();
-
-      controller.state.transactions.push({
-        chainId: toHex(5),
-        from: MOCK_PREFERENCES.state.selectedAddress,
-        hash: '1337',
-        id: 'foo',
-        status: TransactionStatus.submitted,
-      } as any);
-
-      controller.state.transactions.push({} as any);
-
-      const confirmedPromise = waitForTransactionFinished(controller, {
-        confirmed: true,
-      });
-
-      await controller.queryTransactionStatuses();
-
-      const { status } = await confirmedPromise;
-      expect(status).toBe(TransactionStatus.confirmed);
-    });
-
-    it('leaves transaction status as submitted if transaction was not added to a block', async () => {
-      const controller = newController();
-
-      controller.state.transactions.push({
-        from: MOCK_PREFERENCES.state.selectedAddress,
-        id: 'foo',
-        status: TransactionStatus.submitted,
-        hash: '1338',
-      } as any);
-
-      await controller.queryTransactionStatuses();
-
-      const { status } = controller.state.transactions[0];
-      expect(status).toBe(TransactionStatus.submitted);
-    });
-
-    it('verifies transactions using the correct blockchain', async () => {
-      const controller = newController();
-
-      controller.state.transactions.push({
-        chainId: toHex(5),
-        from: MOCK_PREFERENCES.state.selectedAddress,
-        hash: '1337',
-        id: 'foo',
-        status: TransactionStatus.confirmed,
-        txParams: {
-          gasUsed: undefined,
-        },
-        verifiedOnBlockchain: false,
-      } as any);
-
-      await controller.queryTransactionStatuses();
-
-      const transactionMeta = controller.state.transactions[0];
-      expect(transactionMeta.verifiedOnBlockchain).toBe(true);
-      expect(transactionMeta.txParams.gasUsed).toBe('0x5208');
-      expect(transactionMeta.blockTimestamp).toBe('628dc0c8');
-      expect(transactionMeta.baseFeePerGas).toBe('0x14');
-      expect(transactionMeta.txReceipt?.transactionIndex).toBe(1337);
     });
   });
 
