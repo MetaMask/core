@@ -18,6 +18,7 @@ import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { PendingTransactionTracker } from './PendingTransactionTracker';
 import type {
   TransactionControllerMessenger,
   TransactionConfig,
@@ -43,6 +44,16 @@ jest.mock('uuid', () => {
     v1: () => v1Stub(),
   };
 });
+
+jest.mock('@metamask/utils', () => ({
+  ...jest.requireActual('@metamask/utils'),
+  createProjectLogger: () => ({
+    log: jest.fn(),
+  }),
+  createModuleLogger: () => ({
+    log: jest.fn(),
+  }),
+}));
 
 const mockFlags: { [key: string]: any } = {
   estimateGasError: null,
@@ -135,6 +146,7 @@ jest.mock('@metamask/eth-query', () =>
 );
 
 jest.mock('./IncomingTransactionHelper');
+jest.mock('./PendingTransactionTracker');
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in
@@ -414,11 +426,17 @@ describe('TransactionController', () => {
   let approveTransaction: () => void;
   let getNonceLockSpy: jest.Mock;
   let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
+  let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
   let timeCounter = 0;
 
   const incomingTransactionHelperClassMock =
     IncomingTransactionHelper as jest.MockedClass<
       typeof IncomingTransactionHelper
+    >;
+
+  const pendingTransactionTrackerClassMock =
+    PendingTransactionTracker as jest.MockedClass<
+      typeof PendingTransactionTracker
     >;
 
   /**
@@ -524,8 +542,19 @@ describe('TransactionController', () => {
       },
     } as any;
 
+    pendingTransactionTrackerMock = {
+      start: jest.fn(),
+      hub: {
+        on: jest.fn(),
+      },
+    } as any;
+
     incomingTransactionHelperClassMock.mockReturnValue(
       incomingTransactionHelperMock,
+    );
+
+    pendingTransactionTrackerClassMock.mockReturnValue(
+      pendingTransactionTrackerMock,
     );
   });
 
@@ -2299,6 +2328,43 @@ describe('TransactionController', () => {
       expect(transaction?.originalGasEstimate).toBe(originalGasEstimate);
       expect(transaction?.userEditedGasLimit).toBe(userEditedGasLimit);
       expect(transaction?.userFeeLevel).toBe(userFeeLevel);
+    });
+  });
+
+  describe('on pending transactions event', () => {
+    it('updates existing transactions in state', async () => {
+      const controller = newController();
+
+      controller.state.transactions = [
+        { ...TRANSACTION_META_MOCK, status: TransactionStatus.submitted },
+        { ...TRANSACTION_META_2_MOCK, status: TransactionStatus.submitted },
+      ];
+
+      const updatedTransaction = TRANSACTION_META_MOCK;
+      const updatedTransaction_2 = TRANSACTION_META_2_MOCK;
+
+      await (pendingTransactionTrackerMock.hub.on as any).mock.calls[0][1]([
+        updatedTransaction,
+        updatedTransaction_2,
+      ]);
+
+      expect(controller.state.transactions).toStrictEqual([
+        updatedTransaction,
+        updatedTransaction_2,
+      ]);
+    });
+
+    it('limits max transactions when adding to state', async () => {
+      const controller = newController({ config: { txHistoryLimit: 1 } });
+
+      await (pendingTransactionTrackerMock.hub.on as any).mock.calls[0][1]([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+
+      expect(controller.state.transactions).toStrictEqual([
+        TRANSACTION_META_2_MOCK,
+      ]);
     });
   });
 });
