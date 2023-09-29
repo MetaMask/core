@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
-### Uncategorized
-- Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
-- Normalize addresses in name controller ([#1732](https://github.com/MetaMask/core/pull/1732))
+### Changed
+- **BREAKING**: Normalize addresses and chain IDs ([#1732](https://github.com/MetaMask/core/pull/1732))
+  - Save addresses and chain IDs as lowercase in state
+  - Remove `getChainId` constructor callback
+  - Require a `variation` property when calling `setName` or `updateProposedNames` with the `ethereumAddress` type
 
 ## [2.0.0]
 ### Changed
