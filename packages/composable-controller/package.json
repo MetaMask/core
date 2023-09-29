@@ -1,6 +1,6 @@
 {
   "name": "@metamask/composable-controller",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Consolidates the state from multiple controllers into one",
   "keywords": [
     "MetaMask",
@@ -25,10 +25,11 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/composable-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.1"
+    "@metamask/base-controller": "^3.2.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",

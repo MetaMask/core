@@ -39,7 +39,7 @@ describe('ENSNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -59,7 +59,7 @@ describe('ENSNameProvider', () => {
 
       await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -75,7 +75,7 @@ describe('ENSNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -96,7 +96,7 @@ describe('ENSNameProvider', () => {
       await expect(
         provider.getProposedNames({
           value: VALUE_MOCK,
-          chainId: CHAIN_ID_MOCK,
+          variation: CHAIN_ID_MOCK,
           type: NameType.ETHEREUM_ADDRESS,
         }),
       ).rejects.toThrow('TestError');

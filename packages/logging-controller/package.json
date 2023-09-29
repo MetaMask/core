@@ -1,6 +1,6 @@
 {
   "name": "@metamask/logging-controller",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Manages logging data to assist users and support staff",
   "keywords": [
     "MetaMask",
@@ -25,11 +25,12 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/logging-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^5.0.0",
+    "@metamask/base-controller": "^3.2.2",
+    "@metamask/controller-utils": "^5.0.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-controller",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Manages display of notifications within MetaMask",
   "keywords": [
     "MetaMask",
@@ -25,10 +25,11 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.1",
+    "@metamask/base-controller": "^3.2.2",
     "@metamask/utils": "^6.2.0",
     "immer": "^9.0.6",
     "nanoid": "^3.1.31"
