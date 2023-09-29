@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "78.0.0",
+  "version": "79.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -27,7 +27,8 @@
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "publish-previews": "yarn workspaces foreach --parallel --verbose run publish:preview",
     "setup": "yarn install",
-    "test": "yarn workspaces foreach --parallel --verbose run test"
+    "test": "yarn workspaces foreach --parallel --verbose run test",
+    "test:clean": "yarn workspaces foreach --parallel --verbose run test:clean && yarn test"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"

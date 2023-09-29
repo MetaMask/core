@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+### Fixed
+- Removed `keyringTypes` from `memStore` ([#1710](https://github.com/MetaMask/core/pull/1710))
+  - This property was accidentally getting copied into the memstore from the internal keyring controller. It was causing errors because there is no metadata for this state property.
+
 ## [8.0.0]
 ### Added
 - Add `getQRKeyring(): QRKeyring | undefined` method
@@ -196,7 +204,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.1...HEAD
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.0...@metamask/keyring-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.5.0...@metamask/keyring-controller@8.0.0
 [7.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.4.0...@metamask/keyring-controller@7.5.0
 [7.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.3.0...@metamask/keyring-controller@7.4.0

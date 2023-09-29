@@ -1,7 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 
-import type { PollingCompleteType } from './PollingController';
-import PollingController from './PollingController';
+import { PollingController } from './PollingController';
 
 const TICK_TIME = 1000;
 
@@ -27,11 +26,10 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME,
       });
-      controller.start('mainnet');
+      controller.startPollingByNetworkClientId('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
-      controller.stopAll();
+      controller.stopAllPolling();
       expect(controller.executePoll).toHaveBeenCalledTimes(1);
     });
   });
@@ -48,14 +46,13 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME,
       });
-      const pollingToken = controller.start('mainnet');
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
-      controller.stop(pollingToken);
+      controller.stopPollingByNetworkClientId(pollingToken);
       jest.advanceTimersByTime(TICK_TIME);
       expect(controller.executePoll).toHaveBeenCalledTimes(1);
-      controller.stopAll();
+      controller.stopAllPolling();
     });
     it('should not stop polling if called with one of multiple active polling tokens for a given networkClient', async () => {
       jest.useFakeTimers();
@@ -69,17 +66,16 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME,
       });
-      const pollingToken1 = controller.start('mainnet');
-      controller.start('mainnet');
+      const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
+      controller.startPollingByNetworkClientId('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
-      controller.stop(pollingToken1);
+      controller.stopPollingByNetworkClientId(pollingToken1);
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(2);
-      controller.stopAll();
+      controller.stopAllPolling();
     });
     it('should error if no pollingToken is passed', () => {
       jest.useFakeTimers();
@@ -93,13 +89,12 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME,
       });
-      controller.start('mainnet');
+      controller.startPollingByNetworkClientId('mainnet');
       expect(() => {
-        controller.stop(undefined as unknown as any);
+        controller.stopPollingByNetworkClientId(undefined as unknown as any);
       }).toThrow('pollingToken required');
-      controller.stopAll();
+      controller.stopAllPolling();
     });
     it('should error if no matching pollingToken is found', () => {
       jest.useFakeTimers();
@@ -113,13 +108,12 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME,
       });
-      controller.start('mainnet');
+      controller.startPollingByNetworkClientId('mainnet');
       expect(() => {
-        controller.stop('potato');
+        controller.stopPollingByNetworkClientId('potato');
       }).toThrow('pollingToken not found');
-      controller.stopAll();
+      controller.stopAllPolling();
     });
   });
   describe('poll', () => {
@@ -136,9 +130,8 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME,
       });
-      controller.start('mainnet');
+      controller.startPollingByNetworkClientId('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       jest.advanceTimersByTime(TICK_TIME);
@@ -158,16 +151,15 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME,
       });
-      controller.start('mainnet');
-      controller.start('mainnet');
+      controller.startPollingByNetworkClientId('mainnet');
+      controller.startPollingByNetworkClientId('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(2);
-      controller.stopAll();
+      controller.stopAllPolling();
     });
     it('should publish "pollingComplete" when stop is called', async () => {
       jest.useFakeTimers();
@@ -177,25 +169,20 @@ describe('PollingController', () => {
       }
       const name = 'PollingController';
 
-      const mockMessenger = new ControllerMessenger<
-        any,
-        PollingCompleteType<typeof name>
-      >();
-
-      mockMessenger.subscribe(`${name}:pollingComplete`, pollingComplete);
+      const mockMessenger = new ControllerMessenger<any, any>();
 
       const controller = new MyGasFeeController({
         messenger: mockMessenger,
         metadata: {},
         name,
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME,
       });
-      const pollingToken = controller.start('mainnet');
-      controller.stop(pollingToken);
+      controller.onPollingCompleteByNetworkClientId('mainnet', pollingComplete);
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
+      controller.stopPollingByNetworkClientId(pollingToken);
       expect(pollingComplete).toHaveBeenCalledTimes(1);
     });
-    it('should poll at the interval length passed via the constructor', async () => {
+    it('should poll at the interval length when set via setIntervalLength', async () => {
       jest.useFakeTimers();
 
       class MyGasFeeController extends PollingController<any, any, any> {
@@ -208,9 +195,9 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME * 3,
       });
-      controller.start('mainnet');
+      controller.setIntervalLength(TICK_TIME * 3);
+      controller.startPollingByNetworkClientId('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll).not.toHaveBeenCalled();
@@ -238,10 +225,9 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME,
       });
-      controller.start('mainnet');
-      controller.start('rinkeby');
+      controller.startPollingByNetworkClientId('mainnet');
+      controller.startPollingByNetworkClientId('rinkeby');
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll.mock.calls).toMatchObject([
@@ -256,10 +242,10 @@ describe('PollingController', () => {
         ['mainnet'],
         ['rinkeby'],
       ]);
-      controller.stopAll();
+      controller.stopAllPolling();
     });
 
-    it('should poll multiple networkClientIds at the interval length passed via the constructor', async () => {
+    it('should poll multiple networkClientIds when setting interval length', async () => {
       jest.useFakeTimers();
 
       class MyGasFeeController extends PollingController<any, any, any> {
@@ -272,12 +258,12 @@ describe('PollingController', () => {
         metadata: {},
         name: 'PollingController',
         state: { foo: 'bar' },
-        pollingIntervalLength: TICK_TIME * 2,
       });
-      controller.start('mainnet');
+      controller.setIntervalLength(TICK_TIME * 2);
+      controller.startPollingByNetworkClientId('mainnet');
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
-      controller.start('sepolia');
+      controller.startPollingByNetworkClientId('sepolia');
       expect(controller.executePoll.mock.calls).toMatchObject([]);
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();

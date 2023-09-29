@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+### Changed
+- **BREAKING:** Migrate `PhishingController` to BaseControllerV2 ([#1705](https://github.com/MetaMask/core/pull/1705))
+  - `PhishingController` now expects a `messenger` option (and corresponding type `PhishingControllerMessenger` is now available)
+  - The constructor takes a single argument, an options bag, instead of three arguments
+  - The `disabled` configuration is no longer supported
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
 ## [6.0.2]
 ### Changed
 - Bump dependency on `@metamask/controller-utils` to ^5.0.0
@@ -84,7 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.2...@metamask/phishing-controller@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.1...@metamask/phishing-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.0...@metamask/phishing-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@5.0.0...@metamask/phishing-controller@6.0.0

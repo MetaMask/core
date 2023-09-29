@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+### Changed
+- **BREAKING**: Add required `getCurrentAccountEIP1559Compatibility`  and `getCurrentNetworkEIP1559Compatibility` callback arguments to constructor ([#1693](https://github.com/MetaMask/core/pull/1693))
+- Update `validateTxParams` to throw standardised errors using the `@metamask/rpc-errors` package ([#1690](https://github.com/MetaMask/core/pull/1690))
+  - The dependency `eth-rpc-errors` has been replaced by `@metamask/rpc-errors`
+- Preserve `type` transaction parameter for legacy transactions ([#1713](https://github.com/MetaMask/core/pull/1713))
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
 ## [12.0.0]
 ### Changed
 - **BREAKING**: Use only `chainId` to determine if a transaction belongs to the current network ([#1633](https://github.com/MetaMask/core/pull/1633))
@@ -203,7 +211,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@12.0.0...@metamask/transaction-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.1.0...@metamask/transaction-controller@12.0.0
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.0.0...@metamask/transaction-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@10.0.0...@metamask/transaction-controller@11.0.0
