@@ -56,6 +56,7 @@ describe('NftDetectionController', () => {
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
       onNftAdded: jest.fn(),
+      getNetworkClientById: jest.fn(),
       messenger,
     });
 
@@ -346,10 +347,12 @@ describe('NftDetectionController', () => {
       '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       '2573',
       {
-        description: 'Description 2573',
-        image: 'image/2573.png',
-        name: 'ID 2573',
-        standard: 'ERC721',
+        nftMetadata: {
+          description: 'Description 2573',
+          image: 'image/2573.png',
+          name: 'ID 2573',
+          standard: 'ERC721',
+        },
       },
     );
 
