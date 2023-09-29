@@ -14,6 +14,7 @@ import {
   ORIGIN_METAMASK,
   ApprovalType,
   ERC20,
+  isValidHexAddress,
 } from '@metamask/controller-utils';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
@@ -22,17 +23,14 @@ import type {
   NetworkState,
 } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { EventEmitter } from 'events';
 import { v1 as random } from 'uuid';
 
 import type { AssetsContractController } from './AssetsContractController';
-import {
-  formatAggregatorNames,
-  formatIconUrlWithProxy,
-  validateTokenToWatch,
-} from './assetsUtil';
+import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
@@ -167,6 +165,8 @@ export class TokensController extends BaseController<
 
   private readonly getERC20TokenName: AssetsContractController['getERC20TokenName'];
 
+  private readonly getTokenStandardAndDetails: AssetsContractController['getTokenStandardAndDetails'];
+
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
   /**
@@ -178,6 +178,7 @@ export class TokensController extends BaseController<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
    * @param options.getERC20TokenName - Gets the ERC-20 token name.
+   * @param options.getTokenStandardAndDetails - Gets the interface standard and details for a token contract.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
@@ -189,6 +190,7 @@ export class TokensController extends BaseController<
     onNetworkStateChange,
     onTokenListStateChange,
     getERC20TokenName,
+    getTokenStandardAndDetails,
     getNetworkClientById,
     config,
     state,
@@ -205,6 +207,7 @@ export class TokensController extends BaseController<
       listener: (tokenListState: TokenListState) => void,
     ) => void;
     getERC20TokenName: AssetsContractController['getERC20TokenName'];
+    getTokenStandardAndDetails: AssetsContractController['getTokenStandardAndDetails'];
     getNetworkClientById: NetworkController['getNetworkClientById'];
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
@@ -232,6 +235,7 @@ export class TokensController extends BaseController<
     this.initialize();
     this.abortController = new AbortController();
     this.getERC20TokenName = getERC20TokenName;
+    this.getTokenStandardAndDetails = getTokenStandardAndDetails;
     this.getNetworkClientById = getNetworkClientById;
 
     this.messagingSystem = messenger;
@@ -700,20 +704,23 @@ export class TokensController extends BaseController<
    * Parameters will be validated according to the asset type being watched.
    *
    * @param options - The method options.
-   * @param options.asset - The asset to be watched. For now only ERC20 tokens are accepted.
    * @param options.type - The asset type.
+   * @param options.address - The contract address of the asset.
+   * @param options.image - An optional URL to the asset's icon.
    * @param options.interactingAddress - The address of the account that is requesting to watch the asset.
    * @param options.networkClientId - Network Client ID.
-   * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
+   * @returns A promise that resolves if the asset was watched successfully, and rejects otherwise.
    */
   async watchAsset({
-    asset,
     type,
+    address,
+    image,
     interactingAddress,
     networkClientId,
   }: {
-    asset: Token;
     type: string;
+    address: string;
+    image: string;
     interactingAddress?: string;
     networkClientId?: NetworkClientId;
   }): Promise<void> {
@@ -721,28 +728,60 @@ export class TokensController extends BaseController<
       throw new Error(`Asset of type ${type} not supported`);
     }
 
+    if (!address) {
+      throw rpcErrors.invalidParams('Address must be specified');
+    }
+
+    if (!isValidHexAddress(address)) {
+      throw rpcErrors.invalidParams(`Invalid address "${address}".`);
+    }
+
+    const details = await this.getTokenStandardAndDetails(
+      address,
+      undefined,
+      undefined,
+      networkClientId,
+    );
+
+    if (details.standard !== ERC20) {
+      throw rpcErrors.invalidParams(
+        `Contract ${address} must match type ${type}, but was detected as ${details.standard}`,
+      );
+    }
+
+    const symbol = details.symbol ?? '';
+    if (symbol.length > 11) {
+      throw rpcErrors.invalidParams(
+        `Invalid symbol "${symbol}": longer than 11 characters.`,
+      );
+    }
+
+    const decimals = Number(details.decimals);
+    if (!Number.isInteger(decimals) || decimals > 36 || decimals < 0) {
+      throw rpcErrors.invalidParams(
+        `Invalid decimals "${decimals}": must be an integer 0 <= 36.`,
+      );
+    }
+
     const { selectedAddress } = this.config;
 
     const suggestedAssetMeta: SuggestedAssetMeta = {
-      asset,
+      asset: { address, symbol, decimals, image },
       id: this._generateRandomId(),
       time: Date.now(),
       type,
       interactingAddress: interactingAddress || selectedAddress,
     };
 
-    validateTokenToWatch(asset);
-
     await this._requestApproval(suggestedAssetMeta);
 
     let name;
     try {
-      name = await this.getERC20TokenName(asset.address, networkClientId);
+      name = await this.getERC20TokenName(address, networkClientId);
     } catch (error) {
       name = undefined;
     }
 
-    const { address, symbol, decimals, image } = asset;
     await this.addToken({
       address,
       symbol,
