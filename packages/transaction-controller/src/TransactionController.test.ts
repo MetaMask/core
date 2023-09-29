@@ -1,4 +1,8 @@
 /* eslint-disable jest/expect-expect */
+import type {
+  AcceptResultCallbacks,
+  AddResult,
+} from '@metamask/approval-controller';
 import {
   ChainId,
   NetworkType,
@@ -19,10 +23,6 @@ import NonceTracker from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
-import type {
-  AcceptResultCallbacks,
-  AddResult,
-} from '@metamask/approval-controller';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type {
   TransactionControllerMessenger,

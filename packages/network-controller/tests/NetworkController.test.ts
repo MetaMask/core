@@ -29,8 +29,8 @@ import type {
 import { NetworkController } from '../src/NetworkController';
 import type { Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
-import { FakeProvider } from './fake-provider';
 import type { FakeProviderStub } from './fake-provider';
+import { FakeProvider } from './fake-provider';
 
 jest.mock('../src/create-network-client');
 
