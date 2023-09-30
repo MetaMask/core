@@ -131,6 +131,7 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
     address,
     apiKey,
     chainId,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     fromBlock,
     limit,
   }: {
