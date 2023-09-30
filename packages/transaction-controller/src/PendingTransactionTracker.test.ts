@@ -36,18 +36,9 @@ jest.mock('@metamask/controller-utils', () => ({
   safelyExecute: (fn: () => any) => fn(),
 }));
 
-jest.mock('@metamask/utils', () => ({
-  createProjectLogger: () => ({
-    log: jest.fn(),
-  }),
-  createModuleLogger: () => ({
-    log: jest.fn(),
-  }),
-}));
-
 function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
   return {
-    on: jest.fn(),
+    addListener: jest.fn(),
   } as any;
 }
 
@@ -80,13 +71,13 @@ describe('PendingTransactionTracker', () => {
         getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
       } as any);
 
-      tracker.hub.on('transactions', transactionsListener);
-      tracker.hub.on(`${ID_MOCK}:confirmed`, confirmedListener);
+      tracker.hub.addListener('transactions', transactionsListener);
+      tracker.hub.addListener(`transaction-confirmed`, confirmedListener);
       tracker.start();
 
       queryMock.mockResolvedValueOnce({ blockNumber: BLOCK_NUMBER_MOCK });
 
-      await (blockTracker.on.mock.calls[0][1]() as any);
+      await (blockTracker.addListener.mock.calls[0][1]() as any);
 
       expect(transactionsListener).toHaveBeenCalledTimes(1);
       expect(transactionsListener).toHaveBeenCalledWith([
@@ -111,7 +102,7 @@ describe('PendingTransactionTracker', () => {
         .mockResolvedValueOnce(undefined)
         .mockResolvedValueOnce({ status: 0 });
 
-      await (blockTracker.on.mock.calls[0][1]() as any);
+      await (blockTracker.addListener.mock.calls[0][1]() as any);
 
       expect(failTransaction).toHaveBeenCalledTimes(1);
       expect(failTransaction).toHaveBeenCalledWith(
@@ -130,10 +121,10 @@ describe('PendingTransactionTracker', () => {
         getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
       } as any);
 
-      tracker.hub.on('transactions', transactionsListener);
+      tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
 
-      await (blockTracker.on.mock.calls[0][1]() as any);
+      await (blockTracker.addListener.mock.calls[0][1]() as any);
 
       expect(failTransaction).toHaveBeenCalledTimes(0);
       expect(transactionsListener).toHaveBeenCalledTimes(0);
@@ -149,14 +140,14 @@ describe('PendingTransactionTracker', () => {
         getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
       } as any);
 
-      tracker.hub.on('transactions', transactionsListener);
+      tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
 
       queryMock
         .mockResolvedValueOnce(RECEIPT_MOCK)
         .mockResolvedValueOnce(BLOCK_MOCK);
 
-      await (blockTracker.on.mock.calls[0][1]() as any);
+      await (blockTracker.addListener.mock.calls[0][1]() as any);
 
       expect(transactionsListener).toHaveBeenCalledTimes(1);
       expect(transactionsListener).toHaveBeenCalledWith([
@@ -181,14 +172,14 @@ describe('PendingTransactionTracker', () => {
         getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
       } as any);
 
-      tracker.hub.on('transactions', transactionsListener);
+      tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
 
       queryMock
         .mockResolvedValueOnce(RECEIPT_MOCK)
         .mockResolvedValueOnce(undefined);
 
-      await (blockTracker.on.mock.calls[0][1]() as any);
+      await (blockTracker.addListener.mock.calls[0][1]() as any);
 
       expect(transactionsListener).toHaveBeenCalledTimes(1);
       expect(transactionsListener).toHaveBeenCalledWith([
@@ -213,14 +204,14 @@ describe('PendingTransactionTracker', () => {
         getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
       } as any);
 
-      tracker.hub.on('transactions', transactionsListener);
+      tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
 
       queryMock
         .mockResolvedValueOnce({ ...RECEIPT_MOCK, status: 0 })
         .mockResolvedValueOnce(BLOCK_MOCK);
 
-      await (blockTracker.on.mock.calls[0][1]() as any);
+      await (blockTracker.addListener.mock.calls[0][1]() as any);
 
       expect(failTransaction).toHaveBeenCalledTimes(1);
       expect(failTransaction).toHaveBeenCalledWith(
@@ -246,10 +237,10 @@ describe('PendingTransactionTracker', () => {
         getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
       } as any);
 
-      tracker.hub.on('transactions', transactionsListener);
+      tracker.hub.addListener('transactions', transactionsListener);
       tracker.start();
 
-      await (blockTracker.on.mock.calls[0][1]() as any);
+      await (blockTracker.addListener.mock.calls[0][1]() as any);
 
       expect(failTransaction).toHaveBeenCalledTimes(0);
       expect(transactionsListener).toHaveBeenCalledTimes(0);
@@ -266,10 +257,10 @@ describe('PendingTransactionTracker', () => {
       ],
     } as any);
 
-    tracker.hub.on('transactions', transactionsListener);
+    tracker.hub.addListener('transactions', transactionsListener);
     tracker.start();
 
-    await (blockTracker.on.mock.calls[0][1]() as any);
+    await (blockTracker.addListener.mock.calls[0][1]() as any);
 
     expect(failTransaction).toHaveBeenCalledTimes(0);
     expect(transactionsListener).toHaveBeenCalledTimes(0);

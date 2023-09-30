@@ -3,7 +3,7 @@ import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import EventEmitter from 'events';
 
-import { pendingTransactionsLogger } from './logger';
+import { pendingTransactionsLogger as log } from './logger';
 import type { TransactionMeta } from './types';
 import { TransactionStatus } from './types';
 
@@ -44,7 +44,7 @@ export class PendingTransactionTracker {
 
   start() {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    this.#blockTracker.on('latest', async () => {
+    this.#blockTracker.addListener('latest', async () => {
       await safelyExecute(() => this.#onLatestBlock());
     });
   }
@@ -54,7 +54,7 @@ export class PendingTransactionTracker {
    * been included in a block. Any that have been included in a block are marked as confirmed.
    */
   async #onLatestBlock() {
-    pendingTransactionsLogger.log('Checking transactions');
+    log('Checking transactions');
 
     const transactions = this.#getTransactions();
     const currentChainId = this.#getChainId();
@@ -100,7 +100,7 @@ export class PendingTransactionTracker {
 
     switch (status) {
       case TransactionStatus.confirmed:
-        pendingTransactionsLogger.log('Checking confirmed transaction', {
+        log('Checking confirmed transaction', {
           id,
           chainId,
           to,
@@ -138,7 +138,7 @@ export class PendingTransactionTracker {
 
         return [meta, true];
       case TransactionStatus.submitted:
-        pendingTransactionsLogger.log('Checking submitted transaction', {
+        log('Checking submitted transaction', {
           id,
           chainId,
           to,
@@ -165,7 +165,7 @@ export class PendingTransactionTracker {
         /* istanbul ignore next */
         if (txObj?.blockNumber) {
           meta.status = TransactionStatus.confirmed;
-          this.hub.emit(`${meta.id}:confirmed`, meta);
+          this.hub.emit('transaction-confirmed', meta);
           return [meta, true];
         }
 

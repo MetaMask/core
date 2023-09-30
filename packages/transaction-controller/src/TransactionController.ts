@@ -43,6 +43,7 @@ import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSo
 import { validateConfirmedExternalTransaction } from './external-transactions';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { pendingTransactionsLogger } from './logger';
 import { PendingTransactionTracker } from './PendingTransactionTracker';
 import { determineTransactionType } from './transaction-type';
 import type {
@@ -67,7 +68,6 @@ import {
   validateTxParams,
   ESTIMATE_GAS_ERROR,
 } from './utils';
-import { pendingTransactionsLogger } from './logger';
 
 export const HARDFORK = Hardfork.London;
 
@@ -367,6 +367,12 @@ export class TransactionController extends BaseController<
     this.pendingTransactionTracker.hub.on(
       'transactions',
       this.onPendingTransactionsUpdate.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-confirmed',
+      (transactionMeta: TransactionMeta) =>
+        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta),
     );
 
     onNetworkStateChange(() => {
@@ -1520,7 +1526,7 @@ export class TransactionController extends BaseController<
   }
 
   private onPendingTransactionsUpdate(transactions: TransactionMeta[]) {
-    pendingTransactionsLogger.log('Updated pending transactions', transactions);
+    pendingTransactionsLogger('Updated pending transactions');
     this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 

@@ -45,16 +45,6 @@ jest.mock('uuid', () => {
   };
 });
 
-jest.mock('@metamask/utils', () => ({
-  ...jest.requireActual('@metamask/utils'),
-  createProjectLogger: () => ({
-    log: jest.fn(),
-  }),
-  createModuleLogger: () => ({
-    log: jest.fn(),
-  }),
-}));
-
 const mockFlags: { [key: string]: any } = {
   estimateGasError: null,
   estimateGasValue: null,
