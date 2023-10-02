@@ -16,12 +16,12 @@ import {
 import { PreferencesController } from '@metamask/preferences-controller';
 import HttpProvider from 'ethjs-provider-http';
 
+import { mockNetwork } from '../../../tests/mock-network';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
-import { mockNetwork } from '../../../tests/mock-network';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';

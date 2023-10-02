@@ -64,10 +64,10 @@ import {
   validateGasValues,
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
-  validateTxParams,
   ESTIMATE_GAS_ERROR,
   validateTransactionOrigin,
 } from './utils';
+import { validateTxParams } from './validation';
 
 export const HARDFORK = Hardfork.London;
 

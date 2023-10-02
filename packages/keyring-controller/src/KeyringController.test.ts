@@ -22,6 +22,8 @@ import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
+import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -34,8 +36,6 @@ import {
   KeyringController,
   KeyringTypes,
 } from './KeyringController';
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
-import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 
 jest.mock('uuid', () => {
   return {
