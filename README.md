@@ -32,7 +32,7 @@ Or, in graph form [^fn1]:
 
 <!-- start dependency graph -->
 
-```mermaid
+``` mermaid
 %%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%
 graph LR;
 linkStyle default opacity:0.5
@@ -54,6 +54,7 @@ linkStyle default opacity:0.5
   notification_controller(["@metamask/notification-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
+  polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
@@ -68,15 +69,12 @@ linkStyle default opacity:0.5
   assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
-  assets_controllers --> network_controller;
   assets_controllers --> preferences_controller;
   composable_controller --> base_controller;
   ens_controller --> base_controller;
   ens_controller --> controller_utils;
-  ens_controller --> network_controller;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
-  gas_fee_controller --> network_controller;
   keyring_controller --> base_controller;
   keyring_controller --> message_manager;
   keyring_controller --> preferences_controller;
@@ -93,20 +91,21 @@ linkStyle default opacity:0.5
   permission_controller --> controller_utils;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
+  polling_controller --> base_controller;
+  polling_controller --> controller_utils;
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
   rate_limit_controller --> base_controller;
   selected_network_controller --> base_controller;
-  selected_network_controller --> network_controller;
   signature_controller --> approval_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
+  signature_controller --> logging_controller;
   signature_controller --> message_manager;
   signature_controller --> keyring_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
-  transaction_controller --> network_controller;
 ```
 
 <!-- end dependency graph -->

@@ -29,8 +29,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.2",
-    "@metamask/controller-utils": "^5.0.1",
+    "@metamask/base-controller": "^3.2.3",
+    "@metamask/controller-utils": "^5.0.2",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/network-controller": "^13.0.1",
     "@metamask/polling-controller": "^0.0.0",

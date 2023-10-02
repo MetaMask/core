@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump dev dependency on `@metamask/eslint-config*` to ^12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 
-### Fixed 
+### Fixed
 - Use spread operator instead of `delete` on frozen `messageParams` ([#1733](https://github.com/MetaMask/core/pull/1733))
 
 ## [7.3.4]

@@ -29,7 +29,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.2",
+    "@metamask/base-controller": "^3.2.3",
     "@metamask/network-controller": "^13.0.1",
     "json-rpc-engine": "^6.1.0"
   },

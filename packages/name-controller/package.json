@@ -30,7 +30,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.2",
+    "@metamask/base-controller": "^3.2.3",
     "@metamask/utils": "^8.1.0",
     "async-mutex": "^0.2.6",
     "immer": "^9.0.6"
