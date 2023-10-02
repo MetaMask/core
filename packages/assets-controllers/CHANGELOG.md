@@ -6,12 +6,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [14.0.1]
-### Uncategorized
-- devDeps: @metamask/eslint-config*->12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
-- deps: @metamask/utils@^6.2.0->^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Parameterize `NftController.addNft` by `networkClientId` ([#1698](https://github.com/MetaMask/core/pull/1698))
+## [15.0.0]
+### Added
 - Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
+
+### Changed
+- Bump dev dependency on `@metamask/eslint-config*` to ^12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+### Changed
+- **BREAKING**: `NFTController` now expects `getNetworkClientById` in constructor options ([#1698](https://github.com/MetaMask/core/pull/1698))
+- **BREAKING**: `NftController.addNft()` function signature has changed ([#1698](https://github.com/MetaMask/core/pull/1698))
+  - Previously
+  ```
+  address: string,
+  tokenId: string,
+  nftMetadata?: NftMetadata,
+  accountParams?: {
+      userAddress: string;
+      chainId: Hex;
+  },
+  source = Source.Custom,
+  ```
+  now: 
+  ```
+  tokenAddress: string,
+  tokenId: string,
+    {
+    nftMetadata?: NftMetadata;
+    chainId?: Hex; // extracts from AccountParams
+    userAddress?: string // extracted from AccountParams
+    source?: Source;
+    networkClientId?: NetworkClientId; // new
+  },
+  ```
+- `NftController.addNftVerifyOwnership`: Now accepts optional `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state ([#1698](https://github.com/MetaMask/core/pull/1698))
+- `NftController.isNftOwner`: Now accepts optional `networkClientId` which is used to instantiate the provider for the correct chain and call the NFT contract to verify ownership ([#1698](https://github.com/MetaMask/core/pull/1698))
+- `NftController.addNft()` will use the chainId value derived from `networkClientId` if provided ([#1698](https://github.com/MetaMask/core/pull/1698))
+- `NftController.watchNft()` options now accepts optional `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state ([#1698](https://github.com/MetaMask/core/pull/1698))
 
 ## [14.0.0]
 ### Changed

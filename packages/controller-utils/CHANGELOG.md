@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [5.0.2]
-### Uncategorized
-- devDeps: @metamask/eslint-config*->12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
-- deps(approval-controller): move to @metamask/rpc-errors ([#1743](https://github.com/MetaMask/core/pull/1743))
-- deps: @metamask/utils@^6.2.0->^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+### Added
 - Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
-- fix: update linea goerli explorer url ([#1666](https://github.com/MetaMask/core/pull/1666))
+
+### Changed
+- Bump dev dependency on `@metamask/eslint-config*` to ^12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Move `eth-rpc-errors@^4.0.2` dependency to `@metamask/rpc-errors@^6.0.2` ([#1743](https://github.com/MetaMask/core/pull/1743))
+
+### Fixed
+- Update linea goerli explorer url ([#1666](https://github.com/MetaMask/core/pull/1666))
 
 ## [5.0.1]
 ### Changed

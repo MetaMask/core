@@ -6,12 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [7.0.2]
-### Uncategorized
-- devDeps: @metamask/eslint-config*->12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
-- deps: @metamask/utils@^6.2.0->^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Integrate PollingController mixin with GasFeeController ([#1673](https://github.com/MetaMask/core/pull/1673))
+## [8.0.0]
+### Added
 - Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
+
+### Changed
+- **BREAKING:** Integrate PollingController mixin with GasFeeController ([#1673](https://github.com/MetaMask/core/pull/1673))
+- Bump dev dependency on `@metamask/eslint-config*` to ^12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 
 ## [7.0.1]
 ### Changed
@@ -29,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
 
 ## [6.1.1]
-### Uncategorized
+### Changed
 - Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
 
 ## [6.1.0]
