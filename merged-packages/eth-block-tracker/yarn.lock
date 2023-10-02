@@ -729,9 +729,9 @@
   integrity sha512-BurYsht8MKdhvW2itUPPF8NkAhYtDdsCGHTSY7EzVvlmGP4jc9XrRZyfNwlt0zhB6MCMjHB1uNWwchtX7vBFjw==
 
 "@metamask/eth-json-rpc-provider@^2.1.0":
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/@metamask/eth-json-rpc-provider/-/eth-json-rpc-provider-2.1.0.tgz#80244c10084c83092c4dd484b9027f83c5c01bfa"
-  integrity sha512-UqKpu5o8llTQRLzH5e/CrX+WVt7ysHqe6nVvlykQsU345X61qw5DpK0t1LbaWo2q4rjUO1puw5SMbHjKCSZ2EQ==
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@metamask/eth-json-rpc-provider/-/eth-json-rpc-provider-2.2.0.tgz#7d7551ff075a42992cd7fd4054868f6a5f9ee541"
+  integrity sha512-pJk533YEEH/GbZMHoV4CEDQhH2/HeG/2M3JhNnhblcAMIYKaLDkl/+01hc0mDAgYs4vxf8FBkniBUlX5o7FLSQ==
   dependencies:
     "@metamask/json-rpc-engine" "^7.1.0"
     "@metamask/safe-event-emitter" "^3.0.0"
