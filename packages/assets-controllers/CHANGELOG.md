@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         networkClientId?: NetworkClientId; // new
       },
     ```
-- `NftController.addNftVerifyOwnership`: Now accepts optional `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state ([#1698](https://github.com/MetaMask/core/pull/1698))
+- `NftController.addNftVerifyOwnership`: Now accepts optional 3rd argument `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state. Also accepts optional 4th argument `source` used for metrics to identify the flow in which the NFT was added to the wallet.  ([#1698](https://github.com/MetaMask/core/pull/1698))
 - `NftController.isNftOwner`: Now accepts optional `networkClientId` which is used to instantiate the provider for the correct chain and call the NFT contract to verify ownership ([#1698](https://github.com/MetaMask/core/pull/1698))
 - `NftController.addNft()` will use the chainId value derived from `networkClientId` if provided ([#1698](https://github.com/MetaMask/core/pull/1698))
 - `NftController.watchNft()` options now accepts optional `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state ([#1698](https://github.com/MetaMask/core/pull/1698))
