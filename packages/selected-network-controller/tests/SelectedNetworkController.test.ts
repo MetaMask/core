@@ -72,6 +72,30 @@ describe('SelectedNetworkController', () => {
     });
   });
 
+  it('updates the networkClientId for the metamask domain if not already set when the networkControllers state changes', () => {
+    const messenger = buildMessenger();
+    const options: SelectedNetworkControllerOptions = {
+      messenger: buildSelectedNetworkControllerMessenger(messenger),
+    };
+    const controller = new SelectedNetworkController(options);
+    expect(controller.state.domains.metamask).toBeUndefined();
+
+    const patch = [
+      {
+        path: ['anythingelse'],
+        op: 'replace' as const,
+        value: 'abc',
+      },
+    ];
+
+    const state = {
+      ...networkControllerDefaultState,
+      selectedNetworkClientId: 'currentNetwork',
+    };
+    messenger.publish('NetworkController:stateChange', state, patch);
+    expect(controller.state.domains.metamask).toBe('currentNetwork');
+  });
+
   it('updates the networkClientId for the metamask domain when the networkControllers selectedNetworkClientId changes', () => {
     const messenger = buildMessenger();
     const options: SelectedNetworkControllerOptions = {

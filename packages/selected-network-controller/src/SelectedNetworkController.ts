@@ -128,7 +128,9 @@ export class SelectedNetworkController extends BaseControllerV2<
         const isChangingNetwork = patch.some(
           (p) => p.path[0] === 'selectedNetworkClientId',
         );
-        if (!isChangingNetwork) {
+        const hasMetamaskClient =
+          this.getNetworkClientIdForDomain(METAMASK_DOMAIN);
+        if (!isChangingNetwork && hasMetamaskClient) {
           return;
         }
 
