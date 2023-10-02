@@ -1393,11 +1393,11 @@ describe('TransactionController', () => {
       it('throws if `from` address is different from current selected address', async () => {
         const controller = newController();
         const origin = ORIGIN_METAMASK;
-        const fromMocked = ACCOUNT_2_MOCK;
+        const notSelectedFromAddress = ACCOUNT_2_MOCK;
         await expect(
           controller.addTransaction(
             {
-              from: fromMocked,
+              from: notSelectedFromAddress,
               to: ACCOUNT_MOCK,
             } as any,
             { origin: ORIGIN_METAMASK },
@@ -1407,7 +1407,7 @@ describe('TransactionController', () => {
             message: `Internally initiated transaction is using invalid account.`,
             data: {
               origin,
-              fromAddress: fromMocked,
+              fromAddress: notSelectedFromAddress,
               selectedAddress: ACCOUNT_MOCK,
             },
           }),

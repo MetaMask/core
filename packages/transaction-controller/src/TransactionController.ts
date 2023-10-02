@@ -66,6 +66,7 @@ import {
   validateMinimumIncrease,
   validateTxParams,
   ESTIMATE_GAS_ERROR,
+  validateTransactionOrigin,
 } from './utils';
 
 export const HARDFORK = Hardfork.London;
@@ -451,27 +452,12 @@ export class TransactionController extends BaseController<
     txParams = normalizeTxParams(txParams);
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
     validateTxParams(txParams, isEIP1559Compatible);
-
-    if (origin === ORIGIN_METAMASK) {
-      // Ensure the 'from' address matches the currently selected address
-      const selectedAddress = this.getSelectedAddress();
-      if (txParams.from !== selectedAddress) {
-        throw rpcErrors.internal({
-          message: `Internally initiated transaction is using invalid account.`,
-          data: {
-            origin,
-            fromAddress: txParams.from,
-            selectedAddress,
-          },
-        });
-      }
-    } else {
-      // Check if the origin has permissions to initiate transactions from the specified address
-      const permittedAddresses = await this.getPermittedAccounts(origin);
-      if (!permittedAddresses.includes(txParams.from)) {
-        throw providerErrors.unauthorized({ data: { origin: origin ?? '' } });
-      }
-    }
+    await validateTransactionOrigin(
+      await this.getPermittedAccounts(origin),
+      txParams.from,
+      this.getSelectedAddress(),
+      origin,
+    );
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       txParams,
