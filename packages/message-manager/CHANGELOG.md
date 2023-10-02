@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.5]
+### Uncategorized
+- devDeps: @metamask/eslint-config*->12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
+- deps: @metamask/utils@^6.2.0->^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
+- Use spread operator instead of `delete` on frozen `messageParams` ([#1733](https://github.com/MetaMask/core/pull/1733))
+
 ## [7.3.4]
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
@@ -117,7 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.5...HEAD
+[7.3.5]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.4...@metamask/message-manager@7.3.5
 [7.3.4]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.3...@metamask/message-manager@7.3.4
 [7.3.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.2...@metamask/message-manager@7.3.3
 [7.3.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.1...@metamask/message-manager@7.3.2

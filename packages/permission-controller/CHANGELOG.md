@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.3]
+### Uncategorized
+- devDeps: @metamask/eslint-config*->12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
+- deps: @metamask/utils@^6.2.0->^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
+
 ## [4.1.2]
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
@@ -84,7 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.3...HEAD
+[4.1.3]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.2...@metamask/permission-controller@4.1.3
 [4.1.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.1...@metamask/permission-controller@4.1.2
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.0...@metamask/permission-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.1...@metamask/permission-controller@4.1.0

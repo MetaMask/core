@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.1]
+### Uncategorized
+- devDeps: @metamask/eslint-config*->12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
+- deps: @metamask/utils@^6.2.0->^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
+
 ## [13.0.0]
 ### Changed
 - **BREAKING**: Add required `getCurrentAccountEIP1559Compatibility`  and `getCurrentNetworkEIP1559Compatibility` callback arguments to constructor ([#1693](https://github.com/MetaMask/core/pull/1693))
@@ -211,7 +217,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.1...HEAD
+[13.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...@metamask/transaction-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@12.0.0...@metamask/transaction-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.1.0...@metamask/transaction-controller@12.0.0
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.0.0...@metamask/transaction-controller@11.1.0

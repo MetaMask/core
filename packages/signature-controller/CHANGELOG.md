@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.2]
+### Uncategorized
+- devDeps: @metamask/eslint-config*->12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
+- deps: @metamask/utils@^6.2.0->^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
+
 ## [6.1.1]
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
@@ -82,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.2...HEAD
+[6.1.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.1...@metamask/signature-controller@6.1.2
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.1.0...@metamask/signature-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@6.0.0...@metamask/signature-controller@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@5.3.1...@metamask/signature-controller@6.0.0

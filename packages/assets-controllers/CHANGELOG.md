@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.1]
+### Uncategorized
+- devDeps: @metamask/eslint-config*->12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
+- deps: @metamask/utils@^6.2.0->^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Parameterize `NftController.addNft` by `networkClientId` ([#1698](https://github.com/MetaMask/core/pull/1698))
+- Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
+
 ## [14.0.0]
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
@@ -280,7 +287,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@14.0.1...HEAD
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@14.0.0...@metamask/assets-controllers@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@13.0.0...@metamask/assets-controllers@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@12.0.0...@metamask/assets-controllers@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.1.0...@metamask/assets-controllers@12.0.0
