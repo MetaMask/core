@@ -50,6 +50,7 @@ import type {
   TransactionParams,
   TransactionMeta,
   TransactionReceipt,
+  SecurityProviderRequest,
   SendFlowHistoryEntry,
   WalletDevice,
 } from './types';
@@ -158,14 +159,6 @@ export type TransactionControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   never
 >;
-
-/**
- * A function for verifying a transaction, whether it is malicious or not
- */
-export type SecurityProviderRequest = (
-  requestData: TransactionMeta,
-  messageType: string,
-) => Promise<any>;
 
 /**
  * Controller responsible for submitting and managing transactions.

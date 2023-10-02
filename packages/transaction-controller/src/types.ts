@@ -602,3 +602,11 @@ export type InferTransactionTypeResult = {
    */
   type: TransactionType;
 };
+
+/**
+ * A function for verifying a transaction, whether it is malicious or not
+ */
+export type SecurityProviderRequest = (
+  requestData: TransactionMeta,
+  messageType: string,
+) => Promise<any>;
