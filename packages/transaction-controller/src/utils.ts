@@ -8,13 +8,6 @@ import type {
 } from './TransactionController';
 import { TransactionStatus } from './types';
 import type { TransactionParams, TransactionMeta } from './types';
-import {
-  validateEIP1559Compatibility,
-  validateParamData,
-  validateParamFrom,
-  validateParamRecipient,
-  validateParamValue,
-} from './validation';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -50,24 +43,6 @@ export function normalizeTxParams(txParams: TransactionParams) {
     }
   }
   return normalizedTxParams;
-}
-
-/**
- * Validates the transaction params for required properties and throws in
- * the event of any validation error.
- *
- * @param txParams - Transaction params object to validate.
- * @param isEIP1559Compatible - whether or not the current network supports EIP-1559 transactions.
- */
-export function validateTxParams(
-  txParams: TransactionParams,
-  isEIP1559Compatible = true,
-) {
-  validateEIP1559Compatibility(txParams, isEIP1559Compatible);
-  validateParamFrom(txParams.from);
-  validateParamRecipient(txParams);
-  validateParamValue(txParams.value);
-  validateParamData(txParams.data);
 }
 
 /**

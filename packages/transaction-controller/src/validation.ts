@@ -7,13 +7,31 @@ import type { TransactionParams } from './types';
 import { isEIP1559Transaction } from './utils';
 
 /**
+ * Validates the transaction params for required properties and throws in
+ * the event of any validation error.
+ *
+ * @param txParams - Transaction params object to validate.
+ * @param isEIP1559Compatible - whether or not the current network supports EIP-1559 transactions.
+ */
+export function validateTxParams(
+  txParams: TransactionParams,
+  isEIP1559Compatible = true,
+) {
+  validateEIP1559Compatibility(txParams, isEIP1559Compatible);
+  validateParamFrom(txParams.from);
+  validateParamRecipient(txParams);
+  validateParamValue(txParams.value);
+  validateParamData(txParams.data);
+}
+
+/**
  * Validates EIP-1559 compatibility for transaction creation.
  *
  * @param txParams - The transaction parameters to validate.
  * @param isEIP1559Compatible - Indicates if the current network supports EIP-1559.
  * @throws Throws invalid params if the transaction specifies EIP-1559 but the network does not support it.
  */
-export function validateEIP1559Compatibility(
+function validateEIP1559Compatibility(
   txParams: TransactionParams,
   isEIP1559Compatible: boolean,
 ) {
@@ -35,7 +53,7 @@ export function validateEIP1559Compatibility(
  * - If the value contains a decimal point (.), it is considered invalid.
  * - If the value is not a finite number, is NaN, or is not a safe integer, it is considered invalid.
  */
-export function validateParamValue(value?: string) {
+function validateParamValue(value?: string) {
   if (value !== undefined) {
     if (value.includes('-')) {
       throw rpcErrors.invalidParams(
@@ -71,7 +89,7 @@ export function validateParamValue(value?: string) {
  * the "to" field is removed from the transaction parameters.
  * - If the recipient address is not a valid hexadecimal Ethereum address, an error is thrown.
  */
-export function validateParamRecipient(txParams: TransactionParams) {
+function validateParamRecipient(txParams: TransactionParams) {
   if (txParams.to === '0x' || txParams.to === undefined) {
     if (txParams.data) {
       delete txParams.to;
@@ -96,7 +114,7 @@ export function validateParamRecipient(txParams: TransactionParams) {
  * the "to" field is removed from the transaction parameters.
  * - If the recipient address is not a valid hexadecimal Ethereum address, an error is thrown.
  */
-export function validateParamFrom(from: string) {
+function validateParamFrom(from: string) {
   if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
     throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
   }
@@ -108,7 +126,7 @@ export function validateParamFrom(from: string) {
  * @param value - The input data to validate.
  * @throws Throws invalid params if the input data is invalid.
  */
-export function validateParamData(value?: string) {
+function validateParamData(value?: string) {
   if (value) {
     const ERC20Interface = new Interface(abiERC20);
     try {
