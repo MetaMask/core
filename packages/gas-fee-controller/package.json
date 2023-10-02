@@ -56,8 +56,7 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^13.0.1",
-    "@metamask/polling-controller": "^0.0.0"
+    "@metamask/network-controller": "^13.0.1"
   },
   "engines": {
     "node": ">=16.0.0"

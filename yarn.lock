@@ -1827,7 +1827,6 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/network-controller": ^13.0.1
-    "@metamask/polling-controller": ^0.0.0
   languageName: unknown
   linkType: soft
 
