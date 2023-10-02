@@ -34,7 +34,7 @@
     "@metamask/controller-utils": "^5.0.1",
     "@metamask/logging-controller": "^1.0.3",
     "@metamask/message-manager": "^7.3.4",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^8.1.0",
     "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
     "immer": "^9.0.6",
@@ -47,8 +47,8 @@
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.23.15",
-    "typedoc-plugin-missing-exports": "^0.23.0",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.8.4"
   },
   "peerDependencies": {

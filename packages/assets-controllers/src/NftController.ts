@@ -18,7 +18,11 @@ import {
   OPENSEA_PROXY_URL,
   ApprovalType,
 } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  NetworkClientId,
+  NetworkController,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
@@ -139,11 +143,6 @@ export interface NftMetadata {
   lastSale?: ApiNftLastSale;
   transactionId?: string;
   tokenURI?: string | null;
-}
-
-interface AccountParams {
-  userAddress: string;
-  chainId: Hex;
 }
 
 /**
@@ -277,6 +276,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     contractAddress: string,
     tokenId: string,
   ): Promise<NftMetadata> {
+    // TODO Parameterize this by chainId for non-mainnet token detection
     // Attempt to fetch the data with the proxy
     const nftInformation: ApiNft | undefined = await fetchWithErrorHandling({
       url: this.getNftApi({
@@ -343,15 +343,21 @@ export class NftController extends BaseController<NftConfig, NftState> {
    *
    * @param contractAddress - Hex address of the NFT contract.
    * @param tokenId - The NFT identifier.
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving to the current NFT name and image.
    */
   private async getNftInformationFromTokenURI(
     contractAddress: string,
     tokenId: string,
+    networkClientId?: NetworkClientId,
   ): Promise<NftMetadata> {
     const { ipfsGateway, useIPFSSubdomains, isIpfsGatewayEnabled } =
       this.config;
-    const result = await this.getNftURIAndStandard(contractAddress, tokenId);
+    const result = await this.getNftURIAndStandard(
+      contractAddress,
+      tokenId,
+      networkClientId,
+    );
     let tokenURI = result[0];
     const standard = result[1];
 
@@ -403,15 +409,21 @@ export class NftController extends BaseController<NftConfig, NftState> {
    *
    * @param contractAddress - NFT contract address.
    * @param tokenId - NFT token id.
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving NFT uri and token standard.
    */
   private async getNftURIAndStandard(
     contractAddress: string,
     tokenId: string,
+    networkClientId?: NetworkClientId,
   ): Promise<[string, string]> {
     // try ERC721 uri
     try {
-      const uri = await this.getERC721TokenURI(contractAddress, tokenId);
+      const uri = await this.getERC721TokenURI(
+        contractAddress,
+        tokenId,
+        networkClientId,
+      );
       return [uri, ERC721];
     } catch {
       // Ignore error
@@ -419,7 +431,11 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     // try ERC1155 uri
     try {
-      const tokenURI = await this.getERC1155TokenURI(contractAddress, tokenId);
+      const tokenURI = await this.getERC1155TokenURI(
+        contractAddress,
+        tokenId,
+        networkClientId,
+      );
 
       /**
        * According to EIP1155 the URI value allows for ID substitution
@@ -447,22 +463,36 @@ export class NftController extends BaseController<NftConfig, NftState> {
    *
    * @param contractAddress - Hex address of the NFT contract.
    * @param tokenId - The NFT identifier.
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving to the current NFT name and image.
    */
   private async getNftInformation(
     contractAddress: string,
     tokenId: string,
+    networkClientId?: NetworkClientId,
   ): Promise<NftMetadata> {
+    let { chainId } = this.config;
+    if (networkClientId) {
+      chainId =
+        this.getNetworkClientById(networkClientId).configuration.chainId;
+    }
+
     const blockchainMetadata = await safelyExecute(async () => {
-      return await this.getNftInformationFromTokenURI(contractAddress, tokenId);
+      return await this.getNftInformationFromTokenURI(
+        contractAddress,
+        tokenId,
+        networkClientId,
+      );
     });
 
     let openSeaMetadata;
-    if (this.config.openSeaEnabled) {
+    // currently we only need to enter this block if we are on mainnet
+    if (this.config.openSeaEnabled && chainId === '0x1') {
       openSeaMetadata = await safelyExecute(async () => {
         return await this.getNftInformationFromApi(contractAddress, tokenId);
       });
     }
+
     return {
       ...openSeaMetadata,
       name: blockchainMetadata.name ?? openSeaMetadata?.name ?? null,
@@ -519,17 +549,25 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * Request NFT contract information from the contract itself.
    *
    * @param contractAddress - Hex address of the NFT contract.
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving to the current NFT name and image.
    */
   private async getNftContractInformationFromContract(
     contractAddress: string,
+    networkClientId?: NetworkClientId,
   ): Promise<
     Partial<ApiNftContract> &
       Pick<ApiNftContract, 'address'> &
       Pick<ApiNftContract, 'collection'>
   > {
-    const name = await this.getERC721AssetName(contractAddress);
-    const symbol = await this.getERC721AssetSymbol(contractAddress);
+    const name = await this.getERC721AssetName(
+      contractAddress,
+      networkClientId,
+    );
+    const symbol = await this.getERC721AssetSymbol(
+      contractAddress,
+      networkClientId,
+    );
     return {
       collection: { name },
       symbol,
@@ -541,10 +579,12 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * Request NFT contract information from OpenSea API.
    *
    * @param contractAddress - Hex address of the NFT contract.
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving to the NFT contract name, image and description.
    */
   private async getNftContractInformation(
     contractAddress: string,
+    networkClientId?: NetworkClientId,
   ): Promise<
     Partial<ApiNftContract> &
       Pick<ApiNftContract, 'address'> &
@@ -553,11 +593,20 @@ export class NftController extends BaseController<NftConfig, NftState> {
     const blockchainContractData: Partial<ApiNftContract> &
       Pick<ApiNftContract, 'address'> &
       Pick<ApiNftContract, 'collection'> = await safelyExecute(async () => {
-      return await this.getNftContractInformationFromContract(contractAddress);
+      return await this.getNftContractInformationFromContract(
+        contractAddress,
+        networkClientId,
+      );
+    });
+
+    const { chainId } = this.config;
+    const getCurrentChainId = this.getCorrectChainId({
+      chainId,
+      networkClientId,
     });
 
     let openSeaContractData: Partial<ApiNftContract> | undefined;
-    if (this.config.openSeaEnabled) {
+    if (this.config.openSeaEnabled && getCurrentChainId === '0x1') {
       openSeaContractData = await safelyExecute(async () => {
         return await this.getNftContractInformationFromApi(contractAddress);
       });
@@ -592,41 +641,35 @@ export class NftController extends BaseController<NftConfig, NftState> {
   /**
    * Adds an individual NFT to the stored NFT list.
    *
-   * @param address - Hex address of the NFT contract.
+   * @param tokenAddress - Hex address of the NFT contract.
    * @param tokenId - The NFT identifier.
    * @param nftMetadata - NFT optional information (name, image and description).
    * @param nftContract - An object containing contract data of the NFT being added.
-   * @param accountParams - The chain ID and address of network and account to which the nftContract should be added.
+   * @param chainId - The chainId of the network where the NFT is being added.
+   * @param userAddress - The address of the account where the NFT is being added.
    * @param source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @returns Promise resolving to the current NFT list.
    */
   private async addIndividualNft(
-    address: string,
+    tokenAddress: string,
     tokenId: string,
     nftMetadata: NftMetadata,
     nftContract: NftContract,
-    accountParams?: AccountParams,
-    source = Source.Custom,
+    chainId: Hex,
+    userAddress: string,
+    source: Source,
   ): Promise<Nft[]> {
     // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
     try {
-      address = toChecksumHexAddress(address);
+      tokenAddress = toChecksumHexAddress(tokenAddress);
       const { allNfts } = this.state;
-      let chainId, selectedAddress;
-      if (accountParams) {
-        chainId = accountParams.chainId;
-        selectedAddress = accountParams.userAddress;
-      } else {
-        chainId = this.config.chainId;
-        selectedAddress = this.config.selectedAddress;
-      }
 
-      const nfts = allNfts[selectedAddress]?.[chainId] || [];
+      const nfts = allNfts[userAddress]?.[chainId] || [];
 
       const existingEntry: Nft | undefined = nfts.find(
         (nft) =>
-          nft.address.toLowerCase() === address.toLowerCase() &&
+          nft.address.toLowerCase() === tokenAddress.toLowerCase() &&
           nft.tokenId === tokenId,
       );
 
@@ -639,7 +682,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
           // TODO: Switch to indexToUpdate
           const indexToRemove = nfts.findIndex(
             (nft) =>
-              nft.address.toLowerCase() === address.toLowerCase() &&
+              nft.address.toLowerCase() === tokenAddress.toLowerCase() &&
               nft.tokenId === tokenId,
           );
           /* istanbul ignore next */
@@ -652,7 +695,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       }
 
       const newEntry: Nft = {
-        address,
+        address: tokenAddress,
         tokenId,
         favorite: existingEntry?.favorite || false,
         isCurrentlyOwned: true,
@@ -662,12 +705,12 @@ export class NftController extends BaseController<NftConfig, NftState> {
       const newNfts = [...nfts, newEntry];
       this.updateNestedNftState(newNfts, ALL_NFTS_STATE_KEY, {
         chainId,
-        userAddress: selectedAddress,
+        userAddress,
       });
 
       if (this.onNftAdded) {
         this.onNftAdded({
-          address,
+          address: tokenAddress,
           symbol: nftContract.symbol,
           tokenId: tokenId.toString(),
           standard: nftMetadata.standard,
@@ -684,39 +727,54 @@ export class NftController extends BaseController<NftConfig, NftState> {
   /**
    * Adds an NFT contract to the stored NFT contracts list.
    *
-   * @param address - Hex address of the NFT contract.
-   * @param accountParams - The chain ID and address of network and account to which the nftContract should be added.
-   * @param source - Whether the NFT was detected, added manually or suggested by a dapp.
+   * @param options - options.
+   * @param options.tokenAddress - Hex address of the NFT contract.
+   * @param options.chainId - The chainId of the network where the NFT is being added.
+   * @param options.userAddress - The address of the account where the NFT is being added.
+   * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @returns Promise resolving to the current NFT contracts list.
    */
-  private async addNftContract(
-    address: string,
-    accountParams?: AccountParams,
-    source?: Source,
-  ): Promise<NftContract[]> {
+  private async addNftContract({
+    tokenAddress,
+    chainId,
+    userAddress,
+    networkClientId,
+    source,
+  }: {
+    tokenAddress: string;
+    chainId?: Hex;
+    userAddress?: string;
+    networkClientId?: NetworkClientId;
+    source?: Source;
+  }): Promise<NftContract[]> {
     const releaseLock = await this.mutex.acquire();
     try {
-      address = toChecksumHexAddress(address);
+      tokenAddress = toChecksumHexAddress(tokenAddress);
       const { allNftContracts } = this.state;
-      let chainId, selectedAddress;
-      if (accountParams) {
-        chainId = accountParams.chainId;
-        selectedAddress = accountParams.userAddress;
-      } else {
-        chainId = this.config.chainId;
-        selectedAddress = this.config.selectedAddress;
-      }
+      const currentChainId = this.getCorrectChainId({
+        chainId,
+        networkClientId,
+      });
+      const selectedAddress = userAddress ?? this.config.selectedAddress;
 
-      const nftContracts = allNftContracts[selectedAddress]?.[chainId] || [];
+      const nftContracts =
+        allNftContracts[selectedAddress]?.[currentChainId] || [];
 
       const existingEntry = nftContracts.find(
         (nftContract) =>
-          nftContract.address.toLowerCase() === address.toLowerCase(),
+          nftContract.address.toLowerCase() === tokenAddress.toLowerCase(),
       );
       if (existingEntry) {
         return nftContracts;
       }
-      const contractInformation = await this.getNftContractInformation(address);
+
+      // this doesn't work currently for detection if the user switches networks while the detection is processing
+      // will be fixed once detection uses networkClientIds
+      const contractInformation = await this.getNftContractInformation(
+        tokenAddress,
+        networkClientId,
+      );
       const {
         asset_contract_type,
         created_date,
@@ -748,7 +806,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       /* istanbul ignore next */
       const newEntry: NftContract = Object.assign(
         {},
-        { address },
+        { address: tokenAddress },
         description && { description },
         name && { name },
         image_url && { logo: image_url },
@@ -762,7 +820,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       );
       const newNftContracts = [...nftContracts, newEntry];
       this.updateNestedNftState(newNftContracts, ALL_NFTS_CONTRACTS_STATE_KEY, {
-        chainId,
+        chainId: currentChainId,
         userAddress: selectedAddress,
       });
 
@@ -874,6 +932,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
   private readonly getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
+  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+
   private readonly onNftAdded?: (data: {
     address: string;
     symbol: string | undefined;
@@ -895,6 +955,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param options.getERC721OwnerOf - Get the owner of a ERC-721 NFT.
    * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 NFT.
    * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
+   * @param options.getNetworkClientById - Gets the network client for the given networkClientId.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
    * for tracking the NFT added event.
    * @param options.messenger - The controller messenger.
@@ -912,6 +973,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       getERC721OwnerOf,
       getERC1155BalanceOf,
       getERC1155TokenURI,
+      getNetworkClientById,
       onNftAdded,
       messenger,
     }: {
@@ -928,6 +990,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
       getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
       getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
       getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
+      getNetworkClientById: NetworkController['getNetworkClientById'];
       onNftAdded?: (data: {
         address: string;
         symbol: string | undefined;
@@ -962,6 +1025,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     this.getERC721OwnerOf = getERC721OwnerOf;
     this.getERC1155BalanceOf = getERC1155BalanceOf;
     this.getERC1155TokenURI = getERC1155TokenURI;
+    this.getNetworkClientById = getNetworkClientById;
     this.onNftAdded = onNftAdded;
     this.messagingSystem = messenger;
 
@@ -990,7 +1054,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
   async validateWatchNft(
     asset: NftAsset,
     type: NFTStandardType,
-    accountAddress: string,
+    userAddress: string,
   ) {
     const { address: contractAddress, tokenId } = asset;
 
@@ -1020,7 +1084,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     // Check if the user owns the suggested NFT
     try {
       const isOwner = await this.isNftOwner(
-        accountAddress,
+        userAddress,
         contractAddress,
         tokenId,
       );
@@ -1035,6 +1099,23 @@ export class NftController extends BaseController<NftConfig, NftState> {
     }
   }
 
+  // temporary method to get the correct chainId until we remove chainId from the config & the chainId arg from the detection logic
+  // Just a helper method to prefer the networkClient chainId first then the chainId argument and then finally the config chainId
+  private getCorrectChainId({
+    chainId,
+    networkClientId,
+  }: {
+    chainId?: Hex;
+    networkClientId?: NetworkClientId;
+  }) {
+    if (networkClientId) {
+      return this.getNetworkClientById(networkClientId).configuration.chainId;
+    } else if (chainId) {
+      return chainId;
+    }
+    return this.config.chainId;
+  }
+
   /**
    * Adds a new suggestedAsset to state. Parameters will be validated according to
    * asset type being watched. A `<suggestedNftMeta.id>:pending` hub event will be emitted once added.
@@ -1044,9 +1125,15 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param asset.tokenId - The ID of the asset.
    * @param type - The asset type.
    * @param origin - Domain origin to register the asset from.
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
    */
-  async watchNft(asset: NftAsset, type: NFTStandardType, origin: string) {
+  async watchNft(
+    asset: NftAsset,
+    type: NFTStandardType,
+    origin: string,
+    networkClientId?: NetworkClientId,
+  ) {
     const { selectedAddress, chainId } = this.config;
 
     await this.validateWatchNft(asset, type, selectedAddress);
@@ -1054,6 +1141,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
     const nftMetadata = await this.getNftInformation(
       asset.address,
       asset.tokenId,
+      networkClientId,
     );
 
     if (nftMetadata.standard && nftMetadata.standard !== type) {
@@ -1074,21 +1162,18 @@ export class NftController extends BaseController<NftConfig, NftState> {
     const { address, tokenId } = asset;
     const { name, standard, description, image } = nftMetadata;
 
-    await this.addNft(
-      address,
-      tokenId,
-      {
+    await this.addNft(address, tokenId, {
+      nftMetadata: {
         name: name ?? null,
         description: description ?? null,
         image: image ?? null,
         standard: standard ?? null,
       },
-      {
-        chainId,
-        userAddress: selectedAddress,
-      },
-      Source.Dapp,
-    );
+      chainId,
+      userAddress: selectedAddress,
+      source: Source.Dapp,
+      networkClientId,
+    });
   }
 
   /**
@@ -1105,17 +1190,23 @@ export class NftController extends BaseController<NftConfig, NftState> {
    *
    * @param ownerAddress - User public address.
    * @param nftAddress - NFT contract address.
-   * @param nftId - NFT token ID.
+   * @param tokenId - NFT token ID.
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving the NFT ownership.
    */
   async isNftOwner(
     ownerAddress: string,
     nftAddress: string,
-    nftId: string,
+    tokenId: string,
+    networkClientId?: NetworkClientId,
   ): Promise<boolean> {
     // Checks the ownership for ERC-721.
     try {
-      const owner = await this.getERC721OwnerOf(nftAddress, nftId);
+      const owner = await this.getERC721OwnerOf(
+        nftAddress,
+        tokenId,
+        networkClientId,
+      );
       return ownerAddress.toLowerCase() === owner.toLowerCase();
       // eslint-disable-next-line no-empty
     } catch {
@@ -1127,7 +1218,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
       const balance = await this.getERC1155BalanceOf(
         ownerAddress,
         nftAddress,
-        nftId,
+        tokenId,
+        networkClientId,
       );
       return !balance.isZero();
       // eslint-disable-next-line no-empty
@@ -1146,54 +1238,91 @@ export class NftController extends BaseController<NftConfig, NftState> {
    *
    * @param address - Hex address of the NFT contract.
    * @param tokenId - The NFT identifier.
+   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp.
    */
-  async addNftVerifyOwnership(address: string, tokenId: string) {
+  async addNftVerifyOwnership(
+    address: string,
+    tokenId: string,
+    networkClientId?: NetworkClientId,
+    source?: Source,
+  ) {
     const { selectedAddress } = this.config;
-    if (!(await this.isNftOwner(selectedAddress, address, tokenId))) {
+    if (
+      !(await this.isNftOwner(
+        selectedAddress,
+        address,
+        tokenId,
+        networkClientId,
+      ))
+    ) {
       throw new Error('This NFT is not owned by the user');
     }
-    await this.addNft(address, tokenId);
+    await this.addNft(address, tokenId, { networkClientId, source });
   }
 
   /**
    * Adds an NFT and respective NFT contract to the stored NFT and NFT contracts lists.
    *
-   * @param address - Hex address of the NFT contract.
+   * @param tokenAddress - Hex address of the NFT contract.
    * @param tokenId - The NFT identifier.
-   * @param nftMetadata - NFT optional metadata.
-   * @param accountParams - The chain ID and address of network and account to which the nftContract should be added.
-   * @param source - Whether the NFT was detected, added manually or suggested by a dapp.
+   * @param options - an object of arguments
+   * @param options.nftMetadata - NFT optional metadata.
+   * @param options.chainId - The chain ID of the current network.
+   * @param options.userAddress - The address of the current user.
+   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
+   * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving to the current NFT list.
    */
   async addNft(
-    address: string,
+    tokenAddress: string,
     tokenId: string,
-    nftMetadata?: NftMetadata,
-    accountParams?: AccountParams,
-    source = Source.Custom,
+    {
+      nftMetadata,
+      chainId, // TODO remove and replace chainId arg with fetch chainId using getNetworkClientById(networkClientId).configuration.chainId once polling refactor is complete
+      userAddress,
+      source = Source.Custom,
+      networkClientId,
+    }: {
+      nftMetadata?: NftMetadata;
+      chainId?: Hex;
+      userAddress?: string;
+      source?: Source;
+      networkClientId?: NetworkClientId;
+    } = {},
   ) {
-    address = toChecksumHexAddress(address);
-    const newNftContracts = await this.addNftContract(
-      address,
-      accountParams,
+    tokenAddress = toChecksumHexAddress(tokenAddress);
+
+    const currentChainId = this.getCorrectChainId({ chainId, networkClientId });
+    const selectedAddress = userAddress ?? this.config.selectedAddress;
+
+    const newNftContracts = await this.addNftContract({
+      tokenAddress,
+      chainId: currentChainId,
+      userAddress: selectedAddress,
+      networkClientId,
       source,
-    );
+    });
+
     nftMetadata =
-      nftMetadata || (await this.getNftInformation(address, tokenId));
+      nftMetadata ||
+      (await this.getNftInformation(tokenAddress, tokenId, networkClientId));
 
     // If NFT contract was not added, do not add individual NFT
     const nftContract = newNftContracts.find(
-      (contract) => contract.address.toLowerCase() === address.toLowerCase(),
+      (contract) =>
+        contract.address.toLowerCase() === tokenAddress.toLowerCase(),
     );
 
     // If NFT contract information, add individual NFT
     if (nftContract) {
       await this.addIndividualNft(
-        address,
+        tokenAddress,
         tokenId,
         nftMetadata,
         nftContract,
-        accountParams,
+        currentChainId,
+        selectedAddress,
         source,
       );
     }

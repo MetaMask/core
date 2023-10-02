@@ -1,6 +1,7 @@
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 import { promisify } from 'util';
 
+import { mockNetwork } from '../../../tests/mock-network';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import * as createNetworkClientModule from './create-network-client';
 import type {
@@ -8,7 +9,6 @@ import type {
   InfuraNetworkClientConfiguration,
 } from './types';
 import { NetworkClientType } from './types';
-import { mockNetwork } from '../../../tests/mock-network';
 
 describe('createAutoManagedNetworkClient', () => {
   const networkClientConfigurations: [

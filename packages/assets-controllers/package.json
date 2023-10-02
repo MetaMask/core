@@ -43,7 +43,7 @@
     "@metamask/network-controller": "^13.0.1",
     "@metamask/preferences-controller": "^4.4.2",
     "@metamask/rpc-errors": "^6.0.0",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^8.1.0",
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
@@ -55,7 +55,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
     "@types/jest": "^27.4.1",
-    "@types/node": "^16.18.24",
+    "@types/node": "^16.18.54",
     "deepmerge": "^4.2.2",
     "ethjs-provider-http": "^0.1.6",
     "jest": "^27.5.1",
@@ -63,8 +63,8 @@
     "nock": "^13.3.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.23.15",
-    "typedoc-plugin-missing-exports": "^0.23.0",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
