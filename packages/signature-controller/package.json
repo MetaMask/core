@@ -32,7 +32,7 @@
     "@metamask/approval-controller": "^3.5.3",
     "@metamask/base-controller": "^3.2.3",
     "@metamask/controller-utils": "^5.0.2",
-    "@metamask/logging-controller": "^1.0.4",
+    "@metamask/logging-controller": "^1.0.3",
     "@metamask/message-manager": "^7.3.5",
     "@metamask/utils": "^8.1.0",
     "eth-rpc-errors": "^4.0.2",
@@ -53,7 +53,7 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^3.5.3",
-    "@metamask/logging-controller": "^1.0.4"
+    "@metamask/logging-controller": "^1.0.3"
   },
   "engines": {
     "node": ">=16.0.0"
