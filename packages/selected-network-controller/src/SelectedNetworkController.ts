@@ -120,17 +120,18 @@ export class SelectedNetworkController extends BaseControllerV2<
       this.setNetworkClientIdForDomain.bind(this),
     );
 
-    // subscribe to networkController statechange:: selectedNetworkClientId changed
-    // update the value for the domain 'metamask'
+    // subscribe to NetworkController state change events
+    // set the value for the domain 'metamask' if not already initialized
+    // or update it if the selectedNetworkClientId has changed
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       (state: NetworkState, patch: Patch[]) => {
         const isChangingNetwork = patch.some(
           (p) => p.path[0] === 'selectedNetworkClientId',
         );
-        const hasMetamaskClient =
+        const hasMetamaskNetworkClientId =
           this.getNetworkClientIdForDomain(METAMASK_DOMAIN);
-        if (!isChangingNetwork && hasMetamaskClient) {
+        if (!isChangingNetwork && hasMetamaskNetworkClientId) {
           return;
         }
 
