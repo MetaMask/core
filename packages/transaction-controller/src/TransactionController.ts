@@ -243,7 +243,7 @@ export class TransactionController extends BaseController<
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getNetworkState - Gets the state of the network controller.
-   * @param options.getPermittedAccounts - get accounts that an origin has permissions for.
+   * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
