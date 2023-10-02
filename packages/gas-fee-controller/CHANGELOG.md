@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 ### Changed
-- **BREAKING:** Integrate PollingController mixin with GasFeeController ([#1673](https://github.com/MetaMask/core/pull/1673))
+- **BREAKING:** Integrate PollingController mixin with GasFeeController ([#1673](https://github.com/MetaMask/core/pull/1673), ([#1748]https://github.com/MetaMask/core/pull/1748))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 
 ## [7.0.1]
@@ -16,9 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
 
 ## [7.0.0]
-### Added
-- Add missing `@metamask/polling-controller@0.0.0` dependency ([#1748]https://github.com/MetaMask/core/pull/1748)
-
 ### Changed
 - **BREAKING**: Bump peer dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
 - Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
