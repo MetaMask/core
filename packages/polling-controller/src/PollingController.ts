@@ -51,7 +51,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      * @param networkClientId - The networkClientId to start polling for
      * @returns void
      */
-    start(networkClientId: NetworkClientId) {
+    startPollingByNetworkClientId(networkClientId: NetworkClientId) {
       const innerPollToken = random();
       if (this.#networkClientIdTokensMap.has(networkClientId)) {
         const set = this.#networkClientIdTokensMap.get(networkClientId);
@@ -68,10 +68,10 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
     /**
      * Stops polling for all networkClientIds
      */
-    stopAll() {
+    stopAllPolling() {
       this.#networkClientIdTokensMap.forEach((tokens, _networkClientId) => {
         tokens.forEach((token) => {
-          this.stop(token);
+          this.stopPollingByNetworkClientId(token);
         });
       });
     }
@@ -81,7 +81,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      *
      * @param pollingToken - The polling token to stop polling for
      */
-    stop(pollingToken: string) {
+    stopPollingByNetworkClientId(pollingToken: string) {
       if (!pollingToken) {
         throw new Error('pollingToken required');
       }
@@ -139,7 +139,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      * @param networkClientId - The networkClientId to listen for polling complete events
      * @param callback - The callback to execute when polling is complete
      */
-    onPollingComplete(
+    onPollingCompleteByNetworkClientId(
       networkClientId: NetworkClientId,
       callback: (networkClientId: NetworkClientId) => void,
     ) {

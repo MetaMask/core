@@ -25,6 +25,7 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/selected-network-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -42,8 +43,8 @@
     "nock": "^13.3.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.23.15",
-    "typedoc-plugin-missing-exports": "^0.23.0",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
