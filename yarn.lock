@@ -1807,6 +1807,7 @@ __metadata:
     "@metamask/controller-utils": ^5.0.1
     "@metamask/eth-query": ^3.0.1
     "@metamask/network-controller": ^13.0.1
+    "@metamask/polling-controller": ^0.0.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
@@ -1826,6 +1827,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/network-controller": ^13.0.1
+    "@metamask/polling-controller": ^0.0.0
   languageName: unknown
   linkType: soft
 
@@ -2120,7 +2122,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/polling-controller@workspace:packages/polling-controller":
+"@metamask/polling-controller@^0.0.0, @metamask/polling-controller@workspace:packages/polling-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/polling-controller@workspace:packages/polling-controller"
   dependencies:
