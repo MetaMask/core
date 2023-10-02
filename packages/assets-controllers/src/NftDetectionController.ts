@@ -115,9 +115,8 @@ export interface ApiNftCreator {
  *
  * NftDetection configuration
  * @property interval - Polling interval used to fetch new token rates
- * @property networkType - Network type ID as per net_version
+ * @property chainId - Current chain ID
  * @property selectedAddress - Vault selected address
- * @property tokens - List of tokens associated with the active vault
  */
 export interface NftDetectionConfig extends BaseConfig {
   interval: number;
@@ -373,16 +372,12 @@ export class NftDetectionController extends BaseController<
           last_sale && { lastSale: last_sale },
         );
 
-        await this.addNft(
-          address,
-          token_id,
+        await this.addNft(address, token_id, {
           nftMetadata,
-          {
-            userAddress: selectedAddress,
-            chainId,
-          },
-          Source.Detected,
-        );
+          userAddress: selectedAddress,
+          chainId,
+          source: Source.Detected,
+        });
       }
     });
     await Promise.all(addNftPromises);

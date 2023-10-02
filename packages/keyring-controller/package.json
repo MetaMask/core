@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "7.5.0",
+  "version": "8.0.1",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -25,15 +25,16 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/keyring-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
-    "@metamask/base-controller": "^3.2.1",
+    "@metamask/base-controller": "^3.2.2",
     "@metamask/eth-keyring-controller": "^13.0.1",
-    "@metamask/message-manager": "^7.3.2",
-    "@metamask/preferences-controller": "^4.4.0",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/message-manager": "^7.3.4",
+    "@metamask/preferences-controller": "^4.4.2",
+    "@metamask/utils": "^8.1.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",
@@ -51,13 +52,13 @@
     "jest": "^27.5.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.22.15",
-    "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.6.3",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~4.8.4",
     "uuid": "^8.3.2"
   },
   "peerDependencies": {
-    "@metamask/preferences-controller": "^4.4.0"
+    "@metamask/preferences-controller": "^4.4.2"
   },
   "engines": {
     "node": ">=16.0.0"

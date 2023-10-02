@@ -1,6 +1,6 @@
 {
   "name": "@metamask/preferences-controller",
-  "version": "4.4.0",
+  "version": "4.4.2",
   "description": "Manages user-configurable settings for MetaMask",
   "keywords": [
     "MetaMask",
@@ -25,11 +25,12 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/preferences-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.1",
-    "@metamask/controller-utils": "^4.3.2"
+    "@metamask/base-controller": "^3.2.2",
+    "@metamask/controller-utils": "^5.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
@@ -37,9 +38,9 @@
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.22.15",
-    "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.6.3"
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~4.8.4"
   },
   "engines": {
     "node": ">=16.0.0"

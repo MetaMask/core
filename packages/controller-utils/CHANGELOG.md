@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [5.0.0]
+### Changed
+- **BREAKING**: Rename `NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP` to `CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP` ([#1633](https://github.com/MetaMask/core/pull/1633))
+  - Change it to a map of `Hex` chain ID to `BuiltInNetworkName`
+
+### Removed
+- **BREAKING**: Remove `NetworkId` constant and type ([#1633](https://github.com/MetaMask/core/pull/1633))
+
 ## [4.3.2]
 ### Changed
 - There are no consumer-facing changes to this package. This version is a part of a synchronized release across all packages in our monorepo.
@@ -147,7 +159,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.0...@metamask/controller-utils@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.2...@metamask/controller-utils@5.0.0
 [4.3.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.1...@metamask/controller-utils@4.3.2
 [4.3.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.0...@metamask/controller-utils@4.3.1
 [4.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.2.0...@metamask/controller-utils@4.3.0

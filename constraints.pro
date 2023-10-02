@@ -257,6 +257,10 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogVa
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-
   WorkspaceCwd \= '.'.
 
+% All non-root packages must have the same "test:clean" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'jest --clearCache') :-
+  WorkspaceCwd \= '.'.
+
 % All non-root packages must have the same "test:watch" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
   WorkspaceCwd \= '.'.
