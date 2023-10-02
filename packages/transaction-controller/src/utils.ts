@@ -1,8 +1,4 @@
-import {
-  convertHexToDecimal,
-  isValidHexAddress,
-} from '@metamask/controller-utils';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { convertHexToDecimal } from '@metamask/controller-utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
@@ -47,74 +43,6 @@ export function normalizeTxParams(txParams: TransactionParams) {
     }
   }
   return normalizedTxParams;
-}
-
-/**
- * Validates the transaction params for required properties and throws in
- * the event of any validation error.
- *
- * @param txParams - Transaction params object to validate.
- * @param isEIP1559Compatible - whether or not the current network supports EIP-1559 transactions.
- */
-export function validateTxParams(
-  txParams: TransactionParams,
-  isEIP1559Compatible = true,
-) {
-  if (
-    !txParams.from ||
-    typeof txParams.from !== 'string' ||
-    !isValidHexAddress(txParams.from)
-  ) {
-    throw rpcErrors.invalidParams(
-      `Invalid "from" address: ${txParams.from} must be a valid string.`,
-    );
-  }
-
-  if (isEIP1559Transaction(txParams) && !isEIP1559Compatible) {
-    throw rpcErrors.invalidParams(
-      'Invalid transaction params: params specify an EIP-1559 transaction but the current network does not support EIP-1559',
-    );
-  }
-
-  if (txParams.to === '0x' || txParams.to === undefined) {
-    if (txParams.data) {
-      delete txParams.to;
-    } else {
-      throw rpcErrors.invalidParams(
-        `Invalid "to" address: ${txParams.to} must be a valid string.`,
-      );
-    }
-  } else if (txParams.to !== undefined && !isValidHexAddress(txParams.to)) {
-    throw rpcErrors.invalidParams(
-      `Invalid "to" address: ${txParams.to} must be a valid string.`,
-    );
-  }
-
-  if (txParams.value !== undefined) {
-    const value = txParams.value.toString();
-    if (value.includes('-')) {
-      throw rpcErrors.invalidParams(
-        `Invalid "value": ${value} is not a positive number.`,
-      );
-    }
-
-    if (value.includes('.')) {
-      throw rpcErrors.invalidParams(
-        `Invalid "value": ${value} number must be denominated in wei.`,
-      );
-    }
-    const intValue = parseInt(txParams.value, 10);
-    const isValid =
-      Number.isFinite(intValue) &&
-      !Number.isNaN(intValue) &&
-      !isNaN(Number(value)) &&
-      Number.isSafeInteger(intValue);
-    if (!isValid) {
-      throw rpcErrors.invalidParams(
-        `Invalid "value": ${value} number must be a valid number.`,
-      );
-    }
-  }
 }
 
 /**

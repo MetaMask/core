@@ -64,9 +64,9 @@ import {
   validateGasValues,
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
-  validateTxParams,
   ESTIMATE_GAS_ERROR,
 } from './utils';
+import { validateTxParams } from './validation';
 
 export const HARDFORK = Hardfork.London;
 

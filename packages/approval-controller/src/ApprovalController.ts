@@ -1,8 +1,8 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
+import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
-import type { EthereumRpcError } from 'eth-rpc-errors';
-import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
 
@@ -256,7 +256,7 @@ export type GetApprovalsState = {
 
 export type ClearApprovalRequests = {
   type: `${typeof controllerName}:clearRequests`;
-  handler: (error: EthereumRpcError<unknown>) => void;
+  handler: (error: JsonRpcError<DataWithOptionalCause>) => void;
 };
 
 export type AddApprovalRequest = {
@@ -719,10 +719,10 @@ export class ApprovalController extends BaseControllerV2<
   /**
    * Rejects and deletes all approval requests.
    *
-   * @param rejectionError - The EthereumRpcError to reject the approval
+   * @param rejectionError - The JsonRpcError to reject the approval
    * requests with.
    */
-  clear(rejectionError: EthereumRpcError<unknown>): void {
+  clear(rejectionError: JsonRpcError<DataWithOptionalCause>): void {
     for (const id of this.#approvals.keys()) {
       this.reject(id, rejectionError);
     }
@@ -878,7 +878,7 @@ export class ApprovalController extends BaseControllerV2<
       !this.#typesExcludedFromRateLimiting.includes(type) &&
       this.has({ origin, type })
     ) {
-      throw ethErrors.rpc.resourceUnavailable(
+      throw rpcErrors.resourceUnavailable(
         getAlreadyPendingMessage(origin, type),
       );
     }
@@ -937,7 +937,7 @@ export class ApprovalController extends BaseControllerV2<
     }
 
     if (errorMessage) {
-      throw ethErrors.rpc.internal(errorMessage);
+      throw rpcErrors.internal(errorMessage);
     }
   }
 
