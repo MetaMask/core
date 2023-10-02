@@ -1016,13 +1016,13 @@ __metadata:
   linkType: soft
 
 "@metamask/eth-json-rpc-provider@npm:^2.1.0":
-  version: 2.1.0
-  resolution: "@metamask/eth-json-rpc-provider@npm:2.1.0"
+  version: 2.2.0
+  resolution: "@metamask/eth-json-rpc-provider@npm:2.2.0"
   dependencies:
     "@metamask/json-rpc-engine": ^7.1.0
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.1.0
-  checksum: 020f7c4d9d305b590aa7d7c2198b3487e3e609110b43b04802cdf42c09fb8300b5989c9cb2dc15d50bcc244d44d26a779de6b5171e5f2fe7001eab83a5028874
+  checksum: da725fa51e8bfe0b904520b8223aed209fc54605edf1ab5ae6091a460694fd4aad5046f3ae88e8df3741079507dc0e6f2e2c85f1feee8a98506c4f550ea07549
   languageName: node
   linkType: hard
 
