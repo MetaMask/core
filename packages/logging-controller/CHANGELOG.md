@@ -6,13 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.4]
-### Added
-- Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
-
-### Changed
-- Bump dev dependency on `@metamask/eslint-config*` to ^12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
-
 ## [1.0.3]
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
@@ -31,8 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.4...HEAD
-[1.0.4]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.3...@metamask/logging-controller@1.0.4
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.3...HEAD
 [1.0.3]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.2...@metamask/logging-controller@1.0.3
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.1...@metamask/logging-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.0...@metamask/logging-controller@1.0.1

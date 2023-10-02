@@ -69,7 +69,6 @@ linkStyle default opacity:0.5
   assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
-  assets_controllers --> preferences_controller;
   composable_controller --> base_controller;
   ens_controller --> base_controller;
   ens_controller --> controller_utils;
@@ -77,7 +76,6 @@ linkStyle default opacity:0.5
   gas_fee_controller --> controller_utils;
   keyring_controller --> base_controller;
   keyring_controller --> message_manager;
-  keyring_controller --> preferences_controller;
   logging_controller --> base_controller;
   logging_controller --> controller_utils;
   message_manager --> base_controller;
@@ -100,7 +98,6 @@ linkStyle default opacity:0.5
   signature_controller --> approval_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
-  signature_controller --> logging_controller;
   signature_controller --> message_manager;
   signature_controller --> keyring_controller;
   transaction_controller --> approval_controller;

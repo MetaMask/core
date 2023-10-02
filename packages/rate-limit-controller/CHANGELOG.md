@@ -6,13 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.0.3]
-### Added
-- Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
-
-### Changed
-- Bump dev dependency on `@metamask/eslint-config*` to ^12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
-
 ## [3.0.2]
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
@@ -53,8 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.3...HEAD
-[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.2...@metamask/rate-limit-controller@3.0.3
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.2...HEAD
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.1...@metamask/rate-limit-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@3.0.0...@metamask/rate-limit-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@2.0.1...@metamask/rate-limit-controller@3.0.0
