@@ -7,6 +7,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type {
+  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderConfig,
@@ -15,7 +16,10 @@ import { NetworkStatus } from '@metamask/network-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-import { TOKEN_END_POINT_API } from './token-service';
+import {
+  TOKEN_END_POINT_API,
+  fetchTokenList as tokenServiceFetchTokenList,
+} from './token-service';
 import type {
   TokenListStateChange,
   GetTokenListState,
@@ -481,7 +485,7 @@ const expiredCacheExistingState: TokenListState = {
 };
 
 type MainControllerMessenger = ControllerMessenger<
-  GetTokenListState,
+  GetTokenListState | NetworkControllerGetNetworkClientByIdAction,
   TokenListStateChange | NetworkControllerStateChangeEvent
 >;
 
@@ -494,7 +498,7 @@ const getRestrictedMessenger = (
 ) => {
   const messenger = controllerMessenger.getRestricted({
     name,
-    allowedActions: [],
+    allowedActions: ['NetworkController:getNetworkClientById'],
     allowedEvents: [
       'TokenListController:stateChange',
       'NetworkController:stateChange',
@@ -1190,6 +1194,25 @@ describe('TokenListController', () => {
         }),
         [],
       );
+    });
+  });
+
+  describe('executePoll', () => {
+    it('should execute the poll', async () => {
+      const tokenServiceFetchTokenListSpy = sinon.spy(
+        tokenServiceFetchTokenList,
+      );
+
+      const controllerMessenger = getControllerMessenger();
+      const messenger = getRestrictedMessenger(controllerMessenger);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        preventPollingOnNetworkRestart: false,
+        messenger,
+        state: existingState,
+      });
+      await controller.executePoll('sepolia');
+      expect(tokenServiceFetchTokenListSpy.calledWith('0x1')).toBe(true);
     });
   });
 });

@@ -1,10 +1,12 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseControllerV2 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type {
+  NetworkClientId,
   NetworkControllerStateChangeEvent,
   NetworkState,
+  NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import { PollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
@@ -56,12 +58,11 @@ export type GetTokenListState = {
   type: `${typeof name}:getState`;
   handler: () => TokenListState;
 };
-
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
-  GetTokenListState,
+  GetTokenListState | NetworkControllerGetNetworkClientByIdAction,
   TokenListStateChange | NetworkControllerStateChangeEvent,
-  never,
+  NetworkControllerGetNetworkClientByIdAction['type'],
   TokenListStateChange['type'] | NetworkControllerStateChangeEvent['type']
 >;
 
@@ -80,7 +81,7 @@ const defaultState: TokenListState = {
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
-export class TokenListController extends BaseControllerV2<
+export class TokenListController extends PollingController<
   typeof name,
   TokenListState,
   TokenListMessenger
@@ -232,8 +233,29 @@ export class TokenListController extends BaseControllerV2<
 
   /**
    * Fetching token list from the Token Service API.
+   *
+   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @returns A promise that resolves when this operation completes.
    */
-  async fetchTokenList(): Promise<void> {
+  async executePoll(networkClientId: string): Promise<void> {
+    return this.fetchTokenList(networkClientId);
+  }
+
+  /**
+   * Fetching token list from the Token Service API.
+   *
+   * @param networkClientId - The ID of the network client triggering the fetch.
+   */
+  async fetchTokenList(networkClientId?: NetworkClientId): Promise<void> {
+    let networkClient;
+    if (networkClientId) {
+      networkClient = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      );
+    }
+
+    const chainId = networkClient?.configuration.chainId ?? this.chainId;
     const releaseLock = await this.mutex.acquire();
     try {
       const { tokensChainsCache } = this.state;
@@ -247,12 +269,12 @@ export class TokenListController extends BaseControllerV2<
       } else {
         // Fetch fresh token list
         const tokensFromAPI: TokenListToken[] = await safelyExecute(() =>
-          fetchTokenList(this.chainId, this.abortController.signal),
+          fetchTokenList(chainId, this.abortController.signal),
         );
 
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
-          tokenList = { ...(tokensChainsCache[this.chainId]?.data || {}) };
+          tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };
 
           this.update(() => {
             return {
