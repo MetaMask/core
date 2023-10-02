@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 ### Changed
-- **BREAKING:** Integrate PollingController mixin with GasFeeController ([#1673](https://github.com/MetaMask/core/pull/1673), ([#1748]https://github.com/MetaMask/core/pull/1748))
+- **BREAKING:** Integrate PollingController mixin with GasFeeController ([#1673](https://github.com/MetaMask/core/pull/1673), [#1748](https://github.com/MetaMask/core/pull/1748))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 
 ## [7.0.1]
