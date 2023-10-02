@@ -264,15 +264,19 @@ export class NftDetectionController extends PollingControllerV1<
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
     this.addNft = addNft;
+    console.log('this.config.interval', this.config.interval);
     this.setIntervalLength(this.config.interval);
   }
 
   async executePoll(networkClientId: string): Promise<void> {
     const selectedAddress =
       this.#selectedAddressByNetworkClientId.get(networkClientId);
-    console.log('inside executePoll', networkClientId, selectedAddress);
+    console.log('selectedAddress', selectedAddress);
     if (selectedAddress) {
-      await this.detectNftsByNetworkClientId(networkClientId, selectedAddress);
+      await this.detectNftsByNetworkClientIdAndUserAddress(
+        networkClientId,
+        selectedAddress,
+      );
     }
   }
 
@@ -339,6 +343,10 @@ export class NftDetectionController extends PollingControllerV1<
       networkClientId,
       selectedAddress,
     );
+    console.log(
+      'this.#selectedAddressByNetworkClientId',
+      this.#selectedAddressByNetworkClientId,
+    );
     return super.startPollingByNetworkClientId(networkClientId);
   }
 
@@ -347,14 +355,14 @@ export class NftDetectionController extends PollingControllerV1<
     this.#selectedAddressByNetworkClientId.clear();
   }
 
-  async detectNftsByNetworkClientId(
+  async detectNftsByNetworkClientIdAndUserAddress(
     networkClientId: NetworkClientId,
     selectedAddress: string,
   ) {
     const networkClient = this.getNetworkClientById(networkClientId);
-    console.log('networkClient', networkClient);
 
     if (!this.isMainnetByNetworkClientId(networkClient) || this.disabled) {
+      console.log('in here', this.disabled);
       return;
     }
     const { chainId } = networkClient.configuration;

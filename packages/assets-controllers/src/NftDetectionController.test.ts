@@ -259,18 +259,52 @@ describe('NftDetectionController', () => {
     });
   });
 
-  it('should poll and detect NFTs by networkClientId on interval while on mainnet', async () => {
+  it.only('should poll and detect NFTs by networkClientId on interval while on mainnet', async () => {
+    const getNetworkClientById = jest.fn().mockImplementation(() => {
+      return {
+        configuration: {
+          chainId: ChainId.mainnet,
+        },
+        provider: jest.fn(),
+        blockTracker: jest.fn(),
+        destroy: jest.fn(),
+      } as any;
+    });
+    const testNftDetection = new NftDetectionController({
+      chainId: ChainId.mainnet,
+      onNftsStateChange: (listener) => nftController.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: networkStateChangeNoop,
+      getOpenSeaApiKey: getOpenSeaApiKeyStub,
+      addNft: nftController.addNft.bind(nftController),
+      getNetworkClientById,
+      getNftState: () => nftController.state,
+    });
+    preferences.setUseNftDetection(true);
+    const spy = sinon.spy(
+      testNftDetection,
+      'detectNftsByNetworkClientIdAndUserAddress',
+    );
+    nock.recorder.rec();
+    nock('https://proxy.metafi.codefi.network:443', {
+      encodedQueryParams: true,
+    })
+      .get('/opensea/v1/api/v1/assets')
+      .query({
+        owner: '0xdAc65fBC5967A87efD00E5049C9d1146F818B2e6',
+        offset: '0',
+        limit: '50',
+      })
+      .reply(200, { assets: [] });
+
     jest.useFakeTimers();
-    const mockNfts = sinon.mock(nftDetection);
-    nftDetection.startPollingByNetworkClientId('mainnet', '0x1');
+    testNftDetection.startPollingByNetworkClientId('mainnet', '0xdAc65fBC5967A87efD00E5049C9d1146F818B2e6');
     jest.advanceTimersByTime(DEFAULT_INTERVAL);
-    expect(mockNfts.expects('detectNftsByNetworkClientId').calledOnce).toBe(
-      true,
-    );
+    // await Promise.resolve();
+    expect(spy.callCount).toBe(1);
     jest.advanceTimersByTime(DEFAULT_INTERVAL);
-    expect(mockNfts.expects('detectNftsByNetworkClientId').calledTwice).toBe(
-      true,
-    );
+    // await Promise.resolve();
+    expect(spy.callCount).toBe(2);
     jest.useRealTimers();
     nftDetection.stopAllPolling();
   });
@@ -340,7 +374,10 @@ describe('NftDetectionController', () => {
   it('should detect and add NFTs by networkClientId correctly', async () => {
     const selectedAddress = '0x1';
 
-    await nftDetection.detectNftsByNetworkClientId('mainnet', '0x1');
+    await nftDetection.detectNftsByNetworkClientIdAndUserAddress(
+      'mainnet',
+      '0x1',
+    );
 
     const nfts = nftController.state.allNfts[ChainId.mainnet][selectedAddress];
     expect(nfts).toStrictEqual([
