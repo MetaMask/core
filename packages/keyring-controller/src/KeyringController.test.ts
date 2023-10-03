@@ -22,8 +22,6 @@ import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
-import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -36,6 +34,8 @@ import {
   KeyringController,
   KeyringTypes,
 } from './KeyringController';
+import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 
 jest.mock('uuid', () => {
   return {
@@ -2256,7 +2256,6 @@ type WithControllerCallback<ReturnValue> = ({
   controller: KeyringController;
   preferences: {
     setAccountLabel: sinon.SinonStub;
-    removeIdentity: sinon.SinonStub;
     syncIdentities: sinon.SinonStub;
     updateIdentities: sinon.SinonStub;
     setSelectedAddress: sinon.SinonStub;
@@ -2332,7 +2331,6 @@ async function withController<ReturnValue>(
   const encryptor = new MockEncryptor();
   const preferences = {
     setAccountLabel: sinon.stub(),
-    removeIdentity: sinon.stub(),
     syncIdentities: sinon.stub(),
     updateIdentities: sinon.stub(),
     setSelectedAddress: sinon.stub(),
