@@ -207,9 +207,14 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
   repo_name(RepoUrl, _).
   WorkspaceCwd \= '.'.
 
-% The license for all published packages must be MIT.
+% The license for all published packages must be MIT unless otherwise specified.
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd \= 'packages/eth-json-rpc-provider'.
+% The following published packages use an ISC license instead of MIT.
+gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd == 'packages/eth-json-rpc-provider'.
 % Non-published packages do not have a license.
 gen_enforced_field(WorkspaceCwd, 'license', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
@@ -298,14 +303,15 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   DependencyType == 'devDependencies'.
 
-% If a controller dependency (other than `base-controller` and
-% `eth-keyring-controller`) is listed under "dependencies", it should also be
+% If a controller dependency (other than `base-controller`, `eth-keyring-controller` and
+% `polling-controller`) is listed under "dependencies", it should also be
 % listed under "peerDependencies". Each controller is a singleton, so we need
 % to ensure the versions used match expectations.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'peerDependencies') :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
   DependencyIdent \= '@metamask/base-controller',
   DependencyIdent \= '@metamask/eth-keyring-controller',
+  DependencyIdent \= '@metamask/polling-controller',
   is_controller(DependencyIdent).
 
 % All packages must specify a minimum Node version of 16.
