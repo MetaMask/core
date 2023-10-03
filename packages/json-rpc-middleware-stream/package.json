@@ -1,0 +1,58 @@
+{
+  "name": "@metamask/json-rpc-middleware-stream",
+  "version": "6.0.0",
+  "description": "A small toolset for streaming JSON-RPC data and matching requests and responses",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/json-rpc-middleware-stream#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-middleware-stream",
+    "publish:preview": "yarn npm publish --tag preview",
+    "test": "jest",
+    "test:clean": "jest --clearCache",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@metamask/json-rpc-engine": "^7.1.1",
+    "@metamask/safe-event-emitter": "^3.0.0",
+    "@metamask/utils": "^8.1.0",
+    "readable-stream": "^3.6.2"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.1.0",
+    "@types/jest": "^27.4.1",
+    "@types/readable-stream": "^2.3.0",
+    "deepmerge": "^4.2.2",
+    "extension-port-stream": "^2.0.1",
+    "jest": "^27.5.1",
+    "jest-it-up": "^2.0.2",
+    "ts-jest": "^27.1.4",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~4.8.4",
+    "webextension-polyfill-ts": "^0.26.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
