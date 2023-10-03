@@ -299,6 +299,7 @@ export class TokensController extends BaseController<
     interactingAddress?: string;
     networkClientId?: NetworkClientId;
   }): Promise<Token[]> {
+    const releaseLock = await this.mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId, selectedAddress } = this.config;
     let currentChainId = chainId;
@@ -309,7 +310,6 @@ export class TokensController extends BaseController<
 
     const accountAddress = interactingAddress || selectedAddress;
     const isInteractingWithWalletAccount = accountAddress === selectedAddress;
-    const releaseLock = await this.mutex.acquire();
 
     try {
       address = toChecksumHexAddress(address);
