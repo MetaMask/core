@@ -299,9 +299,9 @@ export class TokensController extends BaseController<
     interactingAddress?: string;
     networkClientId?: NetworkClientId;
   }): Promise<Token[]> {
+    const { chainId, selectedAddress } = this.config;
     const releaseLock = await this.mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const { chainId, selectedAddress } = this.config;
     let currentChainId = chainId;
     if (networkClientId) {
       currentChainId =
@@ -321,8 +321,10 @@ export class TokensController extends BaseController<
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this._detectIsERC721(address, networkClientId),
+        // TODO parameterize the token metadata fetch by networkClientId
         this.fetchTokenMetadata(address),
       ]);
+      // TODO remove this once this method is fully parameterized by networkClientId
       if (!networkClientId && currentChainId !== this.config.chainId) {
         throw new Error(
           'TokensController Error: Switched networks while adding token',
