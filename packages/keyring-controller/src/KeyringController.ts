@@ -157,7 +157,6 @@ export type KeyringControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type KeyringControllerOptions = {
-  removeIdentity: PreferencesController['removeIdentity'];
   syncIdentities: PreferencesController['syncIdentities'];
   updateIdentities: PreferencesController['updateIdentities'];
   setSelectedAddress: PreferencesController['setSelectedAddress'];
@@ -240,8 +239,6 @@ export class KeyringController extends BaseControllerV2<
 > {
   private readonly mutex = new Mutex();
 
-  private readonly removeIdentity: PreferencesController['removeIdentity'];
-
   private readonly syncIdentities: PreferencesController['syncIdentities'];
 
   private readonly updateIdentities: PreferencesController['updateIdentities'];
@@ -260,7 +257,6 @@ export class KeyringController extends BaseControllerV2<
    * Creates a KeyringController instance.
    *
    * @param opts - Initial options used to configure this controller
-   * @param opts.removeIdentity - Remove the identity with the given address.
    * @param opts.syncIdentities - Sync identities with the given list of addresses.
    * @param opts.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
    * @param opts.setSelectedAddress - Set the selected address.
@@ -272,7 +268,6 @@ export class KeyringController extends BaseControllerV2<
    * @param opts.state - Initial state to set on this controller.
    */
   constructor({
-    removeIdentity,
     syncIdentities,
     updateIdentities,
     setSelectedAddress,
@@ -310,7 +305,6 @@ export class KeyringController extends BaseControllerV2<
     this.#keyring.on('lock', this.#handleLock.bind(this));
     this.#keyring.on('unlock', this.#handleUnlock.bind(this));
 
-    this.removeIdentity = removeIdentity;
     this.syncIdentities = syncIdentities;
     this.updateIdentities = updateIdentities;
     this.setSelectedAddress = setSelectedAddress;
@@ -680,7 +674,6 @@ export class KeyringController extends BaseControllerV2<
    * @returns Promise resolving current state when this account removal completes.
    */
   async removeAccount(address: Hex): Promise<KeyringControllerMemState> {
-    this.removeIdentity(address);
     await this.#keyring.removeAccount(address);
     this.messagingSystem.publish(`${name}:accountRemoved`, address);
     return this.#getMemState();
