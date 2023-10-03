@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **BREAKING:** Remove `undefined` from RestrictedMethodParameters type union and from type parameter for RestrictedMethodOptions ([#1749])(https://github.com/MetaMask/core/pull/1749))
 - **BREAKING:** Update from `json-rpc-engine@^6.1.0` to `@metamask/json-rpc-engine@^7.1.1` ([#1749])(https://github.com/MetaMask/core/pull/1749))
--  Update from eth-rpc-errors@^4.0.2 @metamask/rpc-errors@^6.0.0
+- Update from `eth-rpc-errors@^4.0.2` to `@metamask/rpc-errors@^6.0.0` ([#1749])(https://github.com/MetaMask/core/pull/1749))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 
 ## [4.1.2]
