@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.0]
 ### Changed
-- **BREAKING**: `NFTController` now expects `getNetworkClientById` in constructor options ([#1698](https://github.com/MetaMask/core/pull/1698))
+- **BREAKING**: `NftController` now expects `getNetworkClientById` in constructor options ([#1698](https://github.com/MetaMask/core/pull/1698))
 - **BREAKING**: `NftController.addNft()` function signature has changed ([#1698](https://github.com/MetaMask/core/pull/1698))
   - Previously
     ```
