@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.0.0]
 ### Changed
-- **BREAKING:** RestrictedMethodParameters no longer accepts void as type.
+- **BREAKING:** Remove `undefined` from RestrictedMethodParameters type union and from type parameter for RestrictedMethodOptions ([#1749])(https://github.com/MetaMask/core/pull/1749))
 - **BREAKING:** Update from json-rpc-engine@^6.1.0 @metamask/json-rpc-engine@^7.1.1
 -  Update from eth-rpc-errors@^4.0.2 @metamask/rpc-errors@^6.0.0
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
