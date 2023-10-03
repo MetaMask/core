@@ -260,7 +260,7 @@ describe('NftDetectionController', () => {
     });
   });
 
-  it.only('should poll and detect NFTs by networkClientId on interval while on mainnet', async () => {
+  it('should poll and detect NFTs by networkClientId on interval while on mainnet', async () => {
     jest.useFakeTimers();
     const getNetworkClientById = jest.fn().mockImplementation(() => {
       return {
