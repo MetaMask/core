@@ -1,5 +1,5 @@
+import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
 import type { PendingJsonRpcResponse } from '@metamask/utils';
-import type { JsonRpcEngineEndCallback } from 'json-rpc-engine';
 
 import type { PermissionConstraint } from '../Permission';
 import type { SubjectPermissions } from '../PermissionController';
