@@ -216,6 +216,7 @@ describe('NftDetectionController', () => {
   });
 
   afterEach(() => {
+    nftDetection.stopAllPolling();
     sinon.restore();
   });
 
@@ -260,6 +261,7 @@ describe('NftDetectionController', () => {
   });
 
   it.only('should poll and detect NFTs by networkClientId on interval while on mainnet', async () => {
+    jest.useFakeTimers();
     const getNetworkClientById = jest.fn().mockImplementation(() => {
       return {
         configuration: {
@@ -281,32 +283,26 @@ describe('NftDetectionController', () => {
       getNftState: () => nftController.state,
     });
     preferences.setUseNftDetection(true);
-    const spy = sinon.spy(
-      testNftDetection,
-      'detectNftsByNetworkClientIdAndUserAddress',
-    );
-    nock.recorder.rec();
-    nock('https://proxy.metafi.codefi.network:443', {
-      encodedQueryParams: true,
-    })
-      .get('/opensea/v1/api/v1/assets')
-      .query({
-        owner: '0xdAc65fBC5967A87efD00E5049C9d1146F818B2e6',
-        offset: '0',
-        limit: '50',
-      })
-      .reply(200, { assets: [] });
+    const spy = jest
+      .spyOn(testNftDetection, 'detectNftsByNetworkClientIdAndUserAddress')
+      .mockImplementation(() => {
+        return Promise.resolve();
+      });
 
-    jest.useFakeTimers();
-    testNftDetection.startPollingByNetworkClientId('mainnet', '0xdAc65fBC5967A87efD00E5049C9d1146F818B2e6');
-    jest.advanceTimersByTime(DEFAULT_INTERVAL);
-    // await Promise.resolve();
-    expect(spy.callCount).toBe(1);
-    jest.advanceTimersByTime(DEFAULT_INTERVAL);
-    // await Promise.resolve();
-    expect(spy.callCount).toBe(2);
-    jest.useRealTimers();
+    testNftDetection.startPollingByNetworkClientId('mainnet', '0x1');
+    await Promise.all([
+      jest.advanceTimersByTime(DEFAULT_INTERVAL),
+      Promise.resolve(),
+    ]);
+    expect(spy.mock.calls).toHaveLength(1);
+    await Promise.all([
+      jest.advanceTimersByTime(DEFAULT_INTERVAL),
+      Promise.resolve(),
+    ]);
+    expect(spy.mock.calls).toHaveLength(2);
     nftDetection.stopAllPolling();
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
   });
 
   it('should detect mainnet correctly', () => {

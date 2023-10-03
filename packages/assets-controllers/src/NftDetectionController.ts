@@ -264,14 +264,12 @@ export class NftDetectionController extends PollingControllerV1<
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
     this.addNft = addNft;
-    console.log('this.config.interval', this.config.interval);
     this.setIntervalLength(this.config.interval);
   }
 
   async executePoll(networkClientId: string): Promise<void> {
     const selectedAddress =
       this.#selectedAddressByNetworkClientId.get(networkClientId);
-    console.log('selectedAddress', selectedAddress);
     if (selectedAddress) {
       await this.detectNftsByNetworkClientIdAndUserAddress(
         networkClientId,
@@ -343,16 +341,12 @@ export class NftDetectionController extends PollingControllerV1<
       networkClientId,
       selectedAddress,
     );
-    console.log(
-      'this.#selectedAddressByNetworkClientId',
-      this.#selectedAddressByNetworkClientId,
-    );
     return super.startPollingByNetworkClientId(networkClientId);
   }
 
   stopAllPolling(): void {
-    super.stopAllPolling();
     this.#selectedAddressByNetworkClientId.clear();
+    super.stopAllPolling();
   }
 
   async detectNftsByNetworkClientIdAndUserAddress(
@@ -362,7 +356,6 @@ export class NftDetectionController extends PollingControllerV1<
     const networkClient = this.getNetworkClientById(networkClientId);
 
     if (!this.isMainnetByNetworkClientId(networkClient) || this.disabled) {
-      console.log('in here', this.disabled);
       return;
     }
     const { chainId } = networkClient.configuration;
@@ -371,7 +364,6 @@ export class NftDetectionController extends PollingControllerV1<
     if (!selectedAddress) {
       return;
     }
-    console.log('later');
     // TODO Parameterize this by chainId for non-mainnet token detection
     const apiNfts = await this.getOwnerNfts(selectedAddress);
     const addNftPromises = apiNfts.map(async (nft: ApiNft) => {
@@ -428,7 +420,6 @@ export class NftDetectionController extends PollingControllerV1<
           external_link && { externalLink: external_link },
           last_sale && { lastSale: last_sale },
         );
-        console.log('adding nft');
 
         await this.addNft(address, token_id, {
           nftMetadata,
