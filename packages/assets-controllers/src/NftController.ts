@@ -371,6 +371,18 @@ export class NftController extends BaseController<NftConfig, NftState> {
       tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
     }
 
+    const isDisplayNFTMediaToggleEnabled = this.config.openSeaEnabled;
+    if (!hasIpfsTokenURI && !isDisplayNFTMediaToggleEnabled) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI: tokenURI ?? null,
+      };
+    }
+
     try {
       const object = await handleFetch(tokenURI);
       // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
