@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [8.0.2]
+
+### Fixed
+-  Removed call to `PreferencesController.removeIdentity` as `PreferencesController` already handles account removal side effects through messenger events.
 ### Changed
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 
