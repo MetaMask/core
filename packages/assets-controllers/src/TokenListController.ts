@@ -268,9 +268,9 @@ export class TokenListController extends PollingController<
         tokenList = { ...cachedTokens };
       } else {
         // Fetch fresh token list
-        const tokensFromAPI: TokenListToken[] = await safelyExecute(() =>
-          fetchTokenList(chainId, this.abortController.signal),
-        );
+        const tokensFromAPI: TokenListToken[] = await safelyExecute(() => {
+          return fetchTokenList(chainId, this.abortController.signal);
+        });
 
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens

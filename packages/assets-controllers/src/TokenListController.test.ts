@@ -16,10 +16,7 @@ import { NetworkStatus } from '@metamask/network-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-import {
-  TOKEN_END_POINT_API,
-  fetchTokenList as tokenServiceFetchTokenList,
-} from './token-service';
+import * as tokenService from './token-service';
 import type {
   TokenListStateChange,
   GetTokenListState,
@@ -642,7 +639,7 @@ describe('TokenListController', () => {
   });
 
   it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -805,7 +802,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list from api', async () => {
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -843,12 +840,12 @@ describe('TokenListController', () => {
   });
 
   it('should update the cache before threshold time if the current data is undefined', async () => {
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .once()
       .reply(200, undefined);
 
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -898,7 +895,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list after removing data with duplicate symbols', async () => {
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleWithDuplicateSymbols)
       .persist();
@@ -941,7 +938,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list after removing data less than 3 occurrences', async () => {
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleWithLessThan3OccurencesResponse)
       .persist();
@@ -965,7 +962,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list when the token property changes', async () => {
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -993,7 +990,7 @@ describe('TokenListController', () => {
   });
 
   it('should update the cache when the timestamp expires', async () => {
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -1023,7 +1020,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list when the chainId change', async () => {
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
@@ -1120,7 +1117,7 @@ describe('TokenListController', () => {
   });
 
   it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
-    nock(TOKEN_END_POINT_API)
+    nock(tokenService.TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
@@ -1199,20 +1196,28 @@ describe('TokenListController', () => {
 
   describe('executePoll', () => {
     it('should execute the poll', async () => {
-      const tokenServiceFetchTokenListSpy = sinon.spy(
-        tokenServiceFetchTokenList,
-      );
-
+      const spy = jest.spyOn(tokenService, 'fetchTokenList');
       const controllerMessenger = getControllerMessenger();
+      controllerMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn().mockReturnValue({
+          configuration: {
+            type: NetworkType.sepolia,
+            chainId: ChainId.sepolia,
+          },
+        }),
+      );
       const messenger = getRestrictedMessenger(controllerMessenger);
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         preventPollingOnNetworkRestart: false,
         messenger,
-        state: existingState,
+        state: expiredCacheExistingState,
       });
       await controller.executePoll('sepolia');
-      expect(tokenServiceFetchTokenListSpy.calledWith('0x1')).toBe(true);
+      expect(spy.mock.calls[0]).toStrictEqual(
+        expect.arrayContaining([ChainId.sepolia]),
+      );
     });
   });
 });
