@@ -43,7 +43,7 @@
     "@metamask/eslint-config-jest": "^12.1.0",
     "@metamask/eslint-config-nodejs": "^12.1.0",
     "@metamask/eslint-config-typescript": "^12.1.0",
-    "@metamask/eth-json-rpc-provider": "^1.0.0",
+    "@metamask/eth-json-rpc-provider": "^2.2.0",
     "@metamask/utils": "^8.1.0",
     "@types/node": "^16.18.54",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
