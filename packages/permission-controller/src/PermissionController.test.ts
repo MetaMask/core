@@ -1851,7 +1851,8 @@ describe('PermissionController', () => {
       expect(() =>
         controller.removeCaveat(
           origin,
-          PermissionNames.wallet_noopWithRequiredCaveat as any,
+          // @ts-expect-error
+          PermissionNames.wallet_noopWithRequiredCaveat,
           CaveatTypes.noopCaveat,
         ),
       ).toThrow(
