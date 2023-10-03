@@ -1363,7 +1363,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/approval-controller@^3.0.0, @metamask/approval-controller@^3.5.0, @metamask/approval-controller@^3.5.2, @metamask/approval-controller@^3.5.3, @metamask/approval-controller@workspace:packages/approval-controller":
+"@metamask/approval-controller@^4.0.0, @metamask/approval-controller@workspace:packages/approval-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/approval-controller@workspace:packages/approval-controller"
   dependencies:
@@ -1384,6 +1384,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/approval-controller@npm:^3.0.0, @metamask/approval-controller@npm:^3.5.0, @metamask/approval-controller@npm:^3.5.2":
+  version: 3.5.2
+  resolution: "@metamask/approval-controller@npm:3.5.2"
+  dependencies:
+    "@metamask/base-controller": ^3.2.2
+    "@metamask/utils": ^6.2.0
+    eth-rpc-errors: ^4.0.2
+    immer: ^9.0.6
+    nanoid: ^3.1.31
+  checksum: 70436be566952b8aa42de48aff36655a42611478a5beee4e5ea9cf019ef386db202c464d73057df4e9cce22ebdb7517f5eb71a9def6bd7672f48a2d714ad1f2c
+  languageName: node
+  linkType: hard
+
 "@metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
@@ -1393,7 +1406,7 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/abi-utils": ^2.0.2
-    "@metamask/approval-controller": ^3.5.3
+    "@metamask/approval-controller": ^4.0.0
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/contract-metadata": ^2.3.1
@@ -1424,7 +1437,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/approval-controller": ^3.5.3
+    "@metamask/approval-controller": ^4.0.0
     "@metamask/network-controller": ^14.0.0
     "@metamask/preferences-controller": ^4.4.2
   languageName: unknown
@@ -2096,7 +2109,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
-    "@metamask/approval-controller": ^3.5.3
+    "@metamask/approval-controller": ^4.0.0
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
@@ -2115,7 +2128,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/approval-controller": ^3.5.3
+    "@metamask/approval-controller": ^4.0.0
   languageName: unknown
   linkType: soft
 
@@ -2382,7 +2395,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/signature-controller@workspace:packages/signature-controller"
   dependencies:
-    "@metamask/approval-controller": ^3.5.3
+    "@metamask/approval-controller": ^4.0.0
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
@@ -2402,7 +2415,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/approval-controller": ^3.5.3
+    "@metamask/approval-controller": ^4.0.0
     "@metamask/logging-controller": ^1.0.3
   languageName: unknown
   linkType: soft
@@ -2607,7 +2620,7 @@ __metadata:
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
     "@ethersproject/abi": ^5.7.0
-    "@metamask/approval-controller": ^3.5.3
+    "@metamask/approval-controller": ^4.0.0
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
@@ -2635,7 +2648,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/approval-controller": ^3.5.3
+    "@metamask/approval-controller": ^4.0.0
     "@metamask/network-controller": ^14.0.0
     babel-runtime: ^6.26.0
   languageName: unknown
