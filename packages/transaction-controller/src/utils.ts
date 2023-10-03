@@ -1,8 +1,4 @@
-import {
-  convertHexToDecimal,
-  ORIGIN_METAMASK,
-} from '@metamask/controller-utils';
-import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { convertHexToDecimal } from '@metamask/controller-utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
@@ -47,42 +43,6 @@ export function normalizeTxParams(txParams: TransactionParams) {
     }
   }
   return normalizedTxParams;
-}
-
-/**
- * Validates whether a transaction initiated by a specific 'from' address is permitted by the origin.
- *
- * @param permittedAddresses - The permitted accounts for the given origin.
- * @param from - The address from which the transaction is initiated.
- * @param selectedAddress - The currently selected Ethereum address in the wallet.
- * @param origin - The origin or source of the transaction.
- * @throws Throws an error if the transaction is not permitted.
- */
-export async function validateTransactionOrigin(
-  permittedAddresses: string[],
-  from: string,
-  selectedAddress: string,
-  origin?: string,
-) {
-  if (origin === ORIGIN_METAMASK) {
-    // Ensure the 'from' address matches the currently selected address
-    if (from !== selectedAddress) {
-      throw rpcErrors.internal({
-        message: `Internally initiated transaction is using invalid account.`,
-        data: {
-          origin,
-          fromAddress: from,
-          selectedAddress,
-        },
-      });
-    }
-    return;
-  }
-
-  // Check if the origin has permissions to initiate transactions from the specified address
-  if (!permittedAddresses.includes(from)) {
-    throw providerErrors.unauthorized({ data: { origin } });
-  }
 }
 
 /**

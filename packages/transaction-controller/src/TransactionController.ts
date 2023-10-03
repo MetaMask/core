@@ -65,9 +65,8 @@ import {
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
-  validateTransactionOrigin,
 } from './utils';
-import { validateTxParams } from './validation';
+import { validateTransactionOrigin, validateTxParams } from './validation';
 
 export const HARDFORK = Hardfork.London;
 
@@ -452,12 +451,14 @@ export class TransactionController extends BaseController<
     txParams = normalizeTxParams(txParams);
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
     validateTxParams(txParams, isEIP1559Compatible);
-    await validateTransactionOrigin(
-      await this.getPermittedAccounts(origin),
-      txParams.from,
-      this.getSelectedAddress(),
-      origin,
-    );
+    if (origin) {
+      await validateTransactionOrigin(
+        await this.getPermittedAccounts(origin),
+        this.getSelectedAddress(),
+        txParams.from,
+        origin,
+      );
+    }
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       txParams,

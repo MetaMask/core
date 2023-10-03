@@ -1414,22 +1414,14 @@ describe('TransactionController', () => {
         );
       });
 
-      it.each([
-        {
-          description: 'throws if the origin is undefined',
-          txParams: { from: ACCOUNT_2_MOCK, to: ACCOUNT_MOCK },
-          expectedOrigin: '',
-        },
-        {
-          description:
-            'throws if the origin does not have permissions to initiate transactions from the specified address',
-          txParams: { from: ACCOUNT_2_MOCK, to: ACCOUNT_MOCK },
-          expectedOrigin: 'originMocked',
-        },
-      ])('%s', async ({ txParams, expectedOrigin }) => {
+      it('throws if the origin does not have permissions to initiate transactions from the specified address', async () => {
         const controller = newController();
+        const expectedOrigin = 'originMocked';
         await expect(
-          controller.addTransaction(txParams, { origin: expectedOrigin }),
+          controller.addTransaction(
+            { from: ACCOUNT_2_MOCK, to: ACCOUNT_MOCK },
+            { origin: expectedOrigin },
+          ),
         ).rejects.toThrow(
           providerErrors.unauthorized({ data: { origin: expectedOrigin } }),
         );
