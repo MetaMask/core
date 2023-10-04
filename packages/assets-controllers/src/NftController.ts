@@ -373,6 +373,19 @@ export class NftController extends BaseController<NftConfig, NftState> {
         tokenURI: tokenURI ?? null,
       };
     }
+
+    const isDisplayNFTMediaToggleEnabled = this.config.openSeaEnabled;
+    if (!hasIpfsTokenURI && !isDisplayNFTMediaToggleEnabled) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI: tokenURI ?? null,
+      };
+    }
+
     if (hasIpfsTokenURI) {
       tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
     }
