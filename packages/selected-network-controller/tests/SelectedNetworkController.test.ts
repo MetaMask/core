@@ -21,7 +21,7 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('setNetworkClientIdForDomain', () => {
-    it('sets the metamask domain, when the perDomainNetwork option is false (default)', () => {
+    it('sets the networkClientId for the metamask domain, when the perDomainNetwork option is false (default)', () => {
       const options: SelectedNetworkControllerOptions = {
         messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
       };
@@ -31,7 +31,7 @@ describe('SelectedNetworkController', () => {
       expect(controller.state.domains.metamask).toBe(networkClientId);
     });
 
-    it('sets the networkClientId for the passed in domain, when perDomainNetwork option is true ,', () => {
+    it('sets the networkClientId for the passed in domain, when the perDomainNetwork option is true ,', () => {
       const options: SelectedNetworkControllerOptions = {
         messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
       };
@@ -45,7 +45,7 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('getNetworkClientIdForDomain', () => {
-    it('gives the metamask domain, when the perDomainNetwork option is false (default)', () => {
+    it('returns the networkClientId for the metamask domain, when the perDomainNetwork option is false (default)', () => {
       const options: SelectedNetworkControllerOptions = {
         messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
       };
@@ -56,7 +56,7 @@ describe('SelectedNetworkController', () => {
       expect(result).toBe(networkClientId);
     });
 
-    it('returns items other than the metamask domain, when the perDomainNetwork option is true', () => {
+    it('returns the networkClientId for the passed in domain, when the perDomainNetwork option is true', () => {
       const options: SelectedNetworkControllerOptions = {
         messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
       };
