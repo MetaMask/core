@@ -137,6 +137,11 @@ type TransactionMetaBase = {
   securityAlertResponse?: Record<string, unknown>;
 
   /**
+   * Response from security provider.
+   */
+  securityProviderResponse?: Record<string, any>;
+
+  /**
    * An array of entries that describe the user's journey through the send flow.
    * This is purely attached to state logs for troubleshooting and support.
    */
@@ -597,3 +602,11 @@ export type InferTransactionTypeResult = {
    */
   type: TransactionType;
 };
+
+/**
+ * A function for verifying a transaction, whether it is malicious or not
+ */
+export type SecurityProviderRequest = (
+  requestData: TransactionMeta,
+  messageType: string,
+) => Promise<any>;

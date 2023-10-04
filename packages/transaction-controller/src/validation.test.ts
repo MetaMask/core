@@ -132,6 +132,19 @@ describe('validation', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '1',
+          chainId: {},
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid transaction params: chainId is not a Number or hex string. got: ([object Object])',
+        ),
+      );
+
+      expect(() =>
+        validateTxParams({
+          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+          value: '1',
         } as any),
       ).not.toThrow();
     });

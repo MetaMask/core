@@ -1,4 +1,8 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import {
+  ApprovalController,
+  type AddApprovalRequest,
+  type ApprovalControllerEvents,
+} from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import {
@@ -60,8 +64,25 @@ describe('TokensController', () => {
   let preferences: PreferencesController;
   const messenger = new ControllerMessenger<
     ApprovalActions,
+    ApprovalControllerEvents
+  >();
+
+  const approvalControllerMessenger = messenger.getRestricted({
+    name: 'ApprovalController',
+    allowedActions: ['ApprovalController:addRequest'],
+  });
+
+  const approvalController = new ApprovalController({
+    messenger: approvalControllerMessenger,
+    showApprovalRequest: jest.fn(),
+    typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
+  });
+
+  const tokensControllerMessenger = messenger.getRestricted<
+    typeof controllerName,
+    ApprovalActions['type'],
     never
-  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
+  >({
     name: controllerName,
     allowedActions: ['ApprovalController:addRequest'],
   }) as TokensControllerMessenger;
@@ -93,7 +114,7 @@ describe('TokensController', () => {
       },
       getERC20TokenName: sinon.stub(),
       getNetworkClientById: sinon.stub() as any,
-      messenger,
+      messenger: tokensControllerMessenger,
     });
   });
 
@@ -1094,6 +1115,7 @@ describe('TokensController', () => {
         image: 'image',
         name: undefined,
       };
+
       createEthersStub = stubCreateEthers(tokensController, false);
     });
 
@@ -1363,6 +1385,62 @@ describe('TokensController', () => {
         true,
       );
 
+      generateRandomIdStub.mockRestore();
+    });
+
+    it('stores multiple tokens from a batched watchAsset confirmation screen correctly when user confirms', async function () {
+      const generateRandomIdStub = jest
+        .spyOn(tokensController, '_generateRandomId')
+        .mockImplementationOnce(() => requestId)
+        .mockImplementationOnce(() => '67890');
+
+      const acceptedRequest = new Promise<void>((resolve) => {
+        tokensController.subscribe((state) => {
+          if (
+            state.allTokens?.[ChainId.mainnet]?.[interactingAddress].length ===
+            2
+          ) {
+            resolve();
+          }
+        });
+      });
+
+      const anotherAsset = {
+        address: '0x000000000000000000000000000000000000ABcD',
+        decimals: 18,
+        symbol: 'TEST',
+        image: 'image2',
+        name: undefined,
+      };
+
+      tokensController.watchAsset({ asset, type, interactingAddress });
+      tokensController.watchAsset({
+        asset: anotherAsset,
+        type,
+        interactingAddress,
+      });
+
+      await approvalController.accept(requestId);
+      await approvalController.accept('67890');
+      await acceptedRequest;
+
+      expect(
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
+      ).toHaveLength(2);
+      expect(
+        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
+      ).toStrictEqual([
+        {
+          isERC721: false,
+          aggregators: [],
+          ...asset,
+        },
+        {
+          isERC721: false,
+          aggregators: [],
+          ...anotherAsset,
+        },
+      ]);
       generateRandomIdStub.mockRestore();
     });
   });
