@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump dependency on `metamask/controller-utils` to ^5.0.2
 
 ### Fixed
-- Use spread operator instead of `delete` on frozen `messageParams` ([#1733](https://github.com/MetaMask/core/pull/1733))
+- Fix `prepMessageForSigning` in all message managers to handle frozen `messageParams` ([#1733](https://github.com/MetaMask/core/pull/1733))
 
 ## [7.3.4]
 ### Changed
