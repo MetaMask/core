@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add dependency on `@metamask/polling-controller` ([#1748])(https://github.com/MetaMask/core/pull/1748))
 
 ## Changed
-- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 - **BREAKING:** Messenger must allow controller actions `NetworkController:getNetworkClientById` and `NetworkController:getEIP1559Compatibility` ([#1673](https://github.com/MetaMask/core/pull/1673)
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 - Bump dependency on `@metamask/base-controller` to ^3.2.3
 - Bump dependency on `@metamask/controller-utils` to ^5.0.2
 - Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
