@@ -150,9 +150,9 @@ export class SelectedNetworkController extends BaseControllerV2<
     this.update((state) => {
       if (state.perDomainNetwork) {
         state.domains[domain] = networkClientId;
-        return
+        return;
       }
-      state.domains[METAMASK_DOMAIN] = networkClientId
+      state.domains[METAMASK_DOMAIN] = networkClientId;
     });
   }
 
