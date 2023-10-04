@@ -22,6 +22,7 @@ export function validateTxParams(
   validateParamRecipient(txParams);
   validateParamValue(txParams.value);
   validateParamData(txParams.data);
+  validateParamChainId(txParams.chainId);
 }
 
 /**
@@ -138,5 +139,22 @@ function validateParamData(value?: string) {
         );
       }
     }
+  }
+}
+
+/**
+ * Validates chainId type.
+ *
+ * @param chainId - The chainId to validate.
+ */
+function validateParamChainId(chainId: number | string | undefined) {
+  if (
+    chainId !== undefined &&
+    typeof chainId !== 'number' &&
+    typeof chainId !== 'string'
+  ) {
+    throw rpcErrors.invalidParams(
+      `Invalid transaction params: chainId is not a Number or hex string. got: (${chainId})`,
+    );
   }
 }
