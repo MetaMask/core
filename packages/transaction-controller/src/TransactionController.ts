@@ -23,6 +23,8 @@ import {
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
+  gweiDecToWEIBN,
+  toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
@@ -39,6 +41,7 @@ import { EventEmitter } from 'events';
 import { merge, pickBy } from 'lodash';
 import NonceTracker from 'nonce-tracker';
 import { v1 as random } from 'uuid';
+import { GAS_ESTIMATE_TYPES, GasFeeState } from '@metamask/gas-fee-controller';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { validateConfirmedExternalTransaction } from './external-transactions';
@@ -53,7 +56,12 @@ import type {
   SendFlowHistoryEntry,
   WalletDevice,
 } from './types';
-import { TransactionType, TransactionStatus } from './types';
+import {
+  TransactionType,
+  TransactionStatus,
+  TransactionEnvelopeType,
+  UserFeeLevel,
+} from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
@@ -67,6 +75,7 @@ import {
   ESTIMATE_GAS_ERROR,
 } from './utils';
 import { validateTxParams } from './validation';
+import { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 
 export const HARDFORK = Hardfork.London;
 
@@ -188,6 +197,8 @@ export class TransactionController extends BaseController<
 
   private readonly getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
 
+  private readonly getGasFeeEstimates: () => Promise<GasFeeState>;
+
   private readonly messagingSystem: TransactionControllerMessenger;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
@@ -258,6 +269,7 @@ export class TransactionController extends BaseController<
       disableSendFlowHistory,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
+      getGasFeeEstimates,
       getNetworkState,
       getSelectedAddress,
       incomingTransactions = {},
@@ -270,6 +282,7 @@ export class TransactionController extends BaseController<
       disableSendFlowHistory: boolean;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+      getGasFeeEstimates: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
       incomingTransactions: {
@@ -311,6 +324,7 @@ export class TransactionController extends BaseController<
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
+    this.getGasFeeEstimates = getGasFeeEstimates;
 
     this.nonceTracker = new NonceTracker({
       provider,
@@ -426,6 +440,7 @@ export class TransactionController extends BaseController<
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
+      swaps,
       type,
     }: {
       actionId?: string;
@@ -434,6 +449,7 @@ export class TransactionController extends BaseController<
       requireApproval?: boolean | undefined;
       securityAlertResponse?: Record<string, unknown>;
       sendFlowHistory?: SendFlowHistoryEntry[];
+      swaps?: { hasApproveTx?: boolean; meta?: any };
       type?: TransactionType;
     } = {},
   ): Promise<Result> {
@@ -453,7 +469,8 @@ export class TransactionController extends BaseController<
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
-    const transactionMeta: TransactionMeta = existingTransactionMeta || {
+
+    let transactionMeta: TransactionMeta = existingTransactionMeta || {
       // Add actionId to txMeta to check if same actionId is seen again
       actionId,
       chainId,
@@ -470,14 +487,18 @@ export class TransactionController extends BaseController<
       type: transactionType,
     };
 
-    try {
-      const { gas, estimateGasError } = await this.estimateGas(txParams);
-      txParams.gas = gas;
-      txParams.estimateGasError = estimateGasError;
-      transactionMeta.originalGasEstimate = gas;
-    } catch (error: any) {
-      this.failTransaction(transactionMeta, error);
-      return Promise.reject(error);
+    await this.addTxGasDefaults(transactionMeta);
+
+    if (
+      [TransactionType.swap, TransactionType.swapApproval].includes(
+        transactionType,
+      )
+    ) {
+      transactionMeta = await this.createSwapsTransaction(
+        swaps,
+        transactionType,
+        transactionMeta,
+      );
     }
 
     // Checks if a transaction already exists with a given actionId
@@ -485,14 +506,18 @@ export class TransactionController extends BaseController<
       if (!this.isSendFlowHistoryDisabled) {
         transactionMeta.sendFlowHistory = sendFlowHistory ?? [];
       }
+
       // Initial history push
       if (!this.isHistoryDisabled) {
         addInitialHistorySnapshot(transactionMeta);
       }
+
       transactions.push(transactionMeta);
+
       this.update({
         transactions: this.trimTransactionsForState(transactions),
       });
+
       this.hub.emit(`unapprovedTransaction`, transactionMeta);
     }
 
@@ -808,10 +833,11 @@ export class TransactionController extends BaseController<
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
     }
-    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', [
-      'latest',
-      false,
-    ]);
+    const { gasLimit, number: blockNumber } = await query(
+      this.ethQuery,
+      'getBlockByNumber',
+      ['latest', false],
+    );
 
     // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
     // If the network is a custom network then bypass this check and fetch 'estimateGas'.
@@ -838,21 +864,36 @@ export class TransactionController extends BaseController<
 
     let gasHex;
     let estimateGasError;
+    let simulationFails;
+
     try {
       gasHex = await query(this.ethQuery, 'estimateGas', [
         estimatedTransaction,
       ]);
-    } catch (error) {
+    } catch (error: any) {
       estimateGasError = ESTIMATE_GAS_ERROR;
+
+      simulationFails = {
+        reason: error.message,
+        errorKey: error.errorKey,
+        debug: { blockNumber, blockGasLimit: gasLimit },
+      };
     }
+
     // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
     // a custom network then return the eth_estimateGas value.
     const gasBN = hexToBN(gasHex);
     const maxGasBN = gasLimitBN.muln(0.9);
     const paddedGasBN = gasBN.muln(1.5);
+
     /* istanbul ignore next */
     if (gasBN.gt(maxGasBN) || isCustomNetwork) {
-      return { gas: addHexPrefix(gasHex), gasPrice, estimateGasError };
+      return {
+        gas: addHexPrefix(gasHex),
+        gasPrice,
+        estimateGasError,
+        simulationFails,
+      };
     }
 
     /* istanbul ignore next */
@@ -861,9 +902,16 @@ export class TransactionController extends BaseController<
         gas: addHexPrefix(BNToHex(paddedGasBN)),
         gasPrice,
         estimateGasError,
+        simulationFails,
       };
     }
-    return { gas: addHexPrefix(BNToHex(maxGasBN)), gasPrice, estimateGasError };
+
+    return {
+      gas: addHexPrefix(BNToHex(maxGasBN)),
+      gasPrice,
+      estimateGasError,
+      simulationFails,
+    };
   }
 
   /**
@@ -1825,6 +1873,417 @@ export class TransactionController extends BaseController<
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
     );
+  }
+
+  // Patch
+
+  resetState() {
+    this.update(this.defaultState);
+  }
+
+  clearUnapproved() {
+    this.update({
+      transactions: this.state.transactions.filter(
+        ({ status }) => status !== TransactionStatus.unapproved,
+      ),
+    });
+  }
+
+  getNonceLock(address: string): Promise<NonceLock> {
+    return this.nonceTracker.getNonceLock(address);
+  }
+
+  async updateEditableParams(
+    txId: string,
+    {
+      data,
+      from,
+      to,
+      value,
+      gas,
+      gasPrice,
+    }: {
+      data?: string;
+      from?: string;
+      to?: string;
+      value?: string;
+      gas?: string;
+      gasPrice?: string;
+    },
+  ) {
+    const transactionMeta = this.getTransaction(txId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update editable params as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(transactionMeta, 'updateEditableParams');
+
+    const editableParams = {
+      txParams: {
+        data,
+        from,
+        to,
+        value,
+        gas,
+        gasPrice,
+      },
+    } as TransactionMeta;
+
+    editableParams.txParams = pickBy(editableParams.txParams) as any;
+
+    const updatedTransaction = merge(transactionMeta, editableParams);
+
+    // update transaction type in case it has changes
+    const { type } = await determineTransactionType(
+      updatedTransaction.txParams,
+      this.ethQuery,
+    );
+
+    updatedTransaction.type = type;
+
+    const note = `Update Editable Params for ${txId}`;
+
+    this.updateTransaction(updatedTransaction, note);
+    return this.getTransaction(txId);
+  }
+
+  updatePreviousGasParams(
+    txId: string,
+    {
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      gasLimit,
+    }: {
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+      gasLimit?: string;
+    },
+  ) {
+    const transactionMeta = this.getTransaction(txId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update previous gas params as no transaction metadata found`,
+      );
+    }
+
+    (transactionMeta as any).previousGas = pickBy({
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      gasLimit,
+    });
+
+    const note = `Update Previous Gas for ${txId}`;
+
+    this.updateTransaction(transactionMeta, note);
+
+    return this.getTransaction(txId);
+  }
+
+  private async getDefaultGasLimit(txMeta: TransactionMeta) {
+    const { gas, estimateGasError, simulationFails } = await this.estimateGas(
+      txMeta.txParams,
+    );
+
+    return { gasLimit: gas, estimateGasError, simulationFails };
+  }
+
+  private async getDefaultGasFees(
+    txMeta: TransactionMeta,
+    eip1559Compatibility: boolean,
+  ) {
+    if (
+      (!eip1559Compatibility && txMeta.txParams.gasPrice) ||
+      (eip1559Compatibility &&
+        txMeta.txParams.maxFeePerGas &&
+        txMeta.txParams.maxPriorityFeePerGas)
+    ) {
+      return {};
+    }
+
+    try {
+      const { gasFeeEstimates, gasEstimateType } =
+        await this.getGasFeeEstimates();
+
+      if (
+        eip1559Compatibility &&
+        gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET
+      ) {
+        const {
+          medium: { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } = {},
+        } = gasFeeEstimates;
+
+        if (suggestedMaxPriorityFeePerGas && suggestedMaxFeePerGas) {
+          return {
+            maxFeePerGas: toHex(gweiDecToWEIBN(suggestedMaxFeePerGas)),
+            maxPriorityFeePerGas: toHex(
+              gweiDecToWEIBN(suggestedMaxPriorityFeePerGas),
+            ),
+          };
+        }
+      } else if (gasEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
+        // The LEGACY type includes low, medium and high estimates of
+        // gas price values.
+        return {
+          gasPrice: toHex(gweiDecToWEIBN(gasFeeEstimates.medium)),
+        };
+      } else if (gasEstimateType === GAS_ESTIMATE_TYPES.ETH_GASPRICE) {
+        // The ETH_GASPRICE type just includes a single gas price property,
+        // which we can assume was retrieved from eth_gasPrice
+        return {
+          gasPrice: toHex(gweiDecToWEIBN(gasFeeEstimates.gasPrice)),
+        };
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    const gasPrice = (await query(this.ethQuery, 'gasPrice')) as number;
+
+    return { gasPrice: gasPrice && addHexPrefix(gasPrice.toString(16)) };
+  }
+
+  private async addTxGasDefaults(txMeta: TransactionMeta) {
+    const eip1559Compatibility =
+      txMeta.txParams.type !== TransactionEnvelopeType.legacy &&
+      (await this.getEIP1559Compatibility());
+
+    const {
+      gasPrice: defaultGasPrice,
+      maxFeePerGas: defaultMaxFeePerGas,
+      maxPriorityFeePerGas: defaultMaxPriorityFeePerGas,
+    } = await this.getDefaultGasFees(txMeta, eip1559Compatibility);
+
+    const {
+      gasLimit: defaultGasLimit,
+      simulationFails,
+      estimateGasError,
+    } = await this.getDefaultGasLimit(txMeta);
+
+    txMeta.txParams.estimateGasError = estimateGasError;
+
+    if (simulationFails) {
+      txMeta.simulationFails = simulationFails;
+    }
+
+    if (eip1559Compatibility) {
+      //TxMigrationToDo - Advanced gas fee defaults.
+      if (
+        txMeta.txParams.gasPrice &&
+        !txMeta.txParams.maxFeePerGas &&
+        !txMeta.txParams.maxPriorityFeePerGas
+      ) {
+        // If the dapp has suggested a gas price, but no maxFeePerGas or maxPriorityFeePerGas
+        //  then we set maxFeePerGas and maxPriorityFeePerGas to the suggested gasPrice.
+        txMeta.txParams.maxFeePerGas = txMeta.txParams.gasPrice;
+        txMeta.txParams.maxPriorityFeePerGas = txMeta.txParams.gasPrice;
+
+        if (txMeta.origin === ORIGIN_METAMASK) {
+          txMeta.userFeeLevel = UserFeeLevel.MEDIUM;
+        } else {
+          txMeta.userFeeLevel = UserFeeLevel.DAPP_SUGGESTED;
+        }
+      } else {
+        if (
+          (defaultMaxFeePerGas &&
+            defaultMaxPriorityFeePerGas &&
+            !txMeta.txParams.maxFeePerGas &&
+            !txMeta.txParams.maxPriorityFeePerGas) ||
+          txMeta.origin === ORIGIN_METAMASK
+        ) {
+          txMeta.userFeeLevel = UserFeeLevel.MEDIUM;
+        } else {
+          txMeta.userFeeLevel = UserFeeLevel.DAPP_SUGGESTED;
+        }
+
+        if (defaultMaxFeePerGas && !txMeta.txParams.maxFeePerGas) {
+          // If the dapp has not set the gasPrice or the maxFeePerGas, then we set maxFeePerGas
+          // with the one returned by the gasFeeController, if that is available.
+          txMeta.txParams.maxFeePerGas = defaultMaxFeePerGas;
+        }
+
+        if (
+          defaultMaxPriorityFeePerGas &&
+          !txMeta.txParams.maxPriorityFeePerGas
+        ) {
+          // If the dapp has not set the gasPrice or the maxPriorityFeePerGas, then we set maxPriorityFeePerGas
+          // with the one returned by the gasFeeController, if that is available.
+          txMeta.txParams.maxPriorityFeePerGas = defaultMaxPriorityFeePerGas;
+        }
+
+        if (defaultGasPrice && !txMeta.txParams.maxFeePerGas) {
+          // If the dapp has not set the gasPrice or the maxFeePerGas, and no maxFeePerGas is available
+          // from the gasFeeController, then we set maxFeePerGas to the defaultGasPrice, assuming it is
+          // available.
+          txMeta.txParams.maxFeePerGas = defaultGasPrice;
+        }
+
+        if (
+          txMeta.txParams.maxFeePerGas &&
+          !txMeta.txParams.maxPriorityFeePerGas
+        ) {
+          // If the dapp has not set the gasPrice or the maxPriorityFeePerGas, and no maxPriorityFeePerGas is
+          // available from the gasFeeController, then we set maxPriorityFeePerGas to
+          // txMeta.txParams.maxFeePerGas, which will either be the gasPrice from the controller, the maxFeePerGas
+          // set by the dapp, or the maxFeePerGas from the controller.
+          txMeta.txParams.maxPriorityFeePerGas = txMeta.txParams.maxFeePerGas;
+        }
+      }
+
+      // We remove the gasPrice param entirely when on an eip1559 compatible network
+
+      delete txMeta.txParams.gasPrice;
+    } else {
+      // We ensure that maxFeePerGas and maxPriorityFeePerGas are not in the transaction params
+      // when not on a EIP1559 compatible network
+
+      delete txMeta.txParams.maxPriorityFeePerGas;
+      delete txMeta.txParams.maxFeePerGas;
+    }
+
+    // If we have gotten to this point, and none of gasPrice, maxPriorityFeePerGas or maxFeePerGas are
+    // set on txParams, it means that either we are on a non-EIP1559 network and the dapp didn't suggest
+    // a gas price, or we are on an EIP1559 network, and none of gasPrice, maxPriorityFeePerGas or maxFeePerGas
+    // were available from either the dapp or the network.
+    if (
+      defaultGasPrice &&
+      !txMeta.txParams.gasPrice &&
+      !txMeta.txParams.maxPriorityFeePerGas &&
+      !txMeta.txParams.maxFeePerGas
+    ) {
+      txMeta.txParams.gasPrice = defaultGasPrice;
+    }
+
+    if (defaultGasLimit && !txMeta.txParams.gas) {
+      txMeta.txParams.gas = defaultGasLimit;
+      txMeta.originalGasEstimate = defaultGasLimit;
+    }
+
+    // txMeta.defaultGasEstimates = {
+    //   estimateType: txMeta.userFeeLevel,
+    //   gas: txMeta.txParams.gas,
+    //   gasPrice: txMeta.txParams.gasPrice,
+    //   maxFeePerGas: txMeta.txParams.maxFeePerGas,
+    //   maxPriorityFeePerGas: txMeta.txParams.maxPriorityFeePerGas,
+    // };
+
+    return txMeta;
+  }
+
+  private async createSwapsTransaction(
+    swapOptions: { hasApproveTx?: boolean; meta?: any } | undefined,
+    transactionType: TransactionType,
+    txMeta: TransactionMeta,
+  ) {
+    // The simulationFails property is added if the estimateGas call fails. In cases
+    // when no swaps approval tx is required, this indicates that the swap will likely
+    // fail. There was an earlier estimateGas call made by the swaps controller,
+    // but it is possible that external conditions have change since then, and
+    // a previously succeeding estimate gas call could now fail. By checking for
+    // the `simulationFails` property here, we can reduce the number of swap
+    // transactions that get published to the blockchain only to fail and thereby
+    // waste the user's funds on gas.
+    if (
+      transactionType === TransactionType.swap &&
+      swapOptions?.hasApproveTx === false &&
+      txMeta.simulationFails
+    ) {
+      await this.cancelTransaction(txMeta.id);
+      throw new Error('Simulation failed');
+    }
+
+    const swapsMeta = swapOptions?.meta;
+
+    if (!swapsMeta) {
+      return txMeta;
+    }
+
+    if (transactionType === TransactionType.swapApproval) {
+      this.hub.emit('newSwapApproval', txMeta);
+      return this.updateSwapApprovalTransaction(txMeta, swapsMeta);
+    }
+
+    if (transactionType === TransactionType.swap) {
+      this.hub.emit('newSwap', txMeta);
+      return this.updateSwapTransaction(txMeta, swapsMeta);
+    }
+
+    return txMeta;
+  }
+
+  private updateSwapApprovalTransaction(
+    txMeta: TransactionMeta,
+    {
+      type,
+      sourceTokenSymbol,
+    }: { type?: TransactionType; sourceTokenSymbol?: string },
+  ): TransactionMeta {
+    validateIfTransactionUnapproved(txMeta, 'updateSwapApprovalTransaction');
+
+    const swapApprovalTransaction = pickBy({ type, sourceTokenSymbol });
+
+    return merge(txMeta, swapApprovalTransaction);
+  }
+
+  private updateSwapTransaction(
+    txMeta: TransactionMeta,
+    {
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    }: {
+      sourceTokenSymbol?: string;
+      destinationTokenSymbol?: string;
+      type?: TransactionType;
+      destinationTokenDecimals?: number;
+      destinationTokenAddress?: string;
+      swapMetaData?: string;
+      swapTokenValue?: string;
+      estimatedBaseFee?: string;
+      approvalTxId?: string;
+    },
+  ): TransactionMeta {
+    validateIfTransactionUnapproved(txMeta, 'updateSwapTransaction');
+
+    const swapTransaction = pickBy({
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    });
+
+    return merge(txMeta, swapTransaction);
+  }
+
+  private throwErrorIfNotUnapprovedTx(
+    txId: string,
+    methodName: string,
+  ): TransactionMeta {
+    const transactionMeta = this.getTransaction(txId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Method ${methodName} failed as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(transactionMeta, methodName);
+
+    return transactionMeta;
   }
 }
 
