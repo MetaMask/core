@@ -56,7 +56,7 @@ describe('SelectedNetworkController', () => {
       expect(result).toBe(networkClientId);
     });
 
-    it('it returns items other than the metamask domain, when the perDomainNetwork option is true', () => {
+    it('returns items other than the metamask domain, when the perDomainNetwork option is true', () => {
       const options: SelectedNetworkControllerOptions = {
         messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
       };
