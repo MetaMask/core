@@ -2080,15 +2080,15 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.2
     "@metamask/controller-utils": ^5.0.1
+    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/rpc-errors": ^6.0.0
     "@metamask/utils": ^8.1.0
     "@types/deep-freeze-strict": ^1.1.0
     "@types/jest": ^27.4.1
     deep-freeze-strict: ^1.1.1
     deepmerge: ^4.2.2
-    eth-rpc-errors: ^4.0.2
     immer: ^9.0.6
     jest: ^27.5.1
-    json-rpc-engine: ^6.1.0
     nanoid: ^3.1.31
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
@@ -2257,7 +2257,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/rpc-methods@npm:^0.38.1-flask.1":
+"@metamask/rpc-methods@npm:0.38.1-flask.1":
   version: 0.38.1-flask.1
   resolution: "@metamask/rpc-methods@npm:0.38.1-flask.1"
   dependencies:
@@ -2275,21 +2275,38 @@ __metadata:
   linkType: hard
 
 "@metamask/rpc-methods@npm:^1.0.1":
-  version: 1.0.1
-  resolution: "@metamask/rpc-methods@npm:1.0.1"
+  version: 1.0.2
+  resolution: "@metamask/rpc-methods@npm:1.0.2"
   dependencies:
     "@metamask/browser-passworder": ^4.0.2
     "@metamask/key-tree": ^7.1.1
     "@metamask/permission-controller": ^4.0.0
-    "@metamask/snaps-ui": ^1.0.1
-    "@metamask/snaps-utils": ^1.0.1
+    "@metamask/snaps-ui": ^1.0.2
+    "@metamask/snaps-utils": ^1.0.2
     "@metamask/types": ^1.1.0
     "@metamask/utils": ^6.0.1
     "@noble/hashes": ^1.1.3
     eth-rpc-errors: ^4.0.2
     nanoid: ^3.1.31
     superstruct: ^1.0.3
-  checksum: 9d5c91f7af7c66b5f7afe23ce08a1d959bec1c7423063e955ae30ca41ed048e793a4e075b0fd23b9a8e54ff3a3fee018994e8d2fa494adebcc236f0bdd484340
+  checksum: b5de7ea63726cf3dc2324e8bc462d95de67bbf15f34849a2fdcb321efa21f255644b83e79ae1b1305a5b4ac0d7fb8fd110b917d08541326ba3d4dab3dbc1e594
+  languageName: node
+  linkType: hard
+
+"@metamask/rpc-methods@patch:@metamask/rpc-methods@npm%3A0.38.1-flask.1#./.yarn/patches/@metamask-rpc-methods-npm-0.38.1-flask.1-081e1eb5b3.patch::locator=%40metamask%2Fcore-monorepo%40workspace%3A.":
+  version: 0.38.1-flask.1
+  resolution: "@metamask/rpc-methods@patch:@metamask/rpc-methods@npm%3A0.38.1-flask.1#./.yarn/patches/@metamask-rpc-methods-npm-0.38.1-flask.1-081e1eb5b3.patch::version=0.38.1-flask.1&hash=2abe25&locator=%40metamask%2Fcore-monorepo%40workspace%3A."
+  dependencies:
+    "@metamask/key-tree": ^9.0.0
+    "@metamask/permission-controller": ^4.1.0
+    "@metamask/snaps-ui": ^0.37.4-flask.1
+    "@metamask/snaps-utils": ^0.38.2-flask.1
+    "@metamask/types": ^1.1.0
+    "@metamask/utils": ^6.0.1
+    "@noble/hashes": ^1.3.1
+    eth-rpc-errors: ^4.0.3
+    superstruct: ^1.0.3
+  checksum: 61829b70d80b7d3ad40e3916a303c26b4545f61b74ea776063c9803dce7ffa4c8882fef0189803a07250e125dc3818cbd9a4e6891d1041da23bb2a9c26f85441
   languageName: node
   linkType: hard
 
@@ -2489,13 +2506,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-ui@npm:^1.0.1":
-  version: 1.0.1
-  resolution: "@metamask/snaps-ui@npm:1.0.1"
+"@metamask/snaps-ui@npm:^1.0.2":
+  version: 1.0.2
+  resolution: "@metamask/snaps-ui@npm:1.0.2"
   dependencies:
     "@metamask/utils": ^6.0.1
     superstruct: ^1.0.3
-  checksum: 71719b47a79d2ff23f0e9f1d2a1a8afd42f4f94891437056241a49090d245ccd086eac5d8fdf7719aaaa3f6bbc16b30f5566ad7bcecaa7b70e00ea638387aaa0
+  checksum: eb3d8806803d7e5e7677550eb0eaec4102f8b1b2aad660b408ebb8d3c532666a422176b2ff7c490bfb427c9378449976f16b19c9c5330759dff5283db9fe7224
   languageName: node
   linkType: hard
 
@@ -2528,9 +2545,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-utils@npm:^1.0.1":
-  version: 1.0.1
-  resolution: "@metamask/snaps-utils@npm:1.0.1"
+"@metamask/snaps-utils@npm:^1.0.1, @metamask/snaps-utils@npm:^1.0.2":
+  version: 1.0.2
+  resolution: "@metamask/snaps-utils@npm:1.0.2"
   dependencies:
     "@babel/core": ^7.18.6
     "@babel/types": ^7.18.7
@@ -2539,7 +2556,7 @@ __metadata:
     "@metamask/permission-controller": ^4.0.0
     "@metamask/providers": ^10.2.1
     "@metamask/snaps-registry": ^1.2.1
-    "@metamask/snaps-ui": ^1.0.1
+    "@metamask/snaps-ui": ^1.0.2
     "@metamask/utils": ^6.0.1
     "@noble/hashes": ^1.1.3
     "@scure/base": ^1.1.1
@@ -2552,7 +2569,7 @@ __metadata:
     ses: ^0.18.7
     superstruct: ^1.0.3
     validate-npm-package-name: ^5.0.0
-  checksum: 4abb2aabd5b6af314338d812f6029cbdecb0953bcaaf8df16e4b3ad65106d934d0c076c4587df032a1adb08409c8ea246f309aa8c2f94e4453e96f8afbb143f3
+  checksum: e207652c0ba61970f7a298325a75edbd330fc8f62f2a23a6429dd2448db66b59414794e77389b72d007d5b18c21e6331dcb815d2bbe91851843d8ee0902600d9
   languageName: node
   linkType: hard
 
