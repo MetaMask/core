@@ -169,9 +169,13 @@ export class TypedMessageManager extends AbstractMessageManager<
   prepMessageForSigning(
     messageParams: TypedMessageParamsMetamask,
   ): Promise<TypedMessageParams> {
-    delete messageParams.metamaskId;
-    delete messageParams.version;
-    return Promise.resolve(messageParams);
+    // Using delete operation will throw an error on frozen messageParams
+    const {
+      metamaskId: _metamaskId,
+      version: _version,
+      ...messageParamsWithoutId
+    } = messageParams;
+    return Promise.resolve(messageParamsWithoutId);
   }
 }
 

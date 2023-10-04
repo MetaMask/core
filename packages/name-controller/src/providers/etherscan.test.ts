@@ -1,7 +1,7 @@
-import { EtherscanNameProvider } from './etherscan';
 import { CHAIN_IDS } from '../constants';
 import { NameType } from '../types';
 import { handleFetch } from '../util';
+import { EtherscanNameProvider } from './etherscan';
 
 jest.mock('../util');
 
@@ -50,7 +50,7 @@ describe('EtherscanNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -80,7 +80,7 @@ describe('EtherscanNameProvider', () => {
 
         const response = await provider.getProposedNames({
           value: VALUE_MOCK,
-          chainId: CHAIN_ID_MOCK,
+          variation: CHAIN_ID_MOCK,
           type: NameType.ETHEREUM_ADDRESS,
         });
 
@@ -110,7 +110,7 @@ describe('EtherscanNameProvider', () => {
 
       await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_IDS.LINEA_GOERLI,
+        variation: CHAIN_IDS.LINEA_GOERLI,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -127,7 +127,7 @@ describe('EtherscanNameProvider', () => {
       await expect(
         provider.getProposedNames({
           value: VALUE_MOCK,
-          chainId: invalidChainId,
+          variation: invalidChainId,
           type: NameType.ETHEREUM_ADDRESS,
         }),
       ).rejects.toThrow(
@@ -140,13 +140,13 @@ describe('EtherscanNameProvider', () => {
 
       await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
       const result = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -168,7 +168,7 @@ describe('EtherscanNameProvider', () => {
 
       const result = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -188,7 +188,7 @@ describe('EtherscanNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -207,7 +207,7 @@ describe('EtherscanNameProvider', () => {
       await expect(
         provider.getProposedNames({
           value: VALUE_MOCK,
-          chainId: CHAIN_ID_MOCK,
+          variation: CHAIN_ID_MOCK,
           type: NameType.ETHEREUM_ADDRESS,
         }),
       ).rejects.toThrow('TestError');

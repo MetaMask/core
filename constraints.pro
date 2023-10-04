@@ -257,6 +257,10 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogVa
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-
   WorkspaceCwd \= '.'.
 
+% All non-root packages must have the same "test:clean" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'jest --clearCache') :-
+  WorkspaceCwd \= '.'.
+
 % All non-root packages must have the same "test:watch" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
   WorkspaceCwd \= '.'.
@@ -294,14 +298,15 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   DependencyType == 'devDependencies'.
 
-% If a controller dependency (other than `base-controller` and
-% `eth-keyring-controller`) is listed under "dependencies", it should also be
+% If a controller dependency (other than `base-controller`, `eth-keyring-controller` and
+% `polling-controller`) is listed under "dependencies", it should also be
 % listed under "peerDependencies". Each controller is a singleton, so we need
 % to ensure the versions used match expectations.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'peerDependencies') :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
   DependencyIdent \= '@metamask/base-controller',
   DependencyIdent \= '@metamask/eth-keyring-controller',
+  DependencyIdent \= '@metamask/polling-controller',
   is_controller(DependencyIdent).
 
 % All packages must specify a minimum Node version of 16.
