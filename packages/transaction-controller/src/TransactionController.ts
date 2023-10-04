@@ -16,7 +16,6 @@ import {
   BNToHex,
   fractionBN,
   hexToBN,
-  safelyExecute,
   query,
   NetworkType,
   RPC,
@@ -44,6 +43,8 @@ import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSo
 import { validateConfirmedExternalTransaction } from './external-transactions';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { pendingTransactionsLogger } from './logger';
+import { PendingTransactionTracker } from './PendingTransactionTracker';
 import { determineTransactionType } from './transaction-type';
 import type {
   DappSuggestedGasFees,
@@ -94,12 +95,10 @@ export interface FeeMarketEIP1559Values {
  * @type TransactionConfig
  *
  * Transaction controller configuration
- * @property interval - Polling interval used to fetch new currency rate
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
  */
 export interface TransactionConfig extends BaseConfig {
-  interval: number;
   sign?: (txParams: TransactionParams, from: string) => Promise<any>;
   txHistoryLimit: number;
 }
@@ -179,7 +178,7 @@ export class TransactionController extends BaseController<
 
   private readonly provider: Provider;
 
-  private handle?: ReturnType<typeof setTimeout>;
+  private readonly handle?: ReturnType<typeof setTimeout>;
 
   private readonly mutex = new Mutex();
 
@@ -198,6 +197,8 @@ export class TransactionController extends BaseController<
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
 
   private readonly securityProviderRequest?: SecurityProviderRequest;
+
+  private readonly pendingTransactionTracker: PendingTransactionTracker;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -301,7 +302,6 @@ export class TransactionController extends BaseController<
     super(config, state);
 
     this.defaultConfig = {
-      interval: 15000,
       txHistoryLimit: 40,
     };
 
@@ -369,26 +369,31 @@ export class TransactionController extends BaseController<
       this.onUpdatedLastFetchedBlockNumbers.bind(this),
     );
 
+    this.pendingTransactionTracker = new PendingTransactionTracker({
+      blockTracker,
+      failTransaction: this.failTransaction.bind(this),
+      getChainId: this.getChainId.bind(this),
+      getEthQuery: () => this.ethQuery,
+      getTransactions: () => this.state.transactions,
+    });
+
+    this.pendingTransactionTracker.hub.on(
+      'transactions',
+      this.onPendingTransactionsUpdate.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-confirmed',
+      (transactionMeta: TransactionMeta) =>
+        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta),
+    );
+
     onNetworkStateChange(() => {
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
 
-    this.poll();
-  }
-
-  /**
-   * Starts a new polling interval.
-   *
-   * @param interval - The polling interval used to fetch new transaction statuses.
-   */
-  async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.queryTransactionStatuses());
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
-    }, this.config.interval);
+    this.pendingTransactionTracker.start();
   }
 
   /**
@@ -900,37 +905,6 @@ export class TransactionController extends BaseController<
       };
     }
     return { gas: addHexPrefix(BNToHex(maxGasBN)), gasPrice, estimateGasError };
-  }
-
-  /**
-   * Check the status of submitted transactions on the network to determine whether they have
-   * been included in a block. Any that have been included in a block are marked as confirmed.
-   */
-  async queryTransactionStatuses() {
-    const { transactions } = this.state;
-    const currentChainId = this.getChainId();
-    let gotUpdates = false;
-    await safelyExecute(() =>
-      Promise.all(
-        transactions.map(async (meta, index) => {
-          if (!meta.verifiedOnBlockchain && meta.chainId === currentChainId) {
-            const [reconciledTx, updateRequired] =
-              await this.blockchainTransactionStateReconciler(meta);
-            if (updateRequired) {
-              transactions[index] = reconciledTx;
-              gotUpdates = updateRequired;
-            }
-          }
-        }),
-      ),
-    );
-
-    /* istanbul ignore else */
-    if (gotUpdates) {
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
-    }
   }
 
   /**
@@ -1455,101 +1429,6 @@ export class TransactionController extends BaseController<
     ].includes(status);
   }
 
-  /**
-   * Method to verify the state of a transaction using the Blockchain as a source of truth.
-   *
-   * @param meta - The local transaction to verify on the blockchain.
-   * @returns A tuple containing the updated transaction, and whether or not an update was required.
-   */
-  private async blockchainTransactionStateReconciler(
-    meta: TransactionMeta,
-  ): Promise<[TransactionMeta, boolean]> {
-    const { status, hash } = meta;
-    switch (status) {
-      case TransactionStatus.confirmed:
-        const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-          hash,
-        ]);
-
-        if (!txReceipt) {
-          return [meta, false];
-        }
-
-        const txBlock = await query(this.ethQuery, 'getBlockByHash', [
-          txReceipt.blockHash,
-        ]);
-
-        meta.verifiedOnBlockchain = true;
-        meta.txParams.gasUsed = txReceipt.gasUsed;
-        meta.txReceipt = txReceipt;
-        meta.baseFeePerGas = txBlock?.baseFeePerGas;
-        meta.blockTimestamp = txBlock?.timestamp;
-
-        // According to the Web3 docs:
-        // TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
-        if (Number(txReceipt.status) === 0) {
-          const error: Error = new Error(
-            'Transaction failed. The transaction was reversed',
-          );
-          this.failTransaction(meta, error);
-          return [meta, false];
-        }
-
-        return [meta, true];
-      case TransactionStatus.submitted:
-        const txObj = await query(this.ethQuery, 'getTransactionByHash', [
-          hash,
-        ]);
-
-        if (!txObj) {
-          const receiptShowsFailedStatus =
-            await this.checkTxReceiptStatusIsFailed(hash);
-
-          // Case the txObj is evaluated as false, a second check will
-          // determine if the tx failed or it is pending or confirmed
-          if (receiptShowsFailedStatus) {
-            const error: Error = new Error(
-              'Transaction failed. The transaction was dropped or replaced by a new one',
-            );
-            this.failTransaction(meta, error);
-          }
-        }
-
-        /* istanbul ignore next */
-        if (txObj?.blockNumber) {
-          meta.status = TransactionStatus.confirmed;
-          this.hub.emit(`${meta.id}:confirmed`, meta);
-          return [meta, true];
-        }
-
-        return [meta, false];
-      default:
-        return [meta, false];
-    }
-  }
-
-  /**
-   * Method to check if a tx has failed according to their receipt
-   * According to the Web3 docs:
-   * TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
-   * The receipt is not available for pending transactions and returns null.
-   *
-   * @param txHash - The transaction hash.
-   * @returns Whether the transaction has failed.
-   */
-  private async checkTxReceiptStatusIsFailed(
-    txHash: string | undefined,
-  ): Promise<boolean> {
-    const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-      txHash,
-    ]);
-    if (!txReceipt) {
-      // Transaction is pending
-      return false;
-    }
-    return Number(txReceipt.status) === 0;
-  }
-
   private async requestApproval(
     txMeta: TransactionMeta,
     { shouldShowRequest }: { shouldShowRequest: boolean },
@@ -1677,6 +1556,11 @@ export class TransactionController extends BaseController<
   }) {
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
+  }
+
+  private onPendingTransactionsUpdate(transactions: TransactionMeta[]) {
+    pendingTransactionsLogger('Updated pending transactions');
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
   private generateDappSuggestedGasFees(
