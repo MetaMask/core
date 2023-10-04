@@ -33,9 +33,8 @@ import type { TransactionMeta, DappSuggestedGasFees } from './types';
 import { WalletDevice, TransactionStatus, TransactionType } from './types';
 import { ESTIMATE_GAS_ERROR } from './utils';
 
-const v1Stub = jest
-  .fn()
-  .mockImplementation(() => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
+const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+const v1Stub = jest.fn().mockImplementation(() => MOCK_V1_UUID);
 
 jest.mock('uuid', () => {
   return {
@@ -1192,6 +1191,44 @@ describe('TransactionController', () => {
         expect(estimateGasError).toBe(ESTIMATE_GAS_ERROR);
       },
     );
+
+    it('calls security provider with transaction meta and sets response in to securityProviderResponse', async () => {
+      const mockRPCMethodName = 'MOCK_RPC_METHOD_NAME';
+      const mockSecurityProviderResponse = {
+        flagAsDangerous: 1,
+        info: 'Mock info',
+      };
+      const securityProviderRequestMock = jest
+        .fn()
+        .mockResolvedValue(mockSecurityProviderResponse);
+
+      const controller = newController({
+        options: {
+          securityProviderRequest: securityProviderRequestMock,
+        },
+      });
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          method: mockRPCMethodName,
+        },
+      );
+
+      expect(securityProviderRequestMock).toHaveBeenCalledTimes(1);
+      expect(securityProviderRequestMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: MOCK_V1_UUID,
+        }),
+        mockRPCMethodName,
+      );
+
+      const { securityProviderResponse } = controller.state.transactions[0];
+      expect(securityProviderResponse).toBe(mockSecurityProviderResponse);
+    });
 
     describe('on approve', () => {
       it('submits transaction', async () => {
