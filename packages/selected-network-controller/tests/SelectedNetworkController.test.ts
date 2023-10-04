@@ -31,7 +31,7 @@ describe('SelectedNetworkController', () => {
       expect(controller.state.domains.metamask).toBe(networkClientId);
     });
 
-    it('when the perDomainNetwork feature flag is on, it sets the networkClientId for the passed in domain', () => {
+    it('it sets the networkClientId for the passed in domain, when perDomainNetwork state is set to true ,', () => {
       const options: SelectedNetworkControllerOptions = {
         messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
       };
