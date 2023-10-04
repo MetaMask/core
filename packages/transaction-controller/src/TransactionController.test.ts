@@ -17,7 +17,7 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
-import { errorCodes } from '@metamask/rpc-errors';
+import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import HttpProvider from 'ethjs-provider-http';
 import NonceTracker from 'nonce-tracker';
 
@@ -469,6 +469,8 @@ describe('TransactionController', () => {
         getNetworkState: () => finalNetwork.state,
         getCurrentAccountEIP1559Compatibility: () => true,
         getCurrentNetworkEIP1559Compatibility: () => true,
+        getPermittedAccounts: () => [ACCOUNT_MOCK],
+        getSelectedAddress: () => ACCOUNT_MOCK,
         messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
@@ -1407,6 +1409,45 @@ describe('TransactionController', () => {
         const { txParams, status } = await finishedPromise;
         expect(txParams.from).toBe(ACCOUNT_MOCK);
         expect(status).toBe(TransactionStatus.rejected);
+      });
+    });
+
+    describe('checks from address origin', () => {
+      it('throws if `from` address is different from current selected address', async () => {
+        const controller = newController();
+        const origin = ORIGIN_METAMASK;
+        const notSelectedFromAddress = ACCOUNT_2_MOCK;
+        await expect(
+          controller.addTransaction(
+            {
+              from: notSelectedFromAddress,
+              to: ACCOUNT_MOCK,
+            } as any,
+            { origin: ORIGIN_METAMASK },
+          ),
+        ).rejects.toThrow(
+          rpcErrors.internal({
+            message: `Internally initiated transaction is using invalid account.`,
+            data: {
+              origin,
+              fromAddress: notSelectedFromAddress,
+              selectedAddress: ACCOUNT_MOCK,
+            },
+          }),
+        );
+      });
+
+      it('throws if the origin does not have permissions to initiate transactions from the specified address', async () => {
+        const controller = newController();
+        const expectedOrigin = 'originMocked';
+        await expect(
+          controller.addTransaction(
+            { from: ACCOUNT_2_MOCK, to: ACCOUNT_MOCK },
+            { origin: expectedOrigin },
+          ),
+        ).rejects.toThrow(
+          providerErrors.unauthorized({ data: { origin: expectedOrigin } }),
+        );
       });
     });
   });

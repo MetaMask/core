@@ -1,10 +1,46 @@
 import { Interface } from '@ethersproject/abi';
-import { isValidHexAddress } from '@metamask/controller-utils';
+import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 
 import type { TransactionParams } from './types';
 import { isEIP1559Transaction } from './utils';
+
+/**
+ * Validates whether a transaction initiated by a specific 'from' address is permitted by the origin.
+ *
+ * @param permittedAddresses - The permitted accounts for the given origin.
+ * @param selectedAddress - The currently selected Ethereum address in the wallet.
+ * @param from - The address from which the transaction is initiated.
+ * @param origin - The origin or source of the transaction.
+ * @throws Throws an error if the transaction is not permitted.
+ */
+export async function validateTransactionOrigin(
+  permittedAddresses: string[],
+  selectedAddress: string,
+  from: string,
+  origin: string,
+) {
+  if (origin === ORIGIN_METAMASK) {
+    // Ensure the 'from' address matches the currently selected address
+    if (from !== selectedAddress) {
+      throw rpcErrors.internal({
+        message: `Internally initiated transaction is using invalid account.`,
+        data: {
+          origin,
+          fromAddress: from,
+          selectedAddress,
+        },
+      });
+    }
+    return;
+  }
+
+  // Check if the origin has permissions to initiate transactions from the specified address
+  if (!permittedAddresses.includes(from)) {
+    throw providerErrors.unauthorized({ data: { origin } });
+  }
+}
 
 /**
  * Validates the transaction params for required properties and throws in

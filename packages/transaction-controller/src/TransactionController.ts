@@ -68,7 +68,7 @@ import {
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
 } from './utils';
-import { validateTxParams } from './validation';
+import { validateTransactionOrigin, validateTxParams } from './validation';
 
 export const HARDFORK = Hardfork.London;
 
@@ -188,6 +188,10 @@ export class TransactionController extends BaseController<
 
   private readonly getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
 
+  private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
+
+  private readonly getSelectedAddress: () => string;
+
   private readonly messagingSystem: TransactionControllerMessenger;
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
@@ -243,6 +247,7 @@ export class TransactionController extends BaseController<
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getNetworkState - Gets the state of the network controller.
+   * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
@@ -264,6 +269,7 @@ export class TransactionController extends BaseController<
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
       getNetworkState,
+      getPermittedAccounts,
       getSelectedAddress,
       incomingTransactions = {},
       messenger,
@@ -277,6 +283,7 @@ export class TransactionController extends BaseController<
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getNetworkState: () => NetworkState;
+      getPermittedAccounts: (origin?: string) => Promise<string[]>;
       getSelectedAddress: () => string;
       incomingTransactions: {
         includeTokenTransfers?: boolean;
@@ -317,6 +324,8 @@ export class TransactionController extends BaseController<
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
+    this.getPermittedAccounts = getPermittedAccounts;
+    this.getSelectedAddress = getSelectedAddress;
     this.securityProviderRequest = securityProviderRequest;
 
     this.nonceTracker = new NonceTracker({
@@ -457,6 +466,14 @@ export class TransactionController extends BaseController<
     txParams = normalizeTxParams(txParams);
     const isEIP1559Compatible = await this.getEIP1559Compatibility();
     validateTxParams(txParams, isEIP1559Compatible);
+    if (origin) {
+      await validateTransactionOrigin(
+        await this.getPermittedAccounts(origin),
+        this.getSelectedAddress(),
+        txParams.from,
+        origin,
+      );
+    }
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       txParams,
