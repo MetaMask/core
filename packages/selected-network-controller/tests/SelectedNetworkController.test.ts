@@ -21,25 +21,26 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('setNetworkClientIdForDomain', () => {
-    it('can set the networkClientId for a domain', () => {
-      const options: SelectedNetworkControllerOptions = {
-        messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
-      };
-      const controller = new SelectedNetworkController(options);
-      const domain = 'example.com';
-      const networkClientId = 'network1';
-      controller.setNetworkClientIdForDomain(domain, networkClientId);
-      expect(controller.state.domains[domain]).toBe(networkClientId);
-    });
-
-    it('can set the networkClientId for the metamask domain specifically', () => {
+    it('sets the metamask domain when the perDomainNetwork option is false (default)', () => {
       const options: SelectedNetworkControllerOptions = {
         messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
       };
       const controller = new SelectedNetworkController(options);
       const networkClientId = 'network2';
-      controller.setNetworkClientIdForMetamask(networkClientId);
+      controller.setNetworkClientIdForDomain('not-metamask', networkClientId);
       expect(controller.state.domains.metamask).toBe(networkClientId);
+    });
+
+    it('when the perDomainNetwork feature flag is on, it sets the networkClientId for the passed in domain', () => {
+      const options: SelectedNetworkControllerOptions = {
+        messenger: buildSelectedNetworkControllerMessenger(), // Mock the messenger
+      };
+      const controller = new SelectedNetworkController(options);
+      controller.state.perDomainNetwork = true;
+      const domain = 'example.com';
+      const networkClientId = 'network1';
+      controller.setNetworkClientIdForDomain(domain, networkClientId);
+      expect(controller.state.domains[domain]).toBe(networkClientId);
     });
   });
 
@@ -70,30 +71,6 @@ describe('SelectedNetworkController', () => {
       expect(result1).toBe(networkClientId1);
       expect(result2).toBe(networkClientId2);
     });
-  });
-
-  it('updates the networkClientId for the metamask domain if not already set when the networkControllers state changes', () => {
-    const messenger = buildMessenger();
-    const options: SelectedNetworkControllerOptions = {
-      messenger: buildSelectedNetworkControllerMessenger(messenger),
-    };
-    const controller = new SelectedNetworkController(options);
-    expect(controller.state.domains.metamask).toBeUndefined();
-
-    const patch = [
-      {
-        path: ['anythingelse'],
-        op: 'replace' as const,
-        value: 'abc',
-      },
-    ];
-
-    const state = {
-      ...networkControllerDefaultState,
-      selectedNetworkClientId: 'currentNetwork',
-    };
-    messenger.publish('NetworkController:stateChange', state, patch);
-    expect(controller.state.domains.metamask).toBe('currentNetwork');
   });
 
   it('updates the networkClientId for the metamask domain when the networkControllers selectedNetworkClientId changes', () => {
