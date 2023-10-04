@@ -983,16 +983,19 @@ export class TransactionController extends BaseController<
         /* istanbul ignore next */
         if (txObj?.blockNumber) {
           // transactions can be added to a block and still fail, so we need to check the transaction status before emitting the confirmed event
-          const verifyTransactionStatus = await this.checkTxReceiptStatusIsFailed(transactionHash);
+          const verifyTransactionStatus =
+            await this.checkTxReceiptStatusIsFailed(transactionHash);
           if (verifyTransactionStatus) {
-              const error = new Error('Transaction failed. Error encountered during contract execution [out of gas]');
-              this.failTransaction(meta, error);
+            const error = new Error(
+              'Transaction failed. Error encountered during contract execution [out of gas]',
+            );
+            this.failTransaction(meta, error);
           } else {
-              meta.status = TransactionStatus.confirmed;
-              this.hub.emit(`${meta.id}:confirmed`, meta);
-              return [meta, true];
+            meta.status = TransactionStatus.confirmed;
+            this.hub.emit(`${meta.id}:confirmed`, meta);
+            return [meta, true];
           }
-         }
+        }
 
         return [meta, false];
       default:
