@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0]
 ### Changed
 - **BREAKING:** Move `eth-rpc-errors@^4.0.2` dependency to `@metamask/rpc-errors@^6.0.2` ([#1743](https://github.com/MetaMask/core/pull/1743))
-  - To use this package effectively, you need to also use `@metamask/rpc-errors@^6.0.2`, which restricts valid data that can be used to build messages
+  - Upon upgrading, you may need to also use `@metamask/rpc-errors@^6.0.2`, which restricts valid data that can be used to build messages
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 - Bump dependency on `@metamask/base-controller` to ^3.2.3
 
