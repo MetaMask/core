@@ -1195,7 +1195,179 @@ describe('TokenListController', () => {
   });
 
   describe('executePoll', () => {
-    it('should execute the poll', async () => {
+    it('should call fetchTokenList with the correct chainId', async () => {
+      const sampleSepoliaTokenList = [
+        {
+          address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+          symbol: 'WBTC',
+          decimals: 8,
+          name: 'Wrapped BTC',
+          iconUrl:
+            'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/wbtc.svg',
+          type: 'erc20',
+          aggregators: [
+            'metamask',
+            'aave',
+            'bancor',
+            'cmc',
+            'cryptocom',
+            'coinGecko',
+            'oneInch',
+            'pmm',
+            'sushiswap',
+            'zerion',
+            'lifi',
+            'openswap',
+            'sonarwatch',
+            'uniswapLabs',
+            'coinmarketcap',
+          ],
+          occurrences: 15,
+          fees: {},
+          storage: {
+            balance: 0,
+          },
+        },
+        {
+          address: '0x04fa0d235c4abf4bcf4787af4cf447de572ef828',
+          symbol: 'UMA',
+          decimals: 18,
+          name: 'UMA',
+          iconUrl:
+            'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/uma.svg',
+          type: 'erc20',
+          aggregators: [
+            'metamask',
+            'bancor',
+            'cmc',
+            'cryptocom',
+            'coinGecko',
+            'oneInch',
+            'pmm',
+            'sushiswap',
+            'zerion',
+            'openswap',
+            'sonarwatch',
+            'uniswapLabs',
+            'coinmarketcap',
+          ],
+          occurrences: 13,
+          fees: {},
+        },
+        {
+          address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
+          symbol: 'GNO',
+          decimals: 18,
+          name: 'Gnosis Token',
+          iconUrl:
+            'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/gnosis.svg',
+          type: 'erc20',
+          aggregators: [
+            'metamask',
+            'bancor',
+            'cmc',
+            'coinGecko',
+            'oneInch',
+            'sushiswap',
+            'zerion',
+            'lifi',
+            'openswap',
+            'sonarwatch',
+            'uniswapLabs',
+            'coinmarketcap',
+          ],
+          occurrences: 12,
+          fees: {},
+        },
+      ];
+
+      const expectedSepoliaTokenListFormatted = {
+        '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': {
+          address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+          symbol: 'WBTC',
+          decimals: 8,
+          name: 'Wrapped BTC',
+          iconUrl:
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x2260fac5e5542a773aa44fbcfedf7c193bc2c599.png',
+          type: 'erc20',
+          aggregators: [
+            'Metamask',
+            'Aave',
+            'Bancor',
+            'CMC',
+            'Crypto.com',
+            'CoinGecko',
+            '1inch',
+            'PMM',
+            'Sushiswap',
+            'Zerion',
+            'Lifi',
+            'Openswap',
+            'Sonarwatch',
+            'UniswapLabs',
+            'Coinmarketcap',
+          ],
+          occurrences: 15,
+          fees: {},
+          storage: { balance: 0 },
+        },
+        '0x04fa0d235c4abf4bcf4787af4cf447de572ef828': {
+          address: '0x04fa0d235c4abf4bcf4787af4cf447de572ef828',
+          symbol: 'UMA',
+          decimals: 18,
+          name: 'UMA',
+          iconUrl:
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x04fa0d235c4abf4bcf4787af4cf447de572ef828.png',
+          type: 'erc20',
+          aggregators: [
+            'Metamask',
+            'Bancor',
+            'CMC',
+            'Crypto.com',
+            'CoinGecko',
+            '1inch',
+            'PMM',
+            'Sushiswap',
+            'Zerion',
+            'Openswap',
+            'Sonarwatch',
+            'UniswapLabs',
+            'Coinmarketcap',
+          ],
+          occurrences: 13,
+          fees: {},
+        },
+        '0x6810e776880c02933d47db1b9fc05908e5386b96': {
+          address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
+          symbol: 'GNO',
+          decimals: 18,
+          name: 'Gnosis Token',
+          iconUrl:
+            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x6810e776880c02933d47db1b9fc05908e5386b96.png',
+          type: 'erc20',
+          aggregators: [
+            'Metamask',
+            'Bancor',
+            'CMC',
+            'CoinGecko',
+            '1inch',
+            'Sushiswap',
+            'Zerion',
+            'Lifi',
+            'Openswap',
+            'Sonarwatch',
+            'UniswapLabs',
+            'Coinmarketcap',
+          ],
+          occurrences: 12,
+          fees: {},
+        },
+      };
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}`)
+        .reply(200, sampleSepoliaTokenList)
+        .persist();
+
       const spy = jest.spyOn(tokenService, 'fetchTokenList');
       const controllerMessenger = getControllerMessenger();
       controllerMessenger.registerActionHandler(
@@ -1214,10 +1386,55 @@ describe('TokenListController', () => {
         messenger,
         state: expiredCacheExistingState,
       });
+      expect(controller.state.tokenList).toStrictEqual(
+        expiredCacheExistingState.tokenList,
+      );
+
       await controller.executePoll('sepolia');
       expect(spy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
       );
+      expect(controller.state.tokenList).toStrictEqual(
+        expectedSepoliaTokenListFormatted,
+      );
+    });
+  });
+
+  describe('stopPollingByNetworkClientId', () => {
+    it('should stop polling for the network client id', async () => {
+
+      // TODO think through how if, at all we want to modify the state of the controller
+      // So looks like this cache is keyed by chainId so need to think through how we want to handle this
+
+      const spy = jest.spyOn(tokenService, 'fetchTokenList');
+      const controllerMessenger = getControllerMessenger();
+      controllerMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn().mockReturnValue({
+          configuration: {
+            type: NetworkType.sepolia,
+            chainId: ChainId.sepolia,
+          },
+        }),
+      );
+      const messenger = getRestrictedMessenger(controllerMessenger);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        preventPollingOnNetworkRestart: false,
+        messenger,
+        state: expiredCacheExistingState,
+      });
+      expect(controller.state.tokenList).toStrictEqual(
+        expiredCacheExistingState.tokenList,
+      );
+
+      await controller.executePoll('sepolia');
+      expect(spy.mock.calls[0]).toStrictEqual(
+        expect.arrayContaining([ChainId.sepolia]),
+      );
+      // expect(controller.state.tokenList).toStrictEqual(
+      //   expectedSepoliaTokenListFormatted,
+      // );
     });
   });
 });

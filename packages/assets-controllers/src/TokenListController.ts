@@ -258,6 +258,9 @@ export class TokenListController extends PollingController<
     const chainId = networkClient?.configuration.chainId ?? this.chainId;
     const releaseLock = await this.mutex.acquire();
     try {
+      // TODO document somewhere that this cache system already gives us multichain support no need to modify state
+      // other than perhaps remove the tokenList property from state and make the cache the default since there needn't be a single
+      // globally selected tokenList anymore
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
       const cachedTokens: TokenListMap = await safelyExecute(() =>
