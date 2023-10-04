@@ -8,4 +8,6 @@ export type BlockTracker = SafeEventEmitter & {
   getCurrentBlock(): string | null;
 
   getLatestBlock(): Promise<string>;
+
+  checkForLatestBlock(): Promise<string>;
 };
