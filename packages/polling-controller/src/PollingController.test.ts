@@ -211,6 +211,26 @@ describe('PollingController', () => {
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(2);
     });
+    it('should not poll twice for the same networkClientId and options', async () => {
+      jest.useFakeTimers();
+
+      class MyGasFeeController extends PollingController<any, any, any> {
+        executePoll = createExecutePollMock();
+      }
+      const mockMessenger = new ControllerMessenger<any, any>();
+
+      const controller = new MyGasFeeController({
+        messenger: mockMessenger,
+        metadata: {},
+        name: 'PollingController',
+        state: { foo: 'bar' },
+      });
+      controller.startPollingByNetworkClientId('mainnet', { address: '0x1' });
+      controller.startPollingByNetworkClientId('mainnet', { address: '0x1' });
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll).toHaveBeenCalledTimes(1);
+    });
   });
   describe('multiple networkClientIds', () => {
     it('should poll for each networkClientId', async () => {
@@ -231,16 +251,16 @@ describe('PollingController', () => {
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll.mock.calls).toMatchObject([
-        ['mainnet'],
-        ['rinkeby'],
+        ['mainnet', {}],
+        ['rinkeby', {}],
       ]);
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll.mock.calls).toMatchObject([
-        ['mainnet'],
-        ['rinkeby'],
-        ['mainnet'],
-        ['rinkeby'],
+        ['mainnet', {}],
+        ['rinkeby', {}],
+        ['mainnet', {}],
+        ['rinkeby', {}],
       ]);
       controller.stopAllPolling();
     });
@@ -267,27 +287,29 @@ describe('PollingController', () => {
       expect(controller.executePoll.mock.calls).toMatchObject([]);
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
-      expect(controller.executePoll.mock.calls).toMatchObject([['mainnet']]);
-      jest.advanceTimersByTime(TICK_TIME);
-      await Promise.resolve();
       expect(controller.executePoll.mock.calls).toMatchObject([
-        ['mainnet'],
-        ['sepolia'],
+        ['mainnet', {}],
       ]);
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll.mock.calls).toMatchObject([
-        ['mainnet'],
-        ['sepolia'],
-        ['mainnet'],
+        ['mainnet', {}],
+        ['sepolia', {}],
       ]);
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll.mock.calls).toMatchObject([
-        ['mainnet'],
-        ['sepolia'],
-        ['mainnet'],
-        ['sepolia'],
+        ['mainnet', {}],
+        ['sepolia', {}],
+        ['mainnet', {}],
+      ]);
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll.mock.calls).toMatchObject([
+        ['mainnet', {}],
+        ['sepolia', {}],
+        ['mainnet', {}],
+        ['sepolia', {}],
       ]);
     });
   });
