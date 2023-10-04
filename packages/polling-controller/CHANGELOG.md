@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.1.0]
-### Changed
-- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+### Added
+- Initial release
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.1.0...HEAD
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/polling-controller@0.1.0
