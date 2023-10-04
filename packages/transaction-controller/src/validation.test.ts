@@ -128,7 +128,7 @@ describe('validation', () => {
       );
 
       expect(() =>
-        util.validateTxParams({
+        validateTxParams({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '1',
