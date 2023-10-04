@@ -547,6 +547,7 @@ export class TransactionController extends BaseController<
    */
   initApprovals() {
     const chainId = this.getChainId();
+
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
@@ -559,6 +560,19 @@ export class TransactionController extends BaseController<
       }).catch((error) => {
         /* istanbul ignore next */
         console.error('Error during persisted transaction approval', error);
+      });
+    }
+
+    const approvedTxs = this.state.transactions.filter(
+      (transaction) =>
+        transaction.status === TransactionStatus.approved &&
+        transaction.chainId === chainId,
+    );
+
+    for (const txMeta of approvedTxs) {
+      this.approveTransaction(txMeta.id).catch((error) => {
+        /* istanbul ignore next */
+        console.error('Error during persisted transaction submission', error);
       });
     }
   }
@@ -816,6 +830,7 @@ export class TransactionController extends BaseController<
    */
   async estimateGas(transaction: TransactionParams) {
     const estimatedTransaction = { ...transaction };
+
     const {
       gas,
       gasPrice: providedGasPrice,
@@ -823,16 +838,20 @@ export class TransactionController extends BaseController<
       value,
       data,
     } = estimatedTransaction;
+
     const gasPrice =
       typeof providedGasPrice === 'undefined'
         ? await query(this.ethQuery, 'gasPrice')
         : providedGasPrice;
+
     const { providerConfig } = this.getNetworkState();
     const isCustomNetwork = providerConfig.type === NetworkType.rpc;
+
     // 1. If gas is already defined on the transaction, use it
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
     }
+
     const { gasLimit, number: blockNumber } = await query(
       this.ethQuery,
       'getBlockByNumber',
@@ -843,6 +862,7 @@ export class TransactionController extends BaseController<
     // If the network is a custom network then bypass this check and fetch 'estimateGas'.
     /* istanbul ignore next */
     const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
+
     /* istanbul ignore next */
     if (
       !isCustomNetwork &&
@@ -862,7 +882,7 @@ export class TransactionController extends BaseController<
     const gasLimitBN = hexToBN(gasLimit);
     estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
 
-    let gasHex;
+    let gasHex = estimatedTransaction.gas;
     let estimateGasError;
     let simulationFails;
 
