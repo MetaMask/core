@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 - Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump peer dependency on `@metamask/approval-controller` to ^8.0.2
+- Bump peer dependency on `@metamask/keyring-controller` to ^8.0.2
 
 ## [2.0.1]
 ### Changed
