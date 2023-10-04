@@ -565,7 +565,6 @@ describe('TransactionController', () => {
     it('sets default config', () => {
       const controller = newController();
       expect(controller.config).toStrictEqual({
-        interval: 15000,
         txHistoryLimit: 40,
         sign: expect.any(Function),
       });
