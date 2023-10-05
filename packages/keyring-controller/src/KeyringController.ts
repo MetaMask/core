@@ -757,13 +757,15 @@ export class KeyringController extends BaseControllerV2<
    *
    * @param transaction - Transaction object to sign. Must be a `ethereumjs-tx` transaction instance.
    * @param from - Address to sign from, should be in keychain.
+   * @param opts - An optional options object.
    * @returns Promise resolving to a signed transaction string.
    */
   signTransaction(
     transaction: TypedTransaction,
     from: string,
+    opts?: Record<string, unknown>,
   ): Promise<TxData> {
-    return this.#keyring.signTransaction(transaction, from);
+    return this.#keyring.signTransaction(transaction, from, opts);
   }
 
   /**
