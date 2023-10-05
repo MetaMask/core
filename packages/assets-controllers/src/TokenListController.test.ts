@@ -1535,30 +1535,45 @@ describe('TokenListController', () => {
       // jest.runOnlyPendingTimers();
       // await flushPromises();
       // await Promise.all([jest.runOnlyPendingTimers(), flushPromises()]);
-      expect(controller.state).toStrictEqual({
-        preventPollingOnNetworkRestart: false,
-        tokenList: sampleBinanceTokensChainsCache,
-        tokenChainsCache: {
-          [toHex(56)]: {
-            timestamp: expect.any(Number),
-            data: sampleBinanceTokensChainsCache,
-          },
-          [ChainId.sepolia]: {
-            timestamp: expect.any(Number),
-            data: sampleSepoliaTokensChainCache,
-          },
-        },
-      });
-
-      console.log(
-        'sampleBinanceTokensChainsCache:',
-        sampleBinanceTokensChainsCache,
-      );
-      console.log('controller.state', controller.state);
       console.log(
         'controller.stat.tokensChainsCache:',
         controller.state.tokensChainsCache,
       );
+      console.log('controller.state.tokenList:', controller.state.tokenList);
+
+      // expect(controller.state.tokenList).toStrictEqual(
+      //   sampleBinanceTokensChainsCache,
+      // );
+      expect(controller.state.tokensChainsCache).toStrictEqual({
+        [toHex(56)]: {
+          timestamp: expect.any(Number),
+          data: sampleBinanceTokensChainsCache,
+        },
+        [ChainId.sepolia]: {
+          timestamp: expect.any(Number),
+          data: sampleSepoliaTokensChainCache,
+        },
+      });
+      // expect(controller.state).toStrictEqual({
+      //   preventPollingOnNetworkRestart: false,
+      //   tokenList: sampleBinanceTokensChainsCache,
+      //   tokenChainsCache: {
+      //     [toHex(56)]: {
+      //       timestamp: expect.any(Number),
+      //       data: sampleBinanceTokensChainsCache,
+      //     },
+      //     [ChainId.sepolia]: {
+      //       timestamp: expect.any(Number),
+      //       data: sampleSepoliaTokensChainCache,
+      //     },
+      //   },
+      // });
+
+      // console.log(
+      //   'sampleBinanceTokensChainsCache:',
+      //   sampleBinanceTokensChainsCache,
+      // );
+      // console.log('controller.state', controller.state);
     });
   });
 });

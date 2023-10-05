@@ -285,6 +285,7 @@ export class TokenListController extends PollingController<
           });
           return;
         }
+        // TODO pull this out into a helper function
         // Filtering out tokens with less than 3 occurrences and native tokens
         const filteredTokenList = tokensFromAPI.filter(
           (token) =>
