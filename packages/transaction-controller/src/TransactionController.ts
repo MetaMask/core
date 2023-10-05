@@ -54,6 +54,8 @@ import type {
   SecurityProviderRequest,
   SendFlowHistoryEntry,
   WalletDevice,
+  AddTransactionToWatchList,
+  ShouldDisablePublish,
 } from './types';
 import { TransactionType, TransactionStatus } from './types';
 import {
@@ -200,6 +202,10 @@ export class TransactionController extends BaseController<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
+  private readonly addTransactionToWatchList?: AddTransactionToWatchList;
+
+  private readonly shouldDisablePublish: ShouldDisablePublish;
+
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
       ...transactionMeta,
@@ -235,12 +241,14 @@ export class TransactionController extends BaseController<
   sign?: (
     transaction: TypedTransaction,
     from: string,
+    transactionMeta?: TransactionMeta,
   ) => Promise<TypedTransaction>;
 
   /**
    * Creates a TransactionController instance.
    *
    * @param options - The controller options.
+   * @param options.addTransactionToWatchList - A function to add to watch list custodian transaction.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
@@ -258,11 +266,13 @@ export class TransactionController extends BaseController<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
+   * @param options.shouldDisablePublish - A function for verifying whether or not should skips publishing the transaction.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
+      addTransactionToWatchList,
       blockTracker,
       disableHistory,
       disableSendFlowHistory,
@@ -276,7 +286,9 @@ export class TransactionController extends BaseController<
       onNetworkStateChange,
       provider,
       securityProviderRequest,
+      shouldDisablePublish,
     }: {
+      addTransactionToWatchList?: AddTransactionToWatchList;
       blockTracker: BlockTracker;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
@@ -295,6 +307,7 @@ export class TransactionController extends BaseController<
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
+      shouldDisablePublish: ShouldDisablePublish;
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
@@ -327,6 +340,8 @@ export class TransactionController extends BaseController<
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
     this.securityProviderRequest = securityProviderRequest;
+    this.shouldDisablePublish = shouldDisablePublish;
+    this.addTransactionToWatchList = addTransactionToWatchList;
 
     this.nonceTracker = new NonceTracker({
       provider,
@@ -1295,8 +1310,32 @@ export class TransactionController extends BaseController<
         delete txParams.gasPrice;
       }
 
+      if (this.shouldDisablePublish(transactionMeta)) {
+        transactionMeta.status = TransactionStatus.approved;
+        this.updateTransaction(
+          transactionMeta,
+          'TransactionController#approveTransaction - Transaction approved',
+        );
+      }
+
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
-      const signedTx = await this.sign(unsignedEthTx, from);
+      const signedTx = await this.sign(
+        unsignedEthTx,
+        from,
+        this.shouldDisablePublish(transactionMeta)
+          ? transactionMeta
+          : undefined,
+      );
+      if (
+        this.shouldDisablePublish(transactionMeta, signedTx) &&
+        this.addTransactionToWatchList
+      ) {
+        await this.addTransactionToWatchList(
+          transactionMeta.custodyId,
+          txParams.from,
+        );
+        return;
+      }
       await this.updateTransactionMetaRSV(transactionMeta, signedTx);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(

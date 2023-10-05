@@ -1,3 +1,4 @@
+import type { TypedTransaction } from '@ethereumjs/tx';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -38,6 +39,16 @@ type TransactionMetaBase = {
    * Network code as per EIP-155 for this transaction.
    */
   chainId: Hex;
+
+  /**
+   * Unique ID for custodian transaction.
+   */
+  custodyId?: string;
+
+  /**
+   * Custodian transaction status.
+   */
+  custodyStatus?: string;
 
   /**
    * Gas values provided by the dApp.
@@ -604,9 +615,27 @@ export type InferTransactionTypeResult = {
 };
 
 /**
- * A function for verifying a transaction, whether it is malicious or not
+ * A function for verifying a transaction, whether it is malicious or not.
  */
 export type SecurityProviderRequest = (
   requestData: TransactionMeta,
   messageType: string,
 ) => Promise<any>;
+
+/**
+ * A function for verifying whether or not should skips publishing the transaction.
+ */
+export type ShouldDisablePublish = (
+  txMeta: TransactionMeta,
+  signedTx?: TypedTransaction,
+) => boolean;
+
+/**
+ * A function to add to watch list custodian transaction.
+ */
+export type AddTransactionToWatchList = (
+  custodianTransactionId: string | undefined,
+  from?: string,
+  bufferType?: string,
+  isSignedMessage?: boolean,
+) => Promise<void>;

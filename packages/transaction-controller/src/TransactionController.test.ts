@@ -474,6 +474,7 @@ describe('TransactionController', () => {
         messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
+        shouldDisablePublish: () => false,
         ...options,
       },
       {
