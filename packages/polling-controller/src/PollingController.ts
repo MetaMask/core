@@ -9,7 +9,7 @@ type Constructor = new (...args: any[]) => object;
 // get unique key for outer poll token
 // this is used to group networkClientId polls with the same options
 export const getKey = (networkClientId: NetworkClientId, options: any) =>
-  `${networkClientId}:${JSON.stringify(Object.values(options).sort())}`;
+  `${networkClientId}:${JSON.stringify(Object.entries(options).sort())}`;
 
 /**
  * PollingControllerMixin
@@ -126,7 +126,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      */
     abstract executePoll(
       networkClientId: NetworkClientId,
-      options: any,
+      options: object,
     ): Promise<void>;
 
     #poll(networkClientId: NetworkClientId, options: any) {
