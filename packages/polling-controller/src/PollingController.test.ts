@@ -225,11 +225,17 @@ describe('PollingController', () => {
         name: 'PollingController',
         state: { foo: 'bar' },
       });
-      controller.startPollingByNetworkClientId('mainnet', { address: '0x1' });
-      controller.startPollingByNetworkClientId('mainnet', { address: '0x1' });
+      const pollToken1 = controller.startPollingByNetworkClientId('mainnet', {
+        address: '0x1',
+      });
+      controller.startPollingByNetworkClientId('mainnet', { address: '0x2' });
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
-      expect(controller.executePoll).toHaveBeenCalledTimes(1);
+      expect(controller.executePoll).toHaveBeenCalledTimes(2);
+      controller.stopPollingByNetworkClientId(pollToken1);
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll).toHaveBeenCalledTimes(3);
     });
   });
   describe('multiple networkClientIds', () => {
