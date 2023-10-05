@@ -8,9 +8,12 @@ import {
   NetworkType,
   isSafeChainId,
 } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
+import EthQuery, { type Provider } from '@metamask/eth-query';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
-import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
+import type {
+  EventEmitterLike,
+  SwappableProxy,
+} from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 import {
   assertIsStrictHexString,
@@ -32,7 +35,6 @@ import { projectLogger, createModuleLogger } from './logger';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
-  Provider,
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
@@ -357,7 +359,9 @@ export type BlockTrackerProxy = SwappableProxy<
  * selected network can change without consumers needing to refresh the object
  * reference to that network.)
  */
-export type ProviderProxy = SwappableProxy<ProxyWithAccessibleTarget<Provider>>;
+export type ProviderProxy =
+  | SwappableProxy<ProxyWithAccessibleTarget<Provider>>
+  | SwappableProxy<EventEmitterLike>;
 
 export type NetworkControllerStateChangeEvent = {
   type: `NetworkController:stateChange`;

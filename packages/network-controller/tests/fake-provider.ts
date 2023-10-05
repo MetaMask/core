@@ -1,6 +1,8 @@
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider/dist/safe-event-emitter-provider';
-import type { JsonRpcRequest, JsonRpcResponse } from 'json-rpc-engine';
-import { JsonRpcEngine } from 'json-rpc-engine';
+import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { ProviderSendAsyncResponse } from '@metamask/eth-query';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { JsonRpcRequest } from '@metamask/utils';
+import type { JsonRpcResponse } from 'json-rpc-engine';
 import { inspect, isDeepStrictEqual } from 'util';
 
 // Store this in case it gets stubbed later
@@ -105,21 +107,30 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
   send = (
     payload: JsonRpcRequest<any>,
-    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
+    callback: (
+      error: unknown,
+      response?: JsonRpcResponse<unknown> | ProviderSendAsyncResponse<unknown>,
+    ) => void,
   ) => {
     return this.#handleSend(payload, callback);
   };
 
   sendAsync = (
-    payload: JsonRpcRequest<any>,
-    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
+    payload: JsonRpcRequest,
+    callback: (
+      error: unknown,
+      response: JsonRpcResponse<unknown> | ProviderSendAsyncResponse<unknown>,
+    ) => void,
   ) => {
     return this.#handleSend(payload, callback);
   };
 
   #handleSend(
-    payload: JsonRpcRequest<any>,
-    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
+    payload: JsonRpcRequest,
+    callback: (
+      error: unknown,
+      response: JsonRpcResponse<unknown> | ProviderSendAsyncResponse<unknown>,
+    ) => void,
   ) {
     if (Array.isArray(payload)) {
       throw new Error("Arrays aren't supported");
@@ -173,7 +184,10 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
   async #handleRequest(
     stub: FakeProviderStub,
-    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
+    callback: (
+      error: unknown,
+      response: JsonRpcResponse<unknown> | ProviderSendAsyncResponse<unknown>,
+    ) => void,
   ) {
     if (stub.beforeCompleting) {
       await stub.beforeCompleting();
@@ -199,7 +213,7 @@ export class FakeProvider extends SafeEventEmitterProvider {
         });
       }
     } else if ('error' in stub) {
-      return callback(stub.error);
+      return callback(stub.error, { result: undefined });
     }
 
     return undefined;

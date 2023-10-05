@@ -7,6 +7,7 @@ import {
   NetworkType,
   toHex,
 } from '@metamask/controller-utils';
+import type { Provider } from '@metamask/eth-query';
 import assert from 'assert';
 import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
@@ -27,10 +28,8 @@ import type {
   ProviderConfig,
 } from '../src/NetworkController';
 import { NetworkController } from '../src/NetworkController';
-import type { Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
-import type { FakeProviderStub } from './fake-provider';
-import { FakeProvider } from './fake-provider';
+import { FakeProvider, type FakeProviderStub } from './fake-provider';
 
 jest.mock('../src/create-network-client');
 
@@ -978,9 +977,10 @@ describe('NetworkController', () => {
                 provider,
               );
               const response1 = await promisifiedSendAsync1({
-                id: '1',
+                id: 1,
                 jsonrpc: '2.0',
                 method: 'test',
+                params: [],
               });
               expect(response1.result).toBe('test response 1');
 
@@ -989,9 +989,10 @@ describe('NetworkController', () => {
                 provider,
               );
               const response2 = await promisifiedSendAsync2({
-                id: '2',
+                id: 2,
                 jsonrpc: '2.0',
                 method: 'test',
+                params: [],
               });
               expect(response2.result).toBe('test response 2');
             },
@@ -1072,9 +1073,10 @@ describe('NetworkController', () => {
               provider,
             );
             const response1 = await promisifiedSendAsync1({
-              id: '1',
+              id: 1,
               jsonrpc: '2.0',
               method: 'test',
+              params: [],
             });
             expect(response1.result).toBe('test response 1');
 
@@ -1083,9 +1085,10 @@ describe('NetworkController', () => {
               provider,
             );
             const response2 = await promisifiedSendAsync2({
-              id: '2',
+              id: 2,
               jsonrpc: '2.0',
               method: 'test',
+              params: [],
             });
             expect(response2.result).toBe('test response 2');
           },
@@ -4948,9 +4951,10 @@ describe('NetworkController', () => {
                   provider,
                 );
                 const response = await promisifiedSendAsync({
-                  id: '1',
+                  id: 1,
                   jsonrpc: '2.0',
                   method: 'test',
+                  params: [],
                 });
                 expect(response.result).toBe('test response');
               },
@@ -5431,10 +5435,10 @@ describe('NetworkController', () => {
                 // We only care about the first state change, because it
                 // happens before networkDidChange
                 count: 1,
-                operation: () => {
+                operation: async () => {
                   // Intentionally not awaited because we want to check state
                   // while this operation is in-progress
-                  controller.rollbackToPreviousProvider();
+                  await controller.rollbackToPreviousProvider();
                 },
                 beforeResolving: () => {
                   expect(
@@ -5502,9 +5506,10 @@ describe('NetworkController', () => {
                 provider,
               );
               const response = await promisifiedSendAsync({
-                id: '1',
+                id: 1,
                 jsonrpc: '2.0',
                 method: 'test',
+                params: [],
               });
               expect(response.result).toBe('test response');
             },

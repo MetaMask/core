@@ -10,26 +10,23 @@ import {
   createFetchMiddleware,
   createRetryOnEmptyMiddleware,
 } from '@metamask/eth-json-rpc-middleware';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import {
+  type SafeEventEmitterProvider,
   providerFromEngine,
   providerFromMiddleware,
 } from '@metamask/eth-json-rpc-provider';
-import type { Hex } from '@metamask/utils';
-import { PollingBlockTracker } from 'eth-block-tracker';
+import type { Provider } from '@metamask/eth-query';
 import {
   createAsyncMiddleware,
   createScaffoldMiddleware,
   JsonRpcEngine,
   mergeMiddleware,
-} from 'json-rpc-engine';
-import type { JsonRpcMiddleware } from 'json-rpc-engine';
+} from '@metamask/json-rpc-engine';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
+import { PollingBlockTracker } from 'eth-block-tracker';
 
-import type {
-  BlockTracker,
-  NetworkClientConfiguration,
-  Provider,
-} from './types';
+import type { BlockTracker, NetworkClientConfiguration } from './types';
 import { NetworkClientType } from './types';
 
 const SECOND = 1000;
@@ -56,19 +53,21 @@ export function createNetworkClient(
 ): NetworkClient {
   const rpcApiMiddleware =
     networkConfig.type === NetworkClientType.Infura
-      ? createInfuraMiddleware({
+      ? createInfuraMiddleware<JsonRpcParams, Json>({
           network: networkConfig.network,
           projectId: networkConfig.infuraProjectId,
           maxAttempts: 5,
           source: 'metamask',
         })
-      : createFetchMiddleware({
+      : createFetchMiddleware<JsonRpcParams, Json>({
           btoa: global.btoa,
           fetch: global.fetch,
           rpcUrl: networkConfig.rpcUrl,
         });
 
-  const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
+  const rpcProvider = providerFromMiddleware<JsonRpcParams, Json>(
+    rpcApiMiddleware,
+  );
 
   const blockTrackerOpts =
     // eslint-disable-next-line n/no-process-env
@@ -82,13 +81,13 @@ export function createNetworkClient(
 
   const networkMiddleware =
     networkConfig.type === NetworkClientType.Infura
-      ? createInfuraNetworkMiddleware({
+      ? createInfuraNetworkMiddleware<JsonRpcParams, Json>({
           blockTracker,
           network: networkConfig.network,
           rpcProvider,
           rpcApiMiddleware,
         })
-      : createCustomNetworkMiddleware({
+      : createCustomNetworkMiddleware<JsonRpcParams, Json>({
           blockTracker,
           chainId: networkConfig.chainId,
           rpcApiMiddleware,
@@ -117,7 +116,10 @@ export function createNetworkClient(
  * @param args.rpcApiMiddleware - Additional middleware.
  * @returns The collection of middleware that makes up the Infura client.
  */
-function createInfuraNetworkMiddleware({
+function createInfuraNetworkMiddleware<
+  Params extends JsonRpcParams | unknown = JsonRpcParams,
+  Result extends Json[] | Record<string, Json> | unknown = unknown,
+>({
   blockTracker,
   network,
   rpcProvider,
@@ -126,7 +128,7 @@ function createInfuraNetworkMiddleware({
   blockTracker: PollingBlockTracker;
   network: InfuraNetworkType;
   rpcProvider: SafeEventEmitterProvider;
-  rpcApiMiddleware: JsonRpcMiddleware<unknown, unknown>;
+  rpcApiMiddleware: JsonRpcMiddleware<Params, Result>;
 }) {
   return mergeMiddleware([
     createNetworkAndChainIdMiddleware({ network }),
@@ -156,9 +158,9 @@ function createNetworkAndChainIdMiddleware({
   });
 }
 
-const createChainIdMiddleware = (
+const createChainIdMiddleware = <Params = unknown>(
   chainId: Hex,
-): JsonRpcMiddleware<unknown, unknown> => {
+): JsonRpcMiddleware<Params, `0x${string}`> => {
   return (req, res, next, end) => {
     if (req.method === 'eth_chainId') {
       res.result = chainId;
@@ -177,14 +179,17 @@ const createChainIdMiddleware = (
  * @param args.rpcApiMiddleware - Additional middleware.
  * @returns The collection of middleware that makes up the Infura client.
  */
-function createCustomNetworkMiddleware({
+function createCustomNetworkMiddleware<
+  Params extends JsonRpcParams | unknown = unknown,
+  Result extends Json[] | Record<string, Json> | unknown = unknown,
+>({
   blockTracker,
   chainId,
   rpcApiMiddleware,
 }: {
   blockTracker: PollingBlockTracker;
   chainId: Hex;
-  rpcApiMiddleware: any;
+  rpcApiMiddleware: JsonRpcMiddleware<Params, Result>;
 }) {
   // eslint-disable-next-line n/no-process-env
   const testMiddlewares = process.env.IN_TEST
