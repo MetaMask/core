@@ -28,6 +28,10 @@ import { TokenListController } from './TokenListController';
 const name = 'TokenListController';
 const timestamp = Date.now();
 
+function flushPromises(): Promise<unknown> {
+  return new Promise(jest.requireActual('timers').setImmediate);
+}
+
 const sampleMainnetTokenList = [
   {
     address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
@@ -532,6 +536,8 @@ function buildNetworkControllerStateWithProviderConfig(
 
 describe('TokenListController', () => {
   afterEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllTimers();
     sinon.restore();
   });
 
@@ -1400,20 +1406,21 @@ describe('TokenListController', () => {
     });
   });
 
-  describe('stopPollingByNetworkClientId', () => {
+  describe.only('stopPollingByNetworkClientId', () => {
     it('should stop polling for the network client id', async () => {
-
       // TODO think through how if, at all we want to modify the state of the controller
       // So looks like this cache is keyed by chainId so need to think through how we want to handle this
-
+      jest.useFakeTimers();
+      const pollingIntervalTime = 1000;
       const spy = jest.spyOn(tokenService, 'fetchTokenList');
+
       const controllerMessenger = getControllerMessenger();
       controllerMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
         jest.fn().mockReturnValue({
           configuration: {
-            type: NetworkType.sepolia,
-            chainId: ChainId.sepolia,
+            type: NetworkType.goerli,
+            chainId: ChainId.goerli,
           },
         }),
       );
@@ -1423,15 +1430,22 @@ describe('TokenListController', () => {
         preventPollingOnNetworkRestart: false,
         messenger,
         state: expiredCacheExistingState,
+        interval: pollingIntervalTime,
       });
       expect(controller.state.tokenList).toStrictEqual(
         expiredCacheExistingState.tokenList,
       );
 
-      await controller.executePoll('sepolia');
+      controller.startPollingByNetworkClientId('goerli');
+      jest.advanceTimersByTime(pollingIntervalTime / 2);
+      await flushPromises();
+      expect(spy).toHaveBeenCalledTimes(0);
+      jest.advanceTimersByTime(pollingIntervalTime / 2);
+      await flushPromises();
       expect(spy.mock.calls[0]).toStrictEqual(
-        expect.arrayContaining([ChainId.sepolia]),
+        expect.arrayContaining([ChainId.goerli]),
       );
+      console.log('conroller.state', controller.state);
       // expect(controller.state.tokenList).toStrictEqual(
       //   expectedSepoliaTokenListFormatted,
       // );

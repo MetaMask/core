@@ -51,6 +51,7 @@ export async function fetchTokenList(
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<unknown> {
+  console.log('fetchTokenList', chainId);
   const tokenURL = getTokensURL(chainId);
   const response = await queryApi(tokenURL, abortSignal, timeout);
   if (response) {

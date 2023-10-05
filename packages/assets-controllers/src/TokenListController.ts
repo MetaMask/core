@@ -254,7 +254,7 @@ export class TokenListController extends PollingController<
         networkClientId,
       );
     }
-
+    
     const chainId = networkClient?.configuration.chainId ?? this.chainId;
     const releaseLock = await this.mutex.acquire();
     try {
@@ -264,7 +264,7 @@ export class TokenListController extends PollingController<
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
       const cachedTokens: TokenListMap = await safelyExecute(() =>
-        this.fetchFromCache(),
+        this.#fetchFromCache(chainId),
       );
       if (cachedTokens) {
         // Use non-expired cached tokens
@@ -312,7 +312,7 @@ export class TokenListController extends PollingController<
             ...token,
             aggregators: formatAggregatorNames(token.aggregators),
             iconUrl: formatIconUrlWithProxy({
-              chainId: this.chainId,
+              chainId,
               tokenAddress: token.address,
             }),
           };
@@ -321,7 +321,7 @@ export class TokenListController extends PollingController<
       }
       const updatedTokensChainsCache: TokensChainsCache = {
         ...tokensChainsCache,
-        [this.chainId]: {
+        [chainId]: {
           timestamp: Date.now(),
           data: tokenList,
         },
@@ -342,12 +342,12 @@ export class TokenListController extends PollingController<
    * Checks if the Cache timestamp is valid,
    * if yes data in cache will be returned
    * otherwise null will be returned.
-   *
+   * @param chainId - The chain ID of the network for which to fetch the cache.
    * @returns The cached data, or `null` if the cache was expired.
    */
-  async fetchFromCache(): Promise<TokenListMap | null> {
+  async #fetchFromCache(chainId: Hex): Promise<TokenListMap | null> {
     const { tokensChainsCache }: TokenListState = this.state;
-    const dataCache = tokensChainsCache[this.chainId];
+    const dataCache = tokensChainsCache[chainId];
     const now = Date.now();
     if (
       dataCache?.data &&
