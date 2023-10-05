@@ -1,8 +1,5 @@
-import {
-  assertIsJsonRpcSuccess,
-  isJsonRpcSuccess,
-  JsonRpcRequest,
-} from '@metamask/utils';
+import type { JsonRpcRequest } from '@metamask/utils';
+import { assertIsJsonRpcSuccess, isJsonRpcSuccess } from '@metamask/utils';
 
 import { JsonRpcEngine } from '.';
 

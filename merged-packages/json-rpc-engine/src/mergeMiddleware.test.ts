@@ -1,8 +1,5 @@
-import {
-  assertIsJsonRpcSuccess,
-  hasProperty,
-  JsonRpcRequest,
-} from '@metamask/utils';
+import type { JsonRpcRequest } from '@metamask/utils';
+import { assertIsJsonRpcSuccess, hasProperty } from '@metamask/utils';
 
 import { JsonRpcEngine, mergeMiddleware } from '.';
 

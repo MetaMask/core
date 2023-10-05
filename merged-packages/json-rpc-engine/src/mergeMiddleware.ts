@@ -1,6 +1,7 @@
-import { Json, JsonRpcParams } from '@metamask/utils';
+import type { Json, JsonRpcParams } from '@metamask/utils';
 
-import { JsonRpcEngine, JsonRpcMiddleware } from './JsonRpcEngine';
+import type { JsonRpcMiddleware } from './JsonRpcEngine';
+import { JsonRpcEngine } from './JsonRpcEngine';
 
 /**
  * Takes a stack of middleware and joins them into a single middleware function.

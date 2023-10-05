@@ -1,12 +1,12 @@
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { JsonRpcParams, Json } from '@metamask/utils';
 import {
   assertIsJsonRpcSuccess,
   assertIsJsonRpcFailure,
-  JsonRpcParams,
-  Json,
 } from '@metamask/utils';
 
-import { JsonRpcEngine, createScaffoldMiddleware, JsonRpcMiddleware } from '.';
+import type { JsonRpcMiddleware } from '.';
+import { JsonRpcEngine, createScaffoldMiddleware } from '.';
 
 describe('createScaffoldMiddleware', () => {
   it('basic middleware test', async () => {

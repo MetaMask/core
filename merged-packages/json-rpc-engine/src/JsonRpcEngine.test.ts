@@ -1,14 +1,14 @@
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { JsonRpcParams, Json } from '@metamask/utils';
 import {
   assertIsJsonRpcSuccess,
   assertIsJsonRpcFailure,
   isJsonRpcFailure,
   isJsonRpcSuccess,
-  JsonRpcParams,
-  Json,
 } from '@metamask/utils';
 
-import { JsonRpcEngine, JsonRpcMiddleware } from '.';
+import type { JsonRpcMiddleware } from '.';
+import { JsonRpcEngine } from '.';
 
 const jsonrpc = '2.0' as const;
 

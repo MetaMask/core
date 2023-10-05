@@ -1,7 +1,7 @@
-import { Json, JsonRpcParams } from '@metamask/utils';
+import type { Json, JsonRpcParams } from '@metamask/utils';
 
 import { getUniqueId } from './getUniqueId';
-import { JsonRpcMiddleware } from './JsonRpcEngine';
+import type { JsonRpcMiddleware } from './JsonRpcEngine';
 
 /**
  * Returns a middleware function that overwrites the `id` property of each

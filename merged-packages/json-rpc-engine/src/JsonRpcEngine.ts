@@ -1,16 +1,15 @@
 import { errorCodes, JsonRpcError, serializeError } from '@metamask/rpc-errors';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import {
-  hasProperty,
+import type {
   JsonRpcError as SerializedJsonRpcError,
   JsonRpcRequest,
   JsonRpcResponse,
   JsonRpcNotification,
-  isJsonRpcRequest,
   Json,
   JsonRpcParams,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
+import { hasProperty, isJsonRpcRequest } from '@metamask/utils';
 
 export type JsonRpcEngineCallbackError = Error | SerializedJsonRpcError | null;
 
@@ -347,11 +346,11 @@ export class JsonRpcEngine extends SafeEventEmitter {
         // errors are unexpected and should be surfaced to the caller.
         if (error && res === undefined) {
           reject(error);
+        } else {
+          // Excepting notifications, there will always be a response, and it will
+          // always have any error that is caught and propagated.
+          resolve(res);
         }
-
-        // Excepting notifications, there will always be a response, and it will
-        // always have any error that is caught and propagated.
-        resolve(res);
       }).catch(reject);
     });
   }

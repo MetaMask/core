@@ -1,11 +1,11 @@
-import {
+import type {
   Json,
   JsonRpcParams,
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { JsonRpcMiddleware } from './JsonRpcEngine';
+import type { JsonRpcMiddleware } from './JsonRpcEngine';
 
 export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 
@@ -66,7 +66,6 @@ export function createAsyncMiddleware<
 
       // We pass a return handler to next(). When it is called by the engine,
       // the consumer's async middleware will resume executing.
-      // eslint-disable-next-line node/callback-return
       next((runReturnHandlersCallback) => {
         // This callback comes from JsonRpcEngine._runReturnHandlers
         returnHandlerCallback = runReturnHandlersCallback;
