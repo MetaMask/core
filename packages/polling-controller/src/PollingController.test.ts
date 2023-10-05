@@ -236,6 +236,11 @@ describe('PollingController', () => {
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(3);
+      expect(controller.executePoll.mock.calls).toMatchObject([
+        ['mainnet', { address: '0x1' }],
+        ['mainnet', { address: '0x2' }],
+        ['mainnet', { address: '0x2' }],
+      ]);
     });
   });
   describe('multiple networkClientIds', () => {

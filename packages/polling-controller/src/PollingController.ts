@@ -63,15 +63,15 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
     ) {
       const innerPollToken = random();
 
-      const outerPollToken = getKey(networkClientId, options);
+      const id = getKey(networkClientId, options);
 
-      if (this.#networkClientIdTokensMap.has(outerPollToken)) {
-        const set = this.#networkClientIdTokensMap.get(outerPollToken);
+      if (this.#networkClientIdTokensMap.has(id)) {
+        const set = this.#networkClientIdTokensMap.get(id);
         set?.add(innerPollToken);
       } else {
         const set = new Set<string>();
         set.add(innerPollToken);
-        this.#networkClientIdTokensMap.set(outerPollToken, set);
+        this.#networkClientIdTokensMap.set(id, set);
       }
       this.#poll(networkClientId, options);
       return innerPollToken;
