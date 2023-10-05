@@ -28,9 +28,9 @@ import { TokenListController } from './TokenListController';
 const name = 'TokenListController';
 const timestamp = Date.now();
 
-function flushPromises(): Promise<unknown> {
+const flushPromises = () => {
   return new Promise(jest.requireActual('timers').setImmediate);
-}
+};
 
 const sampleMainnetTokenList = [
   {
@@ -228,6 +228,15 @@ const sampleBinanceTokenList = [
       'https://static.metafi.codefi.network/api/v1/tokenIcons/56/0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3.png',
   },
 ];
+
+const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
+  (output, current) => {
+    output[current.address] = current;
+    return output;
+  },
+  {} as TokenListMap,
+);
+
 const sampleSingleChainState = {
   tokenList: {
     '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
@@ -304,13 +313,181 @@ const sampleSingleChainState = {
   },
 };
 
-const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
+const sampleSepoliaTokenList = [
+  {
+    address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+    symbol: 'WBTC',
+    decimals: 8,
+    name: 'Wrapped BTC',
+    iconUrl:
+      'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/wbtc.svg',
+    type: 'erc20',
+    aggregators: [
+      'metamask',
+      'aave',
+      'bancor',
+      'cmc',
+      'cryptocom',
+      'coinGecko',
+      'oneInch',
+      'pmm',
+      'sushiswap',
+      'zerion',
+      'lifi',
+      'openswap',
+      'sonarwatch',
+      'uniswapLabs',
+      'coinmarketcap',
+    ],
+    occurrences: 15,
+    fees: {},
+    storage: {
+      balance: 0,
+    },
+  },
+  {
+    address: '0x04fa0d235c4abf4bcf4787af4cf447de572ef828',
+    symbol: 'UMA',
+    decimals: 18,
+    name: 'UMA',
+    iconUrl:
+      'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/uma.svg',
+    type: 'erc20',
+    aggregators: [
+      'metamask',
+      'bancor',
+      'cmc',
+      'cryptocom',
+      'coinGecko',
+      'oneInch',
+      'pmm',
+      'sushiswap',
+      'zerion',
+      'openswap',
+      'sonarwatch',
+      'uniswapLabs',
+      'coinmarketcap',
+    ],
+    occurrences: 13,
+    fees: {},
+  },
+  {
+    address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
+    symbol: 'GNO',
+    decimals: 18,
+    name: 'Gnosis Token',
+    iconUrl:
+      'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/gnosis.svg',
+    type: 'erc20',
+    aggregators: [
+      'metamask',
+      'bancor',
+      'cmc',
+      'coinGecko',
+      'oneInch',
+      'sushiswap',
+      'zerion',
+      'lifi',
+      'openswap',
+      'sonarwatch',
+      'uniswapLabs',
+      'coinmarketcap',
+    ],
+    occurrences: 12,
+    fees: {},
+  },
+];
+
+const sampleSepoliaTokensChainCache = sampleSepoliaTokenList.reduce(
   (output, current) => {
     output[current.address] = current;
     return output;
   },
   {} as TokenListMap,
 );
+
+// const sampleSepoliaTokensChainCache = {
+//   '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': {
+//     address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+//     symbol: 'WBTC',
+//     decimals: 8,
+//     name: 'Wrapped BTC',
+//     iconUrl:
+//       'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x2260fac5e5542a773aa44fbcfedf7c193bc2c599.png',
+//     type: 'erc20',
+//     aggregators: [
+//       'Metamask',
+//       'Aave',
+//       'Bancor',
+//       'CMC',
+//       'Crypto.com',
+//       'CoinGecko',
+//       '1inch',
+//       'PMM',
+//       'Sushiswap',
+//       'Zerion',
+//       'Lifi',
+//       'Openswap',
+//       'Sonarwatch',
+//       'UniswapLabs',
+//       'Coinmarketcap',
+//     ],
+//     occurrences: 15,
+//     fees: {},
+//     storage: { balance: 0 },
+//   },
+//   '0x04fa0d235c4abf4bcf4787af4cf447de572ef828': {
+//     address: '0x04fa0d235c4abf4bcf4787af4cf447de572ef828',
+//     symbol: 'UMA',
+//     decimals: 18,
+//     name: 'UMA',
+//     iconUrl:
+//       'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x04fa0d235c4abf4bcf4787af4cf447de572ef828.png',
+//     type: 'erc20',
+//     aggregators: [
+//       'Metamask',
+//       'Bancor',
+//       'CMC',
+//       'Crypto.com',
+//       'CoinGecko',
+//       '1inch',
+//       'PMM',
+//       'Sushiswap',
+//       'Zerion',
+//       'Openswap',
+//       'Sonarwatch',
+//       'UniswapLabs',
+//       'Coinmarketcap',
+//     ],
+//     occurrences: 13,
+//     fees: {},
+//   },
+//   '0x6810e776880c02933d47db1b9fc05908e5386b96': {
+//     address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
+//     symbol: 'GNO',
+//     decimals: 18,
+//     name: 'Gnosis Token',
+//     iconUrl:
+//       'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x6810e776880c02933d47db1b9fc05908e5386b96.png',
+//     type: 'erc20',
+//     aggregators: [
+//       'Metamask',
+//       'Bancor',
+//       'CMC',
+//       'CoinGecko',
+//       '1inch',
+//       'Sushiswap',
+//       'Zerion',
+//       'Lifi',
+//       'Openswap',
+//       'Sonarwatch',
+//       'UniswapLabs',
+//       'Coinmarketcap',
+//     ],
+//     occurrences: 12,
+//     fees: {},
+//   },
+// };
 
 const sampleTwoChainState = {
   tokenList: {
@@ -1202,173 +1379,6 @@ describe('TokenListController', () => {
 
   describe('executePoll', () => {
     it('should call fetchTokenList with the correct chainId', async () => {
-      const sampleSepoliaTokenList = [
-        {
-          address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
-          symbol: 'WBTC',
-          decimals: 8,
-          name: 'Wrapped BTC',
-          iconUrl:
-            'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/wbtc.svg',
-          type: 'erc20',
-          aggregators: [
-            'metamask',
-            'aave',
-            'bancor',
-            'cmc',
-            'cryptocom',
-            'coinGecko',
-            'oneInch',
-            'pmm',
-            'sushiswap',
-            'zerion',
-            'lifi',
-            'openswap',
-            'sonarwatch',
-            'uniswapLabs',
-            'coinmarketcap',
-          ],
-          occurrences: 15,
-          fees: {},
-          storage: {
-            balance: 0,
-          },
-        },
-        {
-          address: '0x04fa0d235c4abf4bcf4787af4cf447de572ef828',
-          symbol: 'UMA',
-          decimals: 18,
-          name: 'UMA',
-          iconUrl:
-            'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/uma.svg',
-          type: 'erc20',
-          aggregators: [
-            'metamask',
-            'bancor',
-            'cmc',
-            'cryptocom',
-            'coinGecko',
-            'oneInch',
-            'pmm',
-            'sushiswap',
-            'zerion',
-            'openswap',
-            'sonarwatch',
-            'uniswapLabs',
-            'coinmarketcap',
-          ],
-          occurrences: 13,
-          fees: {},
-        },
-        {
-          address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
-          symbol: 'GNO',
-          decimals: 18,
-          name: 'Gnosis Token',
-          iconUrl:
-            'https://raw.githubusercontent.com/MetaMask/contract-metadata/master/images/gnosis.svg',
-          type: 'erc20',
-          aggregators: [
-            'metamask',
-            'bancor',
-            'cmc',
-            'coinGecko',
-            'oneInch',
-            'sushiswap',
-            'zerion',
-            'lifi',
-            'openswap',
-            'sonarwatch',
-            'uniswapLabs',
-            'coinmarketcap',
-          ],
-          occurrences: 12,
-          fees: {},
-        },
-      ];
-
-      const expectedSepoliaTokenListFormatted = {
-        '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': {
-          address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
-          symbol: 'WBTC',
-          decimals: 8,
-          name: 'Wrapped BTC',
-          iconUrl:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x2260fac5e5542a773aa44fbcfedf7c193bc2c599.png',
-          type: 'erc20',
-          aggregators: [
-            'Metamask',
-            'Aave',
-            'Bancor',
-            'CMC',
-            'Crypto.com',
-            'CoinGecko',
-            '1inch',
-            'PMM',
-            'Sushiswap',
-            'Zerion',
-            'Lifi',
-            'Openswap',
-            'Sonarwatch',
-            'UniswapLabs',
-            'Coinmarketcap',
-          ],
-          occurrences: 15,
-          fees: {},
-          storage: { balance: 0 },
-        },
-        '0x04fa0d235c4abf4bcf4787af4cf447de572ef828': {
-          address: '0x04fa0d235c4abf4bcf4787af4cf447de572ef828',
-          symbol: 'UMA',
-          decimals: 18,
-          name: 'UMA',
-          iconUrl:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x04fa0d235c4abf4bcf4787af4cf447de572ef828.png',
-          type: 'erc20',
-          aggregators: [
-            'Metamask',
-            'Bancor',
-            'CMC',
-            'Crypto.com',
-            'CoinGecko',
-            '1inch',
-            'PMM',
-            'Sushiswap',
-            'Zerion',
-            'Openswap',
-            'Sonarwatch',
-            'UniswapLabs',
-            'Coinmarketcap',
-          ],
-          occurrences: 13,
-          fees: {},
-        },
-        '0x6810e776880c02933d47db1b9fc05908e5386b96': {
-          address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
-          symbol: 'GNO',
-          decimals: 18,
-          name: 'Gnosis Token',
-          iconUrl:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x6810e776880c02933d47db1b9fc05908e5386b96.png',
-          type: 'erc20',
-          aggregators: [
-            'Metamask',
-            'Bancor',
-            'CMC',
-            'CoinGecko',
-            '1inch',
-            'Sushiswap',
-            'Zerion',
-            'Lifi',
-            'Openswap',
-            'Sonarwatch',
-            'UniswapLabs',
-            'Coinmarketcap',
-          ],
-          occurrences: 12,
-          fees: {},
-        },
-      };
       nock(tokenService.TOKEN_END_POINT_API)
         .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}`)
         .reply(200, sampleSepoliaTokenList)
@@ -1401,15 +1411,13 @@ describe('TokenListController', () => {
         expect.arrayContaining([ChainId.sepolia]),
       );
       expect(controller.state.tokenList).toStrictEqual(
-        expectedSepoliaTokenListFormatted,
+        sampleSepoliaTokensChainCache,
       );
     });
   });
 
-  describe.only('stopPollingByNetworkClientId', () => {
-    it('should stop polling for the network client id', async () => {
-      // TODO think through how if, at all we want to modify the state of the controller
-      // So looks like this cache is keyed by chainId so need to think through how we want to handle this
+  describe('startPollingByNetworkClient', () => {
+    it('should start polling against the token list API at the interval passed to the constructor', async () => {
       jest.useFakeTimers();
       const pollingIntervalTime = 1000;
       const spy = jest.spyOn(tokenService, 'fetchTokenList');
@@ -1442,13 +1450,115 @@ describe('TokenListController', () => {
       expect(spy).toHaveBeenCalledTimes(0);
       jest.advanceTimersByTime(pollingIntervalTime / 2);
       await flushPromises();
-      expect(spy.mock.calls[0]).toStrictEqual(
-        expect.arrayContaining([ChainId.goerli]),
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      await Promise.all([
+        jest.advanceTimersByTime(pollingIntervalTime),
+        flushPromises(),
+      ]);
+
+      await Promise.all([jest.runOnlyPendingTimers(), flushPromises()]);
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it.only('should update tokenList state and tokensChainsCache', async () => {
+      jest.useFakeTimers();
+      const startingState: TokenListState = {
+        tokenList: {},
+        tokensChainsCache: {},
+        preventPollingOnNetworkRestart: false,
+      };
+
+      jest
+        .spyOn(tokenService, 'fetchTokenList')
+        .mockImplementation(async (chainId) => {
+          switch (chainId) {
+            case ChainId.sepolia:
+              return sampleSepoliaTokenList;
+            case toHex(56):
+              return sampleBinanceTokenList;
+            default:
+              throw new Error('Invalid chainId');
+          }
+        });
+
+      const pollingIntervalTime = 1000;
+
+      const controllerMessenger = getControllerMessenger();
+      controllerMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn().mockImplementation((networkClientId) => {
+          switch (networkClientId) {
+            case 'sepolia':
+              return {
+                configuration: {
+                  type: NetworkType.sepolia,
+                  chainId: ChainId.sepolia,
+                },
+              };
+            case 'binance-network-client-id':
+              return {
+                configuration: {
+                  type: NetworkType.rpc,
+                  chainId: toHex(56),
+                },
+              };
+            default:
+              throw new Error('Invalid networkClientId');
+          }
+        }),
       );
-      console.log('conroller.state', controller.state);
-      // expect(controller.state.tokenList).toStrictEqual(
-      //   expectedSepoliaTokenListFormatted,
-      // );
+      const messenger = getRestrictedMessenger(controllerMessenger);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        preventPollingOnNetworkRestart: false,
+        messenger,
+        state: startingState,
+        interval: pollingIntervalTime,
+      });
+
+      expect(controller.state).toStrictEqual(startingState);
+
+      await controller.startPollingByNetworkClientId('sepolia');
+      // await Promise.all([
+      //   jest.advanceTimersByTime(pollingIntervalTime),
+      //   flushPromises(),
+      // ]);
+      jest.advanceTimersByTime(pollingIntervalTime);
+      await flushPromises();
+      await controller.startPollingByNetworkClientId(
+        'binance-network-client-id',
+      );
+
+      jest.advanceTimersByTime(pollingIntervalTime);
+      await flushPromises();
+      // jest.runOnlyPendingTimers();
+      // await flushPromises();
+      // await Promise.all([jest.runOnlyPendingTimers(), flushPromises()]);
+      expect(controller.state).toStrictEqual({
+        preventPollingOnNetworkRestart: false,
+        tokenList: sampleBinanceTokensChainsCache,
+        tokenChainsCache: {
+          [toHex(56)]: {
+            timestamp: expect.any(Number),
+            data: sampleBinanceTokensChainsCache,
+          },
+          [ChainId.sepolia]: {
+            timestamp: expect.any(Number),
+            data: sampleSepoliaTokensChainCache,
+          },
+        },
+      });
+
+      console.log(
+        'sampleBinanceTokensChainsCache:',
+        sampleBinanceTokensChainsCache,
+      );
+      console.log('controller.state', controller.state);
+      console.log(
+        'controller.stat.tokensChainsCache:',
+        controller.state.tokensChainsCache,
+      );
     });
   });
 });

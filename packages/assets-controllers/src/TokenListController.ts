@@ -254,7 +254,6 @@ export class TokenListController extends PollingController<
         networkClientId,
       );
     }
-    
     const chainId = networkClient?.configuration.chainId ?? this.chainId;
     const releaseLock = await this.mutex.acquire();
     try {
@@ -274,11 +273,9 @@ export class TokenListController extends PollingController<
         const tokensFromAPI: TokenListToken[] = await safelyExecute(() => {
           return fetchTokenList(chainId, this.abortController.signal);
         });
-
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
           tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };
-
           this.update(() => {
             return {
               ...this.state,
