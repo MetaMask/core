@@ -69,7 +69,7 @@ export function createNetworkClient(
         });
 
   // FIXME: types
-  const rpcProvider = providerFromMiddleware(rpcApiMiddleware as any);
+  const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
   const blockTrackerOpts =
     // eslint-disable-next-line n/no-process-env
@@ -79,7 +79,7 @@ export function createNetworkClient(
   const blockTracker = new PollingBlockTracker({
     ...blockTrackerOpts,
     // FIXME: types
-    provider: rpcProvider as any,
+    provider: rpcProvider,
   });
 
   const networkMiddleware =
@@ -88,11 +88,13 @@ export function createNetworkClient(
           blockTracker,
           network: networkConfig.network,
           rpcProvider,
+          // @ts-expect-error TODO: align middleware type
           rpcApiMiddleware,
         })
       : createCustomNetworkMiddleware({
           blockTracker,
           chainId: networkConfig.chainId,
+          // @ts-expect-error TODO: align middleware type
           rpcApiMiddleware,
         });
 
@@ -100,6 +102,7 @@ export function createNetworkClient(
 
   engine.push(networkMiddleware);
 
+  // @ts-expect-error TODO: align JsonRpcEngine type
   const provider = providerFromEngine(engine);
 
   const destroy = () => {
@@ -132,10 +135,15 @@ function createInfuraNetworkMiddleware({
 }) {
   return mergeMiddleware([
     createNetworkAndChainIdMiddleware({ network }),
+    // @ts-expect-error TODO: align middleware type
     createBlockCacheMiddleware({ blockTracker }),
+    // @ts-expect-error TODO: align middleware type
     createInflightCacheMiddleware(),
+    // @ts-expect-error TODO: align middleware type
     createBlockRefMiddleware({ blockTracker, provider: rpcProvider }),
+    // @ts-expect-error TODO: align middleware type
     createRetryOnEmptyMiddleware({ blockTracker, provider: rpcProvider }),
+    // @ts-expect-error TODO: align middleware type
     createBlockTrackerInspectorMiddleware({ blockTracker }),
     rpcApiMiddleware,
   ]);
@@ -186,7 +194,7 @@ function createCustomNetworkMiddleware({
 }: {
   blockTracker: PollingBlockTracker;
   chainId: Hex;
-  rpcApiMiddleware: any;
+  rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 }) {
   // eslint-disable-next-line n/no-process-env
   const testMiddlewares = process.env.IN_TEST
@@ -194,12 +202,19 @@ function createCustomNetworkMiddleware({
     : [];
 
   return mergeMiddleware([
+    // @ts-expect-error TODO: align middleware type
     ...testMiddlewares,
+    // @ts-expect-error TODO: align middleware type
     createChainIdMiddleware(chainId),
+    // @ts-expect-error TODO: align middleware type
     createBlockRefRewriteMiddleware({ blockTracker }),
+    // @ts-expect-error TODO: align middleware type
     createBlockCacheMiddleware({ blockTracker }),
+    // @ts-expect-error TODO: align middleware type
     createInflightCacheMiddleware(),
+    // @ts-expect-error TODO: align middleware type
     createBlockTrackerInspectorMiddleware({ blockTracker }),
+    // @ts-expect-error TODO: align middleware type
     rpcApiMiddleware,
   ]);
 }
