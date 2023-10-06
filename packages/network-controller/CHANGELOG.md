@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+### Added
+- Add `NetworkController:getEIP1559Compatibility` controller action ([#1673](https://github.com/MetaMask/core/pull/1673))
+
+### Changed
+- **BREAKING:** Rename `get1555CompatibilityWithNetworkClientId` to `get1559CompatibilityWithNetworkClientId` ([#1673](https://github.com/MetaMask/core/pull/1673))
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+
+### Fixed
+- Update linea goerli explorer url ([#1666](https://github.com/MetaMask/core/pull/1666))
+
 ## [13.0.1]
 ### Changed
 - Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
@@ -265,7 +278,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.1...@metamask/network-controller@14.0.0
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.0...@metamask/network-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.2.0...@metamask/network-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.2...@metamask/network-controller@12.2.0

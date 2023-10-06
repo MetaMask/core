@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+### Added
+- **BREAKING:** Add required `getPermittedAccounts` argument to constructor, used to validate `from` addresses ([#1722](https://github.com/MetaMask/core/pull/1722))
+- Add `securityProviderRequest` option to constructor ([#1725](https://github.com/MetaMask/core/pull/1725))
+- Add `method` option to `addTransaction` method ([#1725](https://github.com/MetaMask/core/pull/1725))
+- Add `securityProviderRequest` property to TransactionMetaBase ([#1725](https://github.com/MetaMask/core/pull/1725))
+- Add SecurityProviderRequest type ([#1725](https://github.com/MetaMask/core/pull/1725))
+- Update `addTransaction` to set `securityProviderRequest` on transaction metadata when requested to do so ([#1725](https://github.com/MetaMask/core/pull/1725))
+- Update `txParams` validation to validate `chainId` ([#1723](https://github.com/MetaMask/core/pull/1723))
+- Update `addTransaction` to ensure allowed `from` address when `origin` is specified ([#1722](https://github.com/MetaMask/core/pull/1722))
+
+### Changed
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
+
+### Removed
+- **BREAKING:** Remove `interval` config option ([#1746](https://github.com/MetaMask/core/pull/1746))
+  - The block tracker (which has its own interval) is now used to poll for pending transactions instead.
+- **BREAKING:** Remove `poll` method ([#1746](https://github.com/MetaMask/core/pull/1746))
+  - The block tracker is assumed to be running, TransactionController does not offer a way to stop it.
+- **BREAKING:** Remove `queryTransactionStatuses` method ([#1746](https://github.com/MetaMask/core/pull/1746))
+  - This functionality has been moved to a private interface and there is no way to use it externally.
+
 ## [13.0.0]
 ### Changed
 - **BREAKING**: Add required `getCurrentAccountEIP1559Compatibility`  and `getCurrentNetworkEIP1559Compatibility` callback arguments to constructor ([#1693](https://github.com/MetaMask/core/pull/1693))
@@ -211,7 +237,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@13.0.0...@metamask/transaction-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@12.0.0...@metamask/transaction-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.1.0...@metamask/transaction-controller@12.0.0
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@11.0.0...@metamask/transaction-controller@11.1.0
