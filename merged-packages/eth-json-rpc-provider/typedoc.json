@@ -2,5 +2,6 @@
   "entryPoints": ["./src/index.ts"],
   "excludePrivate": true,
   "hideGenerator": true,
-  "out": "docs"
+  "out": "docs",
+  "tsconfig": "./tsconfig.build.json"
 }
