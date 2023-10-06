@@ -1283,8 +1283,7 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   chainId:
                     BUILT_IN_NETWORKS[NetworkType['linea-goerli']].chainId,
-                  ticker:
-                    BUILT_IN_NETWORKS[NetworkType['linea-goerli']].ticker,
+                  ticker: BUILT_IN_NETWORKS[NetworkType['linea-goerli']].ticker,
                   network: InfuraNetworkType['linea-goerli'],
                 },
               ],
@@ -1403,8 +1402,7 @@ describe('NetworkController', () => {
                   infuraProjectId: 'some-infura-project-id',
                   chainId:
                     BUILT_IN_NETWORKS[NetworkType['linea-goerli']].chainId,
-                  ticker:
-                    BUILT_IN_NETWORKS[NetworkType['linea-goerli']].ticker,
+                  ticker: BUILT_IN_NETWORKS[NetworkType['linea-goerli']].ticker,
                   network: InfuraNetworkType['linea-goerli'],
                 },
               ],
@@ -1504,8 +1502,7 @@ describe('NetworkController', () => {
                     BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
                       .chainId,
                   ticker:
-                    BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']]
-                      .ticker,
+                    BUILT_IN_NETWORKS[InfuraNetworkType['linea-goerli']].ticker,
                   network: InfuraNetworkType['linea-goerli'],
                 },
               ],
@@ -1983,8 +1980,7 @@ describe('NetworkController', () => {
                     infuraProjectId: 'some-infura-project-id',
                     chainId:
                       BUILT_IN_NETWORKS[InfuraNetworkType.goerli].chainId,
-                    ticker:
-                      BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.goerli].ticker,
                     network: InfuraNetworkType.goerli,
                   },
                 ],
@@ -2022,8 +2018,7 @@ describe('NetworkController', () => {
                     type: NetworkClientType.Infura,
                     chainId:
                       BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].chainId,
-                    ticker:
-                      BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.mainnet].ticker,
                     infuraProjectId: 'some-infura-project-id',
                     network: InfuraNetworkType.mainnet,
                   },
@@ -2035,8 +2030,7 @@ describe('NetworkController', () => {
                     infuraProjectId: 'some-infura-project-id',
                     chainId:
                       BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].chainId,
-                    ticker:
-                      BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
+                    ticker: BUILT_IN_NETWORKS[InfuraNetworkType.sepolia].ticker,
                     network: InfuraNetworkType.sepolia,
                   },
                 ],
@@ -6179,7 +6173,7 @@ function refreshNetworkTests({
                 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
                 rpcUrl: controller.state.providerConfig.rpcUrl!,
                 type: NetworkClientType.Custom,
-                ticker:  controller.state.providerConfig.ticker
+                ticker: controller.state.providerConfig.ticker,
               }
             : {
                 network: controller.state.providerConfig.type,
