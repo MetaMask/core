@@ -46,7 +46,7 @@ const defaultTimeout = tenSecondsInMilliseconds;
  * @param options.timeout - The fetch timeout.
  * @returns The token list, or `undefined` if the request was cancelled.
  */
-export async function fetchTokenList(
+export async function fetchTokenListByChainId(
   chainId: Hex,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},

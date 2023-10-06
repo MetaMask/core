@@ -16,7 +16,7 @@ import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
 } from './assetsUtil';
-import { fetchTokenList } from './token-service';
+import { fetchTokenListByChainId } from './token-service';
 
 const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 24 * 60 * 60 * 1000;
@@ -271,7 +271,7 @@ export class TokenListController extends PollingController<
       } else {
         // Fetch fresh token list
         const tokensFromAPI: TokenListToken[] = await safelyExecute(() => {
-          return fetchTokenList(chainId, this.abortController.signal);
+          return fetchTokenListByChainId(chainId, this.abortController.signal);
         });
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens

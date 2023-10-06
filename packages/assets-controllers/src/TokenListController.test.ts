@@ -1295,13 +1295,16 @@ describe('TokenListController', () => {
   });
 
   describe('executePoll', () => {
-    it('should call fetchTokenList with the correct chainId', async () => {
+    it('should call fetchTokenListByChainId with the correct chainId', async () => {
       nock(tokenService.TOKEN_END_POINT_API)
         .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}`)
         .reply(200, sampleSepoliaTokenList)
         .persist();
 
-      const spy = jest.spyOn(tokenService, 'fetchTokenList');
+      const fetchTokenListByChainIdSpy = jest.spyOn(
+        tokenService,
+        'fetchTokenListByChainId',
+      );
       const controllerMessenger = getControllerMessenger();
       controllerMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
@@ -1324,7 +1327,7 @@ describe('TokenListController', () => {
       );
 
       await controller.executePoll('sepolia');
-      expect(spy.mock.calls[0]).toStrictEqual(
+      expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
       );
       expect(controller.state.tokenList).toStrictEqual(
@@ -1337,7 +1340,10 @@ describe('TokenListController', () => {
     it('should start polling against the token list API at the interval passed to the constructor', async () => {
       jest.useFakeTimers();
       const pollingIntervalTime = 1000;
-      const spy = jest.spyOn(tokenService, 'fetchTokenList');
+      const fetchTokenListByChainIdSpy = jest.spyOn(
+        tokenService,
+        'fetchTokenListByChainId',
+      );
 
       const controllerMessenger = getControllerMessenger();
       controllerMessenger.registerActionHandler(
@@ -1364,18 +1370,18 @@ describe('TokenListController', () => {
       controller.startPollingByNetworkClientId('goerli');
       jest.advanceTimersByTime(pollingIntervalTime / 2);
       await flushPromises();
-      expect(spy).toHaveBeenCalledTimes(0);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(0);
       jest.advanceTimersByTime(pollingIntervalTime / 2);
       await flushPromises();
 
-      expect(spy).toHaveBeenCalledTimes(1);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
       await Promise.all([
         jest.advanceTimersByTime(pollingIntervalTime),
         flushPromises(),
       ]);
 
       await Promise.all([jest.runOnlyPendingTimers(), flushPromises()]);
-      expect(spy).toHaveBeenCalledTimes(2);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
     });
 
     it('should update tokenList state and tokensChainsCache', async () => {
@@ -1386,8 +1392,8 @@ describe('TokenListController', () => {
         preventPollingOnNetworkRestart: false,
       };
 
-      const fetchTokenListSpy = jest
-        .spyOn(tokenService, 'fetchTokenList')
+      const fetchTokenListByChainIdSpy = jest
+        .spyOn(tokenService, 'fetchTokenListByChainId')
         .mockImplementation(async (chainId) => {
           switch (chainId) {
             case ChainId.sepolia:
@@ -1440,7 +1446,7 @@ describe('TokenListController', () => {
       jest.advanceTimersByTime(pollingIntervalTime);
       await flushPromises();
 
-      expect(fetchTokenListSpy).toHaveBeenCalledTimes(1);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
       // expect the state to be updated with the sepolia token list
       expect(controller.state.tokenList).toStrictEqual(
         sampleSepoliaTokensChainCache,
@@ -1458,9 +1464,9 @@ describe('TokenListController', () => {
       jest.advanceTimersByTime(pollingIntervalTime);
       await flushPromises();
 
-      // expect fetchTokenList to be called for binance, but not for sepolia
+      // expect fetchTokenListByChain to be called for binance, but not for sepolia
       // because the cache for the recently fetched sepolia token list is still valid
-      expect(fetchTokenListSpy).toHaveBeenCalledTimes(2);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
 
       // expect tokenList to be updated with the binance token list
       // and the cache to now contain both the binance token list and the sepolia token list
