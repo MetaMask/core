@@ -6,8 +6,12 @@ import { v4 as random } from 'uuid';
 // See TS2545
 type Constructor = new (...args: any[]) => object;
 
-// get unique key for outer poll token
-// this is used to group networkClientId polls with the same options
+/**
+ * Returns a unique key for a networkClientId and options. This is used to group networkClientId polls with the same options
+ * @param networkClientId - The networkClientId to get a key for
+ * @param options - The options used to group the polling events
+ * @returns The unique key
+ */
 export const getKey = (networkClientId: NetworkClientId, options: any) =>
   `${networkClientId}:${JSON.stringify(Object.entries(options).sort())}`;
 
