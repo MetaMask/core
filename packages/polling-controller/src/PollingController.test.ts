@@ -211,7 +211,7 @@ describe('PollingController', () => {
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(2);
     });
-    it('should poll for the same networkClientId and options', async () => {
+    it('should poll for the same networkClientId and different options', async () => {
       jest.useFakeTimers();
 
       class MyGasFeeController extends PollingController<any, any, any> {
