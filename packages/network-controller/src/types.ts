@@ -22,6 +22,7 @@ export enum NetworkClientType {
 export type CustomNetworkClientConfiguration = {
   chainId: Hex;
   rpcUrl: string;
+  ticker: string;
   type: NetworkClientType.Custom;
 };
 
@@ -33,6 +34,7 @@ export type InfuraNetworkClientConfiguration = {
   chainId: Hex;
   network: InfuraNetworkType;
   infuraProjectId: string;
+  ticker: string;
   type: NetworkClientType.Infura;
 };
 
