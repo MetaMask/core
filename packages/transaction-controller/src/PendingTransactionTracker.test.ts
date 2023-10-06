@@ -83,10 +83,28 @@ describe('PendingTransactionTracker', () => {
       expect(transactionsListener).toHaveBeenCalledWith([
         TRANSACTION_CONFIRMED_MOCK,
       ]);
+    });
+    it('updates transaction status to failed if transaction on chain with block number and a status of "0x0"', async () => {
+      const transactionsListener = jest.fn();
 
-      expect(confirmedListener).toHaveBeenCalledTimes(1);
-      expect(confirmedListener).toHaveBeenCalledWith(
-        TRANSACTION_CONFIRMED_MOCK,
+      const tracker = new PendingTransactionTracker({
+        ...options,
+        getTransactions: () => [{ ...TRANSACTION_SUBMITTED_MOCK }],
+      } as any);
+
+      tracker.hub.addListener('transactions', transactionsListener);
+      tracker.start();
+
+      queryMock
+        .mockResolvedValueOnce({ blockNumber: BLOCK_NUMBER_MOCK })
+        .mockResolvedValueOnce({ status: 0 });
+
+      await (blockTracker.addListener.mock.calls[0][1]() as any);
+
+      expect(failTransaction).toHaveBeenCalledTimes(1);
+      expect(failTransaction).toHaveBeenCalledWith(
+        TRANSACTION_SUBMITTED_MOCK,
+        new Error('Transaction failed. The transaction was reversed'),
       );
     });
 
