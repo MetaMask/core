@@ -161,12 +161,14 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       options: object = {},
     ) {
       const id = getKey(networkClientId, options);
-      if (this.#callbacks.has(id)) {
-        this.#callbacks.get(id)?.add(callback);
-      } else {
+      const callbacks = this.#callbacks.get(id);
+
+      if (callbacks === undefined) {
         const set = new Set<typeof callback>();
         set.add(callback);
         this.#callbacks.set(id, set);
+      } else {
+        callbacks.add(callback);
       }
     }
   }
