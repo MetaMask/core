@@ -39,7 +39,7 @@ type DataCache = {
   timestamp: number;
   data: TokenListMap;
 };
-type TokensChainsCache = {
+export type TokensChainsCache = {
   [chainId: Hex]: DataCache;
 };
 
@@ -247,6 +247,7 @@ export class TokenListController extends PollingController<
    * @param networkClientId - The ID of the network client triggering the fetch.
    */
   async fetchTokenList(networkClientId?: NetworkClientId): Promise<void> {
+    const releaseLock = await this.mutex.acquire();
     let networkClient;
     if (networkClientId) {
       networkClient = this.messagingSystem.call(
@@ -255,7 +256,6 @@ export class TokenListController extends PollingController<
       );
     }
     const chainId = networkClient?.configuration.chainId ?? this.chainId;
-    const releaseLock = await this.mutex.acquire();
     try {
       // TODO document somewhere that this cache system already gives us multichain support no need to modify state
       // other than perhaps remove the tokenList property from state and make the cache the default since there needn't be a single
@@ -285,7 +285,6 @@ export class TokenListController extends PollingController<
           });
           return;
         }
-        // TODO pull this out into a helper function
         // Filtering out tokens with less than 3 occurrences and native tokens
         const filteredTokenList = tokensFromAPI.filter(
           (token) =>
