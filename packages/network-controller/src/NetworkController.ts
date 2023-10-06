@@ -1189,7 +1189,7 @@ export class NetworkController extends BaseControllerV2<
           type: NetworkClientType.Custom,
           chainId,
           rpcUrl,
-          ticker
+          ticker,
         });
     }
 
@@ -1456,7 +1456,7 @@ export class NetworkController extends BaseControllerV2<
         chainId: providerConfig.chainId,
         rpcUrl: providerConfig.rpcUrl,
         type: NetworkClientType.Custom,
-        ticker: providerConfig.ticker
+        ticker: providerConfig.ticker,
       };
       return [
         [NetworkClientType.Custom, networkClientId, networkClientConfiguration],
