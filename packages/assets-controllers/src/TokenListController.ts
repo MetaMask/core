@@ -39,7 +39,7 @@ type DataCache = {
   timestamp: number;
   data: TokenListMap;
 };
-export type TokensChainsCache = {
+type TokensChainsCache = {
   [chainId: Hex]: DataCache;
 };
 
@@ -257,9 +257,6 @@ export class TokenListController extends PollingController<
     }
     const chainId = networkClient?.configuration.chainId ?? this.chainId;
     try {
-      // TODO document somewhere that this cache system already gives us multichain support no need to modify state
-      // other than perhaps remove the tokenList property from state and make the cache the default since there needn't be a single
-      // globally selected tokenList anymore
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
       const cachedTokens: TokenListMap = await safelyExecute(() =>
