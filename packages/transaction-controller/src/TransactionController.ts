@@ -982,9 +982,20 @@ export class TransactionController extends BaseController<
 
         /* istanbul ignore next */
         if (txObj?.blockNumber) {
-          meta.status = TransactionStatus.confirmed;
-          this.hub.emit(`${meta.id}:confirmed`, meta);
-          return [meta, true];
+          // transactions can be added to a block and still fail, so we need to check the transaction status before emitting the confirmed event
+          const txStatusFailed = await this.checkTxReceiptStatusIsFailed(
+            transactionHash,
+          );
+          if (txStatusFailed) {
+            const error = new Error(
+              'Transaction failed. The transaction was reversed',
+            );
+            this.failTransaction(meta, error);
+          } else {
+            meta.status = TransactionStatus.confirmed;
+            this.hub.emit(`${meta.id}:confirmed`, meta);
+            return [meta, true];
+          }
         }
 
         return [meta, false];
