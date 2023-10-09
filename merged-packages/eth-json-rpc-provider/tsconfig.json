@@ -1,16 +1,14 @@
 {
+  "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "esModuleInterop": true,
+    "baseUrl": "./",
+    "rootDir": "../..",
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["ES2020"],
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "noEmit": true,
     "noErrorTruncation": true,
     "noUncheckedIndexedAccess": true,
-    "strict": true,
     "target": "es2017"
   },
-  "exclude": ["./dist/**/*"]
+  "references": [],
+  "include": ["../../types", "../../tests", "./src", "./tests"]
 }
