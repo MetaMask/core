@@ -1326,11 +1326,12 @@ export class TransactionController extends BaseController<
           ? transactionMeta
           : undefined,
       );
-
+      // In certain cases, the responsibility to publish the transaction lies with the custodian
       if (
         this.shouldDisablePublish(transactionMeta, signedTx) &&
         this.addTransactionToWatchList
       ) {
+        // Add the transaction to the watch list for the custodian
         await this.addTransactionToWatchList(
           transactionMeta.custodyId,
           txParams.from,
