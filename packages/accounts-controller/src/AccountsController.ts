@@ -233,6 +233,12 @@ export class AccountsController extends BaseControllerV2<
     return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
   }
 
+  getAccountByAddress(address: string): InternalAccount | undefined {
+    return this.listAccounts().find(
+      (account) => account.address.toLowerCase() === address.toLowerCase(),
+    );
+  }
+
   /**
    * Sets the selected account by its ID.
    *

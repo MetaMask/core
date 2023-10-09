@@ -38,7 +38,6 @@
     "deepmerge": "^4.2.2",
     "ethereumjs-util": "^7.0.10",
     "immer": "^9.0.6",
-    "nanoid": "^3.1.31",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
