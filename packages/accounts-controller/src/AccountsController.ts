@@ -234,11 +234,9 @@ export class AccountsController extends BaseControllerV2<
   }
 
   getAccountByAddress(address: string): InternalAccount | undefined {
-    const internalAccount = this.listAccounts().find(
+    return this.listAccounts().find(
       (account) => account.address.toLowerCase() === address.toLowerCase(),
     );
-
-    return internalAccount;
   }
 
   /**
