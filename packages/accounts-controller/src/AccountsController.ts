@@ -14,6 +14,7 @@ import type {
   SnapControllerEvents,
   SnapControllerState,
 } from '@metamask/snaps-controllers';
+import type { Snap, ValidatedSnapId } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
 import type { Patch } from 'immer';
@@ -230,6 +231,14 @@ export class AccountsController extends BaseControllerV2<
    */
   getSelectedAccount(): InternalAccount {
     return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+  }
+
+  getAccountByAddress(address: string): InternalAccount | undefined {
+    const internalAccount = this.listAccounts().find(
+      (account) => account.address.toLowerCase() === address.toLowerCase(),
+    );
+
+    return internalAccount;
   }
 
   /**
@@ -512,9 +521,12 @@ export class AccountsController extends BaseControllerV2<
         const currentAccount =
           currentState.internalAccounts.accounts[account.id];
         if (currentAccount.metadata.snap) {
-          currentAccount.metadata.snap.enabled =
-            snaps[currentAccount.metadata.snap.id].enabled &&
-            !snaps[currentAccount.metadata.snap.id].blocked;
+          const snapId = currentAccount.metadata.snap.id;
+          const storedSnap: Snap = snaps[snapId as ValidatedSnapId];
+          if (storedSnap) {
+            currentAccount.metadata.snap.enabled =
+              storedSnap.enabled && !storedSnap.blocked;
+          }
         }
       });
     });
