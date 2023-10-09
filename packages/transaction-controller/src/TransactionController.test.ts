@@ -2435,4 +2435,39 @@ describe('TransactionController', () => {
       ]);
     });
   });
+
+  describe('with publish disabled', () => {
+    it('adds a transaction, signs and adds to watch list', async () => {
+      const controller = newController({
+        options: {
+          shouldDisablePublish: () => true,
+          addTransactionToWatchList: jest.fn(),
+        },
+      });
+      const signSpy = jest.spyOn(controller, 'sign' as any);
+      const addTransactionToWatchListSpy = jest.spyOn(
+        controller,
+        'addTransactionToWatchList' as any,
+      );
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          origin: 'origin',
+          actionId: ACTION_ID_MOCK,
+        },
+      );
+
+      approveTransaction();
+      await wait(0);
+
+      const transactionMeta = controller.state.transactions[0];
+      expect(signSpy).toHaveBeenCalledTimes(1);
+      expect(addTransactionToWatchListSpy).toHaveBeenCalledTimes(1);
+      expect(transactionMeta.status).toBe(TransactionStatus.approved);
+    });
+  });
 });

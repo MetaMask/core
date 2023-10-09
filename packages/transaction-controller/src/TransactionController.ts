@@ -1326,6 +1326,7 @@ export class TransactionController extends BaseController<
           ? transactionMeta
           : undefined,
       );
+
       if (
         this.shouldDisablePublish(transactionMeta, signedTx) &&
         this.addTransactionToWatchList
@@ -1336,6 +1337,7 @@ export class TransactionController extends BaseController<
         );
         return;
       }
+
       await this.updateTransactionMetaRSV(transactionMeta, signedTx);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(
