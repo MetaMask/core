@@ -186,8 +186,8 @@ function createCustomNetworkMiddleware({
 }: {
   blockTracker: PollingBlockTracker;
   chainId: Hex;
-  rpcApiMiddleware: any;
-}) {
+  rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
+}): JsonRpcMiddleware<JsonRpcParams, Json> {
   // eslint-disable-next-line n/no-process-env
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
