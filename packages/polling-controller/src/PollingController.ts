@@ -1,7 +1,7 @@
 import { BaseController, BaseControllerV2 } from '@metamask/base-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import { v4 as random } from 'uuid';
 import stringify from 'fast-json-stable-stringify';
+import { v4 as random } from 'uuid';
 
 // Mixin classes require a constructor with an `...any[]` parameter
 // See TS2545
