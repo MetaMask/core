@@ -1,6 +1,6 @@
-import { buildQueuedRequestControllerMessenger } from './utils';
 import type { QueuedRequestControllerOptions } from '../src';
 import { QueuedRequestController } from '../src';
+import { buildQueuedRequestControllerMessenger } from './utils';
 
 describe('QueuedRequestController', () => {
   it('can be instantiated with default values', () => {
