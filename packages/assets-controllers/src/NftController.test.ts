@@ -427,7 +427,7 @@ describe('NftController', () => {
       expect(callActionSpy).toHaveBeenCalledTimes(0);
     });
 
-    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled', async function () {
+    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled and IPFS gateway enabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
         .reply(
@@ -444,7 +444,62 @@ describe('NftController', () => {
           .mockImplementation(() => 'https://testtokenuri.com'),
         getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
+      preferences.setIsIpfsGatewayEnabled(true);
       preferences.setOpenSeaEnabled(false);
+
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://test-dapp.com',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC721_NFT,
+              description: null,
+              image: null,
+              name: null,
+              standard: ERC721,
+            },
+          },
+        },
+        true,
+      );
+
+      clock.restore();
+    });
+
+    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled and IPFS gateway enabled', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC721Image',
+            name: 'testERC721Name',
+            description: 'testERC721Description',
+          }),
+        );
+      const { nftController, messenger, preferences } = setupController({
+        getERC721TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'https://testtokenuri.com'),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+      });
+      preferences.setIsIpfsGatewayEnabled(true);
+      preferences.setOpenSeaEnabled(true);
 
       const requestId = 'approval-request-id-1';
 
@@ -480,6 +535,114 @@ describe('NftController', () => {
       clock.restore();
     });
 
+    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled and IPFS gateway disabled', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC721Image',
+            name: 'testERC721Name',
+            description: 'testERC721Description',
+          }),
+        );
+      const { nftController, messenger, preferences } = setupController({
+        getERC721TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'ipfs://testtokenuri.com'),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+      });
+      preferences.setIsIpfsGatewayEnabled(false);
+      preferences.setOpenSeaEnabled(false);
+
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://test-dapp.com',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC721_NFT,
+              description: null,
+              image: null,
+              name: null,
+              standard: ERC721,
+            },
+          },
+        },
+        true,
+      );
+
+      clock.restore();
+    });
+
+    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled and IPFS gateway disabled', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC721Image',
+            name: 'testERC721Name',
+            description: 'testERC721Description',
+          }),
+        );
+      const { nftController, messenger, preferences } = setupController({
+        getERC721TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'ipfs://testtokenuri.com'),
+        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+      });
+      preferences.setIsIpfsGatewayEnabled(false);
+      preferences.setOpenSeaEnabled(true);
+
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://test-dapp.com',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC721_NFT,
+              description: null,
+              image: null,
+              name: null,
+              standard: ERC721,
+            },
+          },
+        },
+        true,
+      );
+
+      clock.restore();
+    });
+
     it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API disabled', async function () {
       nock('https://testtokenuri.com')
         .get('/')
@@ -499,6 +662,65 @@ describe('NftController', () => {
         getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
       });
       preferences.setOpenSeaEnabled(false);
+      preferences.setIsIpfsGatewayEnabled(true);
+      const requestId = 'approval-request-id-1';
+
+      const clock = sinon.useFakeTimers(1);
+
+      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
+
+      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+
+      await nftController.watchNft(
+        ERC1155_NFT,
+        ERC1155,
+        'https://etherscan.io',
+      );
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+        {
+          id: requestId,
+          origin: 'https://etherscan.io',
+          type: ApprovalType.WatchAsset,
+          requestData: {
+            id: requestId,
+            interactingAddress: OWNER_ADDRESS,
+            asset: {
+              ...ERC1155_NFT,
+              description: null,
+              image: null,
+              name: null,
+              standard: ERC1155,
+            },
+          },
+        },
+        true,
+      );
+
+      clock.restore();
+    });
+
+    it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API enabled', async function () {
+      nock('https://testtokenuri.com')
+        .get('/')
+        .reply(
+          200,
+          JSON.stringify({
+            image: 'testERC1155Image',
+            name: 'testERC1155Name',
+            description: 'testERC1155Description',
+          }),
+        );
+
+      const { nftController, messenger, preferences } = setupController({
+        getERC1155TokenURIStub: jest
+          .fn()
+          .mockImplementation(() => 'https://testtokenuri.com'),
+        getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
+      });
+      preferences.setOpenSeaEnabled(true);
+      preferences.setIsIpfsGatewayEnabled(true);
       const requestId = 'approval-request-id-1';
 
       const clock = sinon.useFakeTimers(1);
@@ -627,135 +849,6 @@ describe('NftController', () => {
           ],
         },
       });
-
-      clock.restore();
-    });
-
-    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled', async function () {
-      nock(OPENSEA_PROXY_URL)
-        .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
-        .reply(200, {
-          description: 'description (from opensea)',
-          symbol: 'KDO',
-          total_supply: 10,
-          collection: {
-            name: 'name (from opensea)',
-            image_url: 'logo (from opensea)',
-          },
-        })
-        .get(`/asset/${ERC721_NFT_ADDRESS}/${ERC721_NFT_ID}`)
-        .reply(200, {
-          image_url: 'image (directly from opensea)',
-          name: 'name (directly from opensea)',
-          description: 'description (directly from opensea)',
-          asset_contract: {
-            schema_name: 'ERC721',
-          },
-        });
-
-      const { nftController, messenger, preferences } = setupController({
-        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
-      });
-      preferences.setOpenSeaEnabled(true);
-
-      const requestId = 'approval-request-id-1';
-
-      const clock = sinon.useFakeTimers(1);
-
-      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
-
-      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: requestId,
-          origin: 'https://test-dapp.com',
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress: OWNER_ADDRESS,
-            asset: {
-              ...ERC721_NFT,
-              description: 'description (directly from opensea)',
-              image: 'image (directly from opensea)',
-              name: 'name (directly from opensea)',
-              standard: ERC721,
-            },
-          },
-        },
-        true,
-      );
-
-      clock.restore();
-    });
-
-    it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API enabled', async function () {
-      const ALT_ERC1155_NFT = {
-        address: '0x0000000000000000000000000000000000000000',
-        tokenId: '99999',
-      };
-
-      nock(OPENSEA_PROXY_URL)
-        .get(`/asset_contract/${ALT_ERC1155_NFT.address}`)
-        .reply(200, {
-          description: 'description (from opensea)',
-          symbol: 'KDO',
-          total_supply: 10,
-          collection: {
-            name: 'name (from opensea)',
-            image_url: 'logo (from opensea)',
-          },
-        })
-        .get(`/asset/${ALT_ERC1155_NFT.address}/${ALT_ERC1155_NFT.tokenId}`)
-        .reply(200, {
-          image_url: 'image (directly from opensea)',
-          name: 'name (directly from opensea)',
-          description: 'description (directly from opensea)',
-          asset_contract: {
-            schema_name: 'ERC1155',
-          },
-        });
-      const { nftController, messenger, preferences } = setupController({
-        getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
-      });
-      preferences.setOpenSeaEnabled(true);
-      const requestId = 'approval-request-id-1';
-
-      const clock = sinon.useFakeTimers(1);
-
-      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
-
-      await nftController.watchNft(
-        ALT_ERC1155_NFT,
-        ERC1155,
-        'https://test-dapp.com',
-      );
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: requestId,
-          origin: 'https://test-dapp.com',
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress: OWNER_ADDRESS,
-            asset: {
-              ...ALT_ERC1155_NFT,
-              description: 'description (directly from opensea)',
-              image: 'image (directly from opensea)',
-              name: 'name (directly from opensea)',
-              standard: ERC1155,
-            },
-          },
-        },
-        true,
-      );
 
       clock.restore();
     });
