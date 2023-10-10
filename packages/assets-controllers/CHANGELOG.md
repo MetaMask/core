@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.1.0]
+
 ## [13.0.0]
 ### Changed
 - **BREAKING**: `TokensController` now expects `getNetworkClientById` in constructor options ([#1676](https://github.com/MetaMask/core/pull/1676))
@@ -271,26 +273,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@13.0.0...HEAD
-[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@12.0.0...@metamask/assets-controllers@13.0.0
-[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.1.0...@metamask/assets-controllers@12.0.0
-[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.1...@metamask/assets-controllers@11.1.0
-[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.0...@metamask/assets-controllers@11.0.1
-[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@10.0.0...@metamask/assets-controllers@11.0.0
-[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.2.0...@metamask/assets-controllers@10.0.0
-[9.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.1.0...@metamask/assets-controllers@9.2.0
-[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.0.0...@metamask/assets-controllers@9.1.0
-[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@8.0.0...@metamask/assets-controllers@9.0.0
-[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@7.0.0...@metamask/assets-controllers@8.0.0
-[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@6.0.0...@metamask/assets-controllers@7.0.0
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@5.1.0...@metamask/assets-controllers@6.0.0
-[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@5.0.1...@metamask/assets-controllers@5.1.0
-[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@5.0.0...@metamask/assets-controllers@5.0.1
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@4.0.1...@metamask/assets-controllers@5.0.0
-[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@4.0.0...@metamask/assets-controllers@4.0.1
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@3.0.1...@metamask/assets-controllers@4.0.0
-[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@3.0.0...@metamask/assets-controllers@3.0.1
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/assets-controllers@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@13.1.0...HEAD
+[13.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@13.0.0...@metamask/assets-controllers@13.1.0
+[13.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@12.0.0...@metamask/assets-controllers@13.0.0
+[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@11.1.0...@metamask/assets-controllers@12.0.0
+[11.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@11.0.1...@metamask/assets-controllers@11.1.0
+[11.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@11.0.0...@metamask/assets-controllers@11.0.1
+[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@10.0.0...@metamask/assets-controllers@11.0.0
+[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@9.2.0...@metamask/assets-controllers@10.0.0
+[9.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@9.1.0...@metamask/assets-controllers@9.2.0
+[9.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@9.0.0...@metamask/assets-controllers@9.1.0
+[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@8.0.0...@metamask/assets-controllers@9.0.0
+[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@7.0.0...@metamask/assets-controllers@8.0.0
+[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@6.0.0...@metamask/assets-controllers@7.0.0
+[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@5.1.0...@metamask/assets-controllers@6.0.0
+[5.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@5.0.1...@metamask/assets-controllers@5.1.0
+[5.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@5.0.0...@metamask/assets-controllers@5.0.1
+[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@4.0.1...@metamask/assets-controllers@5.0.0
+[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@4.0.0...@metamask/assets-controllers@4.0.1
+[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@3.0.1...@metamask/assets-controllers@4.0.0
+[3.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@3.0.0...@metamask/assets-controllers@3.0.1
+[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
+[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
+[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/assets-controllers@1.0.0
