@@ -316,8 +316,7 @@ export class TransactionController extends BaseController<
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
-    // TODO: Provider type alignment
-    this.ethQuery = new EthQuery(provider as any);
+    this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.registry = new MethodRegistry({ provider });
@@ -390,8 +389,7 @@ export class TransactionController extends BaseController<
     );
 
     onNetworkStateChange(() => {
-      // TODO: Provider type alignment
-      this.ethQuery = new EthQuery(this.provider as any);
+      this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
 
