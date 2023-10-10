@@ -1,6 +1,7 @@
 import { BaseController, BaseControllerV2 } from '@metamask/base-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { v4 as random } from 'uuid';
+import stringify from 'fast-json-stable-stringify';
 
 // Mixin classes require a constructor with an `...any[]` parameter
 // See TS2545
@@ -13,7 +14,7 @@ type Constructor = new (...args: any[]) => object;
  * @returns The unique key
  */
 export const getKey = (networkClientId: NetworkClientId, options: any) =>
-  `${networkClientId}:${JSON.stringify(Object.entries(options).sort())}`;
+  `${networkClientId}:${stringify(options)}`;
 
 /**
  * PollingControllerMixin
