@@ -69,9 +69,9 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
 
       const id = getKey(networkClientId, options);
 
-      if (this.#networkClientIdTokensMap.has(id)) {
-        const set = this.#networkClientIdTokensMap.get(id);
-        set?.add(innerPollToken);
+      const innerPollTokenSet = this.#networkClientIdTokensMap.get(id);
+      if (innerPollTokenSet) {
+        innerPollTokenSet.add(innerPollToken);
       } else {
         const set = new Set<string>();
         set.add(innerPollToken);
@@ -105,8 +105,8 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       this.#networkClientIdTokensMap.forEach((tokens, id) => {
         if (tokens.has(pollingToken)) {
           found = true;
-          this.#networkClientIdTokensMap.get(id)?.delete(pollingToken);
-          if (this.#networkClientIdTokensMap.get(id)?.size === 0) {
+          tokens.delete(pollingToken);
+          if (tokens.size === 0) {
             clearTimeout(this.#intervalIds[id]);
             delete this.#intervalIds[id];
             this.#networkClientIdTokensMap.delete(id);

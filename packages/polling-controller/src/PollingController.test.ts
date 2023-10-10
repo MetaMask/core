@@ -211,7 +211,7 @@ describe('PollingController', () => {
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(2);
     });
-    it('should poll for the same networkClientId and different options', async () => {
+    it('should start and stop poll for the same networkClientId and different options', async () => {
       jest.useFakeTimers();
 
       class MyGasFeeController extends PollingController<any, any, any> {
@@ -229,17 +229,20 @@ describe('PollingController', () => {
         address: '0x1',
       });
       controller.startPollingByNetworkClientId('mainnet', { address: '0x2' });
-      jest.advanceTimersByTime(TICK_TIME);
-      await Promise.resolve();
-      expect(controller.executePoll).toHaveBeenCalledTimes(2);
-      controller.stopPollingByNetworkClientId(pollToken1);
+      controller.startPollingByNetworkClientId('sepolia', { address: '0x2' });
       jest.advanceTimersByTime(TICK_TIME);
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(3);
+      controller.stopPollingByNetworkClientId(pollToken1);
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller.executePoll).toHaveBeenCalledTimes(5);
       expect(controller.executePoll.mock.calls).toMatchObject([
         ['mainnet', { address: '0x1' }],
         ['mainnet', { address: '0x2' }],
+        ['sepolia', { address: '0x2' }],
         ['mainnet', { address: '0x2' }],
+        ['sepolia', { address: '0x2' }],
       ]);
     });
   });
