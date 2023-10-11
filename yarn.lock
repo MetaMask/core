@@ -2165,6 +2165,7 @@ __metadata:
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
     deepmerge: ^4.2.2
+    fast-json-stable-stringify: ^2.1.0
     jest: ^27.5.1
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
