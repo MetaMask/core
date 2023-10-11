@@ -1306,9 +1306,9 @@ __metadata:
     immer: ^9.0.6
     jest: ^27.5.1
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/keyring-controller": ^8.0.2
@@ -1338,9 +1338,9 @@ __metadata:
     deepmerge: ^4.2.2
     jest: ^27.5.1
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -1376,9 +1376,9 @@ __metadata:
     nanoid: ^3.1.31
     sinon: ^9.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -1468,9 +1468,9 @@ __metadata:
     jest: ^27.5.1
     sinon: ^9.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -1493,9 +1493,9 @@ __metadata:
     jest: ^27.5.1
     sinon: ^9.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -1523,9 +1523,9 @@ __metadata:
     jest: ^27.5.1
     nock: ^13.3.1
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -1603,9 +1603,9 @@ __metadata:
     jest: ^27.5.1
     punycode: ^2.1.1
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   peerDependencies:
     "@metamask/network-controller": ^14.0.0
   languageName: unknown
@@ -1832,9 +1832,9 @@ __metadata:
     nock: ^13.3.1
     sinon: ^9.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/network-controller": ^14.0.0
@@ -1921,9 +1921,9 @@ __metadata:
     jest: ^27.5.1
     sinon: ^9.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/preferences-controller": ^4.4.2
@@ -1941,9 +1941,9 @@ __metadata:
     deepmerge: ^4.2.2
     jest: ^27.5.1
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
     uuid: ^8.3.2
   languageName: unknown
   linkType: soft
@@ -1964,9 +1964,9 @@ __metadata:
     jest: ^27.5.1
     jsonschema: ^1.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
     uuid: ^8.3.2
   languageName: unknown
   linkType: soft
@@ -1991,9 +1991,9 @@ __metadata:
     immer: ^9.0.6
     jest: ^27.5.1
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -2122,9 +2122,9 @@ __metadata:
     jest: ^27.5.1
     nanoid: ^3.1.31
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   peerDependencies:
     "@metamask/approval-controller": ^4.0.0
   languageName: unknown
@@ -2146,9 +2146,9 @@ __metadata:
     punycode: ^2.1.1
     sinon: ^9.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -2166,9 +2166,9 @@ __metadata:
     deepmerge: ^4.2.2
     jest: ^27.5.1
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/network-controller": ^14.0.0
@@ -2196,9 +2196,9 @@ __metadata:
     deepmerge: ^4.2.2
     jest: ^27.5.1
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -2302,9 +2302,9 @@ __metadata:
     immer: ^9.0.6
     jest: ^27.5.1
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
@@ -2440,9 +2440,9 @@ __metadata:
     jest: ^27.5.1
     lodash: ^4.17.21
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   peerDependencies:
     "@metamask/approval-controller": ^4.0.0
     "@metamask/logging-controller": ^1.0.3
@@ -2672,9 +2672,9 @@ __metadata:
     nonce-tracker: ^1.1.0
     sinon: ^9.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": ^4.0.0
@@ -3638,6 +3638,13 @@ __metadata:
   version: 6.0.1
   resolution: "ansi-regex@npm:6.0.1"
   checksum: 1ff8b7667cded1de4fa2c9ae283e979fc87036864317da86a2e546725f96406746411d0d85e87a2d12fa5abd715d90006de7fa4fa0477c92321ad3b4c7d4e169
+  languageName: node
+  linkType: hard
+
+"ansi-sequence-parser@npm:^1.1.0":
+  version: 1.1.1
+  resolution: "ansi-sequence-parser@npm:1.1.1"
+  checksum: ead5b15c596e8e85ca02951a844366c6776769dcc9fd1bd3a0db11bb21364554822c6a439877fb599e7e1ffa0b5f039f1e5501423950457f3dcb2f480c30b188
   languageName: node
   linkType: hard
 
@@ -7733,7 +7740,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsonc-parser@npm:^3.0.0":
+"jsonc-parser@npm:^3.0.0, jsonc-parser@npm:^3.2.0":
   version: 3.2.0
   resolution: "jsonc-parser@npm:3.2.0"
   checksum: 946dd9a5f326b745aa326d48a7257e3f4a4b62c5e98ec8e49fa2bdd8d96cef7e6febf1399f5c7016114fd1f68a1c62c6138826d5d90bc650448e3cf0951c53c7
@@ -7937,7 +7944,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"marked@npm:^4.0.16":
+"marked@npm:^4.0.16, marked@npm:^4.3.0":
   version: 4.3.0
   resolution: "marked@npm:4.3.0"
   bin:
@@ -8050,7 +8057,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^9.0.1":
+"minimatch@npm:^9.0.0, minimatch@npm:^9.0.1":
   version: 9.0.3
   resolution: "minimatch@npm:9.0.3"
   dependencies:
@@ -9340,6 +9347,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"shiki@npm:^0.14.1":
+  version: 0.14.5
+  resolution: "shiki@npm:0.14.5"
+  dependencies:
+    ansi-sequence-parser: ^1.1.0
+    jsonc-parser: ^3.2.0
+    vscode-oniguruma: ^1.7.0
+    vscode-textmate: ^8.0.0
+  checksum: 41d847817cfc9bb6d8bf190316896698d250303656546446659cc02caed8dcc171b10cd113bb5da82425b51d0032e87aafcdc36c3dd61dadc123170b438da736
+  languageName: node
+  linkType: hard
+
 "side-channel@npm:^1.0.4":
   version: 1.0.4
   resolution: "side-channel@npm:1.0.4"
@@ -10141,6 +10160,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typedoc-plugin-missing-exports@npm:^2.0.0":
+  version: 2.1.0
+  resolution: "typedoc-plugin-missing-exports@npm:2.1.0"
+  peerDependencies:
+    typedoc: 0.24.x || 0.25.x
+  checksum: cb9b324c28a68a4ba621f4e3c15ce3b43f75826bdcb09a073aa51c770bbca47b687eb1c0462ba22a09a316573e29c4f9c4f75763b51f8354cce42989dfa68231
+  languageName: node
+  linkType: hard
+
 "typedoc@npm:^0.22.15":
   version: 0.22.18
   resolution: "typedoc@npm:0.22.18"
@@ -10158,6 +10186,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typedoc@npm:^0.24.8":
+  version: 0.24.8
+  resolution: "typedoc@npm:0.24.8"
+  dependencies:
+    lunr: ^2.3.9
+    marked: ^4.3.0
+    minimatch: ^9.0.0
+    shiki: ^0.14.1
+  peerDependencies:
+    typescript: 4.6.x || 4.7.x || 4.8.x || 4.9.x || 5.0.x || 5.1.x
+  bin:
+    typedoc: bin/typedoc
+  checksum: a46a14497f789fb3594e6c3af2e45276934ac46df40b7ed15a504ee51dc7a8013a2ffb3a54fd73abca6a2b71f97d3ec9ad356fa9aa81d29743e4645a965a2ae0
+  languageName: node
+  linkType: hard
+
 "typescript@npm:~4.6.3":
   version: 4.6.4
   resolution: "typescript@npm:4.6.4"
@@ -10168,6 +10212,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:~4.8.4":
+  version: 4.8.4
+  resolution: "typescript@npm:4.8.4"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 3e4f061658e0c8f36c820802fa809e0fd812b85687a9a2f5430bc3d0368e37d1c9605c3ce9b39df9a05af2ece67b1d844f9f6ea8ff42819f13bcb80f85629af0
+  languageName: node
+  linkType: hard
+
 "typescript@patch:typescript@~4.6.3#~builtin<compat/typescript>":
   version: 4.6.4
   resolution: "typescript@patch:typescript@npm%3A4.6.4#~builtin<compat/typescript>::version=4.6.4&hash=5d3a66"
@@ -10175,6 +10229,16 @@ __metadata:
     tsc: bin/tsc
     tsserver: bin/tsserver
   checksum: 1cb434fbc637d347be90e3a0c6cd05e33c38f941713c8786d3031faf1842c2c148ba91d2fac01e7276b0ae3249b8633f1660e32686cc7a8c6a8fd5361dc52c66
+  languageName: node
+  linkType: hard
+
+"typescript@patch:typescript@~4.8.4#~builtin<compat/typescript>":
+  version: 4.8.4
+  resolution: "typescript@patch:typescript@npm%3A4.8.4#~builtin<compat/typescript>::version=4.8.4&hash=0102e9"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 301459fc3eb3b1a38fe91bf96d98eb55da88a9cb17b4ef80b4d105d620f4d547ba776cc27b44cc2ef58b66eda23fe0a74142feb5e79a6fb99f54fc018a696afa
   languageName: node
   linkType: hard
 
@@ -10336,7 +10400,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vscode-oniguruma@npm:^1.6.1":
+"vscode-oniguruma@npm:^1.6.1, vscode-oniguruma@npm:^1.7.0":
   version: 1.7.0
   resolution: "vscode-oniguruma@npm:1.7.0"
   checksum: 53519d91d90593e6fb080260892e87d447e9b200c4964d766772b5053f5699066539d92100f77f1302c91e8fc5d9c772fbe40fe4c90f3d411a96d5a9b1e63f42
@@ -10347,6 +10411,13 @@ __metadata:
   version: 5.2.0
   resolution: "vscode-textmate@npm:5.2.0"
   checksum: 5449b42d451080f6f3649b66948f4b5ee4643c4e88cfe3558a3b31c84c78060cfdd288c4958c1690eaa5cd65d09992fa6b7c3bef9d4aa72b3651054a04624d20
+  languageName: node
+  linkType: hard
+
+"vscode-textmate@npm:^8.0.0":
+  version: 8.0.0
+  resolution: "vscode-textmate@npm:8.0.0"
+  checksum: 127780dfea89559d70b8326df6ec344cfd701312dd7f3f591a718693812b7852c30b6715e3cfc8b3200a4e2515b4c96f0843c0eacc0a3020969b5de262c2a4bb
   languageName: node
   linkType: hard
 
