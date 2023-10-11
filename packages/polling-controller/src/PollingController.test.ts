@@ -211,7 +211,7 @@ describe('PollingController', () => {
       await Promise.resolve();
       expect(controller.executePoll).toHaveBeenCalledTimes(2);
     });
-    it('should start and stop poll for the same networkClientId and different options', async () => {
+    it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
       jest.useFakeTimers();
 
       class MyGasFeeController extends PollingController<any, any, any> {
