@@ -548,7 +548,7 @@ export class GasFeeController extends PollingController<
     }, this.intervalDelay);
   }
 
-  async executePoll(networkClientId: string): Promise<void> {
+  async _executePoll(networkClientId: string): Promise<void> {
     await this.#fetchGasFeeEstimateForNetworkClientId(networkClientId);
   }
 

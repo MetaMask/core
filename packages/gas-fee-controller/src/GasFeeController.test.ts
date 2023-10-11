@@ -868,7 +868,7 @@ describe('GasFeeController', () => {
       });
     });
   });
-  describe('executePoll', () => {
+  describe('_executePoll', () => {
     it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
       await setupGasFeeController({
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
@@ -896,8 +896,8 @@ describe('GasFeeController', () => {
         clientId: '99999',
       });
 
-      await gasFeeController.executePoll('mainnet');
-      await gasFeeController.executePoll('sepolia');
+      await gasFeeController._executePoll('mainnet');
+      await gasFeeController._executePoll('sepolia');
 
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -918,7 +918,7 @@ describe('GasFeeController', () => {
   });
 
   describe('polling (by networkClientId)', () => {
-    it('should call determineGasFeeCalculations (via executePoll) with a URL that contains the chain ID after the interval passed via the constructor', async () => {
+    it('should call determineGasFeeCalculations (via _executePoll) with a URL that contains the chain ID after the interval passed via the constructor', async () => {
       const pollingInterval = 10000;
       await setupGasFeeController({
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),

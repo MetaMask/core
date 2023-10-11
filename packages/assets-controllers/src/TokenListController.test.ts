@@ -1294,7 +1294,7 @@ describe('TokenListController', () => {
     });
   });
 
-  describe('executePoll', () => {
+  describe('_executePoll', () => {
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
       nock(tokenService.TOKEN_END_POINT_API)
         .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}`)
@@ -1326,7 +1326,7 @@ describe('TokenListController', () => {
         expiredCacheExistingState.tokenList,
       );
 
-      await controller.executePoll('sepolia');
+      await controller._executePoll('sepolia');
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
       );
