@@ -7,8 +7,8 @@ import {
   NetworkType,
   toHex,
 } from '@metamask/controller-utils';
+import { rpcErrors } from '@metamask/rpc-errors';
 import assert from 'assert';
-import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 import { when, resetAllWhenMocks } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
@@ -27,7 +27,7 @@ import type {
   ProviderConfig,
 } from '../src/NetworkController';
 import { NetworkController } from '../src/NetworkController';
-import type { Provider } from '../src/types';
+import type { BlockTracker, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
 import type { FakeProviderStub } from './fake-provider';
 import { FakeProvider } from './fake-provider';
@@ -128,7 +128,7 @@ const SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE = {
 /**
  * A response object for a request that has been geoblocked by Infura.
  */
-const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
+const BLOCKED_INFURA_JSON_RPC_ERROR = rpcErrors.internal(
   JSON.stringify({ error: 'countryBlocked' }),
 );
 
@@ -136,7 +136,7 @@ const BLOCKED_INFURA_JSON_RPC_ERROR = ethErrors.rpc.internal(
  * A response object for a unsuccessful request to any RPC method. It is assumed
  * that the error here is insignificant to the test.
  */
-const GENERIC_JSON_RPC_ERROR = ethErrors.rpc.internal(
+const GENERIC_JSON_RPC_ERROR = rpcErrors.internal(
   JSON.stringify({ error: 'oops' }),
 );
 
@@ -5106,7 +5106,7 @@ describe('NetworkController', () => {
                       request: {
                         method: 'eth_getBlockByNumber',
                       },
-                      error: ethErrors.rpc.methodNotFound(),
+                      error: rpcErrors.methodNotFound(),
                     },
                   ]),
                   buildFakeProvider([
@@ -5622,7 +5622,7 @@ describe('NetworkController', () => {
                     request: {
                       method: 'eth_getBlockByNumber',
                     },
-                    error: ethErrors.rpc.methodNotFound(),
+                    error: rpcErrors.methodNotFound(),
                   },
                 ]),
                 buildFakeProvider([
@@ -6250,7 +6250,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.limitExceeded('some error'),
+                error: rpcErrors.limitExceeded('some error'),
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6291,7 +6291,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.limitExceeded('some error'),
+                error: rpcErrors.limitExceeded('some error'),
               },
             ],
           });
@@ -6326,7 +6326,7 @@ function lookupNetworkTests({
                     method: 'eth_getBlockByNumber',
                     params: ['latest', false],
                   },
-                  error: ethErrors.rpc.limitExceeded('some error'),
+                  error: rpcErrors.limitExceeded('some error'),
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6358,7 +6358,7 @@ function lookupNetworkTests({
                     method: 'eth_getBlockByNumber',
                     params: ['latest', false],
                   },
-                  error: ethErrors.rpc.limitExceeded('some error'),
+                  error: rpcErrors.limitExceeded('some error'),
                 },
               ],
               stubLookupNetworkWhileSetting: true,
@@ -6392,7 +6392,7 @@ function lookupNetworkTests({
                   method: 'eth_getBlockByNumber',
                   params: ['latest', false],
                 },
-                error: ethErrors.rpc.limitExceeded('some error'),
+                error: rpcErrors.limitExceeded('some error'),
               },
             ],
             stubLookupNetworkWhileSetting: true,
@@ -6957,7 +6957,7 @@ function buildFakeClient(
       rpcUrl: 'https://test.network',
     },
     provider,
-    blockTracker: new FakeBlockTracker(),
+    blockTracker: new FakeBlockTracker() as BlockTracker,
     destroy: () => {
       // do nothing
     },
