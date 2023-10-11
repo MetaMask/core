@@ -35,6 +35,10 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
   [SupportedTokenDetectionNetworks.aurora]:
     '0x1286415D333855237f89Df27D388127181448538',
+  [SupportedTokenDetectionNetworks.linea_goerli]:
+    '0x10dAd7Ca3921471f616db788D9300DC97Db01783',
+  [SupportedTokenDetectionNetworks.linea_mainnet]:
+    '0xF62e6a41561b3650a69Bb03199C735e3E3328c0D',
 };
 
 export const MISSING_PROVIDER_ERROR =

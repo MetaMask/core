@@ -1511,5 +1511,40 @@ describe('AccountsController', () => {
         expect(accountsController.updateAccounts).toHaveBeenCalledWith();
       });
     });
+
+    describe('getAccountByAddress', () => {
+      it('should return an account by address', async () => {
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+        });
+
+        const account = accountsController.getAccountByAddress(
+          mockAccount.address,
+        );
+
+        expect(account).toStrictEqual(mockAccount);
+      });
+
+      it("should return undefined if there isn't an account with the address", () => {
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+        });
+
+        const account =
+          accountsController.getAccountByAddress('unknown address');
+
+        expect(account).toBeUndefined();
+      });
+    });
   });
 });
