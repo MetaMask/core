@@ -34,7 +34,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
    *
    */
   abstract class PollingControllerBase extends Base {
-    readonly #pollingGroupIds: Map<PollingGroupId, Set<string>> = new Map();
+    readonly #pollingTokenSets: Map<PollingGroupId, Set<string>> = new Map();
 
     readonly #intervalIds: Record<PollingGroupId, NodeJS.Timeout> = {};
 
@@ -69,28 +69,28 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       networkClientId: NetworkClientId,
       options: Json = {},
     ) {
-      const innerPollToken = random();
+      const pollToken = random();
 
       const key = getKey(networkClientId, options);
 
-      const pollingGroupId = this.#pollingGroupIds.get(key);
-      if (pollingGroupId) {
-        pollingGroupId.add(innerPollToken);
+      const pollingTokenSet = this.#pollingTokenSets.get(key);
+      if (pollingTokenSet) {
+        pollingTokenSet.add(pollToken);
       } else {
         const set = new Set<string>();
-        set.add(innerPollToken);
-        this.#pollingGroupIds.set(key, set);
+        set.add(pollToken);
+        this.#pollingTokenSets.set(key, set);
       }
       this.#poll(networkClientId, options);
-      return innerPollToken;
+      return pollToken;
     }
 
     /**
      * Stops polling for all networkClientIds
      */
     stopAllPolling() {
-      this.#pollingGroupIds.forEach((tokens, _networkClientId) => {
-        tokens.forEach((token) => {
+      this.#pollingTokenSets.forEach((tokenSet, _networkClientId) => {
+        tokenSet.forEach((token) => {
           this.stopPollingByNetworkClientId(token);
         });
       });
@@ -106,14 +106,14 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
         throw new Error('pollingToken required');
       }
       let found = false;
-      this.#pollingGroupIds.forEach((tokens, key) => {
-        if (tokens.has(pollingToken)) {
+      this.#pollingTokenSets.forEach((tokenSet, key) => {
+        if (tokenSet.has(pollingToken)) {
           found = true;
-          tokens.delete(pollingToken);
-          if (tokens.size === 0) {
+          tokenSet.delete(pollingToken);
+          if (tokenSet.size === 0) {
             clearTimeout(this.#intervalIds[key]);
             delete this.#intervalIds[key];
-            this.#pollingGroupIds.delete(key);
+            this.#pollingTokenSets.delete(key);
             this.#callbacks.get(key)?.forEach((callback) => {
               callback(key);
             });
