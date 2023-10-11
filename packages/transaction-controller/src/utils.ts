@@ -1,26 +1,21 @@
+import { convertHexToDecimal } from '@metamask/controller-utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
-import {
-  NetworkType,
-  convertHexToDecimal,
-  handleFetch,
-  isValidHexAddress,
-} from '@metamask/controller-utils';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
-import {
-  Transaction,
-  FetchAllOptions,
+
+import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
-  TransactionStatus,
 } from './TransactionController';
-import type { TransactionMeta } from './TransactionController';
+import { TransactionStatus } from './types';
+import type { TransactionParams, TransactionMeta } from './types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
-const NORMALIZERS: { [param in keyof Transaction]: any } = {
+const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
   data: (data: string) => addHexPrefix(data),
   from: (from: string) => addHexPrefix(from).toLowerCase(),
   gas: (gas: string) => addHexPrefix(gas),
+  gasLimit: (gas: string) => addHexPrefix(gas),
   gasPrice: (gasPrice: string) => addHexPrefix(gasPrice),
   nonce: (nonce: string) => addHexPrefix(nonce),
   to: (to: string) => addHexPrefix(to).toLowerCase(),
@@ -30,187 +25,40 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
     addHexPrefix(maxPriorityFeePerGas),
   estimatedBaseFee: (maxPriorityFeePerGas: string) =>
     addHexPrefix(maxPriorityFeePerGas),
+  type: (type: string) => (type === '0x0' ? '0x0' : undefined),
 };
 
 /**
- * Return a URL that can be used to fetch ETH transactions.
+ * Normalizes properties on transaction params.
  *
- * @param networkType - Network type of desired network.
- * @param urlParams - The parameters used to construct the URL.
- * @returns URL to fetch the access the endpoint.
+ * @param txParams - The transaction params to normalize.
+ * @returns Normalized transaction params.
  */
-export function getEtherscanApiUrl(
-  networkType: string,
-  urlParams: any,
-): string {
-  let etherscanSubdomain = 'api';
-  if (networkType !== NetworkType.mainnet) {
-    etherscanSubdomain = `api-${networkType}`;
-  }
-  const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
-  let url = `${apiUrl}/api?`;
-
-  for (const paramKey in urlParams) {
-    if (urlParams[paramKey]) {
-      url += `${paramKey}=${urlParams[paramKey]}&`;
-    }
-  }
-  url += 'tag=latest&page=1';
-  return url;
-}
-
-/**
- * Normalizes properties on a Transaction object.
- *
- * @param transaction - Transaction object to normalize.
- * @returns Normalized Transaction object.
- */
-export function normalizeTransaction(transaction: Transaction) {
-  const normalizedTransaction: Transaction = { from: '' };
-  let key: keyof Transaction;
+export function normalizeTxParams(txParams: TransactionParams) {
+  const normalizedTxParams: TransactionParams = { from: '' };
+  let key: keyof TransactionParams;
   for (key in NORMALIZERS) {
-    if (transaction[key as keyof Transaction]) {
-      normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
+    if (txParams[key as keyof TransactionParams]) {
+      normalizedTxParams[key] = NORMALIZERS[key](txParams[key]) as never;
     }
   }
-  return normalizedTransaction;
-}
-
-/**
- * Validates a Transaction object for required properties and throws in
- * the event of any validation error.
- *
- * @param transaction - Transaction object to validate.
- */
-export function validateTransaction(transaction: Transaction) {
-  if (
-    !transaction.from ||
-    typeof transaction.from !== 'string' ||
-    !isValidHexAddress(transaction.from)
-  ) {
-    throw new Error(
-      `Invalid "from" address: ${transaction.from} must be a valid string.`,
-    );
-  }
-
-  if (transaction.to === '0x' || transaction.to === undefined) {
-    if (transaction.data) {
-      delete transaction.to;
-    } else {
-      throw new Error(
-        `Invalid "to" address: ${transaction.to} must be a valid string.`,
-      );
-    }
-  } else if (
-    transaction.to !== undefined &&
-    !isValidHexAddress(transaction.to)
-  ) {
-    throw new Error(
-      `Invalid "to" address: ${transaction.to} must be a valid string.`,
-    );
-  }
-
-  if (transaction.value !== undefined) {
-    const value = transaction.value.toString();
-    if (value.includes('-')) {
-      throw new Error(`Invalid "value": ${value} is not a positive number.`);
-    }
-
-    if (value.includes('.')) {
-      throw new Error(
-        `Invalid "value": ${value} number must be denominated in wei.`,
-      );
-    }
-    const intValue = parseInt(transaction.value, 10);
-    const isValid =
-      Number.isFinite(intValue) &&
-      !Number.isNaN(intValue) &&
-      !isNaN(Number(value)) &&
-      Number.isSafeInteger(intValue);
-    if (!isValid) {
-      throw new Error(
-        `Invalid "value": ${value} number must be a valid number.`,
-      );
-    }
-  }
+  return normalizedTxParams;
 }
 
 /**
  * Checks if a transaction is EIP-1559 by checking for the existence of
  * maxFeePerGas and maxPriorityFeePerGas within its parameters.
  *
- * @param transaction - Transaction object to add.
+ * @param txParams - Transaction params object to add.
  * @returns Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false.
  */
-export const isEIP1559Transaction = (transaction: Transaction): boolean => {
-  const hasOwnProp = (obj: Transaction, key: string) =>
+export function isEIP1559Transaction(txParams: TransactionParams): boolean {
+  const hasOwnProp = (obj: TransactionParams, key: string) =>
     Object.prototype.hasOwnProperty.call(obj, key);
   return (
-    hasOwnProp(transaction, 'maxFeePerGas') &&
-    hasOwnProp(transaction, 'maxPriorityFeePerGas')
+    hasOwnProp(txParams, 'maxFeePerGas') &&
+    hasOwnProp(txParams, 'maxPriorityFeePerGas')
   );
-};
-
-/**
- * Handles the fetch of incoming transactions.
- *
- * @param networkType - Network type of desired network.
- * @param address - Address to get the transactions from.
- * @param txHistoryLimit - The maximum number of transactions to fetch.
- * @param opt - Object that can contain fromBlock and Etherscan service API key.
- * @returns Responses for both ETH and ERC20 token transactions.
- */
-export async function handleTransactionFetch(
-  networkType: string,
-  address: string,
-  txHistoryLimit: number,
-  opt?: FetchAllOptions,
-): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
-  // transactions
-  const urlParams = {
-    module: 'account',
-    address,
-    startBlock: opt?.fromBlock,
-    apikey: opt?.etherscanApiKey,
-    offset: txHistoryLimit.toString(),
-    order: 'desc',
-  };
-  const etherscanTxUrl = getEtherscanApiUrl(networkType, {
-    ...urlParams,
-    action: 'txlist',
-  });
-  const etherscanTxResponsePromise = handleFetch(etherscanTxUrl);
-
-  // tokens
-  const etherscanTokenUrl = getEtherscanApiUrl(networkType, {
-    ...urlParams,
-    action: 'tokentx',
-  });
-  const etherscanTokenResponsePromise = handleFetch(etherscanTokenUrl);
-
-  let [etherscanTxResponse, etherscanTokenResponse] = await Promise.all([
-    etherscanTxResponsePromise,
-    etherscanTokenResponsePromise,
-  ]);
-
-  if (
-    etherscanTxResponse.status === '0' ||
-    etherscanTxResponse.result.length <= 0
-  ) {
-    etherscanTxResponse = { status: etherscanTxResponse.status, result: [] };
-  }
-
-  if (
-    etherscanTokenResponse.status === '0' ||
-    etherscanTokenResponse.result.length <= 0
-  ) {
-    etherscanTokenResponse = {
-      status: etherscanTokenResponse.status,
-      result: [],
-    };
-  }
-
-  return [etherscanTxResponse, etherscanTokenResponse];
 }
 
 export const validateGasValues = (
@@ -280,11 +128,11 @@ export function getAndFormatTransactionsForNonceTracker(
 ): NonceTrackerTransaction[] {
   return transactions
     .filter(
-      ({ status, transaction: { from } }) =>
+      ({ status, txParams: { from } }) =>
         status === transactionStatus &&
         from.toLowerCase() === fromAddress.toLowerCase(),
     )
-    .map(({ status, transaction: { from, gas, value, nonce } }) => {
+    .map(({ status, txParams: { from, gas, value, nonce } }) => {
       // the only value we care about is the nonce
       // but we need to return the other values to satisfy the type
       // TODO: refactor nonceTracker to not require this
@@ -299,4 +147,23 @@ export function getAndFormatTransactionsForNonceTracker(
         },
       };
     });
+}
+
+/**
+ * Validates that a transaction is unapproved.
+ * Throws if the transaction is not unapproved.
+ *
+ * @param transactionMeta - The transaction metadata to check.
+ * @param fnName - The name of the function calling this helper.
+ */
+export function validateIfTransactionUnapproved(
+  transactionMeta: TransactionMeta | undefined,
+  fnName: string,
+) {
+  if (transactionMeta?.status !== TransactionStatus.unapproved) {
+    throw new Error(
+      `Can only call ${fnName} on an unapproved transaction.
+      Current tx status: ${transactionMeta?.status}`,
+    );
+  }
 }

@@ -1,3 +1,5 @@
+import { toHex } from '@metamask/controller-utils';
+
 import { AddressBookController, AddressType } from './AddressBookController';
 
 describe('AddressBookController', () => {
@@ -12,10 +14,10 @@ describe('AddressBookController', () => {
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: '',
             name: 'foo',
@@ -31,17 +33,17 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      '1',
+      toHex(1),
       'account 1',
       AddressType.externallyOwnedAccounts,
     );
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: 'account 1',
             name: 'foo',
@@ -57,17 +59,17 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      '1',
+      toHex(1),
       'account 1',
       AddressType.contractAccounts,
     );
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: 'account 1',
             name: 'foo',
@@ -83,17 +85,17 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      '1',
+      toHex(1),
       'account 1',
       AddressType.nonAccounts,
     );
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: 'account 1',
             name: 'foo',
@@ -109,33 +111,33 @@ describe('AddressBookController', () => {
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      '1',
+      toHex(1),
       'account 2',
     );
 
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
-      '2',
+      toHex(2),
       'account 2',
     );
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: 'account 2',
             name: 'foo',
             addressType: undefined,
           },
         },
-        2: {
+        [toHex(2)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '2',
+            chainId: toHex(2),
             isEns: false,
             memo: 'account 2',
             name: 'foo',
@@ -154,10 +156,10 @@ describe('AddressBookController', () => {
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: '',
             name: 'bar',
@@ -170,6 +172,7 @@ describe('AddressBookController', () => {
 
   it('should not add invalid contact entry', () => {
     const controller = new AddressBookController();
+    // @ts-expect-error Intentionally invalid entry
     controller.set('0x01', 'foo', AddressType.externallyOwnedAccounts);
     expect(controller.state).toStrictEqual({ addressBook: {} });
   });
@@ -177,7 +180,7 @@ describe('AddressBookController', () => {
   it('should remove one contact entry', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-    controller.delete('1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
+    controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88');
 
     expect(controller.state).toStrictEqual({ addressBook: {} });
   });
@@ -187,14 +190,14 @@ describe('AddressBookController', () => {
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
-    controller.delete('1', '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d');
+    controller.delete(toHex(1), '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d');
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: '',
             name: 'foo',
@@ -213,10 +216,10 @@ describe('AddressBookController', () => {
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: '',
             name: 'foo',
@@ -224,7 +227,7 @@ describe('AddressBookController', () => {
           },
           '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D': {
             address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: '',
             name: 'bar',
@@ -244,10 +247,10 @@ describe('AddressBookController', () => {
 
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: true,
             memo: '',
             name: 'metamask.eth',
@@ -271,14 +274,15 @@ describe('AddressBookController', () => {
     const controller = new AddressBookController();
     expect(
       controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo'),
-    ).toStrictEqual(true);
+    ).toBe(true);
   });
 
   it('should return false to indicate an address book entry has NOT been added', () => {
     const controller = new AddressBookController();
     expect(
+      // @ts-expect-error Intentionally invalid entry
       controller.set('0x00', 'foo', AddressType.externallyOwnedAccounts),
-    ).toStrictEqual(false);
+    ).toBe(false);
   });
 
   it('should return true to indicate an address book entry has been deleted', () => {
@@ -286,14 +290,14 @@ describe('AddressBookController', () => {
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 
     expect(
-      controller.delete('1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'),
-    ).toStrictEqual(true);
+      controller.delete(toHex(1), '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'),
+    ).toBe(true);
   });
 
   it('should return false to indicate an address book entry has NOT been deleted', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', '0x00');
-    expect(controller.delete('1', '0x01')).toStrictEqual(false);
+    expect(controller.delete(toHex(1), '0x01')).toBe(false);
   });
 
   it('should normalize addresses so adding and removing entries work across casings', () => {
@@ -302,13 +306,13 @@ describe('AddressBookController', () => {
 
     controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar');
 
-    controller.delete('1', '0xC38BF1AD06EF69F0C04E29DBEB4152B4175F0A8D');
+    controller.delete(toHex(1), '0xC38BF1AD06EF69F0C04E29DBEB4152B4175F0A8D');
     expect(controller.state).toStrictEqual({
       addressBook: {
-        1: {
+        [toHex(1)]: {
           '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
             address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
+            chainId: toHex(1),
             isEns: false,
             memo: '',
             name: 'foo',

@@ -1,3 +1,7 @@
+import type EthQuery from '@metamask/eth-query';
+import type { Hex, Json } from '@metamask/utils';
+import { isStrictHexString } from '@metamask/utils';
+import ensNamehash from 'eth-ens-namehash';
 import {
   addHexPrefix,
   isValidAddress,
@@ -7,11 +11,8 @@ import {
   stripHexPrefix,
 } from 'ethereumjs-util';
 import { fromWei, toWei } from 'ethjs-unit';
-import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
-import type { Hex } from '@metamask/utils';
-import { hasProperty, isStrictHexString } from '@metamask/utils';
-import type { Json } from './types';
+
 import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
@@ -24,9 +25,15 @@ const TIMEOUT_ERROR = new Error('timeout');
  * @param chainId - The chain ID to check for safety.
  * @returns Whether the given chain ID is safe.
  */
-export function isSafeChainId(chainId: number): boolean {
+export function isSafeChainId(chainId: Hex): boolean {
+  if (!isHexString(chainId)) {
+    return false;
+  }
+  const decimalChainId = Number.parseInt(chainId);
   return (
-    Number.isSafeInteger(chainId) && chainId > 0 && chainId <= MAX_SAFE_CHAIN_ID
+    Number.isSafeInteger(decimalChainId) &&
+    decimalChainId > 0 &&
+    decimalChainId <= MAX_SAFE_CHAIN_ID
   );
 }
 /**
@@ -414,24 +421,6 @@ export function normalizeEnsName(ensName: string): string | null {
   return null;
 }
 
-// Inline a minimal EthQuery type here so that we don't need to include
-// it as a dependency just for the type.
-type EthQueryLike = {
-  sendAsync: (
-    opts: Partial<{
-      id: number;
-      jsonrpc: '2.0';
-      method: string;
-      params: unknown;
-    }>,
-    callback: (
-      ...args:
-        | [error: unknown, result: undefined]
-        | [error: null, result: unknown]
-    ) => void,
-  ) => void;
-};
-
 /**
  * Wrapper method to handle EthQuery requests.
  *
@@ -441,7 +430,7 @@ type EthQueryLike = {
  * @returns Promise resolving the request.
  */
 export function query(
-  ethQuery: EthQueryLike,
+  ethQuery: EthQuery,
   method: string,
   args: any[] = [],
 ): Promise<any> {
@@ -454,11 +443,9 @@ export function query(
       resolve(result);
     };
 
-    if (
-      hasProperty(ethQuery, method) &&
-      typeof ethQuery[method] === 'function'
-    ) {
-      // @ts-expect-error All of the generated method types have this signature, but our EthQuery type doesn't include them
+    // Using `in` rather than `hasProperty` so that we look up the prototype
+    // chain for the method.
+    if (method in ethQuery && typeof ethQuery[method] === 'function') {
       ethQuery[method](...args, cb);
     } else {
       ethQuery.sendAsync({ method, params: args }, cb);

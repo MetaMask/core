@@ -28,7 +28,7 @@ jobs:
             ./packages/**/dist
             ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
-      - uses: MetaMask/action-publish-release@v2
+      - uses: MetaMask/action-publish-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn --immutable
@@ -47,12 +47,13 @@ jobs:
             ./packages/**/dist
             ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
+          fail-on-cache-miss: true
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
-        uses: MetaMask/action-npm-publish@v3
-        # Temporarily disabled
-        # with:
-        #   slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        uses: MetaMask/action-npm-publish@v4
+        with:
+          slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          subteam: S042S7RE4AE # @metamask-npm-publishers
         env:
           SKIP_PREPACK: true
 
@@ -70,6 +71,7 @@ jobs:
             ./packages/**/dist
             ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
+          fail-on-cache-miss: true
       - name: Publish
         uses: MetaMask/action-npm-publish@v3
         with:

@@ -1,10 +1,9 @@
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import type { Json } from '@metamask/utils';
 import type { Patch } from 'immer';
-import { Json } from '@metamask/types';
-import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import {
+
+import type {
   GenericPermissionController,
   HasPermissions,
   PermissionSubjectMetadata,
@@ -100,11 +99,11 @@ export class SubjectMetadataController extends BaseControllerV2<
   SubjectMetadataControllerState,
   SubjectMetadataControllerMessenger
 > {
-  private subjectCacheLimit: number;
+  private readonly subjectCacheLimit: number;
 
-  private subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
+  private readonly subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
 
-  private subjectHasPermissions: GenericPermissionController['hasPermissions'];
+  private readonly subjectHasPermissions: GenericPermissionController['hasPermissions'];
 
   constructor({
     messenger,

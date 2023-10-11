@@ -1,19 +1,18 @@
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
-import type { NetworkState } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   safelyExecute,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
-import type { TokensController, TokensState } from './TokensController';
+import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
+
 import type { AssetsContractController } from './AssetsContractController';
-import { Token } from './TokenRatesController';
-import { TokenListState } from './TokenListController';
+import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
+import type { TokenListState } from './TokenListController';
+import type { Token } from './TokenRatesController';
+import type { TokensController, TokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -30,7 +29,7 @@ const DEFAULT_INTERVAL = 180000;
 export interface TokenDetectionConfig extends BaseConfig {
   interval: number;
   selectedAddress: string;
-  chainId: string;
+  chainId: Hex;
   isDetectionEnabledFromPreferences: boolean;
   isDetectionEnabledForNetwork: boolean;
 }
@@ -49,13 +48,13 @@ export class TokenDetectionController extends BaseController<
    */
   override name = 'TokenDetectionController';
 
-  private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+  private readonly getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
-  private addDetectedTokens: TokensController['addDetectedTokens'];
+  private readonly addDetectedTokens: TokensController['addDetectedTokens'];
 
-  private getTokensState: () => TokensState;
+  private readonly getTokensState: () => TokensState;
 
-  private getTokenListState: () => TokenListState;
+  private readonly getTokenListState: () => TokenListState;
 
   /**
    * Creates a TokenDetectionController instance.
@@ -280,7 +279,7 @@ export class TokenDetectionController extends BaseController<
             ) || '';
 
           if (ignored === undefined) {
-            const { decimals, symbol, aggregators, iconUrl } =
+            const { decimals, symbol, aggregators, iconUrl, name } =
               tokenList[caseInsensitiveTokenKey];
             tokensToAdd.push({
               address: tokenAddress,
@@ -289,6 +288,7 @@ export class TokenDetectionController extends BaseController<
               aggregators,
               image: iconUrl,
               isERC721: false,
+              name,
             });
           }
         }

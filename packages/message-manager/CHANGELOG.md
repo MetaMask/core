@@ -6,6 +6,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.5]
+### Changed
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `metamask/controller-utils` to ^5.0.2
+
+### Fixed
+- Fix `prepMessageForSigning` in all message managers to handle frozen `messageParams` ([#1733](https://github.com/MetaMask/core/pull/1733))
+
+## [7.3.4]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [7.3.3]
+### Changed
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+
+## [7.3.2]
+### Changed
+- Bump @metamask/eth-sig-util from 6.0.0 to 7.0.0 ([#1669](https://github.com/MetaMask/core/pull/1669))
+
+## [7.3.1]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+
+## [7.3.0]
+### Changed
+- Add Blockaid validation response to messages ([#1541](https://github.com/MetaMask/core/pull/1541))
+
+## [7.2.0]
+### Changed
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+
+## [7.1.0]
+### Changed
+- Replace eth-sig-util with @metamask/eth-sig-util ([#1483](https://github.com/MetaMask/core/pull/1483))
+
+## [7.0.2]
+### Fixed
+- Avoid race condition when creating typed messages ([#1467](https://github.com/MetaMask/core/pull/1467))
+
+## [7.0.1]
+### Fixed
+- eth_signTypedData_v4 and v3 should take an object as well as string for data parameter. ([#1438](https://github.com/MetaMask/core/pull/1438))
+
+## [7.0.0]
+### Added
+- Added `waitForFinishStatus` to `AbstractMessageManager` which is waiting for the message to be proccesed and resolve. ([#1377](https://github.com/MetaMask/core/pull/1377))
+
+### Changed
+- **BREAKING:** Removed `addUnapprovedMessageAsync` methods from `PersonalMessageManager`, `TypedMessageManager` and `MessageManager` because it's not consumed by `SignatureController` anymore. ([#1377](https://github.com/MetaMask/core/pull/1377))
+
+## [6.0.0]
+### Added
+- Add `getAllMessages` and `setMetadata` methods to message managers ([#1364](https://github.com/MetaMask/core/pull/1364))
+  - A new optional `metadata` property has been added to the message type as well
+- Add support for deferred signing ([#1364](https://github.com/MetaMask/core/pull/1364))
+  - `deferSetAsSigned` has been added as a message parameter. This is used to tell the signature controller to not mark this message as signed when the keyring is asked to sign it.
+- Add the `setMessageStatusInProgress` method to set a message status to `inProgress` ([#1339](https://github.com/MetaMask/core/pull/1339))
+
+### Changed
+- **BREAKING:** The `getCurrentChainId` constructor parameter for each message manager now expects a `Hex` return type rather than a decimal string ([#1367](https://github.com/MetaMask/core/pull/1367))
+  - Note that while every message manager class accepts this as a constructor parameter, it's only used by the `TypedMessageManager` at the moment
+- Add `@metamask/utils` dependency ([#1370](https://github.com/MetaMask/core/pull/1370))
+
 ## [5.0.0]
 ### Fixed
 - **BREAKING:** Add chain validation to `eth_signTypedData_v4` signature requests ([#1331](https://github.com/MetaMask/core/pull/1331))
@@ -60,7 +126,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.5...HEAD
+[7.3.5]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.4...@metamask/message-manager@7.3.5
+[7.3.4]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.3...@metamask/message-manager@7.3.4
+[7.3.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.2...@metamask/message-manager@7.3.3
+[7.3.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.1...@metamask/message-manager@7.3.2
+[7.3.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.0...@metamask/message-manager@7.3.1
+[7.3.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.2.0...@metamask/message-manager@7.3.0
+[7.2.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.1.0...@metamask/message-manager@7.2.0
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.2...@metamask/message-manager@7.1.0
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.1...@metamask/message-manager@7.0.2
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.0.0...@metamask/message-manager@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@6.0.0...@metamask/message-manager@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@5.0.0...@metamask/message-manager@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@4.0.0...@metamask/message-manager@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@3.1.1...@metamask/message-manager@4.0.0
 [3.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@3.1.0...@metamask/message-manager@3.1.1

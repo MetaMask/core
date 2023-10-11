@@ -1,11 +1,13 @@
-import { BN } from 'ethereumjs-util';
 import {
   query,
   handleFetch,
   gweiDecToWEIBN,
   weiHexToGweiDec,
 } from '@metamask/controller-utils';
-import {
+import type EthQuery from '@metamask/eth-query';
+import { BN } from 'ethereumjs-util';
+
+import type {
   GasFeeEstimates,
   EthGasPriceEstimate,
   EstimatedGasFeeTimeBounds,
@@ -116,7 +118,7 @@ export async function fetchLegacyGasPriceEstimates(
  * @returns A gas price estimate.
  */
 export async function fetchEthGasPriceEstimate(
-  ethQuery: any,
+  ethQuery: EthQuery,
 ): Promise<EthGasPriceEstimate> {
   const gasPrice = await query(ethQuery, 'gasPrice');
   return {

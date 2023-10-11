@@ -1,989 +1,58 @@
-import { errorCodes, EthereumRpcError } from 'eth-rpc-errors';
-import * as sinon from 'sinon';
+/* eslint-disable jest/expect-expect */
+
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  ApprovalController,
+import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
+
+import type {
   ApprovalControllerActions,
   ApprovalControllerEvents,
   ApprovalControllerMessenger,
+  StartFlowOptions,
 } from './ApprovalController';
+import {
+  APPROVAL_TYPE_RESULT_ERROR,
+  APPROVAL_TYPE_RESULT_SUCCESS,
+  ApprovalController,
+  ORIGIN_METAMASK,
+} from './ApprovalController';
+import {
+  ApprovalRequestNoResultSupportError,
+  EndInvalidFlowError,
+  MissingApprovalFlowError,
+  NoApprovalFlowsError,
+} from './errors';
 
-const STORE_KEY = 'pendingApprovals';
+jest.mock('nanoid', () => ({
+  nanoid: jest.fn(() => 'TestId'),
+}));
 
+const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
+const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
 const TYPE = 'TYPE';
+const ID_MOCK = 'TestId';
+const ORIGIN_MOCK = 'TestOrigin';
+const VALUE_MOCK = 'TestValue';
+const RESULT_MOCK = 'TestResult';
+const ERROR_MOCK = new Error('TestError');
+const FLOW_ID_MOCK = 'TestFlowId';
+const MESSAGE_MOCK = 'TestMessage';
+const ERROR_MESSAGE_MOCK = 'TestErrorMessage';
+const RESULT_COMPONENT_MOCK = {
+  key: 'testKey',
+  name: 'TestComponentName',
+  properties: { testProp: 'testPropValue' },
+  children: ['testChild1', 'testChild2'],
+};
+const SUCCESS_OPTIONS_MOCK = {
+  message: MESSAGE_MOCK,
+  header: [RESULT_COMPONENT_MOCK],
+};
+const ERROR_OPTIONS_MOCK = {
+  error: ERROR_MESSAGE_MOCK,
+  header: [RESULT_COMPONENT_MOCK],
+};
 
 const controllerName = 'ApprovalController';
-
-/**
- * Constructs a restricted controller messenger.
- *
- * @returns A restricted controller messenger.
- */
-function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    ApprovalControllerActions,
-    ApprovalControllerEvents
-  >();
-  const messenger = controllerMessenger.getRestricted<
-    typeof controllerName,
-    never,
-    never
-  >({
-    name: 'ApprovalController',
-  });
-  return messenger;
-}
-
-describe('approval controller', () => {
-  beforeEach(() => {
-    sinon.useFakeTimers(1);
-  });
-
-  afterEach(() => {
-    sinon.restore();
-  });
-
-  describe('add', () => {
-    let approvalController: ApprovalController;
-    let showApprovalRequest: sinon.SinonSpy;
-
-    beforeEach(() => {
-      showApprovalRequest = sinon.spy();
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest,
-      });
-    });
-
-    it('validates input', () => {
-      expect(() =>
-        approvalController.add({ id: null, origin: 'bar.baz' } as any),
-      ).toThrow(getInvalidIdError());
-
-      expect(() => approvalController.add({ id: 'foo' } as any)).toThrow(
-        getInvalidOriginError(),
-      );
-
-      expect(() =>
-        approvalController.add({ id: 'foo', origin: true } as any),
-      ).toThrow(getInvalidOriginError());
-
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: {},
-        } as any),
-      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
-
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: '',
-        } as any),
-      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
-
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: 'type',
-          requestData: 'foo',
-        } as any),
-      ).toThrow(getInvalidRequestDataError());
-
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: 'type',
-          requestState: 'foo',
-        } as any),
-      ).toThrow(getInvalidRequestStateError());
-    });
-
-    it('adds correctly specified entry', () => {
-      expect(() =>
-        approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
-      ).not.toThrow();
-
-      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
-      expect(
-        approvalController.has({ origin: 'bar.baz', type: TYPE }),
-      ).toStrictEqual(true);
-
-      expect(approvalController.state[STORE_KEY]).toStrictEqual({
-        foo: {
-          id: 'foo',
-          origin: 'bar.baz',
-          requestData: null,
-          requestState: null,
-          time: 1,
-          type: TYPE,
-        },
-      });
-    });
-
-    it('adds id if non provided', () => {
-      expect(() =>
-        approvalController.add({
-          id: undefined,
-          origin: 'bar.baz',
-          type: TYPE,
-        }),
-      ).not.toThrow();
-
-      const id = Object.keys(approvalController.state[STORE_KEY])[0];
-      expect(id && typeof id === 'string').toStrictEqual(true);
-    });
-
-    it('adds correctly specified entry with request data', () => {
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: 'myType',
-          requestData: { foo: 'bar' },
-        }),
-      ).not.toThrow();
-
-      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
-      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
-      expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
-      expect(approvalController.state[STORE_KEY].foo.requestData).toStrictEqual(
-        { foo: 'bar' },
-      );
-    });
-
-    it('adds correctly specified entry with request state', () => {
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: 'myType',
-          requestState: { foo: 'bar' },
-        }),
-      ).not.toThrow();
-
-      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
-      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
-      expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
-      expect(
-        approvalController.state[STORE_KEY].foo.requestState,
-      ).toStrictEqual({ foo: 'bar' });
-    });
-
-    it('adds multiple entries for same origin with different types and ids', () => {
-      const ORIGIN = 'bar.baz';
-
-      expect(() =>
-        approvalController.add({ id: 'foo1', origin: ORIGIN, type: 'myType1' }),
-      ).not.toThrow();
-
-      expect(() =>
-        approvalController.add({ id: 'foo2', origin: ORIGIN, type: 'myType2' }),
-      ).not.toThrow();
-
-      expect(
-        approvalController.has({ id: 'foo1' }) &&
-          approvalController.has({ id: 'foo2' }),
-      ).toStrictEqual(true);
-
-      expect(
-        approvalController.has({ origin: ORIGIN }) &&
-          approvalController.has({ origin: ORIGIN, type: 'myType1' }) &&
-          approvalController.has({ origin: ORIGIN, type: 'myType2' }),
-      ).toStrictEqual(true);
-    });
-
-    it('throws on id collision', () => {
-      expect(() =>
-        approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
-      ).not.toThrow();
-
-      expect(() =>
-        approvalController.add({ id: 'foo', origin: 'fizz.buzz', type: TYPE }),
-      ).toThrow(getIdCollisionError('foo'));
-    });
-
-    it('throws on origin and type collision', () => {
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: 'myType',
-        }),
-      ).not.toThrow();
-
-      expect(() =>
-        approvalController.add({
-          id: 'foo1',
-          origin: 'bar.baz',
-          type: 'myType',
-        }),
-      ).toThrow(getOriginTypeCollisionError('bar.baz', 'myType'));
-    });
-
-    it('does not throw on origin and type collision if type excluded', () => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest,
-        typesExcludedFromRateLimiting: ['myType'],
-      });
-
-      expect(() =>
-        approvalController.add({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: 'myType',
-        }),
-      ).not.toThrow();
-
-      expect(() =>
-        approvalController.add({
-          id: 'foo1',
-          origin: 'bar.baz',
-          type: 'myType',
-        }),
-      ).not.toThrow();
-    });
-  });
-
-  // otherwise tested by 'add' above
-  describe('addAndShowApprovalRequest', () => {
-    it('addAndShowApprovalRequest', () => {
-      const showApprovalSpy = sinon.spy();
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: showApprovalSpy,
-      });
-
-      const result = approvalController.addAndShowApprovalRequest({
-        id: 'foo',
-        origin: 'bar.baz',
-        type: 'myType',
-        requestData: { foo: 'bar' },
-      });
-      expect(result instanceof Promise).toStrictEqual(true);
-      expect(showApprovalSpy.calledOnce).toStrictEqual(true);
-    });
-  });
-
-  describe('get', () => {
-    it('gets entry', () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
-      expect(approvalController.get('foo')).toStrictEqual({
-        id: 'foo',
-        origin: 'bar.baz',
-        requestData: null,
-        requestState: null,
-        type: 'myType',
-        time: 1,
-      });
-    });
-
-    it('returns undefined for non-existing entry', () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
-
-      expect(approvalController.get('fizz')).toBeUndefined();
-
-      expect((approvalController as any).get()).toBeUndefined();
-
-      expect(approvalController.get({} as any)).toBeUndefined();
-    });
-  });
-
-  describe('getApprovalCount', () => {
-    let approvalController: ApprovalController;
-    let addWithCatch: (args: any) => void;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-
-      addWithCatch = (args: any) =>
-        approvalController.add(args).catch(() => undefined);
-    });
-
-    it('validates input', () => {
-      expect(() => approvalController.getApprovalCount()).toThrow(
-        getApprovalCountParamsError(),
-      );
-
-      expect(() => approvalController.getApprovalCount({})).toThrow(
-        getApprovalCountParamsError(),
-      );
-
-      expect(() =>
-        approvalController.getApprovalCount({ origin: null } as any),
-      ).toThrow(getApprovalCountParamsError());
-
-      expect(() =>
-        approvalController.getApprovalCount({ type: false } as any),
-      ).toThrow(getApprovalCountParamsError());
-    });
-
-    it('gets the count when specifying origin and type', () => {
-      addWithCatch({ id: '1', origin: 'origin1', type: TYPE });
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
-
-      expect(
-        approvalController.getApprovalCount({ origin: 'origin1', type: TYPE }),
-      ).toStrictEqual(1);
-
-      expect(
-        approvalController.getApprovalCount({
-          origin: 'origin1',
-          type: 'type1',
-        }),
-      ).toStrictEqual(1);
-
-      expect(
-        approvalController.getApprovalCount({
-          origin: 'origin1',
-          type: 'type2',
-        }),
-      ).toStrictEqual(0);
-
-      expect(
-        approvalController.getApprovalCount({ origin: 'origin2', type: TYPE }),
-      ).toStrictEqual(0);
-
-      expect(
-        approvalController.getApprovalCount({
-          origin: 'origin2',
-          type: 'type1',
-        }),
-      ).toStrictEqual(1);
-
-      expect(
-        approvalController.getApprovalCount({
-          origin: 'origin2',
-          type: 'type2',
-        }),
-      ).toStrictEqual(0);
-
-      expect(
-        approvalController.getApprovalCount({ origin: 'origin3', type: TYPE }),
-      ).toStrictEqual(0);
-
-      expect(
-        approvalController.getApprovalCount({
-          origin: 'origin3',
-          type: 'type1',
-        }),
-      ).toStrictEqual(0);
-
-      expect(
-        approvalController.getApprovalCount({
-          origin: 'origin3',
-          type: 'type2',
-        }),
-      ).toStrictEqual(0);
-    });
-
-    it('gets the count when specifying origin only', () => {
-      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
-
-      expect(
-        approvalController.getApprovalCount({ origin: 'origin1' }),
-      ).toStrictEqual(2);
-
-      expect(
-        approvalController.getApprovalCount({ origin: 'origin2' }),
-      ).toStrictEqual(1);
-
-      expect(
-        approvalController.getApprovalCount({ origin: 'origin3' }),
-      ).toStrictEqual(0);
-    });
-
-    it('gets the count when specifying type only', () => {
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
-      addWithCatch({ id: '4', origin: 'origin2', type: 'type2' });
-
-      expect(
-        approvalController.getApprovalCount({ type: 'type1' }),
-      ).toStrictEqual(2);
-
-      expect(
-        approvalController.getApprovalCount({ type: 'type2' }),
-      ).toStrictEqual(1);
-
-      expect(
-        approvalController.getApprovalCount({ type: 'type3' }),
-      ).toStrictEqual(0);
-    });
-
-    it('gets the count when specifying origin and type with type excluded from rate limiting', () => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-        typesExcludedFromRateLimiting: [TYPE],
-      });
-
-      addWithCatch({ id: '1', origin: 'origin1', type: TYPE });
-      addWithCatch({ id: '2', origin: 'origin1', type: TYPE });
-
-      expect(
-        approvalController.getApprovalCount({ origin: 'origin1', type: TYPE }),
-      ).toStrictEqual(2);
-    });
-  });
-
-  describe('getTotalApprovalCount', () => {
-    it('gets the total approval count', () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
-
-      const addWithCatch = (args: any) =>
-        approvalController.add(args).catch(() => undefined);
-
-      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(1);
-
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(2);
-
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(3);
-
-      approvalController.reject('2', new Error('foo'));
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(2);
-
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
-    });
-
-    it('gets the total approval count with type excluded from rate limiting', () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-        typesExcludedFromRateLimiting: ['type0'],
-      });
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
-
-      const addWithCatch = (args: any) =>
-        approvalController.add(args).catch(() => undefined);
-
-      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(1);
-
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type0' });
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(2);
-
-      approvalController.reject('2', new Error('foo'));
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(1);
-
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
-      expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
-    });
-  });
-
-  describe('has', () => {
-    let approvalController: ApprovalController;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-    });
-
-    it('validates input', () => {
-      expect(() => approvalController.has()).toThrow(
-        getInvalidHasParamsError(),
-      );
-
-      expect(() => approvalController.has({})).toThrow(
-        getInvalidHasParamsError(),
-      );
-
-      expect(() => approvalController.has({ id: true } as any)).toThrow(
-        getInvalidHasIdError(),
-      );
-
-      expect(() => approvalController.has({ origin: true } as any)).toThrow(
-        getInvalidHasOriginError(),
-      );
-
-      expect(() => approvalController.has({ type: true } as any)).toThrow(
-        getInvalidHasTypeError(),
-      );
-
-      expect(() =>
-        approvalController.has({ origin: 'foo', type: true } as any),
-      ).toThrow(getInvalidHasTypeError());
-    });
-
-    it('returns true for existing entry by id', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
-
-      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
-    });
-
-    it('returns true for existing entry by origin', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
-
-      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
-    });
-
-    it('returns true for existing entry by origin and type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
-
-      expect(
-        approvalController.has({ origin: 'bar.baz', type: 'myType' }),
-      ).toStrictEqual(true);
-    });
-
-    it('returns true for existing type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
-
-      expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
-    });
-
-    it('returns false for non-existing entry by id', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
-
-      expect(approvalController.has({ id: 'fizz' })).toStrictEqual(false);
-    });
-
-    it('returns false for non-existing entry by origin', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
-
-      expect(approvalController.has({ origin: 'fizz.buzz' })).toStrictEqual(
-        false,
-      );
-    });
-
-    it('returns false for non-existing entry by existing origin and non-existing type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
-
-      expect(
-        approvalController.has({ origin: 'bar.baz', type: 'myType' }),
-      ).toStrictEqual(false);
-    });
-
-    it('returns false for non-existing entry by non-existing origin and existing type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
-
-      expect(
-        approvalController.has({ origin: 'fizz.buzz', type: 'myType' }),
-      ).toStrictEqual(false);
-    });
-
-    it('returns false for non-existing entry by type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType1' });
-
-      expect(approvalController.has({ type: 'myType2' })).toStrictEqual(false);
-    });
-  });
-
-  describe('resolve', () => {
-    let approvalController: ApprovalController;
-    let numDeletions: number;
-    let deleteSpy: sinon.SinonSpy;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-      // TODO: Stop using private methods in tests
-      deleteSpy = sinon.spy(approvalController as any, '_delete');
-      numDeletions = 0;
-    });
-
-    it('resolves approval promise', async () => {
-      numDeletions = 1;
-
-      const approvalPromise = approvalController.add({
-        id: 'foo',
-        origin: 'bar.baz',
-        type: 'myType',
-      });
-      approvalController.accept('foo', 'success');
-
-      const result = await approvalPromise;
-      expect(result).toStrictEqual('success');
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
-    });
-
-    it('resolves multiple approval promises out of order', async () => {
-      numDeletions = 2;
-
-      const approvalPromise1 = approvalController.add({
-        id: 'foo1',
-        origin: 'bar.baz',
-        type: 'myType1',
-      });
-      const approvalPromise2 = approvalController.add({
-        id: 'foo2',
-        origin: 'bar.baz',
-        type: 'myType2',
-      });
-
-      approvalController.accept('foo2', 'success2');
-
-      let result = await approvalPromise2;
-      expect(result).toStrictEqual('success2');
-
-      approvalController.accept('foo1', 'success1');
-
-      result = await approvalPromise1;
-      expect(result).toStrictEqual('success1');
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
-    });
-
-    it('throws on unknown id', () => {
-      expect(() => approvalController.accept('foo')).toThrow(
-        getIdNotFoundError('foo'),
-      );
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
-    });
-  });
-
-  describe('reject', () => {
-    let approvalController: ApprovalController;
-    let numDeletions: number;
-    let deleteSpy: sinon.SinonSpy;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-      // TODO: Stop using private methods in tests
-      deleteSpy = sinon.spy(approvalController as any, '_delete');
-      numDeletions = 0;
-    });
-
-    it('rejects approval promise', async () => {
-      numDeletions = 1;
-      const approvalPromise = approvalController.add({
-        id: 'foo',
-        origin: 'bar.baz',
-        type: TYPE,
-      });
-      approvalController.reject('foo', new Error('failure'));
-      await expect(approvalPromise).rejects.toThrow('failure');
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
-    });
-
-    it('rejects multiple approval promises out of order', async () => {
-      numDeletions = 2;
-
-      const rejectionPromise1 = approvalController.add({
-        id: 'foo1',
-        origin: 'bar.baz',
-        type: TYPE,
-      });
-      const rejectionPromise2 = approvalController.add({
-        id: 'foo2',
-        origin: 'bar.baz',
-        type: 'myType2',
-      });
-
-      approvalController.reject('foo2', new Error('failure2'));
-      approvalController.reject('foo1', new Error('failure1'));
-      await expect(rejectionPromise2).rejects.toThrow('failure2');
-      await expect(rejectionPromise1).rejects.toThrow('failure1');
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
-    });
-
-    it('throws on unknown id', () => {
-      expect(() => approvalController.reject('foo', new Error('bar'))).toThrow(
-        getIdNotFoundError('foo'),
-      );
-      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
-    });
-  });
-
-  describe('accept and reject', () => {
-    it('accepts and rejects multiple approval promises out of order', async () => {
-      const approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-
-      const promise1 = approvalController.add({
-        id: 'foo1',
-        origin: 'bar.baz',
-        type: TYPE,
-      });
-      const promise2 = approvalController.add({
-        id: 'foo2',
-        origin: 'bar.baz',
-        type: 'myType2',
-      });
-      const promise3 = approvalController.add({
-        id: 'foo3',
-        origin: 'fizz.buzz',
-        type: TYPE,
-      });
-      const promise4 = approvalController.add({
-        id: 'foo4',
-        origin: 'bar.baz',
-        type: 'myType4',
-      });
-
-      approvalController.accept('foo2', 'success2');
-
-      let result = await promise2;
-      expect(result).toStrictEqual('success2');
-
-      approvalController.reject('foo4', new Error('failure4'));
-      await expect(promise4).rejects.toThrow('failure4');
-
-      approvalController.reject('foo3', new Error('failure3'));
-      await expect(promise3).rejects.toThrow('failure3');
-
-      expect(approvalController.has({ origin: 'fizz.buzz' })).toStrictEqual(
-        false,
-      );
-      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
-
-      approvalController.accept('foo1', 'success1');
-
-      result = await promise1;
-      expect(result).toStrictEqual('success1');
-
-      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(
-        false,
-      );
-    });
-  });
-
-  describe('clear', () => {
-    let approvalController: ApprovalController;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-    });
-
-    it('does nothing if state is already empty', () => {
-      expect(() =>
-        approvalController.clear(new EthereumRpcError(1, 'clear')),
-      ).not.toThrow();
-    });
-
-    it('deletes existing entries', async () => {
-      const rejectSpy = sinon.spy(approvalController, 'reject');
-
-      approvalController
-        .add({ id: 'foo2', origin: 'bar.baz', type: 'myType' })
-        .catch((_error) => undefined);
-
-      approvalController
-        .add({ id: 'foo3', origin: 'fizz.buzz', type: 'myType' })
-        .catch((_error) => undefined);
-
-      approvalController.clear(new EthereumRpcError(1, 'clear'));
-
-      expect(approvalController.state[STORE_KEY]).toStrictEqual({});
-      expect(rejectSpy.callCount).toStrictEqual(2);
-    });
-
-    it('rejects existing entries with a caller-specified error', async () => {
-      const rejectPromise = approvalController.add({
-        id: 'foo2',
-        origin: 'bar.baz',
-        type: 'myType',
-      });
-
-      approvalController.clear(new EthereumRpcError(1000, 'foo'));
-      await expect(rejectPromise).rejects.toThrow(
-        new EthereumRpcError(1000, 'foo'),
-      );
-    });
-  });
-
-  describe('updateRequestState', () => {
-    let approvalController: ApprovalController;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-    });
-
-    it('updates the request state of a given approval request', () => {
-      approvalController
-        .add({
-          id: 'foo2',
-          origin: 'bar.baz',
-          type: 'myType',
-          requestState: { foo: 'bar' },
-        })
-        .catch((_error) => undefined);
-
-      approvalController.updateRequestState({
-        id: 'foo2',
-        requestState: { foo: 'foobar' },
-      });
-
-      expect(approvalController.get('foo2')?.requestState).toStrictEqual({
-        foo: 'foobar',
-      });
-    });
-
-    it('throws on unknown id', () => {
-      expect(() =>
-        approvalController.updateRequestState({
-          id: 'foo',
-          requestState: { foo: 'bar' },
-        }),
-      ).toThrow(getIdNotFoundError('foo'));
-    });
-  });
-
-  // We test this internal function before resolve, reject, and clear because
-  // they are heavily dependent upon it.
-  // TODO: Stop using private methods in tests
-  describe('_delete', () => {
-    let approvalController: ApprovalController;
-
-    beforeEach(() => {
-      approvalController = new ApprovalController({
-        messenger: getRestrictedMessenger(),
-        showApprovalRequest: sinon.spy(),
-      });
-    });
-
-    it('deletes entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
-
-      (approvalController as any)._delete('foo');
-
-      expect(
-        !approvalController.has({ id: 'foo' }) &&
-          !approvalController.has({ type: 'type' }) &&
-          !approvalController.has({ origin: 'bar.baz' }) &&
-          !approvalController.state[STORE_KEY].foo,
-      ).toStrictEqual(true);
-    });
-
-    it('deletes one entry out of many without side-effects', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
-      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
-
-      (approvalController as any)._delete('fizz');
-
-      expect(
-        !approvalController.has({ id: 'fizz' }) &&
-          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
-      ).toStrictEqual(true);
-
-      expect(
-        approvalController.has({ id: 'foo' }) &&
-          approvalController.has({ origin: 'bar.baz' }),
-      ).toStrictEqual(true);
-    });
-  });
-
-  describe('actions', () => {
-    it('addApprovalRequest: shouldShowRequest = true', async () => {
-      const messenger = new ControllerMessenger<
-        ApprovalControllerActions,
-        ApprovalControllerEvents
-      >();
-      const showApprovalSpy = sinon.spy();
-
-      const approvalController = new ApprovalController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-        }) as ApprovalControllerMessenger,
-        showApprovalRequest: showApprovalSpy,
-      });
-
-      messenger.call(
-        'ApprovalController:addRequest',
-        { id: 'foo', origin: 'bar.baz', type: TYPE },
-        true,
-      );
-      expect(showApprovalSpy.calledOnce).toStrictEqual(true);
-      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
-    });
-
-    it('addApprovalRequest: shouldShowRequest = false', async () => {
-      const messenger = new ControllerMessenger<
-        ApprovalControllerActions,
-        ApprovalControllerEvents
-      >();
-      const showApprovalSpy = sinon.spy();
-
-      const approvalController = new ApprovalController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-        }) as ApprovalControllerMessenger,
-        showApprovalRequest: showApprovalSpy,
-      });
-
-      messenger.call(
-        'ApprovalController:addRequest',
-        { id: 'foo', origin: 'bar.baz', type: TYPE },
-        false,
-      );
-      expect(showApprovalSpy.notCalled).toStrictEqual(true);
-      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
-    });
-
-    it('updateRequestState', () => {
-      const messenger = new ControllerMessenger<
-        ApprovalControllerActions,
-        ApprovalControllerEvents
-      >();
-
-      const approvalController = new ApprovalController({
-        messenger: messenger.getRestricted({
-          name: controllerName,
-        }) as ApprovalControllerMessenger,
-        showApprovalRequest: sinon.spy(),
-      });
-
-      approvalController.add({
-        id: 'foo',
-        origin: 'bar.baz',
-        type: 'type1',
-        requestState: { foo: 'bar' },
-      });
-
-      messenger.call('ApprovalController:updateRequestState', {
-        id: 'foo',
-        requestState: { foo: 'foobar' },
-      });
-
-      expect(approvalController.get('foo')?.requestState).toStrictEqual({
-        foo: 'foobar',
-      });
-    });
-  });
-});
-
-// helpers
 
 /**
  * Get an ID collision error.
@@ -1137,3 +206,1304 @@ function getError(message: string, code?: number) {
   }
   return err;
 }
+
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
+function getRestrictedMessenger() {
+  const controllerMessenger = new ControllerMessenger<
+    ApprovalControllerActions,
+    ApprovalControllerEvents
+  >();
+  const messenger = controllerMessenger.getRestricted<
+    typeof controllerName,
+    never,
+    never
+  >({
+    name: 'ApprovalController',
+  });
+  return messenger;
+}
+
+describe('approval controller', () => {
+  let approvalController: ApprovalController;
+  let showApprovalRequest: jest.Mock;
+
+  beforeEach(() => {
+    showApprovalRequest = jest.fn();
+    approvalController = new ApprovalController({
+      messenger: getRestrictedMessenger(),
+      showApprovalRequest,
+    });
+  });
+
+  describe('add', () => {
+    it('validates input', () => {
+      expect(() =>
+        approvalController.add({ id: null, origin: 'bar.baz' } as any),
+      ).toThrow(getInvalidIdError());
+
+      expect(() => approvalController.add({ id: 'foo' } as any)).toThrow(
+        getInvalidOriginError(),
+      );
+
+      expect(() =>
+        approvalController.add({ id: 'foo', origin: true } as any),
+      ).toThrow(getInvalidOriginError());
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: {},
+        } as any),
+      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: '',
+        } as any),
+      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'type',
+          requestData: 'foo',
+        } as any),
+      ).toThrow(getInvalidRequestDataError());
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'type',
+          requestState: 'foo',
+        } as any),
+      ).toThrow(getInvalidRequestStateError());
+    });
+
+    it('adds correctly specified entry', () => {
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: TYPE,
+          expectsResult: true,
+        }),
+      ).not.toThrow();
+
+      expect(approvalController.has({ id: 'foo' })).toBe(true);
+
+      expect(approvalController.has({ origin: 'bar.baz', type: TYPE })).toBe(
+        true,
+      );
+
+      expect(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      ).toStrictEqual({
+        foo: {
+          id: 'foo',
+          origin: 'bar.baz',
+          requestData: null,
+          requestState: null,
+          time: expect.any(Number),
+          type: TYPE,
+          expectsResult: true,
+        },
+      });
+    });
+
+    it('adds id if non provided', () => {
+      expect(() =>
+        approvalController.add({
+          id: undefined,
+          origin: 'bar.baz',
+          type: TYPE,
+        }),
+      ).not.toThrow();
+
+      const id = Object.keys(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      )[0];
+      expect(id && typeof id === 'string').toBe(true);
+    });
+
+    it('adds correctly specified entry with request data', () => {
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+          requestData: { foo: 'bar' },
+        }),
+      ).not.toThrow();
+
+      expect(approvalController.has({ id: 'foo' })).toBe(true);
+      expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
+      expect(approvalController.has({ type: 'myType' })).toBe(true);
+      expect(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY].foo.requestData,
+      ).toStrictEqual({ foo: 'bar' });
+    });
+
+    it('adds correctly specified entry with request state', () => {
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+          requestState: { foo: 'bar' },
+        }),
+      ).not.toThrow();
+
+      expect(approvalController.has({ id: 'foo' })).toBe(true);
+      expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
+      expect(approvalController.has({ type: 'myType' })).toBe(true);
+      expect(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY].foo.requestState,
+      ).toStrictEqual({ foo: 'bar' });
+    });
+
+    it('adds multiple entries for same origin with different types and ids', () => {
+      const ORIGIN = 'bar.baz';
+
+      expect(() =>
+        approvalController.add({ id: 'foo1', origin: ORIGIN, type: 'myType1' }),
+      ).not.toThrow();
+
+      expect(() =>
+        approvalController.add({ id: 'foo2', origin: ORIGIN, type: 'myType2' }),
+      ).not.toThrow();
+
+      expect(
+        approvalController.has({ id: 'foo1' }) &&
+          approvalController.has({ id: 'foo2' }),
+      ).toBe(true);
+
+      expect(
+        approvalController.has({ origin: ORIGIN }) &&
+          approvalController.has({ origin: ORIGIN, type: 'myType1' }) &&
+          approvalController.has({ origin: ORIGIN, type: 'myType2' }),
+      ).toBe(true);
+    });
+
+    it('throws on id collision', () => {
+      expect(() =>
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
+      ).not.toThrow();
+
+      expect(() =>
+        approvalController.add({ id: 'foo', origin: 'fizz.buzz', type: TYPE }),
+      ).toThrow(getIdCollisionError('foo'));
+    });
+
+    it('throws on origin and type collision', () => {
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      ).not.toThrow();
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo1',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      ).toThrow(getOriginTypeCollisionError('bar.baz', 'myType'));
+    });
+
+    it('does not throw on origin and type collision if type excluded', () => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest,
+        typesExcludedFromRateLimiting: ['myType'],
+      });
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      ).not.toThrow();
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo1',
+          origin: 'bar.baz',
+          type: 'myType',
+        }),
+      ).not.toThrow();
+    });
+  });
+
+  // otherwise tested by 'add' above
+  describe('addAndShowApprovalRequest', () => {
+    it('addAndShowApprovalRequest', () => {
+      const result = approvalController.addAndShowApprovalRequest({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+        requestData: { foo: 'bar' },
+      });
+      expect(result instanceof Promise).toBe(true);
+      expect(showApprovalRequest).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('get', () => {
+    it('gets entry', () => {
+      // We only want to test the stored entity in the controller state hence disabling floating promises here.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+        expectsResult: true,
+      });
+
+      expect(approvalController.get('foo')).toStrictEqual({
+        id: 'foo',
+        origin: 'bar.baz',
+        requestData: null,
+        requestState: null,
+        type: 'myType',
+        time: expect.any(Number),
+        expectsResult: true,
+      });
+    });
+
+    it('returns undefined for non-existing entry', () => {
+      // We only want to test the stored entity in the controller state hence disabling floating promises here.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'type',
+      });
+
+      expect(approvalController.get('fizz')).toBeUndefined();
+
+      expect((approvalController as any).get()).toBeUndefined();
+
+      expect(approvalController.get({} as any)).toBeUndefined();
+    });
+  });
+
+  describe('getApprovalCount', () => {
+    let addWithCatch: (args: any) => void;
+
+    beforeEach(() => {
+      addWithCatch = (args: any) => {
+        approvalController.add(args).catch(() => undefined);
+      };
+    });
+
+    it('validates input', () => {
+      expect(() => approvalController.getApprovalCount()).toThrow(
+        getApprovalCountParamsError(),
+      );
+
+      expect(() => approvalController.getApprovalCount({})).toThrow(
+        getApprovalCountParamsError(),
+      );
+
+      expect(() =>
+        approvalController.getApprovalCount({ origin: null } as any),
+      ).toThrow(getApprovalCountParamsError());
+
+      expect(() =>
+        approvalController.getApprovalCount({ type: false } as any),
+      ).toThrow(getApprovalCountParamsError());
+    });
+
+    it('gets the count when specifying origin and type', () => {
+      addWithCatch({ id: '1', origin: 'origin1', type: TYPE });
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+
+      expect(
+        approvalController.getApprovalCount({ origin: 'origin1', type: TYPE }),
+      ).toBe(1);
+
+      expect(
+        approvalController.getApprovalCount({
+          origin: 'origin1',
+          type: 'type1',
+        }),
+      ).toBe(1);
+
+      expect(
+        approvalController.getApprovalCount({
+          origin: 'origin1',
+          type: 'type2',
+        }),
+      ).toBe(0);
+
+      expect(
+        approvalController.getApprovalCount({ origin: 'origin2', type: TYPE }),
+      ).toBe(0);
+
+      expect(
+        approvalController.getApprovalCount({
+          origin: 'origin2',
+          type: 'type1',
+        }),
+      ).toBe(1);
+
+      expect(
+        approvalController.getApprovalCount({
+          origin: 'origin2',
+          type: 'type2',
+        }),
+      ).toBe(0);
+
+      expect(
+        approvalController.getApprovalCount({ origin: 'origin3', type: TYPE }),
+      ).toBe(0);
+
+      expect(
+        approvalController.getApprovalCount({
+          origin: 'origin3',
+          type: 'type1',
+        }),
+      ).toBe(0);
+
+      expect(
+        approvalController.getApprovalCount({
+          origin: 'origin3',
+          type: 'type2',
+        }),
+      ).toBe(0);
+    });
+
+    it('gets the count when specifying origin only', () => {
+      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+
+      expect(approvalController.getApprovalCount({ origin: 'origin1' })).toBe(
+        2,
+      );
+
+      expect(approvalController.getApprovalCount({ origin: 'origin2' })).toBe(
+        1,
+      );
+
+      expect(approvalController.getApprovalCount({ origin: 'origin3' })).toBe(
+        0,
+      );
+    });
+
+    it('gets the count when specifying type only', () => {
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+      addWithCatch({ id: '4', origin: 'origin2', type: 'type2' });
+
+      expect(approvalController.getApprovalCount({ type: 'type1' })).toBe(2);
+
+      expect(approvalController.getApprovalCount({ type: 'type2' })).toBe(1);
+
+      expect(approvalController.getApprovalCount({ type: 'type3' })).toBe(0);
+    });
+
+    it('gets the count when specifying origin and type with type excluded from rate limiting', () => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest,
+        typesExcludedFromRateLimiting: [TYPE],
+      });
+
+      addWithCatch({ id: '1', origin: 'origin1', type: TYPE });
+      addWithCatch({ id: '2', origin: 'origin1', type: TYPE });
+
+      expect(
+        approvalController.getApprovalCount({ origin: 'origin1', type: TYPE }),
+      ).toBe(2);
+    });
+  });
+
+  describe('getTotalApprovalCount', () => {
+    it('gets the total approval count', () => {
+      expect(approvalController.getTotalApprovalCount()).toBe(0);
+
+      const addWithCatch = (args: any) => {
+        approvalController.add(args).catch(() => undefined);
+      };
+
+      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
+      expect(approvalController.getTotalApprovalCount()).toBe(1);
+
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      expect(approvalController.getTotalApprovalCount()).toBe(2);
+
+      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+      expect(approvalController.getTotalApprovalCount()).toBe(3);
+
+      approvalController.reject('2', new Error('foo'));
+      expect(approvalController.getTotalApprovalCount()).toBe(2);
+
+      approvalController.clear(new JsonRpcError(1, 'clear'));
+      expect(approvalController.getTotalApprovalCount()).toBe(0);
+    });
+
+    it('gets the total approval count with type excluded from rate limiting', () => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest,
+        typesExcludedFromRateLimiting: ['type0'],
+      });
+      expect(approvalController.getTotalApprovalCount()).toBe(0);
+
+      const addWithCatch = (args: any) => {
+        approvalController.add(args).catch(() => undefined);
+      };
+
+      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
+      expect(approvalController.getTotalApprovalCount()).toBe(1);
+
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type0' });
+      expect(approvalController.getTotalApprovalCount()).toBe(2);
+
+      approvalController.reject('2', new Error('foo'));
+      expect(approvalController.getTotalApprovalCount()).toBe(1);
+
+      approvalController.clear(new JsonRpcError(1, 'clear'));
+      expect(approvalController.getTotalApprovalCount()).toBe(0);
+    });
+  });
+
+  describe('has', () => {
+    it('validates input', () => {
+      expect(() => approvalController.has()).toThrow(
+        getInvalidHasParamsError(),
+      );
+
+      expect(() => approvalController.has({})).toThrow(
+        getInvalidHasParamsError(),
+      );
+
+      expect(() => approvalController.has({ id: true } as any)).toThrow(
+        getInvalidHasIdError(),
+      );
+
+      expect(() => approvalController.has({ origin: true } as any)).toThrow(
+        getInvalidHasOriginError(),
+      );
+
+      expect(() => approvalController.has({ type: true } as any)).toThrow(
+        getInvalidHasTypeError(),
+      );
+
+      expect(() =>
+        approvalController.has({ origin: 'foo', type: true } as any),
+      ).toThrow(getInvalidHasTypeError());
+    });
+
+    it('returns true for existing entry by id', async () => {
+      // We only want to check the stored entity is exist in the state hence disabling floating promises here.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
+
+      expect(approvalController.has({ id: 'foo' })).toBe(true);
+    });
+
+    it('returns true for existing entry by origin', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+
+      expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
+    });
+
+    it('returns true for existing entry by origin and type', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+
+      expect(
+        approvalController.has({ origin: 'bar.baz', type: 'myType' }),
+      ).toBe(true);
+    });
+
+    it('returns true for existing type', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+
+      expect(approvalController.has({ type: 'myType' })).toBe(true);
+    });
+
+    it('returns false for non-existing entry by id', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+
+      expect(approvalController.has({ id: 'fizz' })).toBe(false);
+    });
+
+    it('returns false for non-existing entry by origin', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+
+      expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
+    });
+
+    it('returns false for non-existing entry by existing origin and non-existing type', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+
+      expect(
+        approvalController.has({ origin: 'bar.baz', type: 'myType' }),
+      ).toBe(false);
+    });
+
+    it('returns false for non-existing entry by non-existing origin and existing type', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+
+      expect(
+        approvalController.has({ origin: 'fizz.buzz', type: 'myType' }),
+      ).toBe(false);
+    });
+
+    it('returns false for non-existing entry by type', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType1' });
+
+      expect(approvalController.has({ type: 'myType2' })).toBe(false);
+    });
+  });
+
+  describe('accept', () => {
+    it('resolves approval promise', async () => {
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+      });
+      approvalController.accept('foo', 'success');
+
+      const result = await approvalPromise;
+      expect(result).toBe('success');
+    });
+
+    it('resolves multiple approval promises out of order', async () => {
+      const approvalPromise1 = approvalController.add({
+        id: 'foo1',
+        origin: 'bar.baz',
+        type: 'myType1',
+      });
+      const approvalPromise2 = approvalController.add({
+        id: 'foo2',
+        origin: 'bar.baz',
+        type: 'myType2',
+      });
+
+      approvalController.accept('foo2', 'success2');
+
+      let result = await approvalPromise2;
+      expect(result).toBe('success2');
+
+      approvalController.accept('foo1', 'success1');
+
+      result = await approvalPromise1;
+      expect(result).toBe('success1');
+    });
+
+    it('throws on unknown id', () => {
+      expect(() => approvalController.accept('foo')).toThrow(
+        getIdNotFoundError('foo'),
+      );
+    });
+
+    it('resolves accept promise when success callback is called', async () => {
+      const approvalPromise = approvalController.add({
+        id: ID_MOCK,
+        origin: ORIGIN_MOCK,
+        type: TYPE,
+        expectsResult: true,
+      });
+
+      const resultPromise = approvalController.accept(ID_MOCK, VALUE_MOCK, {
+        waitForResult: true,
+      });
+
+      const { resultCallbacks, value } = await approvalPromise;
+
+      expect(value).toBe(VALUE_MOCK);
+
+      resultCallbacks?.success(RESULT_MOCK);
+
+      expect(await resultPromise).toStrictEqual({ value: RESULT_MOCK });
+    });
+
+    it('rejects accept promise when error callback is called', async () => {
+      const approvalPromise = approvalController.add({
+        id: ID_MOCK,
+        origin: ORIGIN_MOCK,
+        type: TYPE,
+        expectsResult: true,
+      });
+
+      const resultPromise = approvalController.accept(ID_MOCK, VALUE_MOCK, {
+        waitForResult: true,
+      });
+
+      const { resultCallbacks, value } = await approvalPromise;
+
+      expect(value).toBe(VALUE_MOCK);
+
+      resultCallbacks?.error(ERROR_MOCK);
+
+      await expect(resultPromise).rejects.toThrow(ERROR_MOCK);
+    });
+
+    it('resolves request promise with empty result callbacks if accept does not wait for result', async () => {
+      const approvalPromise = approvalController.add({
+        id: ID_MOCK,
+        origin: ORIGIN_MOCK,
+        type: TYPE,
+        expectsResult: true,
+      });
+
+      approvalController.accept(ID_MOCK, VALUE_MOCK);
+
+      expect(await approvalPromise).toStrictEqual({
+        resultCallbacks: undefined,
+        value: VALUE_MOCK,
+      });
+    });
+
+    it('throws if accept wants to wait but request does not expect result', async () => {
+      approvalController.add({
+        id: ID_MOCK,
+        origin: ORIGIN_MOCK,
+        type: TYPE,
+      });
+
+      await expect(
+        approvalController.accept(ID_MOCK, VALUE_MOCK, {
+          waitForResult: true,
+        }),
+      ).rejects.toThrow(new ApprovalRequestNoResultSupportError(ID_MOCK));
+    });
+
+    it('deletes entry', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+
+      approvalController.accept('foo');
+
+      expect(
+        !approvalController.has({ id: 'foo' }) &&
+          !approvalController.has({ type: 'type' }) &&
+          !approvalController.has({ origin: 'bar.baz' }) &&
+          !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
+      ).toBe(true);
+    });
+
+    it('deletes one entry out of many without side-effects', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
+      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
+
+      approvalController.accept('fizz');
+
+      expect(
+        !approvalController.has({ id: 'fizz' }) &&
+          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+      ).toBe(true);
+
+      expect(
+        approvalController.has({ id: 'foo' }) &&
+          approvalController.has({ origin: 'bar.baz' }),
+      ).toBe(true);
+    });
+  });
+
+  describe('reject', () => {
+    it('rejects approval promise', async () => {
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
+      approvalController.reject('foo', new Error('failure'));
+      await expect(approvalPromise).rejects.toThrow('failure');
+    });
+
+    it('rejects multiple approval promises out of order', async () => {
+      const rejectionPromise1 = approvalController.add({
+        id: 'foo1',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
+      const rejectionPromise2 = approvalController.add({
+        id: 'foo2',
+        origin: 'bar.baz',
+        type: 'myType2',
+      });
+
+      approvalController.reject('foo2', new Error('failure2'));
+      approvalController.reject('foo1', new Error('failure1'));
+      await expect(rejectionPromise2).rejects.toThrow('failure2');
+      await expect(rejectionPromise1).rejects.toThrow('failure1');
+    });
+
+    it('throws on unknown id', () => {
+      expect(() => approvalController.reject('foo', new Error('bar'))).toThrow(
+        getIdNotFoundError('foo'),
+      );
+    });
+
+    it('deletes entry', () => {
+      approvalController
+        .add({ id: 'foo', origin: 'bar.baz', type: 'type' })
+        .catch(() => undefined);
+
+      approvalController.reject('foo', new Error('failure'));
+
+      expect(
+        !approvalController.has({ id: 'foo' }) &&
+          !approvalController.has({ type: 'type' }) &&
+          !approvalController.has({ origin: 'bar.baz' }) &&
+          !approvalController.state[PENDING_APPROVALS_STORE_KEY].foo,
+      ).toBe(true);
+    });
+
+    it('deletes one entry out of many without side-effects', () => {
+      approvalController
+        .add({ id: 'foo', origin: 'bar.baz', type: 'type1' })
+        .catch(() => undefined);
+      approvalController
+        .add({ id: 'fizz', origin: 'bar.baz', type: 'type2' })
+        .catch(() => undefined);
+
+      approvalController.reject('fizz', new Error('failure'));
+
+      expect(
+        !approvalController.has({ id: 'fizz' }) &&
+          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+      ).toBe(true);
+
+      expect(
+        approvalController.has({ id: 'foo' }) &&
+          approvalController.has({ origin: 'bar.baz' }),
+      ).toBe(true);
+    });
+  });
+
+  describe('accept and reject', () => {
+    it('accepts and rejects multiple approval promises out of order', async () => {
+      const promise1 = approvalController.add({
+        id: 'foo1',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
+      const promise2 = approvalController.add({
+        id: 'foo2',
+        origin: 'bar.baz',
+        type: 'myType2',
+      });
+      const promise3 = approvalController.add({
+        id: 'foo3',
+        origin: 'fizz.buzz',
+        type: TYPE,
+      });
+      const promise4 = approvalController.add({
+        id: 'foo4',
+        origin: 'bar.baz',
+        type: 'myType4',
+      });
+
+      approvalController.accept('foo2', 'success2');
+
+      let result = await promise2;
+      expect(result).toBe('success2');
+
+      approvalController.reject('foo4', new Error('failure4'));
+      await expect(promise4).rejects.toThrow('failure4');
+
+      approvalController.reject('foo3', new Error('failure3'));
+      await expect(promise3).rejects.toThrow('failure3');
+
+      expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
+      expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
+
+      approvalController.accept('foo1', 'success1');
+
+      result = await promise1;
+      expect(result).toBe('success1');
+
+      expect(approvalController.has({ origin: 'bar.baz' })).toBe(false);
+    });
+  });
+
+  describe('clear', () => {
+    it('does nothing if state is already empty', () => {
+      expect(() =>
+        approvalController.clear(new JsonRpcError(1, 'clear')),
+      ).not.toThrow();
+    });
+
+    it('deletes existing entries', async () => {
+      const rejectSpy = jest.spyOn(approvalController, 'reject');
+
+      approvalController
+        .add({ id: 'foo2', origin: 'bar.baz', type: 'myType' })
+        .catch((_error) => undefined);
+
+      approvalController
+        .add({ id: 'foo3', origin: 'fizz.buzz', type: 'myType' })
+        .catch((_error) => undefined);
+
+      approvalController.clear(new JsonRpcError(1, 'clear'));
+
+      expect(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      ).toStrictEqual({});
+      expect(rejectSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects existing entries with a caller-specified error', async () => {
+      const rejectPromise = approvalController.add({
+        id: 'foo2',
+        origin: 'bar.baz',
+        type: 'myType',
+      });
+
+      approvalController.clear(new JsonRpcError(1000, 'foo'));
+      await expect(rejectPromise).rejects.toThrow(
+        new JsonRpcError(1000, 'foo'),
+      );
+    });
+
+    it('does not clear approval flows', async () => {
+      approvalController.startFlow();
+
+      approvalController.clear(new JsonRpcError(1, 'clear'));
+
+      expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+        1,
+      );
+    });
+  });
+
+  describe('updateRequestState', () => {
+    it('updates the request state of a given approval request', () => {
+      approvalController
+        .add({
+          id: 'foo2',
+          origin: 'bar.baz',
+          type: 'myType',
+          requestState: { foo: 'bar' },
+        })
+        .catch((_error) => undefined);
+
+      approvalController.updateRequestState({
+        id: 'foo2',
+        requestState: { foo: 'foobar' },
+      });
+
+      expect(approvalController.get('foo2')?.requestState).toStrictEqual({
+        foo: 'foobar',
+      });
+    });
+
+    it('throws on unknown id', () => {
+      expect(() =>
+        approvalController.updateRequestState({
+          id: 'foo',
+          requestState: { foo: 'bar' },
+        }),
+      ).toThrow(getIdNotFoundError('foo'));
+    });
+  });
+
+  describe('actions', () => {
+    it('addApprovalRequest: shouldShowRequest = true', async () => {
+      const messenger = new ControllerMessenger<
+        ApprovalControllerActions,
+        ApprovalControllerEvents
+      >();
+
+      approvalController = new ApprovalController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+        }) as ApprovalControllerMessenger,
+        showApprovalRequest,
+      });
+
+      messenger.call(
+        'ApprovalController:addRequest',
+        { id: 'foo', origin: 'bar.baz', type: TYPE },
+        true,
+      );
+      expect(showApprovalRequest).toHaveBeenCalledTimes(1);
+      expect(approvalController.has({ id: 'foo' })).toBe(true);
+    });
+
+    it('addApprovalRequest: shouldShowRequest = false', async () => {
+      const messenger = new ControllerMessenger<
+        ApprovalControllerActions,
+        ApprovalControllerEvents
+      >();
+
+      approvalController = new ApprovalController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+        }) as ApprovalControllerMessenger,
+        showApprovalRequest,
+      });
+
+      messenger.call(
+        'ApprovalController:addRequest',
+        { id: 'foo', origin: 'bar.baz', type: TYPE },
+        false,
+      );
+      expect(showApprovalRequest).toHaveBeenCalledTimes(0);
+      expect(approvalController.has({ id: 'foo' })).toBe(true);
+    });
+
+    it('updateRequestState', () => {
+      const messenger = new ControllerMessenger<
+        ApprovalControllerActions,
+        ApprovalControllerEvents
+      >();
+
+      approvalController = new ApprovalController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+        }) as ApprovalControllerMessenger,
+        showApprovalRequest,
+      });
+
+      approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'type1',
+        requestState: { foo: 'bar' },
+      });
+
+      messenger.call('ApprovalController:updateRequestState', {
+        id: 'foo',
+        requestState: { foo: 'foobar' },
+      });
+
+      expect(approvalController.get('foo')?.requestState).toStrictEqual({
+        foo: 'foobar',
+      });
+    });
+  });
+
+  describe('startFlow', () => {
+    it.each([
+      ['no options passed', undefined],
+      ['partial options passed', {}],
+      ['options passed', { id: 'id', loadingText: 'loadingText' }],
+    ])(
+      'adds flow to state and calls showApprovalRequest with %s',
+      (_, opts?: StartFlowOptions) => {
+        const result = approvalController.startFlow(opts);
+
+        const expectedFlow = {
+          id: opts?.id ?? expect.any(String),
+          loadingText: opts?.loadingText ?? null,
+        };
+        expect(result).toStrictEqual(expectedFlow);
+        expect(showApprovalRequest).toHaveBeenCalledTimes(1);
+        expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+          1,
+        );
+        expect(
+          approvalController.state[APPROVAL_FLOWS_STORE_KEY][0],
+        ).toStrictEqual(expectedFlow);
+      },
+    );
+  });
+
+  describe('endFlow', () => {
+    it('fails to end flow if no flow exists', () => {
+      expect(() => approvalController.endFlow({ id: 'id' })).toThrow(
+        NoApprovalFlowsError,
+      );
+    });
+
+    it('fails to end flow if id does not correspond the current flow', () => {
+      approvalController.startFlow({ id: 'id' });
+
+      expect(() => approvalController.endFlow({ id: 'wrong-id' })).toThrow(
+        EndInvalidFlowError,
+      );
+    });
+
+    it('ends flow if id corresponds with the current flow', () => {
+      approvalController.startFlow({ id: 'id' });
+
+      approvalController.endFlow({ id: 'id' });
+
+      expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+        0,
+      );
+    });
+  });
+
+  describe('setFlowLoadingText', () => {
+    const flowId = 'flowId';
+
+    beforeEach(() => {
+      approvalController.startFlow({ id: flowId });
+    });
+
+    afterEach(() => {
+      approvalController.endFlow({ id: flowId });
+    });
+
+    it('fails to set flow loading text if the flow id does not exist', () => {
+      expect(() =>
+        approvalController.setFlowLoadingText({
+          id: 'wrongId',
+          loadingText: null,
+        }),
+      ).toThrow(MissingApprovalFlowError);
+    });
+
+    it('changes the loading text for the approval flow', () => {
+      const mockLoadingText = 'Mock Loading Text';
+      approvalController.setFlowLoadingText({
+        id: flowId,
+        loadingText: mockLoadingText,
+      });
+
+      expect(
+        approvalController.state[APPROVAL_FLOWS_STORE_KEY].find(
+          (flow) => flow.id === flowId,
+        )?.loadingText,
+      ).toStrictEqual(mockLoadingText);
+    });
+
+    it('sets the loading text back to null for the approval the flow', () => {
+      approvalController.setFlowLoadingText({ id: flowId, loadingText: null });
+
+      expect(
+        approvalController.state[APPROVAL_FLOWS_STORE_KEY].find(
+          (flow) => flow.id === flowId,
+        )?.loadingText,
+      ).toBeNull();
+    });
+  });
+
+  describe('result', () => {
+    /**
+     * Assert that an approval request has been added.
+     *
+     * @param expectedType - The expected approval type.
+     * @param expectedData - The expected request data.
+     */
+    function expectRequestAdded(
+      expectedType: string,
+      expectedData: Record<string, unknown>,
+    ) {
+      const requests = approvalController.state[PENDING_APPROVALS_STORE_KEY];
+      expect(Object.values(requests)).toHaveLength(1);
+
+      const request = Object.values(requests)[0];
+      expect(request.id).toStrictEqual(expect.any(String));
+      expect(request.requestData).toStrictEqual(expectedData);
+
+      expect(approvalController.has({ id: request.id })).toBe(true);
+      expect(approvalController.has({ origin: ORIGIN_METAMASK })).toBe(true);
+      expect(approvalController.has({ type: expectedType })).toBe(true);
+    }
+
+    /**
+     * Test template to verify that a result method ends the specified flow once approved.
+     *
+     * @param methodCallback - A callback to invoke the result method.
+     */
+    async function endsSpecifiedFlowTemplate(
+      methodCallback: (flowId: string) => Promise<any>,
+    ) {
+      approvalController.startFlow({ id: FLOW_ID_MOCK });
+
+      const promise = methodCallback(FLOW_ID_MOCK);
+
+      const resultRequestId = Object.values(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      )[0].id;
+
+      approvalController.accept(resultRequestId);
+      await promise;
+
+      expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+        0,
+      );
+    }
+
+    /**
+     * Test template to verify that a result does not throw if adding the request fails.
+     *
+     * @param methodCallback - A callback to invoke the result method.
+     */
+    async function doesNotThrowIfAddingRequestFails(
+      methodCallback: () => Promise<any>,
+    ) {
+      jest.spyOn(global.console, 'info');
+
+      methodCallback();
+
+      // Second call will fail as mocked nanoid will generate the same ID.
+      methodCallback();
+
+      expect(console.info).toHaveBeenCalledTimes(1);
+      expect(console.info).toHaveBeenCalledWith(
+        'Failed to display result page',
+        expect.objectContaining({
+          message: `Approval request with id '${ID_MOCK}' already exists.`,
+        }),
+      );
+    }
+
+    /**
+     * Test template to verify that a result method does not throw if ending the flow fails.
+     *
+     * @param methodCallback - A callback to invoke the result method.
+     */
+    async function doesNotThrowIfEndFlowFails(
+      methodCallback: () => Promise<any>,
+    ) {
+      jest.spyOn(global.console, 'info');
+
+      const promise = methodCallback();
+
+      const resultRequestId = Object.values(
+        approvalController.state[PENDING_APPROVALS_STORE_KEY],
+      )[0].id;
+
+      approvalController.accept(resultRequestId);
+      await promise;
+
+      expect(console.info).toHaveBeenCalledTimes(1);
+      expect(console.info).toHaveBeenCalledWith('Failed to end flow', {
+        error: expect.objectContaining({ message: 'No approval flows found.' }),
+        id: FLOW_ID_MOCK,
+      });
+    }
+
+    describe('success', () => {
+      it('adds request with result success approval type', async () => {
+        approvalController.success(SUCCESS_OPTIONS_MOCK);
+        expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, SUCCESS_OPTIONS_MOCK);
+      });
+
+      it('adds request with no options', async () => {
+        approvalController.success();
+
+        expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, {
+          message: undefined,
+          header: undefined,
+        });
+      });
+
+      it('only includes relevant options in request data', async () => {
+        (approvalController as any).success({
+          ...SUCCESS_OPTIONS_MOCK,
+          extra: 'testValue',
+        });
+
+        const { requestData } = Object.values(
+          approvalController.state[PENDING_APPROVALS_STORE_KEY],
+        )[0];
+
+        expect(requestData).toStrictEqual(SUCCESS_OPTIONS_MOCK);
+      });
+
+      it('shows approval request', async () => {
+        approvalController.success(SUCCESS_OPTIONS_MOCK);
+        expect(showApprovalRequest).toHaveBeenCalledTimes(1);
+      });
+
+      it('ends specified flow', async () => {
+        await endsSpecifiedFlowTemplate((flowId) =>
+          approvalController.success({
+            ...SUCCESS_OPTIONS_MOCK,
+            flowToEnd: flowId,
+          }),
+        );
+      });
+
+      it('does not throw if adding request fails', async () => {
+        doesNotThrowIfAddingRequestFails(() =>
+          approvalController.success(SUCCESS_OPTIONS_MOCK),
+        );
+      });
+
+      it('does not throw if ending the flow fails', async () => {
+        await doesNotThrowIfEndFlowFails(() =>
+          approvalController.success({
+            ...SUCCESS_OPTIONS_MOCK,
+            flowToEnd: FLOW_ID_MOCK,
+          }),
+        );
+      });
+    });
+
+    describe('error', () => {
+      it('adds request with result error approval type', async () => {
+        approvalController.error(ERROR_OPTIONS_MOCK);
+        expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, ERROR_OPTIONS_MOCK);
+      });
+
+      it('adds request with no options', async () => {
+        approvalController.error();
+
+        expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, {
+          error: undefined,
+          header: undefined,
+        });
+      });
+
+      it('only includes relevant options in request data', async () => {
+        (approvalController as any).error({
+          ...ERROR_OPTIONS_MOCK,
+          extra: 'testValue',
+        });
+
+        const { requestData } = Object.values(
+          approvalController.state[PENDING_APPROVALS_STORE_KEY],
+        )[0];
+
+        expect(requestData).toStrictEqual(ERROR_OPTIONS_MOCK);
+      });
+
+      it('shows approval request', async () => {
+        approvalController.error(ERROR_OPTIONS_MOCK);
+        expect(showApprovalRequest).toHaveBeenCalledTimes(1);
+      });
+
+      it('ends specified flow', async () => {
+        await endsSpecifiedFlowTemplate((flowId) =>
+          approvalController.error({
+            ...ERROR_OPTIONS_MOCK,
+            flowToEnd: flowId,
+          }),
+        );
+      });
+
+      it('does not throw if adding request fails', async () => {
+        doesNotThrowIfAddingRequestFails(() =>
+          approvalController.error(ERROR_OPTIONS_MOCK),
+        );
+      });
+
+      it('does not throw if ending the flow fails', async () => {
+        await doesNotThrowIfEndFlowFails(() =>
+          approvalController.error({
+            ...ERROR_OPTIONS_MOCK,
+            flowToEnd: FLOW_ID_MOCK,
+          }),
+        );
+      });
+    });
+  });
+});

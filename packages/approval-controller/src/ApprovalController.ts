@@ -1,16 +1,49 @@
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
+import { rpcErrors } from '@metamask/rpc-errors';
+import type { Json, OptionalField } from '@metamask/utils';
 import type { Patch } from 'immer';
-import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
 import { nanoid } from 'nanoid';
+
 import {
-  BaseControllerV2,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
-import { Json } from '@metamask/controller-utils';
-import { ApprovalRequestNotFoundError } from './errors';
+  ApprovalRequestNotFoundError,
+  ApprovalRequestNoResultSupportError,
+  EndInvalidFlowError,
+  NoApprovalFlowsError,
+  MissingApprovalFlowError,
+} from './errors';
+
+// Constants
+
+// Avoiding dependency on controller-utils
+export const ORIGIN_METAMASK = 'metamask';
+export const APPROVAL_TYPE_RESULT_ERROR = 'result_error';
+export const APPROVAL_TYPE_RESULT_SUCCESS = 'result_success';
 
 const controllerName = 'ApprovalController';
 
-type ApprovalPromiseResolve = (value?: unknown) => void;
+const stateMetadata = {
+  pendingApprovals: { persist: false, anonymous: true },
+  pendingApprovalCount: { persist: false, anonymous: false },
+  approvalFlows: { persist: false, anonymous: false },
+};
+
+const getAlreadyPendingMessage = (origin: string, type: string) =>
+  `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
+
+const getDefaultState = (): ApprovalControllerState => {
+  return {
+    pendingApprovals: {},
+    pendingApprovalCount: 0,
+    approvalFlows: [],
+  };
+};
+
+// Internal Types
+
+type ApprovalPromiseResolve = (value?: unknown | AddResult) => void;
+
 type ApprovalPromiseReject = (error?: unknown) => void;
 
 type ApprovalRequestData = Record<string, Json> | null;
@@ -21,6 +54,18 @@ type ApprovalCallbacks = {
   resolve: ApprovalPromiseResolve;
   reject: ApprovalPromiseReject;
 };
+
+type ApprovalFlow = {
+  id: string;
+  loadingText: string | null;
+};
+
+type ResultOptions = {
+  flowToEnd?: string;
+  header?: (string | ResultComponent)[];
+};
+
+// Miscellaneous Types
 
 export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
   /**
@@ -53,29 +98,156 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
    * Additional mutable state associated with the request
    */
   requestState: ApprovalRequestState;
+
+  /**
+   * Whether the request expects a result object to be returned instead of just the approval value.
+   */
+  expectsResult: boolean;
 };
 
-type ShowApprovalRequest = () => void | Promise<void>;
+export type ApprovalFlowState = ApprovalFlow;
 
 export type ApprovalControllerState = {
   pendingApprovals: Record<string, ApprovalRequest<Record<string, Json>>>;
   pendingApprovalCount: number;
+  approvalFlows: ApprovalFlowState[];
 };
 
-const stateMetadata = {
-  pendingApprovals: { persist: false, anonymous: true },
-  pendingApprovalCount: { persist: false, anonymous: false },
+export type ApprovalControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  ApprovalControllerActions,
+  ApprovalControllerEvents,
+  string,
+  string
+>;
+
+// Option Types
+
+export type ShowApprovalRequest = () => void | Promise<void>;
+
+export type ResultComponent = {
+  /**
+   * A unique identifier for this instance of the component.
+   */
+  key: string;
+
+  /**
+   * The name of the component to render.
+   */
+  name: string;
+
+  /**
+   * Any properties required by the component.
+   */
+  properties?: Record<string, unknown>;
+
+  /**
+   * Any child components to render inside the component.
+   */
+  children?: string | ResultComponent | (string | ResultComponent)[];
 };
 
-const getAlreadyPendingMessage = (origin: string, type: string) =>
-  `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
-
-const getDefaultState = (): ApprovalControllerState => {
-  return {
-    pendingApprovals: {},
-    pendingApprovalCount: 0,
-  };
+export type ApprovalControllerOptions = {
+  messenger: ApprovalControllerMessenger;
+  showApprovalRequest: ShowApprovalRequest;
+  state?: Partial<ApprovalControllerState>;
+  typesExcludedFromRateLimiting?: string[];
 };
+
+export type AddApprovalOptions = {
+  id?: string;
+  origin: string;
+  type: string;
+  requestData?: Record<string, Json>;
+  requestState?: Record<string, Json>;
+  expectsResult?: boolean;
+};
+
+export type UpdateRequestStateOptions = {
+  id: string;
+  requestState: Record<string, Json>;
+};
+
+export type AcceptOptions = {
+  /**
+   * Whether to resolve the returned promise only when the request creator indicates the success of the
+   * post-approval logic using the result callbacks.
+   * If false or unspecified, the promise will resolve immediately.
+   */
+  waitForResult?: boolean;
+};
+
+export type StartFlowOptions = OptionalField<
+  ApprovalFlow,
+  'id' | 'loadingText'
+>;
+
+export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
+
+export type SetFlowLoadingTextOptions = ApprovalFlow;
+
+export type SuccessOptions = ResultOptions & {
+  message?: string | ResultComponent | (string | ResultComponent)[];
+};
+
+export type ErrorOptions = ResultOptions & {
+  error?: string | ResultComponent | (string | ResultComponent)[];
+};
+
+// Result Types
+
+export type AcceptResultCallbacks = {
+  /**
+   * Inform the request acceptor that the post-approval logic was successful.
+   *
+   * @param value - An optional value generated by the post-approval logic.
+   */
+  success: (value?: unknown) => void;
+
+  /**
+   * Inform the request acceptor that the post-approval logic failed.
+   *
+   * @param error - The reason for the failure.
+   */
+  error: (error: Error) => void;
+};
+
+export type AddResult = {
+  /**
+   * An optional value provided by the request acceptor.
+   */
+  value?: unknown;
+
+  /**
+   * Callback functions that must be used to indicate to the request acceptor whether the post-approval logic was successful or not.
+   * Will be undefined if the request acceptor did not specify that they want to wait for a result.
+   */
+  resultCallbacks?: AcceptResultCallbacks;
+};
+
+export type AcceptResult = {
+  /**
+   * An optional value provided by the request creator when indicating a successful result.
+   */
+  value?: unknown;
+};
+
+export type ApprovalFlowStartResult = ApprovalFlow;
+
+export type SuccessResult = Record<string, never>;
+
+export type ErrorResult = Record<string, never>;
+
+// Event Types
+
+export type ApprovalStateChange = {
+  type: `${typeof controllerName}:stateChange`;
+  payload: [ApprovalControllerState, Patch[]];
+};
+
+export type ApprovalControllerEvents = ApprovalStateChange;
+
+// Action Types
 
 export type GetApprovalsState = {
   type: `${typeof controllerName}:getState`;
@@ -84,15 +256,7 @@ export type GetApprovalsState = {
 
 export type ClearApprovalRequests = {
   type: `${typeof controllerName}:clearRequests`;
-  handler: (error: EthereumRpcError<unknown>) => void;
-};
-
-type AddApprovalOptions = {
-  id?: string;
-  origin: string;
-  type: string;
-  requestData?: Record<string, Json>;
-  requestState?: Record<string, Json>;
+  handler: (error: JsonRpcError<DataWithOptionalCause>) => void;
 };
 
 export type AddApprovalRequest = {
@@ -118,14 +282,34 @@ export type RejectRequest = {
   handler: ApprovalController['reject'];
 };
 
-type UpdateRequestStateOptions = {
-  id: string;
-  requestState: Record<string, Json>;
-};
-
 export type UpdateRequestState = {
   type: `${typeof controllerName}:updateRequestState`;
   handler: ApprovalController['updateRequestState'];
+};
+
+export type StartFlow = {
+  type: `${typeof controllerName}:startFlow`;
+  handler: ApprovalController['startFlow'];
+};
+
+export type EndFlow = {
+  type: `${typeof controllerName}:endFlow`;
+  handler: ApprovalController['endFlow'];
+};
+
+export type SetFlowLoadingText = {
+  type: `${typeof controllerName}:setFlowLoadingText`;
+  handler: ApprovalController['setFlowLoadingText'];
+};
+
+export type ShowSuccess = {
+  type: `${typeof controllerName}:showSuccess`;
+  handler: ApprovalController['success'];
+};
+
+export type ShowError = {
+  type: `${typeof controllerName}:showError`;
+  handler: ApprovalController['error'];
 };
 
 export type ApprovalControllerActions =
@@ -135,29 +319,12 @@ export type ApprovalControllerActions =
   | HasApprovalRequest
   | AcceptRequest
   | RejectRequest
-  | UpdateRequestState;
-
-export type ApprovalStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [ApprovalControllerState, Patch[]];
-};
-
-export type ApprovalControllerEvents = ApprovalStateChange;
-
-export type ApprovalControllerMessenger = RestrictedControllerMessenger<
-  typeof controllerName,
-  ApprovalControllerActions,
-  ApprovalControllerEvents,
-  never,
-  never
->;
-
-type ApprovalControllerOptions = {
-  messenger: ApprovalControllerMessenger;
-  showApprovalRequest: ShowApprovalRequest;
-  state?: Partial<ApprovalControllerState>;
-  typesExcludedFromRateLimiting?: string[];
-};
+  | UpdateRequestState
+  | StartFlow
+  | EndFlow
+  | SetFlowLoadingText
+  | ShowSuccess
+  | ShowError;
 
 /**
  * Controller for managing requests that require user approval.
@@ -173,13 +340,13 @@ export class ApprovalController extends BaseControllerV2<
   ApprovalControllerState,
   ApprovalControllerMessenger
 > {
-  private _approvals: Map<string, ApprovalCallbacks>;
+  #approvals: Map<string, ApprovalCallbacks>;
 
-  private _origins: Map<string, Map<string, number>>;
+  #origins: Map<string, Map<string, number>>;
 
-  private _showApprovalRequest: () => void;
+  #showApprovalRequest: () => void;
 
-  private _typesExcludedFromRateLimiting: string[];
+  #typesExcludedFromRateLimiting: string[];
 
   /**
    * Construct an Approval controller.
@@ -204,10 +371,10 @@ export class ApprovalController extends BaseControllerV2<
       state: { ...getDefaultState(), ...state },
     });
 
-    this._approvals = new Map();
-    this._origins = new Map();
-    this._showApprovalRequest = showApprovalRequest;
-    this._typesExcludedFromRateLimiting = typesExcludedFromRateLimiting;
+    this.#approvals = new Map();
+    this.#origins = new Map();
+    this.#showApprovalRequest = showApprovalRequest;
+    this.#typesExcludedFromRateLimiting = typesExcludedFromRateLimiting;
     this.registerMessageHandlers();
   }
 
@@ -250,11 +417,37 @@ export class ApprovalController extends BaseControllerV2<
       `${controllerName}:updateRequestState` as const,
       this.updateRequestState.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:startFlow` as const,
+      this.startFlow.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:endFlow` as const,
+      this.endFlow.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:setFlowLoadingText` as const,
+      this.setFlowLoadingText.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:showSuccess` as const,
+      this.success.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:showError` as const,
+      this.error.bind(this),
+    );
   }
 
   /**
    * Adds an approval request per the given arguments, calls the show approval
-   * request function, and returns the associated approval promise.
+   * request function, and returns the associated approval promise resolving to
+   * an AddResult object.
    *
    * There can only be one approval per origin and type. An error is thrown if
    * attempting to add an invalid or duplicate request.
@@ -267,23 +460,48 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.requestData - Additional data associated with the request,
    * @param opts.requestState - Additional state associated with the request,
    * if any.
-   * @returns The approval promise.
+   * @returns The approval promise resolving to an AddResult object.
    */
+  addAndShowApprovalRequest(
+    opts: AddApprovalOptions & { expectsResult: true },
+  ): Promise<AddResult>;
+
+  /**
+   * Adds an approval request per the given arguments, calls the show approval
+   * request function, and returns the associated approval promise resolving
+   * to a value provided during acceptance.
+   *
+   * There can only be one approval per origin and type. An error is thrown if
+   * attempting to add an invalid or duplicate request.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval request. A random id will be
+   * generated if none is provided.
+   * @param opts.origin - The origin of the approval request.
+   * @param opts.type - The type associated with the approval request.
+   * @param opts.requestData - Additional data associated with the request,
+   * @param opts.requestState - Additional state associated with the request,
+   * if any.
+   * @returns The approval promise resolving to a value provided during acceptance.
+   */
+  addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown>;
+
   addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
-    const promise = this._add(
+    const promise = this.#add(
       opts.origin,
       opts.type,
       opts.id,
       opts.requestData,
       opts.requestState,
+      opts.expectsResult,
     );
-    this._showApprovalRequest();
+    this.#showApprovalRequest();
     return promise;
   }
 
   /**
    * Adds an approval request per the given arguments and returns the approval
-   * promise.
+   * promise resolving to an AddResult object.
    *
    * There can only be one approval per origin and type. An error is thrown if
    * attempting to add an invalid or duplicate request.
@@ -295,15 +513,36 @@ export class ApprovalController extends BaseControllerV2<
    * @param opts.type - The type associated with the approval request.
    * @param opts.requestData - Additional data associated with the request,
    * if any.
-   * @returns The approval promise.
+   * @returns The approval promise resolving to an AddResult object.
    */
-  add(opts: AddApprovalOptions): Promise<unknown> {
-    return this._add(
+  add(opts: AddApprovalOptions & { expectsResult: true }): Promise<AddResult>;
+
+  /**
+   * Adds an approval request per the given arguments and returns the approval
+   * promise resolving to a value provided during acceptance.
+   *
+   * There can only be one approval per origin and type. An error is thrown if
+   * attempting to add an invalid or duplicate request.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval request. A random id will be
+   * generated if none is provided.
+   * @param opts.origin - The origin of the approval request.
+   * @param opts.type - The type associated with the approval request.
+   * @param opts.requestData - Additional data associated with the request,
+   * if any.
+   * @returns The approval promise resolving to a value provided during acceptance.
+   */
+  add(opts: AddApprovalOptions): Promise<unknown>;
+
+  add(opts: AddApprovalOptions): Promise<unknown | AddResult> {
+    return this.#add(
       opts.origin,
       opts.type,
       opts.id,
       opts.requestData,
       opts.requestState,
+      opts.expectsResult,
     );
   }
 
@@ -339,12 +578,12 @@ export class ApprovalController extends BaseControllerV2<
     const { origin, type: _type } = opts;
 
     if (origin && _type) {
-      return this._origins.get(origin)?.get(_type) || 0;
+      return this.#origins.get(origin)?.get(_type) || 0;
     }
 
     if (origin) {
       return Array.from(
-        (this._origins.get(origin) || new Map()).values(),
+        (this.#origins.get(origin) || new Map()).values(),
       ).reduce((total, value) => total + value, 0);
     }
 
@@ -389,7 +628,7 @@ export class ApprovalController extends BaseControllerV2<
       if (typeof id !== 'string') {
         throw new Error('May not specify non-string id.');
       }
-      return this._approvals.has(id);
+      return this.#approvals.has(id);
     }
 
     if (_type && typeof _type !== 'string') {
@@ -403,9 +642,9 @@ export class ApprovalController extends BaseControllerV2<
 
       // Check origin and type pair if type also specified
       if (_type) {
-        return Boolean(this._origins.get(origin)?.get(_type));
+        return Boolean(this.#origins.get(origin)?.get(_type));
       }
-      return this._origins.has(origin);
+      return this.#origins.has(origin);
     }
 
     if (_type) {
@@ -427,9 +666,43 @@ export class ApprovalController extends BaseControllerV2<
    *
    * @param id - The id of the approval request.
    * @param value - The value to resolve the approval promise with.
+   * @param options - Options bag.
+   * @returns A promise that either resolves once a result is provided by
+   * the creator of the approval request, or immediately if `options.waitForResult`
+   * is `false` or `undefined`.
    */
-  accept(id: string, value?: unknown): void {
-    this._deleteApprovalAndGetCallbacks(id).resolve(value);
+  accept(
+    id: string,
+    value?: unknown,
+    options?: AcceptOptions,
+  ): Promise<AcceptResult> {
+    // Safe to cast as the delete method below will throw if the ID is not found
+    const approval = this.get(id) as ApprovalRequest<ApprovalRequestData>;
+    const requestPromise = this.#deleteApprovalAndGetCallbacks(id);
+
+    return new Promise((resolve, reject) => {
+      const resultCallbacks: AcceptResultCallbacks = {
+        success: (acceptValue?: unknown) => resolve({ value: acceptValue }),
+        error: reject,
+      };
+
+      if (options?.waitForResult && !approval.expectsResult) {
+        reject(new ApprovalRequestNoResultSupportError(id));
+        return;
+      }
+
+      const resultValue = options?.waitForResult ? resultCallbacks : undefined;
+
+      const resolveValue = approval.expectsResult
+        ? { value, resultCallbacks: resultValue }
+        : value;
+
+      requestPromise.resolve(resolveValue);
+
+      if (!options?.waitForResult) {
+        resolve({ value: undefined });
+      }
+    });
   }
 
   /**
@@ -440,21 +713,24 @@ export class ApprovalController extends BaseControllerV2<
    * @param error - The error to reject the approval promise with.
    */
   reject(id: string, error: unknown): void {
-    this._deleteApprovalAndGetCallbacks(id).reject(error);
+    this.#deleteApprovalAndGetCallbacks(id).reject(error);
   }
 
   /**
    * Rejects and deletes all approval requests.
    *
-   * @param rejectionError - The EthereumRpcError to reject the approval
+   * @param rejectionError - The JsonRpcError to reject the approval
    * requests with.
    */
-  clear(rejectionError: EthereumRpcError<unknown>): void {
-    for (const id of this._approvals.keys()) {
+  clear(rejectionError: JsonRpcError<DataWithOptionalCause>): void {
+    for (const id of this.#approvals.keys()) {
       this.reject(id, rejectionError);
     }
-    this._origins.clear();
-    this.update(() => getDefaultState());
+    this.#origins.clear();
+    this.update((draftState) => {
+      draftState.pendingApprovals = {};
+      draftState.pendingApprovalCount = 0;
+    });
   }
 
   /**
@@ -477,6 +753,107 @@ export class ApprovalController extends BaseControllerV2<
   }
 
   /**
+   * Starts a new approval flow.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval flow.
+   * @param opts.loadingText - The loading text that will be associated to the approval flow.
+   * @returns The object containing the approval flow id.
+   */
+  startFlow(opts: StartFlowOptions = {}): ApprovalFlowStartResult {
+    const id = opts.id ?? nanoid();
+    const loadingText = opts.loadingText ?? null;
+
+    this.update((draftState) => {
+      draftState.approvalFlows.push({ id, loadingText });
+    });
+
+    this.#showApprovalRequest();
+
+    return { id, loadingText };
+  }
+
+  /**
+   * Ends the current approval flow.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval flow that will be finished.
+   */
+  endFlow({ id }: EndFlowOptions) {
+    if (!this.state.approvalFlows.length) {
+      throw new NoApprovalFlowsError();
+    }
+
+    const currentFlow = this.state.approvalFlows.slice(-1)[0];
+
+    if (id !== currentFlow.id) {
+      throw new EndInvalidFlowError(
+        id,
+        this.state.approvalFlows.map((flow) => flow.id),
+      );
+    }
+
+    this.update((draftState) => {
+      draftState.approvalFlows.pop();
+    });
+  }
+
+  /**
+   * Sets the loading text for the approval flow.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The approval flow loading text that will be displayed.
+   * @param opts.loadingText - The loading text that will be associated to the approval flow.
+   */
+  setFlowLoadingText({ id, loadingText }: SetFlowLoadingTextOptions) {
+    const flowIndex = this.state.approvalFlows.findIndex(
+      (flow) => flow.id === id,
+    );
+
+    if (flowIndex === -1) {
+      throw new MissingApprovalFlowError(id);
+    }
+
+    this.update((draftState) => {
+      draftState.approvalFlows[flowIndex].loadingText = loadingText;
+    });
+  }
+
+  /**
+   * Show a success page.
+   *
+   * @param opts - Options bag.
+   * @param opts.message - The message text or components to display in the page.
+   * @param opts.header - The text or components to display in the header of the page.
+   * @param opts.flowToEnd - The ID of the approval flow to end once the success page is approved.
+   * @returns Empty object to support future additions.
+   */
+  async success(opts: SuccessOptions = {}): Promise<SuccessResult> {
+    await this.#result(APPROVAL_TYPE_RESULT_SUCCESS, opts, {
+      message: opts.message,
+      header: opts.header,
+    } as any);
+    return {};
+  }
+
+  /**
+   * Show an error page.
+   *
+   * @param opts - Options bag.
+   * @param opts.message - The message text or components to display in the page.
+   * @param opts.header - The text or components to display in the header of the page.
+   * @param opts.flowToEnd - The ID of the approval flow to end once the error page is approved.
+   * @returns Empty object to support future additions.
+   */
+  async error(opts: ErrorOptions = {}): Promise<ErrorResult> {
+    await this.#result(APPROVAL_TYPE_RESULT_ERROR, opts, {
+      error: opts.error,
+      header: opts.header,
+    } as any);
+    return {};
+  }
+
+  /**
    * Implementation of add operation.
    *
    * @param origin - The origin of the approval request.
@@ -484,31 +861,41 @@ export class ApprovalController extends BaseControllerV2<
    * @param id - The id of the approval request.
    * @param requestData - The request data associated with the approval request.
    * @param requestState - The request state associated with the approval request.
+   * @param expectsResult - Whether the approval request expects a result object to be returned.
    * @returns The approval promise.
    */
-  private _add(
+  #add(
     origin: string,
     type: string,
     id: string = nanoid(),
     requestData?: Record<string, Json>,
     requestState?: Record<string, Json>,
-  ): Promise<unknown> {
-    this._validateAddParams(id, origin, type, requestData, requestState);
+    expectsResult?: boolean,
+  ): Promise<unknown | AddResult> {
+    this.#validateAddParams(id, origin, type, requestData, requestState);
 
     if (
-      !this._typesExcludedFromRateLimiting.includes(type) &&
+      !this.#typesExcludedFromRateLimiting.includes(type) &&
       this.has({ origin, type })
     ) {
-      throw ethErrors.rpc.resourceUnavailable(
+      throw rpcErrors.resourceUnavailable(
         getAlreadyPendingMessage(origin, type),
       );
     }
 
     // add pending approval
     return new Promise((resolve, reject) => {
-      this._approvals.set(id, { resolve, reject });
-      this._addPendingApprovalOrigin(origin, type);
-      this._addToStore(id, origin, type, requestData, requestState);
+      this.#approvals.set(id, { resolve, reject });
+      this.#addPendingApprovalOrigin(origin, type);
+
+      this.#addToStore(
+        id,
+        origin,
+        type,
+        requestData,
+        requestState,
+        expectsResult,
+      );
     });
   }
 
@@ -521,7 +908,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param requestData - The request data associated with the approval request.
    * @param requestState - The request state associated with the approval request.
    */
-  private _validateAddParams(
+  #validateAddParams(
     id: string,
     origin: string,
     type: string,
@@ -531,7 +918,7 @@ export class ApprovalController extends BaseControllerV2<
     let errorMessage = null;
     if (!id || typeof id !== 'string') {
       errorMessage = 'Must specify non-empty string id.';
-    } else if (this._approvals.has(id)) {
+    } else if (this.#approvals.has(id)) {
       errorMessage = `Approval request with id '${id}' already exists.`;
     } else if (!origin || typeof origin !== 'string') {
       errorMessage = 'Must specify non-empty string origin.';
@@ -550,7 +937,7 @@ export class ApprovalController extends BaseControllerV2<
     }
 
     if (errorMessage) {
-      throw ethErrors.rpc.internal(errorMessage);
+      throw rpcErrors.internal(errorMessage);
     }
   }
 
@@ -561,12 +948,12 @@ export class ApprovalController extends BaseControllerV2<
    * @param origin - The origin of the approval request.
    * @param type - The type associated with the approval request.
    */
-  private _addPendingApprovalOrigin(origin: string, type: string): void {
-    let originMap = this._origins.get(origin);
+  #addPendingApprovalOrigin(origin: string, type: string): void {
+    let originMap = this.#origins.get(origin);
 
     if (!originMap) {
       originMap = new Map();
-      this._origins.set(origin, originMap);
+      this.#origins.set(origin, originMap);
     }
 
     const currentValue = originMap.get(type) || 0;
@@ -582,13 +969,15 @@ export class ApprovalController extends BaseControllerV2<
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
    * @param requestState - The request state associated with the approval request.
+   * @param expectsResult - Whether the request expects a result object to be returned.
    */
-  private _addToStore(
+  #addToStore(
     id: string,
     origin: string,
     type: string,
     requestData?: Record<string, Json>,
     requestState?: Record<string, Json>,
+    expectsResult?: boolean,
   ): void {
     const approval: ApprovalRequest<Record<string, Json> | null> = {
       id,
@@ -597,6 +986,7 @@ export class ApprovalController extends BaseControllerV2<
       time: Date.now(),
       requestData: requestData || null,
       requestState: requestState || null,
+      expectsResult: expectsResult || false,
     };
 
     this.update((draftState) => {
@@ -616,20 +1006,20 @@ export class ApprovalController extends BaseControllerV2<
    *
    * @param id - The id of the approval request to be deleted.
    */
-  private _delete(id: string): void {
-    this._approvals.delete(id);
+  #delete(id: string): void {
+    this.#approvals.delete(id);
 
     // This method is only called after verifying that the approval with the
     // specified id exists.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const { origin, type } = this.state.pendingApprovals[id]!;
 
-    const originMap = this._origins.get(origin) as Map<string, number>;
+    const originMap = this.#origins.get(origin) as Map<string, number>;
     const originTotalCount = this.getApprovalCount({ origin });
     const originTypeCount = originMap.get(type) as number;
 
     if (originTotalCount === 1) {
-      this._origins.delete(origin);
+      this.#origins.delete(origin);
     } else {
       originMap.set(type, originTypeCount - 1);
     }
@@ -650,14 +1040,39 @@ export class ApprovalController extends BaseControllerV2<
    * @param id - The id of the approval request.
    * @returns The promise callbacks associated with the approval request.
    */
-  private _deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
-    const callbacks = this._approvals.get(id);
+  #deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
+    const callbacks = this.#approvals.get(id);
     if (!callbacks) {
       throw new ApprovalRequestNotFoundError(id);
     }
 
-    this._delete(id);
+    this.#delete(id);
     return callbacks;
   }
+
+  async #result(
+    type: string,
+    opts: ResultOptions,
+    requestData: Record<string, Json>,
+  ) {
+    try {
+      await this.addAndShowApprovalRequest({
+        origin: ORIGIN_METAMASK,
+        type,
+        requestData,
+      });
+    } catch (error) {
+      console.info('Failed to display result page', error);
+    } finally {
+      if (opts.flowToEnd) {
+        try {
+          this.endFlow({ id: opts.flowToEnd });
+        } catch (error) {
+          console.info('Failed to end flow', { id: opts.flowToEnd, error });
+        }
+      }
+    }
+  }
 }
+
 export default ApprovalController;

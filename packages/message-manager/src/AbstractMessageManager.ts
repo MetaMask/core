@@ -1,10 +1,7 @@
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { Hex, Json } from '@metamask/utils';
 import { EventEmitter } from 'events';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
-import { Json } from '@metamask/controller-utils';
 
 /**
  * @type OriginalRequest
@@ -14,6 +11,7 @@ import { Json } from '@metamask/controller-utils';
  */
 export interface OriginalRequest {
   origin?: string;
+  securityAlertResponse?: Record<string, Json>;
 }
 
 /**
@@ -25,6 +23,7 @@ export interface OriginalRequest {
  * A 'Message' which always has a signing type
  * @property rawSig - Raw data of the signature request
  * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
+ * @property metadata - Additional data for the message, for example external identifiers
  */
 export interface AbstractMessage {
   id: string;
@@ -33,6 +32,9 @@ export interface AbstractMessage {
   type: string;
   rawSig?: string;
   securityProviderResponse?: Record<string, Json>;
+  securityAlertResponse?: Record<string, Json>;
+  metadata?: Json;
+  error?: string;
 }
 
 /**
@@ -41,10 +43,12 @@ export interface AbstractMessage {
  * Represents the parameters to pass to the signing method once the signature request is approved.
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
+ * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
 export interface AbstractMessageParams {
   from: string;
   origin?: string;
+  deferSetAsSigned?: boolean;
 }
 
 /**
@@ -81,7 +85,7 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
-type getCurrentChainId = () => string;
+type getCurrentChainId = () => Hex;
 
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
@@ -95,9 +99,9 @@ export abstract class AbstractMessageManager<
 
   protected getCurrentChainId: getCurrentChainId | undefined;
 
-  private securityProviderRequest: SecurityProviderRequest | undefined;
+  private readonly securityProviderRequest: SecurityProviderRequest | undefined;
 
-  private additionalFinishStatuses: string[];
+  private readonly additionalFinishStatuses: string[];
 
   /**
    * Saves the unapproved messages, and their count to state.
@@ -258,6 +262,15 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Returns all the messages.
+   *
+   * @returns An array of messages.
+   */
+  getAllMessages() {
+    return this.messages;
+  }
+
+  /**
    * Approves a Message. Sets the message status via a call to this.setMessageStatusApproved,
    * and returns a promise with any the message params modified for proper signing.
    *
@@ -332,6 +345,22 @@ export abstract class AbstractMessageManager<
   }
 
   /**
+   * Sets the messsage metadata
+   *
+   * @param messageId - The id of the Message to update
+   * @param metadata - The data with which to replace the metadata property in the message
+   */
+
+  setMetadata(messageId: string, metadata: Json) {
+    const message = this.getMessage(messageId);
+    if (!message) {
+      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
+    }
+    message.metadata = metadata;
+    this.updateMessage(message, false);
+  }
+
+  /**
    * Removes the metamaskId property from passed messageParams and returns a promise which
    * resolves the updated messageParams
    *
@@ -341,12 +370,68 @@ export abstract class AbstractMessageManager<
   abstract prepMessageForSigning(messageParams: PM): Promise<P>;
 
   /**
+   * Creates a new Message with an 'unapproved' status using the passed messageParams.
+   * this.addMessage is called to add the new Message to this.messages, and to save the
+   * unapproved Messages.
+   *
+   * @param messageParams - Message parameters for the message to add
+   * @param req - The original request object possibly containing the origin.
+   * @param version? - The version of the JSON RPC protocol the request is using.
+   * @returns The id of the newly created message.
+   */
+  abstract addUnapprovedMessage(
+    messageParams: PM,
+    request: OriginalRequest,
+    version?: string,
+  ): Promise<string>;
+
+  /**
    * Sets a Message status to 'rejected' via a call to this.setMessageStatus.
    *
    * @param messageId - The id of the Message to reject.
    */
   rejectMessage(messageId: string) {
     this.setMessageStatus(messageId, 'rejected');
+  }
+
+  /**
+   * Creates a promise which will resolve or reject when the message process is finished.
+   *
+   * @param messageParamsWithId - The params for the personal_sign call to be made after the message is approved.
+   * @param messageName - The name of the message
+   * @returns Promise resolving to the raw data of the signature request.
+   */
+  async waitForFinishStatus(
+    messageParamsWithId: AbstractMessageParamsMetamask,
+    messageName: string,
+  ): Promise<string> {
+    const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
+    return new Promise((resolve, reject) => {
+      this.hub.once(`${messageId}:finished`, (data: AbstractMessage) => {
+        switch (data.status) {
+          case 'signed':
+            return resolve(data.rawSig as string);
+          case 'rejected':
+            return reject(
+              new Error(
+                `MetaMask ${messageName} Signature: User denied message signature.`,
+              ),
+            );
+          case 'errored':
+            return reject(
+              new Error(`MetaMask ${messageName} Signature: ${data.error}`),
+            );
+          default:
+            return reject(
+              new Error(
+                `MetaMask ${messageName} Signature: Unknown problem: ${JSON.stringify(
+                  messageParams,
+                )}`,
+              ),
+            );
+        }
+      });
+    });
   }
 }
 

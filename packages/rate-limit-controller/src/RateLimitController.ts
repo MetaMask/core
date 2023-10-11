@@ -1,16 +1,26 @@
-import { ethErrors } from 'eth-rpc-errors';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type { Patch } from 'immer';
-import {
-  BaseControllerV2 as BaseController,
-  RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+
+/**
+ * @type RateLimitedApi
+ * @property method - The method that is rate-limited.
+ * @property rateLimitTimeout - The time window in which the rate limit is applied (in ms).
+ * @property rateLimitCount - The amount of calls an origin can make in the rate limit time window.
+ */
+export type RateLimitedApi = {
+  method: (...args: any[]) => any;
+  rateLimitTimeout?: number;
+  rateLimitCount?: number;
+};
 
 /**
  * @type RateLimitState
  * @property requests - Object containing number of requests in a given interval for each origin and api type combination
  */
 export type RateLimitState<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>,
+  RateLimitedApis extends Record<string, RateLimitedApi>,
 > = {
   requests: Record<keyof RateLimitedApis, Record<string, number>>;
 };
@@ -18,32 +28,30 @@ export type RateLimitState<
 const name = 'RateLimitController';
 
 export type RateLimitStateChange<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>,
+  RateLimitedApis extends Record<string, RateLimitedApi>,
 > = {
   type: `${typeof name}:stateChange`;
   payload: [RateLimitState<RateLimitedApis>, Patch[]];
 };
 
 export type GetRateLimitState<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>,
+  RateLimitedApis extends Record<string, RateLimitedApi>,
 > = {
   type: `${typeof name}:getState`;
   handler: () => RateLimitState<RateLimitedApis>;
 };
 
-export type CallApi<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>,
-> = {
+export type CallApi<RateLimitedApis extends Record<string, RateLimitedApi>> = {
   type: `${typeof name}:call`;
   handler: RateLimitController<RateLimitedApis>['call'];
 };
 
 export type RateLimitControllerActions<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>,
+  RateLimitedApis extends Record<string, RateLimitedApi>,
 > = GetRateLimitState<RateLimitedApis> | CallApi<RateLimitedApis>;
 
 export type RateLimitMessenger<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>,
+  RateLimitedApis extends Record<string, RateLimitedApi>,
 > = RestrictedControllerMessenger<
   typeof name,
   RateLimitControllerActions<RateLimitedApis>,
@@ -60,17 +68,17 @@ const metadata = {
  * Controller with logic for rate-limiting API endpoints per requesting origin.
  */
 export class RateLimitController<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>,
+  RateLimitedApis extends Record<string, RateLimitedApi>,
 > extends BaseController<
   typeof name,
   RateLimitState<RateLimitedApis>,
   RateLimitMessenger<RateLimitedApis>
 > {
-  private implementations;
+  private readonly implementations;
 
-  private rateLimitTimeout;
+  private readonly rateLimitTimeout;
 
-  private rateLimitCount;
+  private readonly rateLimitCount;
 
   /**
    * Creates a RateLimitController instance.
@@ -116,7 +124,7 @@ export class RateLimitController<
       ((
         origin: string,
         type: keyof RateLimitedApis,
-        ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]>
+        ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]['method']>
       ) => this.call(origin, type, ...args)) as any,
     );
   }
@@ -132,16 +140,16 @@ export class RateLimitController<
   async call<ApiType extends keyof RateLimitedApis>(
     origin: string,
     type: ApiType,
-    ...args: Parameters<RateLimitedApis[ApiType]>
-  ): Promise<ReturnType<RateLimitedApis[ApiType]>> {
+    ...args: Parameters<RateLimitedApis[ApiType]['method']>
+  ): Promise<ReturnType<RateLimitedApis[ApiType]['method']>> {
     if (this.isRateLimited(type, origin)) {
-      throw ethErrors.rpc.limitExceeded({
-        message: `"${type}" is currently rate-limited. Please try again later.`,
+      throw rpcErrors.limitExceeded({
+        message: `"${type.toString()}" is currently rate-limited. Please try again later.`,
       });
     }
     this.recordRequest(type, origin);
 
-    const implementation = this.implementations[type];
+    const implementation = this.implementations[type].method;
 
     if (!implementation) {
       throw new Error('Invalid api type');
@@ -158,7 +166,9 @@ export class RateLimitController<
    * @returns `true` if rate-limited, and `false` otherwise.
    */
   private isRateLimited(api: keyof RateLimitedApis, origin: string) {
-    return this.state.requests[api][origin] >= this.rateLimitCount;
+    const rateLimitCount =
+      this.implementations[api].rateLimitCount ?? this.rateLimitCount;
+    return this.state.requests[api][origin] >= rateLimitCount;
   }
 
   /**
@@ -168,15 +178,14 @@ export class RateLimitController<
    * @param origin - The origin trying to access the API.
    */
   private recordRequest(api: keyof RateLimitedApis, origin: string) {
+    const rateLimitTimeout =
+      this.implementations[api].rateLimitTimeout ?? this.rateLimitTimeout;
     this.update((state) => {
       const previous = (state as any).requests[api][origin] ?? 0;
       (state as any).requests[api][origin] = previous + 1;
 
       if (previous === 0) {
-        setTimeout(
-          () => this.resetRequestCount(api, origin),
-          this.rateLimitTimeout,
-        );
+        setTimeout(() => this.resetRequestCount(api, origin), rateLimitTimeout);
       }
     });
   }

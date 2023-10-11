@@ -1,12 +1,17 @@
-import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
-import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
-import { validate } from 'jsonschema';
 import { isValidHexAddress } from '@metamask/controller-utils';
-import { MessageParams } from './MessageManager';
-import { PersonalMessageParams } from './PersonalMessageManager';
-import { TypedMessageParams } from './TypedMessageManager';
-import { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
-import { DecryptMessageParams } from './DecryptMessageManager';
+import {
+  TYPED_MESSAGE_SCHEMA,
+  typedSignatureHash,
+} from '@metamask/eth-sig-util';
+import type { Hex } from '@metamask/utils';
+import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
+import { validate } from 'jsonschema';
+
+import type { DecryptMessageParams } from './DecryptMessageManager';
+import type { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
+import type { MessageParams } from './MessageManager';
+import type { PersonalMessageParams } from './PersonalMessageManager';
+import type { TypedMessageParams } from './TypedMessageManager';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 /**
@@ -93,21 +98,32 @@ export function validateTypedSignMessageDataV1(
  */
 export function validateTypedSignMessageDataV3V4(
   messageData: TypedMessageParams,
-  currentChainId: string | undefined,
+  currentChainId: Hex | undefined,
 ) {
   validateAddress(messageData.from, 'from');
 
-  if (!messageData.data || typeof messageData.data !== 'string') {
+  if (
+    !messageData.data ||
+    Array.isArray(messageData.data) ||
+    (typeof messageData.data !== 'object' &&
+      typeof messageData.data !== 'string')
+  ) {
     throw new Error(
-      `Invalid message "data": ${messageData.data} must be a valid array.`,
+      `Invalid message "data": Must be a valid string or object.`,
     );
   }
+
   let data;
-  try {
-    data = JSON.parse(messageData.data);
-  } catch (e) {
-    throw new Error('Data must be passed as a valid JSON string.');
+  if (typeof messageData.data === 'object') {
+    data = messageData.data;
+  } else {
+    try {
+      data = JSON.parse(messageData.data);
+    } catch (e) {
+      throw new Error('Data must be passed as a valid JSON string.');
+    }
   }
+
   const validation = validate(data, TYPED_MESSAGE_SCHEMA);
   if (validation.errors.length > 0) {
     throw new Error(

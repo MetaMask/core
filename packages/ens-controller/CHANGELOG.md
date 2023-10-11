@@ -6,6 +6,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.2]
+### Changed
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
+
+
+## [5.0.1]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [5.0.0]
+### Changed
+- **BREAKING**: Bump peer dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Use `providerConfig.chainId` instead of `providerConfig.networkId` to determine ENS compatability ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+
+## [4.1.1]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
+
+## [4.1.0]
+### Changed
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+
+## [4.0.0]
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** Add `@metamask/network-controller` as a dependency and peer dependency ([#1367](https://github.com/MetaMask/core/pull/1367), [#1362](https://github.com/MetaMask/core/pull/1362))
+- **BREAKING:** The `ensEntries` state property is now keyed by `Hex` chain ID rather than `string`, and the `chainId` property of each ENS entry is also `Hex` rather than `string`. ([#1367](https://github.com/MetaMask/core/pull/1367))
+  - This requires a state migration
+- **BREAKING:** The methods `get`, `set`, and `delete` have been updated to accept and return chain IDs as 0x-prefixed hex strings, rather than decimal strings. ([#1367](https://github.com/MetaMask/core/pull/1367))
+- Bump @metamask/utils from 5.0.1 to 5.0.2 ([#1271](https://github.com/MetaMask/core/pull/1271))
+
+### Fixed
+- Fix ENS controller failure to initialize after switching networks ([#1362](https://github.com/MetaMask/core/pull/1362))
+
 ## [3.1.0]
 ### Changed
 - Add support for reverse ENS address resolution ([#1170](https://github.com/MetaMask/core/pull/1170))
@@ -38,7 +78,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.2...HEAD
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.1...@metamask/ens-controller@5.0.2
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@5.0.0...@metamask/ens-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.1...@metamask/ens-controller@5.0.0
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.1.0...@metamask/ens-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@4.0.0...@metamask/ens-controller@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.1.0...@metamask/ens-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@3.0.0...@metamask/ens-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@2.0.0...@metamask/ens-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@1.0.2...@metamask/ens-controller@2.0.0

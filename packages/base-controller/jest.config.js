@@ -3,8 +3,9 @@
  * https://jestjs.io/docs/configuration
  */
 
-const path = require('path');
 const merge = require('deepmerge');
+const path = require('path');
+
 const baseConfig = require('../../jest.config.packages');
 
 const displayName = path.basename(__dirname);

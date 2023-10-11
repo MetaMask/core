@@ -1,11 +1,17 @@
-import { NetworkType, NetworksTicker, ChainId, NetworkId } from './types';
+import {
+  NetworkType,
+  NetworksTicker,
+  ChainId,
+  BuiltInNetworkName,
+} from './types';
 
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
 export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
 
 // NETWORKS ID
-export const GANACHE_CHAIN_ID = '1337';
+// `toHex` not invoked to avoid cyclic dependency
+export const GANACHE_CHAIN_ID = '0x539'; // toHex(1337)
 /**
  * The largest possible chain ID we can handle.
  * Explanation: https://gist.github.com/rekmarks/a47bd5f2525936c4b8eee31a16345553
@@ -40,6 +46,7 @@ export const ASSET_TYPES = {
 export const TESTNET_TICKER_SYMBOLS = {
   GOERLI: 'GoerliETH',
   SEPOLIA: 'SepoliaETH',
+  LINEA_GOERLI: 'LineaETH',
 };
 
 /**
@@ -67,6 +74,20 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: 'https://etherscan.io',
     },
   },
+  [NetworkType['linea-goerli']]: {
+    chainId: ChainId['linea-goerli'],
+    ticker: NetworksTicker['linea-goerli'],
+    rpcPrefs: {
+      blockExplorerUrl: 'https://goerli.lineascan.build',
+    },
+  },
+  [NetworkType['linea-mainnet']]: {
+    chainId: ChainId['linea-mainnet'],
+    ticker: NetworksTicker['linea-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: 'https://lineascan.build',
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
@@ -90,28 +111,33 @@ export const ORIGIN_METAMASK = 'metamask';
  */
 export enum ApprovalType {
   AddEthereumChain = 'wallet_addEthereumChain',
+  ConnectAccounts = 'connect_accounts',
   EthDecrypt = 'eth_decrypt',
   EthGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
   EthSign = 'eth_sign',
   EthSignTypedData = 'eth_signTypedData',
   PersonalSign = 'personal_sign',
-  SwitchEthereumChain = 'wallet_switchEthereumChain',
-  Transaction = 'transaction',
-  WalletRequestPermissions = 'wallet_requestPermissions',
-  WatchAsset = 'wallet_watchAsset',
+  ResultError = 'result_error',
+  ResultSuccess = 'result_success',
   SnapDialogAlert = 'snap_dialog:alert',
   SnapDialogConfirmation = 'snap_dialog:confirmation',
   SnapDialogPrompt = 'snap_dialog:prompt',
+  SwitchEthereumChain = 'wallet_switchEthereumChain',
+  Transaction = 'transaction',
   Unlock = 'unlock',
-  ConnectAccounts = 'connect_accounts',
   WalletConnect = 'wallet_connect',
+  WalletRequestPermissions = 'wallet_requestPermissions',
+  WatchAsset = 'wallet_watchAsset',
 }
 
-export const NETWORK_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
-  NetworkId,
-  NetworkType
+export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
+  ChainId,
+  BuiltInNetworkName
 > = {
-  [NetworkId.goerli]: NetworkType.goerli,
-  [NetworkId.sepolia]: NetworkType.sepolia,
-  [NetworkId.mainnet]: NetworkType.mainnet,
+  [ChainId.goerli]: BuiltInNetworkName.Goerli,
+  [ChainId.sepolia]: BuiltInNetworkName.Sepolia,
+  [ChainId.mainnet]: BuiltInNetworkName.Mainnet,
+  [ChainId['linea-goerli']]: BuiltInNetworkName.LineaGoerli,
+  [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
+  [ChainId.aurora]: BuiltInNetworkName.Aurora,
 };

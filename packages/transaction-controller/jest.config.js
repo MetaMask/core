@@ -3,8 +3,9 @@
  * https://jestjs.io/docs/configuration
  */
 
-const path = require('path');
 const merge = require('deepmerge');
+const path = require('path');
+
 const baseConfig = require('../../jest.config.packages');
 
 const displayName = path.basename(__dirname);
@@ -16,10 +17,10 @@ module.exports = merge(baseConfig, {
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
-      branches: 80.78,
-      functions: 98.86,
-      lines: 95.79,
-      statements: 95.97,
+      branches: 87.01,
+      functions: 93.06,
+      lines: 97.83,
+      statements: 97.86,
     },
   },
 

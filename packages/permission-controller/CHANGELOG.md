@@ -6,6 +6,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+### Changed
+- **BREAKING:** Remove `undefined` from RestrictedMethodParameters type union and from type parameter for RestrictedMethodOptions ([#1749])(https://github.com/MetaMask/core/pull/1749))
+- **BREAKING:** Update from `json-rpc-engine@^6.1.0` to `@metamask/json-rpc-engine@^7.1.1` ([#1749])(https://github.com/MetaMask/core/pull/1749))
+- Update from `eth-rpc-errors@^4.0.2` to `@metamask/rpc-errors@^6.0.0` ([#1749])(https://github.com/MetaMask/core/pull/1749))
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+
+## [4.1.2]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0
+
+## [4.1.1]
+### Changed
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^3.5.1
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+
+## [4.1.0]
+### Changed
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+
+## [4.0.1]
+### Fixed
+- Fix permissions RPC method types ([#1464](https://github.com/MetaMask/core/pull/1464))
+  - The RPC method handlers were mistakenly typed as an array rather than a tuple
+
+## [4.0.0]
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** Update `@metamask/approval-controller` dependency and peer dependency
+- The export `permissionRpcMethods` has a slightly different type; the second generic type variable of the `getPermissions` handler is now `undefined` rather than `void` ([#1372](https://github.com/MetaMask/core/pull/1372))
+- Add `@metamask/utils` dependency ([#1275](https://github.com/MetaMask/core/pull/1275))
+- Remove `@metamask/types` dependency ([#1372](https://github.com/MetaMask/core/pull/1372))
+- Change type of constructor parameter `unrestrictedMethods` to be readonly ([#1395](https://github.com/MetaMask/core/pull/1395))
+
+### Removed
+- **BREAKING**: Remove namespaced permissions ([#1337](https://github.com/MetaMask/core/pull/1337))
+  - Namespaced permissions are no longer supported. Consumers should replace namespaced permissions with equivalent caveat-based implementations.
+- **BREAKING**: Remove `targetKey` concept ([#1337](https://github.com/MetaMask/core/pull/1337))
+  - The target key/name distinction only existed to support namespaced permissions, which are removed as of this release. Henceforth, permissions only have "names".
+  - The `targetKey` property of permission specifications has been renamed to `targetName`.
+
 ## [3.2.0]
 ### Added
 - Allow restricting permissions by subject type ([#1233](https://github.com/MetaMask/core/pull/1233))
@@ -48,7 +94,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.2...@metamask/permission-controller@5.0.0
+[4.1.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.1...@metamask/permission-controller@4.1.2
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.0...@metamask/permission-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.1...@metamask/permission-controller@4.1.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.0...@metamask/permission-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.2.0...@metamask/permission-controller@4.0.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.1.0...@metamask/permission-controller@3.2.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.0.0...@metamask/permission-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@2.0.0...@metamask/permission-controller@3.0.0

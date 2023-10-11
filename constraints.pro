@@ -117,6 +117,20 @@ repo_name(RepoUrl, RepoName) :-
   RepoNameLength is End - Start,
   sub_atom(RepoUrl, PrefixLength, RepoNameLength, SuffixLength, RepoName).
 
+% True if DependencyIdent starts with '@metamask' and ends with '-controller'
+is_controller(DependencyIdent) :-
+  Prefix = '@metamask/',
+  atom_length(Prefix, PrefixLength),
+  Suffix = '-controller',
+  atom_length(Suffix, SuffixLength),
+  atom_length(DependencyIdent, DependencyIdentLength),
+  sub_atom(DependencyIdent, 0, PrefixLength, After, Prefix),
+  sub_atom(DependencyIdent, Before, SuffixLength, 0, Suffix),
+  Start is DependencyIdentLength - After + 1,
+  End is Before + 1,
+  ControllerNameLength is End - Start,
+  sub_atom(DependencyIdent, PrefixLength, ControllerNameLength, SuffixLength, _).
+
 %===============================================================================
 % Constraints
 %===============================================================================
@@ -193,9 +207,14 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
   repo_name(RepoUrl, _).
   WorkspaceCwd \= '.'.
 
-% The license for all published packages must be MIT.
+% The license for all published packages must be MIT unless otherwise specified.
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd \= 'packages/eth-json-rpc-provider'.
+% The following published packages use an ISC license instead of MIT.
+gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd == 'packages/eth-json-rpc-provider'.
 % Non-published packages do not have a license.
 gen_enforced_field(WorkspaceCwd, 'license', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
@@ -228,10 +247,6 @@ gen_enforced_field(WorkspaceCwd, 'files', []) :-
 gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
   WorkspaceCwd \= '.'.
 
-% All published packages must have the same "prepare-manifest:preview" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.prepare-manifest:preview', '../../scripts/prepare-preview-manifest.sh') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
-
 % All published packages must have the same "publish:preview" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.publish:preview', 'yarn npm publish --tag preview') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
@@ -247,6 +262,10 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogVa
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-
   WorkspaceCwd \= '.'.
 
+% All non-root packages must have the same "test:clean" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'jest --clearCache') :-
+  WorkspaceCwd \= '.'.
+
 % All non-root packages must have the same "test:watch" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
   WorkspaceCwd \= '.'.
@@ -256,6 +275,14 @@ gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally starting with ^ or ~', DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   \+ is_valid_version_range(DependencyRange).
+
+% All references to a workspace package must be up to date with the current
+% version of that package.
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectDependencyRange, DependencyType) :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
+  workspace_ident(OtherWorkspaceCwd, DependencyIdent),
+  workspace_version(OtherWorkspaceCwd, OtherWorkspaceVersion),
+  atomic_list_concat(['^', OtherWorkspaceVersion], CorrectDependencyRange).
 
 % All dependency ranges for a package must be synchronized across the monorepo
 % (the least version range wins), regardless of which "*dependencies" field
@@ -276,6 +303,17 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   DependencyType == 'devDependencies'.
 
+% If a controller dependency (other than `base-controller`, `eth-keyring-controller` and
+% `polling-controller`) is listed under "dependencies", it should also be
+% listed under "peerDependencies". Each controller is a singleton, so we need
+% to ensure the versions used match expectations.
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
+  DependencyIdent \= '@metamask/base-controller',
+  DependencyIdent \= '@metamask/eth-keyring-controller',
+  DependencyIdent \= '@metamask/polling-controller',
+  is_controller(DependencyIdent).
+
 % All packages must specify a minimum Node version of 16.
 gen_enforced_field(WorkspaceCwd, 'engines.node', '>=16.0.0').
 
@@ -290,7 +328,16 @@ gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npm
 gen_enforced_field(WorkspaceCwd, 'publishConfig', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% eth-query has an unlisted dependency on babel-runtime, so that package needs
-% to be present if eth-query is present.
-gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', DependencyType) :-
-  workspace_has_dependency(WorkspaceCwd, 'eth-query', _, DependencyType).
+% nonce-tracker has an unlisted dependency on babel-runtime (via `ethjs-query`), so that package
+% needs to be present if nonce-tracker is present.
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'nonce-tracker', _, 'dependencies').
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'devDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'nonce-tracker', _, 'dependencies').
+
+% eth-method-registry has an unlisted dependency on babel-runtime (via `ethjs->ethjs-query`), so
+% that package needs to be present if eth-method-registry is present.
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'peerDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'eth-method-registry', _, 'dependencies').
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', 'devDependencies') :-
+  workspace_has_dependency(WorkspaceCwd, 'eth-method-registry', _, 'dependencies').

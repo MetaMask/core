@@ -5,10 +5,12 @@ export const InfuraNetworkType = {
   mainnet: 'mainnet',
   goerli: 'goerli',
   sepolia: 'sepolia',
+  'linea-goerli': 'linea-goerli',
+  'linea-mainnet': 'linea-mainnet',
 } as const;
 
 export type InfuraNetworkType =
-  typeof InfuraNetworkType[keyof typeof InfuraNetworkType];
+  (typeof InfuraNetworkType)[keyof typeof InfuraNetworkType];
 
 /**
  * The "network type"; either the name of a built-in network, or "rpc" for custom networks.
@@ -18,7 +20,7 @@ export const NetworkType = {
   rpc: 'rpc',
 } as const;
 
-export type NetworkType = typeof NetworkType[keyof typeof NetworkType];
+export type NetworkType = (typeof NetworkType)[keyof typeof NetworkType];
 
 /**
  * A helper to determine whether a given input is NetworkType.
@@ -39,41 +41,31 @@ export enum BuiltInNetworkName {
   Mainnet = 'mainnet',
   Goerli = 'goerli',
   Sepolia = 'sepolia',
+  LineaGoerli = 'linea-goerli',
+  LineaMainnet = 'linea-mainnet',
   Aurora = 'aurora',
 }
 
 /**
  * Decimal string chain IDs of built-in networks, by name.
+ *
+ * `toHex` not invoked to avoid cyclic dependency
  */
 export const ChainId = {
-  [BuiltInNetworkName.Mainnet]: '1',
-  [BuiltInNetworkName.Goerli]: '5',
-  [BuiltInNetworkName.Sepolia]: '11155111',
-  [BuiltInNetworkName.Aurora]: '1313161554',
+  [BuiltInNetworkName.Mainnet]: '0x1', // toHex(1)
+  [BuiltInNetworkName.Goerli]: '0x5', // toHex(5)
+  [BuiltInNetworkName.Sepolia]: '0xaa36a7', // toHex(11155111)
+  [BuiltInNetworkName.Aurora]: '0x4e454152', // toHex(1313161554)
+  [BuiltInNetworkName.LineaGoerli]: '0xe704', // toHex(59140)
+  [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
 } as const;
-export type ChainId = typeof ChainId[keyof typeof ChainId];
-
-/**
- * Decimal string network IDs of built-in Infura networks, by name.
- */
-export const NetworkId = {
-  [InfuraNetworkType.mainnet]: '1',
-  [InfuraNetworkType.goerli]: '5',
-  [InfuraNetworkType.sepolia]: '11155111',
-} as const;
-export type NetworkId = typeof NetworkId[keyof typeof NetworkId];
+export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
 export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
   sepolia = 'SepoliaETH',
+  'linea-goerli' = 'LineaETH',
+  'linea-mainnet' = 'ETH',
   rpc = '',
 }
-
-export type Json =
-  | null
-  | boolean
-  | number
-  | string
-  | Json[]
-  | { [prop: string]: Json };

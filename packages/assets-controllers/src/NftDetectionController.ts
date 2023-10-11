@@ -1,17 +1,16 @@
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
-import type { NetworkState } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   OPENSEA_PROXY_URL,
-  OPENSEA_API_URL,
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
 } from '@metamask/controller-utils';
+import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
+
+import { Source } from './constants';
 import type { NftController, NftState, NftMetadata } from './NftController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -116,13 +115,12 @@ export interface ApiNftCreator {
  *
  * NftDetection configuration
  * @property interval - Polling interval used to fetch new token rates
- * @property networkType - Network type ID as per net_version
+ * @property chainId - Current chain ID
  * @property selectedAddress - Vault selected address
- * @property tokens - List of tokens associated with the active vault
  */
 export interface NftDetectionConfig extends BaseConfig {
   interval: number;
-  chainId: string;
+  chainId: Hex;
   selectedAddress: string;
 }
 
@@ -138,43 +136,24 @@ export class NftDetectionController extends BaseController<
   private getOwnerNftApi({
     address,
     offset,
-    useProxy,
   }: {
     address: string;
     offset: number;
-    useProxy: boolean;
   }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`
-      : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
+    return `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
   private async getOwnerNfts(address: string) {
     let nftApiResponse: { assets: ApiNft[] };
     let nfts: ApiNft[] = [];
-    const openSeaApiKey = this.getOpenSeaApiKey();
     let offset = 0;
     let pagingFinish = false;
     /* istanbul ignore if */
     do {
       nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, offset, useProxy: true }),
+        url: this.getOwnerNftApi({ address, offset }),
         timeout: 15000,
       });
-
-      if (openSeaApiKey && !nftApiResponse) {
-        nftApiResponse = await fetchWithErrorHandling({
-          url: this.getOwnerNftApi({
-            address,
-            offset,
-            useProxy: false,
-          }),
-          options: { headers: { 'X-API-KEY': openSeaApiKey } },
-          timeout: 15000,
-          // catch 403 errors (in case API key is down we don't want to blow up)
-          errorCodesToCatch: [403],
-        });
-      }
 
       if (!nftApiResponse) {
         return nfts;
@@ -194,11 +173,11 @@ export class NftDetectionController extends BaseController<
    */
   override name = 'NftDetectionController';
 
-  private getOpenSeaApiKey: () => string | undefined;
+  private readonly getOpenSeaApiKey: () => string | undefined;
 
-  private addNft: NftController['addNft'];
+  private readonly addNft: NftController['addNft'];
 
-  private getNftState: () => NftState;
+  private readonly getNftState: () => NftState;
 
   /**
    * Creates an NftDetectionController instance.
@@ -223,7 +202,7 @@ export class NftDetectionController extends BaseController<
       addNft,
       getNftState,
     }: {
-      chainId: string;
+      chainId: Hex;
       onNftsStateChange: (listener: (nftsState: NftState) => void) => void;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -393,9 +372,11 @@ export class NftDetectionController extends BaseController<
           last_sale && { lastSale: last_sale },
         );
 
-        await this.addNft(address, token_id, nftMetadata, {
+        await this.addNft(address, token_id, {
+          nftMetadata,
           userAddress: selectedAddress,
-          chainId: chainId as string,
+          chainId,
+          source: Source.Detected,
         });
       }
     });

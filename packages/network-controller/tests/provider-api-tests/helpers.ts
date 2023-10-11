@@ -1,13 +1,14 @@
-import nock, { Scope as NockScope } from 'nock';
-import sinon from 'sinon';
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
-import EthQuery from 'eth-query';
-import { Hex } from '@metamask/utils';
-import {
-  createNetworkClient,
-  NetworkClientType,
-} from '../../src/create-network-client';
+import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
+import EthQuery from '@metamask/eth-query';
+import type { Hex } from '@metamask/utils';
+import nock from 'nock';
+import type { Scope as NockScope } from 'nock';
+import sinon from 'sinon';
+
+import { createNetworkClient } from '../../src/create-network-client';
+import { NetworkClientType } from '../../src/types';
 
 /**
  * A dummy value for the `infuraProjectId` option that `createInfuraClient`
@@ -43,7 +44,7 @@ const originalSetTimeout = setTimeout;
  * @param args - The arguments that `console.log` takes.
  */
 function debug(...args: any) {
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   if (process.env.DEBUG_PROVIDER_TESTS === '1') {
     console.log(...args);
   }
@@ -339,7 +340,6 @@ export async function withMockedCommunications(
     return await fn(comms);
   } finally {
     nock.isDone();
-    nock.cleanAll();
   }
 }
 
@@ -434,9 +434,9 @@ export async function withNetworkClient(
   // than it usually would to complete. Or at least it should — this doesn't
   // appear to be working correctly. Unset `IN_TEST` on `process.env` to prevent
   // this behavior.
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   const inTest = process.env.IN_TEST;
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   delete process.env.IN_TEST;
   const clientUnderTest =
     providerType === 'infura'
@@ -444,17 +444,19 @@ export async function withNetworkClient(
           network: infuraNetwork,
           infuraProjectId: MOCK_INFURA_PROJECT_ID,
           type: NetworkClientType.Infura,
+          chainId: BUILT_IN_NETWORKS[infuraNetwork].chainId,
         })
       : createNetworkClient({
           chainId: customChainId,
           rpcUrl: customRpcUrl,
           type: NetworkClientType.Custom,
         });
-  /* eslint-disable-next-line node/no-process-env */
+  /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
 
   const { provider, blockTracker } = clientUnderTest;
 
+  // @ts-expect-error TODO: Provider type alignment
   const ethQuery = new EthQuery(provider);
   const curriedMakeRpcCall = (request: Request) =>
     makeRpcCall(ethQuery, request);

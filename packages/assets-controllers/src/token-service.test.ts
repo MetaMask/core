@@ -1,7 +1,8 @@
+import { toHex } from '@metamask/controller-utils';
 import nock from 'nock';
-import { AbortController as WhatwgAbortController } from 'abort-controller';
+
 import {
-  fetchTokenList,
+  fetchTokenListByChainId,
   fetchTokenMetadata,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
@@ -132,44 +133,33 @@ const sampleToken = {
   name: 'Chainlink',
 };
 
-const sampleChainId = '1';
+const sampleDecimalChainId = 1;
+const sampleChainId = toHex(sampleDecimalChainId);
 
 describe('Token service', () => {
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
-
-  afterEach(() => {
-    nock.cleanAll();
-  });
-
-  describe('fetchTokenList', () => {
+  describe('fetchTokenListByChainId', () => {
     it('should call the tokens api and return the list of tokens', async () => {
-      const { signal } = new WhatwgAbortController();
+      const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleChainId}`)
+        .get(`/tokens/${sampleDecimalChainId}`)
         .reply(200, sampleTokenList)
         .persist();
 
-      const tokens = await fetchTokenList(sampleChainId, signal);
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(tokens).toStrictEqual(sampleTokenList);
     });
 
     it('should return undefined if the fetch is aborted', async () => {
-      const abortController = new WhatwgAbortController();
+      const abortController = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleChainId}`)
+        .get(`/tokens/${sampleDecimalChainId}`)
         // well beyond time it will take to abort
         .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
         .persist();
 
-      const fetchPromise = fetchTokenList(
+      const fetchPromise = fetchTokenListByChainId(
         sampleChainId,
         abortController.signal,
       );
@@ -179,39 +169,39 @@ describe('Token service', () => {
     });
 
     it('should return undefined if the fetch fails with a network error', async () => {
-      const { signal } = new WhatwgAbortController();
+      const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleChainId}`)
+        .get(`/tokens/${sampleDecimalChainId}`)
         .replyWithError('Example network error')
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal);
+      const result = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(result).toBeUndefined();
     });
 
     it('should return undefined if the fetch fails with an unsuccessful status code', async () => {
-      const { signal } = new WhatwgAbortController();
+      const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleChainId}`)
+        .get(`/tokens/${sampleDecimalChainId}`)
         .reply(500)
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal);
+      const result = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(result).toBeUndefined();
     });
 
     it('should return undefined if the fetch fails with a timeout', async () => {
-      const { signal } = new WhatwgAbortController();
+      const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleChainId}`)
+        .get(`/tokens/${sampleDecimalChainId}`)
         // well beyond timeout
         .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal, {
+      const result = await fetchTokenListByChainId(sampleChainId, signal, {
         timeout: ONE_MILLISECOND,
       });
 
@@ -221,10 +211,10 @@ describe('Token service', () => {
 
   describe('fetchTokenMetadata', () => {
     it('should call the api to return the token metadata for eth address provided', async () => {
-      const { signal } = new WhatwgAbortController();
+      const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(
-          `/token/${sampleChainId}?address=0x514910771af9ca656af840dff83e8264ecf986ca`,
+          `/token/${sampleDecimalChainId}?address=0x514910771af9ca656af840dff83e8264ecf986ca`,
         )
         .reply(200, sampleToken)
         .persist();
@@ -239,9 +229,9 @@ describe('Token service', () => {
     });
 
     it('should return undefined if the fetch is aborted', async () => {
-      const abortController = new WhatwgAbortController();
+      const abortController = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleChainId}`)
+        .get(`/tokens/${sampleDecimalChainId}`)
         // well beyond time it will take to abort
         .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
@@ -258,9 +248,9 @@ describe('Token service', () => {
     });
 
     it('should return undefined if the fetch fails with a network error', async () => {
-      const { signal } = new WhatwgAbortController();
+      const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleChainId}`)
+        .get(`/tokens/${sampleDecimalChainId}`)
         .replyWithError('Example network error')
         .persist();
 
@@ -274,9 +264,9 @@ describe('Token service', () => {
     });
 
     it('should return undefined if the fetch fails with an unsuccessful status code', async () => {
-      const { signal } = new WhatwgAbortController();
+      const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleChainId}`)
+        .get(`/tokens/${sampleDecimalChainId}`)
         .reply(500)
         .persist();
 
@@ -290,9 +280,9 @@ describe('Token service', () => {
     });
 
     it('should return undefined if the fetch fails with a timeout', async () => {
-      const { signal } = new WhatwgAbortController();
+      const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
-        .get(`/tokens/${sampleChainId}`)
+        .get(`/tokens/${sampleDecimalChainId}`)
         // well beyond timeout
         .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
@@ -309,10 +299,10 @@ describe('Token service', () => {
     });
 
     it('should throw error if fetching from non supported network', async () => {
-      const { signal } = new WhatwgAbortController();
+      const { signal } = new AbortController();
       await expect(
         fetchTokenMetadata(
-          '5',
+          toHex(5),
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
         ),
@@ -321,13 +311,13 @@ describe('Token service', () => {
   });
 
   it('should call the tokens api and return undefined', async () => {
-    const { signal } = new WhatwgAbortController();
+    const { signal } = new AbortController();
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${sampleChainId}`)
+      .get(`/tokens/${sampleDecimalChainId}`)
       .reply(404, undefined)
       .persist();
 
-    const tokens = await fetchTokenList(sampleChainId, signal);
+    const tokens = await fetchTokenListByChainId(sampleChainId, signal);
 
     expect(tokens).toBeUndefined();
   });

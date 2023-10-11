@@ -6,6 +6,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+### Changed
+- **BREAKING:** Move `eth-rpc-errors@^4.0.2` dependency to `@metamask/rpc-errors@^6.0.2` ([#1743](https://github.com/MetaMask/core/pull/1743))
+  - Upon upgrading, you may need to also use `@metamask/rpc-errors@^6.0.2`, which restricts valid data that can be used to build messages
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+
+## [3.5.2]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [3.5.1]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+
+## [3.5.0]
+### Changed
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+
+## [3.4.0]
+### Added
+- Add `success` and `error` methods to display result pages ([#1442](https://github.com/MetaMask/core/pull/1442))
+
+## [3.3.0]
+### Added
+- Add `setFlowLoadingText` method to ApprovalController ([#1419](https://github.com/MetaMask/core/pull/1419))
+
+## [3.2.0]
+### Added
+- Add `startFlow` and `endFlow` methods to ApprovalController ([#1394](https://github.com/MetaMask/core/pull/1394))
+
+### Fixed
+- Fix ApprovalController constructor so that it accepts a messenger created by calling `getRestricted` without having type parameters explicitly specified ([#1417](https://github.com/MetaMask/core/pull/1417))
+
+## [3.1.0]
+### Added
+- Optional feedback when accepting an approval request ([#1396](https://github.com/MetaMask/core/pull/1396))
+
+## [3.0.0]
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Replace `@metamask/controller-utils` dependency with `@metamask/utils` ([#1370](https://github.com/MetaMask/core/pull/1370))
+
 ## [2.1.1]
 ### Changed
 - deps: eth-rpc-errors@4.0.0->4.0.2 ([#1215](https://github.com/MetaMask/core/pull/1215))
@@ -39,7 +82,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.5.2...@metamask/approval-controller@4.0.0
+[3.5.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.5.1...@metamask/approval-controller@3.5.2
+[3.5.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.5.0...@metamask/approval-controller@3.5.1
+[3.5.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.4.0...@metamask/approval-controller@3.5.0
+[3.4.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.3.0...@metamask/approval-controller@3.4.0
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.2.0...@metamask/approval-controller@3.3.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.1.0...@metamask/approval-controller@3.2.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@3.0.0...@metamask/approval-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.1...@metamask/approval-controller@3.0.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.1.0...@metamask/approval-controller@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@2.0.0...@metamask/approval-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@1.1.0...@metamask/approval-controller@2.0.0

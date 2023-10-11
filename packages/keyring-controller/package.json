@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "4.0.0",
+  "version": "8.0.2",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -23,38 +23,42 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/keyring-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@keystonehq/metamask-airgapped-keyring": "^0.6.1",
-    "@metamask/base-controller": "workspace:^",
-    "@metamask/controller-utils": "workspace:^",
-    "@metamask/eth-keyring-controller": "^10.0.1",
-    "@metamask/eth-sig-util": "^5.0.3",
-    "@metamask/message-manager": "workspace:^",
-    "@metamask/preferences-controller": "workspace:^",
+    "@keystonehq/metamask-airgapped-keyring": "^0.13.1",
+    "@metamask/base-controller": "^3.2.3",
+    "@metamask/eth-keyring-controller": "^13.0.1",
+    "@metamask/message-manager": "^7.3.5",
+    "@metamask/preferences-controller": "^4.4.2",
+    "@metamask/utils": "^8.1.0",
     "async-mutex": "^0.2.6",
     "ethereumjs-util": "^7.0.10",
-    "ethereumjs-wallet": "^1.0.1"
+    "ethereumjs-wallet": "^1.0.1",
+    "immer": "^9.0.6"
   },
   "devDependencies": {
-    "@ethereumjs/common": "^2.6.1",
-    "@ethereumjs/tx": "^3.5.2",
+    "@ethereumjs/common": "^3.2.0",
+    "@ethereumjs/tx": "^4.2.0",
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
     "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/eth-sig-util": "^7.0.0",
     "@metamask/scure-bip39": "^2.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.22.15",
-    "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.6.3",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~4.8.4",
     "uuid": "^8.3.2"
+  },
+  "peerDependencies": {
+    "@metamask/preferences-controller": "^4.4.2"
   },
   "engines": {
     "node": ">=16.0.0"

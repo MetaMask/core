@@ -1,13 +1,12 @@
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
-import {
-  Transaction,
+
+import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
-  TransactionStatus,
 } from './TransactionController';
+import type { TransactionParams, TransactionMeta } from './types';
+import { TransactionStatus } from './types';
 import * as util from './utils';
-import type { TransactionMeta } from './TransactionController';
-import { getAndFormatTransactionsForNonceTracker } from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -16,46 +15,12 @@ const FAIL = 'lol';
 const PASS = '0x1';
 
 describe('utils', () => {
-  describe('getEtherscanApiUrl', () => {
-    const networkType = 'mainnet';
-    const address = '0xC7D3BFDeA106B446Cf9f2Db354D496e6Dd8b2525';
-    const action = 'txlist';
-
-    it('should return a correctly structured url', () => {
-      const url = util.getEtherscanApiUrl(networkType, { address, action });
-      expect(url.indexOf(`&action=${action}`)).toBeGreaterThan(0);
-    });
-
-    it('should return a correctly structured url with from block', () => {
-      const fromBlock = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, {
-        address,
-        action,
-        startBlock: fromBlock,
-      });
-      expect(url.indexOf(`&startBlock=${fromBlock}`)).toBeGreaterThan(0);
-    });
-
-    it('should return a correctly structured url with testnet subdomain', () => {
-      const goerli = 'goerli';
-      const url = util.getEtherscanApiUrl(goerli, { address, action });
-      expect(url.indexOf(`https://api-${goerli}`)).toBe(0);
-    });
-
-    it('should return a correctly structured url with apiKey', () => {
-      const apiKey = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, {
-        address,
-        action,
-        startBlock: 'xxxxxx',
-        apikey: apiKey,
-      });
-      expect(url.indexOf(`&apikey=${apiKey}`)).toBeGreaterThan(0);
-    });
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  it('normalizeTransaction', () => {
-    const normalized = util.normalizeTransaction({
+  describe('normalizeTxParams', () => {
+    const commonInput = {
       data: 'data',
       from: 'FROM',
       gas: 'gas',
@@ -66,123 +31,50 @@ describe('utils', () => {
       maxFeePerGas: 'maxFeePerGas',
       maxPriorityFeePerGas: 'maxPriorityFeePerGas',
       estimatedBaseFee: 'estimatedBaseFee',
+    };
+
+    it('normalizeTransaction', () => {
+      const normalized = util.normalizeTxParams({
+        ...commonInput,
+      });
+      expect(normalized).toStrictEqual({
+        data: '0xdata',
+        from: '0xfrom',
+        gas: '0xgas',
+        gasPrice: '0xgasPrice',
+        nonce: '0xnonce',
+        to: '0xto',
+        value: '0xvalue',
+        maxFeePerGas: '0xmaxFeePerGas',
+        maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
+        estimatedBaseFee: '0xestimatedBaseFee',
+      });
     });
-    expect(normalized).toStrictEqual({
-      data: '0xdata',
-      from: '0xfrom',
-      gas: '0xgas',
-      gasPrice: '0xgasPrice',
-      nonce: '0xnonce',
-      to: '0xto',
-      value: '0xvalue',
-      maxFeePerGas: '0xmaxFeePerGas',
-      maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
-      estimatedBaseFee: '0xestimatedBaseFee',
-    });
-  });
-
-  describe('validateTransaction', () => {
-    it('should throw if no from address', () => {
-      expect(() => util.validateTransaction({} as any)).toThrow(
-        'Invalid "from" address: undefined must be a valid string.',
-      );
-    });
-
-    it('should throw if non-string from address', () => {
-      expect(() => util.validateTransaction({ from: 1337 } as any)).toThrow(
-        'Invalid "from" address: 1337 must be a valid string.',
-      );
-    });
-
-    it('should throw if invalid from address', () => {
-      expect(() => util.validateTransaction({ from: '1337' } as any)).toThrow(
-        'Invalid "from" address: 1337 must be a valid string.',
-      );
-    });
-
-    it('should throw if no data', () => {
-      expect(() =>
-        util.validateTransaction({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          to: '0x',
-        } as any),
-      ).toThrow('Invalid "to" address: 0x must be a valid string.');
-
-      expect(() =>
-        util.validateTransaction({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-        } as any),
-      ).toThrow('Invalid "to" address: undefined must be a valid string.');
-    });
-
-    it('should delete data', () => {
-      const transaction = {
-        data: 'foo',
-        from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-        to: '0x',
-      };
-      util.validateTransaction(transaction);
-      expect(transaction.to).toBeUndefined();
-    });
-
-    it('should throw if invalid to address', () => {
-      expect(() =>
-        util.validateTransaction({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          to: '1337',
-        } as any),
-      ).toThrow('Invalid "to" address: 1337 must be a valid string.');
-    });
-
-    it('should throw if value is invalid', () => {
-      expect(() =>
-        util.validateTransaction({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          value: '133-7',
-        } as any),
-      ).toThrow('Invalid "value": 133-7 is not a positive number.');
-
-      expect(() =>
-        util.validateTransaction({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          value: '133.7',
-        } as any),
-      ).toThrow('Invalid "value": 133.7 number must be denominated in wei.');
-
-      expect(() =>
-        util.validateTransaction({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          value: 'hello',
-        } as any),
-      ).toThrow('Invalid "value": hello number must be a valid number.');
-
-      expect(() =>
-        util.validateTransaction({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          value: 'one million dollar$',
-        } as any),
-      ).toThrow(
-        'Invalid "value": one million dollar$ number must be a valid number.',
-      );
-
-      expect(() =>
-        util.validateTransaction({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          value: '1',
-        } as any),
-      ).not.toThrow();
+    it('normalizeTransaction if type is zero', () => {
+      const normalized = util.normalizeTxParams({
+        ...commonInput,
+        type: '0x0',
+      });
+      expect(normalized).toStrictEqual({
+        data: '0xdata',
+        from: '0xfrom',
+        gas: '0xgas',
+        gasPrice: '0xgasPrice',
+        nonce: '0xnonce',
+        to: '0xto',
+        value: '0xvalue',
+        maxFeePerGas: '0xmaxFeePerGas',
+        maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
+        estimatedBaseFee: '0xestimatedBaseFee',
+        type: '0x0',
+      });
     });
   });
 
   describe('isEIP1559Transaction', () => {
     it('should detect EIP1559 transaction', () => {
-      const tx: Transaction = { from: '' };
-      const eip1559tx: Transaction = {
+      const tx: TransactionParams = { from: '' };
+      const eip1559tx: TransactionParams = {
         ...tx,
         maxFeePerGas: '2',
         maxPriorityFeePerGas: '3',
@@ -246,17 +138,15 @@ describe('utils', () => {
 
   describe('getIncreasedPriceHex', () => {
     it('should get increased price from number as hex', () => {
-      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toStrictEqual(
-        '0x5916a6d6',
-      );
+      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toBe('0x5916a6d6');
     });
   });
 
   describe('getIncreasedPriceFromExisting', () => {
     it('should get increased price from hex as hex', () => {
-      expect(
-        util.getIncreasedPriceFromExisting('0x50fd51da', 1.1),
-      ).toStrictEqual('0x5916a6d6');
+      expect(util.getIncreasedPriceFromExisting('0x50fd51da', 1.1)).toBe(
+        '0x5916a6d6',
+      );
     });
   });
 
@@ -292,8 +182,9 @@ describe('utils', () => {
       const inputTransactions: TransactionMeta[] = [
         {
           id: '1',
+          chainId: '0x1',
           time: 123456,
-          transaction: {
+          txParams: {
             from: fromAddress,
             gas: '0x100',
             value: '0x200',
@@ -303,8 +194,9 @@ describe('utils', () => {
         },
         {
           id: '2',
+          chainId: '0x1',
           time: 123457,
-          transaction: {
+          txParams: {
             from: '0x124',
             gas: '0x101',
             value: '0x201',
@@ -314,8 +206,9 @@ describe('utils', () => {
         },
         {
           id: '3',
+          chainId: '0x1',
           time: 123458,
-          transaction: {
+          txParams: {
             from: fromAddress,
             gas: '0x102',
             value: '0x202',
@@ -338,7 +231,7 @@ describe('utils', () => {
         },
       ];
 
-      const result = getAndFormatTransactionsForNonceTracker(
+      const result = util.getAndFormatTransactionsForNonceTracker(
         fromAddress,
         TransactionStatus.confirmed,
         inputTransactions,

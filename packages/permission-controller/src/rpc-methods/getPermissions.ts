@@ -1,16 +1,14 @@
-import type {
-  JsonRpcEngineEndCallback,
-  PendingJsonRpcResponse,
-  PermittedHandlerExport,
-} from '@metamask/types';
-import { MethodNames } from '../utils';
+import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
+import type { PendingJsonRpcResponse } from '@metamask/utils';
 
 import type { PermissionConstraint } from '../Permission';
 import type { SubjectPermissions } from '../PermissionController';
+import type { PermittedHandlerExport } from '../utils';
+import { MethodNames } from '../utils';
 
 export const getPermissionsHandler: PermittedHandlerExport<
   GetPermissionsHooks,
-  void,
+  [],
   PermissionConstraint[]
 > = {
   methodNames: [MethodNames.getPermissions],

@@ -1,12 +1,20 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
+import type { AddApprovalRequest } from '@metamask/approval-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
+import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { OPENSEA_PROXY_URL, ChainId } from '@metamask/controller-utils';
-import { NftController } from './NftController';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
 import { AssetsContractController } from './AssetsContractController';
+import type { NftControllerMessenger } from './NftController';
+import { NftController } from './NftController';
 import { NftDetectionController } from './NftDetectionController';
 
 const DEFAULT_INTERVAL = 180000;
+
+type ApprovalActions = AddApprovalRequest;
+
+const controllerName = 'NftController' as const;
 
 describe('NftDetectionController', () => {
   let nftDetection: NftDetectionController;
@@ -15,13 +23,14 @@ describe('NftDetectionController', () => {
   let assetsContract: AssetsContractController;
   const networkStateChangeNoop = jest.fn();
   const getOpenSeaApiKeyStub = jest.fn();
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
 
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
+  const messenger = new ControllerMessenger<
+    ApprovalActions,
+    never
+  >().getRestricted<typeof controllerName, ApprovalActions['type'], never>({
+    name: controllerName,
+    allowedActions: ['ApprovalController:addRequest'],
+  }) as NftControllerMessenger;
 
   beforeEach(async () => {
     preferences = new PreferencesController();
@@ -29,6 +38,7 @@ describe('NftDetectionController', () => {
       chainId: ChainId.mainnet,
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: networkStateChangeNoop,
+      getNetworkClientById: jest.fn(),
     });
 
     nftController = new NftController({
@@ -46,6 +56,8 @@ describe('NftDetectionController', () => {
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
       onNftAdded: jest.fn(),
+      getNetworkClientById: jest.fn(),
+      messenger,
     });
 
     nftDetection = new NftDetectionController({
@@ -193,7 +205,6 @@ describe('NftDetectionController', () => {
   });
 
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 
@@ -201,7 +212,7 @@ describe('NftDetectionController', () => {
     preferences.setUseNftDetection(false);
     expect(nftDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
-      chainId: '1',
+      chainId: toHex(1),
       selectedAddress: '',
       disabled: true,
     });
@@ -238,9 +249,9 @@ describe('NftDetectionController', () => {
 
   it('should detect mainnet correctly', () => {
     nftDetection.configure({ chainId: ChainId.mainnet });
-    expect(nftDetection.isMainnet()).toStrictEqual(true);
+    expect(nftDetection.isMainnet()).toBe(true);
     nftDetection.configure({ chainId: ChainId.goerli });
-    expect(nftDetection.isMainnet()).toStrictEqual(false);
+    expect(nftDetection.isMainnet()).toBe(false);
   });
 
   it('should not autodetect while not on mainnet', async () => {
@@ -297,6 +308,31 @@ describe('NftDetectionController', () => {
     ]);
   });
 
+  it('should not add nfts for which no contract information can be fetched', async () => {
+    const selectedAddress = '0x1';
+
+    nftDetection.configure({
+      chainId: ChainId.mainnet,
+      selectedAddress,
+    });
+
+    nftController.configure({
+      selectedAddress,
+    });
+
+    sinon
+      .stub(nftController, 'getNftContractInformationFromApi' as any)
+      .returns(undefined);
+
+    sinon
+      .stub(nftController, 'getNftInformationFromApi' as any)
+      .returns(undefined);
+
+    await nftDetection.detectNfts();
+
+    expect(nftController.state.allNfts).toStrictEqual({});
+  });
+
   it('should detect, add NFTs and do nor remove not detected NFTs correctly', async () => {
     const selectedAddress = '0x1';
     nftDetection.configure({
@@ -311,10 +347,12 @@ describe('NftDetectionController', () => {
       '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       '2573',
       {
-        description: 'Description 2573',
-        image: 'image/2573.png',
-        name: 'ID 2573',
-        standard: 'ERC721',
+        nftMetadata: {
+          description: 'Description 2573',
+          image: 'image/2573.png',
+          name: 'ID 2573',
+          standard: 'ERC721',
+        },
       },
     );
 
@@ -397,7 +435,7 @@ describe('NftDetectionController', () => {
     nftDetection.configure({ selectedAddress: '0x12' });
     nftController.configure({ selectedAddress: '0x12' });
     await new Promise((res) => setTimeout(() => res(true), 1000));
-    expect(nftDetection.config.selectedAddress).toStrictEqual('0x12');
+    expect(nftDetection.config.selectedAddress).toBe('0x12');
 
     expect(
       nftController.state.allNfts[nftDetection.config.selectedAddress]?.[
@@ -596,7 +634,7 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
+  it('should not fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
     const selectedAddress = '0x3';
 
     getOpenSeaApiKeyStub.mockImplementation(() => 'FAKE API KEY');
@@ -668,23 +706,9 @@ describe('NftDetectionController', () => {
       selectedAddress,
     });
 
-    const { chainId } = nftDetection.config;
-
     await nftDetection.detectNfts();
 
-    const nfts = nftController.state.allNfts[selectedAddress][chainId];
-    expect(nfts).toStrictEqual([
-      {
-        address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
-        description: 'DESCRIPTION: DIRECT FROM OPENSEA',
-        imageOriginal: 'DIRECT FROM OPENSEA.jpg',
-        name: 'NAME: DIRECT FROM OPENSEA',
-        standard: 'ERC721',
-        tokenId: '2577',
-        favorite: false,
-        isCurrentlyOwned: true,
-      },
-    ]);
+    expect(nftController.state.allNfts[selectedAddress]).toBeUndefined();
   });
 
   it('should rethrow error when OpenSea proxy server fails with error other than fetch failure', async () => {

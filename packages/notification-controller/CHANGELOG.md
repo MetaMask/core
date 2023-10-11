@@ -6,6 +6,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.3]
+### Changed
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+
+## [3.1.2]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [3.1.1]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+
+## [3.1.0]
+### Changed
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+
+## [3.0.0]
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- Add `@metamask/utils` dependency ([#1275](https://github.com/MetaMask/core/pull/1275))
+
 ## [2.0.0]
 ### Removed
 - **BREAKING:** Remove `isomorphic-fetch` ([#1106](https://github.com/MetaMask/controllers/pull/1106))
@@ -28,7 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.3...HEAD
+[3.1.3]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.2...@metamask/notification-controller@3.1.3
+[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.1...@metamask/notification-controller@3.1.2
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.1.0...@metamask/notification-controller@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@3.0.0...@metamask/notification-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@2.0.0...@metamask/notification-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@1.0.2...@metamask/notification-controller@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@1.0.1...@metamask/notification-controller@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@1.0.0...@metamask/notification-controller@1.0.1

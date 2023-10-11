@@ -1,58 +1,67 @@
+import { ControllerMessenger } from '@metamask/base-controller';
 import { strict as assert } from 'assert';
-import * as sinon from 'sinon';
 import nock from 'nock';
-import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
+import * as sinon from 'sinon';
+
 import {
   ListNames,
   METAMASK_HOTLIST_DIFF_FILE,
   METAMASK_STALELIST_FILE,
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
+  type PhishingControllerActions,
+  type PhishingControllerOptions,
 } from './PhishingController';
 
-const defaultHotlistRefreshInterval = 30 * 60;
-const defaultStalelistRefreshInterval = 4 * 24 * 60 * 60;
+const controllerName = 'PhishingController';
+
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
+function getRestrictedMessenger() {
+  const controllerMessenger = new ControllerMessenger<
+    PhishingControllerActions,
+    never
+  >();
+
+  const messenger = controllerMessenger.getRestricted<
+    typeof controllerName,
+    never,
+    never
+  >({
+    name: 'PhishingController',
+  });
+
+  return messenger;
+}
+
+/**
+ * Contruct a Phishing Controller with the given options if any.
+ * @param options - The Phishing Controller options.
+ * @returns The contstructed Phishing Controller.
+ */
+function getPhishingController(options?: Partial<PhishingControllerOptions>) {
+  return new PhishingController({
+    messenger: getRestrictedMessenger(),
+    ...options,
+  });
+}
 
 describe('PhishingController', () => {
-  beforeAll(() => {
-    nock.disableNetConnect();
-  });
-
-  afterAll(() => {
-    nock.enableNetConnect();
-  });
-
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 
-  it('should set default state to the package phishing list', () => {
-    const controller = new PhishingController();
-    expect(controller.state.phishingLists).toStrictEqual([
-      {
-        allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-        blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-        fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-        tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-        name: ListNames.MetaMask,
-        version: DEFAULT_PHISHING_RESPONSE.version,
-        lastUpdated: 0,
-      },
-    ]);
+  it('should have no default phishing lists', () => {
+    const controller = getPhishingController();
+    expect(controller.state.phishingLists).toStrictEqual([]);
   });
 
   it('should default to an empty whitelist', () => {
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     expect(controller.state.whitelist).toStrictEqual([]);
-  });
-
-  it('should use default stalelist & hotlist refresh intervals', () => {
-    const controller = new PhishingController();
-    expect(controller.config).toStrictEqual({
-      stalelistRefreshInterval: defaultStalelistRefreshInterval,
-      hotlistRefreshInterval: defaultHotlistRefreshInterval,
-    });
   });
 
   it('does not call update stalelist or hotlist upon construction', async () => {
@@ -75,7 +84,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    new PhishingController({});
+    getPhishingController();
 
     expect(nockScope.isDone()).toBe(false);
   });
@@ -101,7 +110,7 @@ describe('PhishingController', () => {
         ],
       });
 
-    const controller = new PhishingController({
+    const controller = getPhishingController({
       hotlistRefreshInterval: 10,
     });
     clock.tick(1000 * 10);
@@ -156,7 +165,7 @@ describe('PhishingController', () => {
 
     it('should not have stalelist be out of date immediately after maybeUpdateState is called', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       clock.tick(1000 * 10);
@@ -168,7 +177,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date after maybeUpdateStalelist is called but before refresh interval has passed', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       clock.tick(1000 * 10);
@@ -181,7 +190,7 @@ describe('PhishingController', () => {
 
     it('should still be out of date while update is in progress', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       clock.tick(1000 * 10);
@@ -197,7 +206,7 @@ describe('PhishingController', () => {
 
     it('should call update only if it is out of date, otherwise it should not call update', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       expect(controller.isStalelistOutOfDate()).toBe(false);
@@ -255,7 +264,7 @@ describe('PhishingController', () => {
           ],
         });
       const clock = sinon.useFakeTimers(50);
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         hotlistRefreshInterval: 10,
         stalelistRefreshInterval: 50,
       });
@@ -269,7 +278,7 @@ describe('PhishingController', () => {
   describe('isStalelistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
       sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
 
@@ -278,7 +287,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date after some of the refresh interval has passed', () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       clock.tick(1000 * 5);
@@ -288,7 +297,7 @@ describe('PhishingController', () => {
 
     it('should be out of date after the refresh interval has passed', () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       clock.tick(1000 * 10);
@@ -298,7 +307,7 @@ describe('PhishingController', () => {
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       clock.tick(1000 * 10);
@@ -312,7 +321,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the phishing lists were just updated', async () => {
       sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
@@ -322,18 +331,18 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the phishing lists were recently updated', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
-      await clock.tick(1000 * 5);
+      clock.tick(1000 * 5);
 
       expect(controller.isStalelistOutOfDate()).toBe(false);
     });
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
@@ -346,7 +355,7 @@ describe('PhishingController', () => {
   describe('isHotlistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
       sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
 
@@ -355,7 +364,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date after some of the refresh interval has passed', () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       clock.tick(1000 * 5);
@@ -365,7 +374,7 @@ describe('PhishingController', () => {
 
     it('should be out of date after the refresh interval has passed', () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       clock.tick(1000 * 10);
@@ -375,7 +384,7 @@ describe('PhishingController', () => {
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       clock.tick(1000 * 10);
@@ -389,7 +398,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the phishing lists were just updated', async () => {
       sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
@@ -399,18 +408,18 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the phishing lists were recently updated', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
-      await clock.tick(1000 * 5);
+      clock.tick(1000 * 5);
 
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
       const clock = sinon.useFakeTimers();
-      const controller = new PhishingController({
+      const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
@@ -422,7 +431,7 @@ describe('PhishingController', () => {
 
   it('should be able to change the stalelistRefreshInterval', async () => {
     sinon.useFakeTimers();
-    const controller = new PhishingController({ stalelistRefreshInterval: 10 });
+    const controller = getPhishingController({ stalelistRefreshInterval: 10 });
     controller.setStalelistRefreshInterval(0);
 
     expect(controller.isStalelistOutOfDate()).toBe(true);
@@ -430,64 +439,12 @@ describe('PhishingController', () => {
 
   it('should be able to change the hotlistRefreshInterval', async () => {
     sinon.useFakeTimers();
-    const controller = new PhishingController({
+    const controller = getPhishingController({
       hotlistRefreshInterval: 10,
     });
     controller.setHotlistRefreshInterval(0);
 
     expect(controller.isHotlistOutOfDate()).toBe(true);
-  });
-
-  it('should return negative result for safe domain from default config', () => {
-    const controller = new PhishingController();
-    expect(controller.test('metamask.io')).toMatchObject({
-      result: false,
-      type: 'allowlist',
-      name: ListNames.MetaMask,
-    });
-  });
-
-  it('should return negative result for safe unicode domain from default config', () => {
-    const controller = new PhishingController();
-    expect(controller.test('i❤.ws')).toMatchObject({
-      result: false,
-      type: 'all',
-    });
-  });
-
-  it('should return negative result for safe punycode domain from default config', () => {
-    const controller = new PhishingController();
-    expect(controller.test('xn--i-7iq.ws')).toMatchObject({
-      result: false,
-      type: 'all',
-    });
-  });
-
-  it('should return positive result for unsafe domain from default config', () => {
-    const controller = new PhishingController();
-    expect(controller.test('etnerscan.io')).toMatchObject({
-      result: true,
-      type: 'blocklist',
-      name: ListNames.MetaMask,
-    });
-  });
-
-  it('should return positive result for unsafe unicode domain from default config', () => {
-    const controller = new PhishingController();
-    expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
-      result: true,
-      type: 'blocklist',
-      name: ListNames.MetaMask,
-    });
-  });
-
-  it('should return positive result for unsafe punycode domain from default config', () => {
-    const controller = new PhishingController();
-    expect(controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
-      result: true,
-      type: 'blocklist',
-      name: ListNames.MetaMask,
-    });
   });
 
   it('should return negative result for safe domain from MetaMask config', async () => {
@@ -510,7 +467,7 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test('metamask.io')).toMatchObject({
       result: false,
@@ -540,7 +497,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test('i❤.ws')).toMatchObject({
       result: false,
@@ -569,7 +526,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test('xn--i-7iq.ws')).toMatchObject({
       result: false,
@@ -598,7 +555,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test('etnerscan.io')).toMatchObject({
       result: true,
@@ -627,27 +584,12 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
       result: true,
       type: 'blocklist',
       name: ListNames.MetaMask,
-    });
-  });
-
-  it('should return a blocklist result for unsafe unicode domain if the MetaMask config returns 500 - as it falls back to default config', async () => {
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_STALELIST_FILE)
-      .reply(500)
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-      .reply(200, { data: [] });
-
-    const controller = new PhishingController();
-    await controller.updateStalelist();
-    expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
-      result: true,
-      type: 'blocklist',
     });
   });
 
@@ -672,7 +614,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
       result: true,
@@ -710,7 +652,7 @@ describe('PhishingController', () => {
         ],
       });
 
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(
       controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
@@ -742,7 +684,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(500);
 
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(
       controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
@@ -772,7 +714,7 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test('opensea.io')).toMatchObject({
       result: false,
@@ -801,26 +743,12 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test('ohpensea.io')).toMatchObject({
       result: true,
       type: 'fuzzy',
       name: ListNames.MetaMask,
-    });
-  });
-
-  it('should return fuzzylist result for domain very close to fuzzylist if MetaMask config returns 500 - as controller falls back to static config', async () => {
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_STALELIST_FILE)
-      .reply(500)
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-      .reply(200, { data: [] });
-    const controller = new PhishingController();
-    await controller.updateStalelist();
-    expect(controller.test('ohpensea.io')).toMatchObject({
-      result: true,
-      type: 'fuzzy',
     });
   });
 
@@ -844,7 +772,7 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = new PhishingController();
+    const controller = getPhishingController();
     await controller.updateStalelist();
     expect(
       controller.test('this-is-the-official-website-of-opensea.io'),
@@ -854,7 +782,7 @@ describe('PhishingController', () => {
     });
   });
 
-  it('should bypass a given domain, and return a negative result', () => {
+  it('should bypass a given domain, and return a negative result', async () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -874,7 +802,8 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = new PhishingController();
+    const controller = getPhishingController();
+    await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
       controller.test(unsafeDomain).result,
@@ -888,7 +817,7 @@ describe('PhishingController', () => {
     });
   });
 
-  it('should ignore second attempt to bypass a domain, and still return a negative result', () => {
+  it('should ignore second attempt to bypass a domain, and still return a negative result', async () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -908,7 +837,8 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = new PhishingController();
+    const controller = getPhishingController();
+    await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
       controller.test(unsafeDomain).result,
@@ -923,7 +853,7 @@ describe('PhishingController', () => {
     });
   });
 
-  it('should bypass a given unicode domain, and return a negative result', () => {
+  it('should bypass a given unicode domain, and return a negative result', async () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -943,7 +873,8 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = new PhishingController();
+    const controller = getPhishingController();
+    await controller.updateStalelist();
     const unsafeDomain = 'myetherẉalletṭ.com';
     assert.equal(
       controller.test(unsafeDomain).result,
@@ -957,7 +888,7 @@ describe('PhishingController', () => {
     });
   });
 
-  it('should bypass a given punycode domain, and return a negative result', () => {
+  it('should bypass a given punycode domain, and return a negative result', async () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
@@ -977,7 +908,8 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = new PhishingController();
+    const controller = getPhishingController();
+    await controller.updateStalelist();
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
     assert.equal(
       controller.test(unsafeDomain).result,
@@ -1026,7 +958,7 @@ describe('PhishingController', () => {
           ],
         });
 
-      const controller = new PhishingController();
+      const controller = getPhishingController();
       await controller.updateStalelist();
 
       expect(controller.state.phishingLists).toStrictEqual([
@@ -1089,7 +1021,7 @@ describe('PhishingController', () => {
           ],
         });
 
-      const controller = new PhishingController();
+      const controller = getPhishingController();
       await controller.updateStalelist();
 
       expect(controller.state.phishingLists).toStrictEqual([
@@ -1114,40 +1046,6 @@ describe('PhishingController', () => {
       ]);
     });
 
-    it('should not update stale list if disabled', async () => {
-      const controller = new PhishingController({ disabled: true });
-      await controller.updateStalelist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-          name: ListNames.MetaMask,
-          version: DEFAULT_PHISHING_RESPONSE.version,
-          lastUpdated: 0,
-        },
-      ]);
-    });
-
-    it('should not update hotlist lists if disabled', async () => {
-      const controller = new PhishingController({ disabled: true });
-      await controller.updateHotlist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-          name: ListNames.MetaMask,
-          version: DEFAULT_PHISHING_RESPONSE.version,
-          lastUpdated: 0,
-        },
-      ]);
-    });
-
     it('should not update phishing lists if fetch returns 304', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
@@ -1155,17 +1053,31 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(304);
 
-      const controller = new PhishingController();
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
       await controller.updateStalelist();
 
       expect(controller.state.phishingLists).toStrictEqual([
         {
-          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
+          allowlist: [],
+          blocklist: [],
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
           name: ListNames.MetaMask,
-          version: DEFAULT_PHISHING_RESPONSE.version,
           lastUpdated: 0,
         },
       ]);
@@ -1178,17 +1090,31 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(500);
 
-      const controller = new PhishingController();
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
       await controller.updateStalelist();
 
       expect(controller.state.phishingLists).toStrictEqual([
         {
-          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
+          allowlist: [],
+          blocklist: [],
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
           name: ListNames.MetaMask,
-          version: DEFAULT_PHISHING_RESPONSE.version,
           lastUpdated: 0,
         },
       ]);
@@ -1201,7 +1127,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .replyWithError('network error');
 
-      const controller = new PhishingController();
+      const controller = getPhishingController();
 
       expect(await controller.updateStalelist()).toBeUndefined();
     });
@@ -1231,7 +1157,7 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, { data: [] });
 
-        const controller = new PhishingController();
+        const controller = getPhishingController();
         const firstPromise = controller.updateStalelist();
         const secondPromise = controller.updateStalelist();
 
@@ -1269,7 +1195,7 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, { data: [] });
 
-        const controller = new PhishingController();
+        const controller = getPhishingController();
         const firstPromise = controller.updateStalelist();
         const secondPromise = controller.updateStalelist();
         clock.tick(1000 * 99);
@@ -1297,20 +1223,31 @@ describe('PhishingController', () => {
           ],
         });
 
-      const controller = new PhishingController();
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
       await controller.updateHotlist();
 
       expect(controller.state.phishingLists).toStrictEqual([
         {
-          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-          blocklist: [
-            ...DEFAULT_PHISHING_RESPONSE.blacklist,
-            testBlockedDomain,
-          ],
-          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
+          allowlist: [],
+          blocklist: [testBlockedDomain],
+          fuzzylist: [],
+          tolerance: 3,
           name: ListNames.MetaMask,
-          version: DEFAULT_PHISHING_RESPONSE.version,
+          version: 1,
           lastUpdated: 1,
         },
       ]);
@@ -1320,7 +1257,21 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
         .reply(404);
 
-      const controller = new PhishingController();
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
       await controller.updateHotlist();
 
       expect(controller.state.phishingLists).toStrictEqual([

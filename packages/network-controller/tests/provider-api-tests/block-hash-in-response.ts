@@ -1,8 +1,5 @@
-import {
-  ProviderType,
-  withMockedCommunications,
-  withNetworkClient,
-} from './helpers';
+import type { ProviderType } from './helpers';
+import { withMockedCommunications, withNetworkClient } from './helpers';
 
 type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
   providerType: ProviderType;

@@ -1,11 +1,14 @@
-import { Json } from '@metamask/controller-utils';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { HasPermissions } from './PermissionController';
-import {
-  SubjectMetadataController,
+import type { Json } from '@metamask/utils';
+
+import type { HasPermissions } from './PermissionController';
+import type {
   SubjectMetadataControllerActions,
   SubjectMetadataControllerEvents,
   SubjectMetadataControllerMessenger,
+} from './SubjectMetadataController';
+import {
+  SubjectMetadataController,
   SubjectType,
 } from './SubjectMetadataController';
 

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "7.0.0",
+  "version": "15.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -23,30 +23,29 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@ethersproject/address": "^5.7.0",
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/abi-utils": "^1.2.0",
-    "@metamask/approval-controller": "workspace:^",
-    "@metamask/base-controller": "workspace:^",
+    "@metamask/abi-utils": "^2.0.2",
+    "@metamask/approval-controller": "^4.0.0",
+    "@metamask/base-controller": "^3.2.3",
     "@metamask/contract-metadata": "^2.3.1",
-    "@metamask/controller-utils": "workspace:^",
+    "@metamask/controller-utils": "^5.0.2",
+    "@metamask/eth-query": "^3.0.1",
     "@metamask/metamask-eth-abis": "3.0.0",
-    "@metamask/network-controller": "workspace:^",
-    "@metamask/preferences-controller": "workspace:^",
-    "@metamask/utils": "^5.0.2",
+    "@metamask/network-controller": "^14.0.0",
+    "@metamask/preferences-controller": "^4.4.2",
+    "@metamask/rpc-errors": "^6.1.0",
+    "@metamask/utils": "^8.1.0",
     "@types/uuid": "^8.3.0",
-    "abort-controller": "^3.0.0",
     "async-mutex": "^0.2.6",
-    "babel-runtime": "^6.26.0",
-    "eth-query": "^2.1.2",
-    "eth-rpc-errors": "^4.0.2",
     "ethereumjs-util": "^7.0.10",
     "immer": "^9.0.6",
     "multiformats": "^9.5.2",
@@ -56,21 +55,22 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
     "@types/jest": "^27.4.1",
-    "@types/node": "^16.18.24",
+    "@types/node": "^16.18.54",
     "deepmerge": "^4.2.2",
     "ethjs-provider-http": "^0.1.6",
     "jest": "^27.5.1",
     "jest-environment-jsdom": "^27.5.1",
-    "nock": "^13.0.7",
+    "nock": "^13.3.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.22.15",
-    "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.6.3"
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "workspace:^",
-    "@metamask/network-controller": "workspace:^"
+    "@metamask/approval-controller": "^4.0.0",
+    "@metamask/network-controller": "^14.0.0",
+    "@metamask/preferences-controller": "^4.4.2"
   },
   "engines": {
     "node": ">=16.0.0"

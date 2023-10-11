@@ -6,6 +6,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+### Added
+- Add optional `gasFeeEstimatesByChainId` property to GasFeeController state ([#1673](https://github.com/MetaMask/core/pull/1673)
+- Add dependency on `@metamask/polling-controller` ([#1748])(https://github.com/MetaMask/core/pull/1748))
+
+### Changed
+- **BREAKING:** Messenger must allow controller actions `NetworkController:getNetworkClientById` and `NetworkController:getEIP1559Compatibility` ([#1673](https://github.com/MetaMask/core/pull/1673)
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/controller-utils` to ^5.0.2
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
+
+## [7.0.1]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+## [7.0.0]
+### Changed
+- **BREAKING**: Bump peer dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
+
+## [6.1.2]
+### Changed
+- Bump dependency on `@metamask/base-controller` to ^3.2.1
+- Bump dependency on `@metamask/controller-utils` to ^4.3.2
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
+
+## [6.1.1]
+### Changed
+- Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
+
+## [6.1.0]
+### Changed
+- Update `@metamask/utils` to `^6.2.0` ([#1514](https://github.com/MetaMask/core/pull/1514))
+- Remove unnecessary `babel-runtime` dependencies ([#1504](https://github.com/MetaMask/core/pull/1504))
+
+## [6.0.1]
+### Changed
+- Bump dependency on `controller-utils` ([#1447](https://github.com/MetaMask/core/pull/1447))
+  - The new version of `controller-utils` adds `eth-query` to the list of dependencies. This dependency was added to improve internal types for `gas-fee-controller`. This has no impact on users of the package.
+
+## [6.0.0]
+### Changed
+- **BREAKING:** Bump to Node 16 ([#1262](https://github.com/MetaMask/core/pull/1262))
+- **BREAKING:** The `getChainId` constructor parameter now expects a `Hex` return type rather than a decimal string ([#1367](https://github.com/MetaMask/core/pull/1367))
+- Add `@metamask/utils` dependency
+- **BREAKING:** The gas fee controller messenger now requires the `NetworkController:stateChange` event instead of the `NetworkController:providerConfigChange` event ([#1329](https://github.com/MetaMask/core/pull/1329))
+  - This does not apply if `onNetworkStateChange` and `getChainId` are provided to the constructor
+- **BREAKING:** The constructor parameter `onNetworkStateChange` now expects event handlers to be passed the full network state ([#1329](https://github.com/MetaMask/core/pull/1329))
+  - The type of the `onNetworkStateChange` parameter already expected the state to be provided, but it wasn't used before now
+- **BREAKING:** Update `@metamask/network-controller` dependency and peer dependency
+
 ## [5.0.0]
 ### Changed
 - **BREAKING**: peerDeps: @metamask/network-controller@6.0.0->8.0.0 ([#1196](https://github.com/MetaMask/core/pull/1196))
@@ -46,7 +98,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.1...@metamask/gas-fee-controller@8.0.0
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.0...@metamask/gas-fee-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.2...@metamask/gas-fee-controller@7.0.0
+[6.1.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.1...@metamask/gas-fee-controller@6.1.2
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.0...@metamask/gas-fee-controller@6.1.1
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.1...@metamask/gas-fee-controller@6.1.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.0...@metamask/gas-fee-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@5.0.0...@metamask/gas-fee-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.1...@metamask/gas-fee-controller@5.0.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.0...@metamask/gas-fee-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@3.0.0...@metamask/gas-fee-controller@4.0.0
