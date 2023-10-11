@@ -8,3 +8,9 @@ get-version-commit-pairs() {
     echo "$log" | cut -d' ' -f1,2 | sed 's/\([^ ]*\)\([ ]*\) \([^ ]*\)\([ ]*\)/\3\4 \1\2/'
   done
 }
+
+prepend-package-name() {
+  for pair in "$(get-version-commit-pairs)"; do
+    echo "$pair" | sed "s/\([^ ]*\)\([ ]*\) \([^ ]*\)\([ ]*\)/@metamask\/$package_name@\1\2 \3\4/"
+  done
+}
