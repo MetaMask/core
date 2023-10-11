@@ -1,5 +1,6 @@
 import { BaseController, BaseControllerV2 } from '@metamask/base-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
+import type { Json } from '@metamask/utils';
 import stringify from 'fast-json-stable-stringify';
 import { v4 as random } from 'uuid';
 
@@ -13,9 +14,12 @@ type Constructor = new (...args: any[]) => object;
  * @param options - The options used to group the polling events
  * @returns The unique key
  */
-export const getKey = (networkClientId: NetworkClientId, options: any) =>
-  `${networkClientId}:${stringify(options)}`;
+export const getKey = (
+  networkClientId: NetworkClientId,
+  options: Json,
+): PollingGroupId => `${networkClientId}:${stringify(options)}`;
 
+type PollingGroupId = `${NetworkClientId}:${string}`;
 /**
  * PollingControllerMixin
  *
@@ -30,10 +34,9 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
    *
    */
   abstract class PollingControllerBase extends Base {
-    readonly #networkClientIdTokensMap: Map<NetworkClientId, Set<string>> =
-      new Map();
+    readonly #pollingGroupIds: Map<PollingGroupId, Set<string>> = new Map();
 
-    readonly #intervalIds: Record<NetworkClientId, NodeJS.Timeout> = {};
+    readonly #intervalIds: Record<PollingGroupId, NodeJS.Timeout> = {};
 
     #callbacks: Map<
       NetworkClientId,
@@ -64,19 +67,19 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      */
     startPollingByNetworkClientId(
       networkClientId: NetworkClientId,
-      options: object = {},
+      options: Json = {},
     ) {
       const innerPollToken = random();
 
-      const id = getKey(networkClientId, options);
+      const key = getKey(networkClientId, options);
 
-      const innerPollTokenSet = this.#networkClientIdTokensMap.get(id);
-      if (innerPollTokenSet) {
-        innerPollTokenSet.add(innerPollToken);
+      const pollingGroupId = this.#pollingGroupIds.get(key);
+      if (pollingGroupId) {
+        pollingGroupId.add(innerPollToken);
       } else {
         const set = new Set<string>();
         set.add(innerPollToken);
-        this.#networkClientIdTokensMap.set(id, set);
+        this.#pollingGroupIds.set(key, set);
       }
       this.#poll(networkClientId, options);
       return innerPollToken;
@@ -86,7 +89,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      * Stops polling for all networkClientIds
      */
     stopAllPolling() {
-      this.#networkClientIdTokensMap.forEach((tokens, _networkClientId) => {
+      this.#pollingGroupIds.forEach((tokens, _networkClientId) => {
         tokens.forEach((token) => {
           this.stopPollingByNetworkClientId(token);
         });
@@ -103,18 +106,18 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
         throw new Error('pollingToken required');
       }
       let found = false;
-      this.#networkClientIdTokensMap.forEach((tokens, id) => {
+      this.#pollingGroupIds.forEach((tokens, key) => {
         if (tokens.has(pollingToken)) {
           found = true;
           tokens.delete(pollingToken);
           if (tokens.size === 0) {
-            clearTimeout(this.#intervalIds[id]);
-            delete this.#intervalIds[id];
-            this.#networkClientIdTokensMap.delete(id);
-            this.#callbacks.get(id)?.forEach((callback) => {
-              callback(id);
+            clearTimeout(this.#intervalIds[key]);
+            delete this.#intervalIds[key];
+            this.#pollingGroupIds.delete(key);
+            this.#callbacks.get(key)?.forEach((callback) => {
+              callback(key);
             });
-            this.#callbacks.get(id)?.clear();
+            this.#callbacks.get(key)?.clear();
           }
         }
       });
@@ -131,19 +134,19 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      */
     abstract executePoll(
       networkClientId: NetworkClientId,
-      options: object,
+      options: Json,
     ): Promise<void>;
 
-    #poll(networkClientId: NetworkClientId, options: any) {
-      const id = getKey(networkClientId, options);
-      if (this.#intervalIds[id]) {
-        clearTimeout(this.#intervalIds[id]);
-        delete this.#intervalIds[id];
+    #poll(networkClientId: NetworkClientId, options: Json) {
+      const key = getKey(networkClientId, options);
+      if (this.#intervalIds[key]) {
+        clearTimeout(this.#intervalIds[key]);
+        delete this.#intervalIds[key];
       }
       // setTimeout is not `await`ing this async function, which is expected
       // We're just using async here for improved stack traces
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      this.#intervalIds[id] = setTimeout(async () => {
+      this.#intervalIds[key] = setTimeout(async () => {
         try {
           await this.executePoll(networkClientId, options);
         } catch (error) {
@@ -163,15 +166,15 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
     onPollingCompleteByNetworkClientId(
       networkClientId: NetworkClientId,
       callback: (networkClientId: NetworkClientId) => void,
-      options: object = {},
+      options: Json = {},
     ) {
-      const id = getKey(networkClientId, options);
-      const callbacks = this.#callbacks.get(id);
+      const key = getKey(networkClientId, options);
+      const callbacks = this.#callbacks.get(key);
 
       if (callbacks === undefined) {
         const set = new Set<typeof callback>();
         set.add(callback);
-        this.#callbacks.set(id, set);
+        this.#callbacks.set(key, set);
       } else {
         callbacks.add(callback);
       }
