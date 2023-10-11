@@ -19,3 +19,6 @@ for pair in "$(prepend-package-name)"; do
   echo "$pair" | xargs -n 2 bash -c 'git tag "$0" "$1"'
 done
 
+for pair in "$(prepend-package-name)"; do
+  echo "$pair" | cut -d' ' -f1 | xargs -n 1 bash -c 'git push origin "$0"'
+done
