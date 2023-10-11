@@ -14,3 +14,8 @@ prepend-package-name() {
     echo "$pair" | sed "s/\([^ ]*\)\([ ]*\) \([^ ]*\)\([ ]*\)/@metamask\/$package_name@\1\2 \3\4/"
   done
 }
+
+for pair in "$(prepend-package-name)"; do
+  echo "$pair" | xargs -n 2 bash -c 'git tag "$0" "$1"'
+done
+
