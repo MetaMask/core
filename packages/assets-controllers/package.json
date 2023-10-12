@@ -41,6 +41,7 @@
     "@metamask/eth-query": "^3.0.1",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/network-controller": "^14.0.0",
+    "@metamask/polling-controller": "^0.1.0",
     "@metamask/preferences-controller": "^4.4.3",
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.1.0",
