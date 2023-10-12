@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Uncategorized
 - Add `opts` argument to `signTransaction` ([#1789](https://github.com/MetaMask/core/pull/1789))
 - Bump dependency on `@metamask/preferences-controller` to ^4.4.3
+- Add `test:clean` build script that clears jest cache ([#1714](https://github.com/MetaMask/core/pull/1714))
 
 ## [8.0.2]
 ### Changed
