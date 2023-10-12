@@ -13,9 +13,6 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
-  BNToHex,
-  fractionBN,
-  hexToBN,
   safelyExecute,
   query,
   NetworkType,
@@ -23,10 +20,9 @@ import {
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
-  gweiDecToWEIBN,
-  toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   BlockTracker,
   NetworkState,
@@ -40,13 +36,16 @@ import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { merge, pickBy } from 'lodash';
 import NonceTracker from 'nonce-tracker';
+import type { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 import { v1 as random } from 'uuid';
-import { GAS_ESTIMATE_TYPES, GasFeeState } from '@metamask/gas-fee-controller';
 
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { validateConfirmedExternalTransaction } from './external-transactions';
+import { estimateGas, updateGas } from './gas';
+import { updateGasFees } from './gasFees';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { projectLogger as log } from './logger';
 import { determineTransactionType } from './transaction-type';
 import type {
   DappSuggestedGasFees,
@@ -60,7 +59,6 @@ import {
   TransactionType,
   TransactionStatus,
   TransactionEnvelopeType,
-  UserFeeLevel,
 } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
@@ -72,10 +70,8 @@ import {
   validateGasValues,
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
-  ESTIMATE_GAS_ERROR,
 } from './utils';
 import { validateTxParams } from './validation';
-import { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 
 export const HARDFORK = Hardfork.London;
 
@@ -204,15 +200,26 @@ export class TransactionController extends BaseController<
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
+    const errorData = {
+      message: error.message?.toString() || error.toString(),
+      rpc: (error as any).value,
+      stack: error.stack,
+    };
+
     const newTransactionMeta = {
       ...transactionMeta,
-      error,
+      error: errorData,
+      err: errorData,
       status: TransactionStatus.failed,
     };
+
+    log('Transaction failed', { transactionMeta, error });
+
     this.updateTransaction(
-      newTransactionMeta,
+      newTransactionMeta as any,
       'TransactionController#failTransaction - Add error message and set status to failed',
     );
+
     this.hub.emit(`${transactionMeta.id}:finished`, newTransactionMeta);
   }
 
@@ -249,6 +256,7 @@ export class TransactionController extends BaseController<
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+   * @param options.getGasFeeEstimates -
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
@@ -428,6 +436,9 @@ export class TransactionController extends BaseController<
    * @param opts.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param opts.securityAlertResponse - Response from security validator.
    * @param opts.sendFlowHistory - The sendFlowHistory entries to add.
+   * @param opts.swaps -
+   * @param opts.swaps.hasApproveTx -
+   * @param opts.swaps.meta -
    * @param opts.type - Type of transaction to add, such as 'cancel' or 'swap'.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
@@ -487,7 +498,7 @@ export class TransactionController extends BaseController<
       type: transactionType,
     };
 
-    await this.addTxGasDefaults(transactionMeta);
+    await this.addTxGasDefaults(transactionMeta, isEIP1559Compatible);
 
     if (
       [TransactionType.swap, TransactionType.swapApproval].includes(
@@ -829,106 +840,14 @@ export class TransactionController extends BaseController<
    * @returns The gas and gas price.
    */
   async estimateGas(transaction: TransactionParams) {
-    const estimatedTransaction = { ...transaction };
-
     const {
-      gas,
-      gasPrice: providedGasPrice,
-      to,
-      value,
-      data,
-    } = estimatedTransaction;
-
-    const gasPrice =
-      typeof providedGasPrice === 'undefined'
-        ? await query(this.ethQuery, 'gasPrice')
-        : providedGasPrice;
-
-    const { providerConfig } = this.getNetworkState();
-    const isCustomNetwork = providerConfig.type === NetworkType.rpc;
-
-    // 1. If gas is already defined on the transaction, use it
-    if (typeof gas !== 'undefined') {
-      return { gas, gasPrice };
-    }
-
-    const { gasLimit, number: blockNumber } = await query(
-      this.ethQuery,
-      'getBlockByNumber',
-      ['latest', false],
-    );
-
-    // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
-    // If the network is a custom network then bypass this check and fetch 'estimateGas'.
-    /* istanbul ignore next */
-    const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
-
-    /* istanbul ignore next */
-    if (
-      !isCustomNetwork &&
-      (!to || (to && !data && (!code || code === '0x')))
-    ) {
-      return { gas: '0x5208', gasPrice };
-    }
-
-    // if data, should be hex string format
-    estimatedTransaction.data = !data
-      ? data
-      : /* istanbul ignore next */ addHexPrefix(data);
-
-    // 3. If this is a contract address, safely estimate gas using RPC
-    estimatedTransaction.value =
-      typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
-    const gasLimitBN = hexToBN(gasLimit);
-    estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
-
-    let gasHex = estimatedTransaction.gas;
-    let estimateGasError;
-    let simulationFails;
-
-    try {
-      gasHex = await query(this.ethQuery, 'estimateGas', [
-        estimatedTransaction,
-      ]);
-    } catch (error: any) {
-      estimateGasError = ESTIMATE_GAS_ERROR;
-
-      simulationFails = {
-        reason: error.message,
-        errorKey: error.errorKey,
-        debug: { blockNumber, blockGasLimit: gasLimit },
-      };
-    }
-
-    // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
-    // a custom network then return the eth_estimateGas value.
-    const gasBN = hexToBN(gasHex);
-    const maxGasBN = gasLimitBN.muln(0.9);
-    const paddedGasBN = gasBN.muln(1.5);
-
-    /* istanbul ignore next */
-    if (gasBN.gt(maxGasBN) || isCustomNetwork) {
-      return {
-        gas: addHexPrefix(gasHex),
-        gasPrice,
-        estimateGasError,
-        simulationFails,
-      };
-    }
-
-    /* istanbul ignore next */
-    if (paddedGasBN.lt(maxGasBN)) {
-      return {
-        gas: addHexPrefix(BNToHex(paddedGasBN)),
-        gasPrice,
-        estimateGasError,
-        simulationFails,
-      };
-    }
+      estimatedGas: gas,
+      estimateGasError,
+      simulationFails,
+    } = await estimateGas(transaction, this.ethQuery);
 
     return {
-      gas: addHexPrefix(BNToHex(maxGasBN)),
-      gasPrice,
+      gas,
       estimateGasError,
       simulationFails,
     };
@@ -1245,7 +1164,7 @@ export class TransactionController extends BaseController<
             this.cancelTransaction(transactionId);
 
             throw providerErrors.userRejectedRequest(
-              'User rejected the transaction',
+              'MetaMask Tx Signature: User denied transaction signature.',
             );
           } else {
             this.failTransaction(meta, error);
@@ -1294,15 +1213,19 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to approve.
    */
   private async approveTransaction(transactionId: string) {
+    log('Approved transaction', transactionId);
+
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const chainId = this.getChainId();
     const index = transactions.findIndex(({ id }) => transactionId === id);
     const transactionMeta = transactions[index];
+
     const {
       txParams: { nonce, from },
     } = transactionMeta;
     let nonceLock;
+
     try {
       if (!this.sign) {
         releaseLock();
@@ -1318,6 +1241,7 @@ export class TransactionController extends BaseController<
       }
 
       const { approved: status } = TransactionStatus;
+
       let nonceToUse = nonce;
       // if a nonce already exists on the transactionMeta it means this is a speedup or cancel transaction
       // so we want to reuse that nonce and hope that it beats the previous attempt to chain. Otherwise use a new locked nonce
@@ -1340,23 +1264,19 @@ export class TransactionController extends BaseController<
       const txParams = isEIP1559
         ? {
             ...baseTxParams,
-            maxFeePerGas: transactionMeta.txParams.maxFeePerGas,
-            maxPriorityFeePerGas: transactionMeta.txParams.maxPriorityFeePerGas,
             estimatedBaseFee: transactionMeta.txParams.estimatedBaseFee,
             // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
             type: 2,
           }
         : baseTxParams;
 
-      // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
-      if (isEIP1559) {
-        delete txParams.gasPrice;
-      }
-
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
       const signedTx = await this.sign(unsignedEthTx, from);
+
       await this.updateTransactionMetaRSV(transactionMeta, signedTx);
+
       transactionMeta.status = TransactionStatus.signed;
+
       this.updateTransaction(
         transactionMeta,
         'TransactionController#approveTransaction - Transaction signed',
@@ -1364,18 +1284,25 @@ export class TransactionController extends BaseController<
 
       const rawTx = bufferToHex(signedTx.serialize());
       transactionMeta.rawTx = rawTx;
+
       this.updateTransaction(
         transactionMeta,
         'TransactionController#approveTransaction - RawTransaction added',
       );
+
       const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
       transactionMeta.hash = hash;
+
+      log('Submitted transaction', { txParams, rawTx, hash });
+
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
+
       this.updateTransaction(
         transactionMeta,
         'TransactionController#approveTransaction - Transaction submitted',
       );
+
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
@@ -2003,184 +1930,24 @@ export class TransactionController extends BaseController<
     return this.getTransaction(txId);
   }
 
-  private async getDefaultGasLimit(txMeta: TransactionMeta) {
-    const { gas, estimateGasError, simulationFails } = await this.estimateGas(
-      txMeta.txParams,
-    );
-
-    return { gasLimit: gas, estimateGasError, simulationFails };
-  }
-
-  private async getDefaultGasFees(
-    txMeta: TransactionMeta,
-    eip1559Compatibility: boolean,
-  ) {
-    if (
-      (!eip1559Compatibility && txMeta.txParams.gasPrice) ||
-      (eip1559Compatibility &&
-        txMeta.txParams.maxFeePerGas &&
-        txMeta.txParams.maxPriorityFeePerGas)
-    ) {
-      return {};
-    }
-
-    try {
-      const { gasFeeEstimates, gasEstimateType } =
-        await this.getGasFeeEstimates();
-
-      if (
-        eip1559Compatibility &&
-        gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET
-      ) {
-        const {
-          medium: { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } = {},
-        } = gasFeeEstimates;
-
-        if (suggestedMaxPriorityFeePerGas && suggestedMaxFeePerGas) {
-          return {
-            maxFeePerGas: toHex(gweiDecToWEIBN(suggestedMaxFeePerGas)),
-            maxPriorityFeePerGas: toHex(
-              gweiDecToWEIBN(suggestedMaxPriorityFeePerGas),
-            ),
-          };
-        }
-      } else if (gasEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
-        // The LEGACY type includes low, medium and high estimates of
-        // gas price values.
-        return {
-          gasPrice: toHex(gweiDecToWEIBN(gasFeeEstimates.medium)),
-        };
-      } else if (gasEstimateType === GAS_ESTIMATE_TYPES.ETH_GASPRICE) {
-        // The ETH_GASPRICE type just includes a single gas price property,
-        // which we can assume was retrieved from eth_gasPrice
-        return {
-          gasPrice: toHex(gweiDecToWEIBN(gasFeeEstimates.gasPrice)),
-        };
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    const gasPrice = (await query(this.ethQuery, 'gasPrice')) as number;
-
-    return { gasPrice: gasPrice && addHexPrefix(gasPrice.toString(16)) };
-  }
-
-  private async addTxGasDefaults(txMeta: TransactionMeta) {
+  private async addTxGasDefaults(txMeta: TransactionMeta, eip1559: boolean) {
     const eip1559Compatibility =
-      txMeta.txParams.type !== TransactionEnvelopeType.legacy &&
-      (await this.getEIP1559Compatibility());
+      txMeta.txParams.type !== TransactionEnvelopeType.legacy && eip1559;
 
-    const {
-      gasPrice: defaultGasPrice,
-      maxFeePerGas: defaultMaxFeePerGas,
-      maxPriorityFeePerGas: defaultMaxPriorityFeePerGas,
-    } = await this.getDefaultGasFees(txMeta, eip1559Compatibility);
+    const { providerConfig } = this.getNetworkState();
 
-    const {
-      gasLimit: defaultGasLimit,
-      simulationFails,
-      estimateGasError,
-    } = await this.getDefaultGasLimit(txMeta);
+    await updateGasFees({
+      eip1559: eip1559Compatibility,
+      ethQuery: this.ethQuery,
+      getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
+      txMeta,
+    });
 
-    txMeta.txParams.estimateGasError = estimateGasError;
-
-    if (simulationFails) {
-      txMeta.simulationFails = simulationFails;
-    }
-
-    if (eip1559Compatibility) {
-      //TxMigrationToDo - Advanced gas fee defaults.
-      if (
-        txMeta.txParams.gasPrice &&
-        !txMeta.txParams.maxFeePerGas &&
-        !txMeta.txParams.maxPriorityFeePerGas
-      ) {
-        // If the dapp has suggested a gas price, but no maxFeePerGas or maxPriorityFeePerGas
-        //  then we set maxFeePerGas and maxPriorityFeePerGas to the suggested gasPrice.
-        txMeta.txParams.maxFeePerGas = txMeta.txParams.gasPrice;
-        txMeta.txParams.maxPriorityFeePerGas = txMeta.txParams.gasPrice;
-
-        if (txMeta.origin === ORIGIN_METAMASK) {
-          txMeta.userFeeLevel = UserFeeLevel.MEDIUM;
-        } else {
-          txMeta.userFeeLevel = UserFeeLevel.DAPP_SUGGESTED;
-        }
-      } else {
-        if (
-          (defaultMaxFeePerGas &&
-            defaultMaxPriorityFeePerGas &&
-            !txMeta.txParams.maxFeePerGas &&
-            !txMeta.txParams.maxPriorityFeePerGas) ||
-          txMeta.origin === ORIGIN_METAMASK
-        ) {
-          txMeta.userFeeLevel = UserFeeLevel.MEDIUM;
-        } else {
-          txMeta.userFeeLevel = UserFeeLevel.DAPP_SUGGESTED;
-        }
-
-        if (defaultMaxFeePerGas && !txMeta.txParams.maxFeePerGas) {
-          // If the dapp has not set the gasPrice or the maxFeePerGas, then we set maxFeePerGas
-          // with the one returned by the gasFeeController, if that is available.
-          txMeta.txParams.maxFeePerGas = defaultMaxFeePerGas;
-        }
-
-        if (
-          defaultMaxPriorityFeePerGas &&
-          !txMeta.txParams.maxPriorityFeePerGas
-        ) {
-          // If the dapp has not set the gasPrice or the maxPriorityFeePerGas, then we set maxPriorityFeePerGas
-          // with the one returned by the gasFeeController, if that is available.
-          txMeta.txParams.maxPriorityFeePerGas = defaultMaxPriorityFeePerGas;
-        }
-
-        if (defaultGasPrice && !txMeta.txParams.maxFeePerGas) {
-          // If the dapp has not set the gasPrice or the maxFeePerGas, and no maxFeePerGas is available
-          // from the gasFeeController, then we set maxFeePerGas to the defaultGasPrice, assuming it is
-          // available.
-          txMeta.txParams.maxFeePerGas = defaultGasPrice;
-        }
-
-        if (
-          txMeta.txParams.maxFeePerGas &&
-          !txMeta.txParams.maxPriorityFeePerGas
-        ) {
-          // If the dapp has not set the gasPrice or the maxPriorityFeePerGas, and no maxPriorityFeePerGas is
-          // available from the gasFeeController, then we set maxPriorityFeePerGas to
-          // txMeta.txParams.maxFeePerGas, which will either be the gasPrice from the controller, the maxFeePerGas
-          // set by the dapp, or the maxFeePerGas from the controller.
-          txMeta.txParams.maxPriorityFeePerGas = txMeta.txParams.maxFeePerGas;
-        }
-      }
-
-      // We remove the gasPrice param entirely when on an eip1559 compatible network
-
-      delete txMeta.txParams.gasPrice;
-    } else {
-      // We ensure that maxFeePerGas and maxPriorityFeePerGas are not in the transaction params
-      // when not on a EIP1559 compatible network
-
-      delete txMeta.txParams.maxPriorityFeePerGas;
-      delete txMeta.txParams.maxFeePerGas;
-    }
-
-    // If we have gotten to this point, and none of gasPrice, maxPriorityFeePerGas or maxFeePerGas are
-    // set on txParams, it means that either we are on a non-EIP1559 network and the dapp didn't suggest
-    // a gas price, or we are on an EIP1559 network, and none of gasPrice, maxPriorityFeePerGas or maxFeePerGas
-    // were available from either the dapp or the network.
-    if (
-      defaultGasPrice &&
-      !txMeta.txParams.gasPrice &&
-      !txMeta.txParams.maxPriorityFeePerGas &&
-      !txMeta.txParams.maxFeePerGas
-    ) {
-      txMeta.txParams.gasPrice = defaultGasPrice;
-    }
-
-    if (defaultGasLimit && !txMeta.txParams.gas) {
-      txMeta.txParams.gas = defaultGasLimit;
-      txMeta.originalGasEstimate = defaultGasLimit;
-    }
+    await updateGas({
+      ethQuery: this.ethQuery,
+      txMeta,
+      providerConfig,
+    });
 
     // txMeta.defaultGasEstimates = {
     //   estimateType: txMeta.userFeeLevel,
@@ -2287,23 +2054,6 @@ export class TransactionController extends BaseController<
     });
 
     return merge(txMeta, swapTransaction);
-  }
-
-  private throwErrorIfNotUnapprovedTx(
-    txId: string,
-    methodName: string,
-  ): TransactionMeta {
-    const transactionMeta = this.getTransaction(txId);
-
-    if (!transactionMeta) {
-      throw new Error(
-        `Method ${methodName} failed as no transaction metadata found`,
-      );
-    }
-
-    validateIfTransactionUnapproved(transactionMeta, methodName);
-
-    return transactionMeta;
   }
 }
 
