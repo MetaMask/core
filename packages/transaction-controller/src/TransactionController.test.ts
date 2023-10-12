@@ -23,8 +23,8 @@ import NonceTracker from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import { PendingTransactionTracker } from './PendingTransactionTracker';
+import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import type {
   TransactionControllerMessenger,
   TransactionConfig,
@@ -32,7 +32,7 @@ import type {
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
 import { WalletDevice, TransactionStatus, TransactionType } from './types';
-import { ESTIMATE_GAS_ERROR } from './utils';
+import { ESTIMATE_GAS_ERROR } from './utils/utils';
 
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 const v1Stub = jest.fn().mockImplementation(() => MOCK_V1_UUID);
@@ -134,8 +134,8 @@ jest.mock('@metamask/eth-query', () =>
   }),
 );
 
-jest.mock('./IncomingTransactionHelper');
-jest.mock('./PendingTransactionTracker');
+jest.mock('./helpers/IncomingTransactionHelper');
+jest.mock('./helpers/PendingTransactionTracker');
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in

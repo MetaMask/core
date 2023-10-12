@@ -39,13 +39,10 @@ import { merge, pickBy } from 'lodash';
 import NonceTracker from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import { validateConfirmedExternalTransaction } from './external-transactions';
-import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
+import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { pendingTransactionsLogger } from './logger';
-import { PendingTransactionTracker } from './PendingTransactionTracker';
-import { determineTransactionType } from './transaction-type';
 import type {
   DappSuggestedGasFees,
   TransactionParams,
@@ -56,6 +53,12 @@ import type {
   WalletDevice,
 } from './types';
 import { TransactionType, TransactionStatus } from './types';
+import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+import {
+  addInitialHistorySnapshot,
+  updateTransactionHistory,
+} from './utils/history';
+import { determineTransactionType } from './utils/transaction-type';
 import {
   getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
@@ -67,8 +70,11 @@ import {
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
-} from './utils';
-import { validateTransactionOrigin, validateTxParams } from './validation';
+} from './utils/utils';
+import {
+  validateTransactionOrigin,
+  validateTxParams,
+} from './utils/validation';
 
 export const HARDFORK = Hardfork.London;
 

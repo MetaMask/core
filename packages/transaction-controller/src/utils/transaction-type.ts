@@ -4,8 +4,8 @@ import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { abiERC721, abiERC20, abiERC1155 } from '@metamask/metamask-eth-abis';
 
-import type { InferTransactionTypeResult, TransactionParams } from './types';
-import { TransactionType } from './types';
+import type { InferTransactionTypeResult, TransactionParams } from '../types';
+import { TransactionType } from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
