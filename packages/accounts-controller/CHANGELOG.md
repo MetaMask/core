@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.3]
 ### Changed
 - Bump dependency on `@metamask/keyring-controller` to ^8.0.3
+- Add `test:clean` build script that clears jest cache ([#1714](https://github.com/MetaMask/core/pull/1714))
 
 ## [2.0.2]
 ### Changed
