@@ -548,7 +548,7 @@ describe('NftDetectionController', () => {
     expect(
       nftController.state.allNftContracts[selectedAddress][chainId],
     ).toStrictEqual([nftContractHH]);
-    // During next call of assets detection, API succeds returning contract ending in gg information
+    // During next call of assets detection, API succeeds returning contract ending in gg information
 
     nock(OPENSEA_PROXY_URL)
       .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
