@@ -4,11 +4,11 @@ Includes a controller and middleware that implements a request queue
 
 ## Installation
 
-`yarn add @metamask/selected-network-controller`
+`yarn add @metamask/queued-request-controller`
 
 or
 
-`npm install @metamask/selected-network-controller`
+`npm install @metamask/queued-request-controller`
 
 ## Contributing
 
