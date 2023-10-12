@@ -1,6 +1,8 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { ControllerMessenger } from '@metamask/base-controller';
 import { ApprovalType, BUILT_IN_NETWORKS } from '@metamask/controller-utils';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type {
   NetworkClientId,
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -11,8 +13,6 @@ import type {
 } from '@metamask/network-controller';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
-import type { JsonRpcMiddleware } from 'json-rpc-engine';
-import { createAsyncMiddleware } from 'json-rpc-engine';
 
 import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
