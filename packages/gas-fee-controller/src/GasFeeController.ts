@@ -400,7 +400,6 @@ export class GasFeeController extends PollingController<
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
-
     const isLegacyGasAPICompatible =
       networkClient.configuration.chainId === '0x38';
 

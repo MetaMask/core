@@ -1,5 +1,10 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { NetworkType, toHex } from '@metamask/controller-utils';
+import {
+  ChainId,
+  convertHexToDecimal,
+  NetworkType,
+  toHex,
+} from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import { NetworkController, NetworkStatus } from '@metamask/network-controller';
 import type {
@@ -918,7 +923,7 @@ describe('GasFeeController', () => {
   });
 
   describe('polling (by networkClientId)', () => {
-    it('should call determineGasFeeCalculations (via _executePoll) with a URL that contains the chain ID after the interval passed via the constructor', async () => {
+    it('should call determineGasFeeCalculations (via _executePoll) with a URL that contains the chainId corresponding to the networkClientId after the interval passed via the constructor', async () => {
       const pollingInterval = 10000;
       await setupGasFeeController({
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
@@ -930,6 +935,12 @@ describe('GasFeeController', () => {
         networkControllerState: {
           networksMetadata: {
             goerli: {
+              EIPS: {
+                1559: true,
+              },
+              status: NetworkStatus.Available,
+            },
+            sepolia: {
               EIPS: {
                 1559: true,
               },
@@ -947,12 +958,24 @@ describe('GasFeeController', () => {
       await clock.tickAsync(pollingInterval / 2);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
-          fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/5',
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
+            ChainId.goerli,
+          )}`,
         }),
       );
       expect(
         gasFeeController.state.gasFeeEstimatesByChainId?.['0x5'],
       ).toStrictEqual(buildMockGasFeeStateFeeMarket());
+
+      gasFeeController.startPollingByNetworkClientId('sepolia');
+      await clock.tickAsync(pollingInterval);
+      expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
+            ChainId.sepolia,
+          )}`,
+        }),
+      );
     });
   });
 });
