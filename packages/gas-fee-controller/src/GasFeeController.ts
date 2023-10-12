@@ -548,6 +548,13 @@ export class GasFeeController extends PollingController<
     }, this.intervalDelay);
   }
 
+  /**
+   * Fetching token list from the Token Service API.
+   *
+   * @private
+   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @returns A promise that resolves when this operation completes.
+   */
   async _executePoll(networkClientId: string): Promise<void> {
     await this.#fetchGasFeeEstimateForNetworkClientId(networkClientId);
   }
