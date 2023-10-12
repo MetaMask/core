@@ -1668,7 +1668,7 @@ __metadata:
     rimraf: ^3.0.2
     simple-git-hooks: ^2.8.0
     ts-node: ^10.9.1
-    typescript: ~4.6.3
+    typescript: ~4.8.4
     which: ^3.0.0
   languageName: unknown
   linkType: soft
@@ -2166,9 +2166,9 @@ __metadata:
     nock: ^13.3.1
     sinon: ^9.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
     uuid: ^8.3.2
   languageName: unknown
   linkType: soft
@@ -2554,9 +2554,9 @@ __metadata:
     nock: ^13.3.1
     sinon: ^9.2.4
     ts-jest: ^27.1.4
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
   peerDependencies:
     "@metamask/network-controller": ^15.0.0
   languageName: unknown
