@@ -462,6 +462,7 @@ export async function withNetworkClient(
 
   const { provider, blockTracker } = clientUnderTest;
 
+  // @ts-expect-error TODO: Provider type alignment
   const ethQuery = new EthQuery(provider);
   const curriedMakeRpcCall = (request: Request) =>
     makeRpcCall(ethQuery, request);
