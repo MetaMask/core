@@ -2,7 +2,7 @@ import { toHex } from '@metamask/controller-utils';
 import nock from 'nock';
 
 import {
-  fetchTokenList,
+  fetchTokenListByChainId,
   fetchTokenMetadata,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
@@ -137,7 +137,7 @@ const sampleDecimalChainId = 1;
 const sampleChainId = toHex(sampleDecimalChainId);
 
 describe('Token service', () => {
-  describe('fetchTokenList', () => {
+  describe('fetchTokenListByChainId', () => {
     it('should call the tokens api and return the list of tokens', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
@@ -145,7 +145,7 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      const tokens = await fetchTokenList(sampleChainId, signal);
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(tokens).toStrictEqual(sampleTokenList);
     });
@@ -159,7 +159,7 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      const fetchPromise = fetchTokenList(
+      const fetchPromise = fetchTokenListByChainId(
         sampleChainId,
         abortController.signal,
       );
@@ -175,7 +175,7 @@ describe('Token service', () => {
         .replyWithError('Example network error')
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal);
+      const result = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(result).toBeUndefined();
     });
@@ -187,7 +187,7 @@ describe('Token service', () => {
         .reply(500)
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal);
+      const result = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(result).toBeUndefined();
     });
@@ -201,7 +201,7 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal, {
+      const result = await fetchTokenListByChainId(sampleChainId, signal, {
         timeout: ONE_MILLISECOND,
       });
 
@@ -317,7 +317,7 @@ describe('Token service', () => {
       .reply(404, undefined)
       .persist();
 
-    const tokens = await fetchTokenList(sampleChainId, signal);
+    const tokens = await fetchTokenListByChainId(sampleChainId, signal);
 
     expect(tokens).toBeUndefined();
   });
