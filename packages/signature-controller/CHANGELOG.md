@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Move from `eth-rpc-errors` ^4.0.2 to `@metamask/rpc-errors` ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
 - Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
-- Bump dependency on `@metamask/keyring-controller` to ^8.0.3
 - Bump dependency and peer dependency on `@metamask/logging-controller` to ^1.0.4
 
 ## [6.1.2]

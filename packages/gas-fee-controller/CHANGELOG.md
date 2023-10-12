@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [9.0.0]
 ### Changed
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
-- Bump dependency on `@metamask/polling-controller` to ^0.2.0
+- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^0.2.0
 
 ## [8.0.0]
 ### Added
