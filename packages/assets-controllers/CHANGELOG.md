@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.1]
 ### Changed
+- Add missing dependency on `@metamask/polling-controller` ([#1831](https://github.com/MetaMask/core/pull/1831))
 - Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
 
 ## [15.0.0]
