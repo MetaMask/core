@@ -33,7 +33,7 @@
     "@metamask/base-controller": "^3.2.3",
     "@metamask/controller-utils": "^5.0.2",
     "@metamask/json-rpc-engine": "^7.1.1",
-    "@metamask/rpc-errors": "^6.0.0",
+    "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.1.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",

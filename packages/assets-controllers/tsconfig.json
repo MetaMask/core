@@ -8,7 +8,8 @@
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
     { "path": "../network-controller" },
-    { "path": "../preferences-controller" }
+    { "path": "../preferences-controller" },
+    { "path": "../polling-controller" }
   ],
   "include": ["../../types", "./src"]
 }
