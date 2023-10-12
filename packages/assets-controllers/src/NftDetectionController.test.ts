@@ -289,7 +289,9 @@ describe('NftDetectionController', () => {
         return Promise.resolve();
       });
 
-    testNftDetection.startPollingByNetworkClientId('mainnet', '0x1');
+    testNftDetection.startPollingByNetworkClientId('mainnet', {
+      address: '0x1',
+    });
     await Promise.all([
       jest.advanceTimersByTime(DEFAULT_INTERVAL),
       Promise.resolve(),

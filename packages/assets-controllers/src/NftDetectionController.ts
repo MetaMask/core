@@ -267,15 +267,14 @@ export class NftDetectionController extends PollingControllerV1<
     this.setIntervalLength(this.config.interval);
   }
 
-  async executePoll(networkClientId: string): Promise<void> {
-    const selectedAddress =
-      this.#selectedAddressByNetworkClientId.get(networkClientId);
-    if (selectedAddress) {
-      await this.detectNftsByNetworkClientIdAndUserAddress(
-        networkClientId,
-        selectedAddress,
-      );
-    }
+  async executePoll(
+    networkClientId: string,
+    options: { address: string },
+  ): Promise<void> {
+    await this.detectNftsByNetworkClientIdAndUserAddress(
+      networkClientId,
+      options.address,
+    );
   }
 
   /**
@@ -326,28 +325,6 @@ export class NftDetectionController extends PollingControllerV1<
   isMainnetByNetworkClientId = (networkClient: NetworkClient): boolean => {
     return networkClient.configuration.chainId === ChainId.mainnet;
   };
-
-  #selectedAddressByNetworkClientId = new Map<NetworkClientId, string>();
-
-  override startPollingByNetworkClientId(
-    networkClientId: string,
-    selectedAddress?: string,
-  ): string {
-    // selectedAddress needs to be optional in the interface for the override to work with the mixin
-    if (!selectedAddress) {
-      throw new Error('no address specified');
-    }
-    this.#selectedAddressByNetworkClientId.set(
-      networkClientId,
-      selectedAddress,
-    );
-    return super.startPollingByNetworkClientId(networkClientId);
-  }
-
-  stopAllPolling(): void {
-    this.#selectedAddressByNetworkClientId.clear();
-    super.stopAllPolling();
-  }
 
   async detectNftsByNetworkClientIdAndUserAddress(
     networkClientId: NetworkClientId,
