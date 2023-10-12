@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [14.0.1]
 ### Changed
 - Bump dependency on `@metamask/rpc-errors` to ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
 
 ## [14.0.0]
 ### Added
