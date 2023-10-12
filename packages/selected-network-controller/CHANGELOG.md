@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix SelectedNetworkController default metamask networkClientId ([#1757](https://github.com/MetaMask/core/pull/1757))
 - Release 81.0.0 ([#1747](https://github.com/MetaMask/core/pull/1747))
 - devDeps: @metamask/eslint-config*->12.1.0 ([#1740](https://github.com/MetaMask/core/pull/1740))
-- Add `test:clean` build script that clears jest cache before running tests ([#1714](https://github.com/MetaMask/core/pull/1714))
+- Add `test:clean` build script that clears jest cache ([#1714](https://github.com/MetaMask/core/pull/1714))
 
 ## [2.0.1]
 ### Changed
