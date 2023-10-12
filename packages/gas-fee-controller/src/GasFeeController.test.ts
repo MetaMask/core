@@ -873,54 +873,6 @@ describe('GasFeeController', () => {
       });
     });
   });
-  describe('_executePoll', () => {
-    it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
-      await setupGasFeeController({
-        getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
-        getCurrentNetworkLegacyGasAPICompatibility: jest
-          .fn()
-          .mockReturnValue(true),
-        legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
-        EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
-        networkControllerState: {
-          networksMetadata: {
-            mainnet: {
-              EIPS: {
-                1559: true,
-              },
-              status: NetworkStatus.Available,
-            },
-            sepolia: {
-              EIPS: {
-                1559: true,
-              },
-              status: NetworkStatus.Available,
-            },
-          },
-        },
-        clientId: '99999',
-      });
-
-      await gasFeeController._executePoll('mainnet');
-      await gasFeeController._executePoll('sepolia');
-
-      expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
-        expect.objectContaining({
-          fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/1',
-        }),
-      );
-      expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
-        expect.objectContaining({
-          fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/11155111',
-        }),
-      );
-      expect(mockedDetermineGasFeeCalculations).not.toHaveBeenCalledWith(
-        expect.objectContaining({
-          fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/5',
-        }),
-      );
-    });
-  });
 
   describe('polling (by networkClientId)', () => {
     it('should call determineGasFeeCalculations (via _executePoll) with a URL that contains the chainId corresponding to the networkClientId after the interval passed via the constructor', async () => {
