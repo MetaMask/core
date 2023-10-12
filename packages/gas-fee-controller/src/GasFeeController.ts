@@ -400,7 +400,6 @@ export class GasFeeController extends PollingController<
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
-
     const isLegacyGasAPICompatible =
       networkClient.configuration.chainId === '0x38';
 
@@ -548,7 +547,14 @@ export class GasFeeController extends PollingController<
     }, this.intervalDelay);
   }
 
-  async executePoll(networkClientId: string): Promise<void> {
+  /**
+   * Fetching token list from the Token Service API.
+   *
+   * @private
+   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @returns A promise that resolves when this operation completes.
+   */
+  async _executePoll(networkClientId: string): Promise<void> {
     await this.#fetchGasFeeEstimateForNetworkClientId(networkClientId);
   }
 

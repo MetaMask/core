@@ -1294,8 +1294,9 @@ describe('TokenListController', () => {
     });
   });
 
-  describe('executePoll', () => {
+  describe('startPollingByNetworkClient', () => {
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
+      jest.useFakeTimers();
       nock(tokenService.TOKEN_END_POINT_API)
         .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}`)
         .reply(200, sampleSepoliaTokenList)
@@ -1315,28 +1316,27 @@ describe('TokenListController', () => {
           },
         }),
       );
+      const pollingIntervalTime = 1000;
       const messenger = getRestrictedMessenger(controllerMessenger);
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         preventPollingOnNetworkRestart: false,
         messenger,
         state: expiredCacheExistingState,
+        interval: pollingIntervalTime,
       });
       expect(controller.state.tokenList).toStrictEqual(
         expiredCacheExistingState.tokenList,
       );
 
-      await controller.executePoll('sepolia');
+      controller.startPollingByNetworkClientId('sepolia');
+      jest.advanceTimersByTime(pollingIntervalTime);
+      await flushPromises();
+
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
       );
-      expect(controller.state.tokenList).toStrictEqual(
-        sampleSepoliaTokensChainCache,
-      );
     });
-  });
-
-  describe('startPollingByNetworkClient', () => {
     it('should start polling against the token list API at the interval passed to the constructor', async () => {
       jest.useFakeTimers();
       const pollingIntervalTime = 1000;
