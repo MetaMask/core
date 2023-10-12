@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [8.0.3]
 ### Changed
 - `signTransaction` now accepts an optional `opts: Record<string, unknown>` argument to support `signTransaction` from `Keyring` type ([#1789](https://github.com/MetaMask/core/pull/1789))
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
 
 ## [8.0.2]
 ### Changed

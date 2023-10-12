@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add required second argument to `executePoll`
 
 ### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
 - Add dependency on `fast-json-stable-stringify` ^2.1.0
 
 ## [0.1.0]

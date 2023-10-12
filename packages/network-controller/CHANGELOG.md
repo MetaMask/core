@@ -6,19 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+### Changed
+- **BREAKING:** Bump dependency on `@metamask/eth-json-rpc-infura` to ^9.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- **BREAKING:** Bump dependency on `@metamask/eth-json-rpc-middleware` to ^12.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- **BREAKING:** Move from `json-rpc-engine` ^7.1.1 to `@metamask/json-rpc-engine` ^8.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- **BREAKING:** Bump dependency on `eth-block-tracker` to ^8.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- Bump dependency on `@metamask/eth-json-rpc-provider` to ^2.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+- Move from `eth-rpc-errors` ^4.0.2 to `@metamask/rpc-errors` ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
+
 ## [14.0.0]
 ### Added
 - Add `NetworkController:getEIP1559Compatibility` controller action ([#1673](https://github.com/MetaMask/core/pull/1673))
 
 ### Changed
 - **BREAKING:** Rename `get1555CompatibilityWithNetworkClientId` to `get1559CompatibilityWithNetworkClientId` ([#1673](https://github.com/MetaMask/core/pull/1673))
-- **BREAKING:** Bump dependency on `@metamask/eth-json-rpc-infura` to ^9.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
-- **BREAKING:** Bump dependency on `@metamask/eth-json-rpc-middleware` to ^12.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
-- **BREAKING:** Move from `json-rpc-engine` ^7.1.1 to `@metamask/json-rpc-engine` ^8.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
-- **BREAKING:** Bump dependency on `eth-block-tracker` to ^8.0.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency on `@metamask/eth-json-rpc-provider` to ^2.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
-- Move from `eth-rpc-errors` ^4.0.2 to `@metamask/rpc-errors` ^6.1.0 ([#1653](https://github.com/MetaMask/core/pull/1653))
 - Bump dependency on `@metamask/base-controller` to ^3.2.3
 - Bump dependency on `@metamask/controller-utils` to ^5.0.2
 
@@ -284,7 +287,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@14.0.0...@metamask/network-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.1...@metamask/network-controller@14.0.0
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.0...@metamask/network-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.2.0...@metamask/network-controller@13.0.0

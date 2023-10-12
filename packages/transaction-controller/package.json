@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "14.0.1",
+  "version": "15.0.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -37,7 +37,7 @@
     "@metamask/controller-utils": "^5.0.2",
     "@metamask/eth-query": "^3.0.1",
     "@metamask/metamask-eth-abis": "^3.0.0",
-    "@metamask/network-controller": "^14.0.0",
+    "@metamask/network-controller": "^15.0.0",
     "@metamask/rpc-errors": "^6.1.0",
     "@metamask/utils": "^8.1.0",
     "async-mutex": "^0.2.6",
@@ -64,7 +64,7 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^4.0.1",
-    "@metamask/network-controller": "^14.0.0",
+    "@metamask/network-controller": "^15.0.0",
     "babel-runtime": "^6.26.0"
   },
   "engines": {

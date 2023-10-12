@@ -6,8 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [8.0.1]
+## [9.0.0]
 ### Changed
+- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
 - Bump dependency on `@metamask/polling-controller` to ^0.2.0
 
 ## [8.0.0]
@@ -102,8 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@8.0.1...HEAD
-[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@8.0.0...@metamask/gas-fee-controller@8.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@8.0.0...@metamask/gas-fee-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.1...@metamask/gas-fee-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.0...@metamask/gas-fee-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.2...@metamask/gas-fee-controller@7.0.0
