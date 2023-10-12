@@ -1361,7 +1361,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/approval-controller@^4.0.0, @metamask/approval-controller@workspace:packages/approval-controller":
+"@metamask/approval-controller@^4.0.1, @metamask/approval-controller@workspace:packages/approval-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/approval-controller@workspace:packages/approval-controller"
   dependencies:
@@ -1404,15 +1404,15 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/abi-utils": ^2.0.2
-    "@metamask/approval-controller": ^4.0.0
+    "@metamask/approval-controller": ^4.0.1
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/contract-metadata": ^2.3.1
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^3.0.1
     "@metamask/metamask-eth-abis": 3.0.0
-    "@metamask/network-controller": ^14.0.0
-    "@metamask/polling-controller": ^0.1.0
+    "@metamask/network-controller": ^15.0.0
+    "@metamask/polling-controller": ^0.2.0
     "@metamask/preferences-controller": ^4.4.3
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/utils": ^8.1.0
@@ -1436,8 +1436,8 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/approval-controller": ^4.0.0
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/approval-controller": ^4.0.1
+    "@metamask/network-controller": ^15.0.0
     "@metamask/preferences-controller": ^4.4.3
   languageName: unknown
   linkType: soft
@@ -1596,7 +1596,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -1608,7 +1608,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
   languageName: unknown
   linkType: soft
 
@@ -1819,8 +1819,8 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^3.0.1
-    "@metamask/network-controller": ^14.0.0
-    "@metamask/polling-controller": ^0.1.0
+    "@metamask/network-controller": ^15.0.0
+    "@metamask/polling-controller": ^0.2.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
@@ -1839,7 +1839,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
   languageName: unknown
   linkType: soft
 
@@ -1985,7 +1985,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@^14.0.0, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@^15.0.0, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -2095,7 +2095,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
-    "@metamask/approval-controller": ^4.0.0
+    "@metamask/approval-controller": ^4.0.1
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
@@ -2114,7 +2114,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/approval-controller": ^4.0.0
+    "@metamask/approval-controller": ^4.0.1
   languageName: unknown
   linkType: soft
 
@@ -2140,14 +2140,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/polling-controller@^0.1.0, @metamask/polling-controller@workspace:packages/polling-controller":
+"@metamask/polling-controller@^0.2.0, @metamask/polling-controller@workspace:packages/polling-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/polling-controller@workspace:packages/polling-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
@@ -2160,7 +2160,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
   languageName: unknown
   linkType: soft
 
@@ -2305,7 +2305,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/json-rpc-engine": ^7.1.1
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     immer: ^9.0.6
@@ -2318,7 +2318,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
   languageName: unknown
   linkType: soft
 
@@ -2326,7 +2326,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/signature-controller@workspace:packages/signature-controller"
   dependencies:
-    "@metamask/approval-controller": ^4.0.0
+    "@metamask/approval-controller": ^4.0.1
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
@@ -2346,7 +2346,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/approval-controller": ^4.0.0
+    "@metamask/approval-controller": ^4.0.1
     "@metamask/logging-controller": ^1.0.4
   languageName: unknown
   linkType: soft
@@ -2462,13 +2462,13 @@ __metadata:
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
     "@ethersproject/abi": ^5.7.0
-    "@metamask/approval-controller": ^4.0.0
+    "@metamask/approval-controller": ^4.0.1
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^3.0.1
     "@metamask/metamask-eth-abis": ^3.0.0
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
@@ -2490,8 +2490,8 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/approval-controller": ^4.0.0
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/approval-controller": ^4.0.1
+    "@metamask/network-controller": ^15.0.0
     babel-runtime: ^6.26.0
   languageName: unknown
   linkType: soft
