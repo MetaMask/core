@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.1]
 ### Changed
-- Bump dependency on `@metamask/preferences-controller` to ^4.4.3
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
 
 ## [15.0.0]
 ### Changed

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [6.1.3]
 ### Changed
 - Bump dependency on `@metamask/keyring-controller` to ^8.0.3
-- Bump dependency on `@metamask/logging-controller` to ^1.0.4
+- Bump dependency and peer dependency on `@metamask/logging-controller` to ^1.0.4
 
 ## [6.1.2]
 ### Changed
