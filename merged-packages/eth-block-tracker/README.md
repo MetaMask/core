@@ -1,20 +1,20 @@
-# eth-block-tracker
+# @metamask/eth-block-tracker
 
 This module walks the Ethereum blockchain, keeping track of the latest block. It uses a web3 provider as a data source and will continuously poll for the next block.
 
 ## Installation
 
-`yarn add eth-block-tracker`
+`yarn add @metamask/eth-block-tracker`
 
 or
 
-`npm install eth-block-tracker`
+`npm install @metamask/eth-block-tracker`
 
 ## Usage
 
 ```js
-const createInfuraProvider = require('eth-json-rpc-infura');
-const { PollingBlockTracker } = require('eth-block-tracker');
+const createInfuraProvider = require('@metamask/eth-json-rpc-infura');
+const { PollingBlockTracker } = require('@metamask/eth-block-tracker');
 
 const provider = createInfuraProvider({
   network: 'mainnet',
