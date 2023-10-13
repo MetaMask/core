@@ -45,6 +45,7 @@ linkStyle default opacity:0.5
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   ens_controller(["@metamask/ens-controller"]);
+  eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
@@ -69,13 +70,20 @@ linkStyle default opacity:0.5
   assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
+  assets_controllers --> network_controller;
+  assets_controllers --> polling_controller;
+  assets_controllers --> preferences_controller;
   composable_controller --> base_controller;
   ens_controller --> base_controller;
   ens_controller --> controller_utils;
+  ens_controller --> network_controller;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
+  gas_fee_controller --> network_controller;
+  gas_fee_controller --> polling_controller;
   keyring_controller --> base_controller;
   keyring_controller --> message_manager;
+  keyring_controller --> preferences_controller;
   logging_controller --> base_controller;
   logging_controller --> controller_utils;
   message_manager --> base_controller;
@@ -83,6 +91,7 @@ linkStyle default opacity:0.5
   name_controller --> base_controller;
   network_controller --> base_controller;
   network_controller --> controller_utils;
+  network_controller --> eth_json_rpc_provider;
   notification_controller --> base_controller;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
@@ -91,18 +100,22 @@ linkStyle default opacity:0.5
   phishing_controller --> controller_utils;
   polling_controller --> base_controller;
   polling_controller --> controller_utils;
+  polling_controller --> network_controller;
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
   rate_limit_controller --> base_controller;
   selected_network_controller --> base_controller;
+  selected_network_controller --> network_controller;
   signature_controller --> approval_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
+  signature_controller --> logging_controller;
   signature_controller --> message_manager;
   signature_controller --> keyring_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> network_controller;
 ```
 
 <!-- end dependency graph -->
