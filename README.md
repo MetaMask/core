@@ -15,6 +15,7 @@ This repository houses the following packages:
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/ens-controller`](packages/ens-controller)
+- [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/message-manager`](packages/message-manager)
