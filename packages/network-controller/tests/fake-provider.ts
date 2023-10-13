@@ -1,4 +1,4 @@
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider/dist/safe-event-emitter-provider';
+import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
 import { inspect, isDeepStrictEqual } from 'util';
