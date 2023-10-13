@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 package_name="$1"
-release_commits_regex=${2:-'^\d\{1,3\}\.\d\{1,3\}\.\d\{1,3\}'}
+remote=${2:-'origin'}
+release_commits_regex=${3:-'^\d\{1,3\}\.\d\{1,3\}\.\d\{1,3\}'}
 
 get-version-commit-pairs() {
   for log in "$(git log --oneline --grep $release_commits_regex merged-packages/$package_name)"; do
@@ -22,5 +23,5 @@ for pair in "$tag_commit_pairs"; do
 done
 
 for pair in "$tag_commit_pairs"; do
-  echo "$pair" | cut -d' ' -f1 | xargs -n 1 bash -c 'git push origin "$0"'
+  echo "$pair" | cut -d' ' -f1 | xargs -n 1 bash -c 'git push '"$remote"' "$0"'
 done
