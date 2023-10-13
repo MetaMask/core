@@ -17,9 +17,9 @@ type Constructor = new (...args: any[]) => object;
 export const getKey = (
   networkClientId: NetworkClientId,
   options: Json,
-): PollingGroupId => `${networkClientId}:${stringify(options)}`;
+): PollingTokenSetId => `${networkClientId}:${stringify(options)}`;
 
-type PollingGroupId = `${NetworkClientId}:${string}`;
+type PollingTokenSetId = `${NetworkClientId}:${string}`;
 /**
  * PollingControllerMixin
  *
@@ -34,9 +34,9 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
    *
    */
   abstract class PollingControllerBase extends Base {
-    readonly #pollingTokenSets: Map<PollingGroupId, Set<string>> = new Map();
+    readonly #pollingTokenSets: Map<PollingTokenSetId, Set<string>> = new Map();
 
-    readonly #intervalIds: Record<PollingGroupId, NodeJS.Timeout> = {};
+    readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
 
     #callbacks: Map<
       NetworkClientId,
@@ -91,7 +91,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
     stopAllPolling() {
       this.#pollingTokenSets.forEach((tokenSet, _networkClientId) => {
         tokenSet.forEach((token) => {
-          this.stopPollingByNetworkClientId(token);
+          this.stopPollingByPollingToken(token);
         });
       });
     }
@@ -101,7 +101,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      *
      * @param pollingToken - The polling token to stop polling for
      */
-    stopPollingByNetworkClientId(pollingToken: string) {
+    stopPollingByPollingToken(pollingToken: string) {
       if (!pollingToken) {
         throw new Error('pollingToken required');
       }
@@ -132,7 +132,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      * @param networkClientId - The networkClientId to execute the poll for
      * @param options - The options passed to startPollingByNetworkClientId
      */
-    abstract executePoll(
+    abstract _executePoll(
       networkClientId: NetworkClientId,
       options: Json,
     ): Promise<void>;
@@ -148,7 +148,7 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#intervalIds[key] = setTimeout(async () => {
         try {
-          await this.executePoll(networkClientId, options);
+          await this._executePoll(networkClientId, options);
         } catch (error) {
           console.error(error);
         }
