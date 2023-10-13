@@ -9,9 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0]
 ### Added
 - Add way to start and stop different polling sessions for the same network client ID by providing extra scoping data ([#1776](https://github.com/MetaMask/core/pull/1776))
-  - Add optional second argument to `startPollingByNetworkClientId`
+  - Add optional second argument to `stopPollingByPollingToken` (formerly `stopPollingByNetworkClientId`)
   - Add optional second argument to `onPollingCompleteByNetworkClientId`
-  - Add required second argument to `executePoll`
 
 ### Changed
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
