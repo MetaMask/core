@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.0.0]
 ### Changed
-- **BREAKING:** Make `executePoll` in GasFeeController private ([#1810](https://github.com/MetaMask/core/pull/1810))
+- **BREAKING:** Make `executePoll` private ([#1810](https://github.com/MetaMask/core/pull/1810))
 - **BREAKING:** Rename `stopPollingByNetworkClientId` to `stopPollingByPollingToken` ([#1810](https://github.com/MetaMask/core/pull/1810))
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
 - **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^0.2.0
