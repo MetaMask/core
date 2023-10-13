@@ -2195,28 +2195,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/network-controller@npm:^14.0.0":
-  version: 14.0.0
-  resolution: "@metamask/network-controller@npm:14.0.0"
-  dependencies:
-    "@metamask/base-controller": ^3.2.3
-    "@metamask/controller-utils": ^5.0.2
-    "@metamask/eth-json-rpc-infura": ^8.1.1
-    "@metamask/eth-json-rpc-middleware": ^11.0.2
-    "@metamask/eth-json-rpc-provider": ^1.0.0
-    "@metamask/eth-query": ^3.0.1
-    "@metamask/swappable-obj-proxy": ^2.1.0
-    "@metamask/utils": ^8.1.0
-    async-mutex: ^0.2.6
-    eth-block-tracker: ^7.0.1
-    eth-rpc-errors: ^4.0.2
-    immer: ^9.0.6
-    json-rpc-engine: ^6.1.0
-    uuid: ^8.3.2
-  checksum: ab6f1276c8d1587632040730b558632398c39823ccaecf2a8cd5eb7ae00a25562e2cb22ce10ccc8c85da2842cc2e5ca2b05f664a76253e9fd14770f8ef59a4ca
-  languageName: node
-  linkType: hard
-
 "@metamask/notification-controller@workspace:packages/notification-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/notification-controller@workspace:packages/notification-controller"
@@ -2434,7 +2412,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/json-rpc-engine": ^7.1.1
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
     "@metamask/selected-network-controller": ^2.0.1
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^27.4.1
@@ -2543,7 +2521,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/json-rpc-engine": ^7.1.1
-    "@metamask/network-controller": ^14.0.0
+    "@metamask/network-controller": ^15.0.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
