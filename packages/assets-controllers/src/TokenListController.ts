@@ -234,10 +234,11 @@ export class TokenListController extends PollingController<
   /**
    * Fetching token list from the Token Service API.
    *
+   * @private
    * @param networkClientId - The ID of the network client triggering the fetch.
    * @returns A promise that resolves when this operation completes.
    */
-  async executePoll(networkClientId: string): Promise<void> {
+  async _executePoll(networkClientId: string): Promise<void> {
     return this.fetchTokenList(networkClientId);
   }
 
