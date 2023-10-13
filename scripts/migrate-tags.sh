@@ -15,10 +15,12 @@ prepend-package-name() {
   done
 }
 
-for pair in "$(prepend-package-name)"; do
+tag_commit_pairs=$(prepend-package-name)
+
+for pair in "$tag_commit_pairs"; do
   echo "$pair" | xargs -n 2 bash -c 'git tag "$0" "$1"'
 done
 
-for pair in "$(prepend-package-name)"; do
+for pair in "$tag_commit_pairs"; do
   echo "$pair" | cut -d' ' -f1 | xargs -n 1 bash -c 'git push origin "$0"'
 done
