@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.3]
+### Changed
+- `signTransaction` now accepts an optional `opts: Record<string, unknown>` argument to support `signTransaction` from `Keyring` type ([#1789](https://github.com/MetaMask/core/pull/1789))
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
+
 ## [8.0.2]
 ### Changed
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
@@ -213,7 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.3...HEAD
+[8.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.2...@metamask/keyring-controller@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.1...@metamask/keyring-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.0...@metamask/keyring-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.5.0...@metamask/keyring-controller@8.0.0
