@@ -18,14 +18,17 @@ This repository houses the following packages:
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
+- [`@metamask/logging-controller`](packages/logging-controller);
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/notification-controller`](packages/notification-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
+- [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
+- [`@metamask/selected-network-controller`](packages/selected-network-controller);
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 
