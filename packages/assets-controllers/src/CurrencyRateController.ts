@@ -216,7 +216,7 @@ export class CurrencyRateController extends PollingController<
    * @param networkClientId - The network client ID used to get a ticker value.
    * @returns The controller state.
    */
-  async executePoll(networkClientId: NetworkClientId): Promise<void> {
+  async _executePoll(networkClientId: NetworkClientId): Promise<void> {
     const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
