@@ -10,7 +10,8 @@ import type {
   AccountsControllerEvents,
   AccountsControllerState,
 } from './AccountsController';
-import { AccountsController, keyringTypeToName } from './AccountsController';
+import { AccountsController } from './AccountsController';
+import { keyringTypeToName } from './utils';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');
@@ -112,13 +113,18 @@ function createExpectedInternalAccount({
  * @returns The modified account.
  */
 function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
-  return {
-    ...account,
-    metadata: {
-      ...account.metadata,
-      lastSelected: expect.any(Number),
-    },
-  } as InternalAccount;
+  const deepClonedAccount = JSON.parse(
+    JSON.stringify({
+      ...account,
+      metadata: {
+        ...account.metadata,
+        lastSelected: expect.any(Number),
+      },
+    }),
+  ) as InternalAccount;
+
+  deepClonedAccount.metadata.lastSelected = expect.any(Number);
+  return deepClonedAccount;
 }
 
 /**
@@ -193,7 +199,7 @@ function setupAccountsController({
 
 describe('AccountsController', () => {
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('onSnapStateChange', () => {
@@ -346,6 +352,9 @@ describe('AccountsController', () => {
   });
 
   describe('onKeyringStateChange', () => {
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
     it('should only update if the keyring is unlocked', async () => {
       const messenger = buildMessenger();
 
@@ -382,20 +391,10 @@ describe('AccountsController', () => {
 
     it('should add new accounts', async () => {
       const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValueOnce([
-          mockAccount.address,
-          mockAccount2.address,
-        ]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
+      mockUUID
+        .mockReturnValueOnce('mock-id') // call to check if its a new account
+        .mockReturnValueOnce('mock-id2') // call to check if its a new account
+        .mockReturnValueOnce('mock-id2'); // call to add account
 
       const mockNewKeyringState = {
         isUnlocked: true,
@@ -449,18 +448,10 @@ describe('AccountsController', () => {
         address: '0x456',
         keyringType: 'HD Key Tree',
       });
-      mockUUID.mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValueOnce([
-          mockReinitialisedAccount.address,
-        ]),
-      );
+      mockUUID
+        .mockReturnValueOnce('mock-id2') // call to check if its a new account
+        .mockReturnValueOnce('mock-id2'); // call to add account
 
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
       const mockNewKeyringState = {
         isUnlocked: true,
         keyrings: [
@@ -502,15 +493,6 @@ describe('AccountsController', () => {
     it('should delete accounts if its gone from the keyring state', async () => {
       const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValueOnce([mockAccount2.address]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
 
       const mockNewKeyringState = {
         isUnlocked: true,
@@ -553,19 +535,11 @@ describe('AccountsController', () => {
 
     it('should delete accounts and set the most recent lastSelected account', async () => {
       const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValue([
-          mockAccount.address,
-          mockAccount2.address,
-        ]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
+      mockUUID
+        .mockReturnValueOnce('mock-id')
+        .mockReturnValueOnce('mock-id2')
+        .mockReturnValueOnce('mock-id')
+        .mockReturnValueOnce('mock-id2');
 
       const mockNewKeyringState = {
         isUnlocked: true,
@@ -581,8 +555,14 @@ describe('AccountsController', () => {
           internalAccounts: {
             accounts: {
               'missing-account': {
+                id: 'missing-account',
                 address: '0x999',
-              } as InternalAccount,
+                metadata: {
+                  keyring: {
+                    type: 'HD Key Tree',
+                  },
+                },
+              } as unknown as InternalAccount,
               [mockAccount.id]: mockAccount,
               [mockAccount2.id]: mockAccount2,
             },
@@ -614,19 +594,11 @@ describe('AccountsController', () => {
 
     it('should delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
       const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValue([
-          mockAccount.address,
-          mockAccount2.address,
-        ]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
+      mockUUID
+        .mockReturnValueOnce('mock-id')
+        .mockReturnValueOnce('mock-id2')
+        .mockReturnValueOnce('mock-id')
+        .mockReturnValueOnce('mock-id2');
 
       const mockAccount2WithoutLastSelected = {
         ...mockAccount2,
@@ -649,8 +621,14 @@ describe('AccountsController', () => {
           internalAccounts: {
             accounts: {
               'missing-account': {
+                id: 'missing-account',
                 address: '0x999',
-              } as InternalAccount,
+                metadata: {
+                  keyring: {
+                    type: 'HD Key Tree',
+                  },
+                },
+              } as unknown as InternalAccount,
               [mockAccount.id]: mockAccount,
               [mockAccount2.id]: mockAccount2WithoutLastSelected,
             },
@@ -683,18 +661,6 @@ describe('AccountsController', () => {
     it('should delete the account and select the account with the most recent lastSelected', async () => {
       const messenger = buildMessenger();
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-      messenger.registerActionHandler(
-        'KeyringController:getAccounts',
-        mockGetAccounts.mockResolvedValue([
-          mockAccount.address,
-          mockAccount2.address,
-        ]),
-      );
-
-      messenger.registerActionHandler(
-        'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
-      );
 
       const mockAccountWithoutLastSelected = {
         ...mockAccount,
@@ -729,10 +695,17 @@ describe('AccountsController', () => {
           internalAccounts: {
             accounts: {
               'missing-account': {
+                id: 'missing-account',
                 address: '0x999',
-              } as InternalAccount,
-              [mockAccount2.id]: mockAccount2WithoutLastSelected,
+                metadata: {
+                  keyring: {
+                    type: 'HD Key Tree',
+                  },
+                },
+                [mockAccount2.id]: mockAccount2WithoutLastSelected,
+              } as unknown as InternalAccount,
               [mockAccount.id]: mockAccountWithoutLastSelected,
+              [mockAccount2.id]: mockAccount2WithoutLastSelected,
             },
             selectedAccount: 'missing-account',
           },
@@ -786,36 +759,50 @@ describe('AccountsController', () => {
   describe('updateAccounts', () => {
     const mockAddress1 = '0x123';
     const mockAddress2 = '0x456';
-    const mockSnapAccount = {
-      ...mockAccount,
-      metadata: {
-        ...mockAccount.metadata,
-        keyring: {
-          type: 'Snap Keyring',
-        },
-        snap: {
-          enabled: true,
-          id: 'mock-snap-id',
-          name: '',
-        },
-        lastSelected: undefined,
-      },
-    };
-    const mockSnapAccount2 = {
-      ...mockAccount2,
-      metadata: {
-        ...mockAccount2.metadata,
-        keyring: {
-          type: 'Snap Keyring',
-        },
-        snap: {
-          enabled: true,
-          id: 'mock-snap-id2',
-          name: 'snap-name',
-        },
-        lastSelected: undefined,
-      },
-    };
+    let mockSnapAccount: InternalAccount;
+    let mockSnapAccount2: InternalAccount;
+
+    // Creating deep clones
+    beforeEach(() => {
+      mockSnapAccount = JSON.parse(
+        JSON.stringify({
+          ...mockAccount,
+          metadata: {
+            ...mockAccount.metadata,
+            keyring: {
+              type: 'Snap Keyring',
+            },
+            snap: {
+              enabled: true,
+              id: 'mock-snap-id',
+              name: '',
+            },
+            lastSelected: undefined,
+          },
+        }),
+      );
+      mockSnapAccount2 = JSON.parse(
+        JSON.stringify({
+          ...mockAccount2,
+          metadata: {
+            ...mockAccount2.metadata,
+            keyring: {
+              type: 'Snap Keyring',
+            },
+            snap: {
+              enabled: true,
+              id: 'mock-snap-id2',
+              name: 'snap-name',
+            },
+            lastSelected: undefined,
+          },
+        }),
+      );
+    });
+
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
 
     it('should update accounts with normal accounts', async () => {
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
@@ -893,6 +880,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount.metadata,
           name: 'Snap Account 1',
+          lastSelected: undefined,
         },
       };
 
@@ -901,6 +889,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount2.metadata,
           name: 'Snap Account 2',
+          lastSelected: undefined,
         },
       };
 

@@ -17,8 +17,10 @@ import type {
 import type { Snap, ValidatedSnapId } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
-import type { Patch } from 'immer';
+import { type Patch } from 'immer';
 import { v4 as uuid } from 'uuid';
+
+import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
 
 const controllerName = 'AccountsController';
 
@@ -87,6 +89,11 @@ export type AccountsControllerMessenger = RestrictedControllerMessenger<
   string,
   string
 >;
+
+type AddressAndKeyringTypeObject = {
+  address: string;
+  type: string;
+};
 
 const accountsControllerMetadata = {
   internalAccounts: {
@@ -233,6 +240,12 @@ export class AccountsController extends BaseControllerV2<
     return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
   }
 
+  /**
+   * Returns the account with the specified address.
+   * ! This method will only return the first account that matches the address
+   * @param address - The address of the account to retrieve.
+   * @returns The account with the specified address, or undefined if not found.
+   */
   getAccountByAddress(address: string): InternalAccount | undefined {
     return this.listAccounts().find(
       (account) => account.address.toLowerCase() === address.toLowerCase(),
@@ -369,6 +382,38 @@ export class AccountsController extends BaseControllerV2<
   }
 
   /**
+   * Generates an internal account for a non-Snap account.
+   * @param address - The address of the account.
+   * @param type - The type of the account.
+   * @returns The generated internal account.
+   */
+  #generateInternalAccountForNonSnapAccount(
+    address: string,
+    type: string,
+  ): InternalAccount {
+    return {
+      id: getUUIDFromAddressOfNormalAccount(address),
+      address,
+      options: {},
+      methods: [
+        'personal_sign',
+        'eth_sign',
+        'eth_signTransaction',
+        'eth_signTypedData_v1',
+        'eth_signTypedData_v3',
+        'eth_signTypedData_v4',
+      ],
+      type: EthAccountType.Eoa,
+      metadata: {
+        name: '',
+        keyring: {
+          type,
+        },
+      },
+    };
+  }
+
+  /**
    * Returns a list of internal accounts created using the SnapKeyring.
    *
    * @returns A promise that resolves to an array of InternalAccount objects.
@@ -437,25 +482,6 @@ export class AccountsController extends BaseControllerV2<
   }
 
   /**
-   * Handles the removal of the currently selected account by selecting the previous account in the list.
-   */
-  #handleSelectedAccountRemoved() {
-    const previousAccount = this.listAccounts()
-      .filter(
-        (account) => account.id !== this.state.internalAccounts.selectedAccount,
-      )
-      .sort((accountA, accountB) => {
-        // sort by lastSelected descending
-        return (
-          (accountB.metadata.lastSelected ?? 0) -
-          (accountA.metadata.lastSelected ?? 0)
-        );
-      })[0];
-
-    this.setSelectedAccount(previousAccount.id);
-  }
-
-  /**
    * Handles changes in the keyring state, specifically when new accounts are added or removed.
    *
    * @param keyringState - The new state of the keyring controller.
@@ -469,32 +495,127 @@ export class AccountsController extends BaseControllerV2<
 
     if (keyringState.isUnlocked) {
       // TODO: ACCOUNTS_CONTROLLER keyring will return accounts instead of addresses, remove this flatMap after and just get the latest id
-      const updatedKeyringAddresses = keyringState.keyrings.flatMap(
-        (keyring) => keyring.accounts,
-      );
-      const previousAccounts = this.listAccounts();
 
-      // if there are no overlaps between the addresses in the keyring and previous accounts,
-      // it means the keyring is being reinitialized because the vault is being restored with the same SRP
-      const overlaps = updatedKeyringAddresses.filter((address) =>
-        previousAccounts.find(
-          (account) => account.address.toLowerCase() === address.toLowerCase(),
-        ),
-      );
+      const updatedNormalKeyringAddresses: AddressAndKeyringTypeObject[] = [];
+      const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
 
-      await this.updateAccounts();
+      for (const keyring of keyringState.keyrings) {
+        if (keyring.type === 'Snap Keyring') {
+          updatedSnapKeyringAddresses.push(
+            ...keyring.accounts.map((address) => {
+              return {
+                address,
+                type: keyring.type,
+              };
+            }),
+          );
+        }
+        updatedNormalKeyringAddresses.push(
+          ...keyring.accounts.map((address) => {
+            return {
+              address,
+              type: keyring.type,
+            };
+          }),
+        );
+      }
 
-      if (updatedKeyringAddresses.length > previousAccounts.length) {
-        this.#handleNewAccountAdded(updatedKeyringAddresses, previousAccounts);
-      } else if (updatedKeyringAddresses.length > 0 && overlaps.length === 0) {
-        // if the keyring is being reinitialized, the selected account will be reset to the first account
-        this.setSelectedAccount(this.listAccounts()[0].id);
-      } else if (
-        updatedKeyringAddresses.length < previousAccounts.length &&
-        overlaps.length > 0 &&
-        !this.getAccount(this.state.internalAccounts.selectedAccount)
-      ) {
-        this.#handleSelectedAccountRemoved();
+      const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
+        this.listAccounts().reduce(
+          (accumulator, account) => {
+            if (account.metadata.keyring.type === 'Snap Keyring') {
+              accumulator.previousSnapInternalAccounts.push(account);
+            } else {
+              accumulator.previousNormalInternalAccounts.push(account);
+            }
+            return accumulator;
+          },
+          {
+            previousNormalInternalAccounts: [] as InternalAccount[],
+            previousSnapInternalAccounts: [] as InternalAccount[],
+          },
+        );
+
+      const addedAccounts: AddressAndKeyringTypeObject[] = [];
+      const deletedAccounts: InternalAccount[] = [];
+
+      // snap account ids are random uuid while normal accounts
+      // are determininistic based on the address
+
+      // ^NOTE: This will be removed when normal accounts also implement internal accounts
+      // finding all the normal accounts that were added
+      for (const account of updatedNormalKeyringAddresses) {
+        if (
+          !this.state.internalAccounts.accounts[
+            getUUIDFromAddressOfNormalAccount(account.address)
+          ]
+        ) {
+          addedAccounts.push(account);
+        }
+      }
+
+      // finding all the snap accounts that were added
+      for (const account of updatedSnapKeyringAddresses) {
+        if (
+          !previousSnapInternalAccounts.find(
+            (internalAccount) =>
+              internalAccount.address.toLowerCase() ===
+              account.address.toLowerCase(),
+          )
+        ) {
+          addedAccounts.push(account);
+        }
+      }
+
+      // finding all the normal accounts that were deleted
+      for (const account of previousNormalInternalAccounts) {
+        if (
+          !updatedNormalKeyringAddresses.find(
+            ({ address }) =>
+              address.toLowerCase() === account.address.toLowerCase(),
+          )
+        ) {
+          deletedAccounts.push(account);
+        }
+      }
+
+      // finding all the snap accounts that were deleted
+      for (const account of previousSnapInternalAccounts) {
+        if (
+          !updatedSnapKeyringAddresses.find(
+            ({ address }) =>
+              address.toLowerCase() === account.address.toLowerCase(),
+          )
+        ) {
+          deletedAccounts.push(account);
+        }
+      }
+
+      if (deletedAccounts.length > 0) {
+        for (const account of deletedAccounts) {
+          this.#handleAccountRemoved(account.id);
+        }
+      }
+
+      if (addedAccounts.length > 0) {
+        for (const account of addedAccounts) {
+          await this.#handleNewAccountAdded(account);
+        }
+      }
+
+      // handle if the selected account was deleted
+      if (!this.getAccount(this.state.internalAccounts.selectedAccount)) {
+        const accountToSelect = this.listAccounts().sort(
+          (accountA, accountB) => {
+            // sort by lastSelected descending
+            return (
+              (accountB.metadata.lastSelected ?? 0) -
+              (accountA.metadata.lastSelected ?? 0)
+            );
+          },
+        )[0];
+
+        this.setSelectedAccount(accountToSelect.id);
       }
     }
   }
@@ -514,6 +635,8 @@ export class AccountsController extends BaseControllerV2<
       (account) => account.metadata.snap,
     );
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
     this.update((currentState: AccountsControllerState) => {
       accounts.forEach((account) => {
         const currentAccount =
@@ -531,27 +654,71 @@ export class AccountsController extends BaseControllerV2<
   }
 
   /**
-   * Handles the event when a new account is added to the keyring.
-   *
-   * @param updatedKeyringAddresses - An array of updated keyring addresses.
-   * @param previousAccounts - An array of previous internal accounts.
+   * Handles the addition of a new account to the controller.
+   * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
+   * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
+   * @param account - The address and keyring type object of the new account.
+   * @returns void
    */
-  #handleNewAccountAdded(
-    updatedKeyringAddresses: string[],
-    previousAccounts: InternalAccount[],
-  ) {
-    const [newAddress] = updatedKeyringAddresses.filter(
-      (address) =>
-        !previousAccounts.find(
-          (account) => account.address.toLowerCase() === address.toLowerCase(),
-        ),
-    );
+  async #handleNewAccountAdded(account: AddressAndKeyringTypeObject) {
+    let newAccount: InternalAccount;
+    if (account.type !== 'Snap Keyring') {
+      newAccount = this.#generateInternalAccountForNonSnapAccount(
+        account.address,
+        account.type,
+      );
+    } else {
+      const [snapKeyring] = this.messagingSystem.call(
+        'KeyringController:getKeyringsByType',
+        SnapKeyring.type,
+      );
 
-    const [newAccount] = this.listAccounts().filter(
-      (account) => account.address.toLowerCase() === newAddress.toLowerCase(),
-    );
+      newAccount = (await (snapKeyring as SnapKeyring).getAccountByAddress(
+        account.address,
+      )) as InternalAccount;
+
+      // The snap deleted the account before the keyring controller could add it
+      if (!newAccount) {
+        return;
+      }
+    }
+
+    // get next index number for the keyring type
+    const keyringName = keyringTypeToName(newAccount.metadata.keyring.type);
+    const previousAccounts = this.listAccounts();
+    const lastKeyringTypeIndex =
+      previousAccounts
+        .filter(
+          (internalAccount) =>
+            internalAccount.metadata.keyring.type ===
+              newAccount.metadata.keyring.type &&
+            new RegExp(`${keyringName} \\d+$`, 'u').test(
+              internalAccount.metadata.name,
+            ),
+        )
+        .map((internalAccount) => {
+          const match = internalAccount.metadata.name.match(/\d+$/u);
+          return match ? parseInt(match[0], 10) : 0;
+        })
+        .sort((a, b) => b - a)[0] || 0;
+
+    newAccount.metadata.name = `${keyringName} ${lastKeyringTypeIndex + 1}`;
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
+    this.update((currentState: AccountsControllerState) => {
+      currentState.internalAccounts.accounts[newAccount.id] = newAccount;
+    });
 
     this.setSelectedAccount(newAccount.id);
+  }
+
+  #handleAccountRemoved(accountId: string) {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
+    this.update((currentState: AccountsControllerState) => {
+      delete currentState.internalAccounts.accounts[accountId];
+    });
   }
 
   #registerMessageHandlers() {
@@ -574,43 +741,5 @@ export class AccountsController extends BaseControllerV2<
       `${controllerName}:updateAccounts`,
       this.updateAccounts.bind(this),
     );
-  }
-}
-
-/**
- * Returns the name of the keyring type.
- *
- * @param keyringType - The type of the keyring.
- * @returns The name of the keyring type.
- */
-export function keyringTypeToName(keyringType: string): string {
-  switch (keyringType) {
-    case 'Simple Key Pair': {
-      return 'Account';
-    }
-    case 'HD Key Tree': {
-      return 'Account';
-    }
-    case 'Trezor Hardware': {
-      return 'Trezor';
-    }
-    case 'Ledger Hardware': {
-      return 'Ledger';
-    }
-    case 'Lattice Hardware': {
-      return 'Lattice';
-    }
-    case 'QR Hardware Wallet Device': {
-      return 'QR';
-    }
-    case 'Snap Keyring': {
-      return 'Snap Account';
-    }
-    case 'Custody': {
-      return 'Custody';
-    }
-    default: {
-      throw new Error(`Unknown keyring ${keyringType}`);
-    }
   }
 }
