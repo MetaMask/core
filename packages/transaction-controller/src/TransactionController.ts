@@ -398,6 +398,7 @@ export class TransactionController extends BaseController<
       getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
+      nonceTracker: this.nonceTracker,
     });
 
     this.pendingTransactionTracker.hub.on(
