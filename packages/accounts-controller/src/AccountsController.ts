@@ -654,6 +654,11 @@ export class AccountsController extends BaseControllerV2<
     });
   }
 
+  /**
+   * Returns the next account number for a given keyring type.
+   * @param keyringType - The type of keyring.
+   * @returns An object containing the account prefix and index to use.
+   */
   #getNextAccountNumber(keyringType: string): {
     accountPrefix: string;
     indexToUse: number;
