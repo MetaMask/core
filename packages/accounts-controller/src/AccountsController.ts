@@ -509,15 +509,16 @@ export class AccountsController extends BaseControllerV2<
               };
             }),
           );
+        } else {
+          updatedNormalKeyringAddresses.push(
+            ...keyring.accounts.map((address) => {
+              return {
+                address,
+                type: keyring.type,
+              };
+            }),
+          );
         }
-        updatedNormalKeyringAddresses.push(
-          ...keyring.accounts.map((address) => {
-            return {
-              address,
-              type: keyring.type,
-            };
-          }),
-        );
       }
 
       const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
@@ -653,6 +654,36 @@ export class AccountsController extends BaseControllerV2<
     });
   }
 
+  #getNextAccountNumber(keyringType: string): {
+    accountPrefix: string;
+    indexToUse: number;
+  } {
+    const keyringName = keyringTypeToName(keyringType);
+    const previousKeyringAccounts = this.listAccounts().filter(
+      (internalAccount) =>
+        internalAccount.metadata.keyring.type === keyringType,
+    );
+    const lastDefaultIndexUsedForKeyringType =
+      previousKeyringAccounts
+        .filter((internalAccount) =>
+          new RegExp(`${keyringName} \\d+$`, 'u').test(
+            internalAccount.metadata.name,
+          ),
+        )
+        .map((internalAccount) => {
+          const nameToWords = internalAccount.metadata.name.split(' '); // get the index of a default account name
+          return parseInt(nameToWords[nameToWords.length], 10);
+        })
+        .sort((a, b) => b - a)[0] || 0;
+
+    const indexToUse = Math.max(
+      previousKeyringAccounts.length + 1,
+      lastDefaultIndexUsedForKeyringType + 1,
+    );
+
+    return { accountPrefix: keyringName, indexToUse };
+  }
+
   /**
    * Handles the addition of a new account to the controller.
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
@@ -684,30 +715,23 @@ export class AccountsController extends BaseControllerV2<
     }
 
     // get next index number for the keyring type
-    const keyringName = keyringTypeToName(newAccount.metadata.keyring.type);
-    const previousAccounts = this.listAccounts();
-    const lastKeyringTypeIndex =
-      previousAccounts
-        .filter(
-          (internalAccount) =>
-            internalAccount.metadata.keyring.type ===
-              newAccount.metadata.keyring.type &&
-            new RegExp(`${keyringName} \\d+$`, 'u').test(
-              internalAccount.metadata.name,
-            ),
-        )
-        .map((internalAccount) => {
-          const match = internalAccount.metadata.name.match(/\d+$/u);
-          return match ? parseInt(match[0], 10) : 0;
-        })
-        .sort((a, b) => b - a)[0] || 0;
+    const { accountPrefix, indexToUse } = this.#getNextAccountNumber(
+      newAccount.metadata.keyring.type,
+    );
 
-    newAccount.metadata.name = `${keyringName} ${lastKeyringTypeIndex + 1}`;
+    const accountName = `${accountPrefix} ${indexToUse}`;
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore Type instantiation is excessively deep and possibly infinite.
     this.update((currentState: AccountsControllerState) => {
-      currentState.internalAccounts.accounts[newAccount.id] = newAccount;
+      currentState.internalAccounts.accounts[newAccount.id] = {
+        ...newAccount,
+        metadata: {
+          ...newAccount.metadata,
+          name: accountName,
+          lastSelected: Date.now(),
+        },
+      };
     });
 
     this.setSelectedAccount(newAccount.id);

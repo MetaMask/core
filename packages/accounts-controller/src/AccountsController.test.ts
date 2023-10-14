@@ -53,6 +53,42 @@ const mockAccount2: InternalAccount = {
   },
 };
 
+const mockAccount3: InternalAccount = {
+  id: 'mock-id3',
+  address: '0x3333',
+  options: {},
+  methods: [...Object.values(EthMethod)],
+  type: EthAccountType.Eoa,
+  metadata: {
+    name: '',
+    keyring: { type: 'Snap Keyring' },
+    snap: {
+      enabled: true,
+      id: 'mock-snap-id',
+      name: 'snap-name',
+    },
+    lastSelected: 1955565967656,
+  },
+};
+
+const mockAccount4: InternalAccount = {
+  id: 'mock-id4',
+  address: '0x4444',
+  options: {},
+  methods: [...Object.values(EthMethod)],
+  type: EthAccountType.Eoa,
+  metadata: {
+    name: 'Custom Name',
+    keyring: { type: 'Snap Keyring' },
+    snap: {
+      enabled: true,
+      id: 'mock-snap-id',
+      name: 'snap-name',
+    },
+    lastSelected: 1955565967656,
+  },
+};
+
 /**
  * Creates an `InternalAccount` object from the given normal account properties.
  *
@@ -389,49 +425,563 @@ describe('AccountsController', () => {
       expect(accounts).toStrictEqual([]);
     });
 
-    it('should add new accounts', async () => {
-      const messenger = buildMessenger();
-      mockUUID
-        .mockReturnValueOnce('mock-id') // call to check if its a new account
-        .mockReturnValueOnce('mock-id2') // call to check if its a new account
-        .mockReturnValueOnce('mock-id2'); // call to add account
+    describe('adding accounts', () => {
+      it('should add new accounts', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2'); // call to add account
 
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address, mockAccount2.address],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [mockAccount.address, mockAccount2.address],
             },
-            selectedAccount: mockAccount.id,
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount3.id]: mockAccount3,
+              },
+              selectedAccount: mockAccount.id,
+            },
           },
-        },
-        keyringApiEnabled: false,
-        messenger,
+          keyringApiEnabled: false,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          setLastSelectedAsAny(mockAccount2),
+        ]);
       });
 
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
+      it('should add new normal and snap accounts', async () => {
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2'); // call to add account
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            {
+              type: 'Snap Keyring',
+              getAccountByAddress: jest
+                .fn()
+                .mockReturnValueOnce(mockAccount3)
+                .mockReturnValueOnce(mockAccount4),
+            },
+          ]),
+        );
 
-      const accounts = accountsController.listAccounts();
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+            {
+              type: 'Snap Keyring',
+              accounts: [mockAccount3.address, mockAccount4.address],
+            },
+          ],
+        };
 
-      expect(accounts).toStrictEqual([
-        mockAccount,
-        setLastSelectedAsAny(mockAccount2),
-      ]);
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount4.id]: mockAccount4,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          keyringApiEnabled: false,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          setLastSelectedAsAny(mockAccount4),
+          setLastSelectedAsAny(
+            createExpectedInternalAccount({
+              id: 'mock-id2',
+              name: 'Account 2',
+              address: mockAccount2.address,
+              keyringType: mockAccount2.metadata.keyring.type,
+            }),
+          ),
+          setLastSelectedAsAny(
+            createExpectedInternalAccount({
+              id: 'mock-id3',
+              name: 'Snap Account 2',
+              address: mockAccount3.address,
+              keyringType: mockAccount3.metadata.keyring.type,
+              snapId: mockAccount3.metadata.snap?.id,
+            }),
+          ),
+        ]);
+      });
+
+      it('should handle the event when a snap deleted the account before the it was added', async () => {
+        mockUUID.mockReturnValueOnce('mock-id'); // call to check if its a new account
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            {
+              type: 'Snap Keyring',
+              getAccountByAddress: jest
+                .fn()
+                .mockReturnValueOnce(null)
+                .mockReturnValueOnce(mockAccount4),
+            },
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [mockAccount.address],
+            },
+            {
+              type: 'Snap Keyring',
+              accounts: [mockAccount3.address, mockAccount4.address],
+            },
+          ],
+        };
+
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount4.id]: mockAccount4,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          keyringApiEnabled: false,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          setLastSelectedAsAny(mockAccount4),
+        ]);
+      });
+
+      it('should increment the default account number when adding an account', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2') // call to check if its a new account
+          .mockReturnValueOnce('mock-id3') // call to check if its a new account
+          .mockReturnValueOnce('mock-id3'); // call to add account
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [
+                mockAccount.address,
+                mockAccount2.address,
+                mockAccount3.address,
+              ],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          keyringApiEnabled: false,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          mockAccount2,
+          setLastSelectedAsAny(
+            createExpectedInternalAccount({
+              id: 'mock-id3',
+              name: 'Account 3',
+              address: mockAccount3.address,
+              keyringType: 'HD Key Tree',
+            }),
+          ),
+        ]);
+      });
+
+      it('should use the next number after the total number of accounts of a keyring when adding an account, if the index is lower', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2') // call to check if its a new account
+          .mockReturnValueOnce('mock-id3') // call to check if its a new account
+          .mockReturnValueOnce('mock-id3'); // call to add account
+
+        const mockAccount2WithCustomName = createExpectedInternalAccount({
+          id: 'mock-id2',
+          name: 'Custom Name',
+          address: mockAccount2.address,
+          keyringType: 'HD Key Tree',
+        });
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [
+                mockAccount.address,
+                mockAccount2.address,
+                mockAccount3.address,
+              ],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2WithCustomName.id]: mockAccount2WithCustomName,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          keyringApiEnabled: false,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          mockAccount2WithCustomName,
+          setLastSelectedAsAny(
+            createExpectedInternalAccount({
+              id: 'mock-id3',
+              name: 'Account 3',
+              address: mockAccount3.address,
+              keyringType: 'HD Key Tree',
+            }),
+          ),
+        ]);
+      });
+    });
+
+    describe('deleting account', () => {
+      it('should delete accounts if its gone from the keyring state', async () => {
+        const messenger = buildMessenger();
+        mockUUID.mockReturnValueOnce('mock-id2');
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [mockAccount2.address],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          keyringApiEnabled: false,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([setLastSelectedAsAny(mockAccount2)]);
+        expect(accountsController.getSelectedAccount()).toStrictEqual(
+          setLastSelectedAsAny(mockAccount2),
+        );
+      });
+
+      it('should delete accounts and set the most recent lastSelected account', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id')
+          .mockReturnValueOnce('mock-id2')
+          .mockReturnValueOnce('mock-id')
+          .mockReturnValueOnce('mock-id2');
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                'missing-account': {
+                  id: 'missing-account',
+                  address: '0x999',
+                  metadata: {
+                    keyring: {
+                      type: 'HD Key Tree',
+                    },
+                  },
+                } as unknown as InternalAccount,
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2,
+              },
+              selectedAccount: 'missing-account',
+            },
+          },
+          keyringApiEnabled: false,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          setLastSelectedAsAny(mockAccount),
+          setLastSelectedAsAny(mockAccount2),
+        ]);
+        expect(accountsController.getSelectedAccount()).toStrictEqual(
+          setLastSelectedAsAny(mockAccount2),
+        );
+      });
+
+      it('should delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id')
+          .mockReturnValueOnce('mock-id2')
+          .mockReturnValueOnce('mock-id')
+          .mockReturnValueOnce('mock-id2');
+
+        const mockAccount2WithoutLastSelected = {
+          ...mockAccount2,
+          metadata: {
+            ...mockAccount2.metadata,
+            lastSelected: undefined,
+          },
+        };
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                'missing-account': {
+                  id: 'missing-account',
+                  address: '0x999',
+                  metadata: {
+                    keyring: {
+                      type: 'HD Key Tree',
+                    },
+                  },
+                } as unknown as InternalAccount,
+                [mockAccount.id]: mockAccount,
+                [mockAccount2.id]: mockAccount2WithoutLastSelected,
+              },
+              selectedAccount: 'missing-account',
+            },
+          },
+          keyringApiEnabled: false,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          setLastSelectedAsAny(mockAccount),
+          mockAccount2WithoutLastSelected,
+        ]);
+        expect(accountsController.getSelectedAccount()).toStrictEqual(
+          setLastSelectedAsAny(mockAccount),
+        );
+      });
+
+      it('should delete the account and select the account with the most recent lastSelected', async () => {
+        const messenger = buildMessenger();
+        mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+
+        const mockAccountWithoutLastSelected = {
+          ...mockAccount,
+          metadata: {
+            ...mockAccount.metadata,
+            lastSelected: undefined,
+          },
+        };
+
+        const mockAccount2WithoutLastSelected = {
+          ...mockAccount2,
+          metadata: {
+            ...mockAccount2.metadata,
+            lastSelected: undefined,
+          },
+        };
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'HD Key Tree',
+              accounts: [
+                mockAccountWithoutLastSelected.address,
+                mockAccount2.address,
+              ],
+            },
+          ],
+        };
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                'missing-account': {
+                  id: 'missing-account',
+                  address: '0x999',
+                  metadata: {
+                    keyring: {
+                      type: 'HD Key Tree',
+                    },
+                  },
+                  [mockAccount2.id]: mockAccount2WithoutLastSelected,
+                } as unknown as InternalAccount,
+                [mockAccount.id]: mockAccountWithoutLastSelected,
+                [mockAccount2.id]: mockAccount2WithoutLastSelected,
+              },
+              selectedAccount: 'missing-account',
+            },
+          },
+          keyringApiEnabled: false,
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          setLastSelectedAsAny(mockAccountWithoutLastSelected),
+          mockAccount2WithoutLastSelected,
+        ]);
+        expect(accountsController.getSelectedAccount()).toStrictEqual(
+          setLastSelectedAsAny(mockAccountWithoutLastSelected),
+        );
+      });
     });
 
     it('should handle keyring reinitialization', async () => {
@@ -488,249 +1038,6 @@ describe('AccountsController', () => {
 
       expect(selectedAccount).toStrictEqual(expectedAccount);
       expect(accounts).toStrictEqual([expectedAccount]);
-    });
-
-    it('should delete accounts if its gone from the keyring state', async () => {
-      const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id2');
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount2.address],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
-            },
-            selectedAccount: mockAccount.id,
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const accounts = accountsController.listAccounts();
-
-      expect(accounts).toStrictEqual([setLastSelectedAsAny(mockAccount2)]);
-      expect(accountsController.getSelectedAccount()).toStrictEqual(
-        setLastSelectedAsAny(mockAccount2),
-      );
-    });
-
-    it('should delete accounts and set the most recent lastSelected account', async () => {
-      const messenger = buildMessenger();
-      mockUUID
-        .mockReturnValueOnce('mock-id')
-        .mockReturnValueOnce('mock-id2')
-        .mockReturnValueOnce('mock-id')
-        .mockReturnValueOnce('mock-id2');
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address, mockAccount2.address],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              'missing-account': {
-                id: 'missing-account',
-                address: '0x999',
-                metadata: {
-                  keyring: {
-                    type: 'HD Key Tree',
-                  },
-                },
-              } as unknown as InternalAccount,
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
-            },
-            selectedAccount: 'missing-account',
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const accounts = accountsController.listAccounts();
-
-      expect(accounts).toStrictEqual([
-        setLastSelectedAsAny(mockAccount),
-        setLastSelectedAsAny(mockAccount2),
-      ]);
-      expect(accountsController.getSelectedAccount()).toStrictEqual(
-        setLastSelectedAsAny(mockAccount2),
-      );
-    });
-
-    it('should delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
-      const messenger = buildMessenger();
-      mockUUID
-        .mockReturnValueOnce('mock-id')
-        .mockReturnValueOnce('mock-id2')
-        .mockReturnValueOnce('mock-id')
-        .mockReturnValueOnce('mock-id2');
-
-      const mockAccount2WithoutLastSelected = {
-        ...mockAccount2,
-        metadata: {
-          ...mockAccount2.metadata,
-          lastSelected: undefined,
-        },
-      };
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address, mockAccount2.address],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              'missing-account': {
-                id: 'missing-account',
-                address: '0x999',
-                metadata: {
-                  keyring: {
-                    type: 'HD Key Tree',
-                  },
-                },
-              } as unknown as InternalAccount,
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2WithoutLastSelected,
-            },
-            selectedAccount: 'missing-account',
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const accounts = accountsController.listAccounts();
-
-      expect(accounts).toStrictEqual([
-        setLastSelectedAsAny(mockAccount),
-        mockAccount2WithoutLastSelected,
-      ]);
-      expect(accountsController.getSelectedAccount()).toStrictEqual(
-        setLastSelectedAsAny(mockAccount),
-      );
-    });
-
-    it('should delete the account and select the account with the most recent lastSelected', async () => {
-      const messenger = buildMessenger();
-      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
-
-      const mockAccountWithoutLastSelected = {
-        ...mockAccount,
-        metadata: {
-          ...mockAccount.metadata,
-          lastSelected: undefined,
-        },
-      };
-
-      const mockAccount2WithoutLastSelected = {
-        ...mockAccount2,
-        metadata: {
-          ...mockAccount2.metadata,
-          lastSelected: undefined,
-        },
-      };
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [
-              mockAccountWithoutLastSelected.address,
-              mockAccount2.address,
-            ],
-          },
-        ],
-      };
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              'missing-account': {
-                id: 'missing-account',
-                address: '0x999',
-                metadata: {
-                  keyring: {
-                    type: 'HD Key Tree',
-                  },
-                },
-                [mockAccount2.id]: mockAccount2WithoutLastSelected,
-              } as unknown as InternalAccount,
-              [mockAccount.id]: mockAccountWithoutLastSelected,
-              [mockAccount2.id]: mockAccount2WithoutLastSelected,
-            },
-            selectedAccount: 'missing-account',
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      const accounts = accountsController.listAccounts();
-
-      expect(accounts).toStrictEqual([
-        setLastSelectedAsAny(mockAccountWithoutLastSelected),
-        mockAccount2WithoutLastSelected,
-      ]);
-      expect(accountsController.getSelectedAccount()).toStrictEqual(
-        setLastSelectedAsAny(mockAccountWithoutLastSelected),
-      );
     });
   });
 
@@ -924,6 +1231,46 @@ describe('AccountsController', () => {
       });
 
       const expectedAccounts: InternalAccount[] = [];
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+    });
+
+    it('should set the account with the correct index', async () => {
+      mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValueOnce([mockAddress1, mockAddress2]),
+      );
+
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
+      );
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+        keyringApiEnabled: false,
+        messenger,
+      });
+      const expectedAccounts = [
+        mockAccount,
+        createExpectedInternalAccount({
+          name: 'Account 2',
+          id: 'mock-id2',
+          address: mockAddress2,
+          keyringType: 'HD Key Tree',
+        }),
+      ];
 
       await accountsController.updateAccounts();
 
