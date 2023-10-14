@@ -44,10 +44,13 @@ type TransactionMetaBase = {
    */
   dappSuggestedGasFees?: DappSuggestedGasFees;
 
-  /**
-   * The default estimate for gas.
-   */
-  defaultGasEstimates?: string;
+  defaultGasEstimates?: {
+    estimateType?: string;
+    gas?: string;
+    gasPrice?: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
+  };
 
   /**
    * String to indicate what device the transaction was confirmed on.

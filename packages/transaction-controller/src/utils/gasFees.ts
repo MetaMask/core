@@ -62,6 +62,8 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
     delete txMeta.txParams.maxFeePerGas;
     delete txMeta.txParams.maxPriorityFeePerGas;
   }
+
+  updateDefaultGasEstimates(txMeta);
 }
 
 function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
@@ -198,6 +200,20 @@ function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
   }
 
   return UserFeeLevel.DAPP_SUGGESTED;
+}
+
+function updateDefaultGasEstimates(txMeta: TransactionMeta) {
+  if (!txMeta.defaultGasEstimates) {
+    txMeta.defaultGasEstimates = {};
+  }
+
+  txMeta.defaultGasEstimates.maxFeePerGas = txMeta.txParams.maxFeePerGas;
+
+  txMeta.defaultGasEstimates.maxPriorityFeePerGas =
+    txMeta.txParams.maxPriorityFeePerGas;
+
+  txMeta.defaultGasEstimates.gasPrice = txMeta.txParams.gasPrice;
+  txMeta.defaultGasEstimates.estimateType = txMeta.userFeeLevel;
 }
 
 async function getSuggestedGasFees(request: UpdateGasFeesRequest) {

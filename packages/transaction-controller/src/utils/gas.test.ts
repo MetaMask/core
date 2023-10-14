@@ -45,103 +45,134 @@ describe('gas', () => {
   });
 
   describe('updateGas', () => {
-    it('does not change gas if set in params', async () => {
-      updateGasRequest.txMeta.txParams.gas = toHex(GAS_MOCK);
+    describe('sets gas', () => {
+      afterEach(() => {
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(updateGasRequest.txMeta.defaultGasEstimates?.gas).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
+      });
 
-      await updateGas(updateGasRequest);
-
-      expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
-    });
-
-    it('sets gas to estimate if custom network', async () => {
-      updateGasRequest.providerConfig.type = NetworkType.rpc;
-
-      queryMock
-        .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-        .mockResolvedValueOnce(toHex(GAS_MOCK));
-
-      await updateGas(updateGasRequest);
-
-      expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
-    });
-
-    it('sets gas to estimate if estimate greater than 90% of block gas limit', async () => {
-      const estimatedGas = Math.ceil(BLOCK_GAS_LIMIT_MOCK * 0.9 + 10);
-
-      queryMock
-        .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-        .mockResolvedValueOnce(toHex(estimatedGas));
-
-      await updateGas(updateGasRequest);
-
-      expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(estimatedGas));
-    });
-
-    it('sets gas to padded estimate if padded estimate less than 90% of block gas limit', async () => {
-      const blockGasLimit90Percent = BLOCK_GAS_LIMIT_MOCK * 0.9;
-      const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
-      const estimatedGas = Math.round(estimatedGasPadded / 1.5);
-
-      queryMock
-        .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-        .mockResolvedValueOnce(toHex(estimatedGas));
-
-      await updateGas(updateGasRequest);
-
-      expect(updateGasRequest.txMeta.txParams.gas).toBe(
-        toHex(estimatedGasPadded),
-      );
-    });
-
-    it('sets gas to 90% of block gas limit if padded estimate only is greater than 90% of block gas limit', async () => {
-      const blockGasLimit90Percent = Math.round(BLOCK_GAS_LIMIT_MOCK * 0.9);
-      const estimatedGasPadded = blockGasLimit90Percent + 10;
-      const estimatedGas = Math.ceil(estimatedGasPadded / 1.5);
-
-      queryMock
-        .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-        .mockResolvedValueOnce(toHex(estimatedGas));
-
-      await updateGas(updateGasRequest);
-
-      expect(updateGasRequest.txMeta.txParams.gas).toBe(
-        toHex(blockGasLimit90Percent),
-      );
-    });
-
-    describe('sets gas to fixed value', () => {
-      it('if not custom network and no to parameter', async () => {
-        delete updateGasRequest.txMeta.txParams.to;
+      it('to request value if set', async () => {
+        updateGasRequest.txMeta.txParams.gas = toHex(GAS_MOCK);
 
         await updateGas(updateGasRequest);
 
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(FIXED_GAS);
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBeUndefined();
       });
 
-      it('if not custom network and to parameter and no data and no code', async () => {
-        delete updateGasRequest.txMeta.txParams.data;
+      it('to estimate if custom network', async () => {
+        updateGasRequest.providerConfig.type = NetworkType.rpc;
 
         queryMock
           .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-          .mockResolvedValueOnce(toHex(GAS_MOCK))
-          .mockResolvedValueOnce(undefined);
+          .mockResolvedValueOnce(toHex(GAS_MOCK));
 
         await updateGas(updateGasRequest);
 
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(FIXED_GAS);
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
       });
 
-      it('if not custom network and to parameter and no data and empty code', async () => {
-        delete updateGasRequest.txMeta.txParams.data;
+      it('to estimate if estimate greater than 90% of block gas limit', async () => {
+        const estimatedGas = Math.ceil(BLOCK_GAS_LIMIT_MOCK * 0.9 + 10);
 
         queryMock
           .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-          .mockResolvedValueOnce(toHex(GAS_MOCK))
-          .mockResolvedValueOnce('0x');
+          .mockResolvedValueOnce(toHex(estimatedGas));
 
         await updateGas(updateGasRequest);
 
-        expect(updateGasRequest.txMeta.txParams.gas).toBe(FIXED_GAS);
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(estimatedGas));
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
+      });
+
+      it('to padded estimate if padded estimate less than 90% of block gas limit', async () => {
+        const blockGasLimit90Percent = BLOCK_GAS_LIMIT_MOCK * 0.9;
+        const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
+        const estimatedGas = Math.round(estimatedGasPadded / 1.5);
+
+        queryMock
+          .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
+          .mockResolvedValueOnce(toHex(estimatedGas));
+
+        await updateGas(updateGasRequest);
+
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(
+          toHex(estimatedGasPadded),
+        );
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
+      });
+
+      it('to 90% of block gas limit if padded estimate only is greater than 90% of block gas limit', async () => {
+        const blockGasLimit90Percent = Math.round(BLOCK_GAS_LIMIT_MOCK * 0.9);
+        const estimatedGasPadded = blockGasLimit90Percent + 10;
+        const estimatedGas = Math.ceil(estimatedGasPadded / 1.5);
+
+        queryMock
+          .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
+          .mockResolvedValueOnce(toHex(estimatedGas));
+
+        await updateGas(updateGasRequest);
+
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(
+          toHex(blockGasLimit90Percent),
+        );
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
+      });
+
+      describe('to fixed value', () => {
+        it('if not custom network and no to parameter', async () => {
+          delete updateGasRequest.txMeta.txParams.to;
+
+          await updateGas(updateGasRequest);
+
+          expect(updateGasRequest.txMeta.txParams.gas).toBe(FIXED_GAS);
+          expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+            updateGasRequest.txMeta.txParams.gas,
+          );
+        });
+
+        it('if not custom network and to parameter and no data and no code', async () => {
+          delete updateGasRequest.txMeta.txParams.data;
+
+          queryMock
+            .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
+            .mockResolvedValueOnce(toHex(GAS_MOCK))
+            .mockResolvedValueOnce(undefined);
+
+          await updateGas(updateGasRequest);
+
+          expect(updateGasRequest.txMeta.txParams.gas).toBe(FIXED_GAS);
+          expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+            updateGasRequest.txMeta.txParams.gas,
+          );
+        });
+
+        it('if not custom network and to parameter and no data and empty code', async () => {
+          delete updateGasRequest.txMeta.txParams.data;
+
+          queryMock
+            .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
+            .mockResolvedValueOnce(toHex(GAS_MOCK))
+            .mockResolvedValueOnce('0x');
+
+          await updateGas(updateGasRequest);
+
+          expect(updateGasRequest.txMeta.txParams.gas).toBe(FIXED_GAS);
+          expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+            updateGasRequest.txMeta.txParams.gas,
+          );
+        });
       });
     });
 
@@ -160,6 +191,9 @@ describe('gas', () => {
         await updateGas(updateGasRequest);
 
         expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(fallbackGas));
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
       });
 
       it('sets simulationFails property', async () => {

@@ -52,6 +52,17 @@ describe('gasFees', () => {
     updateGasFeeRequest.getGasFeeEstimates = jest.fn().mockResolvedValue({});
   });
 
+  afterEach(() => {
+    // eslint-disable-next-line jest/no-standalone-expect
+    expect(updateGasFeeRequest.txMeta.defaultGasEstimates).toStrictEqual({
+      maxFeePerGas: updateGasFeeRequest.txMeta.txParams.maxFeePerGas,
+      maxPriorityFeePerGas:
+        updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas,
+      gasPrice: updateGasFeeRequest.txMeta.txParams.gasPrice,
+      estimateType: updateGasFeeRequest.txMeta.userFeeLevel,
+    });
+  });
+
   describe('updateGasFees', () => {
     it('deletes gasPrice property if maxFeePerGas set', async () => {
       updateGasFeeRequest.txMeta.txParams.maxFeePerGas = GAS_HEX_MOCK;

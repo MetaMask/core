@@ -959,6 +959,7 @@ describe('TransactionController', () => {
         actionId: undefined,
         chainId: expect.any(String),
         dappSuggestedGasFees: undefined,
+        defaultGasEstimates: expect.any(Object),
         deviceConfirmedOn: undefined,
         id: expect.any(String),
         origin: undefined,

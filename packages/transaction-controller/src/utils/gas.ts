@@ -51,6 +51,12 @@ export async function updateGas(request: UpdateGasRequest) {
   if (!initialParams.gas) {
     txMeta.originalGasEstimate = txMeta.txParams.gas;
   }
+
+  if (!txMeta.defaultGasEstimates) {
+    txMeta.defaultGasEstimates = {};
+  }
+
+  txMeta.defaultGasEstimates.gas = txMeta.txParams.gas;
 }
 
 export async function estimateGas(
