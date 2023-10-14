@@ -1190,6 +1190,7 @@ export class NetworkController extends BaseControllerV2<
           type: NetworkClientType.Custom,
           chainId,
           rpcUrl,
+          ticker,
         });
     }
 
@@ -1380,6 +1381,7 @@ export class NetworkController extends BaseControllerV2<
         network,
         infuraProjectId: this.#infuraProjectId,
         chainId: BUILT_IN_NETWORKS[network].chainId,
+        ticker: BUILT_IN_NETWORKS[network].ticker,
       };
       return [
         NetworkClientType.Infura,
@@ -1415,6 +1417,7 @@ export class NetworkController extends BaseControllerV2<
           type: NetworkClientType.Custom,
           chainId: networkConfiguration.chainId,
           rpcUrl: networkConfiguration.rpcUrl,
+          ticker: networkConfiguration.ticker,
         };
         return [
           NetworkClientType.Custom,
@@ -1454,6 +1457,7 @@ export class NetworkController extends BaseControllerV2<
         chainId: providerConfig.chainId,
         rpcUrl: providerConfig.rpcUrl,
         type: NetworkClientType.Custom,
+        ticker: providerConfig.ticker,
       };
       return [
         [NetworkClientType.Custom, networkClientId, networkClientConfiguration],
