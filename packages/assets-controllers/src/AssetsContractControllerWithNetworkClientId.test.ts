@@ -702,6 +702,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     mockNetworkWithDefaultChainId({
       networkClientConfiguration: {
         chainId: BUILT_IN_NETWORKS.sepolia.chainId,
+        ticker: BUILT_IN_NETWORKS.sepolia.ticker,
         type: NetworkClientType.Infura,
         network: 'sepolia',
         infuraProjectId: networkClientConfiguration.infuraProjectId,
