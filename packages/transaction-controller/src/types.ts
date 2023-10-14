@@ -147,6 +147,15 @@ type TransactionMetaBase = {
    */
   sendFlowHistory?: SendFlowHistoryEntry[];
 
+  simulationFails?: {
+    reason?: string;
+    errorKey?: string;
+    debug: {
+      blockNumber?: string;
+      blockGasLimit?: string;
+    };
+  };
+
   /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
@@ -610,3 +619,37 @@ export type SecurityProviderRequest = (
   requestData: TransactionMeta,
   messageType: string,
 ) => Promise<any>;
+
+/**
+ * In EIP-2718 typed transaction envelopes were specified, with the very first
+ * typed envelope being 'legacy' and describing the shape of the base
+ * transaction params that were hitherto the only transaction type sent on
+ * Ethereum.
+ */
+export enum TransactionEnvelopeType {
+  /**
+   * A legacy transaction, the very first type.
+   */
+  legacy = '0x0',
+  /**
+   * EIP-2930 defined the access list transaction type that allowed for
+   * specifying the state that a transaction would act upon in advance and
+   * theoretically save on gas fees.
+   */
+  accessList = '0x1',
+  /**
+   * The type introduced comes from EIP-1559, Fee Market describes the addition
+   * of a baseFee to blocks that will be burned instead of distributed to
+   * miners. Transactions of this type have both a maxFeePerGas (maximum total
+   * amount in gwei per gas to spend on the transaction) which is inclusive of
+   * the maxPriorityFeePerGas (maximum amount of gwei per gas from the
+   * transaction fee to distribute to miner).
+   */
+  feeMarket = '0x2',
+}
+
+export enum UserFeeLevel {
+  CUSTOM = 'custom',
+  MEDIUM = 'medium',
+  DAPP_SUGGESTED = 'dappSuggested',
+}
