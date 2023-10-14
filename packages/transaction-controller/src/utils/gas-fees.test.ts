@@ -3,8 +3,8 @@ import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
 import { UserFeeLevel } from '../types';
-import type { UpdateGasFeesRequest } from './gasFees';
-import { updateGasFees } from './gasFees';
+import type { UpdateGasFeesRequest } from './gas-fees';
+import { updateGasFees } from './gas-fees';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -28,7 +28,7 @@ function toHex(value: number) {
   return `0x${value.toString(16)}`;
 }
 
-describe('gasFees', () => {
+describe('gas-fees', () => {
   let updateGasFeeRequest: jest.Mocked<UpdateGasFeesRequest>;
   const queryMock = jest.mocked(query);
 

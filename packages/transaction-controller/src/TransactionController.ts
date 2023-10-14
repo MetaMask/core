@@ -53,7 +53,7 @@ import type {
 import { TransactionType, TransactionStatus } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { estimateGas, updateGas } from './utils/gas';
-import { updateGasFees } from './utils/gasFees';
+import { updateGasFees } from './utils/gas-fees';
 import {
   addInitialHistorySnapshot,
   updateTransactionHistory,
