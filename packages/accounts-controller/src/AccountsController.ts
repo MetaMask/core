@@ -122,24 +122,19 @@ export class AccountsController extends BaseControllerV2<
   AccountsControllerState,
   AccountsControllerMessenger
 > {
-  keyringApiEnabled: boolean;
-
   /**
    * Constructor for AccountsController.
    *
    * @param options - The controller options.
    * @param options.messenger - The messenger object.
    * @param options.state - Initial state to set on this controller
-   * @param [options.keyringApiEnabled] - The keyring API enabled flag.
    */
   constructor({
     messenger,
     state,
-    keyringApiEnabled,
   }: {
     messenger: AccountsControllerMessenger;
     state: AccountsControllerState;
-    keyringApiEnabled?: boolean;
   }) {
     super({
       messenger,
@@ -151,14 +146,10 @@ export class AccountsController extends BaseControllerV2<
       },
     });
 
-    this.keyringApiEnabled = Boolean(keyringApiEnabled);
-
-    if (this.keyringApiEnabled) {
-      this.messagingSystem.subscribe(
-        'SnapController:stateChange',
-        (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
-      );
-    }
+    this.messagingSystem.subscribe(
+      'SnapController:stateChange',
+      (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
+    );
 
     this.messagingSystem.subscribe(
       'KeyringController:stateChange',
@@ -311,18 +302,13 @@ export class AccountsController extends BaseControllerV2<
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
-    let normalAccounts = await this.#listNormalAccounts();
-    let snapAccounts: InternalAccount[] = [];
-    if (this.keyringApiEnabled) {
-      snapAccounts = await this.#listSnapAccounts();
-      // remove duplicate accounts that are retrieved from the snap keyring.
-      normalAccounts = normalAccounts.filter(
-        (account) =>
-          !snapAccounts.find(
-            (snapAccount) => snapAccount.address === account.address,
-          ),
-      );
-    }
+    const snapAccounts: InternalAccount[] = await this.#listSnapAccounts();
+    const normalAccounts = (await this.#listNormalAccounts()).filter(
+      (account) =>
+        !snapAccounts.find(
+          (snapAccount) => snapAccount.address === account.address,
+        ),
+    );
 
     // keyring type map.
     const keyringTypes = new Map<string, number>();

@@ -206,17 +206,14 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
  *
  * @param options - The options object.
  * @param [options.initialState] - The initial state to use for the AccountsController.
- * @param [options.keyringApiEnabled] - Whether or not the keyring API is enabled.
  * @param [options.messenger] - Messenger to use for the AccountsController.
  * @returns An instance of the AccountsController class.
  */
 function setupAccountsController({
   initialState = {},
-  keyringApiEnabled = true,
   messenger = buildMessenger(),
 }: {
   initialState?: Partial<AccountsControllerState>;
-  keyringApiEnabled?: boolean;
   messenger?: ControllerMessenger<
     AccountsControllerActions,
     AccountsControllerEvents
@@ -228,7 +225,6 @@ function setupAccountsController({
   const accountsController = new AccountsController({
     messenger: accountsControllerMessenger,
     state: { ...defaultState, ...initialState },
-    keyringApiEnabled,
   });
   return accountsController;
 }
@@ -239,29 +235,6 @@ describe('AccountsController', () => {
   });
 
   describe('onSnapStateChange', () => {
-    it('should not be used when keyringApiEnabled is false', async () => {
-      const messenger = buildMessenger();
-      const snapStateChangeSpy = jest.fn();
-      setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {},
-            selectedAccount: '',
-          },
-        },
-        keyringApiEnabled: false,
-        messenger,
-      });
-
-      messenger.publish(
-        'SnapController:stateChange',
-        {} as any as SnapControllerState,
-        [],
-      );
-
-      expect(snapStateChangeSpy).not.toHaveBeenCalled();
-    });
-
     it('should be used enable an account if the snap is enabled and not blocked', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
@@ -291,7 +264,6 @@ describe('AccountsController', () => {
             selectedAccount: mockSnapAccount.id,
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -332,7 +304,6 @@ describe('AccountsController', () => {
             selectedAccount: mockSnapAccount.id,
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -373,7 +344,6 @@ describe('AccountsController', () => {
             selectedAccount: mockSnapAccount.id,
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -410,7 +380,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -452,7 +421,6 @@ describe('AccountsController', () => {
               selectedAccount: mockAccount.id,
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -511,7 +479,6 @@ describe('AccountsController', () => {
               selectedAccount: mockAccount.id,
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -580,7 +547,6 @@ describe('AccountsController', () => {
               selectedAccount: mockAccount.id,
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -629,7 +595,6 @@ describe('AccountsController', () => {
               selectedAccount: mockAccount.id,
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -693,7 +658,6 @@ describe('AccountsController', () => {
               selectedAccount: mockAccount.id,
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -754,7 +718,6 @@ describe('AccountsController', () => {
               selectedAccount: 'missing',
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -796,7 +759,6 @@ describe('AccountsController', () => {
               selectedAccount: mockAccount.id,
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -850,7 +812,6 @@ describe('AccountsController', () => {
               selectedAccount: 'missing-account',
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -914,7 +875,6 @@ describe('AccountsController', () => {
               selectedAccount: 'missing-account',
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -987,7 +947,6 @@ describe('AccountsController', () => {
               selectedAccount: 'missing-account',
             },
           },
-          keyringApiEnabled: false,
           messenger,
         });
 
@@ -1045,7 +1004,6 @@ describe('AccountsController', () => {
             selectedAccount: mockInitialAccount.id,
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
 
@@ -1125,6 +1083,16 @@ describe('AccountsController', () => {
         mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
       );
 
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: 'Snap Keyring',
+            listAccounts: async () => [],
+          },
+        ]),
+      );
+
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1132,7 +1100,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
       const expectedAccounts = [
@@ -1179,7 +1146,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -1227,7 +1193,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
 
@@ -1251,6 +1216,16 @@ describe('AccountsController', () => {
         mockGetKeyringForAccount.mockResolvedValue({ type: 'HD Key Tree' }),
       );
 
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: 'Snap Keyring',
+            listAccounts: async () => [],
+          },
+        ]),
+      );
+
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1260,7 +1235,6 @@ describe('AccountsController', () => {
             selectedAccount: mockAccount.id,
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
       const expectedAccounts = [
@@ -1310,7 +1284,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
       const expectedAccounts = [
@@ -1366,7 +1339,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: true,
         messenger,
       });
       const expectedAccounts = [
@@ -1412,6 +1384,16 @@ describe('AccountsController', () => {
         mockGetKeyringForAccount.mockResolvedValue({ type: keyringType }),
       );
 
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: 'Snap Keyring',
+            listAccounts: async () => [],
+          },
+        ]),
+      );
+
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1419,7 +1401,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
 
@@ -1450,6 +1431,16 @@ describe('AccountsController', () => {
         mockGetKeyringForAccount.mockResolvedValue({ type: 'unknown' }),
       );
 
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: 'Snap Keyring',
+            listAccounts: async () => [],
+          },
+        ]),
+      );
+
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1457,7 +1448,6 @@ describe('AccountsController', () => {
             selectedAccount: '',
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
 
@@ -1791,7 +1781,6 @@ describe('AccountsController', () => {
             selectedAccount: mockAccount.id,
           },
         },
-        keyringApiEnabled: false,
         messenger,
       });
 
