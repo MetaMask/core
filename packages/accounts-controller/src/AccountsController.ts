@@ -156,8 +156,7 @@ export class AccountsController extends BaseControllerV2<
     if (this.keyringApiEnabled) {
       this.messagingSystem.subscribe(
         'SnapController:stateChange',
-        async (snapStateState) =>
-          await this.#handleOnSnapStateChange(snapStateState),
+        (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
       );
     }
 
@@ -168,15 +167,6 @@ export class AccountsController extends BaseControllerV2<
     );
 
     this.#registerMessageHandlers();
-
-    // if somehow the selected account becomes lost then select the first account
-    if (
-      this.state.internalAccounts.selectedAccount !== '' &&
-      !this.getAccount(this.state.internalAccounts.selectedAccount) &&
-      this.listAccounts().length > 0
-    ) {
-      this.setSelectedAccount(this.listAccounts()[0].id);
-    }
   }
 
   /**
@@ -258,20 +248,27 @@ export class AccountsController extends BaseControllerV2<
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccountExpect(accountId);
+    const account = this.getAccount(accountId);
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore Type instantiation is excessively deep and possibly infinite.
     this.update((currentState: AccountsControllerState) => {
-      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
-        Date.now();
-      currentState.internalAccounts.selectedAccount = account.id;
+      if (account) {
+        currentState.internalAccounts.accounts[
+          account.id
+        ].metadata.lastSelected = Date.now();
+        currentState.internalAccounts.selectedAccount = account.id;
+      } else {
+        currentState.internalAccounts.selectedAccount = '';
+      }
     });
 
-    this.messagingSystem.publish(
-      'AccountsController:selectedAccountChange',
-      account,
-    );
+    if (account) {
+      this.messagingSystem.publish(
+        'AccountsController:selectedAccountChange',
+        account,
+      );
+    }
   }
 
   /**
@@ -294,6 +291,8 @@ export class AccountsController extends BaseControllerV2<
       throw new Error('Account name already exists');
     }
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
     this.update((currentState: AccountsControllerState) => {
       currentState.internalAccounts.accounts[accountId] = {
         ...account,
@@ -375,6 +374,8 @@ export class AccountsController extends BaseControllerV2<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore Type instantiation is excessively deep and possibly infinite.
       this.update((currentState: AccountsControllerState) => {
         currentState.internalAccounts = backup.internalAccounts;
       });
@@ -419,7 +420,7 @@ export class AccountsController extends BaseControllerV2<
    * @returns A promise that resolves to an array of InternalAccount objects.
    */
   async #listSnapAccounts(): Promise<InternalAccount[]> {
-    const [snapKeyring] = await this.messagingSystem.call(
+    const [snapKeyring] = this.messagingSystem.call(
       'KeyringController:getKeyringsByType',
       SnapKeyring.type,
     );
@@ -494,8 +495,6 @@ export class AccountsController extends BaseControllerV2<
     // TODO: change when accountAdded event is added to the keyring controller
 
     if (keyringState.isUnlocked) {
-      // TODO: ACCOUNTS_CONTROLLER keyring will return accounts instead of addresses, remove this flatMap after and just get the latest id
-
       const updatedNormalKeyringAddresses: AddressAndKeyringTypeObject[] = [];
       const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
 
@@ -606,7 +605,7 @@ export class AccountsController extends BaseControllerV2<
 
       // handle if the selected account was deleted
       if (!this.getAccount(this.state.internalAccounts.selectedAccount)) {
-        const accountToSelect = this.listAccounts().sort(
+        const [accountToSelect] = this.listAccounts().sort(
           (accountA, accountB) => {
             // sort by lastSelected descending
             return (
@@ -614,9 +613,11 @@ export class AccountsController extends BaseControllerV2<
               (accountA.metadata.lastSelected ?? 0)
             );
           },
-        )[0];
+        );
 
-        this.setSelectedAccount(accountToSelect.id);
+        // if the accountToSelect is undefined, then there are no accounts
+        // it mean the keyring was reinitialized.
+        this.setSelectedAccount(accountToSelect?.id);
       }
     }
   }
@@ -625,11 +626,8 @@ export class AccountsController extends BaseControllerV2<
    * Handles the change in SnapControllerState by updating the metadata of accounts that have a snap enabled.
    *
    * @param snapState - The new SnapControllerState.
-   * @returns A Promise that resolves when the update is complete.
    */
-  async #handleOnSnapStateChange(
-    snapState: SnapControllerState,
-  ): Promise<void> {
+  #handleOnSnapStateChange(snapState: SnapControllerState) {
     // only check if snaps changed in status
     const { snaps } = snapState;
     const accounts = this.listAccounts().filter(
@@ -665,8 +663,18 @@ export class AccountsController extends BaseControllerV2<
   } {
     const keyringName = keyringTypeToName(keyringType);
     const previousKeyringAccounts = this.listAccounts().filter(
-      (internalAccount) =>
-        internalAccount.metadata.keyring.type === keyringType,
+      (internalAccount) => {
+        if (
+          keyringType === 'HD Key Tree' ||
+          keyringType === 'Simple Key Pair'
+        ) {
+          return (
+            internalAccount.metadata.keyring.type === 'HD Key Tree' ||
+            internalAccount.metadata.keyring.type === 'Simple Key Pair'
+          );
+        }
+        return internalAccount.metadata.keyring.type === keyringType;
+      },
     );
     const lastDefaultIndexUsedForKeyringType =
       previousKeyringAccounts
@@ -694,7 +702,6 @@ export class AccountsController extends BaseControllerV2<
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
    * @param account - The address and keyring type object of the new account.
-   * @returns void
    */
   async #handleNewAccountAdded(account: AddressAndKeyringTypeObject) {
     let newAccount: InternalAccount;
@@ -742,6 +749,10 @@ export class AccountsController extends BaseControllerV2<
     this.setSelectedAccount(newAccount.id);
   }
 
+  /**
+   * Handles the removal of an account from the internal accounts list.
+   * @param accountId - The ID of the account to be removed.
+   */
   #handleAccountRemoved(accountId: string) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore Type instantiation is excessively deep and possibly infinite.
@@ -750,6 +761,10 @@ export class AccountsController extends BaseControllerV2<
     });
   }
 
+  /**
+   * Registers message handlers for the AccountsController.
+   * @private
+   */
   #registerMessageHandlers() {
     this.messagingSystem.registerActionHandler(
       `${controllerName}:setSelectedAccount`,
