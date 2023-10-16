@@ -14,6 +14,7 @@ jest.mock('@metamask/controller-utils', () => ({
 const GAS_MOCK = 100;
 const BLOCK_GAS_LIMIT_MOCK = 1234567;
 const BLOCK_NUMBER_MOCK = '0x5678';
+const CODE_MOCK = '0x987';
 
 const TRANSACTION_META_MOCK = {
   txParams: {
@@ -36,10 +37,42 @@ describe('gas', () => {
   const queryMock = jest.mocked(query);
   let updateGasRequest: UpdateGasRequest;
 
+  function mockQuery({
+    getCodeResponse,
+    getBlockByNumberResponse,
+    estimateGasResponse,
+    estimateGasError,
+  }: {
+    getCodeResponse?: any;
+    getBlockByNumberResponse?: any;
+    estimateGasResponse?: any;
+    estimateGasError?: any;
+  }) {
+    if (getCodeResponse !== undefined) {
+      queryMock.mockResolvedValueOnce(getCodeResponse);
+    }
+
+    if (getBlockByNumberResponse !== undefined) {
+      queryMock.mockResolvedValueOnce(getBlockByNumberResponse);
+    }
+
+    if (estimateGasError) {
+      queryMock.mockRejectedValueOnce(estimateGasError);
+    } else {
+      queryMock.mockResolvedValueOnce(estimateGasResponse);
+    }
+  }
+
+  function expectEstimateGasNotCalled() {
+    expect(queryMock).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'estimateGas',
+      expect.anything(),
+    );
+  }
+
   beforeEach(() => {
     jest.resetAllMocks();
-
-    queryMock.mockResolvedValue({});
 
     updateGasRequest = JSON.parse(JSON.stringify(UPDATE_GAS_REQUEST_MOCK));
   });
@@ -60,14 +93,16 @@ describe('gas', () => {
 
         expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
         expect(updateGasRequest.txMeta.originalGasEstimate).toBeUndefined();
+        expectEstimateGasNotCalled();
       });
 
       it('to estimate if custom network', async () => {
         updateGasRequest.providerConfig.type = NetworkType.rpc;
 
-        queryMock
-          .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-          .mockResolvedValueOnce(toHex(GAS_MOCK));
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_MOCK),
+        });
 
         await updateGas(updateGasRequest);
 
@@ -80,9 +115,11 @@ describe('gas', () => {
       it('to estimate if estimate greater than 90% of block gas limit', async () => {
         const estimatedGas = Math.ceil(BLOCK_GAS_LIMIT_MOCK * 0.9 + 10);
 
-        queryMock
-          .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-          .mockResolvedValueOnce(toHex(estimatedGas));
+        mockQuery({
+          getCodeResponse: CODE_MOCK,
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(estimatedGas),
+        });
 
         await updateGas(updateGasRequest);
 
@@ -97,9 +134,11 @@ describe('gas', () => {
         const estimatedGasPadded = Math.ceil(blockGasLimit90Percent - 10);
         const estimatedGas = Math.round(estimatedGasPadded / 1.5);
 
-        queryMock
-          .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-          .mockResolvedValueOnce(toHex(estimatedGas));
+        mockQuery({
+          getCodeResponse: CODE_MOCK,
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(estimatedGas),
+        });
 
         await updateGas(updateGasRequest);
 
@@ -116,9 +155,11 @@ describe('gas', () => {
         const estimatedGasPadded = blockGasLimit90Percent + 10;
         const estimatedGas = Math.ceil(estimatedGasPadded / 1.5);
 
-        queryMock
-          .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-          .mockResolvedValueOnce(toHex(estimatedGas));
+        mockQuery({
+          getCodeResponse: CODE_MOCK,
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(estimatedGas),
+        });
 
         await updateGas(updateGasRequest);
 
@@ -132,6 +173,7 @@ describe('gas', () => {
 
       describe('to fixed value', () => {
         it('if not custom network and no to parameter', async () => {
+          updateGasRequest.providerConfig.type = NetworkType.mainnet;
           delete updateGasRequest.txMeta.txParams.to;
 
           await updateGas(updateGasRequest);
@@ -140,15 +182,16 @@ describe('gas', () => {
           expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
             updateGasRequest.txMeta.txParams.gas,
           );
+          expectEstimateGasNotCalled();
         });
 
         it('if not custom network and to parameter and no data and no code', async () => {
+          updateGasRequest.providerConfig.type = NetworkType.mainnet;
           delete updateGasRequest.txMeta.txParams.data;
 
-          queryMock
-            .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-            .mockResolvedValueOnce(toHex(GAS_MOCK))
-            .mockResolvedValueOnce(undefined);
+          mockQuery({
+            getCodeResponse: undefined,
+          });
 
           await updateGas(updateGasRequest);
 
@@ -156,15 +199,16 @@ describe('gas', () => {
           expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
             updateGasRequest.txMeta.txParams.gas,
           );
+          expectEstimateGasNotCalled();
         });
 
         it('if not custom network and to parameter and no data and empty code', async () => {
+          updateGasRequest.providerConfig.type = NetworkType.mainnet;
           delete updateGasRequest.txMeta.txParams.data;
 
-          queryMock
-            .mockResolvedValueOnce({ gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) })
-            .mockResolvedValueOnce(toHex(GAS_MOCK))
-            .mockResolvedValueOnce('0x');
+          mockQuery({
+            getCodeResponse: '0x',
+          });
 
           await updateGas(updateGasRequest);
 
@@ -172,6 +216,7 @@ describe('gas', () => {
           expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
             updateGasRequest.txMeta.txParams.gas,
           );
+          expectEstimateGasNotCalled();
         });
       });
     });
@@ -180,13 +225,13 @@ describe('gas', () => {
       it('sets gas to 95% of block gas limit', async () => {
         const fallbackGas = Math.floor(BLOCK_GAS_LIMIT_MOCK * 0.95);
 
-        queryMock
-          .mockResolvedValueOnce({
+        mockQuery({
+          getCodeResponse: CODE_MOCK,
+          getBlockByNumberResponse: {
             gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
-          })
-          .mockImplementationOnce(() => {
-            throw { message: 'TestError', errorKey: 'TestKey' } as any;
-          });
+          },
+          estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+        });
 
         await updateGas(updateGasRequest);
 
@@ -197,14 +242,14 @@ describe('gas', () => {
       });
 
       it('sets simulationFails property', async () => {
-        queryMock
-          .mockResolvedValueOnce({
+        mockQuery({
+          getCodeResponse: CODE_MOCK,
+          getBlockByNumberResponse: {
             gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
             number: BLOCK_NUMBER_MOCK,
-          })
-          .mockImplementationOnce(() => {
-            throw { message: 'TestError', errorKey: 'TestKey' } as any;
-          });
+          },
+          estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+        });
 
         await updateGas(updateGasRequest);
 

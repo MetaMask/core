@@ -217,7 +217,16 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta) {
 }
 
 async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
-  const { eip1559, ethQuery, getGasFeeEstimates } = request;
+  const { eip1559, ethQuery, getGasFeeEstimates, txMeta } = request;
+
+  if (
+    (!eip1559 && txMeta.txParams.gasPrice) ||
+    (eip1559 &&
+      txMeta.txParams.maxFeePerGas &&
+      txMeta.txParams.maxPriorityFeePerGas)
+  ) {
+    return {};
+  }
 
   try {
     const { gasFeeEstimates, gasEstimateType } = await getGasFeeEstimates();

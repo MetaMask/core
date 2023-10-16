@@ -11,6 +11,9 @@ jest.mock('@metamask/controller-utils', () => ({
   query: jest.fn(),
 }));
 
+// eslint-disable-next-line jest/prefer-spy-on
+console.error = jest.fn();
+
 const GAS_MOCK = 123;
 const GAS_HEX_MOCK = toHex(GAS_MOCK);
 const GAS_HEX_WEI_MOCK = toHex(GAS_MOCK * 1e9);
@@ -108,6 +111,24 @@ describe('gas-fees', () => {
       expect(updateGasFeeRequest.txMeta.txParams).not.toHaveProperty(
         'maxPriorityFeePerGas',
       );
+    });
+
+    it('does not call getGasFeeEstimates if not eip1559 and request gasPrice', async () => {
+      updateGasFeeRequest.eip1559 = false;
+      updateGasFeeRequest.txMeta.txParams.gasPrice = GAS_HEX_MOCK;
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.getGasFeeEstimates).not.toHaveBeenCalled();
+    });
+
+    it('does not call getGasFeeEstimates if eip1559 and request maxFeePerGas and request maxPriorityFeePerGas', async () => {
+      updateGasFeeRequest.txMeta.txParams.maxFeePerGas = GAS_HEX_MOCK;
+      updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas = GAS_HEX_MOCK;
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.getGasFeeEstimates).not.toHaveBeenCalled();
     });
 
     describe('sets maxFeePerGas', () => {

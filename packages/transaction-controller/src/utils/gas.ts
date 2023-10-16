@@ -22,11 +22,6 @@ export type UpdateGasRequest = {
   txMeta: TransactionMeta;
 };
 
-type GetGasRequest = UpdateGasRequest & {
-  blockGasLimit: string;
-  estimatedGas: string;
-};
-
 export const log = createModuleLogger(projectLogger, 'gas');
 
 export const FIXED_GAS = '0x5208';
@@ -35,17 +30,9 @@ export async function updateGas(request: UpdateGasRequest) {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
-    txMeta.txParams,
-    request.ethQuery,
-  );
+  const [gas, simulationFails] = await getGas(request);
 
-  txMeta.txParams.gas = await getGas({
-    ...request,
-    blockGasLimit,
-    estimatedGas,
-  });
-
+  txMeta.txParams.gas = gas;
   txMeta.simulationFails = simulationFails;
 
   if (!initialParams.gas) {
@@ -105,18 +92,25 @@ export async function estimateGas(
   };
 }
 
-async function getGas(request: GetGasRequest): Promise<string> {
-  const { blockGasLimit, estimatedGas, providerConfig, txMeta } = request;
+async function getGas(
+  request: UpdateGasRequest,
+): Promise<[string, TransactionMeta['simulationFails']?]> {
+  const { providerConfig, txMeta } = request;
 
   if (txMeta.txParams.gas) {
     log('Using value from request', txMeta.txParams.gas);
-    return txMeta.txParams.gas;
+    return [txMeta.txParams.gas];
   }
 
   if (await requiresFixedGas(request)) {
     log('Using fixed value', FIXED_GAS);
-    return FIXED_GAS;
+    return [FIXED_GAS];
   }
+
+  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
+    txMeta.txParams,
+    request.ethQuery,
+  );
 
   const estimatedGasBN = hexToBN(estimatedGas);
   const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
@@ -126,18 +120,18 @@ async function getGas(request: GetGasRequest): Promise<string> {
   if (estimatedGasBN.gt(maxGasBN) || isCustomNetwork) {
     const estimatedGasHex = addHexPrefix(estimatedGas);
     log('Using estimated value', estimatedGasHex);
-    return estimatedGasHex;
+    return [estimatedGasHex, simulationFails];
   }
 
   if (paddedGasBN.lt(maxGasBN)) {
     const paddedHex = addHexPrefix(BNToHex(paddedGasBN));
     log('Using 150% of estimated value', paddedHex);
-    return paddedHex;
+    return [paddedHex, simulationFails];
   }
 
   const maxHex = addHexPrefix(BNToHex(maxGasBN));
   log('Using 90% of block gas limit', maxHex);
-  return maxHex;
+  return [maxHex, simulationFails];
 }
 
 async function requiresFixedGas({
