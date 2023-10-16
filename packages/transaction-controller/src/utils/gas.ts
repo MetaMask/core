@@ -14,7 +14,6 @@ import { addHexPrefix } from 'ethereumjs-util';
 
 import { projectLogger } from '../logger';
 import type { TransactionMeta, TransactionParams } from '../types';
-import { ESTIMATE_GAS_ERROR } from './utils';
 
 export type UpdateGasRequest = {
   ethQuery: EthQuery;
@@ -64,14 +63,11 @@ export async function estimateGas(
   request.value = value || '0x0';
 
   let estimatedGas = request.gas;
-  let estimateGasError;
   let simulationFails;
 
   try {
     estimatedGas = await query(ethQuery, 'estimateGas', [request]);
   } catch (error: any) {
-    estimateGasError = ESTIMATE_GAS_ERROR;
-
     simulationFails = {
       reason: error.message,
       errorKey: error.errorKey,
@@ -87,7 +83,6 @@ export async function estimateGas(
   return {
     blockGasLimit: gasLimitHex,
     estimatedGas,
-    estimateGasError,
     simulationFails,
   };
 }
