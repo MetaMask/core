@@ -880,7 +880,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw missing provider error when transfering single ERC-1155 when missing provider', async () => {
+  it('should throw missing provider error when transferring single ERC-1155 when missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
     assetsContract.configure({ provider: undefined });
     await expect(
