@@ -1,9 +1,9 @@
 import type { ControllerMessenger } from '@metamask/base-controller';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type {
   NetworkClientId,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
-import type { JsonRpcMiddleware } from 'json-rpc-engine';
 
 import type {
   SelectedNetworkControllerGetNetworkClientIdForDomainAction,

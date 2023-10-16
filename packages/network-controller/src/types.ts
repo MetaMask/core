@@ -1,11 +1,13 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import type { Hex } from '@metamask/utils';
-import type { PollingBlockTracker } from 'eth-block-tracker';
+import type { BlockTracker as BaseBlockTracker } from 'eth-block-tracker';
 
 export type Provider = SafeEventEmitterProvider;
 
-export type BlockTracker = PollingBlockTracker;
+export type BlockTracker = BaseBlockTracker & {
+  checkForLatestBlock(): Promise<string>;
+};
 
 /**
  * The type of network client that can be created.
@@ -22,6 +24,7 @@ export enum NetworkClientType {
 export type CustomNetworkClientConfiguration = {
   chainId: Hex;
   rpcUrl: string;
+  ticker: string;
   type: NetworkClientType.Custom;
 };
 
@@ -33,6 +36,7 @@ export type InfuraNetworkClientConfiguration = {
   chainId: Hex;
   network: InfuraNetworkType;
   infuraProjectId: string;
+  ticker: string;
   type: NetworkClientType.Infura;
 };
 
