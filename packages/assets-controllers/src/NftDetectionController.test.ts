@@ -267,8 +267,8 @@ describe('NftDetectionController', () => {
         configuration: {
           chainId: ChainId.mainnet,
         },
-        provider: jest.fn(),
-        blockTracker: jest.fn(),
+        provider: {},
+        blockTracker: {},
         destroy: jest.fn(),
       } as any;
     });
@@ -302,6 +302,10 @@ describe('NftDetectionController', () => {
       Promise.resolve(),
     ]);
     expect(spy.mock.calls).toHaveLength(2);
+    expect(spy.mock.calls).toMatchObject([
+      ['mainnet', '0x1'],
+      ['mainnet', '0x1'],
+    ]);
     nftDetection.stopAllPolling();
     jest.runOnlyPendingTimers();
     jest.useRealTimers();
