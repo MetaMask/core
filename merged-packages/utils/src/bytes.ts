@@ -1,3 +1,5 @@
+import { base64 } from '@scure/base';
+
 import { assert } from './assert';
 import type { Hex } from './hex';
 import { add0x, assertIsHexString, remove0x } from './hex';
@@ -168,6 +170,18 @@ export function bytesToString(bytes: Uint8Array): string {
 }
 
 /**
+ * Convert a `Uint8Array` to a base64 encoded string.
+ *
+ * @param bytes - The bytes to convert to a base64 encoded string.
+ * @returns The base64 encoded string.
+ */
+export function bytesToBase64(bytes: Uint8Array): string {
+  assertIsBytes(bytes);
+
+  return base64.encode(bytes);
+}
+
+/**
  * Convert a hexadecimal string to a `Uint8Array`. The string can optionally be
  * prefixed with `0x`. It accepts even and odd length strings.
  *
@@ -316,6 +330,18 @@ export function stringToBytes(value: string): Uint8Array {
   assert(typeof value === 'string', 'Value must be a string.');
 
   return new TextEncoder().encode(value);
+}
+
+/**
+ * Convert a base64 encoded string to a `Uint8Array`.
+ *
+ * @param value - The base64 encoded string to convert to bytes.
+ * @returns The bytes as `Uint8Array`.
+ */
+export function base64ToBytes(value: string): Uint8Array {
+  assert(typeof value === 'string', 'Value must be a string.');
+
+  return base64.decode(value);
 }
 
 /**

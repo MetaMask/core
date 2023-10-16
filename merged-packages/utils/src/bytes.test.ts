@@ -8,7 +8,9 @@ import {
 } from './__fixtures__';
 import {
   assertIsBytes,
+  base64ToBytes,
   bigIntToBytes,
+  bytesToBase64,
   bytesToBigInt,
   bytesToHex,
   bytesToNumber,
@@ -166,6 +168,30 @@ describe('bytesToString', () => {
     (value) => {
       // @ts-expect-error Invalid type.
       expect(() => bytesToString(value)).toThrow('Value must be a Uint8Array.');
+    },
+  );
+});
+
+describe('bytesToBase64', () => {
+  it.each(BYTES_FIXTURES)(
+    'returns a base64 string from a byte array',
+    ({ bytes, base64 }) => {
+      expect(bytesToBase64(bytes)).toBe(base64);
+    },
+  );
+
+  it.each(LARGE_BYTES_FIXTURES)(
+    'returns a base64 string from a large byte array',
+    ({ bytes, base64 }) => {
+      expect(bytesToBase64(bytes)).toBe(base64);
+    },
+  );
+
+  it.each(INVALID_BYTES_FIXTURES)(
+    'throws an error for invalid byte arrays',
+    (value) => {
+      // @ts-expect-error Invalid type.
+      expect(() => bytesToBase64(value)).toThrow('Value must be a Uint8Array.');
     },
   );
 });
@@ -360,6 +386,22 @@ describe('stringToBytes', () => {
     (value) => {
       // @ts-expect-error Invalid type.
       expect(() => stringToBytes(value)).toThrow('Value must be a string.');
+    },
+  );
+});
+
+describe('base64ToBytes', () => {
+  it.each(BYTES_FIXTURES)(
+    'returns a byte array from a base64 string',
+    ({ bytes, base64 }) => {
+      expect(base64ToBytes(base64)).toStrictEqual(bytes);
+    },
+  );
+
+  it.each(LARGE_BYTES_FIXTURES)(
+    'returns a byte array from a large base64 string',
+    ({ bytes, base64 }) => {
+      expect(base64ToBytes(base64)).toStrictEqual(bytes);
     },
   );
 });
