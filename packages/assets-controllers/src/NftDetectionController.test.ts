@@ -48,7 +48,7 @@ describe('NftDetectionController', () => {
         provider: jest.fn(),
         blockTracker: jest.fn(),
         destroy: jest.fn(),
-      } as any;
+      };
     });
 
     nftController = new NftController({
