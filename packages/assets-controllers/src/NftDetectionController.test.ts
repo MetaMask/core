@@ -270,7 +270,7 @@ describe('NftDetectionController', () => {
         provider: {},
         blockTracker: {},
         destroy: jest.fn(),
-      } as any;
+      };
     });
     const testNftDetection = new NftDetectionController({
       chainId: ChainId.mainnet,
