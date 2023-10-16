@@ -164,9 +164,19 @@ export class PendingTransactionTracker {
 
         /* istanbul ignore next */
         if (txObj?.blockNumber) {
-          meta.status = TransactionStatus.confirmed;
-          this.hub.emit('transaction-confirmed', meta);
-          return [meta, true];
+          // transactions can be added to a block and still fail,
+          // check the transaction status before emitting the confirmed event
+          const txStatusFailed = await this.#checkTxReceiptStatusIsFailed(hash);
+          if (txStatusFailed) {
+            const error = new Error(
+              'Transaction failed. The transaction was reversed',
+            );
+            this.#failTransaction(meta, error);
+          } else {
+            meta.status = TransactionStatus.confirmed;
+            this.hub.emit('transaction-confirmed', meta);
+            return [meta, true];
+          }
         }
 
         return [meta, false];
