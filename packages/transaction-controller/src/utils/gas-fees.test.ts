@@ -462,14 +462,14 @@ describe('gas-fees', () => {
         expect(updateGasFeeRequest.txMeta.userFeeLevel).toBeUndefined();
       });
 
-      it('to medium if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and origin is metamask', async () => {
+      it('to custom if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and origin is metamask', async () => {
         updateGasFeeRequest.txMeta.txParams.gasPrice = GAS_HEX_MOCK;
         updateGasFeeRequest.txMeta.origin = ORIGIN_METAMASK;
 
         await updateGasFees(updateGasFeeRequest);
 
         expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
-          UserFeeLevel.MEDIUM,
+          UserFeeLevel.CUSTOM,
         );
       });
 

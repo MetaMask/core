@@ -182,7 +182,7 @@ function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
     initialParams.gasPrice
   ) {
     return txMeta.origin === ORIGIN_METAMASK
-      ? UserFeeLevel.MEDIUM
+      ? UserFeeLevel.CUSTOM
       : UserFeeLevel.DAPP_SUGGESTED;
   }
 

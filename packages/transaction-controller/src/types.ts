@@ -150,6 +150,9 @@ type TransactionMetaBase = {
    */
   sendFlowHistory?: SendFlowHistoryEntry[];
 
+  /**
+   * If the gas estimation fails, an object containing error and block information.
+   */
   simulationFails?: {
     reason?: string;
     errorKey?: string;
@@ -624,22 +627,22 @@ export type SecurityProviderRequest = (
 ) => Promise<any>;
 
 /**
- * In EIP-2718 typed transaction envelopes were specified, with the very first
- * typed envelope being 'legacy' and describing the shape of the base
- * transaction params that were hitherto the only transaction type sent on
- * Ethereum.
+ * Specifies the shape of the base transaction parameters.
+ * Added in EIP-2718.
  */
 export enum TransactionEnvelopeType {
   /**
    * A legacy transaction, the very first type.
    */
   legacy = '0x0',
+
   /**
    * EIP-2930 defined the access list transaction type that allowed for
    * specifying the state that a transaction would act upon in advance and
    * theoretically save on gas fees.
    */
   accessList = '0x1',
+
   /**
    * The type introduced comes from EIP-1559, Fee Market describes the addition
    * of a baseFee to blocks that will be burned instead of distributed to
@@ -651,8 +654,11 @@ export enum TransactionEnvelopeType {
   feeMarket = '0x2',
 }
 
+/**
+ * The source of the gas fee parameters on a transaction.
+ */
 export enum UserFeeLevel {
   CUSTOM = 'custom',
-  MEDIUM = 'medium',
   DAPP_SUGGESTED = 'dappSuggested',
+  MEDIUM = 'medium',
 }
