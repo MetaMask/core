@@ -267,7 +267,7 @@ export class NftDetectionController extends PollingControllerV1<
     this.setIntervalLength(this.config.interval);
   }
 
-  async executePoll(
+  async _executePoll(
     networkClientId: string,
     options: { address: string },
   ): Promise<void> {
