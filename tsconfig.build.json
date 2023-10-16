@@ -28,6 +28,9 @@
       "path": "./packages/ens-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/eth-json-rpc-provider/tsconfig.build.json"
+    },
+    {
       "path": "./packages/gas-fee-controller/tsconfig.build.json"
     },
     {
