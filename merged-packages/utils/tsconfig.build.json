@@ -18,6 +18,7 @@
     "./src/**/__tests__/**/*",
     "./src/**/__snapshots__/**/*",
     "./src/**/*.test.ts",
+    "./src/**/*.test-d.ts",
     "./src/**/*.test.*.ts"
   ]
 }
