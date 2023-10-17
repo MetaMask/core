@@ -273,18 +273,14 @@ export class TransactionController extends BaseController<
     this.nonceTracker = new NonceTracker({
       provider,
       blockTracker,
-      getPendingTransactions: (address) =>
-        getAndFormatTransactionsForNonceTracker(
-          address,
-          TransactionStatus.submitted,
-          this.state.transactions,
-        ),
-      getConfirmedTransactions: (address) =>
-        getAndFormatTransactionsForNonceTracker(
-          address,
-          TransactionStatus.confirmed,
-          this.state.transactions,
-        ),
+      getPendingTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.submitted,
+      ),
+      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.confirmed,
+      ),
     });
 
     this.incomingTransactionHelper = new IncomingTransactionHelper({
@@ -1305,6 +1301,20 @@ export class TransactionController extends BaseController<
   }) {
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
+  }
+
+  private getNonceTrackerTransactions(
+    status: TransactionStatus,
+    address: string,
+  ) {
+    const { chainId: currentChainId } = this.getNetworkState().providerConfig;
+
+    return getAndFormatTransactionsForNonceTracker(
+      currentChainId,
+      address,
+      status,
+      this.state.transactions,
+    );
   }
 }
 

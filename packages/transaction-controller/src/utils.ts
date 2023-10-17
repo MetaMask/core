@@ -201,19 +201,22 @@ export function validateMinimumIncrease(proposed: string, min: string) {
 /**
  * Helper function to filter and format transactions for the nonce tracker.
  *
+ * @param currentChainId - Chain ID of the current network.
  * @param fromAddress - Address of the account from which the transactions to filter from are sent.
  * @param transactionStatus - Status of the transactions for which to filter.
  * @param transactions - Array of transactionMeta objects that have been prefiltered.
  * @returns Array of transactions formatted for the nonce tracker.
  */
 export function getAndFormatTransactionsForNonceTracker(
+  currentChainId: string,
   fromAddress: string,
   transactionStatus: TransactionStatus,
   transactions: TransactionMeta[],
 ): NonceTrackerTransaction[] {
   return transactions
     .filter(
-      ({ status, transaction: { from } }) =>
+      ({ chainId, status, transaction: { from } }) =>
+        chainId === currentChainId &&
         status === transactionStatus &&
         from.toLowerCase() === fromAddress.toLowerCase(),
     )
