@@ -4,6 +4,10 @@
     "@lavamoat/preinstall-always-fail",
     "@metamask/auto-changelog",
     "@types/*",
+    "@yarnpkg/core",
+    "@yarnpkg/cli",
+    "@yarnpkg/fslib",
+    "clipanion",
     "prettier-plugin-packagejson",
     "ts-node",
     "typedoc"
