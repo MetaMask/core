@@ -323,18 +323,10 @@ export class NftDetectionController extends PollingControllerV1<
     return networkClient.configuration.chainId === ChainId.mainnet;
   };
 
-  private getCorrectChainId({
-    chainId,
-    networkClientId,
-  }: {
-    chainId?: Hex;
-    networkClientId?: NetworkClientId;
-  }) {
+  private getCorrectChainId(networkClientId?: NetworkClientId) {
     if (networkClientId) {
       return this.getNetworkClientById(networkClientId).configuration.chainId;
-    } else if (chainId) {
-      return chainId;
-    }
+     }
     return this.config.chainId;
   }
 
