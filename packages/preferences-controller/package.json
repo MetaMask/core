@@ -1,6 +1,6 @@
 {
   "name": "@metamask/preferences-controller",
-  "version": "4.4.2",
+  "version": "4.4.3",
   "description": "Manages user-configurable settings for MetaMask",
   "keywords": [
     "MetaMask",
@@ -29,8 +29,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.2",
-    "@metamask/controller-utils": "^5.0.1"
+    "@metamask/base-controller": "^3.2.3",
+    "@metamask/controller-utils": "^5.0.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",

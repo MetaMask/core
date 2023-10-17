@@ -32,6 +32,9 @@
       "path": "./packages/ens-controller"
     },
     {
+      "path": "./packages/eth-json-rpc-provider"
+    },
+    {
       "path": "./packages/gas-fee-controller"
     },
     {
