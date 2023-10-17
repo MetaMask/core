@@ -380,6 +380,7 @@ describe('utils', () => {
       ];
 
       const result = util.getAndFormatTransactionsForNonceTracker(
+        '0x1',
         fromAddress,
         TransactionStatus.confirmed,
         inputTransactions,

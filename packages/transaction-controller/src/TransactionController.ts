@@ -315,18 +315,14 @@ export class TransactionController extends BaseController<
     this.nonceTracker = new NonceTracker({
       provider,
       blockTracker,
-      getPendingTransactions: (address) =>
-        getAndFormatTransactionsForNonceTracker(
-          address,
-          TransactionStatus.submitted,
-          this.state.transactions,
-        ),
-      getConfirmedTransactions: (address) =>
-        getAndFormatTransactionsForNonceTracker(
-          address,
-          TransactionStatus.confirmed,
-          this.state.transactions,
-        ),
+      getPendingTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.submitted,
+      ),
+      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
+        this,
+        TransactionStatus.confirmed,
+      ),
     });
 
     this.incomingTransactionHelper = new IncomingTransactionHelper({
@@ -1483,9 +1479,7 @@ export class TransactionController extends BaseController<
         /* istanbul ignore next */
         if (txObj?.blockNumber) {
           // transactions can be added to a block and still fail, so we need to check the transaction status before emitting the confirmed event
-          const txStatusFailed = await this.checkTxReceiptStatusIsFailed(
-            transactionHash,
-          );
+          const txStatusFailed = await this.checkTxReceiptStatusIsFailed(hash);
           if (txStatusFailed) {
             const error = new Error(
               'Transaction failed. The transaction was reversed',
@@ -1836,6 +1830,20 @@ export class TransactionController extends BaseController<
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
+  }
+
+  private getNonceTrackerTransactions(
+    status: TransactionStatus,
+    address: string,
+  ) {
+    const { chainId: currentChainId } = this.getNetworkState().providerConfig;
+
+    return getAndFormatTransactionsForNonceTracker(
+      currentChainId,
+      address,
+      status,
+      this.state.transactions,
     );
   }
 }
