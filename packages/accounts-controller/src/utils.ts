@@ -1,3 +1,4 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { sha256FromString } from 'ethereumjs-util';
 import { v4 as uuid } from 'uuid';
 
@@ -9,28 +10,28 @@ import { v4 as uuid } from 'uuid';
  */
 export function keyringTypeToName(keyringType: string): string {
   switch (keyringType) {
-    case 'Simple Key Pair': {
+    case KeyringTypes.simple: {
       return 'Account';
     }
-    case 'HD Key Tree': {
+    case KeyringTypes.hd: {
       return 'Account';
     }
-    case 'Trezor Hardware': {
+    case KeyringTypes.trezor: {
       return 'Trezor';
     }
-    case 'Ledger Hardware': {
+    case KeyringTypes.ledger: {
       return 'Ledger';
     }
-    case 'Lattice Hardware': {
+    case KeyringTypes.lattice: {
       return 'Lattice';
     }
-    case 'QR Hardware Wallet Device': {
+    case KeyringTypes.qr: {
       return 'QR';
     }
-    case 'Snap Keyring': {
+    case KeyringTypes.snap: {
       return 'Snap Account';
     }
-    case 'Custody': {
+    case KeyringTypes.custody: {
       return 'Custody';
     }
     default: {
