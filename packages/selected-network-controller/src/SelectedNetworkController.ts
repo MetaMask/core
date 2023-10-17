@@ -179,7 +179,7 @@ export class SelectedNetworkController extends BaseControllerV2<
    * @param domain - the domain for the provider
    * @returns The proxy and block tracker proxies.
    */
-  getProviderAndBlockTracker(domain: Domain): NetworkProxy | undefined {
+  getProviderAndBlockTracker(domain: Domain): NetworkProxy {
     let networkProxy = this.#proxies.get(domain);
     if (networkProxy === undefined) {
       const networkClient = this.messagingSystem.call(
