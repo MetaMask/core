@@ -326,7 +326,7 @@ export class NftDetectionController extends PollingControllerV1<
   private getCorrectChainId(networkClientId?: NetworkClientId) {
     if (networkClientId) {
       return this.getNetworkClientById(networkClientId).configuration.chainId;
-     }
+    }
     return this.config.chainId;
   }
 
@@ -335,15 +335,12 @@ export class NftDetectionController extends PollingControllerV1<
    * added.
    *
    * @param networkClientId - The network client ID to detect NFTs on.
-   * @param _address - The address to detect NFTs for.
+   * @param accountAddress - The address to detect NFTs for.
    */
-  async detectNfts(networkClientId?: NetworkClientId, _address?: string) {
-    const chainId = this.getCorrectChainId({
-      chainId: this.config.chainId,
-      networkClientId,
-    });
+  async detectNfts(networkClientId?: NetworkClientId, accountAddress?: string) {
+    const chainId = this.getCorrectChainId(networkClientId);
 
-    const selectedAddress = _address || this.config.selectedAddress;
+    const selectedAddress = accountAddress || this.config.selectedAddress;
 
     /* istanbul ignore if */
     if (!this.isMainnet() || this.disabled) {
