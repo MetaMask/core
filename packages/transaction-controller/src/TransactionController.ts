@@ -35,6 +35,7 @@ import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { merge, pickBy } from 'lodash';
 import NonceTracker from 'nonce-tracker';
+import type { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
@@ -388,6 +389,7 @@ export class TransactionController extends BaseController<
       getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
+      nonceTracker: this.nonceTracker,
     });
 
     this.pendingTransactionTracker.hub.on(
@@ -1092,6 +1094,17 @@ export class TransactionController extends BaseController<
     );
 
     return this.getTransaction(transactionId) as TransactionMeta;
+  }
+
+  /**
+   * Gets the next nonce according to the nonce-tracker.
+   * Note: releaseLock must be called after adding a signed tx to pending transactions (or discarding).
+   *
+   * @param address - The hex string address for the transaction.
+   * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
+   */
+  async getNonceLock(address: string): Promise<NonceLock> {
+    return this.nonceTracker.getNonceLock(address);
   }
 
   private async processApproval(

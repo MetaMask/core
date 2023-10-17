@@ -2,6 +2,7 @@
 
 import { query } from '@metamask/controller-utils';
 import type { BlockTracker } from '@metamask/network-controller';
+import NonceTracker from 'nonce-tracker';
 
 import { TransactionStatus } from '../types';
 import { PendingTransactionTracker } from './PendingTransactionTracker';
@@ -36,6 +37,13 @@ jest.mock('@metamask/controller-utils', () => ({
   safelyExecute: (fn: () => any) => fn(),
 }));
 
+jest.mock('nonce-tracker', () => ({
+  getGlobalLock: jest.fn().mockResolvedValue({
+    releaseLock: () => Promise.resolve(),
+  }),
+  getNonceLock: jest.fn(),
+}));
+
 function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
   return {
     addListener: jest.fn(),
@@ -44,6 +52,7 @@ function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
 
 describe('PendingTransactionTracker', () => {
   const queryMock = jest.mocked(query);
+  const nonceTrackerMock = jest.mocked(NonceTracker);
   let blockTracker: jest.Mocked<BlockTracker>;
   let failTransaction: jest.Mock;
   let options: any;
@@ -58,6 +67,7 @@ describe('PendingTransactionTracker', () => {
       getChainId: () => CHAIN_ID_MOCK,
       getEthQuery: () => ({}),
       getTransactions: () => [],
+      nonceTracker: nonceTrackerMock,
     };
   });
 
@@ -249,6 +259,26 @@ describe('PendingTransactionTracker', () => {
 
     it('does nothing if no receipt', async () => {
       const transactionsListener = jest.fn();
+
+      const tracker = new PendingTransactionTracker({
+        ...options,
+        getTransactions: () => [{ ...TRANSACTION_CONFIRMED_MOCK }],
+      } as any);
+
+      tracker.hub.addListener('transactions', transactionsListener);
+      tracker.start();
+
+      await (blockTracker.addListener.mock.calls[0][1]() as any);
+
+      expect(failTransaction).toHaveBeenCalledTimes(0);
+      expect(transactionsListener).toHaveBeenCalledTimes(0);
+    });
+
+    it('logs error while checking the status of a submitted transaction', async () => {
+      const transactionsListener = jest.fn();
+      queryMock.mockImplementation(() => {
+        throw new Error('Mocked query error');
+      });
 
       const tracker = new PendingTransactionTracker({
         ...options,
