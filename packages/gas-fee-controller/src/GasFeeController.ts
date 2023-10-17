@@ -342,6 +342,7 @@ export class GasFeeController extends PollingController<
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
 
+    // @ts-expect-error TODO: Provider type alignment
     this.ethQuery = new EthQuery(this.#getProvider());
 
     if (onNetworkStateChange && getChainId) {
@@ -399,7 +400,6 @@ export class GasFeeController extends PollingController<
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
-
     const isLegacyGasAPICompatible =
       networkClient.configuration.chainId === '0x38';
 
@@ -417,6 +417,7 @@ export class GasFeeController extends PollingController<
       isEIP1559Compatible = false;
     }
 
+    // @ts-expect-error TODO: Provider type alignment
     const ethQuery = new EthQuery(networkClient.provider);
 
     const gasFeeCalculations = await determineGasFeeCalculations({
@@ -546,7 +547,14 @@ export class GasFeeController extends PollingController<
     }, this.intervalDelay);
   }
 
-  async executePoll(networkClientId: string): Promise<void> {
+  /**
+   * Fetching token list from the Token Service API.
+   *
+   * @private
+   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @returns A promise that resolves when this operation completes.
+   */
+  async _executePoll(networkClientId: string): Promise<void> {
     await this.#fetchGasFeeEstimateForNetworkClientId(networkClientId);
   }
 
@@ -588,6 +596,7 @@ export class GasFeeController extends PollingController<
     const newChainId = networkControllerState.providerConfig.chainId;
 
     if (newChainId !== this.currentChainId) {
+      // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.#getProvider());
       await this.resetPolling();
 

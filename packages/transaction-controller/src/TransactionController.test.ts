@@ -1537,6 +1537,7 @@ describe('TransactionController', () => {
       mockNetwork({
         networkClientConfiguration: {
           chainId: BUILT_IN_NETWORKS.mainnet.chainId,
+          ticker: BUILT_IN_NETWORKS.mainnet.ticker,
           type: NetworkClientType.Infura,
           network: 'mainnet',
           infuraProjectId: INFURA_PROJECT_ID,
@@ -1575,6 +1576,7 @@ describe('TransactionController', () => {
       const controller = newController({ network: MOCK_MAINNET_NETWORK });
       mockNetwork({
         networkClientConfiguration: {
+          ticker: BUILT_IN_NETWORKS.mainnet.ticker,
           chainId: BUILT_IN_NETWORKS.mainnet.chainId,
           type: NetworkClientType.Infura,
           network: 'mainnet',
