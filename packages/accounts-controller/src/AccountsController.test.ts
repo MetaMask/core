@@ -197,6 +197,8 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
       'AccountsController:setAccountName',
       'AccountsController:setSelectedAccount',
       'AccountsController:updateAccounts',
+      'AccountsController:getSelectedAccount',
+      'AccountsController:getAccountByAddress',
     ],
   });
 }
@@ -1732,67 +1734,37 @@ describe('AccountsController', () => {
     });
   });
 
-  describe('#getNextAccountNumber', () => {
-    it('should return the next account number', async () => {
-      const messenger = buildMessenger();
-      mockUUID
-        .mockReturnValueOnce('mock-id') // call to check if its a new account
-        .mockReturnValueOnce('mock-id2') // call to check if its a new account
-        .mockReturnValueOnce('mock-id3') // call to check if its a new account
-        .mockReturnValueOnce('mock-id2') // call to add account
-        .mockReturnValueOnce('mock-id3'); // call to add account
-
-      const mockSimpleKeyring1 = createExpectedInternalAccount({
-        id: 'mock-id2',
-        name: 'Account 2',
-        address: '0x555',
-        keyringType: 'Simple Key Pair',
-      });
-      const mockSimpleKeyring2 = createExpectedInternalAccount({
-        id: 'mock-id3',
-        name: 'Account 3',
-        address: '0x666',
-        keyringType: 'Simple Key Pair',
-      });
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address],
-          },
-          {
-            type: 'Simple Key Pair',
-            accounts: [mockSimpleKeyring1.address, mockSimpleKeyring2.address],
-          },
-        ],
-      };
+  describe('getAccountByAddress', () => {
+    it('should return an account by address', async () => {
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-            },
+            accounts: { [mockAccount.id]: mockAccount },
             selectedAccount: mockAccount.id,
           },
         },
-        messenger,
       });
 
-      messenger.publish(
-        'KeyringController:stateChange',
-        mockNewKeyringState,
-        [],
+      const account = accountsController.getAccountByAddress(
+        mockAccount.address,
       );
 
-      const accounts = accountsController.listAccounts();
+      expect(account).toStrictEqual(mockAccount);
+    });
 
-      expect(accounts).toStrictEqual([
-        mockAccount,
-        setLastSelectedAsAny(mockSimpleKeyring1),
-        setLastSelectedAsAny(mockSimpleKeyring2),
-      ]);
+    it("should return undefined if there isn't an account with the address", () => {
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const account = accountsController.getAccountByAddress('unknown address');
+
+      expect(account).toBeUndefined();
     });
   });
 
@@ -1802,6 +1774,8 @@ describe('AccountsController', () => {
       jest.spyOn(AccountsController.prototype, 'listAccounts');
       jest.spyOn(AccountsController.prototype, 'setAccountName');
       jest.spyOn(AccountsController.prototype, 'updateAccounts');
+      jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
+      jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
     });
 
     describe('setSelectedAccount', () => {
@@ -1902,7 +1876,9 @@ describe('AccountsController', () => {
     });
 
     describe('getAccountByAddress', () => {
-      it('should return an account by address', async () => {
+      it('should get account by address', async () => {
+        const messenger = buildMessenger();
+
         const accountsController = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -1910,29 +1886,39 @@ describe('AccountsController', () => {
               selectedAccount: mockAccount.id,
             },
           },
+          messenger,
         });
 
-        const account = accountsController.getAccountByAddress(
+        const account = messenger.call(
+          'AccountsController:getAccountByAddress',
           mockAccount.address,
         );
-
+        expect(accountsController.getAccountByAddress).toHaveBeenCalledWith(
+          mockAccount.address,
+        );
         expect(account).toStrictEqual(mockAccount);
       });
 
-      it("should return undefined if there isn't an account with the address", () => {
-        const accountsController = setupAccountsController({
-          initialState: {
-            internalAccounts: {
-              accounts: { [mockAccount.id]: mockAccount },
-              selectedAccount: mockAccount.id,
+      describe('getSelectedAccount', () => {
+        it('should get account by address', async () => {
+          const messenger = buildMessenger();
+
+          const accountsController = setupAccountsController({
+            initialState: {
+              internalAccounts: {
+                accounts: { [mockAccount.id]: mockAccount },
+                selectedAccount: mockAccount.id,
+              },
             },
-          },
+            messenger,
+          });
+
+          const account = messenger.call(
+            'AccountsController:getSelectedAccount',
+          );
+          expect(accountsController.getSelectedAccount).toHaveBeenCalledWith();
+          expect(account).toStrictEqual(mockAccount);
         });
-
-        const account =
-          accountsController.getAccountByAddress('unknown address');
-
-        expect(account).toBeUndefined();
       });
     });
   });

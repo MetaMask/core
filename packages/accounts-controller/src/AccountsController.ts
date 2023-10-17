@@ -18,6 +18,7 @@ import type { Snap, ValidatedSnapId } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
 import { type Patch } from 'immer';
+import type { WritableDraft } from 'immer/dist/internal';
 import { v4 as uuid } from 'uuid';
 
 import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
@@ -36,32 +37,43 @@ export type AccountsControllerGetStateAction = {
   handler: () => AccountsControllerState;
 };
 
-export type AccountsControllerSetSelectedAccount = {
+export type AccountsControllerSetSelectedAccountAction = {
   type: `${typeof controllerName}:setSelectedAccount`;
   handler: AccountsController['setSelectedAccount'];
 };
 
-export type AccountsControllerSetAccountName = {
+export type AccountsControllerSetAccountNameAction = {
   type: `${typeof controllerName}:setAccountName`;
   handler: AccountsController['setAccountName'];
 };
 
-export type AccountsControllerListAccounts = {
+export type AccountsControllerListAccountsAction = {
   type: `${typeof controllerName}:listAccounts`;
   handler: AccountsController['listAccounts'];
 };
 
-export type AccountsControllerUpdateAccounts = {
+export type AccountsControllerUpdateAccountsAction = {
   type: `${typeof controllerName}:updateAccounts`;
   handler: AccountsController['updateAccounts'];
 };
 
+export type AccountsControllerGetSelectedAccountAction = {
+  type: `${typeof controllerName}:getSelectedAccount`;
+  handler: AccountsController['getSelectedAccount'];
+};
+
+export type AccountsControllerGetAccountByAddressAction = {
+  type: `${typeof controllerName}:getAccountByAddress`;
+  handler: AccountsController['getAccountByAddress'];
+};
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
-  | AccountsControllerSetSelectedAccount
-  | AccountsControllerListAccounts
-  | AccountsControllerSetAccountName
-  | AccountsControllerUpdateAccounts
+  | AccountsControllerSetSelectedAccountAction
+  | AccountsControllerListAccountsAction
+  | AccountsControllerSetAccountNameAction
+  | AccountsControllerUpdateAccountsAction
+  | AccountsControllerGetAccountByAddressAction
+  | AccountsControllerGetSelectedAccountAction
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetAccountsAction;
@@ -754,6 +766,16 @@ export class AccountsController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:updateAccounts`,
       this.updateAccounts.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getSelectedAccount`,
+      this.getSelectedAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getAccountByAddress`,
+      this.getAccountByAddress.bind(this),
     );
   }
 }
