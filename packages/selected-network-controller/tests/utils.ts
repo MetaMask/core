@@ -31,8 +31,8 @@ export function buildSelectedNetworkControllerMessenger(
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     jest.fn().mockReturnValue({
-      provider: jest.fn(),
-      blockTracker: jest.fn(),
+      provider: { sendAsync: jest.fn() },
+      blockTracker: { getLatestBlock: jest.fn() },
     }),
   );
   return messenger.getRestricted({
