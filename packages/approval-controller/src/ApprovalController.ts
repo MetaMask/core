@@ -356,7 +356,7 @@ export class ApprovalController extends BaseControllerV2<
    * the request can be displayed to the user.
    * @param options.messenger - The restricted controller messenger for the Approval controller.
    * @param options.state - The initial controller state.
-   * @param options.typesExcludedFromRateLimiting - Array of aproval types which allow multiple pending approval requests from the same origin.
+   * @param options.typesExcludedFromRateLimiting - Array of approval types which allow multiple pending approval requests from the same origin.
    */
   constructor({
     messenger,
