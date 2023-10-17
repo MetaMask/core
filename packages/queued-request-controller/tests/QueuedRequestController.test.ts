@@ -76,14 +76,10 @@ describe('QueuedRequestController', () => {
         );
 
         // Enqueue the request
-        try {
-          await controller.enqueueRequest(requestWithError);
-        } catch (error: any) {
-          // Assert that the error is propagated
-          expect(error.message).toBe('Request failed');
-          // Assert that the queue length is updated
-          expect(controller.length()).toBe(0);
-        }
+        await expect(() =>
+          controller.enqueueRequest(requestWithError),
+        ).rejects.toStrictEqual(new Error('Request failed'));
+        expect(controller.length()).toBe(0);
       });
 
       it('handles errors without interrupting the execution of the next item in the queue', async () => {
@@ -111,14 +107,9 @@ describe('QueuedRequestController', () => {
         const promise2 = controller.enqueueRequest(request2);
         const promise3 = controller.enqueueRequest(request3);
 
-        try {
-          // Wait for all promises to resolve (expect the second one to throw an error)
-          await Promise.all([promise1, promise2, promise3]);
-        } catch (error: any) {
-          // Assert that the error is from request2
-          expect(error.message).toBe('Request 2 failed');
-        }
-
+        await expect(() =>
+          Promise.all([promise1, promise2, promise3]),
+        ).rejects.toStrictEqual(new Error('Request 2 failed'));
         // Ensure that request3 still executed despite the error in request2
         expect(request1).toHaveBeenCalled();
         expect(request2).toHaveBeenCalled();
@@ -148,25 +139,21 @@ describe('QueuedRequestController', () => {
       controller.enqueueRequest(
         async () => new Promise((resolve) => setTimeout(resolve, 10)),
       );
-
-      // Check if the event was emitted with the correct parameters (increased count)
-      expect(eventListener).toHaveBeenCalledWith(1);
+      expect(eventListener).toHaveBeenNthCalledWith(1, 1);
 
       // Enqueue another request, which should increase the count
       controller.enqueueRequest(
         async () => new Promise((resolve) => setTimeout(resolve, 10)),
       );
-
-      // Check if the event was emitted again with the correct parameters (increased count)
-      expect(eventListener).toHaveBeenCalledWith(2);
+      expect(eventListener).toHaveBeenNthCalledWith(2, 2);
 
       // Resolve the first request, which should decrease the count
-      await new Promise((resolve) => setTimeout(resolve, 10)); // Simulate request completion
-      expect(eventListener).toHaveBeenCalledWith(1);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(eventListener).toHaveBeenNthCalledWith(3, 1);
 
       // Resolve the second request, which should decrease the count
-      await new Promise((resolve) => setTimeout(resolve, 10)); // Simulate request completion
-      expect(eventListener).toHaveBeenCalledWith(0);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(eventListener).toHaveBeenNthCalledWith(4, 0);
     });
 
     it('returns the correct queue length', async () => {
