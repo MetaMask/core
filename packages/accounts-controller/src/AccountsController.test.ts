@@ -488,8 +488,6 @@ describe('AccountsController', () => {
           [],
         );
 
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
         const accounts = accountsController.listAccounts();
 
         expect(accounts).toStrictEqual([
@@ -726,8 +724,6 @@ describe('AccountsController', () => {
           mockNewKeyringState,
           [],
         );
-
-        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const { selectedAccount } = accountsController.state.internalAccounts;
 
@@ -1789,8 +1785,6 @@ describe('AccountsController', () => {
         mockNewKeyringState,
         [],
       );
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
 
       const accounts = accountsController.listAccounts();
 
