@@ -1,6 +1,11 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { ControllerMessenger } from '@metamask/base-controller';
-import { ApprovalType, BUILT_IN_NETWORKS } from '@metamask/controller-utils';
+import type { InfuraNetworkType } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  BUILT_IN_NETWORKS,
+  isNetworkType,
+} from '@metamask/controller-utils';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type {
@@ -58,17 +63,21 @@ export const createQueuedRequestMiddleware = (
           return next();
         }
 
-        const builtIn =
-          BUILT_IN_NETWORKS[
-            networkClientIdForRequest as keyof typeof BUILT_IN_NETWORKS
-          ];
-        const isBuiltIn = builtIn !== undefined && builtIn.chainId;
-        const networkConfigurationForRequest = isBuiltIn
-          ? builtIn
-          : messenger.call(
-              'NetworkController:getNetworkClientById',
-              networkClientIdForRequest,
-            ).configuration;
+        const isBuiltIn = isNetworkType(networkClientIdForRequest);
+        let networkConfigurationForRequest;
+        if (isBuiltIn) {
+          const builtIn = BUILT_IN_NETWORKS[networkClientIdForRequest];
+          if (builtIn.chainId) {
+            networkConfigurationForRequest = builtIn;
+          }
+        }
+
+        networkConfigurationForRequest =
+          networkConfigurationForRequest ||
+          messenger.call(
+            'NetworkController:getNetworkClientById',
+            networkClientIdForRequest,
+          ).configuration;
 
         const currentProviderConfig = messenger.call(
           'NetworkController:getState',
@@ -91,7 +100,7 @@ export const createQueuedRequestMiddleware = (
         };
 
         try {
-          const approvedRequestData = (await messenger.call(
+          const approvedRequestData = await messenger.call(
             'ApprovalController:addRequest',
             {
               origin,
@@ -99,17 +108,17 @@ export const createQueuedRequestMiddleware = (
               requestData,
             },
             true,
-          )) as any;
+          );
 
           if (isBuiltIn) {
             await messenger.call(
               'NetworkController:setProviderType',
-              approvedRequestData.type,
+              (approvedRequestData as { type: InfuraNetworkType }).type,
             );
           } else {
             await messenger.call(
               'NetworkController:setActiveNetwork',
-              approvedRequestData.id,
+              (approvedRequestData as { id: NetworkClientId }).id,
             );
           }
 

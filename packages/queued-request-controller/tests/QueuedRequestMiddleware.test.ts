@@ -91,6 +91,12 @@ const buildMocks = (messenger: any, mocks: any = {}) => {
   };
 };
 
+const requestDefaults = {
+  method: 'doesnt matter',
+  id: 'doesnt matter',
+  jsonrpc: '2.0' as const,
+};
+
 const noop = jest.fn();
 
 describe('createQueuedRequesMitddleware', () => {
@@ -100,8 +106,9 @@ describe('createQueuedRequesMitddleware', () => {
     const mocks = buildMocks(messenger);
 
     const req = {
+      ...requestDefaults,
       origin: 'example.com',
-    } as any;
+    };
 
     await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
 
@@ -114,9 +121,10 @@ describe('createQueuedRequesMitddleware', () => {
     const mocks = buildMocks(messenger);
 
     const req = {
+      ...requestDefaults,
       origin: 'example.com',
       method: 'eth_chainId',
-    } as any;
+    };
 
     await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
 
@@ -130,9 +138,10 @@ describe('createQueuedRequesMitddleware', () => {
       const mocks = buildMocks(messenger);
 
       const req = {
+        ...requestDefaults,
         origin: 'example.com',
         method: 'eth_sendTransaction',
-      } as any;
+      };
 
       await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
 
@@ -148,9 +157,10 @@ describe('createQueuedRequesMitddleware', () => {
       const mocks = buildMocks(messenger);
 
       const req = {
+        ...requestDefaults,
         origin: 'example.com',
         method: 'wallet_switchEthereumChain',
-      } as any;
+      };
 
       await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
 
@@ -174,9 +184,10 @@ describe('createQueuedRequesMitddleware', () => {
         });
 
         const req = {
+          ...requestDefaults,
           origin: 'example.com',
           method: 'eth_sendTransaction',
-        } as any;
+        };
 
         await new Promise((resolve) =>
           middleware(req, {} as any, resolve, noop),
@@ -205,9 +216,10 @@ describe('createQueuedRequesMitddleware', () => {
         });
 
         const req = {
+          ...requestDefaults,
           origin: 'example.com',
           method: 'eth_sendTransaction',
-        } as any;
+        };
 
         const res: any = {};
         await new Promise((resolve) => middleware(req, res, noop, resolve));
@@ -232,10 +244,11 @@ describe('createQueuedRequesMitddleware', () => {
         });
 
         const req = {
+          ...requestDefaults,
           origin: 'example.com',
           method: 'eth_sendTransaction',
           networkClientId: 'mainnet',
-        } as any;
+        };
 
         await new Promise((resolve) =>
           middleware(req, {} as any, resolve, noop),
@@ -262,10 +275,11 @@ describe('createQueuedRequesMitddleware', () => {
         });
 
         const req = {
+          ...requestDefaults,
           origin: 'example.com',
           method: 'eth_sendTransaction',
           networkClientId: 'https://some-rpc-url.com',
-        } as any;
+        };
 
         await new Promise((resolve) =>
           middleware(req, {} as any, resolve, noop),
@@ -298,14 +312,16 @@ describe('createQueuedRequesMitddleware', () => {
       });
 
       const req1 = {
+        ...requestDefaults,
         origin: 'example.com',
         method: 'eth_sendTransaction',
-      } as any;
+      };
 
       const req2 = {
+        ...requestDefaults,
         origin: 'example.com',
         method: 'eth_sendTransaction',
-      } as any;
+      };
 
       const res1: any = {};
       const res2: any = {};
