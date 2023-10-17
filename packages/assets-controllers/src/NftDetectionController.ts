@@ -271,10 +271,7 @@ export class NftDetectionController extends PollingControllerV1<
     networkClientId: string,
     options: { address: string },
   ): Promise<void> {
-    await this.detectNftsByNetworkClientIdAndUserAddress(
-      networkClientId,
-      options.address,
-    );
+    await this.detectNfts(networkClientId, options.address);
   }
 
   /**
@@ -326,101 +323,40 @@ export class NftDetectionController extends PollingControllerV1<
     return networkClient.configuration.chainId === ChainId.mainnet;
   };
 
-  async detectNftsByNetworkClientIdAndUserAddress(
-    networkClientId: NetworkClientId,
-    selectedAddress: string,
-  ) {
-    const networkClient = this.getNetworkClientById(networkClientId);
-
-    if (!this.isMainnetByNetworkClientId(networkClient) || this.disabled) {
-      return;
+  private getCorrectChainId({
+    chainId,
+    networkClientId,
+  }: {
+    chainId?: Hex;
+    networkClientId?: NetworkClientId;
+  }) {
+    if (networkClientId) {
+      return this.getNetworkClientById(networkClientId).configuration.chainId;
+    } else if (chainId) {
+      return chainId;
     }
-    const { chainId } = networkClient.configuration;
-
-    /* istanbul ignore else */
-    if (!selectedAddress) {
-      return;
-    }
-    // TODO Parameterize this by chainId for non-mainnet token detection
-    const apiNfts = await this.getOwnerNfts(selectedAddress);
-    const addNftPromises = apiNfts.map(async (nft: ApiNft) => {
-      const {
-        token_id,
-        num_sales,
-        background_color,
-        image_url,
-        image_preview_url,
-        image_thumbnail_url,
-        image_original_url,
-        animation_url,
-        animation_original_url,
-        name,
-        description,
-        external_link,
-        creator,
-        asset_contract: { address, schema_name },
-        last_sale,
-      } = nft;
-
-      let ignored;
-      /* istanbul ignore else */
-      const { ignoredNfts } = this.getNftState();
-      if (ignoredNfts.length) {
-        ignored = ignoredNfts.find((c) => {
-          /* istanbul ignore next */
-          return (
-            c.address === toChecksumHexAddress(address) &&
-            c.tokenId === token_id
-          );
-        });
-      }
-
-      /* istanbul ignore else */
-      if (!ignored) {
-        /* istanbul ignore next */
-        const nftMetadata: NftMetadata = Object.assign(
-          {},
-          { name },
-          creator && { creator },
-          description && { description },
-          image_url && { image: image_url },
-          num_sales && { numberOfSales: num_sales },
-          background_color && { backgroundColor: background_color },
-          image_preview_url && { imagePreview: image_preview_url },
-          image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
-          image_original_url && { imageOriginal: image_original_url },
-          animation_url && { animation: animation_url },
-          animation_original_url && {
-            animationOriginal: animation_original_url,
-          },
-          schema_name && { standard: schema_name },
-          external_link && { externalLink: external_link },
-          last_sale && { lastSale: last_sale },
-        );
-
-        await this.addNft(address, token_id, {
-          nftMetadata,
-          userAddress: selectedAddress,
-          networkClientId,
-          chainId,
-          source: Source.Detected,
-        });
-      }
-    });
-    await Promise.all(addNftPromises);
+    return this.config.chainId;
   }
 
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
    * added.
+   *
+   * @param networkClientId - The network client ID to detect NFTs on.
+   * @param _address - The address to detect NFTs for.
    */
-  async detectNfts() {
+  async detectNfts(networkClientId?: NetworkClientId, _address?: string) {
+    const chainId = this.getCorrectChainId({
+      chainId: this.config.chainId,
+      networkClientId,
+    });
+
+    const selectedAddress = _address || this.config.selectedAddress;
+
     /* istanbul ignore if */
     if (!this.isMainnet() || this.disabled) {
       return;
     }
-    const { selectedAddress, chainId } = this.config;
-
     /* istanbul ignore else */
     if (!selectedAddress) {
       return;

@@ -275,7 +275,9 @@ describe('NftDetectionController', () => {
     const testNftDetection = new NftDetectionController({
       chainId: ChainId.mainnet,
       onNftsStateChange: (listener) => nftController.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onPreferencesStateChange: () => {
+        // don't do anything
+      },
       onNetworkStateChange: networkStateChangeNoop,
       getOpenSeaApiKey: getOpenSeaApiKeyStub,
       addNft: nftController.addNft.bind(nftController),
@@ -284,7 +286,7 @@ describe('NftDetectionController', () => {
     });
     preferences.setUseNftDetection(true);
     const spy = jest
-      .spyOn(testNftDetection, 'detectNftsByNetworkClientIdAndUserAddress')
+      .spyOn(testNftDetection, 'detectNfts')
       .mockImplementation(() => {
         return Promise.resolve();
       });
@@ -376,10 +378,7 @@ describe('NftDetectionController', () => {
   it('should detect and add NFTs by networkClientId correctly', async () => {
     const selectedAddress = '0x1';
 
-    await nftDetection.detectNftsByNetworkClientIdAndUserAddress(
-      'mainnet',
-      '0x1',
-    );
+    await nftDetection.detectNfts('mainnet', '0x1');
 
     const nfts = nftController.state.allNfts[ChainId.mainnet][selectedAddress];
     expect(nfts).toStrictEqual([
