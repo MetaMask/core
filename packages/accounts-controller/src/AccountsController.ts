@@ -291,8 +291,7 @@ export class AccountsController extends BaseControllerV2<
       throw new Error('Account name already exists');
     }
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
+    // @ts-expect-error TODO: align BaseController state update callback type
     this.update((currentState: AccountsControllerState) => {
       currentState.internalAccounts.accounts[accountId] = {
         ...account,
@@ -689,7 +688,7 @@ export class AccountsController extends BaseControllerV2<
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
    * @param account - The address and keyring type object of the new account.
    */
-  async #handleNewAccountAdded(account: AddressAndKeyringTypeObject) {
+  #handleNewAccountAdded(account: AddressAndKeyringTypeObject) {
     let newAccount: InternalAccount;
     if (account.type !== 'Snap Keyring') {
       newAccount = this.#generateInternalAccountForNonSnapAccount(
@@ -702,9 +701,9 @@ export class AccountsController extends BaseControllerV2<
         SnapKeyring.type,
       );
 
-      newAccount = (await (snapKeyring as SnapKeyring).getAccountByAddress(
+      newAccount = (snapKeyring as SnapKeyring).getAccountByAddress(
         account.address,
-      )) as InternalAccount;
+      ) as InternalAccount;
 
       // The snap deleted the account before the keyring controller could add it
       if (!newAccount) {
