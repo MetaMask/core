@@ -72,12 +72,10 @@ export const createQueuedRequestMiddleware = (
           }
         }
 
-        networkConfigurationForRequest =
-          networkConfigurationForRequest ||
-          messenger.call(
-            'NetworkController:getNetworkClientById',
-            networkClientIdForRequest,
-          ).configuration;
+        networkConfigurationForRequest ??= messenger.call(
+          'NetworkController:getNetworkClientById',
+          networkClientIdForRequest,
+        ).configuration;
 
         const currentProviderConfig = messenger.call(
           'NetworkController:getState',
@@ -103,7 +101,7 @@ export const createQueuedRequestMiddleware = (
           const approvedRequestData = await messenger.call(
             'ApprovalController:addRequest',
             {
-              origin,
+              origin: req.origin,
               type: ApprovalType.SwitchEthereumChain,
               requestData,
             },
