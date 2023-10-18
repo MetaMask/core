@@ -1,32 +1,18 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
-import type { Patch } from 'immer';
 
 const controllerName = 'QueuedRequestController';
-
-// should serialize and persist these values.
-const stateMetadata = {
-  queue: { persist: false, anonymous: false },
-};
-
-const getDefaultState = () => ({});
 
 export const QueuedRequestControllerActionTypes = {
   enqueueRequest: `${controllerName}:enqueueRequest` as const,
 };
 
 export const QueuedRequestControllerEventTypes = {
-  stateChange: `${controllerName}:stateChange` as const,
   countChanged: `${controllerName}:countChanged` as const,
 };
 
 export type QueuedRequestControllerState = {
   [k: string]: any;
-};
-
-export type QueuedRequestControllerStateChangeEvent = {
-  type: typeof QueuedRequestControllerEventTypes.stateChange;
-  payload: [QueuedRequestControllerState, Patch[]];
 };
 
 export type QueuedRequestControllerCountChangedEvent = {
@@ -40,8 +26,7 @@ export type QueuedRequestControllerEnqueueRequestAction = {
 };
 
 export type QueuedRequestControllerEvents =
-  | QueuedRequestControllerStateChangeEvent
-  | QueuedRequestControllerCountChangedEvent;
+  QueuedRequestControllerCountChangedEvent;
 
 export type QueuedRequestControllerActions =
   QueuedRequestControllerEnqueueRequestAction;
@@ -79,9 +64,9 @@ export class QueuedRequestController extends BaseControllerV2<
   constructor({ messenger }: QueuedRequestControllerOptions) {
     super({
       name: controllerName,
-      metadata: stateMetadata,
+      metadata: {},
       messenger,
-      state: getDefaultState(),
+      state: {},
     });
     this.#registerMessageHandlers();
   }
