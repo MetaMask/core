@@ -59,7 +59,7 @@ export type QueuedRequestControllerOptions = {
 };
 
 /**
- * Controller for requesting encryption public key requests requiring user approval.
+ * Controller for request queueing.
  */
 export class QueuedRequestController extends BaseControllerV2<
   typeof controllerName,
@@ -68,10 +68,10 @@ export class QueuedRequestController extends BaseControllerV2<
 > {
   private currentRequest: Promise<unknown> = Promise.resolve();
 
-  private count = 0;
+  #count = 0;
 
   /**
-   * Construct a EncryptionPublicKey controller.
+   * Construct a RequestQueueController.
    *
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the QueuedRequestController
@@ -94,7 +94,7 @@ export class QueuedRequestController extends BaseControllerV2<
   }
 
   length() {
-    return this.count;
+    return this.#count;
   }
 
   // [ current batch ] - [ batch n ] - [ last batch ]
@@ -104,29 +104,29 @@ export class QueuedRequestController extends BaseControllerV2<
   // otherwise, add request to the last batch
 
   async enqueueRequest(requestNext: (...arg: unknown[]) => Promise<unknown>) {
-    this.count += 1;
+    this.#count += 1;
     this.messagingSystem.publish(
       'QueuedRequestController:countChanged',
-      this.count,
+      this.#count,
     );
 
-    if (this.count > 1) {
+    if (this.#count > 1) {
       await this.currentRequest;
     }
 
     this.currentRequest = requestNext()
       .then(() => {
-        this.count -= 1;
+        this.#count -= 1;
         this.messagingSystem.publish(
           'QueuedRequestController:countChanged',
-          this.count,
+          this.#count,
         );
       })
       .catch((e) => {
-        this.count -= 1;
+        this.#count -= 1;
         this.messagingSystem.publish(
           'QueuedRequestController:countChanged',
-          this.count,
+          this.#count,
         );
         throw e;
       });
