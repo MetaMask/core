@@ -119,7 +119,7 @@ export const createQueuedRequestMiddleware = (
           const approvedRequestData = (await messenger.call(
             'ApprovalController:addRequest',
             {
-              origin,
+              origin: req.origin,
               type: ApprovalType.SwitchEthereumChain,
               requestData,
             },

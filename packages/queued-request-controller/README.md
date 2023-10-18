@@ -1,6 +1,6 @@
 # `@metamask/queued-request-controller`
 
-Includes a controller and middleware that implements a request queue
+Includes a controller and middleware that implements a request queue.
 
 ## Installation
 
