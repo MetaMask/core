@@ -17,7 +17,7 @@ import type {
 import type { Snap, ValidatedSnapId } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
-import { type Patch } from 'immer';
+import type { Patch, Draft } from 'immer';
 import { v4 as uuid } from 'uuid';
 
 import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
@@ -241,9 +241,7 @@ export class AccountsController extends BaseControllerV2<
   setSelectedAccount(accountId: string): void {
     const account = this.getAccount(accountId);
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
-    this.update((currentState: AccountsControllerState) => {
+    this.update((currentState: Draft<AccountsControllerState>) => {
       if (account) {
         currentState.internalAccounts.accounts[
           account.id
@@ -282,10 +280,7 @@ export class AccountsController extends BaseControllerV2<
       throw new Error('Account name already exists');
     }
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
-    this.update((currentState: AccountsControllerState) => {
-      currentState.internalAccounts.accounts[accountId] = {
+    this.update((currentState: Draft<AccountsControllerState>) => {
         ...account,
         metadata: {
           ...account.metadata,
@@ -346,10 +341,7 @@ export class AccountsController extends BaseControllerV2<
       return internalAccountMap;
     }, {} as Record<string, InternalAccount>);
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
-    this.update((currentState: AccountsControllerState) => {
-      currentState.internalAccounts.accounts = accounts;
+    this.update((currentState: Draft<AccountsControllerState>) => {
     });
   }
 
@@ -360,10 +352,7 @@ export class AccountsController extends BaseControllerV2<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore Type instantiation is excessively deep and possibly infinite.
-      this.update((currentState: AccountsControllerState) => {
-        currentState.internalAccounts = backup.internalAccounts;
+      this.update((currentState: Draft<AccountsControllerState>) => {
       });
     }
   }
@@ -620,9 +609,7 @@ export class AccountsController extends BaseControllerV2<
       (account) => account.metadata.snap,
     );
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
-    this.update((currentState: AccountsControllerState) => {
+    this.update((currentState: Draft<AccountsControllerState>) => {
       accounts.forEach((account) => {
         const currentAccount =
           currentState.internalAccounts.accounts[account.id];
@@ -719,9 +706,7 @@ export class AccountsController extends BaseControllerV2<
 
     const accountName = `${accountPrefix} ${indexToUse}`;
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
-    this.update((currentState: AccountsControllerState) => {
+    this.update((currentState: Draft<AccountsControllerState>) => {
       currentState.internalAccounts.accounts[newAccount.id] = {
         ...newAccount,
         metadata: {
@@ -740,9 +725,7 @@ export class AccountsController extends BaseControllerV2<
    * @param accountId - The ID of the account to be removed.
    */
   #handleAccountRemoved(accountId: string) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Type instantiation is excessively deep and possibly infinite.
-    this.update((currentState: AccountsControllerState) => {
+    this.update((currentState: Draft<AccountsControllerState>) => {
       delete currentState.internalAccounts.accounts[accountId];
     });
   }
