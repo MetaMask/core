@@ -19,6 +19,7 @@ import type {
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 import type { Json } from '@metamask/utils';
+import { isJsonRpcError } from '@metamask/utils';
 
 import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
@@ -139,7 +140,9 @@ export const createQueuedRequestMiddleware = (
             networkClientIdForRequest ?? '',
           );
         } catch (error) {
-          res.error = error;
+          if (isJsonRpcError(error)) {
+            res.error = error;
+          }
           return error;
         }
 
