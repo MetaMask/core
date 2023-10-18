@@ -17,8 +17,7 @@ import type {
 import type { Snap, ValidatedSnapId } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import { sha256FromString } from 'ethereumjs-util';
-import { type Patch } from 'immer';
-import type { WritableDraft } from 'immer/dist/internal';
+import type { Patch, Draft } from 'immer';
 import { v4 as uuid } from 'uuid';
 
 import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
@@ -252,7 +251,7 @@ export class AccountsController extends BaseControllerV2<
   setSelectedAccount(accountId: string): void {
     const account = this.getAccount(accountId);
 
-    this.update((currentState: WritableDraft<AccountsControllerState>) => {
+    this.update((currentState: Draft<AccountsControllerState>) => {
       if (account) {
         currentState.internalAccounts.accounts[
           account.id
@@ -291,15 +290,14 @@ export class AccountsController extends BaseControllerV2<
       throw new Error('Account name already exists');
     }
 
-    // @ts-expect-error TODO: align BaseController state update callback type
-    this.update((currentState: AccountsControllerState) => {
-      currentState.internalAccounts.accounts[accountId] = {
+    this.update((currentState: Draft<AccountsControllerState>) => {
+      const internalAccount = {
         ...account,
-        metadata: {
-          ...account.metadata,
-          name: accountName,
-        },
+        metadata: { ...account.metadata, name: accountName },
       };
+      currentState.internalAccounts.accounts[accountId] =
+        // @ts-expect-error Assigning a complex type `T` to `Draft<T>` causes an excessive type instantiation depth error.
+        internalAccount as Draft<InternalAccount>;
     });
   }
 
@@ -354,8 +352,9 @@ export class AccountsController extends BaseControllerV2<
       return internalAccountMap;
     }, {} as Record<string, InternalAccount>);
 
-    this.update((currentState: WritableDraft<AccountsControllerState>) => {
-      currentState.internalAccounts.accounts = accounts;
+    this.update((currentState: Draft<AccountsControllerState>) => {
+      (currentState as AccountsControllerState).internalAccounts.accounts =
+        accounts;
     });
   }
 
@@ -366,8 +365,9 @@ export class AccountsController extends BaseControllerV2<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      this.update((currentState: WritableDraft<AccountsControllerState>) => {
-        currentState.internalAccounts = backup.internalAccounts;
+      this.update((currentState: Draft<AccountsControllerState>) => {
+        (currentState as AccountsControllerState).internalAccounts =
+          backup.internalAccounts;
       });
     }
   }
@@ -621,7 +621,7 @@ export class AccountsController extends BaseControllerV2<
       (account) => account.metadata.snap,
     );
 
-    this.update((currentState: WritableDraft<AccountsControllerState>) => {
+    this.update((currentState: Draft<AccountsControllerState>) => {
       accounts.forEach((account) => {
         const currentAccount =
           currentState.internalAccounts.accounts[account.id];
@@ -718,8 +718,10 @@ export class AccountsController extends BaseControllerV2<
 
     const accountName = `${accountPrefix} ${indexToUse}`;
 
-    this.update((currentState: WritableDraft<AccountsControllerState>) => {
-      currentState.internalAccounts.accounts[newAccount.id] = {
+    this.update((currentState: Draft<AccountsControllerState>) => {
+      (currentState as AccountsControllerState).internalAccounts.accounts[
+        newAccount.id
+      ] = {
         ...newAccount,
         metadata: {
           ...newAccount.metadata,
@@ -737,7 +739,7 @@ export class AccountsController extends BaseControllerV2<
    * @param accountId - The ID of the account to be removed.
    */
   #handleAccountRemoved(accountId: string) {
-    this.update((currentState: WritableDraft<AccountsControllerState>) => {
+    this.update((currentState: Draft<AccountsControllerState>) => {
       delete currentState.internalAccounts.accounts[accountId];
     });
   }
