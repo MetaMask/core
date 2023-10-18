@@ -1572,7 +1572,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
    * @param transactionId - NFT transaction id.
    * @param selectedAddress - Hex address of the user account.
    * @param chainId - Id of the current network.
-   * @returns a boolean indicating if the reset was well succeded or not
+   * @returns a boolean indicating if the reset was well succeeded or not
    */
   resetNftTransactionStatusByTransactionId(
     transactionId: string,
