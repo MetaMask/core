@@ -18,6 +18,7 @@ import type {
 } from '@metamask/network-controller';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
+import type { Json } from '@metamask/utils';
 
 import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
@@ -46,14 +47,24 @@ export const createQueuedRequestMiddleware = (
     never
   >,
   useRequestQueue: () => boolean,
-): JsonRpcMiddleware<any, any> => {
-  return createAsyncMiddleware(async (req: any, res: any, next) => {
-    if (!useRequestQueue() || isConfirmationMethod(req.method)) {
+) => {
+  return createAsyncMiddleware<
+    {
+      networkClientId?: NetworkClientId;
+      origin: string;
+    },
+    Json
+  >(async (req, res, next) => {
+    if (
+      !useRequestQueue() ||
+      isConfirmationMethod(req.method) ||
+      req.params === undefined
+    ) {
       next();
       return;
     }
 
-    const networkClientIdForRequest = req.networkClientId as NetworkClientId;
+    const { origin, networkClientId: networkClientIdForRequest } = req.params;
 
     await messenger.call(
       QueuedRequestControllerActionTypes.enqueueRequest,
@@ -76,7 +87,7 @@ export const createQueuedRequestMiddleware = (
           networkConfigurationForRequest ||
           messenger.call(
             'NetworkController:getNetworkClientById',
-            networkClientIdForRequest,
+            networkClientIdForRequest ?? '',
           ).configuration;
 
         const currentProviderConfig = messenger.call(
@@ -124,8 +135,8 @@ export const createQueuedRequestMiddleware = (
 
           messenger.call(
             SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
-            req.origin,
-            networkClientIdForRequest,
+            origin,
+            networkClientIdForRequest ?? '',
           );
         } catch (error) {
           res.error = error;
