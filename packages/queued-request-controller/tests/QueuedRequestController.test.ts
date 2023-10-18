@@ -78,7 +78,7 @@ describe('QueuedRequestController', () => {
         // Enqueue the request
         await expect(() =>
           controller.enqueueRequest(requestWithError),
-        ).rejects.toStrictEqual(new Error('Request failed'));
+        ).rejects.toThrow(new Error('Request failed'));
         expect(controller.length()).toBe(0);
       });
 
