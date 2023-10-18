@@ -1,0 +1,64 @@
+{
+  "name": "@metamask/accounts-controller",
+  "version": "3.0.0",
+  "description": "Manages internal accounts",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/accounts-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/accounts-controller",
+    "publish:preview": "yarn npm publish --tag preview",
+    "test": "jest",
+    "test:clean": "jest --clearCache",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "^3.2.3",
+    "@metamask/eth-snap-keyring": "^1.0.0",
+    "@metamask/keyring-api": "^1.0.0",
+    "@metamask/snaps-utils": "^3.0.0",
+    "@metamask/utils": "^8.1.0",
+    "deepmerge": "^4.2.2",
+    "ethereumjs-util": "^7.0.10",
+    "immer": "^9.0.6",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/keyring-controller": "^8.0.3",
+    "@metamask/snaps-controllers": "^3.0.0",
+    "@types/jest": "^27.4.1",
+    "@types/readable-stream": "^2.3.0",
+    "jest": "^27.5.1",
+    "ts-jest": "^27.1.4",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~4.8.4"
+  },
+  "peerDependencies": {
+    "@metamask/keyring-controller": "^8.0.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

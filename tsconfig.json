@@ -5,6 +5,9 @@
   },
   "references": [
     {
+      "path": "./packages/accounts-controller"
+    },
+    {
       "path": "./packages/address-book-controller"
     },
     {
@@ -29,6 +32,9 @@
       "path": "./packages/ens-controller"
     },
     {
+      "path": "./packages/eth-json-rpc-provider"
+    },
+    {
       "path": "./packages/gas-fee-controller"
     },
     {
@@ -38,7 +44,13 @@
       "path": "./packages/message-manager"
     },
     {
+      "path": "./packages/name-controller"
+    },
+    {
       "path": "./packages/network-controller"
+    },
+    {
+      "path": "./packages/selected-network-controller"
     },
     {
       "path": "./packages/notification-controller"

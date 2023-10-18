@@ -1,6 +1,9 @@
 {
   "references": [
     {
+      "path": "./packages/accounts-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/address-book-controller/tsconfig.build.json"
     },
     {
@@ -25,6 +28,9 @@
       "path": "./packages/ens-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/eth-json-rpc-provider/tsconfig.build.json"
+    },
+    {
       "path": "./packages/gas-fee-controller/tsconfig.build.json"
     },
     {
@@ -37,7 +43,13 @@
       "path": "./packages/message-manager/tsconfig.build.json"
     },
     {
+      "path": "./packages/name-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/selected-network-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/notification-controller/tsconfig.build.json"

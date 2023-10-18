@@ -6,6 +6,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.3]
+### Changed
+- `signTransaction` now accepts an optional `opts: Record<string, unknown>` argument to support `signTransaction` from `Keyring` type ([#1789](https://github.com/MetaMask/core/pull/1789))
+- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
+
+## [8.0.2]
+### Changed
+- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
+- Bump dependency on `@metamask/base-controller` to ^3.2.3
+- Bump dependency on `@metamask/message-manager` to ^7.3.5
+
+### Fixed
+- Update `removeAccount` to remove call to `PreferencesController.removeIdentity` as `PreferencesController` already handles account removal side effects through messenger events ([#1759](https://github.com/MetaMask/core/pull/1759))
+
+## [8.0.1]
+### Changed
+- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
+
+### Fixed
+- Removed `keyringTypes` from `memStore` ([#1710](https://github.com/MetaMask/core/pull/1710))
+  - This property was accidentally getting copied into the memstore from the internal keyring controller. It was causing errors because there is no metadata for this state property.
+
+## [8.0.0]
+### Added
+- Add `getQRKeyring(): QRKeyring | undefined` method
+- Add `KeyringController:qrKeyringStateChange` messenger event
+- The event emits updates from the internal `QRKeyring` instance, if there's one
+
+### Changed
+- **BREAKING:** addNewKeyring(type) return type changed from Promise<Keyring<Json>> to Promise<unknown>
+  - When calling with QRKeyring type the keyring instance is retrieved or created (no multiple QRKeyring instances possible)
+- Bump dependency on `@metamask/message-manager` to ^7.3.3
+- Bump dependency on `@metamask/preferences-controller` to ^4.4.1
+
+### Fixed
+- Fix `addNewAccountForKeyring` for `CustodyKeyring` ([#1694](https://github.com/MetaMask/core/pull/1694))
+
+## [7.5.0]
+### Added
+- Add `KeyringController` messenger actions ([#1691](https://github.com/MetaMask/core/pull/1691))
+  - `KeyringController:getAccounts`
+  - `KeyringController:getKeyringsByType`
+  - `KeyringController:getKeyringForAccount`
+
+### Changed
+- Bump `@metamask/eth-sig-util` from 6.0.0 to 7.0.0 ([#1669](https://github.com/MetaMask/core/pull/1669))
+
+## [7.4.0]
+### Added
+- Add `KeyringController` messenger actions ([#1654](https://github.com/MetaMask/core/pull/1654))
+  - `KeyringController:signMessage`
+  - `KeyringController:signPersonalMessage`
+  - `KeyringController:signTypedMessage`
+  - `KeyringController:decryptMessage`
+  - `KeyringController:getEncryptionPublicKey`
+
+## [7.3.0]
+### Added
+- Add `decryptMessage` method ([#1596](https://github.com/MetaMask/core/pull/1596))
+
 ## [7.2.0]
 ### Added
 - Add `addNewAccountForKeyring` method ([#1591](https://github.com/MetaMask/core/pull/1591))
@@ -158,7 +218,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.3...HEAD
+[8.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.2...@metamask/keyring-controller@8.0.3
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.1...@metamask/keyring-controller@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.0...@metamask/keyring-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.5.0...@metamask/keyring-controller@8.0.0
+[7.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.4.0...@metamask/keyring-controller@7.5.0
+[7.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.3.0...@metamask/keyring-controller@7.4.0
+[7.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.2.0...@metamask/keyring-controller@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.1.0...@metamask/keyring-controller@7.2.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.0.0...@metamask/keyring-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.1.0...@metamask/keyring-controller@7.0.0

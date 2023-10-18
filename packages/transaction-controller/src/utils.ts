@@ -1,8 +1,4 @@
-import {
-  convertHexToDecimal,
-  isValidHexAddress,
-} from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import { convertHexToDecimal } from '@metamask/controller-utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
@@ -10,14 +6,16 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './TransactionController';
-import type { Transaction, TransactionMeta, TransactionStatus } from './types';
+import { TransactionStatus } from './types';
+import type { TransactionParams, TransactionMeta } from './types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
-const NORMALIZERS: { [param in keyof Transaction]: any } = {
+const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
   data: (data: string) => addHexPrefix(data),
   from: (from: string) => addHexPrefix(from).toLowerCase(),
   gas: (gas: string) => addHexPrefix(gas),
+  gasLimit: (gas: string) => addHexPrefix(gas),
   gasPrice: (gasPrice: string) => addHexPrefix(gasPrice),
   nonce: (nonce: string) => addHexPrefix(nonce),
   to: (to: string) => addHexPrefix(to).toLowerCase(),
@@ -27,99 +25,41 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
     addHexPrefix(maxPriorityFeePerGas),
   estimatedBaseFee: (maxPriorityFeePerGas: string) =>
     addHexPrefix(maxPriorityFeePerGas),
+  type: (type: string) => (type === '0x0' ? '0x0' : undefined),
 };
 
 /**
- * Normalizes properties on a Transaction object.
+ * Normalizes properties on transaction params.
  *
- * @param transaction - Transaction object to normalize.
- * @returns Normalized Transaction object.
+ * @param txParams - The transaction params to normalize.
+ * @returns Normalized transaction params.
  */
-export function normalizeTransaction(transaction: Transaction) {
-  const normalizedTransaction: Transaction = { from: '' };
-  let key: keyof Transaction;
+export function normalizeTxParams(txParams: TransactionParams) {
+  const normalizedTxParams: TransactionParams = { from: '' };
+  let key: keyof TransactionParams;
   for (key in NORMALIZERS) {
-    if (transaction[key as keyof Transaction]) {
-      normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
+    if (txParams[key as keyof TransactionParams]) {
+      normalizedTxParams[key] = NORMALIZERS[key](txParams[key]) as never;
     }
   }
-  return normalizedTransaction;
-}
-
-/**
- * Validates a Transaction object for required properties and throws in
- * the event of any validation error.
- *
- * @param transaction - Transaction object to validate.
- */
-export function validateTransaction(transaction: Transaction) {
-  if (
-    !transaction.from ||
-    typeof transaction.from !== 'string' ||
-    !isValidHexAddress(transaction.from)
-  ) {
-    throw new Error(
-      `Invalid "from" address: ${transaction.from} must be a valid string.`,
-    );
-  }
-
-  if (transaction.to === '0x' || transaction.to === undefined) {
-    if (transaction.data) {
-      delete transaction.to;
-    } else {
-      throw new Error(
-        `Invalid "to" address: ${transaction.to} must be a valid string.`,
-      );
-    }
-  } else if (
-    transaction.to !== undefined &&
-    !isValidHexAddress(transaction.to)
-  ) {
-    throw new Error(
-      `Invalid "to" address: ${transaction.to} must be a valid string.`,
-    );
-  }
-
-  if (transaction.value !== undefined) {
-    const value = transaction.value.toString();
-    if (value.includes('-')) {
-      throw new Error(`Invalid "value": ${value} is not a positive number.`);
-    }
-
-    if (value.includes('.')) {
-      throw new Error(
-        `Invalid "value": ${value} number must be denominated in wei.`,
-      );
-    }
-    const intValue = parseInt(transaction.value, 10);
-    const isValid =
-      Number.isFinite(intValue) &&
-      !Number.isNaN(intValue) &&
-      !isNaN(Number(value)) &&
-      Number.isSafeInteger(intValue);
-    if (!isValid) {
-      throw new Error(
-        `Invalid "value": ${value} number must be a valid number.`,
-      );
-    }
-  }
+  return normalizedTxParams;
 }
 
 /**
  * Checks if a transaction is EIP-1559 by checking for the existence of
  * maxFeePerGas and maxPriorityFeePerGas within its parameters.
  *
- * @param transaction - Transaction object to add.
+ * @param txParams - Transaction params object to add.
  * @returns Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false.
  */
-export const isEIP1559Transaction = (transaction: Transaction): boolean => {
-  const hasOwnProp = (obj: Transaction, key: string) =>
+export function isEIP1559Transaction(txParams: TransactionParams): boolean {
+  const hasOwnProp = (obj: TransactionParams, key: string) =>
     Object.prototype.hasOwnProperty.call(obj, key);
   return (
-    hasOwnProp(transaction, 'maxFeePerGas') &&
-    hasOwnProp(transaction, 'maxPriorityFeePerGas')
+    hasOwnProp(txParams, 'maxFeePerGas') &&
+    hasOwnProp(txParams, 'maxPriorityFeePerGas')
   );
-};
+}
 
 export const validateGasValues = (
   gasValues: GasPriceValue | FeeMarketEIP1559Values,
@@ -188,11 +128,11 @@ export function getAndFormatTransactionsForNonceTracker(
 ): NonceTrackerTransaction[] {
   return transactions
     .filter(
-      ({ status, transaction: { from } }) =>
+      ({ status, txParams: { from } }) =>
         status === transactionStatus &&
         from.toLowerCase() === fromAddress.toLowerCase(),
     )
-    .map(({ status, transaction: { from, gas, value, nonce } }) => {
+    .map(({ status, txParams: { from, gas, value, nonce } }) => {
       // the only value we care about is the nonce
       // but we need to return the other values to satisfy the type
       // TODO: refactor nonceTracker to not require this
@@ -210,24 +150,20 @@ export function getAndFormatTransactionsForNonceTracker(
 }
 
 /**
- * Checks whether a given transaction matches the specified network or chain ID.
- * This function is used to determine if a transaction is relevant to the current network or chain.
+ * Validates that a transaction is unapproved.
+ * Throws if the transaction is not unapproved.
  *
- * @param transaction - The transaction metadata to check.
- * @param chainId - The chain ID of the current network.
- * @param networkId - The network ID of the current network.
- * @returns A boolean value indicating whether the transaction matches the current network or chain ID.
+ * @param transactionMeta - The transaction metadata to check.
+ * @param fnName - The name of the function calling this helper.
  */
-export function transactionMatchesNetwork(
-  transaction: TransactionMeta,
-  chainId: Hex,
-  networkId: string | null,
+export function validateIfTransactionUnapproved(
+  transactionMeta: TransactionMeta | undefined,
+  fnName: string,
 ) {
-  if (transaction.chainId) {
-    return transaction.chainId === chainId;
+  if (transactionMeta?.status !== TransactionStatus.unapproved) {
+    throw new Error(
+      `Can only call ${fnName} on an unapproved transaction.
+      Current tx status: ${transactionMeta?.status}`,
+    );
   }
-  if (transaction.networkID) {
-    return transaction.networkID === networkId;
-  }
-  return false;
 }

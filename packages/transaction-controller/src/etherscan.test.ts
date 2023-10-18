@@ -20,10 +20,10 @@ const REQUEST_MOCK: EtherscanTransactionRequest = {
   chainId: CHAIN_IDS.GOERLI,
   limit: 3,
   fromBlock: 2,
-  apiKey: 'testApiKey',
 };
 
 const RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> = {
+  status: '1',
   result: [
     { from: ADDERSS_MOCK, nonce: '0x1' } as EtherscanTransactionMeta,
     { from: ADDERSS_MOCK, nonce: '0x2' } as EtherscanTransactionMeta,
@@ -31,9 +31,7 @@ const RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> = {
 };
 
 describe('Etherscan', () => {
-  const handleFetchMock = handleFetch as jest.MockedFunction<
-    typeof handleFetch
-  >;
+  const handleFetchMock = jest.mocked(handleFetch);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -64,9 +62,8 @@ describe('Etherscan', () => {
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
-          `&apikey=${REQUEST_MOCK.apiKey}` +
           `&offset=${REQUEST_MOCK.limit}` +
-          `&order=desc` +
+          `&sort=desc` +
           `&action=${action}` +
           `&tag=latest` +
           `&page=1`,
@@ -89,24 +86,11 @@ describe('Etherscan', () => {
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
-          `&apikey=${REQUEST_MOCK.apiKey}` +
           `&offset=${REQUEST_MOCK.limit}` +
-          `&order=desc` +
+          `&sort=desc` +
           `&action=${action}` +
           `&tag=latest` +
           `&page=1`,
-      );
-    });
-
-    it('throws if message is not ok', async () => {
-      handleFetchMock.mockResolvedValueOnce({
-        status: '0',
-        message: 'NOTOK',
-        result: 'test error',
-      });
-
-      await expect((Etherscan as any)[method](REQUEST_MOCK)).rejects.toThrow(
-        'Etherscan request failed - test error',
       );
     });
 
@@ -129,7 +113,6 @@ describe('Etherscan', () => {
       await (Etherscan as any)[method]({
         ...REQUEST_MOCK,
         fromBlock: undefined,
-        apiKey: undefined,
         limit: undefined,
       });
 
@@ -140,7 +123,7 @@ describe('Etherscan', () => {
         }/api?` +
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
-          `&order=desc` +
+          `&sort=desc` +
           `&action=${action}` +
           `&tag=latest` +
           `&page=1`,
