@@ -1,4 +1,4 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
+import { type KeyringTypes, KeyringType } from '@metamask/keyring-controller';
 import { sha256FromString } from 'ethereumjs-util';
 import { v4 as uuid } from 'uuid';
 
@@ -8,7 +8,7 @@ import { v4 as uuid } from 'uuid';
  * @param keyringType - The type of the keyring.
  * @returns The name of the keyring type.
  */
-export function keyringTypeToName(keyringType: string): string {
+export function keyringTypeToName(keyringType: KeyringTypes) {
   switch (keyringType) {
     case KeyringType.simple: {
       return 'Account';

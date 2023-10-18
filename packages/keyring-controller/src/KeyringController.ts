@@ -184,7 +184,7 @@ export type KeyringControllerOptions = {
  */
 export type KeyringObject = {
   accounts: string[];
-  type: string;
+  type: KeyringTypes;
 };
 
 /**

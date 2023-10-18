@@ -1,7 +1,7 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType, EthMethod } from '@metamask/keyring-api';
-import { KeyringType } from '@metamask/keyring-controller';
+import { KeyringType, type KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import * as uuid from 'uuid';
@@ -113,7 +113,7 @@ function createExpectedInternalAccount({
   id: string;
   name: string;
   address: string;
-  keyringType: string;
+  keyringType: KeyringTypes;
   snapId?: string;
   snapEnabled?: boolean;
 }): InternalAccount {

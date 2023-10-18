@@ -3,7 +3,7 @@ import { BaseControllerV2 } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import { KeyringType, type KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
   KeyringControllerEvents,
@@ -104,7 +104,7 @@ export type AccountsControllerMessenger = RestrictedControllerMessenger<
 
 type AddressAndKeyringTypeObject = {
   address: string;
-  type: string;
+  type: KeyringTypes;
 };
 
 const accountsControllerMetadata = {
@@ -381,7 +381,7 @@ export class AccountsController extends BaseControllerV2<
    */
   #generateInternalAccountForNonSnapAccount(
     address: string,
-    type: string,
+    type: KeyringTypes,
   ): InternalAccount {
     return {
       id: getUUIDFromAddressOfNormalAccount(address),
@@ -643,7 +643,7 @@ export class AccountsController extends BaseControllerV2<
    * @param keyringType - The type of keyring.
    * @returns An object containing the account prefix and index to use.
    */
-  #getNextAccountNumber(keyringType: string): {
+  #getNextAccountNumber(keyringType: KeyringTypes): {
     accountPrefix: string;
     indexToUse: number;
   } {

@@ -30,6 +30,7 @@ import type {
   KeyringControllerState,
   KeyringControllerOptions,
   KeyringControllerActions,
+  KeyringTypes,
 } from './KeyringController';
 import {
   AccountImportStrategy,
