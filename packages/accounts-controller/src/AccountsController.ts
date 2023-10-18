@@ -420,7 +420,7 @@ export class AccountsController extends BaseControllerV2<
       return [];
     }
 
-    const snapAccounts = await (snapKeyring as SnapKeyring).listAccounts();
+    const snapAccounts = (snapKeyring as SnapKeyring).listAccounts();
 
     return snapAccounts;
   }
