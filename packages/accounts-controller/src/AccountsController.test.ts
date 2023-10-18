@@ -1,7 +1,7 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType, EthMethod } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import { KeyringType } from '@metamask/keyring-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import * as uuid from 'uuid';
@@ -36,7 +36,7 @@ const mockAccount: InternalAccount = {
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 1',
-    keyring: { type: KeyringTypes.hd },
+    keyring: { type: KeyringType.hd },
     lastSelected: 1691565967656,
   },
 };
@@ -49,7 +49,7 @@ const mockAccount2: InternalAccount = {
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Account 2',
-    keyring: { type: KeyringTypes.hd },
+    keyring: { type: KeyringType.hd },
     lastSelected: 1955565967656,
   },
 };
@@ -62,7 +62,7 @@ const mockAccount3: InternalAccount = {
   type: EthAccountType.Eoa,
   metadata: {
     name: '',
-    keyring: { type: KeyringTypes.snap },
+    keyring: { type: KeyringType.snap },
     snap: {
       enabled: true,
       id: 'mock-snap-id',
@@ -80,7 +80,7 @@ const mockAccount4: InternalAccount = {
   type: EthAccountType.Eoa,
   metadata: {
     name: 'Custom Name',
-    keyring: { type: KeyringTypes.snap },
+    keyring: { type: KeyringType.snap },
     snap: {
       enabled: true,
       id: 'mock-snap-id',
@@ -244,7 +244,7 @@ describe('AccountsController', () => {
         id: 'mock-id',
         name: 'Snap Account 1',
         address: '0x0',
-        keyringType: KeyringTypes.snap,
+        keyringType: KeyringType.snap,
         snapId: 'mock-snap',
         snapEnabled: false,
       });
@@ -285,7 +285,7 @@ describe('AccountsController', () => {
         id: 'mock-id',
         name: 'Snap Account 1',
         address: '0x0',
-        keyringType: KeyringTypes.snap,
+        keyringType: KeyringType.snap,
         snapId: 'mock-snap',
       });
       const mockSnapChangeState = {
@@ -325,7 +325,7 @@ describe('AccountsController', () => {
         id: 'mock-id',
         name: 'Snap Account 1',
         address: '0x0',
-        keyringType: KeyringTypes.snap,
+        keyringType: KeyringType.snap,
         snapId: 'mock-snap',
       });
       const mockSnapChangeState = {
@@ -372,7 +372,7 @@ describe('AccountsController', () => {
         keyrings: [
           {
             accounts: [mockAccount.address, mockAccount2.address],
-            type: KeyringTypes.hd,
+            type: KeyringType.hd,
           },
         ],
       };
@@ -409,7 +409,7 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [mockAccount.address, mockAccount2.address],
             },
           ],
@@ -449,7 +449,7 @@ describe('AccountsController', () => {
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValue([
             {
-              type: KeyringTypes.snap,
+              type: KeyringType.snap,
               getAccountByAddress: jest
                 .fn()
                 .mockReturnValueOnce(mockAccount3)
@@ -462,11 +462,11 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [mockAccount.address],
             },
             {
-              type: KeyringTypes.snap,
+              type: KeyringType.snap,
               accounts: [mockAccount3.address, mockAccount4.address],
             },
           ],
@@ -515,7 +515,7 @@ describe('AccountsController', () => {
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValue([
             {
-              type: KeyringTypes.snap,
+              type: KeyringType.snap,
               getAccountByAddress: jest
                 .fn()
                 .mockReturnValueOnce(null)
@@ -528,11 +528,11 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [mockAccount.address],
             },
             {
-              type: KeyringTypes.snap,
+              type: KeyringType.snap,
               accounts: [mockAccount3.address, mockAccount4.address],
             },
           ],
@@ -577,7 +577,7 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [
                 mockAccount.address,
                 mockAccount2.address,
@@ -615,7 +615,7 @@ describe('AccountsController', () => {
               id: 'mock-id3',
               name: 'Account 3',
               address: mockAccount3.address,
-              keyringType: KeyringTypes.hd,
+              keyringType: KeyringType.hd,
             }),
           ),
         ]);
@@ -633,14 +633,14 @@ describe('AccountsController', () => {
           id: 'mock-id2',
           name: 'Custom Name',
           address: mockAccount2.address,
-          keyringType: KeyringTypes.hd,
+          keyringType: KeyringType.hd,
         });
 
         const mockNewKeyringState = {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [
                 mockAccount.address,
                 mockAccount2.address,
@@ -678,7 +678,7 @@ describe('AccountsController', () => {
               id: 'mock-id3',
               name: 'Account 3',
               address: mockAccount3.address,
-              keyringType: KeyringTypes.hd,
+              keyringType: KeyringType.hd,
             }),
           ),
         ]);
@@ -692,7 +692,7 @@ describe('AccountsController', () => {
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValue([
             {
-              type: KeyringTypes.snap,
+              type: KeyringType.snap,
               getAccountByAddress: jest.fn().mockReturnValueOnce(null),
             },
           ]),
@@ -702,11 +702,11 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [],
             },
             {
-              type: KeyringTypes.snap,
+              type: KeyringType.snap,
               accounts: [mockAccount3.address],
             },
           ],
@@ -743,7 +743,7 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [mockAccount2.address],
             },
           ],
@@ -787,7 +787,7 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [mockAccount.address, mockAccount2.address],
             },
           ],
@@ -801,7 +801,7 @@ describe('AccountsController', () => {
                   address: '0x999',
                   metadata: {
                     keyring: {
-                      type: KeyringTypes.hd,
+                      type: KeyringType.hd,
                     },
                   },
                 } as unknown as InternalAccount,
@@ -850,7 +850,7 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [mockAccount.address, mockAccount2.address],
             },
           ],
@@ -864,7 +864,7 @@ describe('AccountsController', () => {
                   address: '0x999',
                   metadata: {
                     keyring: {
-                      type: KeyringTypes.hd,
+                      type: KeyringType.hd,
                     },
                   },
                 } as unknown as InternalAccount,
@@ -918,7 +918,7 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
-              type: KeyringTypes.hd,
+              type: KeyringType.hd,
               accounts: [
                 mockAccountWithoutLastSelected.address,
                 mockAccount2.address,
@@ -935,7 +935,7 @@ describe('AccountsController', () => {
                   address: '0x999',
                   metadata: {
                     keyring: {
-                      type: KeyringTypes.hd,
+                      type: KeyringType.hd,
                     },
                   },
                   [mockAccount2.id]: mockAccount2WithoutLastSelected,
@@ -973,13 +973,13 @@ describe('AccountsController', () => {
         id: 'mock-id',
         name: 'Account 1',
         address: '0x123',
-        keyringType: KeyringTypes.hd,
+        keyringType: KeyringType.hd,
       });
       const mockReinitialisedAccount = createExpectedInternalAccount({
         id: 'mock-id2',
         name: 'Account 1',
         address: '0x456',
-        keyringType: KeyringTypes.hd,
+        keyringType: KeyringType.hd,
       });
       mockUUID
         .mockReturnValueOnce('mock-id2') // call to check if its a new account
@@ -989,7 +989,7 @@ describe('AccountsController', () => {
         isUnlocked: true,
         keyrings: [
           {
-            type: KeyringTypes.hd,
+            type: KeyringType.hd,
             accounts: [mockReinitialisedAccount.address],
           },
         ],
@@ -1035,7 +1035,7 @@ describe('AccountsController', () => {
           metadata: {
             ...mockAccount.metadata,
             keyring: {
-              type: KeyringTypes.snap,
+              type: KeyringType.snap,
             },
             snap: {
               enabled: true,
@@ -1052,7 +1052,7 @@ describe('AccountsController', () => {
           metadata: {
             ...mockAccount2.metadata,
             keyring: {
-              type: KeyringTypes.snap,
+              type: KeyringType.snap,
             },
             snap: {
               enabled: true,
@@ -1079,14 +1079,14 @@ describe('AccountsController', () => {
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: KeyringTypes.hd }),
+        mockGetKeyringForAccount.mockResolvedValue({ type: KeyringType.hd }),
       );
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValue([
           {
-            type: KeyringTypes.snap,
+            type: KeyringType.snap,
             listAccounts: async () => [],
           },
         ]),
@@ -1106,13 +1106,13 @@ describe('AccountsController', () => {
           name: 'Account 1',
           id: 'mock-id',
           address: mockAddress1,
-          keyringType: KeyringTypes.hd,
+          keyringType: KeyringType.hd,
         }),
         createExpectedInternalAccount({
           name: 'Account 2',
           id: 'mock-id2',
           address: mockAddress2,
-          keyringType: KeyringTypes.hd,
+          keyringType: KeyringType.hd,
         }),
       ];
 
@@ -1132,7 +1132,7 @@ describe('AccountsController', () => {
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValue([
           {
-            type: KeyringTypes.snap,
+            type: KeyringType.snap,
             listAccounts: async () => [mockSnapAccount, mockSnapAccount2],
           },
         ]),
@@ -1212,14 +1212,14 @@ describe('AccountsController', () => {
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
-        mockGetKeyringForAccount.mockResolvedValue({ type: KeyringTypes.hd }),
+        mockGetKeyringForAccount.mockResolvedValue({ type: KeyringType.hd }),
       );
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValue([
           {
-            type: KeyringTypes.snap,
+            type: KeyringType.snap,
             listAccounts: async () => [],
           },
         ]),
@@ -1242,7 +1242,7 @@ describe('AccountsController', () => {
           name: 'Account 2',
           id: 'mock-id2',
           address: mockAddress2,
-          keyringType: KeyringTypes.hd,
+          keyringType: KeyringType.hd,
         }),
       ];
 
@@ -1258,7 +1258,7 @@ describe('AccountsController', () => {
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValueOnce([
           {
-            type: KeyringTypes.snap,
+            type: KeyringType.snap,
             listAccounts: async () => [mockSnapAccount2],
           },
         ]),
@@ -1272,8 +1272,8 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
         mockGetKeyringForAccount
-          .mockResolvedValueOnce({ type: KeyringTypes.hd })
-          .mockResolvedValueOnce({ type: KeyringTypes.snap }),
+          .mockResolvedValueOnce({ type: KeyringType.hd })
+          .mockResolvedValueOnce({ type: KeyringType.snap }),
       );
 
       const accountsController = setupAccountsController({
@@ -1290,13 +1290,13 @@ describe('AccountsController', () => {
           name: 'Account 1',
           id: 'mock-id',
           address: mockAddress1,
-          keyringType: KeyringTypes.hd,
+          keyringType: KeyringType.hd,
         }),
         createExpectedInternalAccount({
           name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
-          keyringType: KeyringTypes.snap,
+          keyringType: KeyringType.snap,
           snapId: 'mock-snap-id2',
         }),
       ];
@@ -1313,7 +1313,7 @@ describe('AccountsController', () => {
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValueOnce([
           {
-            type: KeyringTypes.snap,
+            type: KeyringType.snap,
             listAccounts: async () => [mockSnapAccount2],
           },
         ]),
@@ -1327,8 +1327,8 @@ describe('AccountsController', () => {
       messenger.registerActionHandler(
         'KeyringController:getKeyringForAccount',
         mockGetKeyringForAccount
-          .mockResolvedValueOnce({ type: KeyringTypes.snap })
-          .mockResolvedValueOnce({ type: KeyringTypes.hd }),
+          .mockResolvedValueOnce({ type: KeyringType.snap })
+          .mockResolvedValueOnce({ type: KeyringType.hd }),
       );
 
       const accountsController = setupAccountsController({
@@ -1345,13 +1345,13 @@ describe('AccountsController', () => {
           name: 'Account 1',
           id: 'mock-id',
           address: mockAddress1,
-          keyringType: KeyringTypes.hd,
+          keyringType: KeyringType.hd,
         }),
         createExpectedInternalAccount({
           name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
-          keyringType: KeyringTypes.snap,
+          keyringType: KeyringType.snap,
           snapId: 'mock-snap-id2',
           snapEnabled: true,
         }),
@@ -1363,13 +1363,13 @@ describe('AccountsController', () => {
     });
 
     it.each([
-      KeyringTypes.simple,
-      KeyringTypes.hd,
-      KeyringTypes.trezor,
-      KeyringTypes.ledger,
-      KeyringTypes.lattice,
-      KeyringTypes.qr,
-      KeyringTypes.custody,
+      KeyringType.simple,
+      KeyringType.hd,
+      KeyringType.trezor,
+      KeyringType.ledger,
+      KeyringType.lattice,
+      KeyringType.qr,
+      KeyringType.custody,
     ])('should add accounts for %s type', async (keyringType) => {
       mockUUID.mockReturnValue('mock-id');
 
@@ -1387,7 +1387,7 @@ describe('AccountsController', () => {
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValue([
           {
-            type: KeyringTypes.snap,
+            type: KeyringType.snap,
             listAccounts: async () => [],
           },
         ]),
@@ -1434,7 +1434,7 @@ describe('AccountsController', () => {
         'KeyringController:getKeyringsByType',
         mockGetKeyringByType.mockReturnValue([
           {
-            type: KeyringTypes.snap,
+            type: KeyringType.snap,
             listAccounts: async () => [],
           },
         ]),

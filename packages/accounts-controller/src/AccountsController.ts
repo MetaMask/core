@@ -469,7 +469,7 @@ export class AccountsController extends BaseControllerV2<
     }
 
     return internalAccounts.filter(
-      (account) => account.metadata.keyring.type !== KeyringTypes.snap,
+      (account) => account.metadata.keyring.type !== KeyringType.snap,
     );
   }
 
@@ -487,7 +487,7 @@ export class AccountsController extends BaseControllerV2<
       const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
 
       for (const keyring of keyringState.keyrings) {
-        if (keyring.type === KeyringTypes.snap) {
+        if (keyring.type === KeyringType.snap) {
           updatedSnapKeyringAddresses.push(
             ...keyring.accounts.map((address) => {
               return {
@@ -511,7 +511,7 @@ export class AccountsController extends BaseControllerV2<
       const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
         this.listAccounts().reduce(
           (accumulator, account) => {
-            if (account.metadata.keyring.type === KeyringTypes.snap) {
+            if (account.metadata.keyring.type === KeyringType.snap) {
               accumulator.previousSnapInternalAccounts.push(account);
             } else {
               accumulator.previousNormalInternalAccounts.push(account);
@@ -651,12 +651,12 @@ export class AccountsController extends BaseControllerV2<
     const previousKeyringAccounts = this.listAccounts().filter(
       (internalAccount) => {
         if (
-          keyringType === KeyringTypes.hd ||
-          keyringType === KeyringTypes.simple
+          keyringType === KeyringType.hd ||
+          keyringType === KeyringType.simple
         ) {
           return (
-            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
-            internalAccount.metadata.keyring.type === KeyringTypes.simple
+            internalAccount.metadata.keyring.type === KeyringType.hd ||
+            internalAccount.metadata.keyring.type === KeyringType.simple
           );
         }
         return internalAccount.metadata.keyring.type === keyringType;
@@ -691,7 +691,7 @@ export class AccountsController extends BaseControllerV2<
    */
   #handleNewAccountAdded(account: AddressAndKeyringTypeObject) {
     let newAccount: InternalAccount;
-    if (account.type !== KeyringTypes.snap) {
+    if (account.type !== KeyringType.snap) {
       newAccount = this.#generateInternalAccountForNonSnapAccount(
         account.address,
         account.type,

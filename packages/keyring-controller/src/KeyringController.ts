@@ -30,7 +30,7 @@ const name = 'KeyringController';
 /**
  * Available keyring types
  */
-export enum KeyringTypes {
+export enum KeyringType {
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
@@ -477,7 +477,7 @@ export class KeyringController extends BaseControllerV2<
     type: KeyringTypes | string,
     opts?: unknown,
   ): Promise<unknown> {
-    if (type === KeyringTypes.qr) {
+    if (type === KeyringType.qr) {
       return this.getOrAddQRKeyring();
     }
 
@@ -659,7 +659,7 @@ export class KeyringController extends BaseControllerV2<
       default:
         throw new Error(`Unexpected import strategy: '${strategy}'`);
     }
-    const newKeyring = await this.#keyring.addNewKeyring(KeyringTypes.simple, [
+    const newKeyring = await this.#keyring.addNewKeyring(KeyringType.simple, [
       privateKey,
     ]);
     const accounts = await newKeyring.getAccounts();
@@ -825,7 +825,7 @@ export class KeyringController extends BaseControllerV2<
    * @returns Promise resolving to the seed phrase as Uint8Array.
    */
   async verifySeedPhrase(): Promise<Uint8Array> {
-    const primaryKeyring = this.#keyring.getKeyringsByType(KeyringTypes.hd)[0];
+    const primaryKeyring = this.#keyring.getKeyringsByType(KeyringType.hd)[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found.');
@@ -843,7 +843,7 @@ export class KeyringController extends BaseControllerV2<
     // The HD Keyring Builder is a default keyring builder
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const hdKeyringBuilder = this.#keyring.getKeyringBuilderForType(
-      KeyringTypes.hd,
+      KeyringType.hd,
     )!;
 
     const hdKeyring = hdKeyringBuilder();
@@ -879,7 +879,7 @@ export class KeyringController extends BaseControllerV2<
   getQRKeyring(): QRKeyring | undefined {
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
     return this.#keyring.getKeyringsByType(
-      KeyringTypes.qr,
+      KeyringType.qr,
     )[0] as unknown as QRKeyring;
   }
 
@@ -1055,7 +1055,7 @@ export class KeyringController extends BaseControllerV2<
   async #addQRKeyring(): Promise<QRKeyring> {
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
     const qrKeyring = (await this.#keyring.addNewKeyring(
-      KeyringTypes.qr,
+      KeyringType.qr,
     )) as unknown as QRKeyring;
 
     this.#subscribeToQRKeyringEvents(qrKeyring);
@@ -1079,7 +1079,7 @@ export class KeyringController extends BaseControllerV2<
 
   #unsubscribeFromQRKeyringsEvents() {
     const qrKeyrings = this.#keyring.getKeyringsByType(
-      KeyringTypes.qr,
+      KeyringType.qr,
     ) as unknown as QRKeyring[];
 
     qrKeyrings.forEach((qrKeyring) => {

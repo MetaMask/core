@@ -34,7 +34,7 @@ import type {
 import {
   AccountImportStrategy,
   KeyringController,
-  KeyringTypes,
+  KeyringType,
 } from './KeyringController';
 
 jest.mock('uuid', () => {
@@ -155,7 +155,7 @@ describe('KeyringController', () => {
         await withController(
           async ({ controller, initialState, preferences }) => {
             const [primaryKeyring] = controller.getKeyringsByType(
-              KeyringTypes.hd,
+              KeyringType.hd,
             ) as Keyring<Json>[];
             const addedAccountAddress =
               await controller.addNewAccountForKeyring(primaryKeyring);
@@ -217,7 +217,7 @@ describe('KeyringController', () => {
         await withController(
           async ({ controller, initialState, preferences }) => {
             const [primaryKeyring] = controller.getKeyringsByType(
-              KeyringTypes.hd,
+              KeyringType.hd,
             ) as Keyring<Json>[];
             const addedAccountAddress =
               await controller.addNewAccountForKeyring(primaryKeyring);
@@ -245,7 +245,7 @@ describe('KeyringController', () => {
       it('should throw an error if passed accountCount param is out of sequence', async () => {
         await withController(async ({ controller, initialState }) => {
           const [primaryKeyring] = controller.getKeyringsByType(
-            KeyringTypes.hd,
+            KeyringType.hd,
           ) as Keyring<Json>[];
           const accountCount = initialState.keyrings[0].accounts.length;
           await expect(
@@ -261,7 +261,7 @@ describe('KeyringController', () => {
         await withController(async ({ controller, initialState }) => {
           const accountCount = initialState.keyrings[0].accounts.length;
           const [primaryKeyring] = controller.getKeyringsByType(
-            KeyringTypes.hd,
+            KeyringType.hd,
           ) as Keyring<Json>[];
           const firstAccountAdded = await controller.addNewAccountForKeyring(
             primaryKeyring,
@@ -307,7 +307,7 @@ describe('KeyringController', () => {
       it('should add new keyring', async () => {
         await withController(async ({ controller, initialState }) => {
           const initialKeyrings = initialState.keyrings;
-          await controller.addNewKeyring(KeyringTypes.simple);
+          await controller.addNewKeyring(KeyringType.simple);
           expect(controller.state.keyrings).not.toStrictEqual(initialKeyrings);
           expect(controller.state.keyrings).toHaveLength(2);
         });
@@ -511,7 +511,7 @@ describe('KeyringController', () => {
       it('should throw error', async () => {
         await withController(async ({ controller }) => {
           const primaryKeyring = controller.getKeyringsByType(
-            KeyringTypes.hd,
+            KeyringType.hd,
           )[0] as Keyring<Json> & { mnemonic: string };
 
           primaryKeyring.mnemonic = '';
@@ -713,10 +713,10 @@ describe('KeyringController', () => {
       it('should return keyrings of the right type', async () => {
         await withController(async ({ controller }) => {
           const keyrings = controller.getKeyringsByType(
-            KeyringTypes.hd,
+            KeyringType.hd,
           ) as Keyring<Json>[];
           expect(keyrings).toHaveLength(1);
-          expect(keyrings[0].type).toBe(KeyringTypes.hd);
+          expect(keyrings[0].type).toBe(KeyringType.hd);
           expect(keyrings[0].getAccounts()).toStrictEqual(
             controller.state.keyrings[0].accounts.map(normalize),
           );
@@ -738,7 +738,7 @@ describe('KeyringController', () => {
     it('should reflect changes made directly to a keyring into the KeyringController state', async () => {
       await withController(async ({ controller }) => {
         const primaryKeyring = controller.getKeyringsByType(
-          KeyringTypes.hd,
+          KeyringType.hd,
         )[0] as Keyring<Json>;
         const [addedAccount] = await primaryKeyring.addAccounts(1);
 
@@ -1438,7 +1438,7 @@ describe('KeyringController', () => {
     it('should throw if mnemonic is not defined', async () => {
       await withController(async ({ controller }) => {
         const primaryKeyring = controller.getKeyringsByType(
-          KeyringTypes.hd,
+          KeyringType.hd,
         )[0] as Keyring<Json> & { mnemonic: string };
 
         primaryKeyring.mnemonic = '';
@@ -1585,7 +1585,7 @@ describe('KeyringController', () => {
         await signProcessKeyringController.unlockQRHardwareWalletAccount(2);
 
         const qrKeyring = signProcessKeyringController.state.keyrings.find(
-          (keyring) => keyring.type === KeyringTypes.qr,
+          (keyring) => keyring.type === KeyringType.qr,
         );
         expect(qrKeyring?.accounts).toHaveLength(3);
       });
@@ -1604,7 +1604,7 @@ describe('KeyringController', () => {
         const data =
           '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
         const qrKeyring = signProcessKeyringController.state.keyrings.find(
-          (keyring) => keyring.type === KeyringTypes.qr,
+          (keyring) => keyring.type === KeyringType.qr,
         );
         const account = qrKeyring?.accounts[0] || '';
         const signature = await signProcessKeyringController.signMessage({
@@ -1629,7 +1629,7 @@ describe('KeyringController', () => {
           Buffer.from('Example `personal_sign` message', 'utf8'),
         );
         const qrKeyring = signProcessKeyringController.state.keyrings.find(
-          (keyring) => keyring.type === KeyringTypes.qr,
+          (keyring) => keyring.type === KeyringType.qr,
         );
         const account = qrKeyring?.accounts[0] || '';
         const signature =
@@ -1665,7 +1665,7 @@ describe('KeyringController', () => {
           },
         ];
         const qrKeyring = signProcessKeyringController.state.keyrings.find(
-          (keyring) => keyring.type === KeyringTypes.qr,
+          (keyring) => keyring.type === KeyringType.qr,
         );
         const account = qrKeyring?.accounts[0] || '';
         const signature = await signProcessKeyringController.signTypedMessage(
@@ -1693,7 +1693,7 @@ describe('KeyringController', () => {
           '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":4,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
 
         const qrKeyring = signProcessKeyringController.state.keyrings.find(
-          (keyring) => keyring.type === KeyringTypes.qr,
+          (keyring) => keyring.type === KeyringType.qr,
         );
         const account = qrKeyring?.accounts[0] || '';
         const signature = await signProcessKeyringController.signTypedMessage(
@@ -1724,7 +1724,7 @@ describe('KeyringController', () => {
           '{"domain":{"chainId":"4","name":"Ether Mail","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","version":"1"},"message":{"contents":"Hello, Bob!","from":{"name":"Cow","wallets":["0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826","0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"]},"to":[{"name":"Bob","wallets":["0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB","0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57","0xB0B0b0b0b0b0B000000000000000000000000000"]}]},"primaryType":"Mail","types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Group":[{"name":"name","type":"string"},{"name":"members","type":"Person[]"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person[]"},{"name":"contents","type":"string"}],"Person":[{"name":"name","type":"string"},{"name":"wallets","type":"address[]"}]}}';
 
         const qrKeyring = signProcessKeyringController.state.keyrings.find(
-          (keyring) => keyring.type === KeyringTypes.qr,
+          (keyring) => keyring.type === KeyringType.qr,
         );
         const account = qrKeyring?.accounts[0] || '';
         const signature = await signProcessKeyringController.signTypedMessage(
@@ -1751,7 +1751,7 @@ describe('KeyringController', () => {
         );
 
         const qrKeyring = signProcessKeyringController.state.keyrings.find(
-          (keyring) => keyring.type === KeyringTypes.qr,
+          (keyring) => keyring.type === KeyringType.qr,
         );
         const account = qrKeyring?.accounts[0] || '';
         const tx = TransactionFactory.fromTxData(
@@ -1872,11 +1872,11 @@ describe('KeyringController', () => {
           signProcessKeyringController.state.keyrings[0].accounts[0];
         expect(
           await signProcessKeyringController.getAccountKeyringType(hdAccount),
-        ).toBe(KeyringTypes.hd);
+        ).toBe(KeyringType.hd);
 
         expect(
           await signProcessKeyringController.getAccountKeyringType(qrAccount),
-        ).toBe(KeyringTypes.qr);
+        ).toBe(KeyringType.qr);
       });
     });
 
@@ -2051,7 +2051,7 @@ describe('KeyringController', () => {
             listener,
           );
           const qrKeyring = (await signProcessKeyringController.addNewKeyring(
-            KeyringTypes.qr,
+            KeyringType.qr,
           )) as QRKeyring;
 
           qrKeyring.getMemStore().updateState({

@@ -10,28 +10,28 @@ import { v4 as uuid } from 'uuid';
  */
 export function keyringTypeToName(keyringType: string): string {
   switch (keyringType) {
-    case KeyringTypes.simple: {
+    case KeyringType.simple: {
       return 'Account';
     }
-    case KeyringTypes.hd: {
+    case KeyringType.hd: {
       return 'Account';
     }
-    case KeyringTypes.trezor: {
+    case KeyringType.trezor: {
       return 'Trezor';
     }
-    case KeyringTypes.ledger: {
+    case KeyringType.ledger: {
       return 'Ledger';
     }
-    case KeyringTypes.lattice: {
+    case KeyringType.lattice: {
       return 'Lattice';
     }
-    case KeyringTypes.qr: {
+    case KeyringType.qr: {
       return 'QR';
     }
-    case KeyringTypes.snap: {
+    case KeyringType.snap: {
       return 'Snap Account';
     }
-    case KeyringTypes.custody: {
+    case KeyringType.custody: {
       return 'Custody';
     }
     default: {
