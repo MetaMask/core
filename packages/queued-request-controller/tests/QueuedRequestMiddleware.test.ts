@@ -107,7 +107,7 @@ describe('createQueuedRequesMitddleware', () => {
 
     const req = {
       ...requestDefaults,
-      origin: 'example.com',
+      params: { origin: 'example.com' },
     };
 
     await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
@@ -122,7 +122,7 @@ describe('createQueuedRequesMitddleware', () => {
 
     const req = {
       ...requestDefaults,
-      origin: 'example.com',
+      params: { origin: 'example.com' },
       method: 'eth_chainId',
     };
 
@@ -139,7 +139,7 @@ describe('createQueuedRequesMitddleware', () => {
 
       const req = {
         ...requestDefaults,
-        origin: 'example.com',
+        params: { origin: 'example.com' },
         method: 'eth_sendTransaction',
       };
 
@@ -158,7 +158,7 @@ describe('createQueuedRequesMitddleware', () => {
 
       const req = {
         ...requestDefaults,
-        origin: 'example.com',
+        params: { origin: 'example.com' },
         method: 'wallet_switchEthereumChain',
       };
 
@@ -217,7 +217,7 @@ describe('createQueuedRequesMitddleware', () => {
 
         const req = {
           ...requestDefaults,
-          origin: 'example.com',
+          params: { origin: 'example.com' },
           method: 'eth_sendTransaction',
         };
 
@@ -245,9 +245,8 @@ describe('createQueuedRequesMitddleware', () => {
 
         const req = {
           ...requestDefaults,
-          origin: 'example.com',
+          params: { origin: 'example.com', networkClientId: 'mainnet' },
           method: 'eth_sendTransaction',
-          networkClientId: 'mainnet',
         };
 
         await new Promise((resolve) =>
@@ -276,9 +275,11 @@ describe('createQueuedRequesMitddleware', () => {
 
         const req = {
           ...requestDefaults,
-          origin: 'example.com',
+          params: {
+            origin: 'example.com',
+            networkClientId: 'https://some-rpc-url.com',
+          },
           method: 'eth_sendTransaction',
-          networkClientId: 'https://some-rpc-url.com',
         };
 
         await new Promise((resolve) =>
@@ -313,13 +314,13 @@ describe('createQueuedRequesMitddleware', () => {
 
       const req1 = {
         ...requestDefaults,
-        origin: 'example.com',
+        params: { origin: 'example.com' },
         method: 'eth_sendTransaction',
       };
 
       const req2 = {
         ...requestDefaults,
-        origin: 'example.com',
+        params: { origin: 'example.com' },
         method: 'eth_sendTransaction',
       };
 
