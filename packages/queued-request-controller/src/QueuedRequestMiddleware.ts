@@ -1,4 +1,7 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type {
+  AddApprovalRequest,
+  ApprovalRequest,
+} from '@metamask/approval-controller';
 import type { ControllerMessenger } from '@metamask/base-controller';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import {
@@ -6,7 +9,6 @@ import {
   BUILT_IN_NETWORKS,
   isNetworkType,
 } from '@metamask/controller-utils';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type {
   NetworkClientId,
@@ -112,7 +114,7 @@ export const createQueuedRequestMiddleware = (
         };
 
         try {
-          const approvedRequestData = await messenger.call(
+          const approvedRequestData = (await messenger.call(
             'ApprovalController:addRequest',
             {
               origin,
@@ -120,17 +122,19 @@ export const createQueuedRequestMiddleware = (
               requestData,
             },
             true,
-          );
+          )) as ApprovalRequest<typeof requestData> & {
+            type: InfuraNetworkType;
+          };
 
           if (isBuiltIn) {
             await messenger.call(
               'NetworkController:setProviderType',
-              (approvedRequestData as { type: InfuraNetworkType }).type,
+              approvedRequestData.type,
             );
           } else {
             await messenger.call(
               'NetworkController:setActiveNetwork',
-              (approvedRequestData as { id: NetworkClientId }).id,
+              approvedRequestData.id,
             );
           }
 
