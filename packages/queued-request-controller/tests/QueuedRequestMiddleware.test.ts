@@ -6,6 +6,7 @@ import type {
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerSetProviderTypeAction,
 } from '@metamask/network-controller';
+import { JsonRpcError } from '@metamask/rpc-errors';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 
@@ -185,7 +186,7 @@ describe('createQueuedRequesMitddleware', () => {
 
         const req = {
           ...requestDefaults,
-          origin: 'example.com',
+          params: { origin: 'example.com' },
           method: 'eth_sendTransaction',
         };
 
@@ -203,7 +204,7 @@ describe('createQueuedRequesMitddleware', () => {
       it('if the switchEthConfirmation is rejected, the original request is rejected', async () => {
         const messenger = buildMessenger();
         const middleware = createQueuedRequestMiddleware(messenger, () => true);
-        const rejected = new Error('big bad rejected');
+        const rejected = new JsonRpcError(1, 'big bad rejected');
         const mockAddRequest = jest.fn().mockRejectedValue(rejected);
         const mockGetProviderConfig = jest.fn().mockReturnValue({
           providerConfig: {
@@ -295,7 +296,7 @@ describe('createQueuedRequesMitddleware', () => {
     it('rejecting one call does not cause others to be rejected', async () => {
       const messenger = buildMessenger();
       const middleware = createQueuedRequestMiddleware(messenger, () => true);
-      const rejectedError = new Error('big bad rejected');
+      const rejectedError = new JsonRpcError(1, 'big bad rejected');
       const mockAddRequest = jest
         .fn()
         .mockRejectedValueOnce(rejectedError)
