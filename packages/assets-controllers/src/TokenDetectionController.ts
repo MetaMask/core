@@ -245,7 +245,6 @@ export class TokenDetectionController extends PollingControllerV1<
     networkClientId?: NetworkClientId,
     accountAddress?: string,
   ) {
-    console.log('detectTokens', this.config);
     const {
       disabled,
       isDetectionEnabledForNetwork,
@@ -258,7 +257,6 @@ export class TokenDetectionController extends PollingControllerV1<
     ) {
       return;
     }
-    console.log('not disabled');
     const { tokens } = this.getTokensState();
     const selectedAddress = accountAddress || this.config.selectedAddress;
     const chainId = this.getCorrectChainId(networkClientId);
