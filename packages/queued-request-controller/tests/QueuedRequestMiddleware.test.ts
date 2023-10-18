@@ -100,7 +100,7 @@ const requestDefaults = {
   networkClientId: 'mainnet',
 };
 
-describe('createQueuedRequesMitddleware', () => {
+describe('createQueuedRequestMiddleware', () => {
   it('throws if not provided an origin', async () => {
     const messenger = buildMessenger();
     const middleware = createQueuedRequestMiddleware(messenger, () => false);
