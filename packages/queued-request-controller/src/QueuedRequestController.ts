@@ -1,5 +1,6 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
+import type { Json } from '@metamask/utils';
 import type { Patch } from 'immer';
 
 const controllerName = 'QueuedRequestController';
@@ -21,7 +22,7 @@ export const QueuedRequestControllerEventTypes = {
 };
 
 export type QueuedRequestControllerState = {
-  [k: string]: any;
+  [k: string]: Json;
 };
 
 export type QueuedRequestControllerStateChangeEvent = {

@@ -90,12 +90,10 @@ export const createQueuedRequestMiddleware = (
           }
         }
 
-        networkConfigurationForRequest =
-          networkConfigurationForRequest ||
-          messenger.call(
-            'NetworkController:getNetworkClientById',
-            networkClientIdForRequest ?? '',
-          ).configuration;
+        networkConfigurationForRequest ??= messenger.call(
+          'NetworkController:getNetworkClientById',
+          networkClientIdForRequest ?? '',
+        ).configuration;
 
         const currentProviderConfig = messenger.call(
           'NetworkController:getState',
