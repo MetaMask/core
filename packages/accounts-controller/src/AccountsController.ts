@@ -281,12 +281,13 @@ export class AccountsController extends BaseControllerV2<
     }
 
     this.update((currentState: Draft<AccountsControllerState>) => {
+      const internalAccount = {
         ...account,
-        metadata: {
-          ...account.metadata,
-          name: accountName,
-        },
+        metadata: { ...account.metadata, name: accountName },
       };
+      currentState.internalAccounts.accounts[accountId] =
+        // @ts-expect-error Assigning a complex type `T` to `Draft<T>` causes an excessive type instantiation depth error.
+        internalAccount as Draft<InternalAccount>;
     });
   }
 
