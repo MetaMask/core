@@ -35,7 +35,7 @@ const isConfirmationMethod = (method: string) => {
     'eth_signTypedData_v4',
   ];
 
-  return !confirmationMethods.includes(method);
+  return confirmationMethods.includes(method);
 };
 
 export const createQueuedRequestMiddleware = (
@@ -71,7 +71,9 @@ export const createQueuedRequestMiddleware = (
         throw new Error("Request object is lacking a 'networkClientId'");
       }
 
-      if (!useRequestQueue() || isConfirmationMethod(req.method)) {
+      // if the request queue feature is turned off, or this method is not a confirmation method
+      // do nothing
+      if (!useRequestQueue() || !isConfirmationMethod(req.method)) { 
         next();
         return;
       }
