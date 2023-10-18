@@ -71,7 +71,7 @@ export function createAsyncMiddleware<
         returnHandlerCallback = runReturnHandlersCallback;
         resolveNextPromise();
       });
-      await nextPromise;
+      return nextPromise;
     };
 
     try {
