@@ -18,6 +18,7 @@ import type {
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerSetProviderTypeAction,
 } from '@metamask/network-controller';
+import type { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 import type { Json } from '@metamask/utils';
@@ -78,7 +79,10 @@ export const createQueuedRequestMiddleware = (
         }
 
         const isBuiltIn = isNetworkType(networkClientIdForRequest);
-        let networkConfigurationForRequest;
+        let networkConfigurationForRequest:
+          | ((typeof BUILT_IN_NETWORKS)[keyof typeof BUILT_IN_NETWORKS] &
+              Record<string, Json>)
+          | CustomNetworkClientConfiguration;
         if (isBuiltIn) {
           const builtIn = BUILT_IN_NETWORKS[networkClientIdForRequest];
           if (builtIn.chainId) {
