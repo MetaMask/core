@@ -1,6 +1,8 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { AddApprovalRequest, ApprovalRequest } from '@metamask/approval-controller';
 import type { ControllerMessenger } from '@metamask/base-controller';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
+import { serializeError } from '@metamask/rpc-errors';
+
 import {
   ApprovalType,
   BUILT_IN_NETWORKS,
@@ -16,8 +18,10 @@ import type {
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerSetProviderTypeAction,
 } from '@metamask/network-controller';
+import { CustomNetworkClientConfiguration } from '@metamask/network-controller/dist/types';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
+import { Json, JsonRpcParams, JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
 
 import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
@@ -46,8 +50,25 @@ export const createQueuedRequestMiddleware = (
     never
   >,
   useRequestQueue: () => boolean,
-): JsonRpcMiddleware<any, any> => {
-  return createAsyncMiddleware(async (req: any, res: any, next) => {
+): JsonRpcMiddleware<JsonRpcParams, Json> => {
+  return createAsyncMiddleware(async (
+    req: JsonRpcRequest & {
+      origin?: string;
+      networkClientId?: NetworkClientId;
+    },
+    res,
+    next,
+  ) => {
+    const { origin, networkClientId } = req;
+
+    if (!origin) {
+      throw new Error("Request object is lacking an 'origin'");
+    }
+
+    if (!networkClientId) {
+      throw new Error("Request object is lacking a 'networkClientId'");
+    }
+
     if (!useRequestQueue() || isConfirmationMethod(req.method)) {
       next();
       return;
@@ -67,7 +88,7 @@ export const createQueuedRequestMiddleware = (
         let networkConfigurationForRequest;
         if (isBuiltIn) {
           const builtIn = BUILT_IN_NETWORKS[networkClientIdForRequest];
-          if (builtIn.chainId) {
+          if (builtIn.chainId) { // only the infura provided ones have chainid (rpc doesnt)
             networkConfigurationForRequest = builtIn;
           }
         }
@@ -82,14 +103,17 @@ export const createQueuedRequestMiddleware = (
         ).providerConfig;
 
         const currentChainId = currentProviderConfig.chainId;
-
+        
+        // if the 'globally selected network' is already on the correct chain
+        // continue with the request as normal.
         if (currentChainId === networkConfigurationForRequest.chainId) {
           // eslint-disable-next-line n/callback-return
           return next();
         }
-
+        
+        // todo once we have 'batches':
         // if is switch eth chain call
-        // clear request queue when the switch ethereum chain call completes (success or fail)
+        // clear request queue when the switch ethereum chain call completes (success, but maybe not if it fails?)
         // This is because a dapp-requested switch ethereum chain invalidates any requests they've made after this switch, since we dont know if they were expecting the chain after the switch or before.
         // with the queue batching approach, this would mean clearing any batch for that origin (batches being per-origin.)
         const requestData = {
@@ -101,32 +125,34 @@ export const createQueuedRequestMiddleware = (
           const approvedRequestData = await messenger.call(
             'ApprovalController:addRequest',
             {
-              origin: req.origin,
+              origin,
               type: ApprovalType.SwitchEthereumChain,
               requestData,
             },
             true,
-          );
+          ) as ApprovalRequest<typeof requestData> & {
+            type: InfuraNetworkType;
+          };;
 
           if (isBuiltIn) {
             await messenger.call(
               'NetworkController:setProviderType',
-              (approvedRequestData as { type: InfuraNetworkType }).type,
+              approvedRequestData.type,
             );
           } else {
             await messenger.call(
               'NetworkController:setActiveNetwork',
-              (approvedRequestData as { id: NetworkClientId }).id,
+              approvedRequestData.id,
             );
           }
 
           messenger.call(
             SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
-            req.origin,
+            origin,
             networkClientIdForRequest,
           );
         } catch (error) {
-          res.error = error;
+          res.error = serializeError(error); 
           return error;
         }
 
