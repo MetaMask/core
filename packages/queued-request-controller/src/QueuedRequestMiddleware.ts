@@ -73,7 +73,7 @@ export const createQueuedRequestMiddleware = (
 
       // if the request queue feature is turned off, or this method is not a confirmation method
       // do nothing
-      if (!useRequestQueue() || !isConfirmationMethod(req.method)) { 
+      if (!useRequestQueue() || !isConfirmationMethod(req.method)) {
         next();
         return;
       }
@@ -82,7 +82,6 @@ export const createQueuedRequestMiddleware = (
         QueuedRequestControllerActionTypes.enqueueRequest,
         async () => {
           if (req.method === 'wallet_switchEthereumChain') {
-            // eslint-disable-next-line n/callback-return
             return next();
           }
 
@@ -110,7 +109,6 @@ export const createQueuedRequestMiddleware = (
           // if the 'globally selected network' is already on the correct chain
           // continue with the request as normal.
           if (currentChainId === networkConfigurationForRequest.chainId) {
-            // eslint-disable-next-line n/callback-return
             return next();
           }
 
@@ -159,7 +157,6 @@ export const createQueuedRequestMiddleware = (
             return error;
           }
 
-          // eslint-disable-next-line n/callback-return
           return next();
         },
       );
