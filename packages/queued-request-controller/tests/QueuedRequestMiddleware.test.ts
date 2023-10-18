@@ -103,7 +103,10 @@ const requestDefaults = {
 describe('createQueuedRequestMiddleware', () => {
   it('throws if not provided an origin', async () => {
     const messenger = buildMessenger();
-    const middleware = createQueuedRequestMiddleware(messenger, () => false);
+    const middleware = createQueuedRequestMiddleware({
+      messenger,
+      useRequestQueue: () => false,
+    });
     const req = {
       id: '123',
       jsonrpc: '2.0',
@@ -121,7 +124,10 @@ describe('createQueuedRequestMiddleware', () => {
 
   it('throws if not provided an networkClientId', async () => {
     const messenger = buildMessenger();
-    const middleware = createQueuedRequestMiddleware(messenger, () => false);
+    const middleware = createQueuedRequestMiddleware({
+      messenger,
+      useRequestQueue: () => false,
+    });
     const req = {
       id: '123',
       jsonrpc: '2.0',
@@ -139,7 +145,10 @@ describe('createQueuedRequestMiddleware', () => {
 
   it('should not enqueue the request when useRequestQueue is false', async () => {
     const messenger = buildMessenger();
-    const middleware = createQueuedRequestMiddleware(messenger, () => false);
+    const middleware = createQueuedRequestMiddleware({
+      messenger,
+      useRequestQueue: () => false,
+    });
     const mocks = buildMocks(messenger);
 
     await new Promise((resolve, reject) =>
@@ -151,7 +160,10 @@ describe('createQueuedRequestMiddleware', () => {
 
   it('should not enqueue the request when there is no confirmation', async () => {
     const messenger = buildMessenger();
-    const middleware = createQueuedRequestMiddleware(messenger, () => true);
+    const middleware = createQueuedRequestMiddleware({
+      messenger,
+      useRequestQueue: () => true,
+    });
     const mocks = buildMocks(messenger);
 
     const req = {
@@ -169,7 +181,10 @@ describe('createQueuedRequestMiddleware', () => {
   describe('confirmations', () => {
     it('should resolve requests that require confirmations for infura networks', async () => {
       const messenger = buildMessenger();
-      const middleware = createQueuedRequestMiddleware(messenger, () => true);
+      const middleware = createQueuedRequestMiddleware({
+        messenger,
+        useRequestQueue: () => true,
+      });
       const mocks = buildMocks(messenger);
 
       const req = {
@@ -189,7 +204,10 @@ describe('createQueuedRequestMiddleware', () => {
 
     it('should resolve requests that require confirmations for custom networks', async () => {
       const messenger = buildMessenger();
-      const middleware = createQueuedRequestMiddleware(messenger, () => true);
+      const middleware = createQueuedRequestMiddleware({
+        messenger,
+        useRequestQueue: () => true,
+      });
       const mocks = buildMocks(messenger);
 
       const req = {
@@ -210,7 +228,10 @@ describe('createQueuedRequestMiddleware', () => {
 
     it('switchEthereumChain calls get queued but we dont check the current network', async () => {
       const messenger = buildMessenger();
-      const middleware = createQueuedRequestMiddleware(messenger, () => true);
+      const middleware = createQueuedRequestMiddleware({
+        messenger,
+        useRequestQueue: () => true,
+      });
       const mocks = buildMocks(messenger);
 
       const req = {
@@ -229,9 +250,12 @@ describe('createQueuedRequestMiddleware', () => {
     });
 
     describe('requiring switch', () => {
-      it('calls addRequest to switchEthChain if the current network is wrong', async () => {
+      it('calls addRequest to switchEthChain if the current network is different than the globally selected network', async () => {
         const messenger = buildMessenger();
-        const middleware = createQueuedRequestMiddleware(messenger, () => true);
+        const middleware = createQueuedRequestMiddleware({
+          messenger,
+          useRequestQueue: () => true,
+        });
         const mockGetProviderConfig = jest.fn().mockReturnValue({
           providerConfig: {
             chainId: '0x5',
@@ -259,7 +283,10 @@ describe('createQueuedRequestMiddleware', () => {
 
       it('if the switchEthConfirmation is rejected, the original request is rejected', async () => {
         const messenger = buildMessenger();
-        const middleware = createQueuedRequestMiddleware(messenger, () => true);
+        const middleware = createQueuedRequestMiddleware({
+          messenger,
+          useRequestQueue: () => true,
+        });
         const rejected = new Error('big bad rejected');
         const mockAddRequest = jest.fn().mockRejectedValue(rejected);
         const mockGetProviderConfig = jest.fn().mockReturnValue({
@@ -291,7 +318,10 @@ describe('createQueuedRequestMiddleware', () => {
 
       it('uses setProviderType when the network is an infura one', async () => {
         const messenger = buildMessenger();
-        const middleware = createQueuedRequestMiddleware(messenger, () => true);
+        const middleware = createQueuedRequestMiddleware({
+          messenger,
+          useRequestQueue: () => true,
+        });
         const mocks = buildMocks(messenger, {
           getProviderConfig: jest.fn().mockReturnValue({
             providerConfig: {
@@ -315,7 +345,10 @@ describe('createQueuedRequestMiddleware', () => {
 
       it('uses setActiveNetwork when the network is a custom one', async () => {
         const messenger = buildMessenger();
-        const middleware = createQueuedRequestMiddleware(messenger, () => true);
+        const middleware = createQueuedRequestMiddleware({
+          messenger,
+          useRequestQueue: () => true,
+        });
         const mocks = buildMocks(messenger, {
           getProviderConfig: jest.fn().mockReturnValue({
             providerConfig: {
@@ -348,7 +381,10 @@ describe('createQueuedRequestMiddleware', () => {
   describe('concurrent requests', () => {
     it('rejecting one call does not cause others to be rejected', async () => {
       const messenger = buildMessenger();
-      const middleware = createQueuedRequestMiddleware(messenger, () => true);
+      const middleware = createQueuedRequestMiddleware({
+        messenger,
+        useRequestQueue: () => true,
+      });
       const rejectedError = new Error('big bad rejected');
       const mockAddRequest = jest
         .fn()

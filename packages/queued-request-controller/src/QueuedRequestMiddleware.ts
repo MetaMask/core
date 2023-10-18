@@ -38,7 +38,10 @@ const isConfirmationMethod = (method: string) => {
   return confirmationMethods.includes(method);
 };
 
-export const createQueuedRequestMiddleware = (
+export const createQueuedRequestMiddleware = ({
+  messenger,
+  useRequestQueue,
+}: {
   messenger: ControllerMessenger<
     | QueuedRequestControllerEnqueueRequestAction
     | NetworkControllerGetStateAction
@@ -49,9 +52,9 @@ export const createQueuedRequestMiddleware = (
     | SelectedNetworkControllerSetNetworkClientIdForDomainAction
     | AddApprovalRequest,
     never
-  >,
-  useRequestQueue: () => boolean,
-): JsonRpcMiddleware<JsonRpcParams, Json> => {
+  >;
+  useRequestQueue: () => boolean;
+}): JsonRpcMiddleware<JsonRpcParams, Json> => {
   return createAsyncMiddleware(
     async (
       req: JsonRpcRequest & {
