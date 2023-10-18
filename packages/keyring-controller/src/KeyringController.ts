@@ -41,6 +41,8 @@ export enum KeyringType {
   custody = 'Custody',
 }
 
+export type KeyringTypes = `${KeyringType}` | '';
+
 /**
  * @type KeyringControllerState
  *
