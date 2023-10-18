@@ -97,6 +97,14 @@ export class QueuedRequestController extends BaseControllerV2<
     return this.#count;
   }
 
+  #updateCount(change: -1 | 1) {
+    this.#count += change;
+    this.messagingSystem.publish(
+      'QueuedRequestController:countChanged',
+      this.#count,
+    );
+  }
+
   // [ current batch ] - [ batch n ] - [ last batch ]
   // for new request
   // if origin is not the same as last batch origin
@@ -104,11 +112,7 @@ export class QueuedRequestController extends BaseControllerV2<
   // otherwise, add request to the last batch
 
   async enqueueRequest(requestNext: (...arg: unknown[]) => Promise<unknown>) {
-    this.#count += 1;
-    this.messagingSystem.publish(
-      'QueuedRequestController:countChanged',
-      this.#count,
-    );
+    this.#updateCount(1);
 
     if (this.#count > 1) {
       await this.currentRequest;
@@ -116,18 +120,10 @@ export class QueuedRequestController extends BaseControllerV2<
 
     this.currentRequest = requestNext()
       .then(() => {
-        this.#count -= 1;
-        this.messagingSystem.publish(
-          'QueuedRequestController:countChanged',
-          this.#count,
-        );
+        this.#updateCount(-1);
       })
       .catch((e) => {
-        this.#count -= 1;
-        this.messagingSystem.publish(
-          'QueuedRequestController:countChanged',
-          this.#count,
-        );
+        this.#updateCount(-1);
         throw e;
       });
 

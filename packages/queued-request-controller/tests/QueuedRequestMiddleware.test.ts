@@ -6,6 +6,7 @@ import type {
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerSetProviderTypeAction,
 } from '@metamask/network-controller';
+import { serializeError } from '@metamask/rpc-errors';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 
@@ -95,22 +96,55 @@ const requestDefaults = {
   method: 'doesnt matter',
   id: 'doesnt matter',
   jsonrpc: '2.0' as const,
+  origin: 'example.com',
+  networkClientId: 'mainnet',
 };
 
-const noop = jest.fn();
-
 describe('createQueuedRequesMitddleware', () => {
+  it('throws if not provided an origin', async () => {
+    const messenger = buildMessenger();
+    const middleware = createQueuedRequestMiddleware(messenger, () => false);
+    const req = {
+      id: '123',
+      jsonrpc: '2.0',
+      method: 'anything',
+      networkClientId: 'anything',
+    };
+
+    await expect(
+      () =>
+        new Promise((resolve, reject) =>
+          middleware(req as any, {} as any, resolve, reject),
+        ),
+    ).rejects.toThrow("Request object is lacking an 'origin'");
+  });
+
+  it('throws if not provided an networkClientId', async () => {
+    const messenger = buildMessenger();
+    const middleware = createQueuedRequestMiddleware(messenger, () => false);
+    const req = {
+      id: '123',
+      jsonrpc: '2.0',
+      method: 'anything',
+      origin: 'anything',
+    };
+
+    await expect(
+      () =>
+        new Promise((resolve, reject) =>
+          middleware(req as any, {} as any, resolve, reject),
+        ),
+    ).rejects.toThrow("Request object is lacking a 'networkClientId'");
+  });
+
   it('should not enqueue the request when useRequestQueue is false', async () => {
     const messenger = buildMessenger();
     const middleware = createQueuedRequestMiddleware(messenger, () => false);
     const mocks = buildMocks(messenger);
 
-    const req = {
-      ...requestDefaults,
-      origin: 'example.com',
-    };
-
-    await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+    await new Promise((resolve, reject) =>
+      middleware({ ...requestDefaults }, {} as any, resolve, reject),
+    );
 
     expect(mocks.enqueueRequest).not.toHaveBeenCalled();
   });
@@ -122,28 +156,51 @@ describe('createQueuedRequesMitddleware', () => {
 
     const req = {
       ...requestDefaults,
-      origin: 'example.com',
       method: 'eth_chainId',
     };
 
-    await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+    await new Promise((resolve, reject) =>
+      middleware(req, {} as any, resolve, reject),
+    );
 
     expect(mocks.enqueueRequest).not.toHaveBeenCalled();
   });
 
   describe('confirmations', () => {
-    it('should resolve requests that require confirmations', async () => {
+    it('should resolve requests that require confirmations for infura networks', async () => {
       const messenger = buildMessenger();
       const middleware = createQueuedRequestMiddleware(messenger, () => true);
       const mocks = buildMocks(messenger);
 
       const req = {
         ...requestDefaults,
-        origin: 'example.com',
         method: 'eth_sendTransaction',
       };
 
-      await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+      await new Promise((resolve, reject) =>
+        middleware(req, {} as any, resolve, reject),
+      );
+
+      expect(mocks.addRequest).not.toHaveBeenCalled();
+      expect(mocks.enqueueRequest).toHaveBeenCalled();
+      expect(mocks.getNetworkClientById).not.toHaveBeenCalled();
+      expect(mocks.getProviderConfig).toHaveBeenCalled();
+    });
+
+    it('should resolve requests that require confirmations for custom networks', async () => {
+      const messenger = buildMessenger();
+      const middleware = createQueuedRequestMiddleware(messenger, () => true);
+      const mocks = buildMocks(messenger);
+
+      const req = {
+        ...requestDefaults,
+        networkClientId: 'custom-rpc.com',
+        method: 'eth_sendTransaction',
+      };
+
+      await new Promise((resolve, reject) =>
+        middleware(req, {} as any, resolve, reject),
+      );
 
       expect(mocks.addRequest).not.toHaveBeenCalled();
       expect(mocks.enqueueRequest).toHaveBeenCalled();
@@ -158,11 +215,12 @@ describe('createQueuedRequesMitddleware', () => {
 
       const req = {
         ...requestDefaults,
-        origin: 'example.com',
         method: 'wallet_switchEthereumChain',
       };
 
-      await new Promise((resolve) => middleware(req, {} as any, resolve, noop));
+      await new Promise((resolve, reject) =>
+        middleware(req, {} as any, resolve, reject),
+      );
 
       expect(mocks.addRequest).not.toHaveBeenCalled();
       expect(mocks.enqueueRequest).toHaveBeenCalled();
@@ -185,17 +243,16 @@ describe('createQueuedRequesMitddleware', () => {
 
         const req = {
           ...requestDefaults,
-          origin: 'example.com',
           method: 'eth_sendTransaction',
         };
 
-        await new Promise((resolve) =>
-          middleware(req, {} as any, resolve, noop),
+        await new Promise((resolve, reject) =>
+          middleware(req, {} as any, resolve, reject),
         );
 
         expect(mocks.addRequest).toHaveBeenCalled();
         expect(mocks.enqueueRequest).toHaveBeenCalled();
-        expect(mocks.getNetworkClientById).toHaveBeenCalled();
+        expect(mocks.getNetworkClientById).not.toHaveBeenCalled();
         expect(mocks.getProviderConfig).toHaveBeenCalled();
         expect(mocks.setNetworkClientIdForDomain).toHaveBeenCalled();
       });
@@ -217,19 +274,19 @@ describe('createQueuedRequesMitddleware', () => {
 
         const req = {
           ...requestDefaults,
-          origin: 'example.com',
           method: 'eth_sendTransaction',
         };
 
         const res: any = {};
-        await new Promise((resolve) => middleware(req, res, noop, resolve));
+        await new Promise((resolve, reject) =>
+          middleware(req, res, reject, resolve),
+        );
 
         expect(mocks.addRequest).toHaveBeenCalled();
         expect(mocks.enqueueRequest).toHaveBeenCalled();
-        expect(mocks.getNetworkClientById).toHaveBeenCalled();
         expect(mocks.getProviderConfig).toHaveBeenCalled();
         expect(mocks.setNetworkClientIdForDomain).not.toHaveBeenCalled();
-        expect(res.error).toBe(rejected);
+        expect(res.error).toStrictEqual(serializeError(rejected));
       });
 
       it('uses setProviderType when the network is an infura one', async () => {
@@ -245,13 +302,11 @@ describe('createQueuedRequesMitddleware', () => {
 
         const req = {
           ...requestDefaults,
-          origin: 'example.com',
           method: 'eth_sendTransaction',
-          networkClientId: 'mainnet',
         };
 
-        await new Promise((resolve) =>
-          middleware(req, {} as any, resolve, noop),
+        await new Promise((resolve, reject) =>
+          middleware(req, {} as any, resolve, reject),
         );
 
         expect(mocks.setProviderType).toHaveBeenCalled();
@@ -281,8 +336,8 @@ describe('createQueuedRequesMitddleware', () => {
           networkClientId: 'https://some-rpc-url.com',
         };
 
-        await new Promise((resolve) =>
-          middleware(req, {} as any, resolve, noop),
+        await new Promise((resolve, reject) =>
+          middleware(req, {} as any, resolve, reject),
         );
 
         expect(mocks.setProviderType).not.toHaveBeenCalled();
@@ -332,7 +387,7 @@ describe('createQueuedRequesMitddleware', () => {
       ]);
 
       expect(mocks.addRequest).toHaveBeenCalledTimes(2);
-      expect(res1.error).toBe(rejectedError);
+      expect(res1.error).toStrictEqual(serializeError(rejectedError));
       expect(res2.error).toBeUndefined();
     });
   });
