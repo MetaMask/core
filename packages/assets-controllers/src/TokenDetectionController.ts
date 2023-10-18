@@ -1,19 +1,22 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import {
   safelyExecute,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import type { NetworkClientId, NetworkController, NetworkState } from '@metamask/network-controller';
+import type {
+  NetworkClientId,
+  NetworkController,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
+import { PollingControllerV1 } from '../../polling-controller/src/PollingController';
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import type { TokenListState } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type { TokensController, TokensState } from './TokensController';
-import { PollingControllerV1 } from '../../polling-controller/src/PollingController';
 
 const DEFAULT_INTERVAL = 180000;
 
