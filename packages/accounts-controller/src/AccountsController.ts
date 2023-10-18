@@ -3,6 +3,7 @@ import { BaseControllerV2 } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
   KeyringControllerEvents,
@@ -468,7 +469,7 @@ export class AccountsController extends BaseControllerV2<
     }
 
     return internalAccounts.filter(
-      (account) => account.metadata.keyring.type !== 'Snap Keyring',
+      (account) => account.metadata.keyring.type !== KeyringTypes.snap,
     );
   }
 
@@ -486,7 +487,7 @@ export class AccountsController extends BaseControllerV2<
       const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
 
       for (const keyring of keyringState.keyrings) {
-        if (keyring.type === 'Snap Keyring') {
+        if (keyring.type === KeyringTypes.snap) {
           updatedSnapKeyringAddresses.push(
             ...keyring.accounts.map((address) => {
               return {
@@ -510,7 +511,7 @@ export class AccountsController extends BaseControllerV2<
       const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
         this.listAccounts().reduce(
           (accumulator, account) => {
-            if (account.metadata.keyring.type === 'Snap Keyring') {
+            if (account.metadata.keyring.type === KeyringTypes.snap) {
               accumulator.previousSnapInternalAccounts.push(account);
             } else {
               accumulator.previousNormalInternalAccounts.push(account);
@@ -650,12 +651,12 @@ export class AccountsController extends BaseControllerV2<
     const previousKeyringAccounts = this.listAccounts().filter(
       (internalAccount) => {
         if (
-          keyringType === 'HD Key Tree' ||
-          keyringType === 'Simple Key Pair'
+          keyringType === KeyringTypes.hd ||
+          keyringType === KeyringTypes.simple
         ) {
           return (
-            internalAccount.metadata.keyring.type === 'HD Key Tree' ||
-            internalAccount.metadata.keyring.type === 'Simple Key Pair'
+            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
+            internalAccount.metadata.keyring.type === KeyringTypes.simple
           );
         }
         return internalAccount.metadata.keyring.type === keyringType;
@@ -690,7 +691,7 @@ export class AccountsController extends BaseControllerV2<
    */
   #handleNewAccountAdded(account: AddressAndKeyringTypeObject) {
     let newAccount: InternalAccount;
-    if (account.type !== 'Snap Keyring') {
+    if (account.type !== KeyringTypes.snap) {
       newAccount = this.#generateInternalAccountForNonSnapAccount(
         account.address,
         account.type,

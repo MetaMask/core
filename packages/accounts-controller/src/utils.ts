@@ -50,6 +50,5 @@ export function getUUIDFromAddressOfNormalAccount(address: string): string {
     random: sha256FromString(address).slice(0, 16),
   };
 
-  const test = uuid(v4options);
-  return test;
+  return uuid(v4options);
 }
