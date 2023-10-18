@@ -61,13 +61,13 @@ export const createQueuedRequestMiddleware = (
       res,
       next,
     ) => {
-      const { origin, networkClientId } = req;
+      const { origin, networkClientId: networkClientIdForRequest } = req;
 
       if (!origin) {
         throw new Error("Request object is lacking an 'origin'");
       }
 
-      if (!networkClientId) {
+      if (!networkClientIdForRequest) {
         throw new Error("Request object is lacking a 'networkClientId'");
       }
 
@@ -75,8 +75,6 @@ export const createQueuedRequestMiddleware = (
         next();
         return;
       }
-
-      const networkClientIdForRequest = req.networkClientId as NetworkClientId;
 
       await messenger.call(
         QueuedRequestControllerActionTypes.enqueueRequest,
