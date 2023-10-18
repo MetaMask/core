@@ -35,7 +35,7 @@ type TransactionMetaBase = {
   rawTx?: string;
   time: number;
   toSmartContract?: boolean;
-  transaction: Transaction;
+  txParams: TransactionParams;
   transactionHash?: string;
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
@@ -73,9 +73,9 @@ export enum WalletDevice {
 }
 
 /**
- * @type Transaction
+ * @type TransactionParams
  *
- * Transaction representation
+ * Transaction params representation
  * @property chainId - Network ID as per EIP-155
  * @property data - Data to pass with this transaction
  * @property from - Address to send this transaction from
@@ -86,7 +86,7 @@ export enum WalletDevice {
  * @property to - Address to send this transaction to
  * @property value - Value associated with this transaction
  */
-export interface Transaction {
+export interface TransactionParams {
   chainId?: number;
   data?: string;
   from: string;
