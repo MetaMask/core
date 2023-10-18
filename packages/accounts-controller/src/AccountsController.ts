@@ -342,6 +342,8 @@ export class AccountsController extends BaseControllerV2<
     }, {} as Record<string, InternalAccount>);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
+      (currentState as AccountsControllerState).internalAccounts.accounts =
+        accounts;
     });
   }
 
@@ -353,6 +355,8 @@ export class AccountsController extends BaseControllerV2<
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
       this.update((currentState: Draft<AccountsControllerState>) => {
+        (currentState as AccountsControllerState).internalAccounts =
+          backup.internalAccounts;
       });
     }
   }
@@ -707,7 +711,9 @@ export class AccountsController extends BaseControllerV2<
     const accountName = `${accountPrefix} ${indexToUse}`;
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      currentState.internalAccounts.accounts[newAccount.id] = {
+      (currentState as AccountsControllerState).internalAccounts.accounts[
+        newAccount.id
+      ] = {
         ...newAccount,
         metadata: {
           ...newAccount.metadata,
