@@ -1762,11 +1762,11 @@ describe('AccountsController', () => {
         isUnlocked: true,
         keyrings: [
           {
-            type: 'HD Key Tree',
+            type: 'HD Key Tree' as const,
             accounts: [mockAccount.address],
           },
           {
-            type: 'Simple Key Pair',
+            type: 'Simple Key Pair' as const,
             accounts: [mockSimpleKeyring1.address, mockSimpleKeyring2.address],
           },
         ],

@@ -318,7 +318,9 @@ describe('KeyringController', () => {
     describe('when there is no builder for the given type', () => {
       it('should throw error', async () => {
         await withController(async ({ controller }) => {
-          await expect(controller.addNewKeyring('fake')).rejects.toThrow(
+          await expect(
+            controller.addNewKeyring('fake' as KeyringTypes),
+          ).rejects.toThrow(
             'KeyringController - No keyringBuilder found for keyring. Keyring type: fake',
           );
         });
@@ -728,7 +730,7 @@ describe('KeyringController', () => {
     describe('when non existing type is provided', () => {
       it('should return an empty array', async () => {
         await withController(async ({ controller }) => {
-          const keyrings = controller.getKeyringsByType('fake');
+          const keyrings = controller.getKeyringsByType('fake' as KeyringTypes);
           expect(keyrings).toHaveLength(0);
         });
       });

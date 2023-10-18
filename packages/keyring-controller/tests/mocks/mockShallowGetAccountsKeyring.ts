@@ -1,5 +1,7 @@
 import type { Keyring, Json, Hex } from '@metamask/utils';
 
+import { type KeyringTypes } from '../../src';
+
 /**
  * A test keyring that returns a shallow copy of the accounts array
  * when calling getAccounts().
@@ -10,7 +12,7 @@ import type { Keyring, Json, Hex } from '@metamask/utils';
  * an operation.
  */
 export default class MockShallowGetAccountsKeyring implements Keyring<Json> {
-  static type = 'Mock Shallow getAccounts Keyring';
+  static type = 'Mock Shallow getAccounts Keyring' as KeyringTypes;
 
   public type = MockShallowGetAccountsKeyring.type;
 

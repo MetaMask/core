@@ -475,10 +475,7 @@ export class KeyringController extends BaseControllerV2<
    * @throws If a builder for the given `type` does not exist.
    * @returns Promise resolving to the added keyring.
    */
-  async addNewKeyring(
-    type: KeyringTypes | string,
-    opts?: unknown,
-  ): Promise<unknown> {
+  async addNewKeyring(type: KeyringTypes, opts?: unknown): Promise<unknown> {
     if (type === KeyringType.qr) {
       return this.getOrAddQRKeyring();
     }
@@ -591,7 +588,7 @@ export class KeyringController extends BaseControllerV2<
    * @param type - Keyring type name.
    * @returns An array of keyrings of the given type.
    */
-  getKeyringsByType(type: KeyringTypes | string): unknown[] {
+  getKeyringsByType(type: KeyringTypes): unknown[] {
     return this.#keyring.getKeyringsByType(type);
   }
 
