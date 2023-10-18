@@ -4,15 +4,16 @@ import {
   safelyExecute,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
+import type { NetworkClientId, NetworkController, NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import type { TokenListState } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type { TokensController, TokensState } from './TokensController';
+import { PollingControllerV1 } from '../../polling-controller/src/PollingController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -37,7 +38,7 @@ export interface TokenDetectionConfig extends BaseConfig {
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
  */
-export class TokenDetectionController extends BaseController<
+export class TokenDetectionController extends PollingControllerV1<
   TokenDetectionConfig,
   BaseState
 > {
@@ -56,6 +57,8 @@ export class TokenDetectionController extends BaseController<
 
   private readonly getTokenListState: () => TokenListState;
 
+  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+
   /**
    * Creates a TokenDetectionController instance.
    *
@@ -69,6 +72,7 @@ export class TokenDetectionController extends BaseController<
    * @param options.getTokensState - Gets the current state of the Tokens controller.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPreferencesState - Gets the state of the preferences controller.
+   * @param options.getNetworkClientById - Gets the network client by ID.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -83,6 +87,7 @@ export class TokenDetectionController extends BaseController<
       getTokensState,
       getNetworkState,
       getPreferencesState,
+      getNetworkClientById,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -99,6 +104,7 @@ export class TokenDetectionController extends BaseController<
       getTokensState: () => TokensState;
       getNetworkState: () => NetworkState;
       getPreferencesState: () => PreferencesState;
+      getNetworkClientById: NetworkController['getNetworkClientById'];
     },
     config?: Partial<TokenDetectionConfig>,
     state?: Partial<BaseState>,
@@ -126,6 +132,7 @@ export class TokenDetectionController extends BaseController<
     this.getTokenListState = getTokenListState;
     this.addDetectedTokens = addDetectedTokens;
     this.getBalancesInSingleCall = getBalancesInSingleCall;
+    this.getNetworkClientById = getNetworkClientById;
 
     onTokenListStateChange(({ tokenList }) => {
       const hasTokens = Object.keys(tokenList).length;
@@ -211,10 +218,31 @@ export class TokenDetectionController extends BaseController<
     }, this.config.interval);
   }
 
+  private getCorrectChainId(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      return this.getNetworkClientById(networkClientId).configuration.chainId;
+    }
+    return this.config.chainId;
+  }
+
+  _executePoll(
+    networkClientId: string,
+    options: { address: string },
+  ): Promise<void> {
+    return this.detectTokens(networkClientId, options?.address);
+  }
+
   /**
    * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet.
+   *
+   * @param networkClientId - The ID of the network client to use.
+   * @param accountAddress - The account address to use.
    */
-  async detectTokens() {
+  async detectTokens(
+    networkClientId?: NetworkClientId,
+    accountAddress?: string,
+  ) {
+    console.log('detectTokens', this.config);
     const {
       disabled,
       isDetectionEnabledForNetwork,
@@ -227,8 +255,10 @@ export class TokenDetectionController extends BaseController<
     ) {
       return;
     }
+    console.log('not disabled');
     const { tokens } = this.getTokensState();
-    const { selectedAddress, chainId } = this.config;
+    const selectedAddress = accountAddress || this.config.selectedAddress;
+    const chainId = this.getCorrectChainId(networkClientId);
 
     const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
