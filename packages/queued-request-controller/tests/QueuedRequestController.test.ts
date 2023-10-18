@@ -118,7 +118,7 @@ describe('QueuedRequestController', () => {
     });
   });
 
-  describe('length', () => {
+  describe('countChanged event', () => {
     it('emits countChanged event when the queue length changes', async () => {
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(),
@@ -155,7 +155,9 @@ describe('QueuedRequestController', () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
       expect(eventListener).toHaveBeenNthCalledWith(4, 0);
     });
+  });
 
+  describe('length', () => {
     it('returns the correct queue length', async () => {
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(),

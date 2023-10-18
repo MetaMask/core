@@ -5,6 +5,7 @@ import { SelectedNetworkController } from '../src/SelectedNetworkController';
 import { buildSelectedNetworkControllerMessenger } from './utils';
 
 jest.mock('@metamask/swappable-obj-proxy');
+const createEventEmitterProxyMock = jest.mocked(createEventEmitterProxy);
 
 describe('SelectedNetworkController', () => {
   it('can be instantiated with default values', () => {
@@ -51,8 +52,11 @@ describe('SelectedNetworkController', () => {
       const initialNetworkClientId = '123';
       const mockProviderProxy = {
         setTarget: jest.fn(),
+        eventNames: jest.fn(),
+        rawListeners: jest.fn(),
+        removeAllListeners: jest.fn(),
       };
-      (createEventEmitterProxy as jest.Mock).mockReturnValue(mockProviderProxy);
+      createEventEmitterProxyMock.mockReturnValue(mockProviderProxy);
       controller.setNetworkClientIdForDomain(
         'example.com',
         initialNetworkClientId,
