@@ -45,8 +45,6 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
 
     #intervalLength = 1000;
 
-    #executeImmediately = false;
-
     getIntervalLength() {
       return this.#intervalLength;
     }
@@ -58,19 +56,6 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
      */
     setIntervalLength(length: number) {
       this.#intervalLength = length;
-    }
-
-    getExecuteImmediately() {
-      return this.#executeImmediately;
-    }
-
-    /**
-     * Sets the flag determining if poll execution should happen immediately on poll start
-     *
-     * @param executeImmediately - The boolean value for immediate polling execution
-     */
-    setExecuteImmediately(executeImmediately: boolean) {
-      this.#executeImmediately = executeImmediately;
     }
 
     /**
@@ -95,9 +80,6 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
         const set = new Set<string>();
         set.add(pollToken);
         this.#pollingTokenSets.set(key, set);
-      }
-      if (this.#executeImmediately) {
-        this._executePoll(networkClientId, options);
       }
       this.#poll(networkClientId, options);
       return pollToken;
@@ -160,6 +142,8 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
       if (this.#intervalIds[key]) {
         clearTimeout(this.#intervalIds[key]);
         delete this.#intervalIds[key];
+      } else {
+        this._executePoll(networkClientId, options);
       }
       // setTimeout is not `await`ing this async function, which is expected
       // We're just using async here for improved stack traces
