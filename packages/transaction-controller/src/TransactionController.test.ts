@@ -1845,6 +1845,39 @@ describe('TransactionController', () => {
 
       expect(delayMessengerMock.call).not.toHaveBeenCalled();
     });
+
+    it.each([
+      [
+        providerErrors.userRejectedRequest(),
+        'catches error when user reject approval',
+      ],
+      [
+        new Error('TestError'),
+        'catches error no code property in error object',
+      ],
+    ])('%s', async (errorToThrow) => {
+      jest.spyOn(console, 'error').mockImplementation();
+
+      (
+        delayMessengerMock.call as jest.MockedFunction<any>
+      ).mockImplementationOnce(() => {
+        throw errorToThrow;
+      });
+
+      const txParams = {
+        from: ACCOUNT_MOCK,
+        hash: '1337',
+        id: 'mocked',
+        chainId: toHex(5),
+        status: TransactionStatus.unapproved,
+      };
+      const controller = newController();
+      controller.state.transactions.push(txParams as any);
+
+      controller.initApprovals();
+
+      expect(delayMessengerMock.call).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('confirmExternalTransaction', () => {
