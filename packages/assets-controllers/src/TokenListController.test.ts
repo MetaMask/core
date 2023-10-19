@@ -1368,20 +1368,23 @@ describe('TokenListController', () => {
       );
 
       controller.startPollingByNetworkClientId('goerli');
+      jest.advanceTimersByTime(0);
+      await flushPromises();
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
       jest.advanceTimersByTime(pollingIntervalTime / 2);
       await flushPromises();
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(0);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
       jest.advanceTimersByTime(pollingIntervalTime / 2);
       await flushPromises();
 
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
       await Promise.all([
         jest.advanceTimersByTime(pollingIntervalTime),
         flushPromises(),
       ]);
 
       await Promise.all([jest.runOnlyPendingTimers(), flushPromises()]);
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(3);
     });
 
     it('should update tokenList state and tokensChainsCache', async () => {

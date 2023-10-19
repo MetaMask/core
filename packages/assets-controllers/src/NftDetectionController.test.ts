@@ -294,17 +294,19 @@ describe('NftDetectionController', () => {
     testNftDetection.startPollingByNetworkClientId('mainnet', {
       address: '0x1',
     });
-    await Promise.all([
-      jest.advanceTimersByTime(DEFAULT_INTERVAL),
-      Promise.resolve(),
-    ]);
+    await Promise.all([jest.advanceTimersByTime(0), Promise.resolve()]);
     expect(spy.mock.calls).toHaveLength(1);
     await Promise.all([
       jest.advanceTimersByTime(DEFAULT_INTERVAL),
       Promise.resolve(),
     ]);
     expect(spy.mock.calls).toHaveLength(2);
+    await Promise.all([
+      jest.advanceTimersByTime(DEFAULT_INTERVAL),
+      Promise.resolve(),
+    ]);
     expect(spy.mock.calls).toMatchObject([
+      ['mainnet', '0x1'],
       ['mainnet', '0x1'],
       ['mainnet', '0x1'],
     ]);
