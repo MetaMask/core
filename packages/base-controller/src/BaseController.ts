@@ -120,9 +120,9 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
         ? (config as C)
         : Object.assign(this.internalConfig, config);
 
-      for (const key of Object.keys(this.internalConfig) as (keyof C)[]) {
-        if (typeof this.internalConfig[key] !== 'undefined') {
-          (this as any)[key] = this.internalConfig[key];
+      for (const [key, value] of Object.entries(this.internalConfig)) {
+        if (value !== undefined) {
+          (this as any)[key] = value;
         }
       }
     } else {
