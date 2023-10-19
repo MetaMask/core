@@ -1322,7 +1322,7 @@ describe('NftController', () => {
         )
         .reply(200, {
           name: 'name (directly from tokenURI)',
-          description: 'description (direclty from tokenURI)',
+          description: 'description (directly from tokenURI)',
           external_link: null,
           image: 'image (directly from tokenURI)',
           animation_url: null,
@@ -1341,7 +1341,7 @@ describe('NftController', () => {
         address: ERC1155_NFT_ADDRESS,
         image: 'image (directly from tokenURI)',
         name: 'name (directly from tokenURI)',
-        description: 'description (direclty from tokenURI)',
+        description: 'description (directly from tokenURI)',
         tokenId: ERC1155_NFT_ID,
         standard: ERC1155,
         favorite: false,

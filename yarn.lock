@@ -1397,7 +1397,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^3.2.3
-    "@metamask/eth-snap-keyring": ^1.0.0
+    "@metamask/eth-snap-keyring": ^2.0.0
     "@metamask/keyring-api": ^1.0.0
     "@metamask/keyring-controller": ^8.0.3
     "@metamask/snaps-controllers": ^3.0.0
@@ -1906,9 +1906,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-snap-keyring@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@metamask/eth-snap-keyring@npm:1.0.0"
+"@metamask/eth-snap-keyring@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@metamask/eth-snap-keyring@npm:2.0.0"
   dependencies:
     "@ethereumjs/tx": ^4.2.0
     "@metamask/eth-sig-util": ^7.0.0
@@ -1918,7 +1918,7 @@ __metadata:
     "@types/uuid": ^9.0.1
     superstruct: ^1.0.3
     uuid: ^9.0.0
-  checksum: 979e6b0f6a4108f3562b501c2393fc25bcf8d7ecfe8e37fd49a49a7a82c0e71d56f56efe7ed517db845826c932df9a48c905cc3cc13a8700f9b5fd948254cfa8
+  checksum: 02a4f523fbc129f817c99906fe4b4b53762d49db8eb1a24f965508d6eec5634eb90c37a88ab8181254abcb6969893cea314832a515c79d6c3656428c779da7d4
   languageName: node
   linkType: hard
 
