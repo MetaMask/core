@@ -162,16 +162,16 @@ export class PreferencesController extends BaseController<
     const { identities, lostIdentities } = this.state;
     const newlyLost: { [address: string]: ContactEntry } = {};
 
-    for (const identity of Object.keys(identities)) {
-      if (!addresses.includes(identity)) {
-        newlyLost[identity] = identities[identity];
-        delete identities[identity];
+    for (const [address, identity] of Object.entries(identities)) {
+      if (!addresses.includes(address)) {
+        newlyLost[address] = identity;
+        delete identities[address];
       }
     }
 
     if (Object.keys(newlyLost).length > 0) {
-      for (const key of Object.keys(newlyLost)) {
-        lostIdentities[key] = newlyLost[key];
+      for (const [address, identity] of Object.entries(newlyLost)) {
+        lostIdentities[address] = identity;
       }
     }
 
