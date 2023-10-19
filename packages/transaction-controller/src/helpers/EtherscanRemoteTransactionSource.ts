@@ -3,25 +3,25 @@ import type { Hex } from '@metamask/utils';
 import { BN } from 'ethereumjs-util';
 import { v1 as random } from 'uuid';
 
-import { ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
+import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
+import { incomingTransactionsLogger as log } from '../logger';
+import type {
+  RemoteTransactionSource,
+  RemoteTransactionSourceRequest,
+  TransactionMeta,
+} from '../types';
+import { TransactionStatus } from '../types';
+import {
+  fetchEtherscanTokenTransactions,
+  fetchEtherscanTransactions,
+} from '../utils/etherscan';
 import type {
   EtherscanTokenTransactionMeta,
   EtherscanTransactionMeta,
   EtherscanTransactionMetaBase,
   EtherscanTransactionRequest,
   EtherscanTransactionResponse,
-} from './etherscan';
-import {
-  fetchEtherscanTokenTransactions,
-  fetchEtherscanTransactions,
-} from './etherscan';
-import { incomingTransactionsLogger as log } from './logger';
-import type {
-  RemoteTransactionSource,
-  RemoteTransactionSourceRequest,
-  TransactionMeta,
-} from './types';
-import { TransactionStatus } from './types';
+} from '../utils/etherscan';
 
 /**
  * A RemoteTransactionSource that fetches transaction data from Etherscan.

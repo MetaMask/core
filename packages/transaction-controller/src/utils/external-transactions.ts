@@ -1,8 +1,8 @@
 // These utility functions are exclusively used by `confirmExternalTransaction` method in controller
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import { TransactionStatus } from './types';
-import type { TransactionMeta } from './types';
+import { TransactionStatus } from '../types';
+import type { TransactionMeta } from '../types';
 
 /**
  * Validates the external provided transaction meta.
