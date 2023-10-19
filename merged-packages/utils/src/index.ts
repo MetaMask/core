@@ -6,6 +6,7 @@ export * from './checksum';
 export * from './coercers';
 export * from './collections';
 export * from './encryption-types';
+export * from './errors';
 export * from './hex';
 export * from './json';
 export * from './keyring';

@@ -77,6 +77,7 @@ describe('index', () => {
         "createProjectLogger",
         "exactOptional",
         "getChecksumAddress",
+        "getErrorMessage",
         "getJsonRpcIdValidator",
         "getJsonSize",
         "getKnownPropertyNames",
@@ -95,6 +96,9 @@ describe('index', () => {
         "isCaipChainId",
         "isCaipNamespace",
         "isCaipReference",
+        "isErrorWithCode",
+        "isErrorWithMessage",
+        "isErrorWithStack",
         "isHexString",
         "isJsonRpcError",
         "isJsonRpcFailure",
@@ -125,6 +129,7 @@ describe('index', () => {
         "stringToBytes",
         "timeSince",
         "valueToBytes",
+        "wrapError",
       ]
     `);
   });
