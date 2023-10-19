@@ -44,13 +44,10 @@ type TransactionMetaBase = {
    */
   dappSuggestedGasFees?: DappSuggestedGasFees;
 
-  defaultGasEstimates?: {
-    estimateType?: string;
-    gas?: string;
-    gasPrice?: string;
-    maxFeePerGas?: string;
-    maxPriorityFeePerGas?: string;
-  };
+  /**
+   * The initial gas values set when the transaction was first created.
+   */
+  defaultGasEstimates?: DefaultGasEstimates;
 
   /**
    * String to indicate what device the transaction was confirmed on.
@@ -662,3 +659,33 @@ export enum UserFeeLevel {
   DAPP_SUGGESTED = 'dappSuggested',
   MEDIUM = 'medium',
 }
+
+/**
+ * Initial gas values set when the transaction was first created.
+ */
+export type DefaultGasEstimates = {
+  /**
+   * Source of the gas fee values, such as `dappSuggested` or `medium`.
+   */
+  estimateType?: string;
+
+  /**
+   * Maxmimum number of units of gas to use for this transaction.
+   */
+  gas?: string;
+
+  /**
+   * Price per gas for legacy transactions.
+   */
+  gasPrice?: string;
+
+  /**
+   * Maximum amount per gas to pay for the transaction, including the priority fee.
+   */
+  maxFeePerGas?: string;
+
+  /**
+   * Maximum amount per gas to give to validator as incentive.
+   */
+  maxPriorityFeePerGas?: string;
+};

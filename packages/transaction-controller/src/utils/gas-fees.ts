@@ -261,8 +261,8 @@ async function getSuggestedGasFees(request: UpdateGasFeesRequest) {
         gasPrice: gweiDecimalToWeiHex(gasFeeEstimates.gasPrice),
       };
     }
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    log('Failed to get suggested gas fees', error);
   }
 
   const gasPriceDecimal = (await query(ethQuery, 'gasPrice')) as number;
