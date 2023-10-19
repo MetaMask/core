@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.2.0]
+### Added
+- Applied eslint rules from core monorepo ([#172](https://github.com/MetaMask/json-rpc-engine/pull/172))
+
 ## [7.1.1]
 ### Changed
 - Bumped `@metamask/utils` from `^5.0.2` to `^8.1.0` [#158](https://github.com/MetaMask/json-rpc-engine/pull/158) ([#162](https://github.com/MetaMask/json-rpc-engine/pull/162))
@@ -79,7 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/json-rpc-engine/compare/v7.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/json-rpc-engine/compare/v7.2.0...HEAD
+[7.2.0]: https://github.com/MetaMask/json-rpc-engine/compare/v7.1.1...v7.2.0
 [7.1.1]: https://github.com/MetaMask/json-rpc-engine/compare/v7.1.0...v7.1.1
 [7.1.0]: https://github.com/MetaMask/json-rpc-engine/compare/v7.0.0...v7.1.0
 [7.0.0]: https://github.com/MetaMask/json-rpc-engine/compare/v6.1.0...v7.0.0
