@@ -1,4 +1,4 @@
-import type { Infer, Struct } from 'superstruct';
+import type { Context, Infer } from 'superstruct';
 import {
   any,
   array,
@@ -12,16 +12,23 @@ import {
   literal,
   nullable,
   number,
-  object,
+  object as superstructObject,
   optional,
   record,
   string,
   union,
   unknown,
+  Struct,
 } from 'superstruct';
+import type {
+  ObjectSchema,
+  Optionalize,
+  Simplify,
+} from 'superstruct/dist/utils';
 
 import type { AssertionErrorConstructor } from './assert';
 import { assertStruct } from './assert';
+import { hasProperty } from './misc';
 
 /**
  * Any JSON-compatible value.
@@ -33,6 +40,117 @@ export type Json =
   | string
   | Json[]
   | { [prop: string]: Json };
+
+/**
+ * A helper type to make properties with `undefined` in their type optional, but
+ * not `undefined` itself.
+ *
+ * @example
+ * ```ts
+ * type Foo = ObjectOptional<{ foo: string | undefined }>;
+ * // Foo is equivalent to { foo?: string }
+ * ```
+ */
+export type ObjectOptional<Schema extends Record<string, unknown>> = {
+  [Key in keyof Schema as Schema[Key] extends ExactOptionalGuard
+    ? Key
+    : never]?: Schema[Key] extends ExactOptionalGuard & infer Original
+    ? Original
+    : never;
+} & {
+  [Key in keyof Schema as Schema[Key] extends ExactOptionalGuard
+    ? never
+    : Key]: Schema[Key];
+};
+
+/**
+ * An object type with support for exact optionals. This is used by the `object`
+ * struct. This uses the {@link ObjectOptional} helper to make properties with
+ * `undefined` in their type optional, but not `undefined` itself.
+ */
+export type ObjectType<Schema extends ObjectSchema> = Simplify<
+  ObjectOptional<
+    Optionalize<{
+      [Key in keyof Schema]: Infer<Schema[Key]>;
+    }>
+  >
+>;
+
+/**
+ * A struct to check if the given value is a valid object, with support for
+ * {@link exactOptional} types.
+ *
+ * @param schema - The schema of the object.
+ * @returns A struct to check if the given value is an object.
+ */
+export const object = <Schema extends ObjectSchema>(
+  schema: Schema,
+): Struct<ObjectType<Schema>> =>
+  // The type is slightly different from a regular object struct, because we
+  // want to make properties with `undefined` in their type optional, but not
+  // `undefined` itself. This means that we need a type cast.
+  superstructObject(schema) as unknown as Struct<ObjectType<Schema>>;
+
+declare const exactOptionalSymbol: unique symbol;
+type ExactOptionalGuard = {
+  _exactOptionalGuard?: typeof exactOptionalSymbol;
+};
+
+/**
+ * Check the last field of a path is present.
+ *
+ * @param context - The context to check.
+ * @param context.path - The path to check.
+ * @param context.branch - The branch to check.
+ * @returns Whether the last field of a path is present.
+ */
+function hasOptional({ path, branch }: Context): boolean {
+  const field = path[path.length - 1];
+  return hasProperty(branch[branch.length - 2], field);
+}
+
+/**
+ * A struct which allows the property of an object to be absent, or to be present
+ * as long as it's valid and not set to `undefined`.
+ *
+ * This struct should be used in conjunction with the {@link object} from this
+ * library, to get proper type inference.
+ *
+ * @param struct - The struct to check the value against, if present.
+ * @returns A struct to check if the given value is valid, or not present.
+ * @example
+ * ```ts
+ * const struct = object({
+ *   foo: exactOptional(string()),
+ *   bar: exactOptional(number()),
+ *   baz: optional(boolean()),
+ *   qux: unknown(),
+ * });
+ *
+ * type Type = Infer<typeof struct>;
+ * // Type is equivalent to:
+ * // {
+ * //   foo?: string;
+ * //   bar?: number;
+ * //   baz?: boolean | undefined;
+ * //   qux: unknown;
+ * // }
+ * ```
+ */
+export function exactOptional<Type, Schema>(
+  struct: Struct<Type, Schema>,
+): Struct<Type & ExactOptionalGuard, Schema> {
+  return new Struct<Type & ExactOptionalGuard, Schema>({
+    ...struct,
+
+    type: `optional ${struct.type}`,
+    validator: (value, context) =>
+      !hasOptional(context) || struct.validator(value, context),
+
+    refiner: (value, context) =>
+      !hasOptional(context) || struct.refiner(value as Type, context),
+  });
+}
 
 /**
  * A struct to check if the given value is finite number. Superstruct's
@@ -152,8 +270,8 @@ export type JsonRpcId = Infer<typeof JsonRpcIdStruct>;
 export const JsonRpcErrorStruct = object({
   code: integer(),
   message: string(),
-  data: optional(JsonStruct),
-  stack: optional(string()),
+  data: exactOptional(JsonStruct),
+  stack: exactOptional(string()),
 });
 
 /**
@@ -185,14 +303,14 @@ export const JsonRpcRequestStruct = object({
   id: JsonRpcIdStruct,
   jsonrpc: JsonRpcVersionStruct,
   method: string(),
-  params: optional(JsonRpcParamsStruct),
+  params: exactOptional(JsonRpcParamsStruct),
 });
 
 export type InferWithParams<
   Type extends Struct<any>,
   Params extends JsonRpcParams,
-> = Omit<Infer<Type>, 'params'> & {
-  params?: Exclude<Params, undefined>;
+> = Infer<Type> & {
+  params?: Params;
 };
 
 /**
@@ -204,7 +322,7 @@ export type JsonRpcRequest<Params extends JsonRpcParams = JsonRpcParams> =
 export const JsonRpcNotificationStruct = object({
   jsonrpc: JsonRpcVersionStruct,
   method: string(),
-  params: optional(JsonRpcParamsStruct),
+  params: exactOptional(JsonRpcParamsStruct),
 });
 
 /**
@@ -278,7 +396,7 @@ export function assertIsJsonRpcRequest(
   );
 }
 
-export const PendingJsonRpcResponseStruct = object({
+export const PendingJsonRpcResponseStruct = superstructObject({
   id: JsonRpcIdStruct,
   jsonrpc: JsonRpcVersionStruct,
   result: optional(unknown()),

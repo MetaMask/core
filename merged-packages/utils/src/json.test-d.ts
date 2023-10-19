@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/consistent-type-definitions */
 
+import type { Infer } from 'superstruct';
+import { boolean, number, optional, string } from 'superstruct';
 import { expectAssignable, expectNotAssignable } from 'tsd';
 
 import type { Json } from '.';
+import { exactOptional, object } from '.';
 
 // Valid Json:
 
@@ -134,3 +137,23 @@ class Foo {
 }
 const foo = new Foo();
 expectNotAssignable<Json>(foo);
+
+// Object using `exactOptional`:
+
+const exactOptionalObject = object({
+  a: number(),
+  b: optional(string()),
+  c: exactOptional(boolean()),
+});
+
+type ExactOptionalObject = Infer<typeof exactOptionalObject>;
+
+expectAssignable<ExactOptionalObject>({ a: 0 });
+expectAssignable<ExactOptionalObject>({ a: 0, b: 'test' });
+expectAssignable<ExactOptionalObject>({ a: 0, b: 'test', c: true });
+expectNotAssignable<ExactOptionalObject>({ a: 0, b: 'test', c: 0 });
+expectNotAssignable<ExactOptionalObject>({
+  a: 0,
+  b: 'test',
+  c: undefined,
+});
