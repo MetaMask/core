@@ -1584,7 +1584,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auto-changelog@npm:^3.4.0":
+"@metamask/auto-changelog@npm:^3.1.0, @metamask/auto-changelog@npm:^3.4.0":
   version: 3.4.0
   resolution: "@metamask/auto-changelog@npm:3.4.0"
   dependencies:
