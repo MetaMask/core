@@ -1,6 +1,6 @@
 import { handleFetch } from '@metamask/controller-utils';
 
-import { CHAIN_IDS, ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
+import { CHAIN_IDS, ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
 import type {
   EtherscanTransactionMeta,
   EtherscanTransactionRequest,

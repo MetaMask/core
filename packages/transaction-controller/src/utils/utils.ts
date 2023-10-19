@@ -6,9 +6,9 @@ import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/
 import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
-} from './TransactionController';
-import { TransactionStatus } from './types';
-import type { TransactionParams, TransactionMeta } from './types';
+} from '../TransactionController';
+import { TransactionStatus } from '../types';
+import type { TransactionParams, TransactionMeta } from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
