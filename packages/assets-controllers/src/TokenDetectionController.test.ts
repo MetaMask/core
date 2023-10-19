@@ -206,16 +206,14 @@ describe('TokenDetectionController', () => {
       getTokenListState: () => tokenList.state,
       getNetworkState: () => defaultNetworkState,
       getPreferencesState: () => preferences.state,
-      getNetworkClientById: jest.fn().mockImplementation(() => {
-        return {
+      getNetworkClientById: jest.fn().mockReturnValueOnce({
           configuration: {
             chainId: ChainId.mainnet,
           },
           provider: {},
           blockTracker: {},
           destroy: jest.fn(),
-        };
-      }),
+        }),
     });
 
     sinon
