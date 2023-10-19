@@ -5,7 +5,7 @@ import type {
   TransactionHistory,
   TransactionHistoryEntry,
   TransactionMeta,
-} from './types';
+} from '../types';
 
 /**
  * Add initial history snapshot to the provided transactionMeta history.

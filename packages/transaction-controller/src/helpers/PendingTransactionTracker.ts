@@ -3,9 +3,9 @@ import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import EventEmitter from 'events';
 
-import { pendingTransactionsLogger as log } from './logger';
-import type { TransactionMeta } from './types';
-import { TransactionStatus } from './types';
+import { pendingTransactionsLogger as log } from '../logger';
+import type { TransactionMeta } from '../types';
+import { TransactionStatus } from '../types';
 
 export class PendingTransactionTracker {
   hub: EventEmitter;
