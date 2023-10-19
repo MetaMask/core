@@ -1,0 +1,15 @@
+{
+  "ignores": [
+    "@lavamoat/allow-scripts",
+    "@lavamoat/preinstall-always-fail",
+    "@metamask/auto-changelog",
+    "@types/*",
+    "@yarnpkg/cli",
+    "@yarnpkg/core",
+    "@yarnpkg/fslib",
+    "clipanion",
+    "prettier-plugin-packagejson",
+    "ts-node",
+    "typedoc"
+  ]
+}

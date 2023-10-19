@@ -16,12 +16,12 @@ import {
 import { PreferencesController } from '@metamask/preferences-controller';
 import HttpProvider from 'ethjs-provider-http';
 
+import { mockNetwork } from '../../../tests/mock-network';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
-import { mockNetwork } from '../../../tests/mock-network';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
@@ -46,6 +46,7 @@ async function setupAssetContractControllers() {
     network: 'mainnet',
     infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
     chainId: BUILT_IN_NETWORKS.mainnet.chainId,
+    ticker: BUILT_IN_NETWORKS.mainnet.ticker,
   } as const;
 
   const messenger: NetworkControllerMessenger =
@@ -871,6 +872,7 @@ describe('AssetsContractController', () => {
     mockNetworkWithDefaultChainId({
       networkClientConfiguration: {
         chainId: BUILT_IN_NETWORKS.sepolia.chainId,
+        ticker: BUILT_IN_NETWORKS.sepolia.ticker,
         type: NetworkClientType.Infura,
         network: 'sepolia',
         infuraProjectId: networkClientConfiguration.infuraProjectId,
@@ -914,7 +916,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw missing provider error when transfering single ERC-1155 when missing provider', async () => {
+  it('should throw missing provider error when transferring single ERC-1155 when missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
     assetsContract.configure({ provider: undefined });
     await expect(

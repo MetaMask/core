@@ -1,6 +1,6 @@
 {
   "name": "@metamask/message-manager",
-  "version": "7.3.4",
+  "version": "7.3.5",
   "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "MetaMask",
@@ -25,13 +25,14 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/message-manager",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^3.2.2",
-    "@metamask/controller-utils": "^5.0.1",
+    "@metamask/base-controller": "^3.2.3",
+    "@metamask/controller-utils": "^5.0.2",
     "@metamask/eth-sig-util": "^7.0.0",
-    "@metamask/utils": "^6.2.0",
+    "@metamask/utils": "^8.1.0",
     "@types/uuid": "^8.3.0",
     "ethereumjs-util": "^7.0.10",
     "jsonschema": "^1.2.4",
@@ -43,8 +44,8 @@
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
-    "typedoc": "^0.23.15",
-    "typedoc-plugin-missing-exports": "^0.23.0",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.8.4"
   },
   "engines": {
