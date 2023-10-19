@@ -120,17 +120,17 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
         ? (config as C)
         : Object.assign(this.internalConfig, config);
 
-      for (const key in this.internalConfig) {
+      for (const key of Object.keys(this.internalConfig) as (keyof C)[]) {
         if (typeof this.internalConfig[key] !== 'undefined') {
-          (this as any)[key as string] = this.internalConfig[key];
+          (this as any)[key] = this.internalConfig[key];
         }
       }
     } else {
-      for (const key in config) {
+      for (const key of Object.keys(config) as (keyof C)[]) {
         /* istanbul ignore else */
         if (typeof this.internalConfig[key] !== 'undefined') {
-          this.internalConfig[key] = config[key] as any;
-          (this as any)[key as string] = config[key];
+          this.internalConfig[key] = (config as C)[key];
+          (this as any)[key] = config[key];
         }
       }
     }
