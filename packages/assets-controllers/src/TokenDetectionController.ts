@@ -8,10 +8,10 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
+import { PollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
-import { PollingControllerV1 } from '../../polling-controller/src/PollingController';
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import type { TokenListState } from './TokenListController';
@@ -232,7 +232,7 @@ export class TokenDetectionController extends PollingControllerV1<
     networkClientId: string,
     options: { address: string },
   ): Promise<void> {
-    return this.detectTokens(networkClientId, options?.address);
+    return this.detectTokens(networkClientId, options.address);
   }
 
   /**
