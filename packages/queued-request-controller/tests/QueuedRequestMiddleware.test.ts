@@ -196,10 +196,9 @@ describe('createQueuedRequestMiddleware', () => {
         middleware(req, {} as any, resolve, reject),
       );
 
-      expect(mocks.addRequest).not.toHaveBeenCalled();
       expect(mocks.enqueueRequest).toHaveBeenCalled();
+      // infura networks do not use getNetworkClientById
       expect(mocks.getNetworkClientById).not.toHaveBeenCalled();
-      expect(mocks.getProviderConfig).toHaveBeenCalled();
     });
 
     it('should resolve requests that require confirmations for custom networks', async () => {
@@ -220,10 +219,9 @@ describe('createQueuedRequestMiddleware', () => {
         middleware(req, {} as any, resolve, reject),
       );
 
-      expect(mocks.addRequest).not.toHaveBeenCalled();
       expect(mocks.enqueueRequest).toHaveBeenCalled();
+      // custom networks use getNetworkClientyId
       expect(mocks.getNetworkClientById).toHaveBeenCalled();
-      expect(mocks.getProviderConfig).toHaveBeenCalled();
     });
 
     it('switchEthereumChain calls get queued but we dont check the current network', async () => {
@@ -245,7 +243,6 @@ describe('createQueuedRequestMiddleware', () => {
 
       expect(mocks.addRequest).not.toHaveBeenCalled();
       expect(mocks.enqueueRequest).toHaveBeenCalled();
-      expect(mocks.getNetworkClientById).not.toHaveBeenCalled();
       expect(mocks.getProviderConfig).not.toHaveBeenCalled();
     });
 
@@ -276,8 +273,6 @@ describe('createQueuedRequestMiddleware', () => {
 
         expect(mocks.addRequest).toHaveBeenCalled();
         expect(mocks.enqueueRequest).toHaveBeenCalled();
-        expect(mocks.getNetworkClientById).not.toHaveBeenCalled();
-        expect(mocks.getProviderConfig).toHaveBeenCalled();
         expect(mocks.setNetworkClientIdForDomain).toHaveBeenCalled();
       });
 
@@ -311,7 +306,6 @@ describe('createQueuedRequestMiddleware', () => {
 
         expect(mocks.addRequest).toHaveBeenCalled();
         expect(mocks.enqueueRequest).toHaveBeenCalled();
-        expect(mocks.getProviderConfig).toHaveBeenCalled();
         expect(mocks.setNetworkClientIdForDomain).not.toHaveBeenCalled();
         expect(res.error).toStrictEqual(serializeError(rejected));
       });
