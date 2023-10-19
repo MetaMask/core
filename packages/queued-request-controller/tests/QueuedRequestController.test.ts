@@ -119,7 +119,7 @@ describe('QueuedRequestController', () => {
   });
 
   describe('countChanged event', () => {
-    it('emits countChanged event when the queue length changes', async () => {
+    it('gets emitted when the queue length changes', async () => {
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(),
       };
