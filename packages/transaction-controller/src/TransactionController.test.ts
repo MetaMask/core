@@ -23,8 +23,8 @@ import NonceTracker from 'nonce-tracker';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { mockNetwork } from '../../../tests/mock-network';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import { PendingTransactionTracker } from './PendingTransactionTracker';
+import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import type {
   TransactionControllerMessenger,
   TransactionConfig,
@@ -32,7 +32,8 @@ import type {
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta, DappSuggestedGasFees } from './types';
 import { WalletDevice, TransactionStatus, TransactionType } from './types';
-import { ESTIMATE_GAS_ERROR } from './utils';
+import { estimateGas, updateGas } from './utils/gas';
+import { updateGasFees } from './utils/gas-fees';
 
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 const v1Stub = jest.fn().mockImplementation(() => MOCK_V1_UUID);
@@ -43,6 +44,9 @@ jest.mock('uuid', () => {
     v1: () => v1Stub(),
   };
 });
+
+jest.mock('./utils/gas');
+jest.mock('./utils/gas-fees');
 
 const mockFlags: { [key: string]: any } = {
   estimateGasError: null,
@@ -134,8 +138,8 @@ jest.mock('@metamask/eth-query', () =>
   }),
 );
 
-jest.mock('./IncomingTransactionHelper');
-jest.mock('./PendingTransactionTracker');
+jest.mock('./helpers/IncomingTransactionHelper');
+jest.mock('./helpers/PendingTransactionTracker');
 
 /**
  * Builds a mock block tracker with a canned block number that can be used in
@@ -408,6 +412,10 @@ const TRANSACTION_META_2_MOCK = {
 } as TransactionMeta;
 
 describe('TransactionController', () => {
+  const updateGasMock = jest.mocked(updateGas);
+  const updateGasFeesMock = jest.mocked(updateGasFees);
+  const estimateGasMock = jest.mocked(estimateGas);
+
   let resultCallbacksMock: AcceptResultCallbacks;
   let messengerMock: TransactionControllerMessenger;
   let rejectMessengerMock: TransactionControllerMessenger;
@@ -469,6 +477,7 @@ describe('TransactionController', () => {
         getNetworkState: () => finalNetwork.state,
         getCurrentAccountEIP1559Compatibility: () => true,
         getCurrentNetworkEIP1559Compatibility: () => true,
+        getGasFeeEstimates: () => ({}),
         getPermittedAccounts: () => [ACCOUNT_MOCK],
         getSelectedAddress: () => ACCOUNT_MOCK,
         messenger,
@@ -573,121 +582,27 @@ describe('TransactionController', () => {
   });
 
   describe('estimateGas', () => {
-    /**
-     * Test template to assert estimate gas succeeds.
-     *
-     * @param opts - Options to use when testing.
-     * @param opts.network - The network to use.
-     * @param opts.estimateGasValue - The value to return from the estimate gas call.
-     * @param opts.getBlockByNumberValue - The value to return from the get block by number call.
-     */
-    async function estimateGasSucceeds({
-      network,
-      estimateGasValue,
-      getBlockByNumberValue,
-    }: {
-      network: MockNetwork;
-      estimateGasValue?: string;
-      getBlockByNumberValue?: string;
-    }) {
-      const controller = newController({ network });
+    it('returns estimatedGas and simulation fails', async () => {
+      const gasMock = '0x123';
 
-      if (estimateGasValue) {
-        mockFlags.estimateGasValue = estimateGasValue;
-      }
+      const simulationFailsMock = {
+        errorKey: 'testKey',
+      };
 
-      if (getBlockByNumberValue) {
-        mockFlags.getBlockByNumberValue = getBlockByNumberValue;
-      }
+      const controller = newController();
 
-      const result = await controller.estimateGas({
+      estimateGasMock.mockResolvedValue({
+        estimatedGas: gasMock,
+        simulationFails: simulationFailsMock,
+      } as any);
+
+      const { gas, simulationFails } = await controller.estimateGas({
         from: ACCOUNT_MOCK,
         to: ACCOUNT_MOCK,
       });
 
-      expect(result.estimateGasError).toBeUndefined();
-    }
-
-    /**
-     * Test template to assert estimate gas fails.
-     *
-     * @param opts - Options to use when testing.
-     * @param opts.network - The network to use.
-     * @param opts.getBlockByNumberValue - The value to return from the get block by number call.
-     */
-    async function estimateGasFails({
-      network,
-      getBlockByNumberValue,
-    }: {
-      network: MockNetwork;
-      getBlockByNumberValue?: string;
-    }) {
-      const controller = newController({ network });
-
-      if (getBlockByNumberValue) {
-        mockFlags.getBlockByNumberValue = getBlockByNumberValue;
-      }
-
-      mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
-
-      const result = await controller.estimateGas({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-
-      expect(result.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
-    }
-
-    it('succeeds when gasBn is greater than maxGasBN', async () => {
-      await estimateGasSucceeds({
-        network: MOCK_NETWORK,
-        estimateGasValue: '0x12a05f200',
-      });
-    });
-
-    it('succeeds on mainnet when gasBn is higher than maxGasBN', async () => {
-      await estimateGasSucceeds({
-        network: MOCK_MAINNET_NETWORK,
-        estimateGasValue: '0x12a05f200',
-      });
-    });
-
-    it('succeeds on custom network when gasBN is equal to maxGasBN', async () => {
-      await estimateGasSucceeds({
-        network: MOCK_CUSTOM_NETWORK,
-      });
-    });
-
-    it('succeed on custom network when gasBN is less than maxGasBN', async () => {
-      await estimateGasSucceeds({
-        network: MOCK_CUSTOM_NETWORK,
-        getBlockByNumberValue: '0x12a05f200',
-      });
-    });
-
-    it('succeeds when gasBN is less than maxGasBN and paddedGasBN is less than MaxGasBN', async () => {
-      await estimateGasSucceeds({
-        network: MOCK_NETWORK,
-        getBlockByNumberValue: '0x12a05f200',
-      });
-    });
-
-    it('fails on custom network when gasBN is equal to maxGasBN', async () => {
-      await estimateGasFails({ network: MOCK_CUSTOM_NETWORK });
-    });
-
-    it('fails on custom network when gasBN is less than maxGasBN', async () => {
-      await estimateGasFails({
-        network: MOCK_CUSTOM_NETWORK,
-        getBlockByNumberValue: '0x12a05f200',
-      });
-    });
-
-    it('fails when gasBN is less than maxGasBN and paddedGasBN is less than MaxGasBN', async () => {
-      await estimateGasFails({
-        network: MOCK_NETWORK,
-        getBlockByNumberValue: '0x12a05f200',
-      });
+      expect(gas).toBe(gasMock);
+      expect(simulationFails).toBe(simulationFailsMock);
     });
   });
 
@@ -935,7 +850,6 @@ describe('TransactionController', () => {
       expect(transactionMeta.securityAlertResponse).toBe(
         mockSecurityAlertResponse,
       );
-      expect(transactionMeta.originalGasEstimate).toBe('0x0');
       expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
         mockSendFlowHistory,
       );
@@ -956,7 +870,6 @@ describe('TransactionController', () => {
         deviceConfirmedOn: undefined,
         id: expect.any(String),
         origin: undefined,
-        originalGasEstimate: expect.any(String),
         securityAlertResponse: undefined,
         sendFlowHistory: expect.any(Array),
         status: TransactionStatus.unapproved,
@@ -1157,29 +1070,6 @@ describe('TransactionController', () => {
       expect(delayMessengerMock.call).toHaveBeenCalledTimes(0);
     });
 
-    it.each([
-      ['mainnet', MOCK_MAINNET_NETWORK],
-      ['custom network', MOCK_CUSTOM_NETWORK],
-    ])(
-      'populates estimateGasError if gas calculation fails on %s',
-      async (_title, network) => {
-        const controller = newController({ network });
-
-        mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
-
-        await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
-
-        const {
-          txParams: { estimateGasError },
-        } = controller.state.transactions[0];
-
-        expect(estimateGasError).toBe(ESTIMATE_GAS_ERROR);
-      },
-    );
-
     it('calls security provider with transaction meta and sets response in to securityProviderResponse', async () => {
       const mockRPCMethodName = 'MOCK_RPC_METHOD_NAME';
       const mockSecurityProviderResponse = {
@@ -1216,6 +1106,39 @@ describe('TransactionController', () => {
 
       const { securityProviderResponse } = controller.state.transactions[0];
       expect(securityProviderResponse).toBe(mockSecurityProviderResponse);
+    });
+
+    it('updates gas properties', async () => {
+      const controller = newController();
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      expect(updateGasMock).toHaveBeenCalledTimes(1);
+      expect(updateGasMock).toHaveBeenCalledWith({
+        ethQuery: expect.any(Object),
+        providerConfig: MOCK_NETWORK.state.providerConfig,
+        txMeta: expect.any(Object),
+      });
+    });
+
+    it('updates gas fee properties', async () => {
+      const controller = newController();
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      expect(updateGasFeesMock).toHaveBeenCalledTimes(1);
+      expect(updateGasFeesMock).toHaveBeenCalledWith({
+        eip1559: true,
+        ethQuery: expect.any(Object),
+        getGasFeeEstimates: expect.any(Function),
+        txMeta: expect.any(Object),
+      });
     });
 
     describe('on approve', () => {
@@ -1672,6 +1595,9 @@ describe('TransactionController', () => {
     it('creates additional transaction with increased gas', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
+        options: {
+          getCurrentNetworkEIP1559Compatibility: () => false,
+        },
       });
 
       const { transactionMeta } = await controller.addTransaction({
@@ -1725,6 +1651,9 @@ describe('TransactionController', () => {
     it('creates additional transaction specifying the gasPrice', async () => {
       const controller = newController({
         network: MOCK_LINEA_MAINNET_NETWORK,
+        options: {
+          getCurrentNetworkEIP1559Compatibility: () => false,
+        },
       });
 
       const { transactionMeta } = await controller.addTransaction({
@@ -1933,9 +1862,11 @@ describe('TransactionController', () => {
           to: ACCOUNT_2_MOCK,
         },
       } as any;
+
       const externalTransactionReceipt = {
         gasUsed: '0x5208',
       };
+
       const externalBaseFeePerGas = '0x14';
 
       await controller.confirmExternalTransaction(

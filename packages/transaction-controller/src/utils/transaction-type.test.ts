@@ -1,5 +1,5 @@
+import { TransactionType } from '../types';
 import { determineTransactionType } from './transaction-type';
-import { TransactionType } from './types';
 
 describe('determineTransactionType', () => {
   const FROM_MOCK = '0x9e';
