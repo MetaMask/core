@@ -1,5 +1,5 @@
 import { handleFetch } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import { type Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
 import { incomingTransactionsLogger as log } from './logger';
@@ -173,8 +173,7 @@ function getEtherscanApiUrl(
   const apiUrl = `https://${networkInfo.subdomain}.${networkInfo.domain}`;
   let url = `${apiUrl}/api?`;
 
-  // eslint-disable-next-line guard-for-in
-  for (const paramKey in urlParams) {
+  for (const paramKey of Object.keys(urlParams)) {
     const value = urlParams[paramKey];
 
     if (!value) {

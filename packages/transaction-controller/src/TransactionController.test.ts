@@ -498,7 +498,7 @@ describe('TransactionController', () => {
       return timeCounter;
     });
 
-    for (const key in mockFlags) {
+    for (const key of Object.keys(mockFlags)) {
       mockFlags[key] = null;
     }
 
