@@ -211,6 +211,29 @@ describe('PollingController', () => {
       await Promise.resolve();
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
     });
+    it('should execute poll immediately when set via setExecuteImmediately', async () => {
+      jest.useFakeTimers();
+
+      class MyGasFeeController extends PollingController<any, any, any> {
+        _executePoll = createExecutePollMock();
+      }
+      const mockMessenger = new ControllerMessenger<any, any>();
+
+      const controller = new MyGasFeeController({
+        messenger: mockMessenger,
+        metadata: {},
+        name: 'PollingController',
+        state: { foo: 'bar' },
+      });
+      controller.setExecuteImmediately(true);
+      controller.startPollingByNetworkClientId('mainnet');
+      expect(controller._executePoll).toHaveBeenCalled();
+      await Promise.resolve();
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(TICK_TIME);
+      await Promise.resolve();
+      expect(controller._executePoll).toHaveBeenCalledTimes(2);
+    });
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
       jest.useFakeTimers();
 
