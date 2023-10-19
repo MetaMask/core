@@ -8,6 +8,10 @@ jest.mock('@metamask/swappable-obj-proxy');
 const createEventEmitterProxyMock = jest.mocked(createEventEmitterProxy);
 
 describe('SelectedNetworkController', () => {
+  beforeEach(() => {
+    createEventEmitterProxyMock.mockReset();
+  });
+
   it('can be instantiated with default values', () => {
     const options: SelectedNetworkControllerOptions = {
       messenger: buildSelectedNetworkControllerMessenger(),
@@ -43,7 +47,28 @@ describe('SelectedNetworkController', () => {
       expect(controller.state.domains[domain]).toBe(networkClientId);
     });
 
-    it('sets the networkClientId for the passed-in domain and updates the provider and block tracker proxy when they already exist', () => {
+    it('creates a new provider and block tracker proxy when they dont exist yet for the domain', () => {
+      const options: SelectedNetworkControllerOptions = {
+        messenger: buildSelectedNetworkControllerMessenger(),
+      };
+      const controller = new SelectedNetworkController(options);
+
+      const initialNetworkClientId = '123';
+      const mockProviderProxy = {
+        setTarget: jest.fn(),
+        eventNames: jest.fn(),
+        rawListeners: jest.fn(),
+        removeAllListeners: jest.fn(),
+      };
+      createEventEmitterProxyMock.mockReturnValue(mockProviderProxy);
+      controller.setNetworkClientIdForDomain(
+        'example.com',
+        initialNetworkClientId,
+      );
+      expect(createEventEmitterProxyMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('updates the provider and block tracker proxy when they already exist for the domain', () => {
       const options: SelectedNetworkControllerOptions = {
         messenger: buildSelectedNetworkControllerMessenger(),
       };
@@ -63,10 +88,6 @@ describe('SelectedNetworkController', () => {
       );
       const newNetworkClientId = 'abc';
       controller.setNetworkClientIdForDomain('example.com', newNetworkClientId);
-
-      expect(controller.getNetworkClientIdForDomain('example.com')).toBe(
-        newNetworkClientId,
-      );
 
       expect(mockProviderProxy.setTarget).toHaveBeenCalledWith(
         expect.objectContaining({ sendAsync: expect.any(Function) }),
