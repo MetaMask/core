@@ -1,4 +1,10 @@
-import { ObservableStore } from '@metamask/obs-store';
+import { BaseControllerV2 } from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  JsonRpcEngineEndCallback,
+  JsonRpcEngineNextCallback,
+} from '@metamask/json-rpc-engine';
+import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
 import {
   LOG_IGNORE_METHODS,
@@ -9,69 +15,113 @@ import {
 import { CaveatTypes } from './permissions';
 
 /**
+ * @type PermissionLogState
+ *
+ * Permission log controller state
+ * @property permissionHistory - permission history
+ * @property permissionActivityLog - permission activity logs
+ */
+export type PermissionLogState = {
+  permissionHistory: Record<string, any>;
+  permissionActivityLog: any[];
+};
+
+export type PermissionLogControllerOptions = {
+  restrictedMethods: Set<string>;
+  state?: Partial<PermissionLogState>;
+  messenger: PermissionLogControllerMessenger;
+};
+
+export type PermissionLogControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  never,
+  never,
+  never,
+  never
+>;
+
+export const defaultState: PermissionLogState = {
+  permissionHistory: {},
+  permissionActivityLog: [],
+};
+
+/**
+ * The name of the {@link PermissionController}.
+ */
+const name = 'PermissionLogController';
+
+/**
  * Controller with middleware for logging requests and responses to restricted
  * and permissions-related methods.
  */
-export class PermissionLogController {
-  store;
-
+export class PermissionLogController extends BaseControllerV2<
+  typeof name,
+  PermissionLogState,
+  PermissionLogControllerMessenger
+> {
   restrictedMethods: Set<string>;
 
-  /**
-   * PermissionLogController constructor
-   *
-   * @param options.restrictedMethods - Options bag.
-   * @param options.initState - Options bag.
-   */
   constructor({
+    messenger,
     restrictedMethods,
-    initState,
-  }: {
-    restrictedMethods: Set<string>;
-    initState: Record<string, unknown>;
-  }) {
-    this.restrictedMethods = restrictedMethods;
-    this.store = new ObservableStore({
-      permissionHistory: {},
-      permissionActivityLog: [],
-      ...initState,
+    state,
+  }: PermissionLogControllerOptions) {
+    super({
+      messenger,
+      name,
+      metadata: {
+        permissionHistory: {
+          persist: true,
+          anonymous: false,
+        },
+        permissionActivityLog: {
+          persist: true,
+          anonymous: false,
+        },
+      },
+      state: { ...defaultState, ...state },
     });
+    this.restrictedMethods = restrictedMethods;
   }
 
   /**
    * Get the restricted method activity log.
    *
-   * @returns {Array<object>} The activity log.
+   * @returns The activity log.
    */
   getActivityLog() {
-    return this.store.getState().permissionActivityLog;
+    return this.state.permissionActivityLog;
   }
 
   /**
    * Update the restricted method activity log.
    *
-   * @param {Array<object>} logs - The new activity log array.
+   * @param logs - The new activity log array.
    */
   updateActivityLog(logs: any[]) {
-    this.store.updateState({ permissionActivityLog: logs });
+    this.update((state) => {
+      state.permissionActivityLog = logs;
+    });
   }
 
   /**
    * Get the permission history log.
    *
-   * @returns {object} The permissions history log.
+   * @returns The permissions history log.
    */
   getHistory() {
-    return this.store.getState().permissionHistory;
+    return this.state.permissionHistory;
   }
 
   /**
    * Update the permission history log.
    *
-   * @param {object} history - The new permissions history log object.
+   * @param history - The new permissions history log object.
    */
   updateHistory(history: any) {
-    this.store.updateState({ permissionHistory: history });
+    this.update((state) => {
+      state.permissionHistory = history;
+    });
   }
 
   /**
@@ -80,10 +130,10 @@ export class PermissionLogController {
    * Does **not** update the 'lastApproved' time for the permission itself.
    * Returns if the accounts array is empty.
    *
-   * @param {string} origin - The origin that the accounts are exposed to.
-   * @param {Array<string>} accounts - The accounts.
+   * @param origin - The origin that the accounts are exposed to.
+   * @param accounts - The accounts.
    */
-  updateAccountsHistory(origin, accounts) {
+  updateAccountsHistory(origin: string, accounts: string[]) {
     if (accounts.length === 0) {
       return;
     }
@@ -105,11 +155,16 @@ export class PermissionLogController {
    * History: for each origin, the last time a permission was granted, including
    * which accounts were exposed, if any.
    *
-   * @returns {JsonRpcEngineMiddleware} The permissions log middleware.
+   * @returns The permissions log middleware.
    */
   createMiddleware() {
-    return (req, res, next, _end) => {
-      let activityEntry, requestedMethods;
+    return (
+      req: JsonRpcRequest,
+      res: PendingJsonRpcResponse<(string | { parentCapability: string })[]>,
+      next: JsonRpcEngineNextCallback,
+      _end: JsonRpcEngineEndCallback,
+    ) => {
+      let activityEntry: any, requestedMethods: any;
       const { origin, method } = req;
       const isInternal = method.startsWith(WALLET_PREFIX);
 
@@ -160,10 +215,11 @@ export class PermissionLogController {
   /**
    * Creates and commits an activity log entry, without response data.
    *
-   * @param {object} request - The request object.
-   * @param {boolean} isInternal - Whether the request is internal.
+   * @param request - The request object.
+   * @param isInternal - Whether the request is internal.
+   * @returns new added activity entry
    */
-  logRequest(request, isInternal) {
+  logRequest(request: any, isInternal: boolean) {
     const activityEntry = {
       id: request.id,
       method: request.method,
@@ -183,11 +239,11 @@ export class PermissionLogController {
    * Adds response data to an existing activity log entry.
    * Entry assumed already committed (i.e., in the log).
    *
-   * @param {object} entry - The entry to add a response to.
-   * @param {object} response - The response object.
-   * @param {number} time - Output from Date.now()
+   * @param entry - The entry to add a response to.
+   * @param response - The response object.
+   * @param time - Output from Date.now()
    */
-  logResponse(entry, response, time) {
+  logResponse(entry: any, response: any, time: number) {
     if (!entry || !response) {
       return;
     }
@@ -204,10 +260,10 @@ export class PermissionLogController {
    * Commit a new entry to the activity log.
    * Removes the oldest entry from the log if it exceeds the log limit.
    *
-   * @param {object} entry - The activity log entry.
+   * @param entry - The activity log entry.
    */
-  commitNewActivity(entry) {
-    const logs = this.getActivityLog();
+  commitNewActivity(entry: any) {
+    const logs: any[] = this.getActivityLog();
 
     // add new entry to end of log
     logs.push(entry);
@@ -223,23 +279,23 @@ export class PermissionLogController {
   /**
    * Create new permissions history log entries, if any, and commit them.
    *
-   * @param {Array<string>} requestedMethods - The method names corresponding to the requested permissions.
-   * @param {string} origin - The origin of the permissions request.
-   * @param {Array<IOcapLdCapability} result - The permissions request response.result.
-   * @param {string} time - The time of the request, i.e. Date.now().
-   * @param {boolean} isEthRequestAccounts - Whether the permissions request was 'eth_requestAccounts'.
+   * @param requestedMethods - The method names corresponding to the requested permissions.
+   * @param origin - The origin of the permissions request.
+   * @param result - The permissions request response.result.
+   * @param time - The time of the request, i.e. Date.now().
+   * @param isEthRequestAccounts - Whether the permissions request was 'eth_requestAccounts'.
    */
   logPermissionsHistory(
-    requestedMethods,
-    origin,
-    result,
-    time,
-    isEthRequestAccounts,
+    requestedMethods: string[],
+    origin: string,
+    result: (string | { parentCapability: string })[],
+    time: number,
+    isEthRequestAccounts: boolean,
   ) {
-    let accounts, newEntries;
+    let accounts: string[], newEntries;
 
     if (isEthRequestAccounts) {
-      accounts = result;
+      accounts = result as string[];
       const accountToTimeMap = getAccountToTimeMap(accounts, time);
 
       newEntries = {
@@ -252,7 +308,7 @@ export class PermissionLogController {
       // Records new "lastApproved" times for the granted permissions, if any.
       // Special handling for eth_accounts, in order to record the time the
       // accounts were last seen or approved by the origin.
-      newEntries = result
+      newEntries = (result as { parentCapability: 'eth_accounts' }[])
         .map((perm) => {
           if (perm.parentCapability === 'eth_accounts') {
             accounts = this.getAccountsFromPermission(perm);
@@ -260,24 +316,33 @@ export class PermissionLogController {
 
           return perm.parentCapability;
         })
-        .reduce((acc, method) => {
-          // all approved permissions will be included in the response,
-          // not just the newly requested ones
-          if (requestedMethods.includes(method)) {
-            if (method === 'eth_accounts') {
-              const accountToTimeMap = getAccountToTimeMap(accounts, time);
+        .reduce(
+          (
+            acc: Record<
+              string,
+              { lastApproved: number; accounts?: Record<string, number> }
+            >,
+            method,
+          ) => {
+            // all approved permissions will be included in the response,
+            // not just the newly requested ones
+            if (requestedMethods.includes(method)) {
+              if (method === 'eth_accounts') {
+                const accountToTimeMap = getAccountToTimeMap(accounts, time);
 
-              acc[method] = {
-                lastApproved: time,
-                accounts: accountToTimeMap,
-              };
-            } else {
-              acc[method] = { lastApproved: time };
+                acc[method] = {
+                  lastApproved: time,
+                  accounts: accountToTimeMap,
+                };
+              } else {
+                acc[method] = { lastApproved: time };
+              }
             }
-          }
 
-          return acc;
-        }, {});
+            return acc;
+          },
+          {},
+        );
     }
 
     if (Object.keys(newEntries).length > 0) {
@@ -290,12 +355,12 @@ export class PermissionLogController {
    * Merges the history for the given origin, overwriting existing entries
    * with the same key (permission name).
    *
-   * @param {string} origin - The requesting origin.
-   * @param {object} newEntries - The new entries to commit.
+   * @param origin - The requesting origin.
+   * @param newEntries - The new entries to commit.
    */
-  commitNewHistory(origin, newEntries) {
+  commitNewHistory(origin: string, newEntries: Record<string, any>) {
     // a simple merge updates most permissions
-    const history = this.getHistory();
+    const history: Record<string, any> = this.getHistory();
     const newOriginHistory = {
       ...history[origin],
       ...newEntries,
@@ -332,10 +397,10 @@ export class PermissionLogController {
   /**
    * Get all requested methods from a permissions request.
    *
-   * @param {object} request - The request object.
-   * @returns {Array<string>} The names of the requested permissions.
+   * @param request - The request object.
+   * @returns The names of the requested permissions.
    */
-  getRequestedMethods(request) {
+  getRequestedMethods(request: any): string[] | null {
     if (
       !request.params ||
       !request.params[0] ||
@@ -351,15 +416,15 @@ export class PermissionLogController {
    * Get the permitted accounts from an eth_accounts permissions object.
    * Returns an empty array if the permission is not eth_accounts.
    *
-   * @param {object} perm - The permissions object.
-   * @returns {Array<string>} The permitted accounts.
+   * @param perm - The permissions object.
+   * @returns The permitted accounts.
    */
-  getAccountsFromPermission(perm) {
+  getAccountsFromPermission(perm: any): string[] {
     if (perm.parentCapability !== 'eth_accounts' || !perm.caveats) {
       return [];
     }
 
-    const accounts = new Set();
+    const accounts = new Set<string>();
     for (const caveat of perm.caveats) {
       if (
         caveat.type === CaveatTypes.restrictReturnedAccounts &&
@@ -379,10 +444,13 @@ export class PermissionLogController {
 /**
  * Get a map from account addresses to the given time.
  *
- * @param {Array<string>} accounts - An array of addresses.
- * @param {number} time - A time, e.g. Date.now().
- * @returns {object} A string:number map of addresses to time.
+ * @param accounts - An array of addresses.
+ * @param time - A time, e.g. Date.now().
+ * @returns A string:number map of addresses to time.
  */
-function getAccountToTimeMap(accounts, time) {
+function getAccountToTimeMap(
+  accounts: string[],
+  time: number,
+): Record<string, number> {
   return accounts.reduce((acc, account) => ({ ...acc, [account]: time }), {});
 }

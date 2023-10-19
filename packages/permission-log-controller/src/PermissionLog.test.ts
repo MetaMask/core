@@ -1,5 +1,7 @@
+import { ControllerMessenger } from '@metamask/base-controller';
 import { nanoid } from 'nanoid';
 import { useFakeTimers } from 'sinon';
+import type { SinonFakeTimers } from 'sinon';
 
 import { LOG_LIMIT, LOG_METHOD_TYPES } from './enums';
 import { PermissionLogController } from './PermissionLog';
@@ -15,12 +17,27 @@ const {
   RESTRICTED_METHODS,
 } = constants;
 
-let clock;
+let clock: SinonFakeTimers;
 
-const initPermLog = (initState = {}) => {
+const name = 'PermissionLogController';
+
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
+function getMessenger() {
+  return new ControllerMessenger().getRestricted<typeof name, never, never>({
+    name,
+  });
+}
+
+const initPermLog = (state = {}) => {
+  const messenger = getMessenger();
   return new PermissionLogController({
+    messenger,
     restrictedMethods: RESTRICTED_METHODS,
-    initState,
+    state,
   });
 };
 

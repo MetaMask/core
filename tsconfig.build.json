@@ -74,6 +74,9 @@
     },
     {
       "path": "./packages/queued-request-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/permission-log-controller/tsconfig.build.json"
     }
   ],
   "files": [],

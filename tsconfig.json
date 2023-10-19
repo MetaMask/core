@@ -75,6 +75,9 @@
     },
     {
       "path": "./packages/queued-request-controller"
+    },
+    {
+      "path": "./packages/permission-log-controller"
     }
   ],
   "files": [],
