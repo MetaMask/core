@@ -232,19 +232,24 @@ export class TokenDetectionController extends PollingControllerV1<
     networkClientId: string,
     options: { address: string },
   ): Promise<void> {
-    return this.detectTokens(networkClientId, options.address);
+    return this.detectTokens({
+      networkClientId,
+      accountAddress: options.address,
+    });
   }
 
   /**
    * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet.
    *
-   * @param networkClientId - The ID of the network client to use.
-   * @param accountAddress - The account address to use.
+   * @param options - Options to detect tokens.
+   * @param options.networkClientId - The ID of the network client to use.
+   * @param options.accountAddress - The account address to use.
    */
-  async detectTokens(
-    networkClientId?: NetworkClientId,
-    accountAddress?: string,
-  ) {
+  async detectTokens(options?: {
+    networkClientId?: NetworkClientId;
+    accountAddress?: string;
+  }) {
+    const { networkClientId, accountAddress } = options || {};
     const {
       disabled,
       isDetectionEnabledForNetwork,

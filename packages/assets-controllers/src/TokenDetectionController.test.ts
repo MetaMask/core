@@ -614,9 +614,9 @@ describe('TokenDetectionController', () => {
         Promise.resolve(),
       ]);
       expect(spy.mock.calls).toMatchObject([
-        ['mainnet', '0x1'],
-        ['sepolia', '0xdeadbeef'],
-        ['goerli', '0x3'],
+        [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
+        [{ networkClientId: 'sepolia', accountAddress: '0xdeadbeef' }],
+        [{ networkClientId: 'goerli', accountAddress: '0x3' }],
       ]);
       tokenDetection.stopAllPolling();
       jest.useRealTimers();
@@ -633,7 +633,10 @@ describe('TokenDetectionController', () => {
       getBalancesInSingleCall.resolves({
         [sampleTokenA.address]: new BN(1),
       });
-      await tokenDetection.detectTokens('mainnet', selectedAddress);
+      await tokenDetection.detectTokens({
+        networkClientId: 'mainnet',
+        accountAddress: selectedAddress,
+      });
       const tokens =
         tokensController.state.allDetectedTokens[ChainId.mainnet][
           selectedAddress
