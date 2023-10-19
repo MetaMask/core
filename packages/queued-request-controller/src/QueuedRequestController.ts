@@ -42,7 +42,20 @@ export type QueuedRequestControllerOptions = {
 };
 
 /**
- * Controller for request queueing.
+ * Controller for request queueing. The QueuedRequestController manages the orderly execution of enqueued requests
+ * to prevent concurrency issues and ensure proper handling of asynchronous operations.
+ *
+ * @augments {BaseControllerV2} This class extends BaseControllerV2, providing a structured base for controller
+ * implementations.
+ * @param {QueuedRequestControllerOptions} options - The controller options, including the restricted controller
+ * messenger for the QueuedRequestController.
+ * @param {QueuedRequestControllerOptions.messenger} - - The restricted controller messenger that facilitates
+ * communication with the QueuedRequestController.
+ *
+ * The QueuedRequestController maintains a count of enqueued requests, allowing you to monitor the queue's workload.
+ * It processes requests sequentially, ensuring that each request is executed one after the other. The class offers
+ * an `enqueueRequest` method for adding requests to the queue. The controller initializes with a count of zero and
+ * registers message handlers for request enqueuing. It also publishes count changes to inform external observers.
  */
 export class QueuedRequestController extends BaseControllerV2<
   typeof controllerName,
@@ -54,10 +67,9 @@ export class QueuedRequestController extends BaseControllerV2<
   #count = 0;
 
   /**
-   * Construct a RequestQueueController.
-   *
-   * @param options - The controller options.
-   * @param options.messenger - The restricted controller messenger for the QueuedRequestController
+   * Constructs a QueuedRequestController, responsible for managing and processing enqueued requests sequentially.
+   * @param options - The controller options, including the restricted controller messenger for the QueuedRequestController.
+   * @param options.messenger - The restricted controller messenger that facilitates communication with the QueuedRequestController.
    */
   constructor({ messenger }: QueuedRequestControllerOptions) {
     super({
@@ -76,6 +88,14 @@ export class QueuedRequestController extends BaseControllerV2<
     );
   }
 
+  /**
+   * Gets the current count of enqueued requests in the request queue. This count represents the number of
+   * pending requests that are waiting to be processed sequentially.
+   *
+   * @returns The current count of enqueued requests. This count reflects the number of pending
+   * requests in the queue, which are yet to be processed. It allows you to monitor the queue's workload
+   * and assess the volume of requests awaiting execution.
+   */
   length() {
     return this.#count;
   }
@@ -88,12 +108,18 @@ export class QueuedRequestController extends BaseControllerV2<
     );
   }
 
-  // [ current batch ] - [ batch n ] - [ last batch ]
-  // for new request
-  // if origin is not the same as last batch origin
-  // make new batch / enqueueRequest
-  // otherwise, add request to the last batch
-
+  /**
+   * Enqueues a new request for sequential processing in the request queue. This function manages the order of
+   * requests, ensuring they are executed one after the other to prevent concurrency issues and maintain proper
+   * execution flow.
+   *
+   * @param requestNext - A function representing the request to be enqueued. It returns a promise that
+   * resolves when the request is complete.
+   * @returns A promise that resolves when the enqueued request and any subsequent asynchronous
+   * operations are fully processed. This allows you to await the completion of the enqueued request before continuing
+   * with additional actions. If there are multiple enqueued requests, this function ensures they are processed in
+   * the order they were enqueued, guaranteeing sequential execution.
+   */
   async enqueueRequest(requestNext: (...arg: unknown[]) => Promise<unknown>) {
     this.#updateCount(1);
 

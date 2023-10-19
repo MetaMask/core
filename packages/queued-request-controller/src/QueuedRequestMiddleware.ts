@@ -38,6 +38,13 @@ const isConfirmationMethod = (method: string) => {
   return confirmationMethods.includes(method);
 };
 
+/**
+ * Create a JSON-RPC middleware for handling queued requests.
+ * @param options - Configuration options.
+ * @param options.messenger - A controller messenger.
+ * @param options.useRequestQueue - A function to determine if the request queue feature is enabled.
+ * @returns The JSON-RPC middleware.
+ */
 export const createQueuedRequestMiddleware = ({
   messenger,
   useRequestQueue,
