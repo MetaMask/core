@@ -10,6 +10,7 @@ describe('default export', () => {
       provider: jest.fn(),
       confirmExternalTransaction: jest.fn(),
       trackMetaMetricsEvent: jest.fn(),
+      getNetworkClientById: jest.fn(),
     });
     expect(controller).toBeInstanceOf(SmartTransactionsController);
     jest.clearAllTimers();
