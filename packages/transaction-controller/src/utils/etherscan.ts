@@ -1,8 +1,8 @@
 import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import { ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
-import { incomingTransactionsLogger as log } from './logger';
+import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
+import { incomingTransactionsLogger as log } from '../logger';
 
 export interface EtherscanTransactionMetaBase {
   blockNumber: string;

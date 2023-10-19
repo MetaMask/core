@@ -4,12 +4,12 @@
 import { NetworkType } from '@metamask/controller-utils';
 import type { BlockTracker, NetworkState } from '@metamask/network-controller';
 
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import {
   TransactionStatus,
   type RemoteTransactionSource,
   type TransactionMeta,
-} from './types';
+} from '../types';
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

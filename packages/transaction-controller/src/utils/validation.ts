@@ -3,7 +3,7 @@ import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 
-import type { TransactionParams } from './types';
+import type { TransactionParams } from '../types';
 import { isEIP1559Transaction } from './utils';
 
 /**

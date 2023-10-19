@@ -1922,7 +1922,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/gas-fee-controller@workspace:packages/gas-fee-controller":
+"@metamask/gas-fee-controller@^9.0.0, @metamask/gas-fee-controller@workspace:packages/gas-fee-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller"
   dependencies:
@@ -2578,6 +2578,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^3.0.1
+    "@metamask/gas-fee-controller": ^9.0.0
     "@metamask/metamask-eth-abis": ^3.0.0
     "@metamask/network-controller": ^15.0.0
     "@metamask/rpc-errors": ^6.1.0
@@ -2602,6 +2603,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": ^4.0.1
+    "@metamask/gas-fee-controller": ^9.0.0
     "@metamask/network-controller": ^15.0.0
     babel-runtime: ^6.26.0
   languageName: unknown
