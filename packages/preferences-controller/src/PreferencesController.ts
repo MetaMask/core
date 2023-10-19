@@ -169,8 +169,10 @@ export class PreferencesController extends BaseController<
       }
     }
 
-    for (const key of Object.keys(newlyLost)) {
-      lostIdentities[key] = newlyLost[key];
+    if (Object.keys(newlyLost).length > 0) {
+      for (const key of Object.keys(newlyLost)) {
+        lostIdentities[key] = newlyLost[key];
+      }
     }
 
     this.update({
