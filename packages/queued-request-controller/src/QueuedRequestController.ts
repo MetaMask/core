@@ -45,12 +45,8 @@ export type QueuedRequestControllerOptions = {
  * Controller for request queueing. The QueuedRequestController manages the orderly execution of enqueued requests
  * to prevent concurrency issues and ensure proper handling of asynchronous operations.
  *
- * @augments {BaseControllerV2} This class extends BaseControllerV2, providing a structured base for controller
- * implementations.
- * @param {QueuedRequestControllerOptions} options - The controller options, including the restricted controller
- * messenger for the QueuedRequestController.
- * @param {QueuedRequestControllerOptions.messenger} - - The restricted controller messenger that facilitates
- * communication with the QueuedRequestController.
+ * @param options - The controller options, including the restricted controller messenger for the QueuedRequestController.
+ * @param options.messenger - The restricted controller messenger that facilitates communication with the QueuedRequestController.
  *
  * The QueuedRequestController maintains a count of enqueued requests, allowing you to monitor the queue's workload.
  * It processes requests sequentially, ensuring that each request is executed one after the other. The class offers
