@@ -169,10 +169,8 @@ export class PreferencesController extends BaseController<
       }
     }
 
-    if (Object.keys(newlyLost).length > 0) {
-      for (const [address, identity] of Object.entries(newlyLost)) {
-        lostIdentities[address] = identity;
-      }
+    for (const [address, identity] of Object.entries(newlyLost)) {
+      lostIdentities[address] = identity;
     }
 
     this.update({
