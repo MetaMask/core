@@ -11,9 +11,7 @@ export const QueuedRequestControllerEventTypes = {
   countChanged: `${controllerName}:countChanged` as const,
 };
 
-export type QueuedRequestControllerState = {
-  [k: string]: any;
-};
+export type QueuedRequestControllerState = Record<string, never>;
 
 export type QueuedRequestControllerCountChangedEvent = {
   type: typeof QueuedRequestControllerEventTypes.countChanged;
