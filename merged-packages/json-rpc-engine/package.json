@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-engine",
-  "version": "7.1.1",
+  "version": "7.2.0",
   "description": "A tool for processing JSON-RPC messages.",
   "homepage": "https://github.com/MetaMask/json-rpc-engine#readme",
   "bugs": {
@@ -52,6 +52,7 @@
     "depcheck": "^1.4.3",
     "eslint": "^8.27.0",
     "eslint-config-prettier": "^8.5.0",
+    "eslint-import-resolver-typescript": "^2.5.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-jest": "^27.1.5",
     "eslint-plugin-jsdoc": "^39.6.2",
