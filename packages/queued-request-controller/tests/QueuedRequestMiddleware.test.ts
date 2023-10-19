@@ -372,6 +372,7 @@ describe('createQueuedRequestMiddleware', () => {
       });
     });
   });
+
   describe('concurrent requests', () => {
     it('rejecting one call does not cause others to be rejected', async () => {
       const messenger = buildMessenger();
