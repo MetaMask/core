@@ -328,7 +328,7 @@ describe('PollingController', () => {
     });
   });
   describe('PollingControllerBase', () => {
-    it('should be made to extend a class', async () => {
+    it('can be extended from and constructed', async () => {
       class MyClass extends PollingControllerBase {
         _executePoll = createExecutePollMock();
       }
