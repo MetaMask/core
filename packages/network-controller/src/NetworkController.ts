@@ -608,6 +608,21 @@ export class NetworkController extends BaseControllerV2<
       this.getEIP1559Compatibility.bind(this),
     );
 
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:setActiveNetwork`,
+      this.setActiveNetwork.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:setProviderType`,
+      this.setProviderType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:findNetworkClientIdByChainId`,
+      this.findNetworkClientIdByChainId.bind(this),
+    );
+
     this.#previousProviderConfig = this.state.providerConfig;
   }
 
