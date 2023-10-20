@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 
-import { PollingController, PollingControllerBase } from './PollingController';
+import { PollingController, PollingControllerOnly } from './PollingController';
 
 const TICK_TIME = 1000;
 
@@ -329,11 +329,16 @@ describe('PollingController', () => {
   });
   describe('PollingControllerBase', () => {
     it('can be extended from and constructed', async () => {
-      class MyClass extends PollingControllerBase {
+      class MyClass extends PollingControllerOnly {
         _executePoll = createExecutePollMock();
       }
       const c = new MyClass();
-      expect(c).toBeDefined();
+      expect(c._executePoll).toBeDefined();
+      expect(c.getIntervalLength).toBeDefined();
+      expect(c.setIntervalLength).toBeDefined();
+      expect(c.stopAllPolling).toBeDefined();
+      expect(c.startPollingByNetworkClientId).toBeDefined();
+      expect(c.stopPollingByPollingToken).toBeDefined();
     });
   });
 });
