@@ -80,12 +80,10 @@ export interface FeeMarketEIP1559Values {
  * @type TransactionConfig
  *
  * Transaction controller configuration
- * @property interval - Polling interval used to fetch new currency rate
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
  */
 export interface TransactionConfig extends BaseConfig {
-  interval: number;
   sign?: (transaction: Transaction, from: string) => Promise<any>;
   txHistoryLimit: number;
 }
@@ -176,6 +174,7 @@ export class TransactionController extends BaseController<
   private pendingTransactionTracker: PendingTransactionTracker;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
+    console.error(error);
     const newTransactionMeta = {
       ...transactionMeta,
       error,
@@ -256,7 +255,6 @@ export class TransactionController extends BaseController<
     super(config, state);
 
     this.defaultConfig = {
-      interval: 15000,
       txHistoryLimit: 40,
     };
 
