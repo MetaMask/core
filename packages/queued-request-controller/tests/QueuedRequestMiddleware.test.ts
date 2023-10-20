@@ -3,6 +3,7 @@ import type {
   ApprovalController,
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
   NetworkController,
   NetworkControllerGetNetworkClientByIdAction,
@@ -440,6 +441,144 @@ describe('createQueuedRequestMiddleware', () => {
       expect(mocks.addRequest).toHaveBeenCalledTimes(2);
       expect(res1.error).toStrictEqual(serializeError(rejectedError));
       expect(res2.error).toBeUndefined();
+    });
+  });
+
+  describe('integration', () => {
+    it('does not queue requests that lack confirmations', async () => {
+      const engine = new JsonRpcEngine();
+      const messenger = buildMessenger();
+      const mocks = buildMocks(messenger);
+      engine.push((req: any, _, next) => {
+        req.origin = 'foobar';
+        req.networkClientId = 'mainnet';
+        next();
+      });
+      engine.push(
+        createQueuedRequestMiddleware({
+          messenger,
+          useRequestQueue: () => true,
+        }),
+      );
+
+      const mockNextMiddleware = jest
+        .fn()
+        .mockImplementation((_, res, __, end) => {
+          res.result = true;
+          end();
+        });
+      engine.push(mockNextMiddleware);
+      const result = await engine.handle({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'foo',
+        params: [],
+      });
+      expect(result).toStrictEqual(expect.objectContaining({ result: true }));
+      expect(mocks.enqueueRequest).not.toHaveBeenCalled();
+    });
+
+    it('queues requests that require confirmation', async () => {
+      const engine = new JsonRpcEngine();
+      const messenger = buildMessenger();
+      const mocks = buildMocks(messenger);
+      engine.push((req: any, _, next) => {
+        req.origin = 'foobar';
+        req.networkClientId = 'mainnet';
+        next();
+      });
+      engine.push(
+        createQueuedRequestMiddleware({
+          messenger,
+          useRequestQueue: () => true,
+        }),
+      );
+
+      const mockNextMiddleware = jest
+        .fn()
+        .mockImplementation((_, res, __, end) => {
+          res.result = true;
+          end();
+        });
+      engine.push(mockNextMiddleware);
+      const result = await engine.handle({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_sendTransaction',
+        params: [],
+      });
+      expect(result).toStrictEqual(expect.objectContaining({ result: true }));
+      expect(mocks.enqueueRequest).toHaveBeenCalled();
+    });
+
+    it('one request being rejected does not reject the following', async () => {
+      const engine = new JsonRpcEngine();
+      const messenger = buildMessenger();
+      const mocks = buildMocks(messenger);
+      engine.push((req: any, _, next) => {
+        req.origin = 'foobar';
+        req.networkClientId = 'mainnet';
+        next();
+      });
+      engine.push(
+        createQueuedRequestMiddleware({
+          messenger,
+          useRequestQueue: () => true,
+        }),
+      );
+
+      const ordering: number[] = [];
+      const mockNextMiddleware = jest
+        .fn()
+        .mockImplementationOnce(async (req, res, _, end) => {
+          res.error = new Error('user has rejected blah blah');
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          ordering.push(req.id);
+          end();
+        })
+        .mockImplementationOnce((req, res, _, end) => {
+          res.result = true;
+          ordering.push(req.id);
+          end();
+        })
+        .mockImplementationOnce(async (req, res, _, end) => {
+          res.result = true;
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          ordering.push(req.id);
+          end();
+        });
+      engine.push(mockNextMiddleware);
+      const [first, second, third] = await Promise.all([
+        engine.handle({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_sendTransaction',
+          params: [],
+        }),
+        engine.handle({
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'not_queued',
+          params: [],
+        }),
+        engine.handle({
+          id: 3,
+          jsonrpc: '2.0',
+          method: 'eth_sendTransaction',
+          params: [],
+        }),
+      ]);
+      expect(first).toStrictEqual(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            message: 'Internal JSON-RPC error.',
+          }),
+        }),
+      );
+      expect(second).toStrictEqual(expect.objectContaining({ result: true }));
+      expect(third).toStrictEqual(expect.objectContaining({ result: true }));
+      expect(ordering).toStrictEqual([2, 1, 3]); // 1 should be first because its not queued.
+      expect(mocks.enqueueRequest).toHaveBeenCalled();
     });
   });
 });
