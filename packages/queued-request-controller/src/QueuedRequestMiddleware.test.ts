@@ -17,8 +17,8 @@ import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from 
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 import type { JsonRpcRequest } from '@metamask/utils';
 
-import type { QueuedRequestControllerEnqueueRequestAction } from '../src/QueuedRequestController';
-import { createQueuedRequestMiddleware } from '../src/QueuedRequestMiddleware';
+import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
+import { createQueuedRequestMiddleware } from './QueuedRequestMiddleware';
 
 const buildMessenger = () => {
   return new ControllerMessenger<
