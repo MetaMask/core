@@ -7,6 +7,18 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type {
+  KeyringControllerSignMessageAction,
+  KeyringControllerSignPersonalMessageAction,
+  KeyringControllerSignTypedMessageAction,
+  SignTypedDataVersion,
+} from '@metamask/keyring-controller';
+import {
+  SigningMethod,
+  SigningStage,
+  LogType,
+} from '@metamask/logging-controller';
+import type { AddLog } from '@metamask/logging-controller';
+import type {
   MessageParams,
   MessageParamsMetamask,
   PersonalMessageParams,
@@ -28,8 +40,8 @@ import {
   PersonalMessageManager,
   TypedMessageManager,
 } from '@metamask/message-manager';
+import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { ethErrors } from 'eth-rpc-errors';
 import { bufferToHex } from 'ethereumjs-util';
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
@@ -72,7 +84,12 @@ type SignatureControllerState = {
   unapprovedTypedMessagesCount: number;
 };
 
-type AllowedActions = AddApprovalRequest;
+type AllowedActions =
+  | AddApprovalRequest
+  | KeyringControllerSignMessageAction
+  | KeyringControllerSignPersonalMessageAction
+  | KeyringControllerSignTypedMessageAction
+  | AddLog;
 
 type TypedMessageSigningOptions = {
   parseJsonData: boolean;
@@ -100,20 +117,8 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-export interface KeyringController {
-  signMessage: (messsageParams: MessageParams) => Promise<string>;
-  signPersonalMessage: (
-    messsageParams: PersonalMessageParams,
-  ) => Promise<string>;
-  signTypedMessage: (
-    messsageParams: TypedMessageParams,
-    options: { version: string | undefined },
-  ) => Promise<string>;
-}
-
 export type SignatureControllerOptions = {
   messenger: SignatureControllerMessenger;
-  keyringController: KeyringController;
   isEthSignEnabled: () => boolean;
   getAllState: () => unknown;
   securityProviderRequest?: (
@@ -133,8 +138,6 @@ export class SignatureController extends BaseControllerV2<
 > {
   hub: EventEmitter;
 
-  #keyringController: KeyringController;
-
   #isEthSignEnabled: () => boolean;
 
   #getAllState: () => any;
@@ -150,7 +153,6 @@ export class SignatureController extends BaseControllerV2<
    *
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the sign controller.
-   * @param options.keyringController - An instance of a keyring controller used to perform the signing operations.
    * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
    * @param options.getAllState - Callback to retrieve all user state.
    * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
@@ -158,7 +160,6 @@ export class SignatureController extends BaseControllerV2<
    */
   constructor({
     messenger,
-    keyringController,
     isEthSignEnabled,
     getAllState,
     securityProviderRequest,
@@ -171,7 +172,6 @@ export class SignatureController extends BaseControllerV2<
       state: getDefaultState(),
     });
 
-    this.#keyringController = keyringController;
     this.#isEthSignEnabled = isEthSignEnabled;
     this.#getAllState = getAllState;
 
@@ -322,6 +322,7 @@ export class SignatureController extends BaseControllerV2<
     return this.#newUnsignedAbstractMessage(
       this.#messageManager,
       ApprovalType.EthSign,
+      SigningMethod.EthSign,
       'Message',
       this.#signMessage.bind(this),
       messageParams,
@@ -348,6 +349,7 @@ export class SignatureController extends BaseControllerV2<
     return this.#newUnsignedAbstractMessage(
       this.#personalMessageManager,
       ApprovalType.PersonalSign,
+      SigningMethod.PersonalSign,
       'Personal Message',
       this.#signPersonalMessage.bind(this),
       messageParams,
@@ -371,9 +373,11 @@ export class SignatureController extends BaseControllerV2<
     version: string,
     signingOpts: TypedMessageSigningOptions,
   ): Promise<string> {
+    const signTypeForLogger = this.#getSignTypeForLogger(version);
     return this.#newUnsignedAbstractMessage(
       this.#typedMessageManager,
       ApprovalType.EthSignTypedData,
+      signTypeForLogger,
       'Typed Message',
       this.#signTypedMessage.bind(this),
       messageParams,
@@ -431,7 +435,7 @@ export class SignatureController extends BaseControllerV2<
 
   #validateUnsignedMessage(messageParams: MessageParamsMetamask): void {
     if (!this.#isEthSignEnabled()) {
-      throw ethErrors.rpc.methodNotFound(
+      throw rpcErrors.methodNotFound(
         'eth_sign has been disabled. You must enable it in the advanced settings',
       );
     }
@@ -440,9 +444,7 @@ export class SignatureController extends BaseControllerV2<
     // This is needed because Ethereum's EcSign works only on 32 byte numbers
     // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
     if (data.length !== 66 && data.length !== 67) {
-      throw ethErrors.rpc.invalidParams(
-        'eth_sign requires 32 byte message hash',
-      );
+      throw rpcErrors.invalidParams('eth_sign requires 32 byte message hash');
     }
   }
 
@@ -454,6 +456,7 @@ export class SignatureController extends BaseControllerV2<
   >(
     messageManager: AbstractMessageManager<M, P, PM>,
     approvalType: ApprovalType,
+    signTypeForLogger: SigningMethod,
     messageName: string,
     signMessage: (messageParams: PM, signingOpts?: SO) => void,
     messageParams: PM,
@@ -486,6 +489,13 @@ export class SignatureController extends BaseControllerV2<
       );
 
       try {
+        // Signature request is proposed to the user
+        this.#addLog(
+          signTypeForLogger,
+          SigningStage.Proposed,
+          messageParamsWithId,
+        );
+
         const acceptResult = await this.#requestApproval(
           messageParamsWithId,
           approvalType,
@@ -493,15 +503,23 @@ export class SignatureController extends BaseControllerV2<
 
         resultCallbacks = acceptResult.resultCallbacks;
       } catch {
-        this.#cancelAbstractMessage(messageManager, messageId);
-        throw ethErrors.provider.userRejectedRequest(
-          'User rejected the request.',
+        // User rejected the signature request
+        this.#addLog(
+          signTypeForLogger,
+          SigningStage.Rejected,
+          messageParamsWithId,
         );
+
+        this.#cancelAbstractMessage(messageManager, messageId);
+        throw providerErrors.userRejectedRequest('User rejected the request.');
       }
 
       await signMessage(messageParamsWithId, signingOpts);
 
       const signatureResult = await signaturePromise;
+
+      // Signature operation is completed
+      this.#addLog(signTypeForLogger, SigningStage.Signed, messageParamsWithId);
 
       /* istanbul ignore next */
       resultCallbacks?.success(signatureResult);
@@ -525,7 +543,10 @@ export class SignatureController extends BaseControllerV2<
       ApprovalType.EthSign,
       msgParams,
       async (cleanMsgParams) =>
-        await this.#keyringController.signMessage(cleanMsgParams),
+        await this.messagingSystem.call(
+          'KeyringController:signMessage',
+          cleanMsgParams,
+        ),
     );
   }
 
@@ -542,7 +563,10 @@ export class SignatureController extends BaseControllerV2<
       ApprovalType.PersonalSign,
       msgParams,
       async (cleanMsgParams) =>
-        await this.#keyringController.signPersonalMessage(cleanMsgParams),
+        await this.messagingSystem.call(
+          'KeyringController:signPersonalMessage',
+          cleanMsgParams,
+        ),
     );
   }
 
@@ -570,11 +594,10 @@ export class SignatureController extends BaseControllerV2<
           ? this.#removeJsonData(cleanMsgParams, version as string)
           : cleanMsgParams;
 
-        return await this.#keyringController.signTypedMessage(
+        return await this.messagingSystem.call(
+          'KeyringController:signTypedMessage',
           finalMessageParams,
-          {
-            version,
-          },
+          version as SignTypedDataVersion,
         );
       },
     );
@@ -851,5 +874,30 @@ export class SignatureController extends BaseControllerV2<
       ...messageParams,
       data: JSON.parse(messageParams.data),
     };
+  }
+
+  #addLog(
+    signingMethod: SigningMethod,
+    stage: SigningStage,
+    signingData: AbstractMessageParamsMetamask,
+  ): void {
+    this.messagingSystem.call('LoggingController:add', {
+      type: LogType.EthSignLog,
+      data: {
+        signingMethod,
+        stage,
+        signingData,
+      },
+    });
+  }
+
+  #getSignTypeForLogger(version: string): SigningMethod {
+    let signTypeForLogger = SigningMethod.EthSignTypedData;
+    if (version === 'V3') {
+      signTypeForLogger = SigningMethod.EthSignTypedDataV3;
+    } else if (version === 'V4') {
+      signTypeForLogger = SigningMethod.EthSignTypedDataV4;
+    }
+    return signTypeForLogger;
   }
 }

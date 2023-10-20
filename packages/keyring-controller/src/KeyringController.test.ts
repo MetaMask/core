@@ -22,6 +22,8 @@ import { bufferToHex } from 'ethereumjs-util';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
+import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
+import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -34,7 +36,6 @@ import {
   KeyringController,
   KeyringTypes,
 } from './KeyringController';
-import MockEncryptor, { mockKey } from '../tests/mocks/mockEncryptor';
 
 jest.mock('uuid', () => {
   return {
@@ -173,6 +174,37 @@ describe('KeyringController', () => {
               preferences.updateIdentities.calledWith(
                 controller.state.keyrings[0].accounts,
               ),
+            ).toBe(true);
+            expect(preferences.setSelectedAddress.called).toBe(false);
+          },
+        );
+      });
+
+      it('should not throw when `keyring.getAccounts()` returns a shallow copy', async () => {
+        await withController(
+          {
+            keyringBuilders: [
+              keyringBuilderFactory(MockShallowGetAccountsKeyring),
+            ],
+          },
+          async ({ controller, initialState, preferences }) => {
+            const mockKeyring = (await controller.addNewKeyring(
+              MockShallowGetAccountsKeyring.type,
+            )) as Keyring<Json>;
+
+            const addedAccountAddress =
+              await controller.addNewAccountForKeyring(mockKeyring);
+
+            expect(controller.state.keyrings).toHaveLength(2);
+            expect(controller.state.keyrings[1].accounts).toHaveLength(1);
+            expect(addedAccountAddress).toBe(
+              controller.state.keyrings[1].accounts[0],
+            );
+            expect(
+              preferences.updateIdentities.calledWith([
+                ...initialState.keyrings[0].accounts,
+                addedAccountAddress,
+              ]),
             ).toBe(true);
             expect(preferences.setSelectedAddress.called).toBe(false);
           },
@@ -1458,6 +1490,7 @@ describe('KeyringController', () => {
     };
 
     let signProcessKeyringController: KeyringController;
+    let signProcessKeyringControllerMessenger: KeyringControllerMessenger;
 
     let requestSignatureStub: sinon.SinonStub;
     let readAccountSub: sinon.SinonStub;
@@ -1478,11 +1511,18 @@ describe('KeyringController', () => {
     };
 
     beforeEach(async () => {
-      signProcessKeyringController = await withController(
-        // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
-        { keyringBuilders: [keyringBuilderFactory(QRKeyring)] },
-        ({ controller }) => controller,
+      const { controller, messenger } = await withController(
+        {
+          // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
+          keyringBuilders: [keyringBuilderFactory(QRKeyring)],
+          cacheEncryptionKey: true,
+        },
+        (args) => args,
       );
+
+      signProcessKeyringController = controller;
+      signProcessKeyringControllerMessenger = messenger;
+
       const qrkeyring = await signProcessKeyringController.getOrAddQRKeyring();
       qrkeyring.forgetDevice();
 
@@ -1495,6 +1535,21 @@ describe('KeyringController', () => {
         qrkeyring.getInteraction(),
         'readCryptoHDKeyOrCryptoAccount',
       );
+    });
+
+    describe('getQRKeyring', () => {
+      it('should return QR keyring', async () => {
+        const qrKeyring = signProcessKeyringController.getQRKeyring();
+        expect(qrKeyring).toBeDefined();
+        expect(qrKeyring).toBeInstanceOf(QRKeyring);
+      });
+
+      it('should return undefined if QR keyring is not present', async () => {
+        await withController(async ({ controller }) => {
+          const qrKeyring = controller.getQRKeyring();
+          expect(qrKeyring).toBeUndefined();
+        });
+      });
     });
 
     describe('connectQRHardware', () => {
@@ -1903,6 +1958,291 @@ describe('KeyringController', () => {
         expect(cancelSyncRequestStub.called).toBe(true);
       });
     });
+
+    describe('QRKeyring store events', () => {
+      describe('KeyringController:qrKeyringStateChange', () => {
+        it('should emit KeyringController:qrKeyringStateChange event after `getOrAddQRKeyring()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          const qrKeyring =
+            await signProcessKeyringController.getOrAddQRKeyring();
+
+          qrKeyring.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should emit KeyringController:qrKeyringStateChange after `submitPassword()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          // We ensure there is a QRKeyring before locking
+          await signProcessKeyringController.getOrAddQRKeyring();
+          // Locking the keyring will dereference the QRKeyring
+          await signProcessKeyringController.setLocked();
+          // ..and unlocking it should add a new instance of QRKeyring
+          await signProcessKeyringController.submitPassword(password);
+          // We call `getQRKeyring` instead of `getOrAddQRKeyring` so that
+          // we are able to test if the subscription to the internal QR keyring
+          // was made while unlocking the keyring.
+          const qrKeyring = signProcessKeyringController.getQRKeyring();
+
+          // As we added a QR keyring before lock/unlock, this must be defined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          qrKeyring!.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          // Only one call ensures that the first subscription made by
+          // QR keyring before locking was removed
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should emit KeyringController:qrKeyringStateChange after `submitEncryptionKey()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          const salt = signProcessKeyringController.state
+            .encryptionSalt as string;
+          // We ensure there is a QRKeyring before locking
+          await signProcessKeyringController.getOrAddQRKeyring();
+          // Locking the keyring will dereference the QRKeyring
+          await signProcessKeyringController.setLocked();
+          // ..and unlocking it should add a new instance of QRKeyring
+          await signProcessKeyringController.submitEncryptionKey(
+            mockKey.toString('hex'),
+            salt,
+          );
+          // We call `getQRKeyring` instead of `getOrAddQRKeyring` so that
+          // we are able to test if the subscription to the internal QR keyring
+          // was made while unlocking the keyring.
+          const qrKeyring = signProcessKeyringController.getQRKeyring();
+
+          // As we added a QR keyring before lock/unlock, this must be defined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          qrKeyring!.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          // Only one call ensures that the first subscription made by
+          // QR keyring before locking was removed
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+
+        it('should emit KeyringController:qrKeyringStateChange after `addNewKeyring()`', async () => {
+          const listener = jest.fn();
+          signProcessKeyringControllerMessenger.subscribe(
+            'KeyringController:qrKeyringStateChange',
+            listener,
+          );
+          const qrKeyring = (await signProcessKeyringController.addNewKeyring(
+            KeyringTypes.qr,
+          )) as QRKeyring;
+
+          qrKeyring.getMemStore().updateState({
+            sync: {
+              reading: true,
+            },
+          });
+
+          expect(listener).toHaveBeenCalledTimes(1);
+        });
+      });
+    });
+  });
+
+  describe('actions', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(KeyringController.prototype, 'signMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'signPersonalMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'signTypedMessage')
+        .mockResolvedValue('0x1234');
+      jest
+        .spyOn(KeyringController.prototype, 'decryptMessage')
+        .mockResolvedValue('I am Satoshi Buterin');
+      jest
+        .spyOn(KeyringController.prototype, 'getEncryptionPublicKey')
+        .mockResolvedValue('ZfKqt4HSy4tt9/WvqP3QrnzbIS04cnV//BhksKbLgVA=');
+    });
+
+    describe('signMessage', () => {
+      it('should sign message', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: '0x1234',
+            };
+
+            await messenger.call(
+              'KeyringController:signMessage',
+              messageParams,
+            );
+
+            expect(controller.signMessage).toHaveBeenCalledWith(messageParams);
+          },
+        );
+      });
+    });
+
+    describe('signPersonalMessage', () => {
+      it('should sign personal message', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: '0x1234',
+            };
+
+            await messenger.call(
+              'KeyringController:signPersonalMessage',
+              messageParams,
+            );
+
+            expect(controller.signPersonalMessage).toHaveBeenCalledWith(
+              messageParams,
+            );
+          },
+        );
+      });
+    });
+
+    describe('signTypedMessage', () => {
+      it('should call signTypedMessage', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              data: JSON.stringify({ foo: 'bar' }),
+              from: initialState.keyrings[0].accounts[0],
+            };
+
+            await messenger.call(
+              'KeyringController:signTypedMessage',
+              messageParams,
+              SignTypedDataVersion.V4,
+            );
+
+            expect(controller.signTypedMessage).toHaveBeenCalledWith(
+              messageParams,
+              SignTypedDataVersion.V4,
+            );
+          },
+        );
+      });
+    });
+
+    describe('getEncryptionPublicKey', () => {
+      it('should call getEncryptionPublicKey', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            await messenger.call(
+              'KeyringController:getEncryptionPublicKey',
+              initialState.keyrings[0].accounts[0],
+            );
+
+            expect(controller.getEncryptionPublicKey).toHaveBeenCalledWith(
+              initialState.keyrings[0].accounts[0],
+            );
+          },
+        );
+      });
+    });
+
+    describe('decryptMessage', () => {
+      it('should return correct decrypted message', async () => {
+        await withController(
+          async ({ controller, messenger, initialState }) => {
+            const messageParams = {
+              from: initialState.keyrings[0].accounts[0],
+              data: {
+                version: '1.0',
+                nonce: '123456',
+                ephemPublicKey: '0xabcdef1234567890',
+                ciphertext: '0xabcdef1234567890',
+              },
+            };
+
+            await messenger.call(
+              'KeyringController:decryptMessage',
+              messageParams,
+            );
+
+            expect(controller.decryptMessage).toHaveBeenCalledWith(
+              messageParams,
+            );
+          },
+        );
+      });
+    });
+
+    describe('getKeyringsByType', () => {
+      it('should return correct keyring by type', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringsByType')
+          .mockReturnValue([
+            {
+              type: 'HD Key Tree',
+              accounts: ['0x1234'],
+            },
+          ]);
+        await withController(async ({ controller, messenger }) => {
+          messenger.call('KeyringController:getKeyringsByType', 'HD Key Tree');
+
+          expect(controller.getKeyringsByType).toHaveBeenCalledWith(
+            'HD Key Tree',
+          );
+        });
+      });
+    });
+
+    describe('getKeyringForAccount', () => {
+      it('should return the keyring for the account', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getKeyringForAccount')
+          .mockResolvedValue({
+            type: 'HD Key Tree',
+            accounts: ['0x1234'],
+          });
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getKeyringForAccount', '0x0');
+
+          expect(controller.getKeyringForAccount).toHaveBeenCalledWith('0x0');
+        });
+      });
+    });
+
+    describe('getAccounts', () => {
+      it('should return all accounts', async () => {
+        jest
+          .spyOn(KeyringController.prototype, 'getAccounts')
+          .mockResolvedValue(['0x1234']);
+        await withController(async ({ controller, messenger }) => {
+          await messenger.call('KeyringController:getAccounts');
+
+          expect(controller.getAccounts).toHaveBeenCalledWith();
+        });
+      });
+    });
   });
 });
 
@@ -1916,7 +2256,6 @@ type WithControllerCallback<ReturnValue> = ({
   controller: KeyringController;
   preferences: {
     setAccountLabel: sinon.SinonStub;
-    removeIdentity: sinon.SinonStub;
     syncIdentities: sinon.SinonStub;
     updateIdentities: sinon.SinonStub;
     setSelectedAddress: sinon.SinonStub;
@@ -1954,12 +2293,23 @@ function buildMessenger() {
 function buildKeyringControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'KeyringController',
-    allowedActions: [],
+    allowedActions: [
+      'KeyringController:getState',
+      'KeyringController:signMessage',
+      'KeyringController:signPersonalMessage',
+      'KeyringController:signTypedMessage',
+      'KeyringController:decryptMessage',
+      'KeyringController:getEncryptionPublicKey',
+      'KeyringController:getKeyringsByType',
+      'KeyringController:getKeyringForAccount',
+      'KeyringController:getAccounts',
+    ],
     allowedEvents: [
       'KeyringController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
       'KeyringController:accountRemoved',
+      'KeyringController:qrKeyringStateChange',
     ],
   });
 }
@@ -1981,7 +2331,6 @@ async function withController<ReturnValue>(
   const encryptor = new MockEncryptor();
   const preferences = {
     setAccountLabel: sinon.stub(),
-    removeIdentity: sinon.stub(),
     syncIdentities: sinon.stub(),
     updateIdentities: sinon.stub(),
     setSelectedAddress: sinon.stub(),

@@ -170,8 +170,8 @@ describe('TokenDetectionController', () => {
     preferences = new PreferencesController({}, { useTokenDetection: true });
     controllerMessenger = getControllerMessenger();
     sinon
-      .stub(TokensController.prototype, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .stub(TokensController.prototype, '_createEthersContract')
+      .callsFake(() => null as any);
 
     tokensController = new TokensController({
       chainId: ChainId.mainnet,
@@ -180,6 +180,7 @@ describe('TokenDetectionController', () => {
         onNetworkStateChangeListeners.push(listener),
       onTokenListStateChange: sinon.stub(),
       getERC20TokenName: sinon.stub(),
+      getNetworkClientById: sinon.stub() as any,
       messenger: undefined as unknown as TokensControllerMessenger,
     });
 
@@ -336,18 +337,18 @@ describe('TokenDetectionController', () => {
 
     await tokenDetection.start();
 
-    await tokensController.addToken(
-      sampleTokenA.address,
-      sampleTokenA.symbol,
-      sampleTokenA.decimals,
-    );
+    await tokensController.addToken({
+      address: sampleTokenA.address,
+      symbol: sampleTokenA.symbol,
+      decimals: sampleTokenA.decimals,
+    });
 
-    await tokensController.addToken(
-      sampleTokenB.address,
-      sampleTokenB.symbol,
-      sampleTokenB.decimals,
-      { name: sampleTokenB.name },
-    );
+    await tokensController.addToken({
+      address: sampleTokenB.address,
+      symbol: sampleTokenB.symbol,
+      decimals: sampleTokenB.decimals,
+      name: sampleTokenB.name,
+    });
 
     tokensController.ignoreTokens([sampleTokenA.address]);
 
@@ -368,11 +369,11 @@ describe('TokenDetectionController', () => {
 
     await tokenDetection.start();
 
-    await tokensController.addToken(
-      sampleTokenA.address,
-      sampleTokenA.symbol,
-      sampleTokenA.decimals,
-    );
+    await tokensController.addToken({
+      address: sampleTokenA.address,
+      symbol: sampleTokenA.symbol,
+      decimals: sampleTokenA.decimals,
+    });
 
     tokensController.ignoreTokens([sampleTokenA.address]);
 
