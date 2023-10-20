@@ -183,5 +183,8 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
   return PollingControllerBase;
 }
 
+class Empty {}
+
+export const PollingControllerOnly = PollingControllerMixin(Empty);
 export const PollingController = PollingControllerMixin(BaseControllerV2);
 export const PollingControllerV1 = PollingControllerMixin(BaseController);
