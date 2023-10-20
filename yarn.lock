@@ -1584,7 +1584,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auto-changelog@npm:^3.1.0, @metamask/auto-changelog@npm:^3.4.0":
+"@metamask/auto-changelog@npm:^3.4.0":
   version: 3.4.0
   resolution: "@metamask/auto-changelog@npm:3.4.0"
   dependencies:
@@ -2386,7 +2386,7 @@ __metadata:
   resolution: "@metamask/queued-request-controller@workspace:packages/queued-request-controller"
   dependencies:
     "@metamask/approval-controller": ^4.0.1
-    "@metamask/auto-changelog": ^3.1.0
+    "@metamask/auto-changelog": ^3.4.0
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/json-rpc-engine": ^7.1.1
