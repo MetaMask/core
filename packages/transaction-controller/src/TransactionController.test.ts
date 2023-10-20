@@ -481,7 +481,7 @@ describe('TransactionController', () => {
   });
 
   describe('estimateGas', () => {
-    it.skip('returns estimatedGas and simulation fails', async () => {
+    it('returns estimatedGas and simulation fails', async () => {
       const gasMock = '0x123';
 
       const simulationFailsMock = {
@@ -495,13 +495,13 @@ describe('TransactionController', () => {
         simulationFails: simulationFailsMock,
       } as any);
 
-      // HERE
-      const { gas } = await controller.estimateGas({
+      const { gas, simulationFails } = await controller.estimateGas({
         from: ACCOUNT_MOCK,
         to: ACCOUNT_MOCK,
       });
 
       expect(gas).toBe(gasMock);
+      expect(simulationFails).toBe(simulationFailsMock);
     });
   });
 
@@ -667,7 +667,7 @@ describe('TransactionController', () => {
       );
     });
 
-    it.skip('updates gas properties', async () => {
+    it('updates gas properties', async () => {
       const controller = newController();
 
       await controller.addTransaction({
@@ -683,7 +683,7 @@ describe('TransactionController', () => {
       });
     });
 
-    it.skip('updates gas fee properties', async () => {
+    it('updates gas fee properties', async () => {
       const controller = newController();
 
       await controller.addTransaction({
