@@ -323,7 +323,7 @@ export class TransactionController extends BaseController<
     );
 
     this.pendingTransactionTracker = new PendingTransactionTracker({
-      blockTracker: this.blockTracker,
+      blockTracker,
       failTransaction: this.failTransaction.bind(this),
       getChainId: () => this.getNetworkState().providerConfig.chainId,
       getEthQuery: () => this.ethQuery,
@@ -986,19 +986,11 @@ export class TransactionController extends BaseController<
       const txParams = isEIP1559
         ? {
             ...baseTxParams,
-            maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
-            maxPriorityFeePerGas:
-              transactionMeta.transaction.maxPriorityFeePerGas,
             estimatedBaseFee: transactionMeta.transaction.estimatedBaseFee,
             // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
             type: 2,
           }
         : baseTxParams;
-
-      // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
-      if (isEIP1559) {
-        delete txParams.gasPrice;
-      }
 
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
       const signedTx = await this.sign(unsignedEthTx, from);
