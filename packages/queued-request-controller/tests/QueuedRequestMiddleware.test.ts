@@ -5,6 +5,7 @@ import type {
 import { ControllerMessenger } from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type {
+  NetworkClientId,
   NetworkController,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -14,6 +15,7 @@ import type {
 import { serializeError } from '@metamask/rpc-errors';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
+import { JsonRpcRequest } from '@metamask/utils';
 
 import type { QueuedRequestControllerEnqueueRequestAction } from '../src/QueuedRequestController';
 import { createQueuedRequestMiddleware } from '../src/QueuedRequestMiddleware';
@@ -233,7 +235,7 @@ describe('createQueuedRequestMiddleware', () => {
 
       expect(mocks.enqueueRequest).toHaveBeenCalled();
       // custom networks use getNetworkClientyId
-      expect(mocks.getNetworkClientById).toHaveBeenCalled();
+      expect(mocks.getNetworkClientById).toHaveBeenCalledWith('custom-rpc.com');
     });
 
     it('switchEthereumChain calls get queued but we dont check the current network', async () => {
@@ -440,7 +442,10 @@ describe('createQueuedRequestMiddleware', () => {
       const engine = new JsonRpcEngine();
       const messenger = buildMessenger();
       const mocks = buildMocks(messenger);
-      engine.push((req: any, _, next) => {
+      engine.push((req: JsonRpcRequest & {
+        origin?: string;
+        networkClientId?: NetworkClientId
+      } , _, next) => {
         req.origin = 'foobar';
         req.networkClientId = 'mainnet';
         next();
