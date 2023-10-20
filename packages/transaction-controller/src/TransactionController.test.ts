@@ -978,6 +978,67 @@ describe('TransactionController', () => {
       },
     );
 
+    it('calls createSwapsTransaction callback if transaction type is a swap or swapApproval', async () => {
+      const mockCreateSwapsTransaction = jest
+        .fn()
+        .mockImplementation(
+          async (_swapOptions, _transactionType, transactionMeta) => {
+            return Promise.resolve(transactionMeta);
+          },
+        );
+      const mockSwapOptions = {
+        hasApproveTx: true,
+        meta: {} as TransactionMeta,
+      };
+      const controller = newController({
+        options: {
+          createSwapsTransaction: mockCreateSwapsTransaction,
+          disableSwaps: false,
+        },
+      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          swaps: mockSwapOptions,
+          type: TransactionType.swap,
+        },
+      );
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          swaps: mockSwapOptions,
+          type: TransactionType.swapApproval,
+        },
+      );
+
+      expect(mockCreateSwapsTransaction).toHaveBeenCalledTimes(2);
+      expect(mockCreateSwapsTransaction.mock.calls[0][0]).toStrictEqual(
+        mockSwapOptions,
+      );
+      expect(mockCreateSwapsTransaction.mock.calls[0][1]).toBe(
+        TransactionType.swap,
+      );
+      expect(mockCreateSwapsTransaction.mock.calls[0][2]).toStrictEqual(
+        expect.any(Object),
+      );
+      expect(mockCreateSwapsTransaction.mock.calls[1][0]).toStrictEqual(
+        mockSwapOptions,
+      );
+      expect(mockCreateSwapsTransaction.mock.calls[1][1]).toBe(
+        TransactionType.swapApproval,
+      );
+      expect(mockCreateSwapsTransaction.mock.calls[1][2]).toStrictEqual(
+        expect.any(Object),
+      );
+    });
+
     it('throws if address invalid', async () => {
       const controller = newController();
       await expect(
@@ -2328,6 +2389,89 @@ describe('TransactionController', () => {
       expect(transaction?.originalGasEstimate).toBe(originalGasEstimate);
       expect(transaction?.userEditedGasLimit).toBe(userEditedGasLimit);
       expect(transaction?.userFeeLevel).toBe(userFeeLevel);
+    });
+  });
+
+  describe('updateSwapTransaction', () => {
+    it('throws if transaction does not exist', async () => {
+      const controller = newController();
+      expect(() =>
+        controller.updateSwapTransaction('123', {
+          sourceTokenSymbol: '0x1',
+        }),
+      ).toThrow('Cannot update transaction as no transaction metadata found');
+    });
+
+    it('throws if transaction not unapproved status', async () => {
+      const transactionId = '123';
+      const fnName = 'updateSwapTransaction';
+      const status = TransactionStatus.failed;
+      const controller = newController();
+      controller.state.transactions.push({
+        id: transactionId,
+        status,
+      } as any);
+      expect(() =>
+        controller.updateSwapTransaction(transactionId, {
+          sourceTokenSymbol: '0x1',
+        }),
+      ).toThrow(`Can only call ${fnName} on an unapproved transaction.
+      Current tx status: ${status}`);
+    });
+
+    it('updates provided swap values', async () => {
+      const transactionId = '123';
+      const controller = newController();
+
+      const sourceTokenSymbol = 'ETH';
+      const destinationTokenSymbol = 'DAI';
+      const type = TransactionType.swap;
+      const destinationTokenDecimals = '18';
+      const destinationTokenAddress = '0x0';
+      const swapMetaData = {
+        meta: 'data',
+      };
+      const swapTokenValue = '0x123';
+      const estimatedBaseFee = '0x123';
+      const approvalTxId = '0x123';
+
+      controller.state.transactions.push({
+        id: transactionId,
+        status: TransactionStatus.unapproved,
+        history: [{}],
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      } as any);
+
+      controller.updateSwapTransaction(transactionId, {
+        sourceTokenSymbol,
+        destinationTokenSymbol,
+        type,
+        destinationTokenDecimals,
+        destinationTokenAddress,
+        swapMetaData,
+        swapTokenValue,
+        estimatedBaseFee,
+        approvalTxId,
+      });
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.sourceTokenSymbol).toBe(sourceTokenSymbol);
+      expect(transaction?.destinationTokenSymbol).toBe(destinationTokenSymbol);
+      expect(transaction?.type).toBe(type);
+      expect(transaction?.destinationTokenDecimals).toBe(
+        destinationTokenDecimals,
+      );
+      expect(transaction?.destinationTokenAddress).toBe(
+        destinationTokenAddress,
+      );
+      expect(transaction?.swapMetaData).toStrictEqual(swapMetaData);
+      expect(transaction?.swapTokenValue).toBe(swapTokenValue);
+      expect(transaction?.estimatedBaseFee).toBe(estimatedBaseFee);
+      expect(transaction?.approvalTxId).toBe(approvalTxId);
     });
   });
 

@@ -48,6 +48,7 @@ import type {
   TransactionReceipt,
   SecurityProviderRequest,
   SendFlowHistoryEntry,
+  SwapOptions,
   WalletDevice,
 } from './types';
 import { TransactionType, TransactionStatus } from './types';
@@ -175,6 +176,8 @@ export class TransactionController extends BaseController<
 
   private readonly isHistoryDisabled: boolean;
 
+  private readonly isSwapsDisabled: boolean;
+
   private readonly isSendFlowHistoryDisabled: boolean;
 
   private readonly nonceTracker: NonceTracker;
@@ -183,11 +186,15 @@ export class TransactionController extends BaseController<
 
   private readonly provider: Provider;
 
-  private readonly handle?: ReturnType<typeof setTimeout>;
-
   private readonly mutex = new Mutex();
 
   private readonly getNetworkState: () => NetworkState;
+
+  private readonly createSwapsTransaction: (
+    swaps: any,
+    type: TransactionType,
+    txMeta: TransactionMeta,
+  ) => Promise<TransactionMeta>;
 
   private readonly getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
 
@@ -249,8 +256,10 @@ export class TransactionController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
+   * @param options.createSwapsTransaction - Handler for creating swaps transactions.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
-   * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
+   * @param options.disableSendFlowHistory - Whether to disable transaction metadata history.
+   * @param options.disableSwaps - Whether to disable processing swaps transactions.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
@@ -272,8 +281,10 @@ export class TransactionController extends BaseController<
   constructor(
     {
       blockTracker,
+      createSwapsTransaction,
       disableHistory,
       disableSendFlowHistory,
+      disableSwaps,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
       getGasFeeEstimates,
@@ -287,8 +298,14 @@ export class TransactionController extends BaseController<
       securityProviderRequest,
     }: {
       blockTracker: BlockTracker;
+      createSwapsTransaction: (
+        swapOptions: SwapOptions,
+        type: TransactionType,
+        txMeta: TransactionMeta,
+      ) => Promise<TransactionMeta>;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
+      disableSwaps: boolean;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
       getGasFeeEstimates?: () => Promise<GasFeeState>;
@@ -330,6 +347,7 @@ export class TransactionController extends BaseController<
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
+    this.isSwapsDisabled = disableSwaps ?? false;
     this.registry = new MethodRegistry({ provider });
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
@@ -340,6 +358,14 @@ export class TransactionController extends BaseController<
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
     this.securityProviderRequest = securityProviderRequest;
+
+    this.createSwapsTransaction =
+      createSwapsTransaction ??
+      (async (
+        _swapOptions: SwapOptions,
+        _type: TransactionType,
+        transactionMeta: TransactionMeta,
+      ) => Promise.resolve(transactionMeta));
 
     this.nonceTracker = new NonceTracker({
       provider,
@@ -451,6 +477,7 @@ export class TransactionController extends BaseController<
    * @param opts.securityAlertResponse - Response from security validator.
    * @param opts.sendFlowHistory - The sendFlowHistory entries to add.
    * @param opts.type - Type of transaction to add, such as 'cancel' or 'swap'.
+   * @param opts.swaps - Options for swaps transactions.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -463,6 +490,7 @@ export class TransactionController extends BaseController<
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
+      swaps: swapOptions = {},
       type,
     }: {
       actionId?: string;
@@ -472,6 +500,7 @@ export class TransactionController extends BaseController<
       requireApproval?: boolean | undefined;
       securityAlertResponse?: Record<string, unknown>;
       sendFlowHistory?: SendFlowHistoryEntry[];
+      swaps?: SwapOptions;
       type?: TransactionType;
     } = {},
   ): Promise<Result> {
@@ -499,7 +528,7 @@ export class TransactionController extends BaseController<
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
-    const transactionMeta: TransactionMeta = existingTransactionMeta || {
+    let transactionMeta: TransactionMeta = existingTransactionMeta || {
       // Add actionId to txMeta to check if same actionId is seen again
       actionId,
       chainId,
@@ -547,6 +576,21 @@ export class TransactionController extends BaseController<
       if (!this.isHistoryDisabled) {
         addInitialHistorySnapshot(transactionMeta);
       }
+
+      // Check if swaps transaction
+      if (
+        [TransactionType.swap, TransactionType.swapApproval].includes(
+          transactionType,
+        ) &&
+        !this.isSwapsDisabled
+      ) {
+        transactionMeta = (await this.createSwapsTransaction(
+          swapOptions,
+          transactionType,
+          transactionMeta,
+        )) as TransactionMeta;
+      }
+
       transactions.push(transactionMeta);
       this.update({
         transactions: this.trimTransactionsForState(transactions),
@@ -1094,6 +1138,104 @@ export class TransactionController extends BaseController<
     return this.getTransaction(transactionId) as TransactionMeta;
   }
 
+  /**
+   * updates a swap transaction with provided metadata and source token symbol
+   * if the transaction state is unapproved.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param swapTransaction - Swap transaction metadata to update.
+   * @param swapTransaction.sourceTokenSymbol - The symbol of the token being swapped.
+   * @param swapTransaction.destinationTokenSymbol - The symbol of the token being received.
+   * @param swapTransaction.type - The type of swap transaction.
+   * @param swapTransaction.destinationTokenDecimals - The decimals of the token being received.
+   * @param swapTransaction.destinationTokenAddress - The address of the token being received.
+   * @param swapTransaction.swapMetaData - The metadata of the swap transaction.
+   * @param swapTransaction.swapTokenValue - The value of the token being swapped.
+   * @param swapTransaction.estimatedBaseFee - The estimated base fee of the transaction.
+   * @param swapTransaction.approvalTxId - The ID of the approval transaction.
+   * @returns the txMeta of the updated transaction
+   */
+  updateSwapTransaction(
+    transactionId: string,
+    {
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    }: {
+      sourceTokenSymbol?: string;
+      destinationTokenSymbol?: string;
+      type?: TransactionType;
+      destinationTokenDecimals?: string;
+      destinationTokenAddress?: string;
+      swapMetaData?: Record<string, unknown>;
+      swapTokenValue?: string;
+      estimatedBaseFee?: string;
+      approvalTxId?: string;
+    },
+  ) {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(
+        `Cannot update transaction as no transaction metadata found`,
+      );
+    }
+
+    validateIfTransactionUnapproved(transactionMeta, 'updateSwapTransaction');
+
+    let swapTransaction = {
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    } as any;
+
+    // only update what is defined
+    swapTransaction = pickBy(swapTransaction);
+
+    // merge updated gas values with existing transaction meta
+    const updatedMeta = merge(transactionMeta, swapTransaction);
+
+    this.updateTransaction(
+      updatedMeta,
+      'TransactionController:updateSwapTransaction - swap values updated',
+    );
+
+    return this.getTransaction(transactionId) as TransactionMeta;
+  }
+
+  /**
+   * Cancels a transaction based on its ID by setting its status to "rejected"
+   * and emitting a `<tx.id>:finished` hub event.
+   *
+   * @param transactionId - The ID of the transaction to cancel.
+   */
+  cancelTransaction(transactionId: string) {
+    const transactionMeta = this.state.transactions.find(
+      ({ id }) => id === transactionId,
+    );
+    if (!transactionMeta) {
+      return;
+    }
+    transactionMeta.status = TransactionStatus.rejected;
+    this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+    const transactions = this.state.transactions.filter(
+      ({ id }) => id !== transactionId,
+    );
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
+  }
+
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
@@ -1277,27 +1419,6 @@ export class TransactionController extends BaseController<
       }
       releaseLock();
     }
-  }
-
-  /**
-   * Cancels a transaction based on its ID by setting its status to "rejected"
-   * and emitting a `<tx.id>:finished` hub event.
-   *
-   * @param transactionId - The ID of the transaction to cancel.
-   */
-  private cancelTransaction(transactionId: string) {
-    const transactionMeta = this.state.transactions.find(
-      ({ id }) => id === transactionId,
-    );
-    if (!transactionMeta) {
-      return;
-    }
-    transactionMeta.status = TransactionStatus.rejected;
-    this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
-    const transactions = this.state.transactions.filter(
-      ({ id }) => id !== transactionId,
-    );
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
   /**
