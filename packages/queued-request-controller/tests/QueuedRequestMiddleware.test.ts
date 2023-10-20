@@ -263,7 +263,7 @@ describe('createQueuedRequestMiddleware', () => {
         });
 
         const req = {
-          ...requestDefaults,
+          ...requestDefaults, // chainId = '0x1'
           method: 'eth_sendTransaction',
         };
 

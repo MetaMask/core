@@ -119,7 +119,7 @@ export const createQueuedRequestMiddleware = ({
 
           const currentChainId = currentProviderConfig.chainId;
 
-          // if the 'globally selected network' is already on the correct chain
+          // if the 'globally selected network' is already on the correct chain for the request currently being processed
           // continue with the request as normal.
           if (currentChainId === networkConfigurationForRequest.chainId) {
             return next();
