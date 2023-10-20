@@ -772,9 +772,9 @@
     "@metamask/utils" "^8.1.0"
 
 "@metamask/json-rpc-engine@^7.1.0", "@metamask/json-rpc-engine@^7.1.1":
-  version "7.1.1"
-  resolved "https://registry.yarnpkg.com/@metamask/json-rpc-engine/-/json-rpc-engine-7.1.1.tgz#90d4c1e1fe3bcfc983563f6e07715319b8857190"
-  integrity sha512-wPB8Or74OqMwcxa87JPOEjXwtgpyHPEXiLKblKRAtCjTJNQFp1Co//1CgFm5xj4Z5JbBGfGFiQNnj09Et40sig==
+  version "7.2.0"
+  resolved "https://registry.yarnpkg.com/@metamask/json-rpc-engine/-/json-rpc-engine-7.2.0.tgz#568a0159d44aa2f46979dd27a3b9e6c490891950"
+  integrity sha512-i3tiaKJ9pmk9vuyeV52D9STMNLzHS5J7WXuWSuri1/GTObQNxga8OdUdWHocX3jsY4j6XpfPVUu5dX4+SFkO4g==
   dependencies:
     "@metamask/rpc-errors" "^6.0.0"
     "@metamask/safe-event-emitter" "^3.0.0"
