@@ -191,7 +191,7 @@ export class TransactionController extends BaseController<
   private readonly getNetworkState: () => NetworkState;
 
   private readonly createSwapsTransaction: (
-    swaps: any,
+    swaps: SwapOptions,
     type: TransactionType,
     txMeta: TransactionMeta,
   ) => Promise<TransactionMeta>;
