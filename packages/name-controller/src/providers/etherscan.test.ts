@@ -1,7 +1,7 @@
+import { EtherscanNameProvider } from './etherscan';
 import { CHAIN_IDS } from '../constants';
 import { NameType } from '../types';
 import { handleFetch } from '../util';
-import { EtherscanNameProvider } from './etherscan';
 
 jest.mock('../util');
 
@@ -10,6 +10,7 @@ const CHAIN_ID_MOCK = '0x1';
 const SOURCE_ID = 'etherscan';
 const CONTRACT_NAME_MOCK = 'TestContractName';
 const CONTRACT_NAME_2_MOCK = 'TestContractName2';
+const API_KEY_MOCK = 'TestApiKey';
 
 describe('EtherscanNameProvider', () => {
   const handleFetchMock = jest.mocked(handleFetch);
@@ -50,7 +51,7 @@ describe('EtherscanNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        variation: CHAIN_ID_MOCK,
+        chainId: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -80,7 +81,7 @@ describe('EtherscanNameProvider', () => {
 
         const response = await provider.getProposedNames({
           value: VALUE_MOCK,
-          variation: CHAIN_ID_MOCK,
+          chainId: CHAIN_ID_MOCK,
           type: NameType.ETHEREUM_ADDRESS,
         });
 
@@ -93,6 +94,32 @@ describe('EtherscanNameProvider', () => {
         });
       },
     );
+
+    it('includes API key in requested URL if provided', async () => {
+      const provider = new EtherscanNameProvider({ apiKey: API_KEY_MOCK });
+
+      handleFetchMock.mockResolvedValueOnce({
+        result: [
+          {
+            ContractName: CONTRACT_NAME_MOCK,
+          },
+          {
+            ContractName: CONTRACT_NAME_2_MOCK,
+          },
+        ],
+      });
+
+      await provider.getProposedNames({
+        value: VALUE_MOCK,
+        chainId: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(handleFetchMock).toHaveBeenCalledTimes(1);
+      expect(handleFetchMock).toHaveBeenCalledWith(
+        `https://api.etherscan.io/api?module=contract&action=getsourcecode&address=${VALUE_MOCK}&apikey=${API_KEY_MOCK}`,
+      );
+    });
 
     it('requests alternate URL based on chain ID', async () => {
       const provider = new EtherscanNameProvider();
@@ -110,7 +137,7 @@ describe('EtherscanNameProvider', () => {
 
       await provider.getProposedNames({
         value: VALUE_MOCK,
-        variation: CHAIN_IDS.LINEA_GOERLI,
+        chainId: CHAIN_IDS.LINEA_GOERLI,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -127,90 +154,12 @@ describe('EtherscanNameProvider', () => {
       await expect(
         provider.getProposedNames({
           value: VALUE_MOCK,
-          variation: invalidChainId,
+          chainId: invalidChainId,
           type: NameType.ETHEREUM_ADDRESS,
         }),
       ).rejects.toThrow(
         `Etherscan does not support chain with ID: ${invalidChainId}`,
       );
-    });
-
-    it('returns delay only if within rate limit interval', async () => {
-      const provider = new EtherscanNameProvider();
-
-      await provider.getProposedNames({
-        value: VALUE_MOCK,
-        variation: CHAIN_ID_MOCK,
-        type: NameType.ETHEREUM_ADDRESS,
-      });
-
-      const result = await provider.getProposedNames({
-        value: VALUE_MOCK,
-        variation: CHAIN_ID_MOCK,
-        type: NameType.ETHEREUM_ADDRESS,
-      });
-
-      expect(result).toStrictEqual({
-        results: {
-          [SOURCE_ID]: {
-            updateDelay: 5,
-          },
-        },
-      });
-    });
-
-    it('returns delay only if request has warning', async () => {
-      const provider = new EtherscanNameProvider();
-
-      handleFetchMock.mockResolvedValueOnce({
-        message: 'NOTOK',
-      });
-
-      const result = await provider.getProposedNames({
-        value: VALUE_MOCK,
-        variation: CHAIN_ID_MOCK,
-        type: NameType.ETHEREUM_ADDRESS,
-      });
-
-      expect(result).toStrictEqual({
-        results: {
-          [SOURCE_ID]: {
-            updateDelay: 5,
-          },
-        },
-      });
-    });
-
-    it('returns empty result if disabled', async () => {
-      const provider = new EtherscanNameProvider({
-        isEnabled: () => false,
-      });
-
-      const response = await provider.getProposedNames({
-        value: VALUE_MOCK,
-        variation: CHAIN_ID_MOCK,
-        type: NameType.ETHEREUM_ADDRESS,
-      });
-
-      expect(response).toStrictEqual({
-        results: { [SOURCE_ID]: { proposedNames: [] } },
-      });
-    });
-
-    it('throws if request fails', async () => {
-      const provider = new EtherscanNameProvider();
-
-      handleFetchMock.mockImplementation(() => {
-        throw new Error('TestError');
-      });
-
-      await expect(
-        provider.getProposedNames({
-          value: VALUE_MOCK,
-          variation: CHAIN_ID_MOCK,
-          type: NameType.ETHEREUM_ADDRESS,
-        }),
-      ).rejects.toThrow('TestError');
     });
   });
 });

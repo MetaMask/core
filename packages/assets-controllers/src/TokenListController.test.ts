@@ -7,7 +7,6 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type {
-  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderConfig,
@@ -16,7 +15,7 @@ import { NetworkStatus } from '@metamask/network-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-import * as tokenService from './token-service';
+import { TOKEN_END_POINT_API } from './token-service';
 import type {
   TokenListStateChange,
   GetTokenListState,
@@ -27,10 +26,6 @@ import { TokenListController } from './TokenListController';
 
 const name = 'TokenListController';
 const timestamp = Date.now();
-
-const flushPromises = () => {
-  return new Promise(jest.requireActual('timers').setImmediate);
-};
 
 const sampleMainnetTokenList = [
   {
@@ -228,15 +223,6 @@ const sampleBinanceTokenList = [
       'https://static.metafi.codefi.network/api/v1/tokenIcons/56/0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3.png',
   },
 ];
-
-const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
-  (output, current) => {
-    output[current.address] = current;
-    return output;
-  },
-  {} as TokenListMap,
-);
-
 const sampleSingleChainState = {
   tokenList: {
     '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
@@ -313,92 +299,7 @@ const sampleSingleChainState = {
   },
 };
 
-const sampleSepoliaTokenList = [
-  {
-    address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
-    symbol: 'WBTC',
-    decimals: 8,
-    name: 'Wrapped BTC',
-    iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x2260fac5e5542a773aa44fbcfedf7c193bc2c599.png',
-    type: 'erc20',
-    aggregators: [
-      'Metamask',
-      'Aave',
-      'Bancor',
-      'Cmc',
-      'Cryptocom',
-      'CoinGecko',
-      'OneInch',
-      'Pmm',
-      'Sushiswap',
-      'Zerion',
-      'Lifi',
-      'Openswap',
-      'Sonarwatch',
-      'UniswapLabs',
-      'Coinmarketcap',
-    ],
-    occurrences: 15,
-    fees: {},
-    storage: {
-      balance: 0,
-    },
-  },
-  {
-    address: '0x04fa0d235c4abf4bcf4787af4cf447de572ef828',
-    symbol: 'UMA',
-    decimals: 18,
-    name: 'UMA',
-    iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x04fa0d235c4abf4bcf4787af4cf447de572ef828.png',
-    type: 'erc20',
-    aggregators: [
-      'Metamask',
-      'Bancor',
-      'CMC',
-      'Crypto.com',
-      'CoinGecko',
-      '1inch',
-      'PMM',
-      'Sushiswap',
-      'Zerion',
-      'Openswap',
-      'Sonarwatch',
-      'UniswapLabs',
-      'Coinmarketcap',
-    ],
-    occurrences: 13,
-    fees: {},
-  },
-  {
-    address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
-    symbol: 'GNO',
-    decimals: 18,
-    name: 'Gnosis Token',
-    iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x6810e776880c02933d47db1b9fc05908e5386b96.png',
-    type: 'erc20',
-    aggregators: [
-      'Metamask',
-      'Bancor',
-      'CMC',
-      'CoinGecko',
-      '1inch',
-      'Sushiswap',
-      'Zerion',
-      'Lifi',
-      'Openswap',
-      'Sonarwatch',
-      'UniswapLabs',
-      'Coinmarketcap',
-    ],
-    occurrences: 12,
-    fees: {},
-  },
-];
-
-const sampleSepoliaTokensChainCache = sampleSepoliaTokenList.reduce(
+const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
   (output, current) => {
     output[current.address] = current;
     return output;
@@ -580,7 +481,7 @@ const expiredCacheExistingState: TokenListState = {
 };
 
 type MainControllerMessenger = ControllerMessenger<
-  GetTokenListState | NetworkControllerGetNetworkClientByIdAction,
+  GetTokenListState,
   TokenListStateChange | NetworkControllerStateChangeEvent
 >;
 
@@ -593,7 +494,7 @@ const getRestrictedMessenger = (
 ) => {
   const messenger = controllerMessenger.getRestricted({
     name,
-    allowedActions: ['NetworkController:getNetworkClientById'],
+    allowedActions: [],
     allowedEvents: [
       'TokenListController:stateChange',
       'NetworkController:stateChange',
@@ -618,6 +519,7 @@ function buildNetworkControllerStateWithProviderConfig(
   return {
     selectedNetworkClientId,
     providerConfig,
+    networkId: '1',
     networksMetadata: {
       [selectedNetworkClientId]: {
         EIPS: {},
@@ -630,8 +532,6 @@ function buildNetworkControllerStateWithProviderConfig(
 
 describe('TokenListController', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
-    jest.clearAllTimers();
     sinon.restore();
   });
 
@@ -739,7 +639,7 @@ describe('TokenListController', () => {
   });
 
   it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -902,7 +802,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list from api', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -940,12 +840,12 @@ describe('TokenListController', () => {
   });
 
   it('should update the cache before threshold time if the current data is undefined', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .once()
       .reply(200, undefined);
 
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -995,7 +895,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list after removing data with duplicate symbols', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleWithDuplicateSymbols)
       .persist();
@@ -1038,7 +938,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list after removing data less than 3 occurrences', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleWithLessThan3OccurencesResponse)
       .persist();
@@ -1062,7 +962,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list when the token property changes', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -1090,7 +990,7 @@ describe('TokenListController', () => {
   });
 
   it('should update the cache when the timestamp expires', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
@@ -1120,7 +1020,7 @@ describe('TokenListController', () => {
   });
 
   it('should update token list when the chainId change', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
@@ -1217,7 +1117,7 @@ describe('TokenListController', () => {
   });
 
   it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
+    nock(TOKEN_END_POINT_API)
       .get(`/tokens/${convertHexToDecimal(ChainId.mainnet)}`)
       .reply(200, sampleMainnetTokenList)
       .get(`/tokens/${convertHexToDecimal(ChainId.goerli)}`)
@@ -1291,200 +1191,6 @@ describe('TokenListController', () => {
         }),
         [],
       );
-    });
-  });
-
-  describe('startPollingByNetworkClient', () => {
-    it('should call fetchTokenListByChainId with the correct chainId', async () => {
-      jest.useFakeTimers();
-      nock(tokenService.TOKEN_END_POINT_API)
-        .get(`/tokens/${convertHexToDecimal(ChainId.sepolia)}`)
-        .reply(200, sampleSepoliaTokenList)
-        .persist();
-
-      const fetchTokenListByChainIdSpy = jest.spyOn(
-        tokenService,
-        'fetchTokenListByChainId',
-      );
-      const controllerMessenger = getControllerMessenger();
-      controllerMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
-          configuration: {
-            type: NetworkType.sepolia,
-            chainId: ChainId.sepolia,
-          },
-        }),
-      );
-      const pollingIntervalTime = 1000;
-      const messenger = getRestrictedMessenger(controllerMessenger);
-      const controller = new TokenListController({
-        chainId: ChainId.mainnet,
-        preventPollingOnNetworkRestart: false,
-        messenger,
-        state: expiredCacheExistingState,
-        interval: pollingIntervalTime,
-      });
-      expect(controller.state.tokenList).toStrictEqual(
-        expiredCacheExistingState.tokenList,
-      );
-
-      controller.startPollingByNetworkClientId('sepolia');
-      jest.advanceTimersByTime(pollingIntervalTime);
-      await flushPromises();
-
-      expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
-        expect.arrayContaining([ChainId.sepolia]),
-      );
-    });
-    it('should start polling against the token list API at the interval passed to the constructor', async () => {
-      jest.useFakeTimers();
-      const pollingIntervalTime = 1000;
-      const fetchTokenListByChainIdSpy = jest.spyOn(
-        tokenService,
-        'fetchTokenListByChainId',
-      );
-
-      const controllerMessenger = getControllerMessenger();
-      controllerMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
-          configuration: {
-            type: NetworkType.goerli,
-            chainId: ChainId.goerli,
-          },
-        }),
-      );
-      const messenger = getRestrictedMessenger(controllerMessenger);
-      const controller = new TokenListController({
-        chainId: ChainId.mainnet,
-        preventPollingOnNetworkRestart: false,
-        messenger,
-        state: expiredCacheExistingState,
-        interval: pollingIntervalTime,
-      });
-      expect(controller.state.tokenList).toStrictEqual(
-        expiredCacheExistingState.tokenList,
-      );
-
-      controller.startPollingByNetworkClientId('goerli');
-      jest.advanceTimersByTime(pollingIntervalTime / 2);
-      await flushPromises();
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(0);
-      jest.advanceTimersByTime(pollingIntervalTime / 2);
-      await flushPromises();
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      await Promise.all([
-        jest.advanceTimersByTime(pollingIntervalTime),
-        flushPromises(),
-      ]);
-
-      await Promise.all([jest.runOnlyPendingTimers(), flushPromises()]);
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
-    });
-
-    it('should update tokenList state and tokensChainsCache', async () => {
-      jest.useFakeTimers();
-      const startingState: TokenListState = {
-        tokenList: {},
-        tokensChainsCache: {},
-        preventPollingOnNetworkRestart: false,
-      };
-
-      const fetchTokenListByChainIdSpy = jest
-        .spyOn(tokenService, 'fetchTokenListByChainId')
-        .mockImplementation(async (chainId) => {
-          switch (chainId) {
-            case ChainId.sepolia:
-              return sampleSepoliaTokenList;
-            case toHex(56):
-              return sampleBinanceTokenList;
-            default:
-              throw new Error('Invalid chainId');
-          }
-        });
-      const controllerMessenger = getControllerMessenger();
-      controllerMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        jest.fn().mockImplementation((networkClientId) => {
-          switch (networkClientId) {
-            case 'sepolia':
-              return {
-                configuration: {
-                  type: NetworkType.sepolia,
-                  chainId: ChainId.sepolia,
-                },
-              };
-            case 'binance-network-client-id':
-              return {
-                configuration: {
-                  type: NetworkType.rpc,
-                  chainId: toHex(56),
-                },
-              };
-            default:
-              throw new Error('Invalid networkClientId');
-          }
-        }),
-      );
-      const pollingIntervalTime = 1000;
-      const messenger = getRestrictedMessenger(controllerMessenger);
-      const controller = new TokenListController({
-        chainId: ChainId.mainnet,
-        preventPollingOnNetworkRestart: false,
-        messenger,
-        state: startingState,
-        interval: pollingIntervalTime,
-      });
-
-      expect(controller.state).toStrictEqual(startingState);
-
-      // start polling for sepolia
-      await controller.startPollingByNetworkClientId('sepolia');
-      // wait a polling interval
-      jest.advanceTimersByTime(pollingIntervalTime);
-      await flushPromises();
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      // expect the state to be updated with the sepolia token list
-      expect(controller.state.tokenList).toStrictEqual(
-        sampleSepoliaTokensChainCache,
-      );
-      expect(controller.state.tokensChainsCache).toStrictEqual({
-        [ChainId.sepolia]: {
-          timestamp: expect.any(Number),
-          data: sampleSepoliaTokensChainCache,
-        },
-      });
-      // start polling for binance
-      await controller.startPollingByNetworkClientId(
-        'binance-network-client-id',
-      );
-      jest.advanceTimersByTime(pollingIntervalTime);
-      await flushPromises();
-
-      // expect fetchTokenListByChain to be called for binance, but not for sepolia
-      // because the cache for the recently fetched sepolia token list is still valid
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
-
-      // expect tokenList to be updated with the binance token list
-      // and the cache to now contain both the binance token list and the sepolia token list
-      expect(controller.state.tokenList).toStrictEqual(
-        sampleBinanceTokensChainsCache,
-      );
-      // once we adopt this polling pattern we should no longer access the root tokenList state
-      // but rather access from the cache with a chainId selector.
-      expect(controller.state.tokensChainsCache).toStrictEqual({
-        [toHex(56)]: {
-          timestamp: expect.any(Number),
-          data: sampleBinanceTokensChainsCache,
-        },
-        [ChainId.sepolia]: {
-          timestamp: expect.any(Number),
-          data: sampleSepoliaTokensChainCache,
-        },
-      });
     });
   });
 });

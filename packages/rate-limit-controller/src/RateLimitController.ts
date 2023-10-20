@@ -1,6 +1,6 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 as BaseController } from '@metamask/base-controller';
-import { rpcErrors } from '@metamask/rpc-errors';
+import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 
 /**
@@ -143,7 +143,7 @@ export class RateLimitController<
     ...args: Parameters<RateLimitedApis[ApiType]['method']>
   ): Promise<ReturnType<RateLimitedApis[ApiType]['method']>> {
     if (this.isRateLimited(type, origin)) {
-      throw rpcErrors.limitExceeded({
+      throw ethErrors.rpc.limitExceeded({
         message: `"${type.toString()}" is currently rate-limited. Please try again later.`,
       });
     }

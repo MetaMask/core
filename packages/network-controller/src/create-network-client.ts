@@ -1,5 +1,5 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
-import { ChainId } from '@metamask/controller-utils';
+import { ChainId, NetworkId } from '@metamask/controller-utils';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
@@ -15,15 +15,15 @@ import {
   providerFromEngine,
   providerFromMiddleware,
 } from '@metamask/eth-json-rpc-provider';
+import type { Hex } from '@metamask/utils';
+import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   createAsyncMiddleware,
   createScaffoldMiddleware,
   JsonRpcEngine,
   mergeMiddleware,
-} from '@metamask/json-rpc-engine';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
-import { PollingBlockTracker } from 'eth-block-tracker';
+} from 'json-rpc-engine';
+import type { JsonRpcMiddleware } from 'json-rpc-engine';
 
 import type {
   BlockTracker,
@@ -126,7 +126,7 @@ function createInfuraNetworkMiddleware({
   blockTracker: PollingBlockTracker;
   network: InfuraNetworkType;
   rpcProvider: SafeEventEmitterProvider;
-  rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
+  rpcApiMiddleware: JsonRpcMiddleware<unknown, unknown>;
 }) {
   return mergeMiddleware([
     createNetworkAndChainIdMiddleware({ network }),
@@ -144,7 +144,7 @@ function createInfuraNetworkMiddleware({
  *
  * @param args - The Arguments.
  * @param args.network - The Infura network to use.
- * @returns The middleware that implements the eth_chainId method.
+ * @returns The middleware that implements eth_chainId & net_version methods.
  */
 function createNetworkAndChainIdMiddleware({
   network,
@@ -153,12 +153,13 @@ function createNetworkAndChainIdMiddleware({
 }) {
   return createScaffoldMiddleware({
     eth_chainId: ChainId[network],
+    net_version: NetworkId[network],
   });
 }
 
 const createChainIdMiddleware = (
   chainId: Hex,
-): JsonRpcMiddleware<JsonRpcParams, Json> => {
+): JsonRpcMiddleware<unknown, unknown> => {
   return (req, res, next, end) => {
     if (req.method === 'eth_chainId') {
       res.result = chainId;
@@ -184,8 +185,8 @@ function createCustomNetworkMiddleware({
 }: {
   blockTracker: PollingBlockTracker;
   chainId: Hex;
-  rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
-}): JsonRpcMiddleware<JsonRpcParams, Json> {
+  rpcApiMiddleware: any;
+}) {
   // eslint-disable-next-line n/no-process-env
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]

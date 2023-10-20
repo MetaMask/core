@@ -18,10 +18,10 @@ import {
   isPlainObject,
   isValidJson,
 } from '@metamask/controller-utils';
-import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
 import type { Json, Mutable } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
+import { EthereumRpcError } from 'eth-rpc-errors';
 import { castDraft } from 'immer';
 import type { Draft, Patch } from 'immer';
 import { nanoid } from 'nanoid';
@@ -1802,7 +1802,6 @@ export class PermissionController<
     target: string,
   ): void {
     if (!isPlainObject(caveat)) {
-      // eslint-disable-next-line @typescript-eslint/no-throw-literal
       throw new InvalidCaveatError(caveat, origin, target);
     }
 
@@ -2150,7 +2149,7 @@ export class PermissionController<
     try {
       this.validateRequestedPermissions(origin, permissions);
     } catch (error) {
-      if (error instanceof JsonRpcError) {
+      if (error instanceof EthereumRpcError) {
         // Re-throw as an internal error; we should never receive invalid approved
         // permissions.
         throw internalError(

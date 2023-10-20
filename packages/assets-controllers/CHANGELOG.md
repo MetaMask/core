@@ -6,114 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [16.0.0]
-### Added
-- Add way to start and stop different polling sessions for the same network client ID by providing extra scoping data ([#1776](https://github.com/MetaMask/core/pull/1776))
-  - Add optional second argument to `stopPollingByPollingToken` (formerly `stopPollingByNetworkClientId`)
-  - Add optional second argument to `onPollingCompleteByNetworkClientId`
-
-### Changed
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
-- **BREAKING:** Make `executePoll` in TokenListController private ([#1810](https://github.com/MetaMask/core/pull/1810))
-- **BREAKING:** Update TokenListController to rename `stopPollingByNetworkClientId` to `stopPollingByPollingToken` ([#1810](https://github.com/MetaMask/core/pull/1810))
-- Add missing dependency on `@metamask/polling-controller` ([#1831](https://github.com/MetaMask/core/pull/1831))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.1
-- Bump dependency and peer dependency on `@metamask/preferences-controller` to ^4.4.3
-
-## [15.0.0]
-### Changed
-- **BREAKING**: `NftController` now expects `getNetworkClientById` in constructor options ([#1698](https://github.com/MetaMask/core/pull/1698))
-- **BREAKING**: `NftController.addNft` function signature has changed ([#1698](https://github.com/MetaMask/core/pull/1698))
-  - Previously
-    ```
-    address: string,
-    tokenId: string,
-    nftMetadata?: NftMetadata,
-    accountParams?: {
-      userAddress: string;
-      chainId: Hex;
-    },
-    source = Source.Custom,
-    ```
-    now:
-    ```
-    tokenAddress: string,
-    tokenId: string,
-    {
-      nftMetadata?: NftMetadata;
-      chainId?: Hex; // extracts from AccountParams
-      userAddress?: string // extracted from AccountParams
-      source?: Source;
-      networkClientId?: NetworkClientId; // new
-    },
-    ```
-- `NftController.addNftVerifyOwnership`: Now accepts optional 3rd argument `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state. Also accepts optional 4th argument `source` used for metrics to identify the flow in which the NFT was added to the wallet.  ([#1698](https://github.com/MetaMask/core/pull/1698))
-- `NftController.isNftOwner`: Now accepts optional `networkClientId` which is used to instantiate the provider for the correct chain and call the NFT contract to verify ownership ([#1698](https://github.com/MetaMask/core/pull/1698))
-- `NftController.addNft` will use the chainId value derived from `networkClientId` if provided ([#1698](https://github.com/MetaMask/core/pull/1698))
-- `NftController.watchNft` options now accepts optional `networkClientId` which is used to fetch NFT metadata and determine by which chainId the added NFT should be stored in state ([#1698](https://github.com/MetaMask/core/pull/1698))
-- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump dependency on `@metamask/controller-utils` to ^5.0.2
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
-
-### Fixed
-- Fix bug in TokensController where batched `addToken` overwrote each other because mutex was acquired after reading state ([#1768](https://github.com/MetaMask/core/pull/1768))
-
-## [14.0.0]
-### Changed
-- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
-- Update `@metamask/rpc-errors` to `^6.0.0` ([#1690](https://github.com/MetaMask/core/pull/1690))
-
-### Removed
-- **BREAKING:** Remove AbortController polyfill
-  - This package now assumes that the AbortController global exists
-
-## [13.0.0]
-### Changed
-- **BREAKING**: `TokensController` now expects `getNetworkClientById` in constructor options ([#1676](https://github.com/MetaMask/core/pull/1676))
-- **BREAKING**: `TokensController.addToken` now accepts a single options object ([#1676](https://github.com/MetaMask/core/pull/1676))
-  ```
-    {
-      address: string;
-      symbol: string;
-      decimals: number;
-      name?: string;
-      image?: string;
-      interactingAddress?: string;
-      networkClientId?: NetworkClientId;
-    }
-  ```
-- **BREAKING**: Bump peer dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
-- **CHANGED**: `TokensController.addToken` will use the chain ID value derived from state for `networkClientId` if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
-- **CHANGED**: `TokensController.addTokens` now accepts an optional `networkClientId` as the last parameter ([#1676](https://github.com/MetaMask/core/pull/1676))
-- **CHANGED**: `TokensController.addTokens` will use the chain ID value derived from state for `networkClientId` if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
-- **CHANGED**: `TokensController.watchAsset` options now accepts optional `networkClientId` which is used to get the ERC-20 token name if provided ([#1676](https://github.com/MetaMask/core/pull/1676))
-- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
-- Bump dependency on `@metamask/preferences-controller` to ^4.4.1 ([#1676](https://github.com/MetaMask/core/pull/1676))
-
-## [12.0.0]
-### Added
-- Add `AssetsContractController` methods `getProvider`, `getChainId`, `getERC721Standard`, and `getERC1155Standard` ([#1638](https://github.com/MetaMask/core/pull/1638))
-
-### Changed
-- **BREAKING**: Add `getNetworkClientById` to `AssetsContractController` constructor options ([#1638](https://github.com/MetaMask/core/pull/1638))
--  Add optional `networkClientId` parameter to various `AssetContractController` methods ([#1638](https://github.com/MetaMask/core/pull/1638))
-  - The affected methods are:
-    - `getERC20BalanceOf`
-    - `getERC20TokenDecimals`
-    - `getERC20TokenName`
-    - `getERC721NftTokenId`
-    - `getTokenStandardAndDetails`
-    - `getERC721TokenURI`
-    - `getERC721AssetName`
-    - `getERC721AssetSymbol`
-    - `getERC721OwnerOf`
-    - `getERC1155TokenURI`
-    - `getERC1155BalanceOf`
-    - `transferSingleERC1155`
-    - `getBalancesInSingleCall`
-
 ## [11.1.0]
 ### Added
 - Add `tokenURI` to `NftMetadata` type ([#1577](https://github.com/MetaMask/core/pull/1577))
@@ -164,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `getERC20TokenName` method is used to get the token name for tokens added via `wallet_watchAsset`
   - The `onTokenListStateChange` method is used to trigger a name update when the token list changes. On each change, token names are copied from the token list if they're missing from token controller state.
 - **BREAKING:** The signature of the tokens controller method `addToken` has changed
-  - The fourth and fifth positional parameters (`image` and `interactingAddress`) have been replaced by an `options` object
+  - The fourth and fifth positional parameters (`image` and `interactingAddress`) have been replaced by an `options` object 
   - The new options parameter includes the `image` and `interactingAddress` properties, and a new `name` property
 - The token detection controller now sets the token name when new tokens are detected ([#1127](https://github.com/MetaMask/core/pull/1127))
 - The `Token` type now includes an optional `name` field ([#1127](https://github.com/MetaMask/core/pull/1127))
@@ -243,7 +135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove the `networkType` configuration option from the NFT detection controller, NFT controller, and tokens controller ([#1360](https://github.com/MetaMask/core/pull/1360), [#1359](https://github.com/MetaMask/core/pull/1359))
 - **BREAKING:** Remove the `SuggestedAssetMeta` and `SuggestedAssetMetaBase` types from the token controller ([#1268](https://github.com/MetaMask/core/pull/1268))
 - **BREAKING:** Remove the `acceptWatchAsset` and `rejectWatchAsset` methods from the token controller ([#1268](https://github.com/MetaMask/core/pull/1268))
-  - Suggested assets can be accepted or rejected using the approval controller instead
+  - Suggested assets can be accepted or rejected using the approval controller instead 
 
 ## [7.0.0]
 ### Changed
@@ -334,12 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@16.0.0...HEAD
-[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@15.0.0...@metamask/assets-controllers@16.0.0
-[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@14.0.0...@metamask/assets-controllers@15.0.0
-[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@13.0.0...@metamask/assets-controllers@14.0.0
-[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@12.0.0...@metamask/assets-controllers@13.0.0
-[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.1.0...@metamask/assets-controllers@12.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.1.0...HEAD
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.1...@metamask/assets-controllers@11.1.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.0...@metamask/assets-controllers@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@10.0.0...@metamask/assets-controllers@11.0.0

@@ -6,10 +6,11 @@ import type {
 } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 import assert from 'assert';
+import { JsonRpcEngine } from 'json-rpc-engine';
+import type { PendingJsonRpcResponse } from 'json-rpc-engine';
 
 import type {
   AsyncRestrictedMethod,
@@ -250,7 +251,7 @@ function getDefaultPermissionSpecifications() {
         CaveatTypes.filterArrayResponse,
         CaveatTypes.reverseArrayResponse,
       ],
-      methodImplementation: (_args: RestrictedMethodOptions<Json[]>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return ['a', 'b', 'c'];
       },
     },
@@ -261,9 +262,7 @@ function getDefaultPermissionSpecifications() {
         CaveatTypes.filterObjectResponse,
         CaveatTypes.noopCaveat,
       ],
-      methodImplementation: (
-        _args: RestrictedMethodOptions<Record<string, Json>>,
-      ) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return { a: 'x', b: 'y', c: 'z' };
       },
       validator: (permission: PermissionConstraint) => {
@@ -293,7 +292,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noop,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
     },
@@ -301,7 +300,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
       sideEffect: {
@@ -313,7 +312,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
       sideEffect: {
@@ -325,7 +324,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithPermittedSideEffects,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
       sideEffect: {
@@ -336,7 +335,7 @@ function getDefaultPermissionSpecifications() {
     [PermissionKeys.wallet_noopWithValidator]: {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithValidator,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
       allowedCaveats: [CaveatTypes.noopCaveat, CaveatTypes.filterArrayResponse],
@@ -353,7 +352,7 @@ function getDefaultPermissionSpecifications() {
     [PermissionKeys.wallet_noopWithRequiredCaveat]: {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithRequiredCaveat,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
       allowedCaveats: [CaveatTypes.noopCaveat],
@@ -389,7 +388,7 @@ function getDefaultPermissionSpecifications() {
     [PermissionKeys.wallet_noopWithFactory]: {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.wallet_noopWithFactory,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
       allowedCaveats: [CaveatTypes.filterArrayResponse],
@@ -416,7 +415,7 @@ function getDefaultPermissionSpecifications() {
       permissionType: PermissionType.RestrictedMethod,
       targetName: PermissionKeys.snap_foo,
       allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
+      methodImplementation: (_args: RestrictedMethodOptions<void>) => {
         return null;
       },
       subjectTypes: [SubjectType.Snap],
@@ -1851,7 +1850,6 @@ describe('PermissionController', () => {
       expect(() =>
         controller.removeCaveat(
           origin,
-          // @ts-expect-error - Testing invalid permission name.
           PermissionNames.wallet_noopWithRequiredCaveat,
           CaveatTypes.noopCaveat,
         ),
@@ -5272,13 +5270,7 @@ describe('PermissionController', () => {
       };
 
       const expectedError = errors.unauthorized({
-        data: {
-          origin,
-          method: PermissionNames.wallet_getSecretArray,
-          cause: null,
-        },
-        message:
-          'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
+        data: { origin, method: PermissionNames.wallet_getSecretArray },
       });
 
       const { error }: any = await engine.handle(request);
@@ -5301,11 +5293,6 @@ describe('PermissionController', () => {
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
       const { error }: any = await engine.handle(request);
-
-      expect(error.message).toStrictEqual(expectedError.message);
-      expect(error.data.cause).toBeNull();
-      delete error.message;
-      delete error.data.cause;
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
 
@@ -5347,10 +5334,6 @@ describe('PermissionController', () => {
       );
 
       const { error }: any = await engine.handle(request);
-      expect(error.message).toStrictEqual(expectedError.message);
-      expect(error.data.cause).toBeNull();
-      delete error.message;
-      delete error.data.cause;
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
   });

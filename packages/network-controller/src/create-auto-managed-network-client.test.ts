@@ -1,7 +1,6 @@
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 import { promisify } from 'util';
 
-import { mockNetwork } from '../../../tests/mock-network';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import * as createNetworkClientModule from './create-network-client';
 import type {
@@ -9,6 +8,7 @@ import type {
   InfuraNetworkClientConfiguration,
 } from './types';
 import { NetworkClientType } from './types';
+import { mockNetwork } from '../../../tests/mock-network';
 
 describe('createAutoManagedNetworkClient', () => {
   const networkClientConfigurations: [
@@ -19,14 +19,12 @@ describe('createAutoManagedNetworkClient', () => {
       type: NetworkClientType.Custom,
       rpcUrl: 'https://test.chain',
       chainId: '0x1337',
-      ticker: 'ETH',
     } as const,
     {
       type: NetworkClientType.Infura,
       network: NetworkType.mainnet,
       chainId: BUILT_IN_NETWORKS[NetworkType.mainnet].chainId,
       infuraProjectId: 'some-infura-project-id',
-      ticker: BUILT_IN_NETWORKS[NetworkType.mainnet].ticker,
     } as const,
   ];
   for (const networkClientConfiguration of networkClientConfigurations) {

@@ -10,9 +10,6 @@
     },
     {
       "path": "../controller-utils"
-    },
-    {
-      "path": "../eth-json-rpc-provider"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]

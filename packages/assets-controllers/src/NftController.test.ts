@@ -49,9 +49,6 @@ const ERC721_DEPRESSIONIST_ID = '36';
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/ad3a368836ff4596becc3be8e2f137ac',
 );
-const SEPOLIA_PROVIDER = new HttpProvider(
-  'https://sepolia.infura.io/v3/ad3a368836ff4596becc3be8e2f137ac',
-);
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const SECOND_OWNER_ADDRESS = '0x500017171kasdfbou081';
 
@@ -173,14 +170,11 @@ function setupController({
     showApprovalRequest: jest.fn(),
   });
 
-  const getNetworkClientByIdSpy = jest.fn();
-
   const assetsContract = new AssetsContractController({
     chainId: ChainId.mainnet,
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
       onNetworkStateChangeListeners.push(listener),
-    getNetworkClientById: getNetworkClientByIdSpy,
   });
 
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
@@ -217,7 +211,6 @@ function setupController({
     getERC1155TokenURI:
       getERC1155TokenURIStub ??
       assetsContract.getERC1155TokenURI.bind(assetsContract),
-    getNetworkClientById: getNetworkClientByIdSpy,
     onNftAdded: onNftAddedSpy,
     messenger: nftControllerMessenger,
   });
@@ -231,7 +224,6 @@ function setupController({
     assetsContract,
     nftController,
     onNftAddedSpy,
-    getNetworkClientByIdSpy,
     preferences,
     changeNetwork,
     messenger,
@@ -445,169 +437,6 @@ describe('NftController', () => {
         getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
       });
       preferences.setDisplayNftMedia(false);
-      preferences.setIsIpfsGatewayEnabled(true);
-
-      const requestId = 'approval-request-id-1';
-
-      const clock = sinon.useFakeTimers(1);
-
-      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
-
-      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: requestId,
-          origin: 'https://test-dapp.com',
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress: OWNER_ADDRESS,
-            asset: {
-              ...ERC721_NFT,
-              description: null,
-              image: null,
-              name: null,
-              standard: ERC721,
-            },
-          },
-        },
-        true,
-      );
-
-      clock.restore();
-    });
-
-    it('should handle ERC721 type and add pending request to ApprovalController with the displayNftMedia enabled and IPFS gateway enabled', async function () {
-      nock('https://testtokenuri.com')
-        .get('/')
-        .reply(
-          200,
-          JSON.stringify({
-            image: 'testERC721Image',
-            name: 'testERC721Name',
-            description: 'testERC721Description',
-          }),
-        );
-      const { nftController, messenger, preferences } = setupController({
-        getERC721TokenURIStub: jest
-          .fn()
-          .mockImplementation(() => 'https://testtokenuri.com'),
-        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
-      });
-      preferences.setIsIpfsGatewayEnabled(true);
-      preferences.setDisplayNftMedia(true);
-
-      const requestId = 'approval-request-id-1';
-
-      const clock = sinon.useFakeTimers(1);
-
-      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
-
-      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: requestId,
-          origin: 'https://test-dapp.com',
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress: OWNER_ADDRESS,
-            asset: {
-              ...ERC721_NFT,
-              description: 'testERC721Description',
-              image: 'testERC721Image',
-              name: 'testERC721Name',
-              standard: ERC721,
-            },
-          },
-        },
-        true,
-      );
-
-      clock.restore();
-    });
-
-    it('should handle ERC721 type and add pending request to ApprovalController with the displayNftMedia disabled and IPFS gateway disabled', async function () {
-      nock('https://testtokenuri.com')
-        .get('/')
-        .reply(
-          200,
-          JSON.stringify({
-            image: 'testERC721Image',
-            name: 'testERC721Name',
-            description: 'testERC721Description',
-          }),
-        );
-      const { nftController, messenger, preferences } = setupController({
-        getERC721TokenURIStub: jest
-          .fn()
-          .mockImplementation(() => 'ipfs://testtokenuri.com'),
-        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
-      });
-      preferences.setIsIpfsGatewayEnabled(false);
-      preferences.setDisplayNftMedia(false);
-
-      const requestId = 'approval-request-id-1';
-
-      const clock = sinon.useFakeTimers(1);
-
-      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
-
-      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: requestId,
-          origin: 'https://test-dapp.com',
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress: OWNER_ADDRESS,
-            asset: {
-              ...ERC721_NFT,
-              description: null,
-              image: null,
-              name: null,
-              standard: ERC721,
-            },
-          },
-        },
-        true,
-      );
-
-      clock.restore();
-    });
-
-    it('should handle ERC721 type and add pending request to ApprovalController with the displayNftMedia enabled and IPFS gateway disabled', async function () {
-      nock('https://testtokenuri.com')
-        .get('/')
-        .reply(
-          200,
-          JSON.stringify({
-            image: 'testERC721Image',
-            name: 'testERC721Name',
-            description: 'testERC721Description',
-          }),
-        );
-      const { nftController, messenger, preferences } = setupController({
-        getERC721TokenURIStub: jest
-          .fn()
-          .mockImplementation(() => 'ipfs://testtokenuri.com'),
-        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
-      });
-      preferences.setIsIpfsGatewayEnabled(false);
-      preferences.setDisplayNftMedia(true);
 
       const requestId = 'approval-request-id-1';
 
@@ -662,8 +491,6 @@ describe('NftController', () => {
         getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
       });
       preferences.setDisplayNftMedia(false);
-
-      preferences.setIsIpfsGatewayEnabled(true);
       const requestId = 'approval-request-id-1';
 
       const clock = sinon.useFakeTimers(1);
@@ -773,7 +600,6 @@ describe('NftController', () => {
         getERC1155BalanceOfStub: jest.fn().mockImplementation(() => new BN(1)),
       });
       preferences.setDisplayNftMedia(true);
-      preferences.setIsIpfsGatewayEnabled(true);
       const requestId = 'approval-request-id-1';
 
       const clock = sinon.useFakeTimers(1);
@@ -877,6 +703,7 @@ describe('NftController', () => {
       // change the network and selectedAddress before accepting the request
       preferences.setSelectedAddress('0xDifferentAddress');
       changeNetwork(SEPOLIA);
+
       // now accept the request
       approvalController.accept(requestId);
       await acceptedRequest;
@@ -906,7 +733,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should handle ERC721 type and add pending request to ApprovalController with the displayNftMedia enabled', async function () {
+    it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled', async function () {
       nock(OPENSEA_PROXY_URL)
         .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
         .reply(200, {
@@ -967,7 +794,7 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should handle ERC1155 type and add to suggestedNfts with the displayNftMedia enabled', async function () {
+    it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API enabled', async function () {
       const ALT_ERC1155_NFT = {
         address: '0x0000000000000000000000000000000000000000',
         tokenId: '99999',
@@ -1062,13 +889,11 @@ describe('NftController', () => {
 
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
       });
 
       expect(
@@ -1102,13 +927,11 @@ describe('NftController', () => {
       });
 
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'ERC1155',
-          favorite: false,
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'ERC1155',
+        favorite: false,
       });
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({
@@ -1126,18 +949,19 @@ describe('NftController', () => {
       });
 
       const detectedUserAddress = '0x123';
-      await nftController.addNft('0x01', '2', {
-        nftMetadata: {
+      await nftController.addNft(
+        '0x01',
+        '2',
+        {
           name: 'name',
           image: 'image',
           description: 'description',
           standard: 'ERC721',
           favorite: false,
         },
-        userAddress: detectedUserAddress,
-        chainId: toHex(2),
-        source: Source.Detected,
-      });
+        { userAddress: detectedUserAddress, chainId: toHex(2) },
+        Source.Detected,
+      );
 
       expect(onNftAddedSpy).toHaveBeenCalledWith({
         source: 'detected',
@@ -1180,13 +1004,11 @@ describe('NftController', () => {
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
       });
 
       expect(
@@ -1203,13 +1025,11 @@ describe('NftController', () => {
       });
 
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image-updated',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
-        },
+        name: 'name',
+        image: 'image-updated',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
       });
 
       expect(
@@ -1230,23 +1050,19 @@ describe('NftController', () => {
       const { nftController } = setupController();
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
       });
 
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-          favorite: false,
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
       });
 
       expect(
@@ -1504,7 +1320,7 @@ describe('NftController', () => {
         )
         .reply(200, {
           name: 'name (directly from tokenURI)',
-          description: 'description (directly from tokenURI)',
+          description: 'description (direclty from tokenURI)',
           external_link: null,
           image: 'image (directly from tokenURI)',
           animation_url: null,
@@ -1523,7 +1339,7 @@ describe('NftController', () => {
         address: ERC1155_NFT_ADDRESS,
         image: 'image (directly from tokenURI)',
         name: 'name (directly from tokenURI)',
-        description: 'description (directly from tokenURI)',
+        description: 'description (direclty from tokenURI)',
         tokenId: ERC1155_NFT_ID,
         standard: ERC1155,
         favorite: false,
@@ -1765,11 +1581,13 @@ describe('NftController', () => {
         description: 'description',
       });
 
-      await nftController.addNft('0x01234abcdefg', '1234', {
-        chainId: GOERLI.chainId,
-        userAddress: '0x123',
-        source: Source.Dapp,
-      });
+      await nftController.addNft(
+        '0x01234abcdefg',
+        '1234',
+        undefined,
+        { chainId: GOERLI.chainId, userAddress: '0x123' },
+        Source.Dapp,
+      );
 
       expect(nftController.state.allNftContracts).toStrictEqual({
         '0x123': {
@@ -1835,11 +1653,12 @@ describe('NftController', () => {
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
+        undefined,
         {
           userAddress: selectedAddress,
           chainId,
-          source: Source.Detected,
         },
+        Source.Detected,
       );
 
       expect(
@@ -1850,11 +1669,16 @@ describe('NftController', () => {
         nftController.state.allNftContracts[selectedAddress]?.[chainId],
       ).toBeUndefined();
 
-      await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID, {
-        userAddress: selectedAddress,
-        chainId,
-        source: Source.Detected,
-      });
+      await nftController.addNft(
+        ERC721_KUDOSADDRESS,
+        ERC721_KUDOS_TOKEN_ID,
+        undefined,
+        {
+          userAddress: selectedAddress,
+          chainId,
+        },
+        Source.Detected,
+      );
 
       expect(
         nftController.state.allNfts[selectedAddress][chainId],
@@ -1916,18 +1740,24 @@ describe('NftController', () => {
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
+        undefined,
         {
           userAddress: selectedAddress,
           chainId,
-          source: Source.Detected,
         },
+        Source.Detected,
       );
 
-      await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID, {
-        userAddress: selectedAddress,
-        chainId,
-        source: Source.Detected,
-      });
+      await nftController.addNft(
+        ERC721_KUDOSADDRESS,
+        ERC721_KUDOS_TOKEN_ID,
+        undefined,
+        {
+          userAddress: selectedAddress,
+          chainId,
+        },
+        Source.Detected,
+      );
 
       expect(nftController.state.allNfts).toStrictEqual({});
 
@@ -1941,21 +1771,17 @@ describe('NftController', () => {
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
       });
 
       await nftController.addNft('0x01', '2', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
       });
 
       expect(
@@ -1970,12 +1796,10 @@ describe('NftController', () => {
       expect(nftController.state.ignoredNfts).toHaveLength(1);
 
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
       });
 
       expect(
@@ -2240,143 +2064,6 @@ describe('NftController', () => {
         tokenURI: '',
       });
     });
-
-    it('should add an NFT with the correct chainId and metadata when passed a networkClientId', async () => {
-      nock('https://testtokenuri-1.com')
-        .get('/')
-        .reply(
-          200,
-          JSON.stringify({
-            image: 'test-image-1',
-            name: 'test-name-1',
-            description: 'test-description-1',
-          }),
-        );
-
-      nock('https://testtokenuri-2.com')
-        .get('/')
-        .reply(
-          200,
-          JSON.stringify({
-            image: 'test-image-2',
-            name: 'test-name-2',
-            description: 'test-description-2',
-          }),
-        );
-
-      nock('https://testtokenuri-3.com')
-        .get('/')
-        .reply(
-          200,
-          JSON.stringify({
-            image: 'test-image-3',
-            name: 'test-name-3',
-            description: 'test-description-3',
-          }),
-        );
-
-      const { nftController, getNetworkClientByIdSpy } = setupController({
-        getERC721TokenURIStub: jest.fn().mockImplementation((tokenAddress) => {
-          switch (tokenAddress) {
-            case '0x01':
-              return 'https://testtokenuri-1.com';
-            case '0x02':
-              return 'https://testtokenuri-2.com';
-            default:
-              throw new Error('Not an ERC721 token');
-          }
-        }),
-        getERC1155TokenURIStub: jest.fn().mockImplementation((tokenAddress) => {
-          switch (tokenAddress) {
-            case '0x03':
-              return 'https://testtokenuri-3.com';
-            default:
-              throw new Error('Not an ERC1155 token');
-          }
-        }),
-      });
-
-      getNetworkClientByIdSpy.mockImplementation((networkClientId) => {
-        switch (networkClientId) {
-          case 'sepolia':
-            return {
-              configuration: {
-                chainId: SEPOLIA.chainId,
-              },
-            };
-          case 'goerli':
-            return {
-              configuration: {
-                chainId: GOERLI.chainId,
-              },
-            };
-          case 'customNetworkClientId-1':
-            return {
-              configuration: {
-                chainId: '0xa',
-              },
-            };
-          default:
-            throw new Error('Invalid network client id');
-        }
-      });
-
-      await nftController.addNft('0x01', '1234', {
-        networkClientId: 'sepolia',
-      });
-      await nftController.addNft('0x02', '4321', {
-        networkClientId: 'goerli',
-      });
-      await nftController.addNft('0x03', '5678', {
-        networkClientId: 'customNetworkClientId-1',
-      });
-
-      expect(
-        nftController.state.allNfts[OWNER_ADDRESS][SEPOLIA.chainId],
-      ).toStrictEqual([
-        {
-          address: '0x01',
-          description: 'test-description-1',
-          image: 'test-image-1',
-          name: 'test-name-1',
-          tokenId: '1234',
-          favorite: false,
-          standard: ERC721,
-          tokenURI: 'https://testtokenuri-1.com',
-          isCurrentlyOwned: true,
-        },
-      ]);
-
-      expect(
-        nftController.state.allNfts[OWNER_ADDRESS][GOERLI.chainId],
-      ).toStrictEqual([
-        {
-          address: '0x02',
-          description: 'test-description-2',
-          image: 'test-image-2',
-          name: 'test-name-2',
-          tokenId: '4321',
-          favorite: false,
-          standard: ERC721,
-          tokenURI: 'https://testtokenuri-2.com',
-          isCurrentlyOwned: true,
-        },
-      ]);
-
-      expect(nftController.state.allNfts[OWNER_ADDRESS]['0xa']).toStrictEqual([
-        {
-          address: '0x03',
-          description: 'test-description-3',
-          image: 'test-image-3',
-          name: 'test-name-3',
-          tokenId: '5678',
-          favorite: false,
-          standard: ERC1155,
-          tokenURI: 'https://testtokenuri-3.com',
-          isCurrentlyOwned: true,
-        },
-      ]);
-    });
   });
 
   describe('addNftVerifyOwnership', () => {
@@ -2419,69 +2106,6 @@ describe('NftController', () => {
       const error = 'This NFT is not owned by the user';
       await expect(result).rejects.toThrow(error);
     });
-
-    it('should verify ownership by selected address and add NFT by the correct chainId when passed networkClientId', async () => {
-      const { nftController, preferences, getNetworkClientByIdSpy } =
-        setupController();
-
-      getNetworkClientByIdSpy.mockImplementation((networkClientId) => {
-        switch (networkClientId) {
-          case 'sepolia':
-            return {
-              configuration: {
-                chainId: SEPOLIA.chainId,
-              },
-            };
-          case 'goerli':
-            return {
-              configuration: {
-                chainId: GOERLI.chainId,
-              },
-            };
-          default:
-            return {
-              configuration: {
-                chainId: '0x1',
-              },
-            };
-        }
-      });
-      const firstAddress = '0x123';
-      const secondAddress = '0x321';
-
-      sinon.stub(nftController, 'isNftOwner' as any).returns(true);
-
-      sinon
-        .stub(nftController, 'getNftInformation' as any)
-        .returns({ name: 'name', image: 'url', description: 'description' });
-      preferences.update({ selectedAddress: firstAddress });
-      await nftController.addNftVerifyOwnership('0x01', '1234', 'sepolia');
-      preferences.update({ selectedAddress: secondAddress });
-      await nftController.addNftVerifyOwnership('0x02', '4321', 'goerli');
-
-      expect(
-        nftController.state.allNfts[firstAddress][SEPOLIA.chainId][0],
-      ).toStrictEqual({
-        address: '0x01',
-        description: 'description',
-        image: 'url',
-        name: 'name',
-        tokenId: '1234',
-        favorite: false,
-        isCurrentlyOwned: true,
-      });
-      expect(
-        nftController.state.allNfts[secondAddress][GOERLI.chainId][0],
-      ).toStrictEqual({
-        address: '0x02',
-        description: 'description',
-        image: 'url',
-        name: 'name',
-        tokenId: '4321',
-        favorite: false,
-        isCurrentlyOwned: true,
-      });
-    });
   });
 
   describe('removeNft', () => {
@@ -2490,12 +2114,10 @@ describe('NftController', () => {
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
       });
       nftController.removeNft('0x01', '1');
       expect(
@@ -2512,21 +2134,17 @@ describe('NftController', () => {
       const { selectedAddress, chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
       });
 
       await nftController.addNft('0x01', '2', {
-        nftMetadata: {
-          name: 'name',
-          image: 'image',
-          description: 'description',
-          standard: 'standard',
-        },
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
       });
       nftController.removeNft('0x01', '1');
       expect(
@@ -2606,13 +2224,11 @@ describe('NftController', () => {
     const { selectedAddress, chainId } = nftController.config;
 
     await nftController.addNft('0x02', '1', {
-      nftMetadata: {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        favorite: false,
-      },
+      name: 'name',
+      image: 'image',
+      description: 'description',
+      standard: 'standard',
+      favorite: false,
     });
 
     expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
@@ -2637,46 +2253,12 @@ describe('NftController', () => {
   });
 
   describe('isNftOwner', () => {
-    it('should verify the ownership of an NFT when passed a networkClientId', async () => {
-      nock('https://sepolia.infura.io:443', { encodedQueryParams: true })
-        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
-          method: 'eth_call',
-          params: [
-            {
-              to: '0x2b26675403a063d92ccad0293d387485471a7d3a',
-              data: '0x6352211e0000000000000000000000000000000000000000000000000000000000000001',
-            },
-            'latest',
-          ],
-          id: 21,
-          jsonrpc: '2.0',
-        })
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: 21,
-          result:
-            '0x0000000000000000000000005a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D',
-        });
-      const { nftController, getNetworkClientByIdSpy } = setupController();
-      getNetworkClientByIdSpy.mockImplementation(() => ({
-        provider: SEPOLIA_PROVIDER,
-      }));
-
-      const isOwner = await nftController.isNftOwner(
-        OWNER_ADDRESS,
-        '0x2b26675403a063d92ccad0293d387485471a7d3a',
-        String(1),
-        'sepolia',
-      );
-      expect(isOwner).toBe(true);
-    });
-
     it('should verify the ownership of an ERC-721 NFT with the correct owner address', async () => {
       const { assetsContract, nftController } = setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 22,
+          id: 21,
           method: 'eth_call',
           params: [
             {
@@ -2688,7 +2270,7 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 22,
+          id: 21,
           result:
             '0x0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
         });
@@ -2707,7 +2289,7 @@ describe('NftController', () => {
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 23,
+          id: 22,
           method: 'eth_call',
           params: [
             {
@@ -2719,7 +2301,7 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 23,
+          id: 22,
           result:
             '0x0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
         });
@@ -2738,7 +2320,7 @@ describe('NftController', () => {
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 24,
+          id: 23,
           method: 'eth_call',
           params: [
             {
@@ -2750,12 +2332,12 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 24,
+          id: 23,
           error: { code: -32000, message: 'execution reverted' },
         })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 25,
+          id: 24,
           method: 'eth_call',
           params: [
             {
@@ -2767,7 +2349,7 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 25,
+          id: 24,
           result:
             '0x0000000000000000000000000000000000000000000000000000000000000001',
         });
@@ -2785,7 +2367,7 @@ describe('NftController', () => {
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 26,
+          id: 25,
           method: 'eth_call',
           params: [
             {
@@ -2797,12 +2379,12 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 26,
+          id: 25,
           error: { code: -32000, message: 'execution reverted' },
         })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
-          id: 27,
+          id: 26,
           method: 'eth_call',
           params: [
             {
@@ -2814,7 +2396,7 @@ describe('NftController', () => {
         })
         .reply(200, {
           jsonrpc: '2.0',
-          id: 27,
+          id: 26,
           result:
             '0x0000000000000000000000000000000000000000000000000000000000000000',
         });
@@ -3049,12 +2631,10 @@ describe('NftController', () => {
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
         {
-          nftMetadata: {
-            image: 'new_image',
-            name: 'new_name',
-            description: 'new_description',
-            standard: 'ERC721',
-          },
+          image: 'new_image',
+          name: 'new_name',
+          description: 'new_description',
+          standard: 'ERC721',
         },
       );
 
@@ -3100,12 +2680,10 @@ describe('NftController', () => {
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
         {
-          nftMetadata: {
-            image: 'new_image',
-            name: 'new_name',
-            description: 'new_description',
-            standard: 'ERC721',
-          },
+          image: 'new_image',
+          name: 'new_name',
+          description: 'new_description',
+          standard: 'ERC721',
         },
       );
 
@@ -3136,13 +2714,11 @@ describe('NftController', () => {
 
           const { selectedAddress, chainId } = nftController.config;
           await nftController.addNft('0x02', '1', {
-            nftMetadata: {
-              name: 'name',
-              image: 'image',
-              description: 'description',
-              standard: 'standard',
-              favorite: false,
-            },
+            name: 'name',
+            image: 'image',
+            description: 'description',
+            standard: 'standard',
+            favorite: false,
           });
 
           expect(
@@ -3164,13 +2740,11 @@ describe('NftController', () => {
 
         const { selectedAddress, chainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
-          nftMetadata: {
-            name: 'name',
-            image: 'image',
-            description: 'description',
-            standard: 'standard',
-            favorite: false,
-          },
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
         });
 
         expect(
@@ -3193,13 +2767,11 @@ describe('NftController', () => {
 
         const { selectedAddress, chainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
-          nftMetadata: {
-            name: 'name',
-            image: 'image',
-            description: 'description',
-            standard: 'standard',
-            favorite: false,
-          },
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
         });
 
         expect(
@@ -3228,9 +2800,7 @@ describe('NftController', () => {
             favorite: false,
           };
 
-          await nftController.addNft(nft.address, nft.tokenId, {
-            nftMetadata: nft,
-          });
+          await nftController.addNft(nft.address, nft.tokenId, nft);
 
           expect(
             nftController.state.allNfts[selectedAddress][chainId][0]
@@ -3264,9 +2834,7 @@ describe('NftController', () => {
           favorite: false,
         };
 
-        await nftController.addNft(nft.address, nft.tokenId, {
-          nftMetadata: nft,
-        });
+        await nftController.addNft(nft.address, nft.tokenId, nft);
 
         expect(
           nftController.state.allNfts[selectedAddress][chainId][0]
@@ -3303,9 +2871,7 @@ describe('NftController', () => {
           favorite: false,
         };
 
-        await nftController.addNft(nft.address, nft.tokenId, {
-          nftMetadata: nft,
-        });
+        await nftController.addNft(nft.address, nft.tokenId, nft);
 
         expect(
           nftController.state.allNfts[selectedAddress][chainId][0]

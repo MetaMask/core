@@ -109,10 +109,8 @@ export class MessageManager extends AbstractMessageManager<
   prepMessageForSigning(
     messageParams: MessageParamsMetamask,
   ): Promise<MessageParams> {
-    // Using delete operation will throw an error on frozen messageParams
-    const { metamaskId: _metamaskId, ...messageParamsWithoutId } =
-      messageParams;
-    return Promise.resolve(messageParamsWithoutId);
+    delete messageParams.metamaskId;
+    return Promise.resolve(messageParams);
   }
 }
 

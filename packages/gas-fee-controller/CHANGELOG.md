@@ -6,39 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.0.0]
-### Added
-- Add way to start and stop different polling sessions for the same network client ID by providing extra scoping data ([#1776](https://github.com/MetaMask/core/pull/1776))
-  - Add optional second argument to `stopPollingByPollingToken` (formerly `stopPollingByNetworkClientId`)
-  - Add optional second argument to `onPollingCompleteByNetworkClientId`
-
-### Changed
-- **BREAKING:** Make `executePoll` private ([#1810](https://github.com/MetaMask/core/pull/1810))
-- **BREAKING:** Rename `stopPollingByNetworkClientId` to `stopPollingByPollingToken` ([#1810](https://github.com/MetaMask/core/pull/1810))
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to ^15.0.0
-- **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^0.2.0
-
-## [8.0.0]
-### Added
-- Add optional `gasFeeEstimatesByChainId` property to GasFeeController state ([#1673](https://github.com/MetaMask/core/pull/1673)
-- Add dependency on `@metamask/polling-controller` ([#1748])(https://github.com/MetaMask/core/pull/1748))
-
-### Changed
-- **BREAKING:** Messenger must allow controller actions `NetworkController:getNetworkClientById` and `NetworkController:getEIP1559Compatibility` ([#1673](https://github.com/MetaMask/core/pull/1673)
-- Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
-- Bump dependency on `@metamask/base-controller` to ^3.2.3
-- Bump dependency on `@metamask/controller-utils` to ^5.0.2
-- Bump dependency and peer dependency on `@metamask/network-controller` to ^14.0.0
-
-## [7.0.1]
-### Changed
-- Update TypeScript to v4.8.x ([#1718](https://github.com/MetaMask/core/pull/1718))
-
-## [7.0.0]
-### Changed
-- **BREAKING**: Bump peer dependency on `@metamask/network-controller` to ^13.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
-- Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#1633](https://github.com/MetaMask/core/pull/1633))
-
 ## [6.1.2]
 ### Changed
 - Bump dependency on `@metamask/base-controller` to ^3.2.1
@@ -46,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump dependency and peer dependency on `@metamask/network-controller` to ^12.1.2
 
 ## [6.1.1]
-### Changed
+### Uncategorized
 - Replace `eth-query` ^2.1.2 with `@metamask/eth-query` ^3.0.1 ([#1546](https://github.com/MetaMask/core/pull/1546))
 
 ## [6.1.0]
@@ -110,11 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@9.0.0...HEAD
-[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@8.0.0...@metamask/gas-fee-controller@9.0.0
-[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.1...@metamask/gas-fee-controller@8.0.0
-[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.0...@metamask/gas-fee-controller@7.0.1
-[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.2...@metamask/gas-fee-controller@7.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.2...HEAD
 [6.1.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.1...@metamask/gas-fee-controller@6.1.2
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.0...@metamask/gas-fee-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.1...@metamask/gas-fee-controller@6.1.0

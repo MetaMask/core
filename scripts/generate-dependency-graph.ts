@@ -115,7 +115,7 @@ function assembleMermaidMarkdownFragment(
   connectionLines: string[],
 ): string {
   return [
-    '```mermaid',
+    '``` mermaid',
     "%%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%",
     'graph LR;',
     'linkStyle default opacity:0.5',

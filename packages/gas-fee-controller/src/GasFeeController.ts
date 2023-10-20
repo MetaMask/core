@@ -1,15 +1,13 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import { convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
-  NetworkControllerGetEIP1559CompatibilityAction,
-  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
   NetworkState,
   ProviderProxy,
 } from '@metamask/network-controller';
-import { PollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import type { Patch } from 'immer';
 import { v1 as random } from 'uuid';
@@ -152,10 +150,6 @@ type FallbackGasFeeEstimates = {
 };
 
 const metadata = {
-  gasFeeEstimatesByChainId: {
-    persist: true,
-    anonymous: false,
-  },
   gasFeeEstimates: { persist: true, anonymous: false },
   estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
   gasEstimateType: { persist: true, anonymous: false },
@@ -196,17 +190,11 @@ export type FetchGasFeeEstimateOptions = {
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  * @property estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
  */
-export type SingleChainGasFeeState =
+export type GasFeeState =
   | GasFeeStateEthGasPrice
   | GasFeeStateFeeMarket
   | GasFeeStateLegacy
   | GasFeeStateNoEstimates;
-
-export type GasFeeEstimatesByChainId = {
-  gasFeeEstimatesByChainId?: Record<string, SingleChainGasFeeState>;
-};
-
-export type GasFeeState = GasFeeEstimatesByChainId & SingleChainGasFeeState;
 
 const name = 'GasFeeController';
 
@@ -222,19 +210,13 @@ export type GetGasFeeState = {
 
 type GasFeeMessenger = RestrictedControllerMessenger<
   typeof name,
-  | GetGasFeeState
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction,
+  GetGasFeeState | NetworkControllerGetStateAction,
   GasFeeStateChange | NetworkControllerStateChangeEvent,
-  | NetworkControllerGetStateAction['type']
-  | NetworkControllerGetNetworkClientByIdAction['type']
-  | NetworkControllerGetEIP1559CompatibilityAction['type'],
+  NetworkControllerGetStateAction['type'],
   NetworkControllerStateChangeEvent['type']
 >;
 
 const defaultState: GasFeeState = {
-  gasFeeEstimatesByChainId: {},
   gasFeeEstimates: {},
   estimatedGasFeeTimeBounds: {},
   gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
@@ -243,7 +225,7 @@ const defaultState: GasFeeState = {
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends PollingController<
+export class GasFeeController extends BaseControllerV2<
   typeof name,
   GasFeeState,
   GasFeeMessenger
@@ -329,7 +311,6 @@ export class GasFeeController extends PollingController<
       state: { ...defaultState, ...state },
     });
     this.intervalDelay = interval;
-    this.setIntervalLength(interval);
     this.pollTokens = new Set();
     this.getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
@@ -342,7 +323,6 @@ export class GasFeeController extends PollingController<
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
 
-    // @ts-expect-error TODO: Provider type alignment
     this.ethQuery = new EthQuery(this.#getProvider());
 
     if (onNetworkStateChange && getChainId) {
@@ -391,63 +371,6 @@ export class GasFeeController extends PollingController<
     }
 
     return _pollToken;
-  }
-
-  async #fetchGasFeeEstimateForNetworkClientId(networkClientId: string) {
-    let isEIP1559Compatible = false;
-
-    const networkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
-    );
-    const isLegacyGasAPICompatible =
-      networkClient.configuration.chainId === '0x38';
-
-    const decimalChainId = convertHexToDecimal(
-      networkClient.configuration.chainId,
-    );
-
-    try {
-      const result = await this.messagingSystem.call(
-        'NetworkController:getEIP1559Compatibility',
-        networkClientId,
-      );
-      isEIP1559Compatible = result || false;
-    } catch {
-      isEIP1559Compatible = false;
-    }
-
-    // @ts-expect-error TODO: Provider type alignment
-    const ethQuery = new EthQuery(networkClient.provider);
-
-    const gasFeeCalculations = await determineGasFeeCalculations({
-      isEIP1559Compatible,
-      isLegacyGasAPICompatible,
-      fetchGasEstimates,
-      fetchGasEstimatesUrl: this.EIP1559APIEndpoint.replace(
-        '<chain_id>',
-        `${decimalChainId}`,
-      ),
-      fetchGasEstimatesViaEthFeeHistory,
-      fetchLegacyGasPriceEstimates,
-      fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
-        '<chain_id>',
-        `${decimalChainId}`,
-      ),
-      fetchEthGasPriceEstimate,
-      calculateTimeEstimate,
-      clientId: this.clientId,
-      ethQuery,
-    });
-
-    this.update((state) => {
-      state.gasFeeEstimatesByChainId = state.gasFeeEstimatesByChainId || {};
-      state.gasFeeEstimatesByChainId[networkClient.configuration.chainId] = {
-        gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
-        estimatedGasFeeTimeBounds: gasFeeCalculations.estimatedGasFeeTimeBounds,
-        gasEstimateType: gasFeeCalculations.gasEstimateType,
-      } as any;
-    });
   }
 
   /**
@@ -547,17 +470,6 @@ export class GasFeeController extends PollingController<
     }, this.intervalDelay);
   }
 
-  /**
-   * Fetching token list from the Token Service API.
-   *
-   * @private
-   * @param networkClientId - The ID of the network client triggering the fetch.
-   * @returns A promise that resolves when this operation completes.
-   */
-  async _executePoll(networkClientId: string): Promise<void> {
-    await this.#fetchGasFeeEstimateForNetworkClientId(networkClientId);
-  }
-
   private resetState() {
     this.update(() => {
       return defaultState;
@@ -596,7 +508,6 @@ export class GasFeeController extends PollingController<
     const newChainId = networkControllerState.providerConfig.chainId;
 
     if (newChainId !== this.currentChainId) {
-      // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.#getProvider());
       await this.resetPolling();
 

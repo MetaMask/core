@@ -1,6 +1,6 @@
+import { LensNameProvider } from './lens';
 import { NameType } from '../types';
 import { graphQL } from '../util';
-import { LensNameProvider } from './lens';
 
 jest.mock('../util');
 
@@ -51,7 +51,7 @@ describe('LensNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        variation: CHAIN_ID_MOCK,
+        chainId: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -74,7 +74,7 @@ describe('LensNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        variation: CHAIN_ID_MOCK,
+        chainId: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -85,38 +85,6 @@ describe('LensNameProvider', () => {
           },
         },
       });
-    });
-
-    it('returns empty result if disabled', async () => {
-      const provider = new LensNameProvider({
-        isEnabled: () => false,
-      });
-
-      const response = await provider.getProposedNames({
-        value: VALUE_MOCK,
-        variation: CHAIN_ID_MOCK,
-        type: NameType.ETHEREUM_ADDRESS,
-      });
-
-      expect(response).toStrictEqual({
-        results: { [SOURCE_ID]: { proposedNames: [] } },
-      });
-    });
-
-    it('throws if request fails', async () => {
-      graphqlMock.mockImplementation(() => {
-        throw new Error('TestError');
-      });
-
-      const provider = new LensNameProvider();
-
-      await expect(
-        provider.getProposedNames({
-          value: VALUE_MOCK,
-          variation: CHAIN_ID_MOCK,
-          type: NameType.ETHEREUM_ADDRESS,
-        }),
-      ).rejects.toThrow('TestError');
     });
   });
 });

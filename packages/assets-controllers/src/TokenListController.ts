@@ -1,13 +1,12 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseControllerV2 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type {
-  NetworkClientId,
   NetworkControllerStateChangeEvent,
   NetworkState,
-  NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import { PollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
+import { AbortController as WhatwgAbortController } from 'abort-controller';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 
@@ -16,7 +15,7 @@ import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
 } from './assetsUtil';
-import { fetchTokenListByChainId } from './token-service';
+import { fetchTokenList } from './token-service';
 
 const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 24 * 60 * 60 * 1000;
@@ -58,11 +57,12 @@ export type GetTokenListState = {
   type: `${typeof name}:getState`;
   handler: () => TokenListState;
 };
+
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
-  GetTokenListState | NetworkControllerGetNetworkClientByIdAction,
+  GetTokenListState,
   TokenListStateChange | NetworkControllerStateChangeEvent,
-  NetworkControllerGetNetworkClientByIdAction['type'],
+  never,
   TokenListStateChange['type'] | NetworkControllerStateChangeEvent['type']
 >;
 
@@ -81,7 +81,7 @@ const defaultState: TokenListState = {
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
-export class TokenListController extends PollingController<
+export class TokenListController extends BaseControllerV2<
   typeof name,
   TokenListState,
   TokenListMessenger
@@ -96,7 +96,7 @@ export class TokenListController extends PollingController<
 
   private chainId: Hex;
 
-  private abortController: AbortController;
+  private abortController: WhatwgAbortController;
 
   /**
    * Creates a TokenListController instance.
@@ -139,7 +139,7 @@ export class TokenListController extends PollingController<
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
-    this.abortController = new AbortController();
+    this.abortController = new WhatwgAbortController();
     if (onNetworkStateChange) {
       onNetworkStateChange(async (networkControllerState) => {
         await this.#onNetworkControllerStateChange(networkControllerState);
@@ -163,7 +163,7 @@ export class TokenListController extends PollingController<
   async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
     if (this.chainId !== networkControllerState.providerConfig.chainId) {
       this.abortController.abort();
-      this.abortController = new AbortController();
+      this.abortController = new WhatwgAbortController();
       this.chainId = networkControllerState.providerConfig.chainId;
       if (this.state.preventPollingOnNetworkRestart) {
         this.clearingTokenListData();
@@ -233,47 +233,28 @@ export class TokenListController extends PollingController<
 
   /**
    * Fetching token list from the Token Service API.
-   *
-   * @private
-   * @param networkClientId - The ID of the network client triggering the fetch.
-   * @returns A promise that resolves when this operation completes.
    */
-  async _executePoll(networkClientId: string): Promise<void> {
-    return this.fetchTokenList(networkClientId);
-  }
-
-  /**
-   * Fetching token list from the Token Service API.
-   *
-   * @param networkClientId - The ID of the network client triggering the fetch.
-   */
-  async fetchTokenList(networkClientId?: NetworkClientId): Promise<void> {
+  async fetchTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
-    let networkClient;
-    if (networkClientId) {
-      networkClient = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
-    }
-    const chainId = networkClient?.configuration.chainId ?? this.chainId;
     try {
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
       const cachedTokens: TokenListMap = await safelyExecute(() =>
-        this.#fetchFromCache(chainId),
+        this.fetchFromCache(),
       );
       if (cachedTokens) {
         // Use non-expired cached tokens
         tokenList = { ...cachedTokens };
       } else {
         // Fetch fresh token list
-        const tokensFromAPI: TokenListToken[] = await safelyExecute(() => {
-          return fetchTokenListByChainId(chainId, this.abortController.signal);
-        });
+        const tokensFromAPI: TokenListToken[] = await safelyExecute(() =>
+          fetchTokenList(this.chainId, this.abortController.signal),
+        );
+
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
-          tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };
+          tokenList = { ...(tokensChainsCache[this.chainId]?.data || {}) };
+
           this.update(() => {
             return {
               ...this.state,
@@ -307,7 +288,7 @@ export class TokenListController extends PollingController<
             ...token,
             aggregators: formatAggregatorNames(token.aggregators),
             iconUrl: formatIconUrlWithProxy({
-              chainId,
+              chainId: this.chainId,
               tokenAddress: token.address,
             }),
           };
@@ -316,7 +297,7 @@ export class TokenListController extends PollingController<
       }
       const updatedTokensChainsCache: TokensChainsCache = {
         ...tokensChainsCache,
-        [chainId]: {
+        [this.chainId]: {
           timestamp: Date.now(),
           data: tokenList,
         },
@@ -337,12 +318,12 @@ export class TokenListController extends PollingController<
    * Checks if the Cache timestamp is valid,
    * if yes data in cache will be returned
    * otherwise null will be returned.
-   * @param chainId - The chain ID of the network for which to fetch the cache.
+   *
    * @returns The cached data, or `null` if the cache was expired.
    */
-  async #fetchFromCache(chainId: Hex): Promise<TokenListMap | null> {
+  async fetchFromCache(): Promise<TokenListMap | null> {
     const { tokensChainsCache }: TokenListState = this.state;
-    const dataCache = tokensChainsCache[chainId];
+    const dataCache = tokensChainsCache[this.chainId];
     const now = Date.now();
     if (
       dataCache?.data &&
