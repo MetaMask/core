@@ -32,16 +32,7 @@ const buildMessenger = () => {
 };
 
 const buildMocks = (
-  messenger: ControllerMessenger<
-    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-    | QueuedRequestControllerEnqueueRequestAction
-    | NetworkControllerGetStateAction
-    | NetworkControllerSetActiveNetworkAction
-    | NetworkControllerSetProviderTypeAction
-    | NetworkControllerGetNetworkClientByIdAction
-    | AddApprovalRequest,
-    never
-  >,
+  messenger: ReturnType<typeof buildMessenger>,
   mocks: {
     getNetworkClientById?: NetworkController['getNetworkClientById'];
     getProviderConfig?: NetworkControllerGetStateAction['handler'];
