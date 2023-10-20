@@ -1,6 +1,10 @@
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type {
+  AddApprovalRequest,
+  ApprovalController,
+} from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import type {
+  NetworkController,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
@@ -26,7 +30,23 @@ const buildMessenger = () => {
   >();
 };
 
-const buildMocks = (messenger: any, mocks: any = {}) => {
+const buildMocks = (
+  messenger: ControllerMessenger<
+    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
+    | QueuedRequestControllerEnqueueRequestAction
+    | NetworkControllerGetStateAction
+    | NetworkControllerSetActiveNetworkAction
+    | NetworkControllerSetProviderTypeAction
+    | NetworkControllerGetNetworkClientByIdAction
+    | AddApprovalRequest,
+    never
+  >,
+  mocks: {
+    getNetworkClientById?: NetworkController['getNetworkClientById'];
+    getProviderConfig?: NetworkControllerGetStateAction['handler'];
+    addRequest?: ApprovalController['add'];
+  } = {},
+) => {
   const mockGetNetworkClientById =
     mocks.getNetworkClientById ||
     jest.fn().mockReturnValue({
