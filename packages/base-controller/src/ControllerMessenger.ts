@@ -74,6 +74,11 @@ type NarrowToAllowed<T, Allowed extends string> = T extends {
   ? T
   : never;
 
+export type ExtractNamespacedNames<
+  T extends { type: `${string}:${string}` },
+  Namespace extends string = string,
+> = T['type'] extends `${Namespace}:${infer Name}` ? Name : never;
+
 /**
  * A restricted controller messenger.
  *
