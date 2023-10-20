@@ -271,7 +271,7 @@ export class TokenDetectionController extends PollingControllerV1<
     );
     const { tokenList } = this.getTokenListState();
     const tokensToDetect: string[] = [];
-    for (const address in tokenList) {
+    for (const address of Object.keys(tokenList)) {
       if (!tokensAddresses.includes(address)) {
         tokensToDetect.push(address);
       }
@@ -299,7 +299,7 @@ export class TokenDetectionController extends PollingControllerV1<
           tokensSlice,
         );
         const tokensToAdd: Token[] = [];
-        for (const tokenAddress in balances) {
+        for (const tokenAddress of Object.keys(balances)) {
           let ignored;
           /* istanbul ignore else */
           const { ignoredTokens } = this.getTokensState();

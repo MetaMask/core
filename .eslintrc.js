@@ -60,7 +60,6 @@ module.exports = {
         '@typescript-eslint/await-thenable': 'warn',
         '@typescript-eslint/naming-convention': 'off',
         '@typescript-eslint/no-floating-promises': 'warn',
-        '@typescript-eslint/no-for-in-array': 'warn',
         '@typescript-eslint/no-loss-of-precision': 'warn',
         '@typescript-eslint/no-misused-promises': 'warn',
         '@typescript-eslint/no-unnecessary-type-assertion': 'off',
@@ -106,7 +105,6 @@ module.exports = {
     // TODO: re-enble most of these rules
     '@typescript-eslint/naming-convention': 'off',
     'function-paren-newline': 'off',
-    'guard-for-in': 'off',
     'id-denylist': 'off',
     'implicit-arrow-linebreak': 'off',
     'import/no-anonymous-default-export': 'off',

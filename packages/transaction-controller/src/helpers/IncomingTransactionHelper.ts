@@ -3,8 +3,8 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import EventEmitter from 'events';
 
-import { incomingTransactionsLogger as log } from './logger';
-import type { RemoteTransactionSource, TransactionMeta } from './types';
+import { incomingTransactionsLogger as log } from '../logger';
+import type { RemoteTransactionSource, TransactionMeta } from '../types';
 
 const RECENT_HISTORY_BLOCK_RANGE = 10;
 
