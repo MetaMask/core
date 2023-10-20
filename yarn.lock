@@ -1824,6 +1824,7 @@ __metadata:
     jest-it-up: ^2.0.2
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
+    typescript: ~4.8.4
   languageName: unknown
   linkType: soft
 
