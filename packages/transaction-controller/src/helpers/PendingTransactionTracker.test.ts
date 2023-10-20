@@ -3,8 +3,8 @@
 import { query } from '@metamask/controller-utils';
 
 import { BlockTrackerProxy } from '@metamask/network-controller';
+import { TransactionStatus } from '../types';
 import { PendingTransactionTracker } from './PendingTransactionTracker';
-import { TransactionStatus } from './types';
 
 const ID_MOCK = 'testId';
 const CHAIN_ID_MOCK = '0x1';

@@ -2,9 +2,9 @@ import EventEmitter from 'events';
 import { query, safelyExecute } from '@metamask/controller-utils';
 
 import { BlockTrackerProxy } from '@metamask/network-controller';
-import { pendingTransactionsLogger as log } from './logger';
-import type { TransactionMeta } from './types';
-import { TransactionStatus } from './types';
+import { pendingTransactionsLogger as log } from '../logger';
+import type { TransactionMeta } from '../types';
+import { TransactionStatus } from '../types';
 
 export class PendingTransactionTracker {
   hub: EventEmitter;

@@ -43,16 +43,16 @@ import {
   validateGasValues,
   validateMinimumIncrease,
   ESTIMATE_GAS_ERROR,
-} from './utils';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+} from './utils/utils';
+import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import {
   Transaction,
   TransactionMeta,
   TransactionStatus,
   WalletDevice,
 } from './types';
-import { PendingTransactionTracker } from './PendingTransactionTracker';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { pendingTransactionsLogger } from './logger';
 
 const HARDFORK = 'london';

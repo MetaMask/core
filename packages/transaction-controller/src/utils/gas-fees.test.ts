@@ -36,7 +36,7 @@ describe('gas-fees', () => {
   const queryMock = jest.mocked(query);
 
   function mockGetGasFeeEstimates(
-    estimateType: (typeof GAS_ESTIMATE_TYPES)[keyof typeof GAS_ESTIMATE_TYPES],
+    estimateType: typeof GAS_ESTIMATE_TYPES[keyof typeof GAS_ESTIMATE_TYPES],
     gasEstimates: any,
   ) {
     updateGasFeeRequest.getGasFeeEstimates.mockReset();
