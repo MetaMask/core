@@ -15,7 +15,7 @@ import type {
 import { serializeError } from '@metamask/rpc-errors';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
-import { JsonRpcRequest } from '@metamask/utils';
+import type { JsonRpcRequest } from '@metamask/utils';
 
 import type { QueuedRequestControllerEnqueueRequestAction } from '../src/QueuedRequestController';
 import { createQueuedRequestMiddleware } from '../src/QueuedRequestMiddleware';
@@ -442,14 +442,20 @@ describe('createQueuedRequestMiddleware', () => {
       const engine = new JsonRpcEngine();
       const messenger = buildMessenger();
       const mocks = buildMocks(messenger);
-      engine.push((req: JsonRpcRequest & {
-        origin?: string;
-        networkClientId?: NetworkClientId
-      } , _, next) => {
-        req.origin = 'foobar';
-        req.networkClientId = 'mainnet';
-        next();
-      });
+      engine.push(
+        (
+          req: JsonRpcRequest & {
+            origin?: string;
+            networkClientId?: NetworkClientId;
+          },
+          _,
+          next,
+        ) => {
+          req.origin = 'foobar';
+          req.networkClientId = 'mainnet';
+          next();
+        },
+      );
       engine.push(
         createQueuedRequestMiddleware({
           messenger,
