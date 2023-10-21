@@ -383,23 +383,15 @@ export class TransactionController extends BaseController<
     );
 
     this.pendingTransactionTracker = new PendingTransactionTracker({
+      approveTransaction: this.approveTransaction.bind(this),
       blockTracker,
-      failTransaction: this.failTransaction.bind(this),
       getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
+      publishTransaction: this.publishTransaction.bind(this),
     });
 
-    this.pendingTransactionTracker.hub.on(
-      'transactions',
-      this.onPendingTransactionsUpdate.bind(this),
-    );
-
-    this.pendingTransactionTracker.hub.on(
-      'transaction-confirmed',
-      (transactionMeta: TransactionMeta) =>
-        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta),
-    );
+    this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
       // @ts-expect-error TODO: Provider type alignment
@@ -1259,7 +1251,7 @@ export class TransactionController extends BaseController<
         transactionMeta,
         'TransactionController#approveTransaction - RawTransaction added',
       );
-      const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+      const hash = await this.publishTransaction(rawTx);
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       transactionMeta.submittedTime = new Date().getTime();
@@ -1277,6 +1269,10 @@ export class TransactionController extends BaseController<
       }
       releaseLock();
     }
+  }
+
+  private async publishTransaction(rawTransaction: string): Promise<string> {
+    return await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
   }
 
   /**
@@ -1693,6 +1689,29 @@ export class TransactionController extends BaseController<
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
+  }
+
+  private addPendingTransactionTrackerListeners() {
+    this.pendingTransactionTracker.hub.on(
+      'transaction-confirmed',
+      (transactionMeta: TransactionMeta) =>
+        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-dropped',
+      this.setTransactionStatusDropped.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-failed',
+      this.failTransaction.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-update',
+      this.updateTransaction.bind(this),
     );
   }
 }
