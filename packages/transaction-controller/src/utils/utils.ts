@@ -3,6 +3,7 @@ import { getKnownPropertyNames } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
+import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants';
 import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
@@ -166,4 +167,25 @@ export function validateIfTransactionUnapproved(
       Current tx status: ${transactionMeta?.status}`,
     );
   }
+}
+
+/**
+ * Checks whether the provided address is strictly equal to the address for
+ * the default swaps token of the provided chain.
+ *
+ * @param address - The string to compare to the default token address
+ * @param chainId - The hex encoded chain ID of the default swaps token to check
+ * @returns Whether the address is the provided chain's default token address
+ */
+export function isSwapsDefaultTokenAddress(address: string, chainId: string) {
+  if (!address || !chainId) {
+    return false;
+  }
+
+  return (
+    address ===
+    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
+      chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
+    ]?.address
+  );
 }

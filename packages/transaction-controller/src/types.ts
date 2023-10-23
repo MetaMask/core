@@ -131,6 +131,16 @@ type TransactionMetaBase = {
   originalGasEstimate?: string;
 
   /**
+   * Account transaction balance after swap.
+   */
+  postTxBalance?: string;
+
+  /**
+   * Account transaction balance before swap.
+   */
+  preTxBalance?: string;
+
+  /**
    * The transaction's 'r' value as a hex string.
    */
   r?: string;
@@ -734,5 +744,21 @@ export type DefaultGasEstimates = {
 
 export type SwapOptions = {
   hasApproveTx?: boolean;
-  meta?: TransactionMeta;
+  meta?: Partial<TransactionMeta>;
 };
+
+/**
+ * Describes the event types emitted by the transaction controller.
+ */
+export enum TransactionEvent {
+  added = 'transaction-added',
+  approved = 'transaction-approved',
+  confirmed = 'transaction-confirmed',
+  dropped = 'transaction-dropped',
+  failed = 'transaction-failed',
+  newSwap = 'transaction-new-swap',
+  newSwapApproval = 'transaction-new-swap-approval',
+  rejected = 'transaction-rejected',
+  submitted = 'transaction-submitted',
+  postTransactionBalanceUpdated = 'post-transaction-balance-updated',
+}
