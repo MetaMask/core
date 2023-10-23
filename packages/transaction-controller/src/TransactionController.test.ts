@@ -2161,13 +2161,13 @@ describe('TransactionController', () => {
 
       expect(transaction.postTxBalance).toBe(mockPostTxBalance);
       expect(mockPostTransactionBalanceUpdated).toHaveBeenCalledTimes(1);
-        expect(mockPostTransactionBalanceUpdated).toHaveBeenCalledWith(
-          expect.objectContaining({
-            transactionMeta: expect.objectContaining({
-              postTxBalance: mockPostTxBalance,
-            }),
+      expect(mockPostTransactionBalanceUpdated).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: expect.objectContaining({
+            postTxBalance: mockPostTxBalance,
           }),
-        );
+        }),
+      );
     });
 
     it('skip updating postTxBalance until query returns updated balance', async () => {
