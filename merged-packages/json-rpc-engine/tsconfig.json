@@ -8,6 +8,11 @@
     "noErrorTruncation": true,
     "noUncheckedIndexedAccess": true,
     "target": "es2020"
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "noErrorTruncation": true,
+    "noUncheckedIndexedAccess": true,
+    "target": "es2020"
   },
   "include": ["../../types", "../../tests", "./src", "./tests"]
 }
