@@ -17,6 +17,7 @@ import { defaultState as networkControllerDefaultState } from '@metamask/network
 import { serializeError } from '@metamask/rpc-errors';
 import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
+import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
 
 import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import {
@@ -149,7 +150,12 @@ describe('createQueuedRequestMiddleware', () => {
     await expect(
       () =>
         new Promise((resolve, reject) =>
-          middleware(req as any, {} as any, resolve, reject),
+          middleware(
+            req,
+            {} as PendingJsonRpcResponse<typeof req>,
+            resolve,
+            reject,
+          ),
         ),
     ).rejects.toThrow("Request object is lacking an 'origin'");
   });
@@ -170,7 +176,12 @@ describe('createQueuedRequestMiddleware', () => {
     await expect(
       () =>
         new Promise((resolve, reject) =>
-          middleware(req as any, {} as any, resolve, reject),
+          middleware(
+            req,
+            {} as PendingJsonRpcResponse<typeof req>,
+            resolve,
+            reject,
+          ),
         ),
     ).rejects.toThrow("Request object is lacking a 'networkClientId'");
   });
@@ -184,7 +195,12 @@ describe('createQueuedRequestMiddleware', () => {
     const mocks = buildMocks(messenger);
 
     await new Promise((resolve, reject) =>
-      middleware({ ...requestDefaults }, {} as any, resolve, reject),
+      middleware(
+        { ...requestDefaults },
+        {} as PendingJsonRpcResponse<typeof requestDefaults>,
+        resolve,
+        reject,
+      ),
     );
 
     expect(mocks.enqueueRequest).not.toHaveBeenCalled();
@@ -204,7 +220,12 @@ describe('createQueuedRequestMiddleware', () => {
     };
 
     await new Promise((resolve, reject) =>
-      middleware(req, {} as any, resolve, reject),
+      middleware(
+        req,
+        {} as PendingJsonRpcResponse<typeof req>,
+        resolve,
+        reject,
+      ),
     );
 
     expect(mocks.enqueueRequest).not.toHaveBeenCalled();
@@ -225,7 +246,12 @@ describe('createQueuedRequestMiddleware', () => {
       };
 
       await new Promise((resolve, reject) =>
-        middleware(req, {} as any, resolve, reject),
+        middleware(
+          req,
+          {} as PendingJsonRpcResponse<typeof req>,
+          resolve,
+          reject,
+        ),
       );
 
       expect(mocks.enqueueRequest).toHaveBeenCalled();
@@ -257,7 +283,12 @@ describe('createQueuedRequestMiddleware', () => {
       };
 
       await new Promise((resolve, reject) =>
-        middleware(req, {} as any, resolve, reject),
+        middleware(
+          req,
+          {} as PendingJsonRpcResponse<typeof req>,
+          resolve,
+          reject,
+        ),
       );
 
       expect(mocks.enqueueRequest).toHaveBeenCalled();
@@ -279,7 +310,12 @@ describe('createQueuedRequestMiddleware', () => {
       };
 
       await new Promise((resolve, reject) =>
-        middleware(req, {} as any, resolve, reject),
+        middleware(
+          req,
+          {} as PendingJsonRpcResponse<typeof req>,
+          resolve,
+          reject,
+        ),
       );
 
       expect(mocks.addRequest).not.toHaveBeenCalled();
@@ -307,7 +343,12 @@ describe('createQueuedRequestMiddleware', () => {
         };
 
         await new Promise((resolve, reject) =>
-          middleware(req, {} as any, resolve, reject),
+          middleware(
+            req,
+            {} as PendingJsonRpcResponse<typeof req>,
+            resolve,
+            reject,
+          ),
         );
 
         expect(mocks.addRequest).toHaveBeenCalled();
@@ -336,7 +377,7 @@ describe('createQueuedRequestMiddleware', () => {
           method: 'eth_sendTransaction',
         };
 
-        const res: any = {};
+        const res = {} as PendingJsonRpcResponse<Json>;
         await new Promise((resolve, reject) =>
           middleware(req, res, reject, resolve),
         );
@@ -365,7 +406,12 @@ describe('createQueuedRequestMiddleware', () => {
         };
 
         await new Promise((resolve, reject) =>
-          middleware(req, {} as any, resolve, reject),
+          middleware(
+            req,
+            {} as PendingJsonRpcResponse<typeof req>,
+            resolve,
+            reject,
+          ),
         );
 
         expect(mocks.setProviderType).toHaveBeenCalled();
@@ -406,7 +452,12 @@ describe('createQueuedRequestMiddleware', () => {
         };
 
         await new Promise((resolve, reject) =>
-          middleware(req, {} as any, resolve, reject),
+          middleware(
+            req,
+            {} as PendingJsonRpcResponse<typeof req>,
+            resolve,
+            reject,
+          ),
         );
 
         expect(mocks.setProviderType).not.toHaveBeenCalled();
@@ -449,8 +500,8 @@ describe('createQueuedRequestMiddleware', () => {
         method: 'eth_sendTransaction',
       };
 
-      const res1: any = {};
-      const res2: any = {};
+      const res1 = {} as PendingJsonRpcResponse<Json>;
+      const res2 = {} as PendingJsonRpcResponse<Json>;
 
       await Promise.all([
         new Promise((resolve) => middleware(req1, res1, resolve, resolve)),
