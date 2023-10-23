@@ -1098,7 +1098,7 @@ export class TransactionController extends BaseController<
 
   /**
    * Gets the next nonce according to the nonce-tracker.
-   * Note: releaseLock must be called after adding a signed tx to pending transactions (or discarding).
+   * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
    *
    * @param address - The hex string address for the transaction.
    * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
