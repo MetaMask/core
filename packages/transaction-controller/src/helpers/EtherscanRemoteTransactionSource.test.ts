@@ -1,20 +1,20 @@
 import { v1 as random } from 'uuid';
 
-import { CHAIN_IDS } from './constants';
+import { CHAIN_IDS } from '../constants';
+import { TransactionStatus } from '../types';
 import type {
   EtherscanTokenTransactionMeta,
   EtherscanTransactionMeta,
   EtherscanTransactionMetaBase,
   EtherscanTransactionResponse,
-} from './etherscan';
+} from '../utils/etherscan';
 import {
   fetchEtherscanTokenTransactions,
   fetchEtherscanTransactions,
-} from './etherscan';
+} from '../utils/etherscan';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import { TransactionStatus } from './types';
 
-jest.mock('./etherscan', () => ({
+jest.mock('../utils/etherscan', () => ({
   fetchEtherscanTransactions: jest.fn(),
   fetchEtherscanTokenTransactions: jest.fn(),
 }));

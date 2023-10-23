@@ -1,13 +1,14 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
+import { getKnownPropertyNames } from '@metamask/utils';
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/NonceTracker';
 
 import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
-} from './TransactionController';
-import { TransactionStatus } from './types';
-import type { TransactionParams, TransactionMeta } from './types';
+} from '../TransactionController';
+import { TransactionStatus } from '../types';
+import type { TransactionParams, TransactionMeta } from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 
@@ -36,10 +37,9 @@ const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
  */
 export function normalizeTxParams(txParams: TransactionParams) {
   const normalizedTxParams: TransactionParams = { from: '' };
-  let key: keyof TransactionParams;
-  for (key in NORMALIZERS) {
-    if (txParams[key as keyof TransactionParams]) {
-      normalizedTxParams[key] = NORMALIZERS[key](txParams[key]) as never;
+  for (const key of getKnownPropertyNames(NORMALIZERS)) {
+    if (txParams[key]) {
+      normalizedTxParams[key] = NORMALIZERS[key](txParams[key]);
     }
   }
   return normalizedTxParams;

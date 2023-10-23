@@ -3,9 +3,9 @@ import type { Transaction as NonceTrackerTransaction } from 'nonce-tracker/dist/
 import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
-} from './TransactionController';
-import type { TransactionParams, TransactionMeta } from './types';
-import { TransactionStatus } from './types';
+} from '../TransactionController';
+import type { TransactionParams, TransactionMeta } from '../types';
+import { TransactionStatus } from '../types';
 import * as util from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
