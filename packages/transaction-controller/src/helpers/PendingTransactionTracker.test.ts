@@ -274,7 +274,7 @@ describe('PendingTransactionTracker', () => {
       expect(transactionsListener).toHaveBeenCalledTimes(0);
     });
 
-    it('logs error while checking the status of a submitted transaction', async () => {
+    it('does not throw when query fails while checking the status of a submitted transaction', async () => {
       const transactionsListener = jest.fn();
       queryMock.mockImplementation(() => {
         throw new Error('Mocked query error');
