@@ -3,4 +3,4 @@ export * from './constants';
 export type { BlockTracker, Provider } from './types';
 export type { NetworkClientConfiguration } from './types';
 export { NetworkClientType } from './types';
-export { NetworkClient } from './create-network-client';
+export type { NetworkClient } from './create-network-client';
