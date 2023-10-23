@@ -1236,7 +1236,7 @@ describe('approval controller', () => {
       expect(
         approvalController.state[APPROVAL_FLOWS_STORE_KEY][0],
       ).toStrictEqual(expectedFlow);
-    })
+    });
   });
 
   describe('endFlow', () => {
