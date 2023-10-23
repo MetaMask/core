@@ -1,10 +1,10 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
-import type { BN } from 'ethereumjs-util';
 import EventEmitter from 'events';
 
 import { pendingTransactionsLogger as log } from '../logger';
+import type { TransactionState } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus } from '../types';
 
@@ -25,19 +25,20 @@ const KNOWN_TRANSACTION_ERRORS = [
   'nonce too low',
 ];
 
+type Events = {
+  'transaction-confirmed': [txMeta: TransactionMeta];
+  'transaction-dropped': [txMeta: TransactionMeta];
+  'transaction-failed': [txMeta: TransactionMeta, error: Error];
+  'transaction-updated': [txMeta: TransactionMeta, note: string];
+};
+
 export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
-  on(
-    eventName: 'transaction-confirmed' | 'transaction-dropped',
-    listener: (txMeta: TransactionMeta) => void,
+  on<T extends keyof Events>(
+    eventName: T,
+    listener: (...args: Events[T]) => void,
   ): this;
-  on(
-    eventName: 'transaction-failed',
-    listener: (txMeta: TransactionMeta, error: Error) => void,
-  ): this;
-  on(
-    eventName: 'transaction-update',
-    listener: (txMeta: TransactionMeta, note: string) => void,
-  ): this;
+
+  emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 }
 
 export class PendingTransactionTracker {
@@ -57,7 +58,13 @@ export class PendingTransactionTracker {
 
   #isResubmitEnabled: boolean;
 
+  #listener: any;
+
+  #onStateChange: (listener: (state: TransactionState) => void) => void;
+
   #publishTransaction: (rawTx: string) => Promise<string>;
+
+  #running: boolean;
 
   constructor({
     approveTransaction,
@@ -66,6 +73,7 @@ export class PendingTransactionTracker {
     getEthQuery,
     getTransactions,
     isResubmitEnabled,
+    onStateChange,
     publishTransaction,
   }: {
     approveTransaction: (transactionId: string) => Promise<void>;
@@ -74,9 +82,10 @@ export class PendingTransactionTracker {
     getEthQuery: () => EthQuery;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
+    onStateChange: (listener: (state: TransactionState) => void) => void;
     publishTransaction: (rawTx: string) => Promise<string>;
   }) {
-    this.hub = new EventEmitter();
+    this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
     this.#approveTransaction = approveTransaction;
     this.#blockTracker = blockTracker;
@@ -85,13 +94,44 @@ export class PendingTransactionTracker {
     this.#getEthQuery = getEthQuery;
     this.#getTransactions = getTransactions;
     this.#isResubmitEnabled = isResubmitEnabled ?? true;
+    this.#listener = this.#onLatestBlock.bind(this);
+    this.#onStateChange = onStateChange;
     this.#publishTransaction = publishTransaction;
+    this.#running = false;
+
+    this.#onStateChange((state) => {
+      const pendingTransactions = this.#getPendingTransactions(
+        state.transactions,
+      );
+
+      if (pendingTransactions.length) {
+        this.#start();
+      } else {
+        this.#stop();
+      }
+    });
   }
 
-  start() {
-    this.#blockTracker.on('latest', async (latestBlockNumber: string) => {
-      await this.#onLatestBlock(latestBlockNumber);
-    });
+  #start() {
+    if (this.#running) {
+      return;
+    }
+
+    this.#blockTracker.on('latest', this.#listener);
+    this.#running = true;
+
+    log('Started polling');
+  }
+
+  #stop() {
+    if (!this.#running) {
+      return;
+    }
+
+    this.#blockTracker.removeListener('latest', this.#listener);
+    this.#running = false;
+
+    log('Stopped polling');
   }
 
   async #onLatestBlock(latestBlockNumber: string) {
@@ -366,10 +406,10 @@ export class PendingTransactionTracker {
     );
   }
 
-  #getPendingTransactions(): TransactionMeta[] {
+  #getPendingTransactions(transactions?: TransactionMeta[]): TransactionMeta[] {
     const currentChainId = this.#getChainId();
 
-    return this.#getTransactions().filter(
+    return (transactions ?? this.#getTransactions()).filter(
       (tx) =>
         tx.status === TransactionStatus.submitted &&
         tx.chainId === currentChainId &&

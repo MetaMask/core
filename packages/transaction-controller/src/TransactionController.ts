@@ -388,6 +388,7 @@ export class TransactionController extends BaseController<
       getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
+      onStateChange: this.subscribe.bind(this),
       publishTransaction: this.publishTransaction.bind(this),
     });
 
@@ -398,8 +399,6 @@ export class TransactionController extends BaseController<
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
-
-    this.pendingTransactionTracker.start();
   }
 
   /**
@@ -1710,7 +1709,7 @@ export class TransactionController extends BaseController<
     );
 
     this.pendingTransactionTracker.hub.on(
-      'transaction-update',
+      'transaction-updated',
       this.updateTransaction.bind(this),
     );
   }
