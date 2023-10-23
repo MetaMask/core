@@ -22,7 +22,7 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-middleware-stream",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-middleware-stream 5.0.1 json-rpc-middleware-stream",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:clean": "jest --clearCache",
@@ -35,7 +35,7 @@
     "readable-stream": "^3.6.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/auto-changelog": "^3.4.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
