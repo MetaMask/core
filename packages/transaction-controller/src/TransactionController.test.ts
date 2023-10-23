@@ -1784,12 +1784,14 @@ describe('TransactionController', () => {
         new Error('TestError'),
         'catches error no code property in error object',
       ],
-    ])('%s', async (errorToThrow) => {
+      [undefined, 'catches error when error is undefined'],
+    ] as unknown[] | [unknown])('%s', async (errorToThrow) => {
       jest.spyOn(console, 'error').mockImplementation();
 
       (
         delayMessengerMock.call as jest.MockedFunction<any>
       ).mockImplementationOnce(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw errorToThrow;
       });
 
