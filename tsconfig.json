@@ -72,6 +72,9 @@
     },
     {
       "path": "./packages/transaction-controller"
+    },
+    {
+      "path": "./packages/queued-request-controller"
     }
   ],
   "files": [],

@@ -23,4 +23,8 @@ module.exports = merge(baseConfig, {
       statements: 100,
     },
   },
+
+  // Currently the tests for NetworkController have a race condition which
+  // causes intermittent failures. This seems to fix it.
+  testEnvironment: 'jsdom',
 });
