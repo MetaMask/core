@@ -9,7 +9,7 @@ import type {
   NetworkClientId,
   NetworkController,
   NetworkState,
-  NetworkClient
+  NetworkClient,
 } from '@metamask/network-controller';
 import { PollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
