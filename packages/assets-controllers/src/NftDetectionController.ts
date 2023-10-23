@@ -10,7 +10,7 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
-import type { NetworkClient } from '@metamask/network-controller/src/create-network-client';
+import type { NetworkClient } from '@metamask/network-controller/dist/create-network-client';
 import { PollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
