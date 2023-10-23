@@ -1220,6 +1220,23 @@ describe('approval controller', () => {
         ).toStrictEqual(expectedFlow);
       },
     );
+
+    it('does not call showApprovalRequest if showOnFirstRequest is enabled', () => {
+      const result = approvalController.startFlow({ showOnFirstRequest: true });
+
+      const expectedFlow = {
+        id: expect.any(String),
+        loadingText: null,
+      };
+      expect(result).toStrictEqual(expectedFlow);
+      expect(showApprovalRequest).toHaveBeenCalledTimes(0);
+      expect(approvalController.state[APPROVAL_FLOWS_STORE_KEY]).toHaveLength(
+        1,
+      );
+      expect(
+        approvalController.state[APPROVAL_FLOWS_STORE_KEY][0],
+      ).toStrictEqual(expectedFlow);
+    })
   });
 
   describe('endFlow', () => {

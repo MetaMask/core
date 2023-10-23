@@ -180,7 +180,7 @@ export type AcceptOptions = {
 export type StartFlowOptions = OptionalField<
   ApprovalFlow,
   'id' | 'loadingText'
->;
+> & { showOnFirstRequest?: boolean };
 
 export type EndFlowOptions = Pick<ApprovalFlow, 'id'>;
 
@@ -768,7 +768,9 @@ export class ApprovalController extends BaseControllerV2<
       draftState.approvalFlows.push({ id, loadingText });
     });
 
-    this.#showApprovalRequest();
+    if (!opts.showOnFirstRequest) {
+      this.#showApprovalRequest();
+    }
 
     return { id, loadingText };
   }
