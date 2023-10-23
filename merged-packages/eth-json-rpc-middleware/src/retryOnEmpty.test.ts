@@ -2,6 +2,7 @@ import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { PollingBlockTracker } from 'eth-block-tracker';
 
@@ -623,6 +624,47 @@ describe('createRetryOnEmptyMiddleware', () => {
           await engine.handle(request);
 
           expect(finalMiddleware).toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
+  describe('when provider return execution revert error', () => {
+    it('returns the same error to caller', async () => {
+      await withTestSetup(
+        {
+          configureMiddleware: ({ provider, blockTracker }) => {
+            return {
+              middlewareUnderTest: createRetryOnEmptyMiddleware({
+                provider,
+                blockTracker,
+              }),
+            };
+          },
+        },
+        async ({ engine, provider }) => {
+          const request: JsonRpcRequest<string[]> = {
+            id: 123,
+            jsonrpc: '2.0',
+            method: 'eth_call',
+            params: buildMockParamsWithBlockParamAt(1, '100'),
+          };
+          stubProviderRequests(provider, [
+            buildStubForBlockNumberRequest(),
+            {
+              request,
+              response: () => {
+                throw rpcErrors.invalidInput('execution reverted');
+              },
+            },
+          ]);
+          const promiseForResponse = engine.handle(request);
+          expect(await promiseForResponse).toMatchObject({
+            error: expect.objectContaining({
+              code: errorCodes.rpc.invalidInput,
+              message: 'execution reverted',
+            }),
+          });
         },
       );
     });

@@ -13,6 +13,7 @@ import pify from 'pify';
 import { projectLogger, createModuleLogger } from './logging-utils';
 import type { Block } from './types';
 import { blockTagParamIndex } from './utils/cache';
+import { isExecutionRevertedError } from './utils/error';
 import { timeout } from './utils/timeout';
 
 //
@@ -140,7 +141,10 @@ async function retry(
   for (let index = 0; index < maxRetries; index++) {
     try {
       return await asyncFn();
-    } catch (err) {
+    } catch (err: unknown) {
+      if (isExecutionRevertedError(err)) {
+        throw err as unknown;
+      }
       log('(call %i) Request failed, waiting 1s to retry again...', index + 1);
       await timeout(1000);
     }
