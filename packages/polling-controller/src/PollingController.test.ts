@@ -28,7 +28,8 @@ describe('PollingController', () => {
         state: { foo: 'bar' },
       });
       controller.startPollingByNetworkClientId('mainnet');
-      jest.advanceTimersByTimeAsync(0);
+      jest.advanceTimersByTime(0);
+      await Promise.resolve();
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
       jest.advanceTimersByTime(TICK_TIME);
       controller.stopAllPolling();
