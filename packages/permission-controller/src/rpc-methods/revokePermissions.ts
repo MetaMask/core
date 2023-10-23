@@ -1,6 +1,5 @@
 import { isPlainObject } from '@metamask/controller-utils';
 import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
-import { rpcErrors } from '@metamask/rpc-errors';
 import type {
   Json,
   JsonRpcRequest,
@@ -9,8 +8,7 @@ import type {
 } from '@metamask/utils';
 
 import { invalidParams } from '../errors';
-import type { PermissionConstraint, RequestedPermissions } from '../Permission';
-import { ExtractPermission } from '../PermissionController';
+import type { PermissionConstraint } from '../Permission';
 import type { PermittedHandlerExport } from '../utils';
 import { MethodNames } from '../utils';
 
@@ -47,7 +45,7 @@ export type RevokePermissionsHooks = {
  * @param _next - JsonRpcEngine next() callback - unused
  * @param end - JsonRpcEngine end() callback
  * @param options - Method hooks passed to the method implementation
- * @param options.revokePermissionsForOrigin - A hook that revokes given permission keys for an origin.
+ * @param options.revokePermissionsForOrigin - A hook that revokes given permission keys for an origin
  * @returns A promise that resolves to nothing
  */
 async function revokePermissionsImplementation(
