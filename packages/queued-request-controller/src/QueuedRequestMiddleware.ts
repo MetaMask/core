@@ -1,4 +1,8 @@
-import type { ApprovalRequest } from '@metamask/approval-controller';
+import type {
+  AddApprovalRequest,
+  ApprovalRequest,
+} from '@metamask/approval-controller';
+import type { ControllerMessenger } from '@metamask/base-controller';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import {
   ApprovalType,
@@ -7,12 +11,20 @@ import {
 } from '@metamask/controller-utils';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
-import type { NetworkClientId } from '@metamask/network-controller';
+import type {
+  NetworkClientId,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerSetActiveNetworkAction,
+  NetworkControllerSetProviderTypeAction,
+} from '@metamask/network-controller';
 import { serializeError } from '@metamask/rpc-errors';
+import type { SelectedNetworkControllerSetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerActionTypes } from '@metamask/selected-network-controller';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import type { QueuedRequestControllerMessenger } from './QueuedRequestController';
+import type { QueuedRequestControllerEnqueueRequestAction } from './QueuedRequestController';
 import { QueuedRequestControllerActionTypes } from './QueuedRequestController';
 
 const isConfirmationMethod = (method: string) => {
