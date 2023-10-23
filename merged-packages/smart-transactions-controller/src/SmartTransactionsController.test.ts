@@ -16,7 +16,6 @@ import * as utils from './utils';
 function flushPromises(): Promise<unknown> {
   return new Promise(jest.requireActual('timers').setImmediate);
 }
-// const confirmExternalMock = jest.fn();
 
 jest.mock('@ethersproject/bytes', () => ({
   ...jest.requireActual('@ethersproject/bytes'),
@@ -529,25 +528,6 @@ describe('SmartTransactionsController', () => {
     });
 
     it('should add fee data to feesByChainId state using the networkClientId passed in to identify the appropriate chain', async () => {
-      // getNetworkClientByIdSpy.mockImplementation((networkClientId) => {
-      //   switch (networkClientId) {
-      //     case 'mainnet':
-      //       return {
-      //         configuration: {
-      //           chainId: CHAIN_IDS.ETHEREUM,
-      //         },
-      //       };
-      //     case 'goerli':
-      //       return {
-      //         configuration: {
-      //           chainId: CHAIN_IDS.GOERLI,
-      //         },
-      //       };
-      //     default:
-      //       throw new Error('Invalid network client id');
-      //   }
-      // });
-
       const tradeTx = createUnsignedTransaction(goerliChainIdDec);
       const approvalTx = createUnsignedTransaction(goerliChainIdDec);
       const getFeesApiResponse = createGetFeesApiResponse();
