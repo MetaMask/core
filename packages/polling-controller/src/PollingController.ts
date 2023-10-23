@@ -139,23 +139,25 @@ function PollingControllerMixin<TBase extends Constructor>(Base: TBase) {
 
     #poll(networkClientId: NetworkClientId, options: Json) {
       const key = getKey(networkClientId, options);
-      if (this.#intervalIds[key]) {
-        clearTimeout(this.#intervalIds[key]);
+      const interval = this.#intervalIds[key];
+      if (interval) {
+        clearTimeout(interval);
         delete this.#intervalIds[key];
-      } else {
-        this._executePoll(networkClientId, options);
       }
       // setTimeout is not `await`ing this async function, which is expected
       // We're just using async here for improved stack traces
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      this.#intervalIds[key] = setTimeout(async () => {
-        try {
-          await this._executePoll(networkClientId, options);
-        } catch (error) {
-          console.error(error);
-        }
-        this.#poll(networkClientId, options);
-      }, this.#intervalLength);
+      this.#intervalIds[key] = setTimeout(
+        async () => {
+          try {
+            await this._executePoll(networkClientId, options);
+          } catch (error) {
+            console.error(error);
+          }
+          this.#poll(networkClientId, options);
+        },
+        interval ? this.#intervalLength : 0,
+      );
     }
 
     /**
