@@ -1449,7 +1449,7 @@ describe('TokenListController', () => {
       expect(controller.state).toStrictEqual(startingState);
 
       // start polling for sepolia
-      controller.startPollingByNetworkClientId('sepolia');
+      const pollingToken = controller.startPollingByNetworkClientId('sepolia');
       // wait a polling interval
       jest.advanceTimersByTime(pollingIntervalTime);
       await flushPromises();
@@ -1465,6 +1465,8 @@ describe('TokenListController', () => {
           data: sampleSepoliaTokensChainCache,
         },
       });
+      controller.stopPollingByPollingToken(pollingToken);
+
       // start polling for binance
       controller.startPollingByNetworkClientId('binance-network-client-id');
       jest.advanceTimersByTime(pollingIntervalTime);
