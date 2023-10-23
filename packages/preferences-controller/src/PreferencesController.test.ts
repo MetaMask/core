@@ -1,3 +1,5 @@
+import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
+import type { EtherscanSupportedHexChainId } from './PreferencesController';
 import { PreferencesController } from './PreferencesController';
 
 describe('PreferencesController', () => {
@@ -19,27 +21,12 @@ describe('PreferencesController', () => {
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
       isIpfsGatewayEnabled: true,
-      showIncomingTransactions: {
-        '0x1': true,
-        '0x5': true,
-        '0x38': true,
-        '0x61': true,
-        '0xa': true,
-        '0xa869': true,
-        '0x1a4': true,
-        '0x89': true,
-        '0x13881': true,
-        '0xa86a': true,
-        '0xfa': true,
-        '0xfa2': true,
-        '0xaa36a7': true,
-        '0xe704': true,
-        '0xe708': true,
-        '0x504': true,
-        '0x507': true,
-        '0x505': true,
-        '0x64': true,
-      },
+      showIncomingTransactions: Object.values(
+        ETHERSCAN_SUPPORTED_CHAIN_IDS,
+      ).reduce((acc, curr) => {
+        acc[curr] = true;
+        return acc;
+      }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
     });
   });
 

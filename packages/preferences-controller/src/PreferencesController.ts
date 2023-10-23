@@ -17,26 +17,11 @@ export interface ContactEntry {
   importTime?: number;
 }
 
-type EtherscanSupportedHexChainId =
-  | '0x1'
-  | '0x5'
-  | '0x38'
-  | '0x61'
-  | '0xa'
-  | '0x1a4'
-  | '0x89'
-  | '0x13881'
-  | '0xa86a'
-  | '0xa869'
-  | '0xfa'
-  | '0xfa2'
-  | '0xaa36a7'
-  | '0xe704'
-  | '0xe708'
-  | '0x504'
-  | '0x507'
-  | '0x505'
-  | '0x64';
+export type EtherscanSupportedChains =
+  keyof typeof ETHERSCAN_SUPPORTED_CHAIN_IDS;
+
+export type EtherscanSupportedHexChainId =
+  (typeof ETHERSCAN_SUPPORTED_CHAIN_IDS)[EtherscanSupportedChains];
 
 /**
  * @type PreferencesState
@@ -63,7 +48,9 @@ export interface PreferencesState extends BaseState {
   };
   showTestNetworks: boolean;
   isIpfsGatewayEnabled: boolean;
-  showIncomingTransactions: { [chainId: string]: boolean };
+  showIncomingTransactions: {
+    [chainId in EtherscanSupportedHexChainId]: boolean;
+  };
 }
 
 /**
