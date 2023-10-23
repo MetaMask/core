@@ -52,7 +52,17 @@ export const createQueuedRequestMiddleware = ({
   messenger,
   useRequestQueue,
 }: {
-  messenger: QueuedRequestControllerMessenger;
+  messenger: ControllerMessenger<
+    | QueuedRequestControllerEnqueueRequestAction
+    | NetworkControllerGetStateAction
+    | NetworkControllerSetActiveNetworkAction
+    | NetworkControllerSetProviderTypeAction
+    | NetworkControllerGetNetworkClientByIdAction
+    | NetworkControllerFindNetworkClientIdByChainIdAction
+    | SelectedNetworkControllerSetNetworkClientIdForDomainAction
+    | AddApprovalRequest,
+    never
+  >;
   useRequestQueue: () => boolean;
 }): JsonRpcMiddleware<JsonRpcParams, Json> => {
   return createAsyncMiddleware(

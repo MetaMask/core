@@ -29,18 +29,9 @@ export type QueuedRequestControllerEvents =
 export type QueuedRequestControllerActions =
   QueuedRequestControllerEnqueueRequestAction;
 
-type AllowedActions =
-  | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction
-  | NetworkControllerSetProviderTypeAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction
-  | SelectedNetworkControllerSetNetworkClientIdForDomainAction
-  | AddApprovalRequest;
-
 export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  QueuedRequestControllerActions | AllowedActions,
+  QueuedRequestControllerActions,
   QueuedRequestControllerEvents,
   string,
   string
