@@ -1,7 +1,12 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { convertHexToDecimal, safelyExecute } from '@metamask/controller-utils';
+import {
+  convertHexToDecimal,
+  safelyExecute,
+  toHex,
+} from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
+  NetworkClientId,
   NetworkControllerGetEIP1559CompatibilityAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -187,6 +192,7 @@ export type GasFeeStateNoEstimates = {
 
 export type FetchGasFeeEstimateOptions = {
   shouldUpdateState?: boolean;
+  networkClientId?: NetworkClientId;
 };
 
 /**
@@ -393,32 +399,59 @@ export class GasFeeController extends PollingController<
     return _pollToken;
   }
 
-  async #fetchGasFeeEstimateForNetworkClientId(networkClientId: string) {
-    let isEIP1559Compatible = false;
+  /**
+   * Gets and sets gasFeeEstimates in state.
+   *
+   * @param options - The gas fee estimate options.
+   * @param options.shouldUpdateState - Determines whether the state should be updated with the
+   * updated gas estimates.
+   * @returns The gas fee estimates.
+   */
+  async _fetchGasFeeEstimateData(
+    options: FetchGasFeeEstimateOptions = {},
+  ): Promise<GasFeeState> {
+    const { shouldUpdateState = true, networkClientId } = options;
 
-    const networkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
-    );
-    const isLegacyGasAPICompatible =
-      networkClient.configuration.chainId === '0x38';
+    let ethQuery,
+      isEIP1559Compatible,
+      isLegacyGasAPICompatible,
+      decimalChainId: number;
 
-    const decimalChainId = convertHexToDecimal(
-      networkClient.configuration.chainId,
-    );
-
-    try {
-      const result = await this.messagingSystem.call(
-        'NetworkController:getEIP1559Compatibility',
+    if (networkClientId !== undefined) {
+      const networkClient = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
         networkClientId,
       );
-      isEIP1559Compatible = result || false;
-    } catch {
-      isEIP1559Compatible = false;
+      isLegacyGasAPICompatible = networkClient.configuration.chainId === '0x38';
+
+      decimalChainId = convertHexToDecimal(networkClient.configuration.chainId);
+
+      try {
+        const result = await this.messagingSystem.call(
+          'NetworkController:getEIP1559Compatibility',
+          networkClientId,
+        );
+        isEIP1559Compatible = result || false;
+      } catch {
+        isEIP1559Compatible = false;
+      }
+      // @ts-expect-error TODO: Provider type alignment
+      ethQuery = new EthQuery(networkClient.provider);
     }
 
-    // @ts-expect-error TODO: Provider type alignment
-    const ethQuery = new EthQuery(networkClient.provider);
+    ethQuery ??= this.ethQuery;
+
+    isLegacyGasAPICompatible ??=
+      this.getCurrentNetworkLegacyGasAPICompatibility();
+
+    decimalChainId ??= convertHexToDecimal(this.currentChainId);
+
+    try {
+      isEIP1559Compatible ??= await this.getEIP1559Compatibility();
+    } catch (e) {
+      console.error(e);
+      isEIP1559Compatible ??= false;
+    }
 
     const gasFeeCalculations = await determineGasFeeCalculations({
       isEIP1559Compatible,
@@ -440,67 +473,19 @@ export class GasFeeController extends PollingController<
       ethQuery,
     });
 
-    this.update((state) => {
-      state.gasFeeEstimatesByChainId = state.gasFeeEstimatesByChainId || {};
-      state.gasFeeEstimatesByChainId[networkClient.configuration.chainId] = {
-        gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
-        estimatedGasFeeTimeBounds: gasFeeCalculations.estimatedGasFeeTimeBounds,
-        gasEstimateType: gasFeeCalculations.gasEstimateType,
-      } as any;
-    });
-  }
-
-  /**
-   * Gets and sets gasFeeEstimates in state.
-   *
-   * @param options - The gas fee estimate options.
-   * @param options.shouldUpdateState - Determines whether the state should be updated with the
-   * updated gas estimates.
-   * @returns The gas fee estimates.
-   */
-  async _fetchGasFeeEstimateData(
-    options: FetchGasFeeEstimateOptions = {},
-  ): Promise<GasFeeState> {
-    const { shouldUpdateState = true } = options;
-    let isEIP1559Compatible;
-    const isLegacyGasAPICompatible =
-      this.getCurrentNetworkLegacyGasAPICompatibility();
-
-    const decimalChainId = convertHexToDecimal(this.currentChainId);
-
-    try {
-      isEIP1559Compatible = await this.getEIP1559Compatibility();
-    } catch (e) {
-      console.error(e);
-      isEIP1559Compatible = false;
-    }
-
-    const gasFeeCalculations = await determineGasFeeCalculations({
-      isEIP1559Compatible,
-      isLegacyGasAPICompatible,
-      fetchGasEstimates,
-      fetchGasEstimatesUrl: this.EIP1559APIEndpoint.replace(
-        '<chain_id>',
-        `${decimalChainId}`,
-      ),
-      fetchGasEstimatesViaEthFeeHistory,
-      fetchLegacyGasPriceEstimates,
-      fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
-        '<chain_id>',
-        `${decimalChainId}`,
-      ),
-      fetchEthGasPriceEstimate,
-      calculateTimeEstimate,
-      clientId: this.clientId,
-      ethQuery: this.ethQuery,
-    });
-
     if (shouldUpdateState) {
       this.update((state) => {
         state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
         state.estimatedGasFeeTimeBounds =
           gasFeeCalculations.estimatedGasFeeTimeBounds;
         state.gasEstimateType = gasFeeCalculations.gasEstimateType;
+        state.gasFeeEstimatesByChainId = state.gasFeeEstimatesByChainId || {};
+        state.gasFeeEstimatesByChainId[toHex(decimalChainId)] = {
+          gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
+          estimatedGasFeeTimeBounds:
+            gasFeeCalculations.estimatedGasFeeTimeBounds,
+          gasEstimateType: gasFeeCalculations.gasEstimateType,
+        } as any;
       });
     }
 
@@ -555,7 +540,7 @@ export class GasFeeController extends PollingController<
    * @returns A promise that resolves when this operation completes.
    */
   async _executePoll(networkClientId: string): Promise<void> {
-    await this.#fetchGasFeeEstimateForNetworkClientId(networkClientId);
+    await this._fetchGasFeeEstimateData({ networkClientId });
   }
 
   private resetState() {
