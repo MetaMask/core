@@ -207,17 +207,16 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
   repo_name(RepoUrl, _).
   WorkspaceCwd \= '.'.
 
-% The license for all published packages must be MIT unless otherwise specified.
+% The license for published packages must be MIT unless otherwise specified.
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd \= 'packages/json-rpc-engine',
   WorkspaceCwd \= 'packages/eth-json-rpc-provider'.
 % The following published packages use an ISC license instead of MIT.
 gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd == 'packages/json-rpc-engine',
   WorkspaceCwd == 'packages/eth-json-rpc-provider'.
-% Non-published packages do not have a license.
-gen_enforced_field(WorkspaceCwd, 'license', null) :-
-  workspace_field(WorkspaceCwd, 'private', true).
 
 % The entrypoint for all published packages must be the same.
 gen_enforced_field(WorkspaceCwd, 'main', './dist/index.js') :-
