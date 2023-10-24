@@ -7,7 +7,8 @@
   },
   "references": [
     { "path": "../base-controller/tsconfig.build.json" },
-    { "path": "../controller-utils/tsconfig.build.json" }
+    { "path": "../controller-utils/tsconfig.build.json" },
+    { "path": "../eth-json-rpc-provider/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }

@@ -1,5 +1,5 @@
-import { ENSNameProvider } from './ens';
 import { NameType } from '../types';
+import { ENSNameProvider } from './ens';
 
 jest.mock('../util');
 
@@ -39,7 +39,7 @@ describe('ENSNameProvider', () => {
 
       const response = await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
@@ -59,12 +59,47 @@ describe('ENSNameProvider', () => {
 
       await provider.getProposedNames({
         value: VALUE_MOCK,
-        chainId: CHAIN_ID_MOCK,
+        variation: CHAIN_ID_MOCK,
         type: NameType.ETHEREUM_ADDRESS,
       });
 
       expect(reverseLookupMock).toHaveBeenCalledTimes(1);
       expect(reverseLookupMock).toHaveBeenCalledWith(VALUE_MOCK, CHAIN_ID_MOCK);
+    });
+
+    it('returns empty result if disabled', async () => {
+      const provider = new ENSNameProvider({
+        ...CONSTRUCTOR_ARGS_MOCK,
+        isEnabled: () => false,
+      });
+
+      const response = await provider.getProposedNames({
+        value: VALUE_MOCK,
+        variation: CHAIN_ID_MOCK,
+        type: NameType.ETHEREUM_ADDRESS,
+      });
+
+      expect(response).toStrictEqual({
+        results: { [SOURCE_ID]: { proposedNames: [] } },
+      });
+    });
+
+    it('throws if callback fails', async () => {
+      const reverseLookupMock = jest.fn().mockImplementation(() => {
+        throw new Error('TestError');
+      });
+
+      const provider = new ENSNameProvider({
+        reverseLookup: reverseLookupMock,
+      });
+
+      await expect(
+        provider.getProposedNames({
+          value: VALUE_MOCK,
+          variation: CHAIN_ID_MOCK,
+          type: NameType.ETHEREUM_ADDRESS,
+        }),
+      ).rejects.toThrow('TestError');
     });
   });
 });

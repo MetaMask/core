@@ -2,7 +2,6 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseControllerV2 } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
-  convertHexToDecimal,
   NetworksTicker,
   ChainId,
   InfuraNetworkType,
@@ -10,6 +9,7 @@ import {
   isSafeChainId,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
@@ -17,10 +17,8 @@ import {
   assertIsStrictHexString,
   hasProperty,
   isPlainObject,
-  isStrictHexString,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
-import { errorCodes } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 import { v4 as random } from 'uuid';
 
@@ -175,25 +173,6 @@ function pick<Obj extends Record<any, any>, Keys extends keyof Obj>(
 }
 
 /**
- * Convert the given value into a valid network ID. The ID is accepted
- * as either a number, a decimal string, or a 0x-prefixed hex string.
- *
- * @param value - The network ID to convert, in an unknown format.
- * @returns A valid network ID (as a decimal string)
- * @throws If the given value cannot be safely parsed.
- */
-function convertNetworkId(value: unknown): NetworkId {
-  if (typeof value === 'number' && !Number.isNaN(value)) {
-    return `${value}`;
-  } else if (isStrictHexString(value)) {
-    return `${convertHexToDecimal(value)}`;
-  } else if (typeof value === 'string' && /^\d+$/u.test(value)) {
-    return value as NetworkId;
-  }
-  throw new Error(`Cannot parse as a valid network ID: '${value}'`);
-}
-
-/**
  * Type guard for determining whether the given value is an error object with a
  * `code` property, such as an instance of Error.
  *
@@ -344,22 +323,15 @@ export type NetworksMetadata = {
 };
 
 /**
- * The network ID of a network.
- */
-export type NetworkId = `${number}`;
-
-/**
  * @type NetworkState
  *
  * Network controller state
- * @property network - Network ID as per net_version of the currently connected network
  * @property providerConfig - RPC URL and network name provider settings of the currently connected network
  * @property properties - an additional set of network properties for the currently connected network
  * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
  */
 export type NetworkState = {
   selectedNetworkClientId: NetworkClientId;
-  networkId: NetworkId | null;
   providerConfig: ProviderConfig;
   networkConfigurations: NetworkConfigurations;
   networksMetadata: NetworksMetadata;
@@ -453,10 +425,40 @@ export type NetworkControllerGetEthQueryAction = {
   handler: () => EthQuery | undefined;
 };
 
+export type NetworkControllerGetNetworkClientByIdAction = {
+  type: `NetworkController:getNetworkClientById`;
+  handler: NetworkController['getNetworkClientById'];
+};
+
+export type NetworkControllerGetEIP1559CompatibilityAction = {
+  type: `NetworkController:getEIP1559Compatibility`;
+  handler: NetworkController['getEIP1559Compatibility'];
+};
+
+export type NetworkControllerFindNetworkClientIdByChainIdAction = {
+  type: `NetworkController:findNetworkClientIdByChainId`;
+  handler: NetworkController['findNetworkClientIdByChainId'];
+};
+
+export type NetworkControllerSetProviderTypeAction = {
+  type: `NetworkController:setProviderType`;
+  handler: NetworkController['setProviderType'];
+};
+
+export type NetworkControllerSetActiveNetworkAction = {
+  type: `NetworkController:setActiveNetwork`;
+  handler: NetworkController['setActiveNetwork'];
+};
+
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetProviderConfigAction
-  | NetworkControllerGetEthQueryAction;
+  | NetworkControllerGetEthQueryAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetEIP1559CompatibilityAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerSetActiveNetworkAction
+  | NetworkControllerSetProviderTypeAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -475,7 +477,6 @@ export type NetworkControllerOptions = {
 
 export const defaultState: NetworkState = {
   selectedNetworkClientId: NetworkType.mainnet,
-  networkId: null,
   providerConfig: {
     type: NetworkType.mainnet,
     chainId: ChainId.mainnet,
@@ -562,10 +563,6 @@ export class NetworkController extends BaseControllerV2<
           persist: true,
           anonymous: false,
         },
-        networkId: {
-          persist: true,
-          anonymous: false,
-        },
         networksMetadata: {
           persist: true,
           anonymous: false,
@@ -599,6 +596,31 @@ export class NetworkController extends BaseControllerV2<
       () => {
         return this.#ethQuery;
       },
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getNetworkClientById`,
+      this.getNetworkClientById.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getEIP1559Compatibility`,
+      this.getEIP1559Compatibility.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:setActiveNetwork`,
+      this.setActiveNetwork.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:setProviderType`,
+      this.setProviderType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:findNetworkClientIdByChainId`,
+      this.findNetworkClientIdByChainId.bind(this),
     );
 
     this.#previousProviderConfig = this.state.providerConfig;
@@ -708,9 +730,6 @@ export class NetworkController extends BaseControllerV2<
    */
   async #refreshNetwork() {
     this.messagingSystem.publish('NetworkController:networkWillChange');
-    this.update((state) => {
-      state.networkId = null;
-    });
     this.#applyNetworkSelection();
     this.messagingSystem.publish('NetworkController:networkDidChange');
     await this.lookupNetwork();
@@ -728,32 +747,75 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Fetches the network ID for the network, ensuring that it is a hex string.
+   * Refreshes the network meta with EIP-1559 support and the network status
+   * based on the given network client ID.
    *
-   * @returns A promise that either resolves to the network ID, or rejects with
-   * an error.
-   * @throws If the network ID of the network is not a valid hex string.
+   * @param networkClientId - The ID of the network client to update.
    */
-  async #getNetworkId(): Promise<NetworkId> {
-    const possibleNetworkId = await new Promise<string>((resolve, reject) => {
-      if (!this.#ethQuery) {
-        throw new Error('Provider has not been initialized');
-      }
+  async lookupNetworkByClientId(networkClientId: NetworkClientId) {
+    const isInfura = isInfuraProviderType(networkClientId);
+    let updatedNetworkStatus: NetworkStatus;
+    let updatedIsEIP1559Compatible: boolean | undefined;
 
-      this.#ethQuery.sendAsync(
-        { method: 'net_version' },
-        (error: unknown, result?: unknown) => {
-          if (error) {
-            reject(error);
-          } else {
-            // TODO: Validate this type
-            resolve(result as string);
-          }
-        },
+    try {
+      updatedIsEIP1559Compatible = await this.#determineEIP1559Compatibility(
+        networkClientId,
       );
-    });
+      updatedNetworkStatus = NetworkStatus.Available;
+    } catch (error) {
+      if (isErrorWithCode(error)) {
+        let responseBody;
+        if (
+          isInfura &&
+          hasProperty(error, 'message') &&
+          typeof error.message === 'string'
+        ) {
+          try {
+            responseBody = JSON.parse(error.message);
+          } catch {
+            // error.message must not be JSON
+          }
+        }
 
-    return convertNetworkId(possibleNetworkId);
+        if (
+          isPlainObject(responseBody) &&
+          responseBody.error === INFURA_BLOCKED_KEY
+        ) {
+          updatedNetworkStatus = NetworkStatus.Blocked;
+        } else if (error.code === errorCodes.rpc.internal) {
+          updatedNetworkStatus = NetworkStatus.Unknown;
+        } else {
+          updatedNetworkStatus = NetworkStatus.Unavailable;
+        }
+      } else if (
+        typeof Error !== 'undefined' &&
+        hasProperty(error as unknown as Error, 'message') &&
+        typeof (error as unknown as Error).message === 'string' &&
+        (error as unknown as Error).message.includes(
+          'No custom network client was found with the ID',
+        )
+      ) {
+        throw error;
+      } else {
+        log('NetworkController - could not determine network status', error);
+        updatedNetworkStatus = NetworkStatus.Unknown;
+      }
+    }
+    this.update((state) => {
+      if (state.networksMetadata[networkClientId] === undefined) {
+        state.networksMetadata[networkClientId] = {
+          status: NetworkStatus.Unknown,
+          EIPS: {},
+        };
+      }
+      const meta = state.networksMetadata[networkClientId];
+      meta.status = updatedNetworkStatus;
+      if (updatedIsEIP1559Compatible === undefined) {
+        delete meta.EIPS[1559];
+      } else {
+        meta.EIPS[1559] = updatedIsEIP1559Compatible;
+      }
+    });
   }
 
   /**
@@ -762,12 +824,19 @@ export class NetworkController extends BaseControllerV2<
    * stores whether the network supports EIP-1559; otherwise clears said
    * information about the network that may have been previously stored.
    *
+   * @param networkClientId - (Optional) The ID of the network client to update.
+   * If no ID is provided, uses the currently selected network.
    * @fires infuraIsBlocked if the network is Infura-supported and is blocking
    * requests.
    * @fires infuraIsUnblocked if the network is Infura-supported and is not
    * blocking requests, or if the network is not Infura-supported.
    */
-  async lookupNetwork() {
+  async lookupNetwork(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      await this.lookupNetworkByClientId(networkClientId);
+      return;
+    }
+
     if (!this.#ethQuery) {
       return;
     }
@@ -788,16 +857,13 @@ export class NetworkController extends BaseControllerV2<
     );
 
     let updatedNetworkStatus: NetworkStatus;
-    let updatedNetworkId: NetworkId | null = null;
     let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
-      const [networkId, isEIP1559Compatible] = await Promise.all([
-        this.#getNetworkId(),
-        this.#determineEIP1559Compatibility(),
-      ]);
+      const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
+        this.state.selectedNetworkClientId,
+      );
       updatedNetworkStatus = NetworkStatus.Available;
-      updatedNetworkId = networkId;
       updatedIsEIP1559Compatible = isEIP1559Compatible;
     } catch (error) {
       if (isErrorWithCode(error)) {
@@ -841,7 +907,6 @@ export class NetworkController extends BaseControllerV2<
     );
 
     this.update((state) => {
-      state.networkId = updatedNetworkId;
       const meta = state.networksMetadata[state.selectedNetworkClientId];
       meta.status = updatedNetworkStatus;
       if (updatedIsEIP1559Compatible === undefined) {
@@ -938,16 +1003,21 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Fetches the latest block for the network.
    *
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check the latest block. Defaults to the selectedNetworkClientId.
    * @returns A promise that either resolves to the block header or null if
    * there is no latest block, or rejects with an error.
    */
-  #getLatestBlock(): Promise<Block> {
-    return new Promise((resolve, reject) => {
-      if (!this.#ethQuery) {
-        throw new Error('Provider has not been initialized');
-      }
+  #getLatestBlock(networkClientId: NetworkClientId): Promise<Block> {
+    if (networkClientId === undefined) {
+      networkClientId = this.state.selectedNetworkClientId;
+    }
 
-      this.#ethQuery.sendAsync(
+    const networkClient = this.getNetworkClientById(networkClientId);
+    // @ts-expect-error TODO: Provider type alignment
+    const ethQuery = new EthQuery(networkClient.provider);
+
+    return new Promise((resolve, reject) => {
+      ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
           if (error) {
@@ -966,10 +1036,14 @@ export class NetworkController extends BaseControllerV2<
    * latest block has a `baseFeePerGas` property, then updates state
    * appropriately.
    *
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check 1559 compatibility.
    * @returns A promise that resolves to true if the network supports EIP-1559
    * , false otherwise, or `undefined` if unable to determine the compatibility.
    */
-  async getEIP1559Compatibility() {
+  async getEIP1559Compatibility(networkClientId?: NetworkClientId) {
+    if (networkClientId) {
+      return this.get1559CompatibilityWithNetworkClientId(networkClientId);
+    }
     if (!this.#ethQuery) {
       return false;
     }
@@ -981,7 +1055,9 @@ export class NetworkController extends BaseControllerV2<
       return EIPS[1559];
     }
 
-    const isEIP1559Compatible = await this.#determineEIP1559Compatibility();
+    const isEIP1559Compatible = await this.#determineEIP1559Compatibility(
+      this.state.selectedNetworkClientId,
+    );
     this.update((state) => {
       if (isEIP1559Compatible !== undefined) {
         state.networksMetadata[state.selectedNetworkClientId].EIPS[1559] =
@@ -991,16 +1067,33 @@ export class NetworkController extends BaseControllerV2<
     return isEIP1559Compatible;
   }
 
+  async get1559CompatibilityWithNetworkClientId(
+    networkClientId: NetworkClientId,
+  ) {
+    let metadata = this.state.networksMetadata[networkClientId];
+    if (metadata === undefined) {
+      await this.lookupNetwork(networkClientId);
+      metadata = this.state.networksMetadata[networkClientId];
+    }
+    const { EIPS } = metadata;
+
+    // may want to include some 'freshness' value - something to make sure we refetch this from time to time
+    return EIPS[1559];
+  }
+
   /**
    * Retrieves and checks the latest block from the currently selected
    * network; if the block has a `baseFeePerGas` property, then we know
    * that the network supports EIP-1559; otherwise it doesn't.
    *
+   * @param networkClientId - The networkClientId to fetch the correct provider against which to check 1559 compatibility
    * @returns A promise that resolves to `true` if the network supports EIP-1559,
    * `false` otherwise, or `undefined` if unable to retrieve the last block.
    */
-  async #determineEIP1559Compatibility(): Promise<boolean | undefined> {
-    const latestBlock = await this.#getLatestBlock();
+  async #determineEIP1559Compatibility(
+    networkClientId: NetworkClientId,
+  ): Promise<boolean | undefined> {
+    const latestBlock = await this.#getLatestBlock(networkClientId);
 
     if (!latestBlock) {
       return undefined;
@@ -1130,6 +1223,7 @@ export class NetworkController extends BaseControllerV2<
           type: NetworkClientType.Custom,
           chainId,
           rpcUrl,
+          ticker,
         });
     }
 
@@ -1320,6 +1414,7 @@ export class NetworkController extends BaseControllerV2<
         network,
         infuraProjectId: this.#infuraProjectId,
         chainId: BUILT_IN_NETWORKS[network].chainId,
+        ticker: BUILT_IN_NETWORKS[network].ticker,
       };
       return [
         NetworkClientType.Infura,
@@ -1355,6 +1450,7 @@ export class NetworkController extends BaseControllerV2<
           type: NetworkClientType.Custom,
           chainId: networkConfiguration.chainId,
           rpcUrl: networkConfiguration.rpcUrl,
+          ticker: networkConfiguration.ticker,
         };
         return [
           NetworkClientType.Custom,
@@ -1394,6 +1490,7 @@ export class NetworkController extends BaseControllerV2<
         chainId: providerConfig.chainId,
         rpcUrl: providerConfig.rpcUrl,
         type: NetworkClientType.Custom,
+        ticker: providerConfig.ticker,
       };
       return [
         [NetworkClientType.Custom, networkClientId, networkClientConfiguration],
@@ -1486,6 +1583,7 @@ export class NetworkController extends BaseControllerV2<
       });
     }
 
+    // @ts-expect-error TODO: Provider type alignment
     this.#ethQuery = new EthQuery(this.#providerProxy);
   }
 }
