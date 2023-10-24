@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@metamask/approval-controller": "^4.0.1",
-    "@metamask/auto-changelog": "^3.4.0",
+    "@metamask/auto-changelog": "^3.4.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
