@@ -41,7 +41,7 @@
     "@metamask/utils": "^8.1.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.0",
+    "@metamask/auto-changelog": "^3.4.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "depcheck": "^1.4.3",
