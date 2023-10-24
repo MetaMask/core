@@ -615,7 +615,7 @@ describe('TokenDetectionController', () => {
       });
       await Promise.all([
         jest.advanceTimersByTime(DEFAULT_INTERVAL),
-        flushPromises()
+        flushPromises(),
       ]);
       expect(spy.mock.calls).toMatchObject([
         [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
