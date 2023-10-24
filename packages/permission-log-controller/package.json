@@ -30,9 +30,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^3.2.3",
-    "@metamask/controller-utils": "^5.0.2",
     "@metamask/json-rpc-engine": "^7.1.1",
-    "@metamask/obs-store": "^8.1.0",
     "@metamask/utils": "^8.1.0"
   },
   "devDependencies": {
