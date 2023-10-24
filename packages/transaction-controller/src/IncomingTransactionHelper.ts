@@ -205,10 +205,7 @@ export class IncomingTransactionHelper {
     localTxs: TransactionMeta[],
   ): TransactionMeta[] {
     return remoteTxs.filter(
-      (tx) =>
-        !localTxs.some(
-          ({ transactionHash }) => transactionHash === tx.transactionHash,
-        ),
+      (tx) => !localTxs.some(({ hash }) => hash === tx.hash),
     );
   }
 
@@ -219,7 +216,7 @@ export class IncomingTransactionHelper {
     return remoteTxs.filter((remoteTx) =>
       localTxs.some(
         (localTx) =>
-          remoteTx.transactionHash === localTx.transactionHash &&
+          remoteTx.hash === localTx.hash &&
           this.#isTransactionOutdated(remoteTx, localTx),
       ),
     );
