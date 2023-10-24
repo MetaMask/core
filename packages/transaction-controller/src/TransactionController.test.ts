@@ -1727,6 +1727,20 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('getNonceLock', () => {
+    it('gets the next nonce according to the nonce-tracker', async () => {
+      const controller = newController({
+        network: MOCK_LINEA_MAINNET_NETWORK,
+      });
+
+      const { nextNonce } = await controller.getNonceLock(ACCOUNT_MOCK);
+
+      expect(getNonceLockSpy).toHaveBeenCalledTimes(1);
+      expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(nextNonce).toBe(NONCE_MOCK);
+    });
+  });
+
   describe('initApprovals', () => {
     it('creates approvals for all unapproved transaction', async () => {
       const txParams = {

@@ -35,6 +35,7 @@ import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { merge, pickBy } from 'lodash';
 import NonceTracker from 'nonce-tracker';
+import type { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 import { v1 as random } from 'uuid';
 
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
@@ -264,6 +265,8 @@ export class TransactionController extends BaseController<
    * @param options.incomingTransactions.updateTransactions - Whether to update local transactions using remote transaction data.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.pendingTransactions - Configuration options for pending transaction support.
+   * @param options.pendingTransactions.isResubmitEnabled - Whether transaction publishing is automatically retried.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param config - Initial options used to configure this controller.
@@ -283,6 +286,7 @@ export class TransactionController extends BaseController<
       incomingTransactions = {},
       messenger,
       onNetworkStateChange,
+      pendingTransactions = {},
       provider,
       securityProviderRequest,
     }: {
@@ -303,6 +307,9 @@ export class TransactionController extends BaseController<
       };
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
+      pendingTransactions: {
+        isResubmitEnabled?: boolean;
+      };
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
     },
@@ -388,6 +395,8 @@ export class TransactionController extends BaseController<
       getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
+      isResubmitEnabled: pendingTransactions.isResubmitEnabled,
+      nonceTracker: this.nonceTracker,
       onStateChange: this.subscribe.bind(this),
       publishTransaction: this.publishTransaction.bind(this),
     });
@@ -1083,6 +1092,17 @@ export class TransactionController extends BaseController<
     );
 
     return this.getTransaction(transactionId) as TransactionMeta;
+  }
+
+  /**
+   * Gets the next nonce according to the nonce-tracker.
+   * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
+   *
+   * @param address - The hex string address for the transaction.
+   * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
+   */
+  async getNonceLock(address: string): Promise<NonceLock> {
+    return this.nonceTracker.getNonceLock(address);
   }
 
   private async processApproval(

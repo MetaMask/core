@@ -2,6 +2,7 @@
 
 import { query } from '@metamask/controller-utils';
 import type { BlockTracker } from '@metamask/network-controller';
+import type NonceTracker from 'nonce-tracker';
 
 import { TransactionStatus } from '../types';
 import { PendingTransactionTracker } from './PendingTransactionTracker';
@@ -45,6 +46,12 @@ function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
   } as any;
 }
 
+function createNonceTrackerMock(): jest.Mocked<NonceTracker> {
+  return {
+    getGlobalLock: () => Promise.resolve({ releaseLock: jest.fn() }),
+  } as any;
+}
+
 describe('PendingTransactionTracker', () => {
   const queryMock = jest.mocked(query);
   let blockTracker: jest.Mocked<BlockTracker>;
@@ -74,6 +81,7 @@ describe('PendingTransactionTracker', () => {
       getChainId: () => CHAIN_ID_MOCK,
       getEthQuery: () => ({}),
       getTransactions: () => [],
+      nonceTracker: createNonceTrackerMock(),
       onStateChange,
       publishTransaction: jest.fn(),
     };

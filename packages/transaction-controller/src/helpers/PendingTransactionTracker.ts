@@ -2,6 +2,7 @@ import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import EventEmitter from 'events';
+import type NonceTracker from 'nonce-tracker';
 
 import { pendingTransactionsLogger as log } from '../logger';
 import type { TransactionState } from '../TransactionController';
@@ -60,6 +61,8 @@ export class PendingTransactionTracker {
 
   #listener: any;
 
+  #nonceTracker: NonceTracker;
+
   #onStateChange: (listener: (state: TransactionState) => void) => void;
 
   #publishTransaction: (rawTx: string) => Promise<string>;
@@ -73,6 +76,7 @@ export class PendingTransactionTracker {
     getEthQuery,
     getTransactions,
     isResubmitEnabled,
+    nonceTracker,
     onStateChange,
     publishTransaction,
   }: {
@@ -82,6 +86,7 @@ export class PendingTransactionTracker {
     getEthQuery: () => EthQuery;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: boolean;
+    nonceTracker: NonceTracker;
     onStateChange: (listener: (state: TransactionState) => void) => void;
     publishTransaction: (rawTx: string) => Promise<string>;
   }) {
@@ -95,6 +100,7 @@ export class PendingTransactionTracker {
     this.#getTransactions = getTransactions;
     this.#isResubmitEnabled = isResubmitEnabled ?? true;
     this.#listener = this.#onLatestBlock.bind(this);
+    this.#nonceTracker = nonceTracker;
     this.#onStateChange = onStateChange;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
@@ -135,11 +141,15 @@ export class PendingTransactionTracker {
   }
 
   async #onLatestBlock(latestBlockNumber: string) {
+    const nonceGlobalLock = await this.#nonceTracker.getGlobalLock();
+
     try {
       await this.#checkTransactions();
     } catch (error) {
       /* istanbul ignore next */
       log('Failed to check transactions', error);
+    } finally {
+      nonceGlobalLock.releaseLock();
     }
 
     try {
@@ -156,6 +166,7 @@ export class PendingTransactionTracker {
     const pendingTransactions = this.#getPendingTransactions();
 
     if (!pendingTransactions.length) {
+      log('No pending transactions to check');
       return;
     }
 
@@ -170,7 +181,7 @@ export class PendingTransactionTracker {
   }
 
   async #resubmitTransactions(latestBlockNumber: string) {
-    if (!this.#isResubmitEnabled) {
+    if (!this.#isResubmitEnabled || !this.#running) {
       return;
     }
 
@@ -179,6 +190,7 @@ export class PendingTransactionTracker {
     const pendingTransactions = this.#getPendingTransactions();
 
     if (!pendingTransactions.length) {
+      log('No pending transactions to resubmit');
       return;
     }
 
