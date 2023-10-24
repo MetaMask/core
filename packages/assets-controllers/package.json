@@ -34,7 +34,7 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/abi-utils": "^2.0.2",
-    "@metamask/approval-controller": "^4.0.1",
+    "@metamask/approval-controller": "^4.1.0",
     "@metamask/base-controller": "^3.2.3",
     "@metamask/contract-metadata": "^2.3.1",
     "@metamask/controller-utils": "^5.0.2",
@@ -69,7 +69,7 @@
     "typescript": "~4.8.4"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^4.0.1",
+    "@metamask/approval-controller": "^4.1.0",
     "@metamask/network-controller": "^15.0.0",
     "@metamask/preferences-controller": "^4.4.3"
   },
