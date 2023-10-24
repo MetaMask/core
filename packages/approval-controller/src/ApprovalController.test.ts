@@ -1221,8 +1221,8 @@ describe('approval controller', () => {
       },
     );
 
-    it('does not call showApprovalRequest if showOnFirstRequest is enabled', () => {
-      const result = approvalController.startFlow({ showOnFirstRequest: true });
+    it('does not call showApprovalRequest if show is false', () => {
+      const result = approvalController.startFlow({ show: false });
 
       const expectedFlow = {
         id: expect.any(String),
