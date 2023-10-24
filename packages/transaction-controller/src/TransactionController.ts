@@ -41,11 +41,10 @@ import { v1 as random } from 'uuid';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import { validateConfirmedExternalTransaction } from './external-transactions';
 import { estimateGas, updateGas } from './gas';
-import { updateGasFees } from './gasFees';
+import { updateGasFees } from './gas-fees';
 import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
 import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { projectLogger as log } from './logger';
-import { pendingTransactionsLogger } from './logger';
 import { PendingTransactionTracker } from './PendingTransactionTracker';
 import { determineTransactionType } from './transaction-type';
 import type {
@@ -393,32 +392,22 @@ export class TransactionController extends BaseController<
     );
 
     this.pendingTransactionTracker = new PendingTransactionTracker({
+      approveTransaction: this.approveTransaction.bind(this),
       blockTracker,
-      failTransaction: this.failTransaction.bind(this),
       getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
-      nonceTracker: this.nonceTracker,
+      onStateChange: this.subscribe.bind(this),
+      publishTransaction: this.publishTransaction.bind(this),
     });
 
-    this.pendingTransactionTracker.hub.on(
-      'transactions',
-      this.onPendingTransactionsUpdate.bind(this),
-    );
-
-    this.pendingTransactionTracker.hub.on(
-      'transaction-confirmed',
-      (transactionMeta: TransactionMeta) =>
-        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta),
-    );
+    this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
       // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
-
-    this.pendingTransactionTracker.start();
   }
 
   /**
@@ -1303,7 +1292,7 @@ export class TransactionController extends BaseController<
         'TransactionController#approveTransaction - RawTransaction added',
       );
 
-      const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+      const hash = await this.publishTransaction(rawTx);
       transactionMeta.hash = hash;
 
       log('Submitted transaction', { txParams, rawTx, hash });
@@ -1326,6 +1315,10 @@ export class TransactionController extends BaseController<
       }
       releaseLock();
     }
+  }
+
+  private async publishTransaction(rawTransaction: string): Promise<string> {
+    return await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
   }
 
   /**
@@ -1554,11 +1547,6 @@ export class TransactionController extends BaseController<
   }) {
     this.update({ lastFetchedBlockNumbers });
     this.hub.emit('incomingTransactionBlock', blockNumber);
-  }
-
-  private onPendingTransactionsUpdate(transactions: TransactionMeta[]) {
-    pendingTransactionsLogger('Updated pending transactions');
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
   private generateDappSuggestedGasFees(
@@ -1977,6 +1965,29 @@ export class TransactionController extends BaseController<
     });
 
     return merge(txMeta, swapTransaction);
+  }
+
+  private addPendingTransactionTrackerListeners() {
+    this.pendingTransactionTracker.hub.on(
+      'transaction-confirmed',
+      (transactionMeta: TransactionMeta) =>
+        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-dropped',
+      this.setTransactionStatusDropped.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-failed',
+      this.failTransaction.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-updated',
+      this.updateTransaction.bind(this),
+    );
   }
 }
 
