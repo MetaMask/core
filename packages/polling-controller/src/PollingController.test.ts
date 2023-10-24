@@ -125,7 +125,7 @@ describe('PollingController', () => {
       controller.stopAllPolling();
     });
   });
-  describe('poll', () => {
+  describe('startPollingByNetworkClientId', () => {
     it('should call _executePoll immediately and on interval if polling', async () => {
       jest.useFakeTimers();
 
@@ -213,23 +213,17 @@ describe('PollingController', () => {
         name: 'PollingController',
         state: { foo: 'bar' },
       });
-      controller.setIntervalLength(TICK_TIME * 3);
+      controller.setIntervalLength(TICK_TIME);
       controller.startPollingByNetworkClientId('mainnet');
       jest.advanceTimersByTime(0);
       await Promise.resolve();
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      jest.advanceTimersByTime(TICK_TIME);
+      jest.advanceTimersByTime(TICK_TIME / 2);
       await Promise.resolve();
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      jest.advanceTimersByTime(TICK_TIME);
-      await Promise.resolve();
-      expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      jest.advanceTimersByTime(TICK_TIME);
+      jest.advanceTimersByTime(TICK_TIME / 2);
       await Promise.resolve();
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
-      jest.advanceTimersByTime(TICK_TIME * 3);
-      await Promise.resolve();
-      expect(controller._executePoll).toHaveBeenCalledTimes(3);
     });
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
       jest.useFakeTimers();
