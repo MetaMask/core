@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.1.0]
-### Uncategorized
-- Request Queue Controller ([#1806](https://github.com/MetaMask/core.git/pull/1806))
-- Bump @metamask/auto-changelog from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core.git/pull/1870))
+### Added
+- Add `getProviderAndBlockTracker` method to get a proxy provider from `NetworkController` for a given origin/domain. ([#1806](https://github.com/MetaMask/core/pull/1806))
+
+### Changed
+- No longer update `selectedNetworkClientId` when the `NetworkController` provider changes. ([#1806](https://github.com/MetaMask/core/pull/1806))
+- Bump @metamask/auto-changelog from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core/pull/1870))
 
 ## [3.0.0]
 ### Changed
@@ -33,9 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.1.0...HEAD
-[3.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@3.0.0...@metamask/selected-network-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@2.0.1...@metamask/selected-network-controller@3.0.0
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@2.0.0...@metamask/selected-network-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@1.0.0...@metamask/selected-network-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/selected-network-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@3.0.0...@metamask/selected-network-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@2.0.1...@metamask/selected-network-controller@3.0.0
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@2.0.0...@metamask/selected-network-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@1.0.0...@metamask/selected-network-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/selected-network-controller@1.0.0

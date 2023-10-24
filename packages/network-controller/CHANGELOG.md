@@ -7,12 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [15.1.0]
-### Uncategorized
-- Request Queue Controller ([#1806](https://github.com/MetaMask/core.git/pull/1806))
-- import from dist not src ([#1887](https://github.com/MetaMask/core.git/pull/1887))
-- Bump @metamask/auto-changelog from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core.git/pull/1870))
-- Record CHANGELOG entries from `eth-json-rpc-provider` migration ([#1855](https://github.com/MetaMask/core.git/pull/1855))
-- Add `ticker` to `NetworkClientConfiguration` ([#1794](https://github.com/MetaMask/core.git/pull/1794))
+### Added
+- Add and export types for `NetworkControllerFindNetworkClientIdByChainIdAction`, `NetworkControllerSetProviderTypeAction`, `NetworkControllerSetActiveNetworkAction` and register action handlers for each ([#1806](https://github.com/MetaMask/core/pull/1806))
+- Add `ticker` to `NetworkClientConfiguration` ([#1794](https://github.com/MetaMask/core/pull/1794))
+- Bump `@metamask/auto-changelog` from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core/pull/1870))
 
 ### Changed
 - Bump dependency on `@metamask/eth-json-rpc-provider` to ^2.2.0 ([#1738](https://github.com/MetaMask/core/pull/1738))
@@ -298,29 +296,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@15.1.0...HEAD
-[15.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@15.0.0...@metamask/network-controller@15.1.0
-[15.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@14.0.0...@metamask/network-controller@15.0.0
-[14.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@13.0.1...@metamask/network-controller@14.0.0
-[13.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@13.0.0...@metamask/network-controller@13.0.1
-[13.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@12.2.0...@metamask/network-controller@13.0.0
-[12.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@12.1.2...@metamask/network-controller@12.2.0
-[12.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@12.1.1...@metamask/network-controller@12.1.2
-[12.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@12.1.0...@metamask/network-controller@12.1.1
-[12.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@12.0.0...@metamask/network-controller@12.1.0
-[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@11.0.0...@metamask/network-controller@12.0.0
-[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@10.3.1...@metamask/network-controller@11.0.0
-[10.3.1]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@10.3.0...@metamask/network-controller@10.3.1
-[10.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@10.2.0...@metamask/network-controller@10.3.0
-[10.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@10.1.0...@metamask/network-controller@10.2.0
-[10.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@10.0.0...@metamask/network-controller@10.1.0
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@9.0.0...@metamask/network-controller@10.0.0
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@8.0.0...@metamask/network-controller@9.0.0
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@7.0.0...@metamask/network-controller@8.0.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@6.0.0...@metamask/network-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@5.0.0...@metamask/network-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@4.0.0...@metamask/network-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@3.0.0...@metamask/network-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/network-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.1.0...HEAD
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@15.0.0...@metamask/network-controller@15.1.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@14.0.0...@metamask/network-controller@15.0.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.1...@metamask/network-controller@14.0.0
+[13.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@13.0.0...@metamask/network-controller@13.0.1
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.2.0...@metamask/network-controller@13.0.0
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.2...@metamask/network-controller@12.2.0
+[12.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.1...@metamask/network-controller@12.1.2
+[12.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.1.0...@metamask/network-controller@12.1.1
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@12.0.0...@metamask/network-controller@12.1.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@11.0.0...@metamask/network-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.1...@metamask/network-controller@11.0.0
+[10.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.3.0...@metamask/network-controller@10.3.1
+[10.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.2.0...@metamask/network-controller@10.3.0
+[10.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.1.0...@metamask/network-controller@10.2.0
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@10.0.0...@metamask/network-controller@10.1.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@9.0.0...@metamask/network-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@8.0.0...@metamask/network-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@7.0.0...@metamask/network-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@6.0.0...@metamask/network-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@5.0.0...@metamask/network-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@4.0.0...@metamask/network-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@3.0.0...@metamask/network-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@2.0.0...@metamask/network-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@1.0.0...@metamask/network-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/network-controller@1.0.0

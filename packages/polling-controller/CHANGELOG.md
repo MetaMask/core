@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.3.0]
-### Uncategorized
-- Added PollingControllerOnly ([#1873](https://github.com/MetaMask/core.git/pull/1873))
-- Bump @metamask/auto-changelog from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core.git/pull/1870))
+### Added
+- Add `PollingControllerOnly` to extend from an empty class. This will allow classes that previously are just classes that don't extend from BaseV1 or V2 to extend from this new `PollingControllerOnly`. ([#1873](https://github.com/MetaMask/core/pull/1873))
+
+### Changed
+- Bump `@metamask/auto-changelog` from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core/pull/1870))
 
 ## [0.2.0]
 ### Added
@@ -27,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/polling-controller@0.3.0...HEAD
-[0.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/polling-controller@0.2.0...@metamask/polling-controller@0.3.0
-[0.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/polling-controller@0.1.0...@metamask/polling-controller@0.2.0
-[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/polling-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.2.0...@metamask/polling-controller@0.3.0
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@0.1.0...@metamask/polling-controller@0.2.0
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/polling-controller@0.1.0
