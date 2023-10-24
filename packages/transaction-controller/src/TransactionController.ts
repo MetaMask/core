@@ -49,8 +49,6 @@ import type {
   SecurityProviderRequest,
   SendFlowHistoryEntry,
   WalletDevice,
-  AddTransactionToWatchList,
-  ShouldDisablePublish,
 } from './types';
 import { TransactionType, TransactionStatus } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
@@ -209,9 +207,20 @@ export class TransactionController extends BaseController<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
-  private readonly addTransactionToWatchList?: AddTransactionToWatchList;
+  private readonly afterSign: (
+    transactionMeta: TransactionMeta,
+    signedTx: TypedTransaction,
+  ) => boolean;
 
-  private readonly shouldDisablePublish: ShouldDisablePublish;
+  private readonly beforeApproveOnInit: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
+
+  private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
+
+  private readonly getAdditionalSignArguments: (
+    transactionMeta: TransactionMeta,
+  ) => (TransactionMeta | undefined)[];
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -255,7 +264,6 @@ export class TransactionController extends BaseController<
    * Creates a TransactionController instance.
    *
    * @param options - The controller options.
-   * @param options.addTransactionToWatchList - A function to add to watch list custodian transaction.
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
@@ -274,13 +282,16 @@ export class TransactionController extends BaseController<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
-   * @param options.shouldDisablePublish - A function for verifying whether or not should skips publishing the transaction.
+   * @param options.hooks - The controller hooks.
+   * @param options.hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
+   * @param options.hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
+   * @param options.hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
+   * @param options.hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
-      addTransactionToWatchList,
       blockTracker,
       disableHistory,
       disableSendFlowHistory,
@@ -295,9 +306,8 @@ export class TransactionController extends BaseController<
       onNetworkStateChange,
       provider,
       securityProviderRequest,
-      shouldDisablePublish,
+      hooks = {},
     }: {
-      addTransactionToWatchList?: AddTransactionToWatchList;
       blockTracker: BlockTracker;
       disableHistory: boolean;
       disableSendFlowHistory: boolean;
@@ -317,7 +327,12 @@ export class TransactionController extends BaseController<
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: Provider;
       securityProviderRequest?: SecurityProviderRequest;
-      shouldDisablePublish: ShouldDisablePublish;
+      hooks: {
+        afterSign?: () => boolean;
+        beforeApproveOnInit?: () => boolean;
+        beforePublish?: () => boolean;
+        getAdditionalSignArguments?: () => (TransactionMeta | undefined)[];
+      };
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
@@ -353,8 +368,18 @@ export class TransactionController extends BaseController<
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
     this.securityProviderRequest = securityProviderRequest;
-    this.shouldDisablePublish = shouldDisablePublish;
-    this.addTransactionToWatchList = addTransactionToWatchList;
+
+    this.afterSign = hooks?.afterSign ? hooks.afterSign : () => true;
+    this.beforeApproveOnInit = hooks?.beforeApproveOnInit
+      ? hooks.beforeApproveOnInit
+      : /* istanbul ignore next */
+        () => true;
+    this.beforePublish = hooks?.beforePublish
+      ? hooks.beforePublish
+      : () => true;
+    this.getAdditionalSignArguments = hooks?.getAdditionalSignArguments
+      ? hooks.getAdditionalSignArguments
+      : () => [undefined];
 
     this.nonceTracker = new NonceTracker({
       provider,
@@ -1259,7 +1284,7 @@ export class TransactionController extends BaseController<
         delete txParams.gasPrice;
       }
 
-      if (this.shouldDisablePublish(transactionMeta)) {
+      if (!this.beforePublish(transactionMeta)) {
         transactionMeta.status = TransactionStatus.approved;
         this.updateTransaction(
           transactionMeta,
@@ -1271,20 +1296,10 @@ export class TransactionController extends BaseController<
       const signedTx = await this.sign(
         unsignedEthTx,
         from,
-        this.shouldDisablePublish(transactionMeta)
-          ? transactionMeta
-          : undefined,
+        ...this.getAdditionalSignArguments(transactionMeta),
       );
       // In certain cases, the responsibility to publish the transaction lies with the custodian
-      if (
-        this.shouldDisablePublish(transactionMeta, signedTx) &&
-        this.addTransactionToWatchList
-      ) {
-        // Add the transaction to the watch list for the custodian
-        await this.addTransactionToWatchList(
-          transactionMeta.custodyId,
-          txParams.from,
-        );
+      if (!this.afterSign(transactionMeta, signedTx)) {
         return;
       }
 

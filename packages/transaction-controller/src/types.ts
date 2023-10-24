@@ -1,4 +1,3 @@
-import type { TypedTransaction } from '@ethereumjs/tx';
 import type { Hex } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -700,21 +699,3 @@ export type DefaultGasEstimates = {
    */
   maxPriorityFeePerGas?: string;
 };
-
-/**
- * A function for verifying whether or not should skips publishing the transaction.
- */
-export type ShouldDisablePublish = (
-  txMeta: TransactionMeta,
-  signedTx?: TypedTransaction,
-) => boolean;
-
-/**
- * A function to add to watch list custodian transaction.
- */
-export type AddTransactionToWatchList = (
-  custodianTransactionId: string | undefined,
-  from?: string,
-  bufferType?: string,
-  isSignedMessage?: boolean,
-) => Promise<void>;

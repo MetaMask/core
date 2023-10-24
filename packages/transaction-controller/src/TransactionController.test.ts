@@ -483,7 +483,6 @@ describe('TransactionController', () => {
         messenger,
         onNetworkStateChange: finalNetwork.subscribe,
         provider: finalNetwork.provider,
-        shouldDisablePublish: () => false,
         ...options,
       },
       {
@@ -2369,37 +2368,42 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('with publish disabled', () => {
-    it('adds a transaction, signs and adds to watch list', async () => {
+  describe('with hooks', () => {
+    it('adds a transaction, signs and update status to `approved`', async () => {
+      const txMeta = {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      };
       const controller = newController({
         options: {
-          shouldDisablePublish: () => true,
-          addTransactionToWatchList: jest.fn(),
+          hooks: {
+            afterSign: () => false,
+            beforeApproveOnInit: () => false,
+            beforePublish: () => false,
+            getAdditionalSignArguments: () => [txMeta],
+          },
         },
       });
       const signSpy = jest.spyOn(controller, 'sign' as any);
-      const addTransactionToWatchListSpy = jest.spyOn(
-        controller,
-        'addTransactionToWatchList' as any,
-      );
+      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
 
-      await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          origin: 'origin',
-          actionId: ACTION_ID_MOCK,
-        },
-      );
+      await controller.addTransaction(txMeta, {
+        origin: 'origin',
+        actionId: ACTION_ID_MOCK,
+      });
 
       approveTransaction();
       await wait(0);
 
       const transactionMeta = controller.state.transactions[0];
       expect(signSpy).toHaveBeenCalledTimes(1);
-      expect(addTransactionToWatchListSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          txParams: expect.objectContaining(txMeta),
+        }),
+        'TransactionController#approveTransaction - Transaction approved',
+      );
       expect(transactionMeta.status).toBe(TransactionStatus.approved);
     });
   });
