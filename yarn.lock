@@ -1823,13 +1823,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider"
   dependencies:
-<<<<<<< HEAD
-    "@metamask/auto-changelog": ^3.4.0
-    "@metamask/json-rpc-engine": ^7.2.0
-=======
     "@metamask/auto-changelog": ^3.4.2
-    "@metamask/json-rpc-engine": ^7.1.1
->>>>>>> 6c5d673882afcd1165b7e1bc21925a3fcde4c75c
+    "@metamask/json-rpc-engine": ^7.2.0
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
@@ -2362,13 +2357,8 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-<<<<<<< HEAD
     "@metamask/json-rpc-engine": ^7.2.0
-    "@metamask/network-controller": ^15.0.0
-=======
-    "@metamask/json-rpc-engine": ^7.1.1
     "@metamask/network-controller": ^15.1.0
->>>>>>> 6c5d673882afcd1165b7e1bc21925a3fcde4c75c
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/selected-network-controller": ^3.1.0
     "@metamask/swappable-obj-proxy": ^2.1.0
@@ -2465,13 +2455,8 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/base-controller": ^3.2.3
-<<<<<<< HEAD
     "@metamask/json-rpc-engine": ^7.2.0
-    "@metamask/network-controller": ^15.0.0
-=======
-    "@metamask/json-rpc-engine": ^7.1.1
     "@metamask/network-controller": ^15.1.0
->>>>>>> 6c5d673882afcd1165b7e1bc21925a3fcde4c75c
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
