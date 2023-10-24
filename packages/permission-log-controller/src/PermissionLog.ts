@@ -4,7 +4,11 @@ import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
-import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
+import type {
+  JsonRpcParams,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 
 import {
   LOG_IGNORE_METHODS,
@@ -44,9 +48,11 @@ export type Caveat = {
   value: string;
 };
 
-export type EnhancedJsonRpcRequest = JsonRpcRequest<any> & {
-  id?: string;
-  origin?: string;
+export type EnhancedJsonRpcRequest<
+  Params extends JsonRpcParams = JsonRpcParams,
+> = JsonRpcRequest<Params> & {
+  id: string;
+  origin: string;
 };
 
 /**
@@ -433,7 +439,7 @@ export class PermissionLogController extends BaseControllerV2<
    * @param request - The request object.
    * @returns The names of the requested permissions.
    */
-  getRequestedMethods(request: EnhancedJsonRpcRequest): string[] | null {
+  getRequestedMethods(request: EnhancedJsonRpcRequest<any>): string[] | null {
     if (
       !request.params ||
       !request.params[0] ||
