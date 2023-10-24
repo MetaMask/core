@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.1.0]
 ### Added
-- Add and export types for `NetworkControllerFindNetworkClientIdByChainIdAction`, `NetworkControllerSetProviderTypeAction`, `NetworkControllerSetActiveNetworkAction` and register action handlers for each ([#1806](https://github.com/MetaMask/core/pull/1806))
+- Add new action handlers and associated types ([#1806](https://github.com/MetaMask/core/pull/1806))
+  - `NetworkController:setActiveNetwork` / `NetworkControllerSetActiveNetworkAction`
+  - `NetworkController:setProviderType` / `NetworkControllerSetProviderTypeAction`
+  - `NetworkController:findNetworkClientByChainId` / `NetworkControllerFindNetworkClientIdByChainIdAction`
 - Add `ticker` to `NetworkClientConfiguration` ([#1794](https://github.com/MetaMask/core/pull/1794))
 
 ### Changed
