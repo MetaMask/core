@@ -6,4 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/MetaMask/core/
+## [0.1.0]
+### Added
+- Initial release
+- Add `QueuedRequestController` class and `QueuedRequestMiddleware`.
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.0...HEAD
+[0.1.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.0
