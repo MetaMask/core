@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `PollingControllerOnly` to extend from an empty class. This will allow classes that previously are just classes that don't extend from BaseV1 or V2 to extend from this new `PollingControllerOnly`. ([#1873](https://github.com/MetaMask/core/pull/1873))
 
 ### Changed
+- **BREAKING:** `_executePoll()` is called immediately on start if no polling interval is already active for the networkClientId + options combination ([#1874](https://github.com/MetaMask/core/pull/1874))
 - Bump `@metamask/auto-changelog` from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core/pull/1870))
 
 ## [0.2.0]
