@@ -2304,6 +2304,37 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/queued-request-controller@workspace:packages/queued-request-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/queued-request-controller@workspace:packages/queued-request-controller"
+  dependencies:
+    "@metamask/approval-controller": ^4.0.1
+    "@metamask/auto-changelog": ^3.4.0
+    "@metamask/base-controller": ^3.2.3
+    "@metamask/controller-utils": ^5.0.2
+    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/network-controller": ^15.0.0
+    "@metamask/rpc-errors": ^6.1.0
+    "@metamask/selected-network-controller": ^3.0.0
+    "@metamask/swappable-obj-proxy": ^2.1.0
+    "@metamask/utils": ^8.1.0
+    "@types/jest": ^27.4.1
+    deepmerge: ^4.2.2
+    immer: ^9.0.6
+    jest: ^27.5.1
+    lodash: ^4.17.21
+    nock: ^13.3.1
+    sinon: ^9.2.4
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
+  peerDependencies:
+    "@metamask/network-controller": ^15.0.0
+    "@metamask/selected-network-controller": ^3.0.0
+  languageName: unknown
+  linkType: soft
+
 "@metamask/rate-limit-controller@workspace:packages/rate-limit-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/rate-limit-controller@workspace:packages/rate-limit-controller"
@@ -2373,7 +2404,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@^3.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
@@ -2381,6 +2412,7 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/json-rpc-engine": ^7.1.1
     "@metamask/network-controller": ^15.0.0
+    "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     immer: ^9.0.6
