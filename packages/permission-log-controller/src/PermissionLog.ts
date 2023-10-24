@@ -14,6 +14,41 @@ import {
 } from './enums';
 import { CaveatTypes } from './permissions';
 
+export type PermissionActivityLog = {
+  id: string;
+  method: string;
+  methodType: LOG_METHOD_TYPES;
+  origin: string;
+  requestTime: number;
+  responseTime: number | null;
+  success: boolean | null;
+};
+
+export type Permission = {
+  parentCapability: string;
+  caveats: Caveat[];
+};
+
+export type PermissionName = string;
+export type PermissionLog = {
+  accounts?: Record<string, number>;
+  lastApproved: number;
+};
+export type PermissionEntry = Record<PermissionName, PermissionLog>;
+
+export type PermissionOrigin = string;
+export type PermissionHistory = Record<PermissionOrigin, PermissionEntry>;
+
+export type Caveat = {
+  type: string;
+  value: string;
+};
+
+export type EnhancedJsonRpcRequest = JsonRpcRequest<any> & {
+  id?: string;
+  origin?: string;
+};
+
 /**
  * @type PermissionLogState
  *
@@ -22,8 +57,8 @@ import { CaveatTypes } from './permissions';
  * @property permissionActivityLog - permission activity logs
  */
 export type PermissionLogState = {
-  permissionHistory: Record<string, any>;
-  permissionActivityLog: any[];
+  permissionHistory: PermissionHistory;
+  permissionActivityLog: PermissionActivityLog[];
 };
 
 export type PermissionLogControllerOptions = {
@@ -89,7 +124,7 @@ export class PermissionLogController extends BaseControllerV2<
    *
    * @returns The activity log.
    */
-  getActivityLog() {
+  getActivityLog(): PermissionActivityLog[] {
     return this.state.permissionActivityLog;
   }
 
@@ -98,7 +133,7 @@ export class PermissionLogController extends BaseControllerV2<
    *
    * @param logs - The new activity log array.
    */
-  updateActivityLog(logs: any[]) {
+  updateActivityLog(logs: PermissionActivityLog[]) {
     this.update((state) => {
       state.permissionActivityLog = logs;
     });
@@ -118,7 +153,7 @@ export class PermissionLogController extends BaseControllerV2<
    *
    * @param history - The new permissions history log object.
    */
-  updateHistory(history: any) {
+  updateHistory(history: PermissionHistory) {
     this.update((state) => {
       state.permissionHistory = history;
     });
@@ -159,12 +194,12 @@ export class PermissionLogController extends BaseControllerV2<
    */
   createMiddleware() {
     return (
-      req: JsonRpcRequest,
-      res: PendingJsonRpcResponse<(string | { parentCapability: string })[]>,
+      req: EnhancedJsonRpcRequest,
+      res: PendingJsonRpcResponse<(string | Permission)[]>,
       next: JsonRpcEngineNextCallback,
-      _end: JsonRpcEngineEndCallback,
+      _end?: JsonRpcEngineEndCallback,
     ) => {
-      let activityEntry: any, requestedMethods: any;
+      let activityEntry: any, requestedMethods: string[] | null;
       const { origin, method } = req;
       const isInternal = method.startsWith(WALLET_PREFIX);
 
@@ -219,8 +254,11 @@ export class PermissionLogController extends BaseControllerV2<
    * @param isInternal - Whether the request is internal.
    * @returns new added activity entry
    */
-  logRequest(request: any, isInternal: boolean) {
-    const activityEntry = {
+  logRequest(
+    request: EnhancedJsonRpcRequest,
+    isInternal: boolean,
+  ): PermissionActivityLog {
+    const activityEntry: PermissionActivityLog = {
       id: request.id,
       method: request.method,
       methodType: isInternal
@@ -262,8 +300,8 @@ export class PermissionLogController extends BaseControllerV2<
    *
    * @param entry - The activity log entry.
    */
-  commitNewActivity(entry: any) {
-    const logs: any[] = this.getActivityLog();
+  commitNewActivity(entry: PermissionActivityLog) {
+    const logs = this.getActivityLog();
 
     // add new entry to end of log
     logs.push(entry);
@@ -288,11 +326,12 @@ export class PermissionLogController extends BaseControllerV2<
   logPermissionsHistory(
     requestedMethods: string[],
     origin: string,
-    result: (string | { parentCapability: string })[],
+    result: (string | Permission)[],
     time: number,
     isEthRequestAccounts: boolean,
   ) {
-    let accounts: string[], newEntries;
+    let accounts: string[];
+    let newEntries: PermissionEntry;
 
     if (isEthRequestAccounts) {
       accounts = result as string[];
@@ -308,7 +347,7 @@ export class PermissionLogController extends BaseControllerV2<
       // Records new "lastApproved" times for the granted permissions, if any.
       // Special handling for eth_accounts, in order to record the time the
       // accounts were last seen or approved by the origin.
-      newEntries = (result as { parentCapability: 'eth_accounts' }[])
+      newEntries = (result as Permission[])
         .map((perm) => {
           if (perm.parentCapability === 'eth_accounts') {
             accounts = this.getAccountsFromPermission(perm);
@@ -316,33 +355,24 @@ export class PermissionLogController extends BaseControllerV2<
 
           return perm.parentCapability;
         })
-        .reduce(
-          (
-            acc: Record<
-              string,
-              { lastApproved: number; accounts?: Record<string, number> }
-            >,
-            method,
-          ) => {
-            // all approved permissions will be included in the response,
-            // not just the newly requested ones
-            if (requestedMethods.includes(method)) {
-              if (method === 'eth_accounts') {
-                const accountToTimeMap = getAccountToTimeMap(accounts, time);
+        .reduce((acc: PermissionEntry, method) => {
+          // all approved permissions will be included in the response,
+          // not just the newly requested ones
+          if (requestedMethods.includes(method)) {
+            if (method === 'eth_accounts') {
+              const accountToTimeMap = getAccountToTimeMap(accounts, time);
 
-                acc[method] = {
-                  lastApproved: time,
-                  accounts: accountToTimeMap,
-                };
-              } else {
-                acc[method] = { lastApproved: time };
-              }
+              acc[method] = {
+                lastApproved: time,
+                accounts: accountToTimeMap,
+              };
+            } else {
+              acc[method] = { lastApproved: time };
             }
+          }
 
-            return acc;
-          },
-          {},
-        );
+          return acc;
+        }, {});
     }
 
     if (Object.keys(newEntries).length > 0) {
@@ -358,9 +388,12 @@ export class PermissionLogController extends BaseControllerV2<
    * @param origin - The requesting origin.
    * @param newEntries - The new entries to commit.
    */
-  commitNewHistory(origin: string, newEntries: Record<string, any>) {
+  commitNewHistory(
+    origin: string,
+    newEntries: Record<PermissionName, Partial<PermissionLog>>,
+  ) {
     // a simple merge updates most permissions
-    const history: Record<string, any> = this.getHistory();
+    const history = this.getHistory();
     const newOriginHistory = {
       ...history[origin],
       ...newEntries,
@@ -389,7 +422,7 @@ export class PermissionLogController extends BaseControllerV2<
       };
     }
 
-    history[origin] = newOriginHistory;
+    history[origin] = newOriginHistory as PermissionEntry;
 
     this.updateHistory(history);
   }
@@ -400,7 +433,7 @@ export class PermissionLogController extends BaseControllerV2<
    * @param request - The request object.
    * @returns The names of the requested permissions.
    */
-  getRequestedMethods(request: any): string[] | null {
+  getRequestedMethods(request: EnhancedJsonRpcRequest): string[] | null {
     if (
       !request.params ||
       !request.params[0] ||
@@ -417,9 +450,11 @@ export class PermissionLogController extends BaseControllerV2<
    * Returns an empty array if the permission is not eth_accounts.
    *
    * @param perm - The permissions object.
+   * @param perm.parentCapability - The permissions parentCapability.
+   * @param perm.caveats - The permissions caveats.
    * @returns The permitted accounts.
    */
-  getAccountsFromPermission(perm: any): string[] {
+  getAccountsFromPermission(perm: Permission): string[] {
     if (perm.parentCapability !== 'eth_accounts' || !perm.caveats) {
       return [];
     }

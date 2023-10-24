@@ -257,7 +257,7 @@ export const getters = deepFreeze({
      */
     metamask_sendDomainMetadata: (
       origin: string,
-      name: any,
+      name: string,
       ...args: any[]
     ) => {
       return {
