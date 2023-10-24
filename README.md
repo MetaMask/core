@@ -62,6 +62,7 @@ linkStyle default opacity:0.5
   phishing_controller(["@metamask/phishing-controller"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
+  queued_request_controller(["@metamask/queued-request-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
@@ -108,6 +109,11 @@ linkStyle default opacity:0.5
   polling_controller --> network_controller;
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
+  queued_request_controller --> base_controller;
+  queued_request_controller --> controller_utils;
+  queued_request_controller --> network_controller;
+  queued_request_controller --> selected_network_controller;
+  queued_request_controller --> approval_controller;
   rate_limit_controller --> base_controller;
   selected_network_controller --> base_controller;
   selected_network_controller --> network_controller;
@@ -120,6 +126,7 @@ linkStyle default opacity:0.5
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
 ```
 
