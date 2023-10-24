@@ -156,14 +156,14 @@ export const getters = deepFreeze({
      *
      * @param origin - The origin of the request
      * @param method - The request method
-     * @param params - The request parameters
+     * @param [params] - The request parameters
      * @param [id] - The request id
      * @returns An RPC request object
      */
     custom: (
       origin: string,
       method: string,
-      params?: any[],
+      params?: Json[],
       id?: string,
     ): JsonRpcRequestWithOrigin => {
       const req: JsonRpcRequestWithOrigin = {
@@ -278,7 +278,7 @@ export const getters = deepFreeze({
     metamask_sendDomainMetadata: (
       origin: string,
       name: string,
-      ...args: any[]
+      ...args: Json[]
     ): JsonRpcRequestWithOrigin => {
       return {
         ...JsonRpcRequestStruct.TYPE,

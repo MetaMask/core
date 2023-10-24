@@ -5,6 +5,7 @@ import type {
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
 import type {
+  Json,
   JsonRpcParams,
   JsonRpcRequest,
   PendingJsonRpcResponse,
@@ -264,7 +265,7 @@ export class PermissionLogController extends BaseControllerV2<
     request: JsonRpcRequestWithOrigin,
     isInternal: boolean,
   ): PermissionActivityLog {
-    const activityEntry: PermissionActivityLog = {
+    const activityEntry: PermissionActivityLog & { params: Json[] } = {
       id: request.id,
       method: request.method,
       methodType: isInternal
@@ -274,6 +275,7 @@ export class PermissionLogController extends BaseControllerV2<
       requestTime: Date.now(),
       responseTime: null,
       success: null,
+      params: [],
     };
     this.commitNewActivity(activityEntry);
     return activityEntry;
