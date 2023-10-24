@@ -5,6 +5,8 @@ import type { Draft, Patch } from 'immer';
 import type {
   RestrictedControllerMessenger,
   Namespaced,
+  EventConstraint,
+  ActionConstraint,
 } from './ControllerMessenger';
 
 enablePatches();
@@ -65,7 +67,13 @@ export interface StatePropertyMetadata<T extends Json> {
 export class BaseController<
   N extends string,
   S extends Record<string, Json>,
-  messenger extends RestrictedControllerMessenger<N, any, any, string, string>,
+  messenger extends RestrictedControllerMessenger<
+    N,
+    ActionConstraint,
+    EventConstraint,
+    string,
+    string
+  >,
 > {
   private internalState: S;
 
@@ -114,7 +122,7 @@ export class BaseController<
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(
-      `${name}:getState`,
+      String(`${name}:getState`),
       () => this.state,
     );
   }

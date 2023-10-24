@@ -1,20 +1,33 @@
-export type ActionHandler<Action, ActionType> = (
+export type ActionHandler<
+  Action extends ActionConstraint,
+  ActionType = Action['type'],
+> = (
   ...args: ExtractActionParameters<Action, ActionType>
 ) => ExtractActionResponse<Action, ActionType>;
-export type ExtractActionParameters<Action, T> = Action extends {
+
+export type ExtractActionParameters<
+  Action extends ActionConstraint,
+  T = Action['type'],
+> = Action extends {
   type: T;
-  handler: (...args: infer H) => any;
+  handler: (...args: infer H) => unknown;
 }
   ? H
   : never;
-export type ExtractActionResponse<Action, T> = Action extends {
+export type ExtractActionResponse<
+  Action extends ActionConstraint,
+  T = Action['type'],
+> = Action extends {
   type: T;
-  handler: (...args: any) => infer H;
+  handler: (...args: never[]) => infer H extends unknown;
 }
   ? H
   : never;
 
-export type ExtractEventHandler<Event, T> = Event extends {
+export type ExtractEventHandler<
+  Event extends EventConstraint,
+  T = Event['type'],
+> = Event extends {
   type: T;
   payload: infer P;
 }
@@ -22,9 +35,12 @@ export type ExtractEventHandler<Event, T> = Event extends {
     ? (...payload: P) => void
     : never
   : never;
-export type ExtractEventPayload<Event, T> = Event extends {
+export type ExtractEventPayload<
+  Event extends EventConstraint,
+  T = Event['type'],
+> = Event extends {
   type: T;
-  payload: infer P;
+  payload: infer P extends unknown[];
 }
   ? P
   : never;
@@ -41,13 +57,16 @@ export type SelectorEventHandler<SelectorReturnValue> = (
 
 export type ActionConstraint = {
   type: string;
-  handler: (...args: any) => unknown;
+  handler: (...args: never[]) => unknown;
 };
-export type EventConstraint = { type: string; payload: unknown[] };
+export type EventConstraint = {
+  type: string;
+  payload: unknown[];
+};
 
 type EventSubscriptionMap = Map<
   GenericEventHandler | SelectorEventHandler<unknown>,
-  SelectorFunction<any, unknown> | undefined
+  SelectorFunction<unknown[], unknown> | undefined
 >;
 
 /**
@@ -154,7 +173,7 @@ export class RestrictedControllerMessenger<
    * @throws Will throw when a handler has been registered for this action type already.
    * @template T - A type union of Action type strings that are namespaced by N.
    */
-  registerActionHandler<T extends Namespaced<N, Action['type']>>(
+  registerActionHandler<T extends Action['type']>(
     action: T,
     handler: ActionHandler<Action, T>,
   ) {
@@ -533,7 +552,7 @@ export class ControllerMessenger<
       this.events.set(eventType, subscribers);
     }
 
-    subscribers.set(handler, selector);
+    subscribers.set(handler, selector as ExtractEventHandler<Event, E>);
   }
 
   /**
