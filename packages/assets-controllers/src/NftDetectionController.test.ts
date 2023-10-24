@@ -301,7 +301,12 @@ describe('NftDetectionController', () => {
     await Promise.all([jest.advanceTimersByTime(0), flushPromises]);
     expect(spy.mock.calls).toHaveLength(1);
     await Promise.all([
-      jest.advanceTimersByTime(DEFAULT_INTERVAL),
+      jest.advanceTimersByTime(DEFAULT_INTERVAL / 2),
+      flushPromises(),
+    ]);
+    expect(spy.mock.calls).toHaveLength(1);
+    await Promise.all([
+      jest.advanceTimersByTime(DEFAULT_INTERVAL / 2),
       flushPromises(),
     ]);
     expect(spy.mock.calls).toHaveLength(2);

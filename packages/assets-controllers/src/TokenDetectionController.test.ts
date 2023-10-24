@@ -123,6 +123,10 @@ const setupTokenListController = (
   return { tokenList, tokenListMessenger };
 };
 
+const flushPromises = () => {
+  return new Promise(jest.requireActual('timers').setImmediate);
+};
+
 describe('TokenDetectionController', () => {
   let tokenDetection: TokenDetectionController;
   let preferences: PreferencesController;
@@ -611,7 +615,7 @@ describe('TokenDetectionController', () => {
       });
       await Promise.all([
         jest.advanceTimersByTime(DEFAULT_INTERVAL),
-        Promise.resolve(),
+        flushPromises()
       ]);
       expect(spy.mock.calls).toMatchObject([
         [{ networkClientId: 'mainnet', accountAddress: '0x1' }],
