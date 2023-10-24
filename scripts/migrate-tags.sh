@@ -6,6 +6,7 @@ remote='origin'
 release_commits_regex='^\d\{1,3\}\.\d\{1,3\}\.\d\{1,3\}'
 version_before_package_rename='0.0.0'
 tag_prefix_before_package_rename="$1"
+dry_run=false
 
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -28,6 +29,11 @@ while [[ $# -gt 0 ]]; do
     ;;
   -t | --tag-prefix-before-package-rename)
     tag_prefix_before_package_rename="$2"
+    shift # past argument
+    shift # past value
+    ;;
+  -d | --dry-run)
+    dry_run=true
     shift # past argument
     shift # past value
     ;;
@@ -62,7 +68,10 @@ prepend-tag-name() {
 while read -r pair; do
   tag="$(echo "$pair" | cut -d' ' -f1)"
   commit="$(echo "$pair" | cut -d' ' -f2)"
-  # echo "$tag $commit"
-  git tag "$tag" "$commit"
-  git push "$remote" "$tag"
+  if [ "$dry_run" = true ]; then
+    echo "$tag $commit"
+  else
+    git tag "$tag" "$commit"
+    git push "$remote" "$tag"
+  fi
 done <<<"$(prepend-tag-name)"
