@@ -983,7 +983,7 @@ describe('GasFeeController', () => {
   });
 
   describe('polling (by networkClientId)', () => {
-    it('should call determineGasFeeCalculations (via _executePoll) with a URL that contains the chainId corresponding to the networkClientId after the interval passed via the constructor', async () => {
+    it('should call determineGasFeeCalculations (via _executePoll) with a URL that contains the chainId corresponding to the networkClientId immedaitely and after each interval passed via the constructor', async () => {
       const pollingInterval = 10000;
       await setupGasFeeController({
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
@@ -1013,10 +1013,20 @@ describe('GasFeeController', () => {
       });
 
       gasFeeController.startPollingByNetworkClientId('goerli');
+      await clock.tickAsync(0);
+      expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
+            ChainId.goerli,
+          )}`,
+        }),
+      );
       await clock.tickAsync(pollingInterval / 2);
-      expect(mockedDetermineGasFeeCalculations).not.toHaveBeenCalled();
+      expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(1);
       await clock.tickAsync(pollingInterval / 2);
-      expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
+      expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
+        2,
         expect.objectContaining({
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.goerli,
