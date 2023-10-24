@@ -204,7 +204,8 @@ export class PermissionLogController extends BaseControllerV2<
       next: JsonRpcEngineNextCallback,
       _end?: JsonRpcEngineEndCallback,
     ) => {
-      let activityEntry: any, requestedMethods: string[] | null;
+      let activityEntry: PermissionActivityLog,
+        requestedMethods: string[] | null;
       const { origin, method } = req;
       const isInternal = method.startsWith(WALLET_PREFIX);
 
@@ -286,7 +287,11 @@ export class PermissionLogController extends BaseControllerV2<
    * @param response - The response object.
    * @param time - Output from Date.now()
    */
-  logResponse(entry: any, response: any, time: number) {
+  logResponse(
+    entry: PermissionActivityLog,
+    response: PendingJsonRpcResponse<(string | Permission)[]>,
+    time: number,
+  ) {
     if (!entry || !response) {
       return;
     }
@@ -295,8 +300,13 @@ export class PermissionLogController extends BaseControllerV2<
     // either the "result" or "error" property. The specification forbids
     // both properties from being present simultaneously, and our JSON-RPC
     // stack is spec-compliant at the time of writing.
-    entry.success = Object.hasOwnProperty.call(response, 'result');
-    entry.responseTime = time;
+    this.update((state) => {
+      state.permissionActivityLog[state.permissionActivityLog.length - 1] = {
+        ...entry,
+        success: Object.hasOwnProperty.call(response, 'result'),
+        responseTime: time,
+      };
+    });
   }
 
   /**
@@ -306,10 +316,7 @@ export class PermissionLogController extends BaseControllerV2<
    * @param entry - The activity log entry.
    */
   commitNewActivity(entry: PermissionActivityLog) {
-    const logs = this.getActivityLog();
-
-    // add new entry to end of log
-    logs.push(entry);
+    const logs = [...this.getActivityLog(), entry];
 
     // remove oldest log if exceeding size limit
     if (logs.length > LOG_LIMIT) {
@@ -427,9 +434,10 @@ export class PermissionLogController extends BaseControllerV2<
       };
     }
 
-    history[origin] = newOriginHistory as PermissionEntry;
-
-    this.updateHistory(history);
+    this.updateHistory({
+      ...history,
+      [origin]: newOriginHistory as PermissionEntry,
+    });
   }
 
   /**
