@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [10.0.0]
 ### Changed
 - **BREAKING:** Bump dependency on `@metamask/polling-controller` to ^1.0.0
-- Remove private method `#fetchGasFeeEstimateForNetworkClientId` and add optional `networkClientId` argument to options object param of `fetchGasFeeEstimates` method which, if passed, fetches the required chainId and networkClient provider to fetch and store gasFee data appropriately. ([#1891](https://github.com/MetaMask/core/pull/1891))
+
+### Added
+- Add optional `networkClientId` argument to options object param of `fetchGasFeeEstimates` method which, if passed, fetches the required chainId and networkClient provider to fetch and store gasFee data appropriately. ([#1891](https://github.com/MetaMask/core/pull/1891))
 
 
 ## [9.0.0]
