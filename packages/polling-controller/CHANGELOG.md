@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **BREAKING:** `_executePoll()` is called immediately on start if no polling interval is already active for the networkClientId + options combination ([#1874](https://github.com/MetaMask/core/pull/1874))
-- Bump `@metamask/auto-changelog` from 3.2.0 to 3.4.0 ([#1870](https://github.com/MetaMask/core/pull/1870))
 
 ## [0.2.0]
 ### Added
