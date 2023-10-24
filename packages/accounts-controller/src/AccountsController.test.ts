@@ -1841,6 +1841,7 @@ describe('AccountsController', () => {
       jest.spyOn(AccountsController.prototype, 'updateAccounts');
       jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
       jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
+      jest.spyOn(AccountsController.prototype, 'getAccount');
     });
 
     describe('setSelectedAccount', () => {
@@ -1978,6 +1979,31 @@ describe('AccountsController', () => {
 
         const account = messenger.call('AccountsController:getSelectedAccount');
         expect(accountsController.getSelectedAccount).toHaveBeenCalledWith();
+        expect(account).toStrictEqual(mockAccount);
+      });
+    });
+
+    describe('getAccount', () => {
+      it('should get account by id', async () => {
+        const messenger = buildMessenger();
+
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: { [mockAccount.id]: mockAccount },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const account = messenger.call(
+          'AccountsController:getAccount',
+          mockAccount.id,
+        );
+        expect(accountsController.getAccount).toHaveBeenCalledWith(
+          mockAccount.id,
+        );
         expect(account).toStrictEqual(mockAccount);
       });
     });
