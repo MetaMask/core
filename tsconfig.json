@@ -75,7 +75,10 @@
     },
     {
       "path": "./packages/queued-request-controller"
-    }
+    },
+    {
+      "path": "./packages/json-rpc-engine"
+    },
   ],
   "files": [],
   "include": ["./types"]

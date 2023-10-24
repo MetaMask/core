@@ -9,6 +9,10 @@
     "noUncheckedIndexedAccess": true,
     "target": "es2017"
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../json-rpc-engine"
+    }
+  ],
   "include": ["../../types", "../../tests", "./src", "./tests"]
 }

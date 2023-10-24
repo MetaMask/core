@@ -1,23 +1,27 @@
 {
   "name": "@metamask/json-rpc-engine",
   "version": "7.2.0",
-  "description": "A tool for processing JSON-RPC messages.",
-  "homepage": "https://github.com/MetaMask/json-rpc-engine#readme",
+  "description": "A tool for processing JSON-RPC messages",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/json-rpc-engine#readme",
   "bugs": {
-    "url": "https://github.com/MetaMask/json-rpc-engine/issues"
+    "url": "https://github.com/MetaMask/core/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/json-rpc-engine.git"
+    "url": "https://github.com/MetaMask/core.git"
   },
   "license": "ISC",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "directories": {
     "test": "test"
   },
   "files": [
-    "dist"
+    "dist/"
   ],
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
@@ -31,7 +35,9 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies && yarn lint:changelog",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "prepack": "./scripts/prepack.sh",
-    "test": "jest && jest-it-up",
+    "publish:preview": "yarn npm publish --tag preview",
+    "test": "jest",
+    "test:clean": "jest --clearCache",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -42,7 +48,7 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^2.3.1",
     "@metamask/auto-changelog": "^3.4.0",
-    "@types/jest": "^29.5.0",
+    "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "depcheck": "^1.4.3",
     "jest": "^27.5.1",
