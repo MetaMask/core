@@ -32,11 +32,20 @@ function getRestrictedMessenger() {
     'NetworkController:getNetworkClientById',
     jest.fn().mockImplementation((networkClientId) => {
       switch (networkClientId) {
+        case 'mainnet':
+          return {
+            configuration: {
+              type: NetworkType.mainnet,
+              chainId: ChainId.mainnet,
+              ticker: 'ETH'
+            },
+          };
         case 'sepolia':
           return {
             configuration: {
               type: NetworkType.sepolia,
               chainId: ChainId.sepolia,
+              ticker: 'SepoliaETH'
             },
           };
         case 'binance-network-client-id':
@@ -44,6 +53,7 @@ function getRestrictedMessenger() {
             configuration: {
               type: NetworkType.rpc,
               chainId: toHex(56),
+              ticker: 'BTC'
             },
           };
         default:
@@ -77,10 +87,12 @@ function flushPromises(): Promise<unknown> {
 
 describe('CurrencyRateController', () => {
   beforeEach(() => {
-    jest.useFakeTimers('legacy');
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllTimers();
     jest.useRealTimers();
   });
 
@@ -150,16 +162,21 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    await controller.startPollingByNetworkClientId('sepolia');
-
-    jest.advanceTimersByTime(99);
-    await flushPromises();
-
+    controller.startPollingByNetworkClientId('sepolia');
+    await Promise.all([
+      jest.advanceTimersByTime(0),
+      flushPromises(),
+    ])
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
-
-    jest.advanceTimersByTime(1);
-    await flushPromises();
-
+    await Promise.all([
+      jest.advanceTimersByTime(99),
+      flushPromises(),
+    ])
+    expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+    await Promise.all([
+      jest.advanceTimersByTime(1),
+      flushPromises(),
+    ])
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
     controller.destroy();
@@ -175,6 +192,8 @@ describe('CurrencyRateController', () => {
     });
 
     controller.startPollingByNetworkClientId('sepolia')
+    jest.advanceTimersByTime(0),
+    await flushPromises(),
     controller.stopAllPolling()
 
     // called once upon initial start
@@ -198,6 +217,8 @@ describe('CurrencyRateController', () => {
       messenger,
     });
     controller.startPollingByNetworkClientId('sepolia')
+    jest.advanceTimersByTime(0),
+    await flushPromises(),
     controller.stopAllPolling()
 
     // called once upon initial start
@@ -205,18 +226,21 @@ describe('CurrencyRateController', () => {
 
     controller.startPollingByNetworkClientId('sepolia')
 
-    jest.advanceTimersByTime(1);
-    await flushPromises();
+    jest.advanceTimersByTime(0),
+    await flushPromises(),
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
-    jest.advanceTimersByTime(99);
+    jest.advanceTimersByTime(100);
     await flushPromises();
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(3);
   });
 
   it('should update exchange rate', async () => {
+    jest
+      .useFakeTimers()
+      .setSystemTime(new Date('2020-01-01'));
     const fetchExchangeRateStub = jest
       .fn()
       .mockResolvedValue({ conversionRate: 10 });
@@ -227,19 +251,31 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    expect(controller.state.currencyRates).toBe({});
+    expect(controller.state.currencyRates).toStrictEqual({
+      ETH: {
+        conversionDate: 0,
+        conversionRate: 0
+      }
+    });
 
-    controller.startPollingByNetworkClientId('sepolia')
+    controller.startPollingByNetworkClientId('mainnet')
+    jest.advanceTimersByTime(0),
     await flushPromises();
 
-    expect(controller.state.currencyRates).toBe({
-      sepolia: "LOL"
+    expect(controller.state.currencyRates).toStrictEqual({
+      ETH: {
+        conversionDate: (new Date('2020-01-01')).getTime() / 1000,
+        conversionRate: 10
+      },
     });
 
     controller.destroy();
   });
 
   it('should update exchange rate to ETH conversion rate when native currency is testnet ETH', async () => {
+    jest
+      .useFakeTimers()
+      .setSystemTime(new Date('2020-01-01'));
     const fetchExchangeRateStub = jest
       .fn()
       .mockImplementation((_, nativeCurrency) => {
@@ -262,18 +298,27 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    expect(controller.state.currencyRates).toBe({});
-
-    controller.startPollingByNetworkClientId('goerli')
-    await flushPromises();
-
-    expect(controller.state.currencyRates).toBe({
-      goerli: "LOL"
+    expect(controller.state.currencyRates).toStrictEqual({
+      ETH: {
+        conversionDate: 0,
+        conversionRate: 0
+      }
     });
 
-    // await controller.setNativeCurrency(TESTNET_TICKER_SYMBOLS.GOERLI);
+    controller.startPollingByNetworkClientId('sepolia')
+    jest.advanceTimersByTime(0),
+    await flushPromises();
 
-    // expect(controller.state.conversionRate).toBe(10);
+    expect(controller.state.currencyRates).toStrictEqual({
+      ETH: {
+        conversionDate: 0,
+        conversionRate: 0
+      },
+      SepoliaETH: {
+        conversionDate: (new Date('2020-01-01')).getTime() / 1000,
+        conversionRate: 10
+      }
+    });
 
     controller.destroy();
   });
@@ -309,6 +354,8 @@ describe('CurrencyRateController', () => {
       state: { currentCurrency: 'xyz' },
     });
     controller.startPollingByNetworkClientId('sepolia')
+    jest.advanceTimersByTime(0),
+    await flushPromises();
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
     expect(fetchExchangeRateStub.mock.calls).toMatchObject([
@@ -329,9 +376,11 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-    controller.startPollingByNetworkClientId('sepolia')
+    controller.startPollingByNetworkClientId('mainnet')
+    jest.advanceTimersByTime(0),
+    await flushPromises();
 
-    expect(controller.state.currencyRates.sepolia.conversionRate).toBe(2000.42);
+    expect(controller.state.currencyRates.ETH.conversionRate).toBe(2000.42);
 
     controller.destroy();
   });
@@ -375,9 +424,16 @@ describe('CurrencyRateController', () => {
       state: { currentCurrency: 'xyz' },
     });
 
-    controller.startPollingByNetworkClientId('sepolia')
+    controller.startPollingByNetworkClientId('mainnet')
+    jest.advanceTimersByTime(0),
+    await flushPromises();
 
-    expect(controller.state.currencyRates.sepolia.conversionRate).toBeNull();
+    expect(controller.state.currencyRates).toStrictEqual({
+      ETH: {
+        conversionDate: null,
+        conversionRate: null,
+      },
+    });
 
     controller.destroy();
   });
