@@ -147,8 +147,10 @@ export default function createStreamMiddleware(options: Options = {}) {
           `StreamMiddleware - Retry limit exceeded for request id "${req.id}"`,
         );
       }
-
-      idMap[req.id].retryCount = retryCount + 1;
+      const obj = idMap[req.id];
+      if (obj) {
+        obj.retryCount = retryCount + 1;
+      }
       sendToStream(req);
     });
   }
