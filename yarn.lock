@@ -2251,7 +2251,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/polling-controller@^0.2.0, @metamask/polling-controller@workspace:packages/polling-controller":
+"@metamask/polling-controller@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/polling-controller@npm:0.2.0"
+  dependencies:
+    "@metamask/base-controller": ^3.2.3
+    "@metamask/controller-utils": ^5.0.2
+    "@metamask/network-controller": ^15.0.0
+    "@metamask/utils": ^8.1.0
+    "@types/uuid": ^8.3.0
+    fast-json-stable-stringify: ^2.1.0
+    uuid: ^8.3.2
+  peerDependencies:
+    "@metamask/network-controller": ^15.0.0
+  checksum: 4dee3e49b23ba2b92055816dcc68b8e468405d9b00528d14b01c490058dea6e7aae943b19a007adbbbe06aa9a5b61d961211f9de82c8b55c7622599de78eb76e
+  languageName: node
+  linkType: hard
+
+"@metamask/polling-controller@workspace:packages/polling-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/polling-controller@workspace:packages/polling-controller"
   dependencies:
