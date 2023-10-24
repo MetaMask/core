@@ -19,7 +19,7 @@ import {
 import { CaveatTypes } from './permissions';
 
 export type PermissionActivityLog = {
-  id: string;
+  id: string | number | null;
   method: string;
   methodType: LOG_METHOD_TYPES;
   origin: string;
@@ -30,7 +30,7 @@ export type PermissionActivityLog = {
 
 export type Permission = {
   parentCapability: string;
-  caveats: Caveat[];
+  caveats?: Caveat[];
 };
 
 export type PermissionName = string;
@@ -45,13 +45,12 @@ export type PermissionHistory = Record<PermissionOrigin, PermissionEntry>;
 
 export type Caveat = {
   type: string;
-  value: string;
+  value: string[];
 };
 
-export type EnhancedJsonRpcRequest<
+export type JsonRpcRequestWithOrigin<
   Params extends JsonRpcParams = JsonRpcParams,
 > = JsonRpcRequest<Params> & {
-  id: string;
   origin: string;
 };
 
@@ -200,7 +199,7 @@ export class PermissionLogController extends BaseControllerV2<
    */
   createMiddleware() {
     return (
-      req: EnhancedJsonRpcRequest,
+      req: JsonRpcRequestWithOrigin,
       res: PendingJsonRpcResponse<(string | Permission)[]>,
       next: JsonRpcEngineNextCallback,
       _end?: JsonRpcEngineEndCallback,
@@ -261,7 +260,7 @@ export class PermissionLogController extends BaseControllerV2<
    * @returns new added activity entry
    */
   logRequest(
-    request: EnhancedJsonRpcRequest,
+    request: JsonRpcRequestWithOrigin,
     isInternal: boolean,
   ): PermissionActivityLog {
     const activityEntry: PermissionActivityLog = {
@@ -439,7 +438,7 @@ export class PermissionLogController extends BaseControllerV2<
    * @param request - The request object.
    * @returns The names of the requested permissions.
    */
-  getRequestedMethods(request: EnhancedJsonRpcRequest<any>): string[] | null {
+  getRequestedMethods(request: JsonRpcRequestWithOrigin<any>): string[] | null {
     if (
       !request.params ||
       !request.params[0] ||
