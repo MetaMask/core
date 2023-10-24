@@ -65,9 +65,6 @@
       "path": "./packages/preferences-controller"
     },
     {
-      "path": "./packages/queued-request-controller"
-    },
-    {
       "path": "./packages/rate-limit-controller"
     },
     {
