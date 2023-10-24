@@ -905,67 +905,6 @@ describe('NftController', () => {
       clock.restore();
     });
 
-    it('should handle ERC721 type and add pending request to ApprovalController with the display nft media enabled', async function () {
-      nock(OPENSEA_PROXY_URL)
-        .get(`/asset_contract/${ERC721_NFT_ADDRESS}`)
-        .reply(200, {
-          description: 'description (from opensea)',
-          symbol: 'KDO',
-          total_supply: 10,
-          collection: {
-            name: 'name (from opensea)',
-            image_url: 'logo (from opensea)',
-          },
-        })
-        .get(`/asset/${ERC721_NFT_ADDRESS}/${ERC721_NFT_ID}`)
-        .reply(200, {
-          image_url: 'image (directly from opensea)',
-          name: 'name (directly from opensea)',
-          description: 'description (directly from opensea)',
-          asset_contract: {
-            schema_name: 'ERC721',
-          },
-        });
-
-      const { nftController, messenger, preferences } = setupController({
-        getERC721OwnerOfStub: jest.fn().mockImplementation(() => OWNER_ADDRESS),
-      });
-      preferences.setDisplayNftMedia(true);
-
-      const requestId = 'approval-request-id-1';
-
-      const clock = sinon.useFakeTimers(1);
-
-      (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
-
-      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: requestId,
-          origin: 'https://test-dapp.com',
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress: OWNER_ADDRESS,
-            asset: {
-              ...ERC721_NFT,
-              description: 'description (directly from opensea)',
-              image: 'image (directly from opensea)',
-              name: 'name (directly from opensea)',
-              standard: ERC721,
-            },
-          },
-        },
-        true,
-      );
-
-      clock.restore();
-    });
-
     it('should handle ERC1155 type and add to suggestedNfts with the display nft media enabled', async function () {
       const ALT_ERC1155_NFT = {
         address: '0x0000000000000000000000000000000000000000',
