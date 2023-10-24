@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - No longer update `selectedNetworkClientId` when the `NetworkController` provider changes. ([#1806](https://github.com/MetaMask/core/pull/1806))
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
 
 ## [3.0.0]
 ### Changed
