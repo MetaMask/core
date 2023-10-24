@@ -78,7 +78,7 @@
     },
     {
       "path": "./packages/json-rpc-engine"
-    },
+    }
   ],
   "files": [],
   "include": ["./types"]
