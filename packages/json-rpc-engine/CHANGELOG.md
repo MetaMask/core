@@ -83,13 +83,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/json-rpc-engine/compare/v7.2.0...HEAD
-[7.2.0]: https://github.com/MetaMask/json-rpc-engine/compare/v7.1.1...v7.2.0
-[7.1.1]: https://github.com/MetaMask/json-rpc-engine/compare/v7.1.0...v7.1.1
-[7.1.0]: https://github.com/MetaMask/json-rpc-engine/compare/v7.0.0...v7.1.0
-[7.0.0]: https://github.com/MetaMask/json-rpc-engine/compare/v6.1.0...v7.0.0
-[6.1.0]: https://github.com/MetaMask/json-rpc-engine/compare/v6.0.0...v6.1.0
-[6.0.0]: https://github.com/MetaMask/json-rpc-engine/compare/v5.4.0...v6.0.0
-[5.4.0]: https://github.com/MetaMask/json-rpc-engine/compare/v5.3.0...v5.4.0
-[5.3.0]: https://github.com/MetaMask/json-rpc-engine/compare/v5.2.0...v5.3.0
-[5.2.0]: https://github.com/MetaMask/json-rpc-engine/releases/tag/v5.2.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.2.0...HEAD
+[7.2.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.1...@metamask/json-rpc-engine@7.2.0
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.1.0...@metamask/json-rpc-engine@7.1.1
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@7.0.0...@metamask/json-rpc-engine@7.1.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.1.0...@metamask/json-rpc-engine@7.0.0
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@6.0.0...@metamask/json-rpc-engine@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.4.0...@metamask/json-rpc-engine@6.0.0
+[5.4.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.3.0...@metamask/json-rpc-engine@5.4.0
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@5.2.0...@metamask/json-rpc-engine@5.3.0
+[5.2.0]: https://github.com/MetaMask/core/releases/tag/@metamask/json-rpc-engine@5.2.0
