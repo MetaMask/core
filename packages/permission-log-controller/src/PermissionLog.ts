@@ -1,11 +1,12 @@
-import { BaseControllerV2 } from '@metamask/base-controller';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import {
+  BaseControllerV2,
+  type RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
 import type {
-  Json,
   JsonRpcParams,
   JsonRpcRequest,
   PendingJsonRpcResponse,
@@ -265,7 +266,7 @@ export class PermissionLogController extends BaseControllerV2<
     request: JsonRpcRequestWithOrigin,
     isInternal: boolean,
   ): PermissionActivityLog {
-    const activityEntry: PermissionActivityLog & { params: Json[] } = {
+    const activityEntry: PermissionActivityLog = {
       id: request.id,
       method: request.method,
       methodType: isInternal
@@ -275,7 +276,6 @@ export class PermissionLogController extends BaseControllerV2<
       requestTime: Date.now(),
       responseTime: null,
       success: null,
-      params: [],
     };
     this.commitNewActivity(activityEntry);
     return activityEntry;

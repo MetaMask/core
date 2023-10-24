@@ -3,7 +3,10 @@ import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
-import type { PendingJsonRpcResponse } from '@metamask/utils';
+import {
+  type PendingJsonRpcResponse,
+  JsonRpcRequestStruct,
+} from '@metamask/utils';
 import { nanoid } from 'nanoid';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
@@ -28,6 +31,15 @@ const {
 } = constants;
 
 let clock: SinonFakeTimers;
+
+class CustomError extends Error {
+  code: number;
+
+  constructor(message: string, code: number) {
+    super(message); // Call parent constructor with message
+    this.code = code; // Add a "code" property
+  }
+}
 
 type LogMiddleware = (
   req: JsonRpcRequestWithOrigin,
@@ -111,12 +123,12 @@ describe('PermissionLogController', () => {
       req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
       req.id = REQUEST_IDS.a;
       res = {
+        ...JsonRpcRequestStruct.TYPE,
         id: null,
-        jsonrpc: '2.0',
         result: ['bar'],
       };
 
-      logMiddleware({ ...req }, res);
+      logMiddleware(req, res);
 
       log = permLog.getActivityLog();
       const entry1 = log[0];
@@ -124,26 +136,22 @@ describe('PermissionLogController', () => {
       expect(log).toHaveLength(1);
       validateActivityEntry(
         entry1,
-        { ...req },
-        { ...res },
+        req,
+        res,
         LOG_METHOD_TYPES.restricted,
         true,
       );
 
       // eth_accounts, failure
-
       req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
       req.id = REQUEST_IDS.b;
       res = {
+        ...JsonRpcRequestStruct.TYPE,
         id: null,
-        jsonrpc: '2.0',
-        error: {
-          code: 1,
-          message: 'Unauthorized.',
-        },
+        error: new CustomError('Unauthorized.', 1),
       };
 
-      logMiddleware({ ...req }, res);
+      logMiddleware(req, res);
 
       log = permLog.getActivityLog();
       const entry2 = log[1];
@@ -151,8 +159,8 @@ describe('PermissionLogController', () => {
       expect(log).toHaveLength(2);
       validateActivityEntry(
         entry2,
-        { ...req },
-        { ...res },
+        req,
+        res,
         LOG_METHOD_TYPES.restricted,
         false,
       );
@@ -162,12 +170,12 @@ describe('PermissionLogController', () => {
       req = RPC_REQUESTS.eth_requestAccounts(SUBJECTS.c.origin);
       req.id = REQUEST_IDS.c;
       res = {
+        ...JsonRpcRequestStruct.TYPE,
         id: null,
-        jsonrpc: '2.0',
         result: ACCOUNTS.c.permitted,
       };
 
-      logMiddleware({ ...req }, res);
+      logMiddleware(req, res);
 
       log = permLog.getActivityLog();
       const entry3 = log[2];
@@ -175,8 +183,8 @@ describe('PermissionLogController', () => {
       expect(log).toHaveLength(3);
       validateActivityEntry(
         entry3,
-        { ...req },
-        { ...res },
+        req,
+        res,
         LOG_METHOD_TYPES.restricted,
         true,
       );
@@ -186,11 +194,11 @@ describe('PermissionLogController', () => {
       req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
       req.id = REQUEST_IDS.a;
       res = {
+        ...JsonRpcRequestStruct.TYPE,
         id: null,
-        jsonrpc: '2.0',
       };
 
-      logMiddleware({ ...req }, res);
+      logMiddleware(req, res);
 
       log = permLog.getActivityLog();
       const entry4 = log[3];
@@ -198,7 +206,7 @@ describe('PermissionLogController', () => {
       expect(log).toHaveLength(4);
       validateActivityEntry(
         entry4,
-        { ...req },
+        req,
         null,
         LOG_METHOD_TYPES.restricted,
         false,
@@ -231,6 +239,7 @@ describe('PermissionLogController', () => {
       // get make requests
       req.id = id1;
       const res1 = {
+        ...JsonRpcRequestStruct.TYPE,
         result: [id1],
       };
       logMiddleware(
@@ -238,38 +247,26 @@ describe('PermissionLogController', () => {
           ...req,
         },
         {
-          id: null,
-          jsonrpc: '2.0',
+          ...JsonRpcRequestStruct.TYPE,
           ...res1,
+          id: null,
         },
         getSavedMockNext(handlerArray),
       );
 
       req.id = id2;
       const res2 = {
+        ...JsonRpcRequestStruct.TYPE,
         result: [id2],
       };
-      logMiddleware(
-        { ...req },
-        {
-          id: null,
-          jsonrpc: '2.0',
-          ...res2,
-        },
-        getSavedMockNext(handlerArray),
-      );
+      logMiddleware(req, res2, getSavedMockNext(handlerArray));
 
       req.id = id3;
-      const res3 = { result: [id3] };
-      logMiddleware(
-        { ...req },
-        {
-          id: null,
-          jsonrpc: '2.0',
-          ...res3,
-        },
-        getSavedMockNext(handlerArray),
-      );
+      const res3 = {
+        ...JsonRpcRequestStruct.TYPE,
+        result: [id3],
+      };
+      logMiddleware(req, res3, getSavedMockNext(handlerArray));
 
       // verify log state
       log = permLog.getActivityLog();
@@ -298,7 +295,7 @@ describe('PermissionLogController', () => {
       validateActivityEntry(
         log[0],
         { ...req, id: id1 },
-        { id: null, jsonrpc: '2.0', ...res1 },
+        { ...res1 },
         LOG_METHOD_TYPES.restricted,
         true,
       );
@@ -306,7 +303,7 @@ describe('PermissionLogController', () => {
       validateActivityEntry(
         log[1],
         { ...req, id: id2 },
-        { id: null, jsonrpc: '2.0', ...res2 },
+        { ...res2 },
         LOG_METHOD_TYPES.restricted,
         true,
       );
@@ -314,7 +311,7 @@ describe('PermissionLogController', () => {
       validateActivityEntry(
         log[2],
         { ...req, id: id3 },
-        { id: null, jsonrpc: '2.0', ...res3 },
+        { ...res3 },
         LOG_METHOD_TYPES.restricted,
         true,
       );
@@ -324,11 +321,12 @@ describe('PermissionLogController', () => {
       let req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
       req.id = REQUEST_IDS.a;
       let res = {
+        ...JsonRpcRequestStruct.TYPE,
         result: ['bar'],
       };
 
       // noop for next handler prevents recording of response
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res }, noop);
+      logMiddleware(req, res, noop);
 
       let log = permLog.getActivityLog();
       const entry1 = log[0];
@@ -336,7 +334,7 @@ describe('PermissionLogController', () => {
       expect(log).toHaveLength(1);
       validateActivityEntry(
         entry1,
-        { ...req },
+        req,
         null,
         LOG_METHOD_TYPES.restricted,
         true,
@@ -345,17 +343,17 @@ describe('PermissionLogController', () => {
       // next request should be handled as normal
       req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
       req.id = REQUEST_IDS.b;
-      res = { result: ACCOUNTS.b.permitted };
+      res = { ...JsonRpcRequestStruct.TYPE, result: ACCOUNTS.b.permitted };
 
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req, res);
 
       log = permLog.getActivityLog();
       const entry2 = log[1];
       expect(log).toHaveLength(2);
       validateActivityEntry(
         entry2,
-        { ...req },
-        { id: null, jsonrpc: '2.0', ...res },
+        req,
+        res,
         LOG_METHOD_TYPES.restricted,
         true,
       );
@@ -370,6 +368,7 @@ describe('PermissionLogController', () => {
       expect(log).toHaveLength(0);
 
       const res = {
+        ...JsonRpcRequestStruct.TYPE,
         result: ['bar'],
       };
       const req1 = RPC_REQUESTS.metamask_sendDomainMetadata(
@@ -379,9 +378,9 @@ describe('PermissionLogController', () => {
       const req2 = RPC_REQUESTS.custom(SUBJECTS.b.origin, 'eth_getBlockNumber');
       const req3 = RPC_REQUESTS.custom(SUBJECTS.b.origin, 'net_version');
 
-      logMiddleware(req1, { id: null, jsonrpc: '2.0', ...res });
-      logMiddleware(req2, { id: null, jsonrpc: '2.0', ...res });
-      logMiddleware(req3, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req1, res);
+      logMiddleware(req2, res);
+      logMiddleware(req3, res);
 
       log = permLog.getActivityLog();
       expect(log).toHaveLength(0);
@@ -389,20 +388,16 @@ describe('PermissionLogController', () => {
 
     it('enforces log limit', () => {
       const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
-      const res = { result: ['bar'] };
+      const res = {
+        ...JsonRpcRequestStruct.TYPE,
+        result: ['bar'],
+      };
 
       // max out log
       let lastId = null;
       for (let i = 0; i < LOG_LIMIT; i++) {
         lastId = nanoid();
-        logMiddleware(
-          { ...req, id: lastId },
-          {
-            id: null,
-            jsonrpc: '2.0',
-            ...res,
-          },
-        );
+        logMiddleware({ ...req, id: lastId }, res);
       }
 
       // check last entry valid
@@ -412,7 +407,7 @@ describe('PermissionLogController', () => {
       validateActivityEntry(
         log[LOG_LIMIT - 1],
         { ...req, id: lastId },
-        { id: null, jsonrpc: '2.0', ...res },
+        res,
         LOG_METHOD_TYPES.restricted,
         true,
       );
@@ -422,10 +417,7 @@ describe('PermissionLogController', () => {
 
       // add one more entry to log, putting it over the limit
       lastId = nanoid();
-      logMiddleware(
-        { ...req, id: lastId },
-        { id: null, jsonrpc: '2.0', ...res },
-      );
+      logMiddleware({ ...req, id: lastId }, res);
 
       // check log length
       log = permLog.getActivityLog();
@@ -435,7 +427,7 @@ describe('PermissionLogController', () => {
       validateActivityEntry(
         log[0],
         { ...req, id: nextFirstId },
-        { id: null, jsonrpc: '2.0', ...res },
+        res,
         LOG_METHOD_TYPES.restricted,
         true,
       );
@@ -443,7 +435,7 @@ describe('PermissionLogController', () => {
       validateActivityEntry(
         log[LOG_LIMIT - 1],
         { ...req, id: lastId },
-        { id: null, jsonrpc: '2.0', ...res },
+        res,
         LOG_METHOD_TYPES.restricted,
         true,
       );
@@ -468,15 +460,18 @@ describe('PermissionLogController', () => {
         SUBJECTS.a.origin,
         PERM_NAMES.test_method,
       );
-      const res = { result: [PERMS.granted.test_method()] };
+      const res = {
+        ...JsonRpcRequestStruct.TYPE,
+        result: [PERMS.granted.test_method()],
+      };
 
       // noop => no response
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res }, noop);
+      logMiddleware(req, res, noop);
 
       expect(permLog.getHistory()).toStrictEqual({});
 
       // response => records granted permissions
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req, res);
 
       const permHistory = permLog.getHistory();
       expect(Object.keys(permHistory)).toHaveLength(1);
@@ -488,7 +483,10 @@ describe('PermissionLogController', () => {
         SUBJECTS.a.origin,
         PERM_NAMES.test_method,
       );
-      const res = { result: [PERMS.granted.test_method()] };
+      const res = {
+        ...JsonRpcRequestStruct.TYPE,
+        result: [PERMS.granted.test_method()],
+      };
 
       // no params => no response
       logMiddleware(
@@ -496,7 +494,7 @@ describe('PermissionLogController', () => {
           ...req,
           params: undefined,
         },
-        { id: null, jsonrpc: '2.0', ...res },
+        res,
       );
 
       expect(permLog.getHistory()).toStrictEqual({});
@@ -508,10 +506,11 @@ describe('PermissionLogController', () => {
         PERM_NAMES.eth_accounts,
       );
       const res = {
+        ...JsonRpcRequestStruct.TYPE,
         result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
       };
 
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req, res);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[0]);
 
@@ -521,7 +520,7 @@ describe('PermissionLogController', () => {
 
       res.result = [PERMS.granted.eth_accounts([ACCOUNTS.a.permitted[0]])];
 
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req, res);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[1]);
     });
@@ -532,11 +531,12 @@ describe('PermissionLogController', () => {
         PERM_NAMES.eth_accounts,
       );
       const res = {
+        ...JsonRpcRequestStruct.TYPE,
         result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
       };
       delete res.result[0].caveats;
 
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req, res);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case2[0]);
     });
@@ -547,6 +547,7 @@ describe('PermissionLogController', () => {
         PERM_NAMES.eth_accounts,
       );
       const res = {
+        ...JsonRpcRequestStruct.TYPE,
         result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
       };
       res.result[0].caveats?.push({
@@ -554,7 +555,7 @@ describe('PermissionLogController', () => {
         value: ['bar'],
       });
 
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req, res);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[0]);
     });
@@ -567,13 +568,14 @@ describe('PermissionLogController', () => {
         PERM_NAMES.eth_accounts,
       );
       const res = {
+        ...JsonRpcRequestStruct.TYPE,
         result: [
           PERMS.granted.eth_accounts(ACCOUNTS.a.permitted),
           PERMS.granted.test_method(),
         ],
       };
 
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req, res);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[0]);
     });
@@ -584,10 +586,11 @@ describe('PermissionLogController', () => {
         PERM_NAMES.test_method,
       );
       let res = {
+        ...JsonRpcRequestStruct.TYPE,
         result: [PERMS.granted.test_method()],
       };
 
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req, res);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case4[0]);
 
@@ -600,10 +603,11 @@ describe('PermissionLogController', () => {
         PERM_NAMES.eth_accounts,
       );
       res = {
+        ...JsonRpcRequestStruct.TYPE,
         result: [PERMS.granted.test_method()],
       };
 
-      logMiddleware({ ...req }, { id: null, jsonrpc: '2.0', ...res });
+      logMiddleware(req, res);
 
       // history should be unmodified
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case4[0]);
@@ -654,8 +658,8 @@ describe('PermissionLogController', () => {
       // make requests and process responses out of order
       round1.forEach((x) => {
         logMiddleware(
-          { ...x.req },
-          { id: null, jsonrpc: '2.0', ...x.res },
+          x.req,
+          { ...JsonRpcRequestStruct.TYPE, ...x.res },
           getSavedMockNext(handlers1),
         );
       });
@@ -698,7 +702,7 @@ describe('PermissionLogController', () => {
 
       // make requests
       round2.forEach((x) => {
-        logMiddleware({ ...x.req }, { id: null, jsonrpc: '2.0', ...x.res });
+        logMiddleware(x.req, { ...JsonRpcRequestStruct.TYPE, ...x.res });
       });
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case3[1]);
