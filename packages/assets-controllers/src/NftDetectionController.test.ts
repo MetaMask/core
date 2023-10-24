@@ -16,6 +16,10 @@ type ApprovalActions = AddApprovalRequest;
 
 const controllerName = 'NftController' as const;
 
+const flushPromises = () => {
+  return new Promise(jest.requireActual('timers').setImmediate);
+};
+
 describe('NftDetectionController', () => {
   let nftDetection: NftDetectionController;
   let preferences: PreferencesController;
@@ -294,16 +298,16 @@ describe('NftDetectionController', () => {
     testNftDetection.startPollingByNetworkClientId('mainnet', {
       address: '0x1',
     });
-    await Promise.all([jest.advanceTimersByTime(0), Promise.resolve()]);
+    await Promise.all([jest.advanceTimersByTime(0), flushPromises]);
     expect(spy.mock.calls).toHaveLength(1);
     await Promise.all([
       jest.advanceTimersByTime(DEFAULT_INTERVAL),
-      Promise.resolve(),
+      flushPromises(),
     ]);
     expect(spy.mock.calls).toHaveLength(2);
     await Promise.all([
       jest.advanceTimersByTime(DEFAULT_INTERVAL),
-      Promise.resolve(),
+      flushPromises(),
     ]);
     expect(spy.mock.calls).toMatchObject([
       ['mainnet', '0x1'],
