@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [16.0.0]
 ### Changed
 - **BREAKING:** Bump dependency and peer dependency on `@metamask/gas-fee-controller` to ^10.0.0
+- Bump dependency and peer dependency on `@metamask/network-controller` to ^15.1.0
 
 ## [15.0.0]
 ### Changed
