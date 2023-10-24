@@ -479,13 +479,13 @@ export class GasFeeController extends PollingController<
         state.estimatedGasFeeTimeBounds =
           gasFeeCalculations.estimatedGasFeeTimeBounds;
         state.gasEstimateType = gasFeeCalculations.gasEstimateType;
-        state.gasFeeEstimatesByChainId = state.gasFeeEstimatesByChainId || {};
+        state.gasFeeEstimatesByChainId ??= {};
         state.gasFeeEstimatesByChainId[toHex(decimalChainId)] = {
           gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
           estimatedGasFeeTimeBounds:
             gasFeeCalculations.estimatedGasFeeTimeBounds,
           gasEstimateType: gasFeeCalculations.gasEstimateType,
-        } as any;
+        } as SingleChainGasFeeState;
       });
     }
 
