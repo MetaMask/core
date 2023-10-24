@@ -30,7 +30,6 @@
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
-    "prepack": "./scripts/prepack.sh",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:clean": "jest --clearCache",
@@ -42,7 +41,7 @@
     "@metamask/utils": "^8.1.0"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.0",
+    "@metamask/auto-changelog": "^3.4.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "depcheck": "^1.4.3",
