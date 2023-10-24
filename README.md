@@ -27,6 +27,7 @@ This repository houses the following packages:
 - [`@metamask/phishing-controller`](packages/phishing-controller)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
+- [`@metamask/queued-request-controller`](packages/queued-request-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller);
 - [`@metamask/signature-controller`](packages/signature-controller)
