@@ -1524,8 +1524,8 @@ __metadata:
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^3.0.1
     "@metamask/metamask-eth-abis": 3.0.0
-    "@metamask/network-controller": ^15.0.0
-    "@metamask/polling-controller": ^0.2.0
+    "@metamask/network-controller": ^15.1.0
+    "@metamask/polling-controller": ^1.0.0
     "@metamask/preferences-controller": ^4.4.3
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/utils": ^8.1.0
@@ -1550,7 +1550,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": ^4.1.0
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
     "@metamask/preferences-controller": ^4.4.3
   languageName: unknown
   linkType: soft
@@ -1710,7 +1710,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -1722,7 +1722,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
   languageName: unknown
   linkType: soft
 
@@ -1922,7 +1922,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/gas-fee-controller@^9.0.0, @metamask/gas-fee-controller@workspace:packages/gas-fee-controller":
+"@metamask/gas-fee-controller@^10.0.0, @metamask/gas-fee-controller@workspace:packages/gas-fee-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller"
   dependencies:
@@ -1930,8 +1930,8 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^3.0.1
-    "@metamask/network-controller": ^15.0.0
-    "@metamask/polling-controller": ^0.2.0
+    "@metamask/network-controller": ^15.1.0
+    "@metamask/polling-controller": ^1.0.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
@@ -1950,7 +1950,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
   languageName: unknown
   linkType: soft
 
@@ -2096,7 +2096,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@^15.0.0, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@^15.1.0, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -2251,14 +2251,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/polling-controller@^0.2.0, @metamask/polling-controller@workspace:packages/polling-controller":
+"@metamask/polling-controller@^1.0.0, @metamask/polling-controller@workspace:packages/polling-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/polling-controller@workspace:packages/polling-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
@@ -2271,7 +2271,7 @@ __metadata:
     typescript: ~4.8.4
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
   languageName: unknown
   linkType: soft
 
@@ -2349,9 +2349,9 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/json-rpc-engine": ^7.1.1
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
     "@metamask/rpc-errors": ^6.1.0
-    "@metamask/selected-network-controller": ^3.0.0
+    "@metamask/selected-network-controller": ^3.1.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
@@ -2366,8 +2366,8 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/network-controller": ^15.0.0
-    "@metamask/selected-network-controller": ^3.0.0
+    "@metamask/network-controller": ^15.1.0
+    "@metamask/selected-network-controller": ^3.1.0
   languageName: unknown
   linkType: soft
 
@@ -2440,14 +2440,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@^3.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@^3.1.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.4.2
     "@metamask/base-controller": ^3.2.3
     "@metamask/json-rpc-engine": ^7.1.1
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
     "@metamask/swappable-obj-proxy": ^2.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2461,7 +2461,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.8.4
   peerDependencies:
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
   languageName: unknown
   linkType: soft
 
@@ -2610,9 +2610,9 @@ __metadata:
     "@metamask/base-controller": ^3.2.3
     "@metamask/controller-utils": ^5.0.2
     "@metamask/eth-query": ^3.0.1
-    "@metamask/gas-fee-controller": ^9.0.0
+    "@metamask/gas-fee-controller": ^10.0.0
     "@metamask/metamask-eth-abis": ^3.0.0
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/network-controller": ^15.1.0
     "@metamask/rpc-errors": ^6.1.0
     "@metamask/utils": ^8.1.0
     "@types/jest": ^27.4.1
@@ -2635,8 +2635,8 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": ^4.1.0
-    "@metamask/gas-fee-controller": ^9.0.0
-    "@metamask/network-controller": ^15.0.0
+    "@metamask/gas-fee-controller": ^10.0.0
+    "@metamask/network-controller": ^15.1.0
     babel-runtime: ^6.26.0
   languageName: unknown
   linkType: soft
