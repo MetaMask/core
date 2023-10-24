@@ -46,30 +46,28 @@ done
 
 get-version-commit-pairs() {
   while read -r log; do
-    commit="$(echo "$log" | cut -d' ' -f1)"
-    version="$(echo "$log" | cut -d' ' -f2)"
-    echo "$version $commit"
+    echo "$log" | cut -d' ' -f1,2
   done <<<"$(git log --oneline --grep $release_commits_regex merged-packages/$package_name)"
 }
 
 prepend-tag-name() {
   while read -r pair; do
-    version="$(echo "$pair" | cut -d' ' -f1)"
-    commit="$(echo "$pair" | cut -d' ' -f2)"
+    commit="$(echo "$pair" | cut -d' ' -f1)"
+    version="$(echo "$pair" | cut -d' ' -f2)"
     if semverLT "$version" "$version_before_package_rename" || semverEQ "$version" "$version_before_package_rename"; then
       tag_name="$tag_prefix_before_package_rename@$version"
     else
       tag_name="@metamask/$package_name@$version"
     fi
-    echo "$tag_name $commit"
+    echo "$commit $tag_name"
   done <<<"$(get-version-commit-pairs)"
 }
 
 while read -r pair; do
-  tag="$(echo "$pair" | cut -d' ' -f1)"
-  commit="$(echo "$pair" | cut -d' ' -f2)"
+  commit="$(echo "$pair" | cut -d' ' -f1)"
+  tag="$(echo "$pair" | cut -d' ' -f2)"
   if [ "$dry_run" = true ]; then
-    echo "$tag $commit"
+    echo "$commit $tag"
   else
     git tag "$tag" "$commit"
     git push "$remote" "$tag"
