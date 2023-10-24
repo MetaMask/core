@@ -732,10 +732,11 @@
     yargs "^16.2.0"
 
 "@metamask/auto-changelog@^3.0.0":
-  version "3.3.0"
-  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-3.3.0.tgz#9b9c2c4e4f5d65d85abcb3d9f6eedc32ea4518fd"
-  integrity sha512-Azv5WhR8N6iFUqcVfogM+aqkj/vWNv7CXD9TeSdlE1eoKV/TVtDe/dhRz+SjFJ8KK3u1dBuIrYypb2qBTh8Q8A==
+  version "3.4.1"
+  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-3.4.1.tgz#e8a407f579512f61344463cb2261a103e4ffd0e3"
+  integrity sha512-zQpU7pKikC6ZDHCLoWb6iTGBuqbLpMAER5VYi6l2VOll0LEcJjZHFQ3V1tzmcPOT+9GTsSfR6KA9anB3jjCR+A==
   dependencies:
+    "@metamask/utils" "^8.1.0"
     diff "^5.0.0"
     execa "^5.1.1"
     prettier "^2.8.8"
