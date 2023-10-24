@@ -423,7 +423,7 @@ export class PermissionLogController extends BaseControllerV2<
       // we may intend to update just the accounts, not the permission
       // itself
       const lastApproved =
-        newEthAccountsEntry.lastApproved ||
+        newEthAccountsEntry.lastApproved ??
         existingEthAccountsEntry.lastApproved;
 
       // merge old and new eth_accounts history entries
