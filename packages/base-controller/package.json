@@ -33,7 +33,7 @@
     "immer": "^9.0.6"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.1",
+    "@metamask/auto-changelog": "^3.4.2",
     "@types/jest": "^27.4.1",
     "@types/sinon": "^9.0.10",
     "deepmerge": "^4.2.2",
