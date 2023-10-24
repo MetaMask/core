@@ -1555,6 +1555,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/auto-changelog@npm:^3.1.0":
+  version: 3.4.1
+  resolution: "@metamask/auto-changelog@npm:3.4.1"
+  dependencies:
+    "@metamask/utils": ^8.1.0
+    diff: ^5.0.0
+    execa: ^5.1.1
+    prettier: ^2.8.8
+    semver: ^7.3.5
+    yargs: ^17.0.1
+  bin:
+    auto-changelog: dist/cli.js
+  checksum: f79decfc6334eafd80486777f56d60fec27de027a9a6c8a089d52fc5e13eb005807aedb8d8a8c9b4e5ba5821203117e87336bfad3eb8f7837fc6305c68de8087
+  languageName: node
+  linkType: hard
+
 "@metamask/auto-changelog@npm:^3.4.2":
   version: 3.4.2
   resolution: "@metamask/auto-changelog@npm:3.4.2"
@@ -2226,6 +2242,32 @@ __metadata:
     typescript: ~4.8.4
   peerDependencies:
     "@metamask/approval-controller": ^4.1.0
+  languageName: unknown
+  linkType: soft
+
+"@metamask/permission-log-controller@workspace:packages/permission-log-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/permission-log-controller@workspace:packages/permission-log-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^3.1.0
+    "@metamask/base-controller": ^3.2.3
+    "@metamask/controller-utils": ^5.0.2
+    "@metamask/json-rpc-engine": ^7.1.1
+    "@metamask/obs-store": ^8.1.0
+    "@metamask/utils": ^8.1.0
+    "@types/deep-freeze-strict": ^1.1.0
+    "@types/jest": ^27.4.1
+    deep-freeze-strict: ^1.1.1
+    deepmerge: ^4.2.2
+    jest: ^27.5.1
+    nanoid: ^3.1.31
+    sinon: ^9.2.4
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.8.4
+  peerDependencies:
+    "@metamask/network-controller": ^14.0.0
   languageName: unknown
   linkType: soft
 
