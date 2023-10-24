@@ -207,7 +207,7 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
   repo_name(RepoUrl, _).
   WorkspaceCwd \= '.'.
 
-% The license for published packages must be MIT unless otherwise specified.
+% The license for all published packages must be MIT unless otherwise specified.
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   WorkspaceCwd \= 'packages/json-rpc-engine',
