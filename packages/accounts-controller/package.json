@@ -40,7 +40,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.0",
+    "@metamask/auto-changelog": "^3.4.2",
     "@metamask/keyring-controller": "^8.0.3",
     "@metamask/snaps-controllers": "^3.0.0",
     "@types/jest": "^27.4.1",

@@ -251,6 +251,10 @@ gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
 gen_enforced_field(WorkspaceCwd, 'scripts.publish:preview', 'yarn npm publish --tag preview') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
+% All published packages must not have a "prepack" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.prepack', null) :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+
 % The "changelog:validate" script for each published package must run a common
 % script with the name of the package as an argument.
 gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogValidationScript) :-
