@@ -2,22 +2,26 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
+  JsonRpcMiddleware,
 } from '@metamask/json-rpc-engine';
 import {
   type PendingJsonRpcResponse,
-  JsonRpcRequestStruct,
+  type JsonRpcParams,
+  type Json,
+  type JsonRpcRequest,
+  PendingJsonRpcResponseStruct,
 } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
 import { LOG_LIMIT, LOG_METHOD_TYPES } from './enums';
-import { PermissionLogController } from './PermissionLog';
-import type {
-  JsonRpcRequestWithOrigin,
-  Permission,
-  PermissionActivityLog,
-} from './PermissionLog';
+import {
+  type Permission,
+  type JsonRpcRequestWithOrigin,
+  type PermissionActivityLog,
+  PermissionLogController,
+} from './PermissionLogController';
 import { CaveatTypes, constants, getters, noop } from './permissions';
 
 const { PERMS, RPC_REQUESTS } = getters;
@@ -30,22 +34,14 @@ const {
   RESTRICTED_METHODS,
 } = constants;
 
-let clock: SinonFakeTimers;
-
 class CustomError extends Error {
   code: number;
 
   constructor(message: string, code: number) {
-    super(message); // Call parent constructor with message
-    this.code = code; // Add a "code" property
+    super(message);
+    this.code = code;
   }
 }
-
-type LogMiddleware = (
-  req: JsonRpcRequestWithOrigin,
-  res: PendingJsonRpcResponse<(string | Permission)[]>,
-  next?: JsonRpcEngineNextCallback,
-) => void;
 
 const name = 'PermissionLogController';
 
@@ -75,17 +71,16 @@ const mockNext: JsonRpcEngineNextCallback = (handler) => {
   }
 };
 
-const initMiddleware = (permLog: PermissionLogController): LogMiddleware => {
+const initMiddleware = (
+  permLog: PermissionLogController,
+): JsonRpcMiddleware<JsonRpcParams, Json> => {
   const middleware = permLog.createMiddleware();
-  return (
-    req: JsonRpcRequestWithOrigin,
-    res: PendingJsonRpcResponse<(string | Permission)[]>,
-    next = mockNext,
-  ) => {
-    middleware(req, res, next);
+  return (req, res, next, end) => {
+    middleware(req, res, next, end);
   };
 };
 
+let clock: SinonFakeTimers;
 const initClock = () => {
   // useFakeTimers, is in fact, not a react-hook
   // eslint-disable-next-line
@@ -106,7 +101,8 @@ const getSavedMockNext =
 
 describe('PermissionLogController', () => {
   describe('restricted method activity log', () => {
-    let permLog: PermissionLogController, logMiddleware: LogMiddleware;
+    let permLog: PermissionLogController,
+      logMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 
     beforeEach(() => {
       permLog = initPermLog();
@@ -116,19 +112,19 @@ describe('PermissionLogController', () => {
     it('records activity for restricted methods', () => {
       let log: PermissionActivityLog[],
         req: JsonRpcRequestWithOrigin,
-        res: PendingJsonRpcResponse<(string | Permission)[]>;
+        res: PendingJsonRpcResponse<Json>;
 
       // test_method, success
 
       req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
       req.id = REQUEST_IDS.a;
       res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         id: null,
         result: ['bar'],
       };
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       log = permLog.getActivityLog();
       const entry1 = log[0];
@@ -146,12 +142,12 @@ describe('PermissionLogController', () => {
       req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
       req.id = REQUEST_IDS.b;
       res = {
-        ...JsonRpcRequestStruct.TYPE,
-        id: null,
+        ...PendingJsonRpcResponseStruct.TYPE,
         error: new CustomError('Unauthorized.', 1),
+        result: undefined,
       };
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       log = permLog.getActivityLog();
       const entry2 = log[1];
@@ -170,12 +166,12 @@ describe('PermissionLogController', () => {
       req = RPC_REQUESTS.eth_requestAccounts(SUBJECTS.c.origin);
       req.id = REQUEST_IDS.c;
       res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         id: null,
         result: ACCOUNTS.c.permitted,
       };
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       log = permLog.getActivityLog();
       const entry3 = log[2];
@@ -194,11 +190,11 @@ describe('PermissionLogController', () => {
       req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
       req.id = REQUEST_IDS.a;
       res = {
-        ...JsonRpcRequestStruct.TYPE,
-        id: null,
+        ...PendingJsonRpcResponseStruct.TYPE,
+        result: undefined,
       };
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       log = permLog.getActivityLog();
       const entry4 = log[3];
@@ -239,7 +235,7 @@ describe('PermissionLogController', () => {
       // get make requests
       req.id = id1;
       const res1 = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [id1],
       };
       logMiddleware(
@@ -247,26 +243,27 @@ describe('PermissionLogController', () => {
           ...req,
         },
         {
-          ...JsonRpcRequestStruct.TYPE,
+          ...PendingJsonRpcResponseStruct.TYPE,
           ...res1,
           id: null,
         },
         getSavedMockNext(handlerArray),
+        noop,
       );
 
       req.id = id2;
       const res2 = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [id2],
       };
-      logMiddleware(req, res2, getSavedMockNext(handlerArray));
+      logMiddleware(req, res2, getSavedMockNext(handlerArray), noop);
 
       req.id = id3;
       const res3 = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [id3],
       };
-      logMiddleware(req, res3, getSavedMockNext(handlerArray));
+      logMiddleware(req, res3, getSavedMockNext(handlerArray), noop);
 
       // verify log state
       log = permLog.getActivityLog();
@@ -321,12 +318,12 @@ describe('PermissionLogController', () => {
       let req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
       req.id = REQUEST_IDS.a;
       let res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: ['bar'],
       };
 
       // noop for next handler prevents recording of response
-      logMiddleware(req, res, noop);
+      logMiddleware(req, res, noop, noop);
 
       let log = permLog.getActivityLog();
       const entry1 = log[0];
@@ -343,9 +340,12 @@ describe('PermissionLogController', () => {
       // next request should be handled as normal
       req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
       req.id = REQUEST_IDS.b;
-      res = { ...JsonRpcRequestStruct.TYPE, result: ACCOUNTS.b.permitted };
+      res = {
+        ...PendingJsonRpcResponseStruct.TYPE,
+        result: ACCOUNTS.b.permitted,
+      };
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       log = permLog.getActivityLog();
       const entry2 = log[1];
@@ -368,7 +368,7 @@ describe('PermissionLogController', () => {
       expect(log).toHaveLength(0);
 
       const res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: ['bar'],
       };
       const req1 = RPC_REQUESTS.metamask_sendDomainMetadata(
@@ -378,9 +378,9 @@ describe('PermissionLogController', () => {
       const req2 = RPC_REQUESTS.custom(SUBJECTS.b.origin, 'eth_getBlockNumber');
       const req3 = RPC_REQUESTS.custom(SUBJECTS.b.origin, 'net_version');
 
-      logMiddleware(req1, res);
-      logMiddleware(req2, res);
-      logMiddleware(req3, res);
+      logMiddleware(req1, res, mockNext, noop);
+      logMiddleware(req2, res, mockNext, noop);
+      logMiddleware(req3, res, mockNext, noop);
 
       log = permLog.getActivityLog();
       expect(log).toHaveLength(0);
@@ -389,15 +389,15 @@ describe('PermissionLogController', () => {
     it('enforces log limit', () => {
       const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
       const res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: ['bar'],
       };
 
       // max out log
-      let lastId = null;
+      let lastId;
       for (let i = 0; i < LOG_LIMIT; i++) {
         lastId = nanoid();
-        logMiddleware({ ...req, id: lastId }, res);
+        logMiddleware({ ...req, id: lastId }, res, mockNext, noop);
       }
 
       // check last entry valid
@@ -406,7 +406,7 @@ describe('PermissionLogController', () => {
 
       validateActivityEntry(
         log[LOG_LIMIT - 1],
-        { ...req, id: lastId },
+        { ...req, id: lastId ?? null },
         res,
         LOG_METHOD_TYPES.restricted,
         true,
@@ -417,7 +417,7 @@ describe('PermissionLogController', () => {
 
       // add one more entry to log, putting it over the limit
       lastId = nanoid();
-      logMiddleware({ ...req, id: lastId }, res);
+      logMiddleware({ ...req, id: lastId }, res, mockNext, noop);
 
       // check log length
       log = permLog.getActivityLog();
@@ -443,7 +443,8 @@ describe('PermissionLogController', () => {
   });
 
   describe('permission history log', () => {
-    let permLog: PermissionLogController, logMiddleware: LogMiddleware;
+    let permLog: PermissionLogController,
+      logMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 
     beforeEach(() => {
       permLog = initPermLog();
@@ -461,17 +462,17 @@ describe('PermissionLogController', () => {
         PERM_NAMES.test_method,
       );
       const res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [PERMS.granted.test_method()],
       };
 
       // noop => no response
-      logMiddleware(req, res, noop);
+      logMiddleware(req, res, noop, noop);
 
       expect(permLog.getHistory()).toStrictEqual({});
 
       // response => records granted permissions
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       const permHistory = permLog.getHistory();
       expect(Object.keys(permHistory)).toHaveLength(1);
@@ -484,7 +485,7 @@ describe('PermissionLogController', () => {
         PERM_NAMES.test_method,
       );
       const res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [PERMS.granted.test_method()],
       };
 
@@ -495,6 +496,8 @@ describe('PermissionLogController', () => {
           params: undefined,
         },
         res,
+        mockNext,
+        noop,
       );
 
       expect(permLog.getHistory()).toStrictEqual({});
@@ -506,11 +509,11 @@ describe('PermissionLogController', () => {
         PERM_NAMES.eth_accounts,
       );
       const res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
       };
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[0]);
 
@@ -520,7 +523,7 @@ describe('PermissionLogController', () => {
 
       res.result = [PERMS.granted.eth_accounts([ACCOUNTS.a.permitted[0]])];
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[1]);
     });
@@ -530,13 +533,13 @@ describe('PermissionLogController', () => {
         SUBJECTS.a.origin,
         PERM_NAMES.eth_accounts,
       );
-      const res = {
-        ...JsonRpcRequestStruct.TYPE,
+      const res: PendingJsonRpcResponse<Permission[]> = {
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
       };
-      delete res.result[0].caveats;
+      delete res.result?.[0].caveats;
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case2[0]);
     });
@@ -547,7 +550,7 @@ describe('PermissionLogController', () => {
         PERM_NAMES.eth_accounts,
       );
       const res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [PERMS.granted.eth_accounts(ACCOUNTS.a.permitted)],
       };
       res.result[0].caveats?.push({
@@ -555,7 +558,7 @@ describe('PermissionLogController', () => {
         value: ['bar'],
       });
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[0]);
     });
@@ -568,14 +571,14 @@ describe('PermissionLogController', () => {
         PERM_NAMES.eth_accounts,
       );
       const res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [
           PERMS.granted.eth_accounts(ACCOUNTS.a.permitted),
           PERMS.granted.test_method(),
         ],
       };
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case1[0]);
     });
@@ -586,11 +589,11 @@ describe('PermissionLogController', () => {
         PERM_NAMES.test_method,
       );
       let res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [PERMS.granted.test_method()],
       };
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case4[0]);
 
@@ -603,11 +606,11 @@ describe('PermissionLogController', () => {
         PERM_NAMES.eth_accounts,
       );
       res = {
-        ...JsonRpcRequestStruct.TYPE,
+        ...PendingJsonRpcResponseStruct.TYPE,
         result: [PERMS.granted.test_method()],
       };
 
-      logMiddleware(req, res);
+      logMiddleware(req, res, mockNext, noop);
 
       // history should be unmodified
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case4[0]);
@@ -616,7 +619,10 @@ describe('PermissionLogController', () => {
     it('records and updates history for multiple origins, regardless of response order', async () => {
       // make first round of requests
 
-      const round1 = [];
+      const round1: {
+        req: JsonRpcRequest;
+        res: PendingJsonRpcResponse<Permission[]>;
+      }[] = [];
       const handlers1: JsonRpcEngineReturnHandler[] = [];
 
       // first origin
@@ -626,6 +632,7 @@ describe('PermissionLogController', () => {
           PERM_NAMES.test_method,
         ),
         res: {
+          ...PendingJsonRpcResponseStruct.TYPE,
           result: [PERMS.granted.test_method()],
         },
       });
@@ -637,6 +644,7 @@ describe('PermissionLogController', () => {
           PERM_NAMES.eth_accounts,
         ),
         res: {
+          ...PendingJsonRpcResponseStruct.TYPE,
           result: [PERMS.granted.eth_accounts(ACCOUNTS.b.permitted)],
         },
       });
@@ -648,6 +656,7 @@ describe('PermissionLogController', () => {
           [PERM_NAMES.eth_accounts]: {},
         }),
         res: {
+          ...PendingJsonRpcResponseStruct.TYPE,
           result: [
             PERMS.granted.test_method(),
             PERMS.granted.eth_accounts(ACCOUNTS.c.permitted),
@@ -659,8 +668,13 @@ describe('PermissionLogController', () => {
       round1.forEach((x) => {
         logMiddleware(
           x.req,
-          { ...JsonRpcRequestStruct.TYPE, ...x.res },
+          {
+            ...PendingJsonRpcResponseStruct.TYPE,
+            result: undefined,
+            ...x.res,
+          },
           getSavedMockNext(handlers1),
+          noop,
         );
       });
 
@@ -674,7 +688,10 @@ describe('PermissionLogController', () => {
 
       clock.tick(1);
 
-      const round2 = [];
+      const round2: {
+        req: JsonRpcRequest;
+        res: PendingJsonRpcResponse<Permission[]>;
+      }[] = [];
       // we're just gonna process these in order
 
       // first origin
@@ -684,6 +701,7 @@ describe('PermissionLogController', () => {
           PERM_NAMES.test_method,
         ),
         res: {
+          ...PendingJsonRpcResponseStruct.TYPE,
           result: [PERMS.granted.test_method()],
         },
       });
@@ -696,13 +714,23 @@ describe('PermissionLogController', () => {
           [PERM_NAMES.eth_accounts]: {},
         }),
         res: {
+          ...PendingJsonRpcResponseStruct.TYPE,
           result: [PERMS.granted.eth_accounts(ACCOUNTS.b.permitted)],
         },
       });
 
       // make requests
       round2.forEach((x) => {
-        logMiddleware(x.req, { ...JsonRpcRequestStruct.TYPE, ...x.res });
+        logMiddleware(
+          x.req,
+          {
+            ...PendingJsonRpcResponseStruct.TYPE,
+            result: undefined,
+            ...x.res,
+          },
+          mockNext,
+          noop,
+        );
       });
 
       expect(permLog.getHistory()).toStrictEqual(EXPECTED_HISTORIES.case3[1]);
@@ -770,7 +798,7 @@ describe('PermissionLogController', () => {
 function validateActivityEntry(
   entry: PermissionActivityLog,
   req: JsonRpcRequestWithOrigin,
-  res: PendingJsonRpcResponse<(string | Permission)[]> | null,
+  res: PendingJsonRpcResponse<Json> | null,
   methodType: LOG_METHOD_TYPES,
   success: boolean,
 ) {

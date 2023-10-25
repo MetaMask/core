@@ -1,8 +1,6 @@
 import { type Json, JsonRpcRequestStruct } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
-import type { JsonRpcRequestWithOrigin, Permission } from './PermissionLog';
-
 export const CaveatTypes = Object.freeze({
   restrictReturnedAccounts: 'restrictReturnedAccounts' as const,
 });
@@ -120,7 +118,7 @@ const PERMS = {
      * @param accounts - The accounts for the eth_accounts permission caveat
      * @returns A granted permissions object with eth_accounts and its caveat
      */
-    eth_accounts: (accounts: string[]): Permission => {
+    eth_accounts: (accounts: string[]) => {
       return {
         parentCapability: PERM_NAMES.eth_accounts,
         caveats: CAVEATS.eth_accounts(accounts),
@@ -132,7 +130,7 @@ const PERMS = {
      *
      * @returns A granted permissions object with test_method
      */
-    test_method: (): Permission => {
+    test_method: () => {
       return {
         parentCapability: PERM_NAMES.test_method,
       };
@@ -160,13 +158,8 @@ export const getters = deepFreeze({
      * @param [id] - The request id
      * @returns An RPC request object
      */
-    custom: (
-      origin: string,
-      method: string,
-      params?: Json[],
-      id?: string,
-    ): JsonRpcRequestWithOrigin => {
-      const req: JsonRpcRequestWithOrigin = {
+    custom: (origin: string, method: string, params?: Json[], id?: string) => {
+      const req = {
         ...JsonRpcRequestStruct.TYPE,
         origin,
         method,
@@ -182,10 +175,9 @@ export const getters = deepFreeze({
      * @param origin - The origin of the request
      * @returns An RPC request object
      */
-    eth_accounts: (origin: string): JsonRpcRequestWithOrigin => {
+    eth_accounts: (origin: string) => {
       return {
         ...JsonRpcRequestStruct.TYPE,
-        id: null,
         origin,
         method: 'eth_accounts',
         params: [],
@@ -199,10 +191,9 @@ export const getters = deepFreeze({
      * @param param - The request param
      * @returns An RPC request object
      */
-    test_method: (origin: string, param = false): JsonRpcRequestWithOrigin => {
+    test_method: (origin: string, param = false) => {
       return {
         ...JsonRpcRequestStruct.TYPE,
-        id: null,
         origin,
         method: 'test_method',
         params: [param],
@@ -215,10 +206,9 @@ export const getters = deepFreeze({
      * @param origin - The origin of the request
      * @returns An RPC request object
      */
-    eth_requestAccounts: (origin: string): JsonRpcRequestWithOrigin => {
+    eth_requestAccounts: (origin: string) => {
       return {
         ...JsonRpcRequestStruct.TYPE,
-        id: null,
         origin,
         method: 'eth_requestAccounts',
         params: [],
@@ -236,10 +226,9 @@ export const getters = deepFreeze({
     requestPermission: (
       origin: string,
       permissionName: 'eth_accounts' | 'test_method' | 'does_not_exist',
-    ): JsonRpcRequestWithOrigin => {
+    ) => {
       return {
         ...JsonRpcRequestStruct.TYPE,
-        id: null,
         origin,
         method: 'wallet_requestPermissions',
         params: [PERMS.requests[permissionName]()],
@@ -254,13 +243,9 @@ export const getters = deepFreeze({
      * @param permissions - A permission request object
      * @returns An RPC request object
      */
-    requestPermissions: (
-      origin: string,
-      permissions = {},
-    ): JsonRpcRequestWithOrigin => {
+    requestPermissions: (origin: string, permissions = {}) => {
       return {
         ...JsonRpcRequestStruct.TYPE,
-        id: null,
         origin,
         method: 'wallet_requestPermissions',
         params: [permissions],
@@ -279,10 +264,9 @@ export const getters = deepFreeze({
       origin: string,
       name: string,
       ...args: Json[]
-    ): JsonRpcRequestWithOrigin => {
+    ) => {
       return {
         ...JsonRpcRequestStruct.TYPE,
-        id: null,
         origin,
         method: 'metamask_sendDomainMetadata',
         params: {

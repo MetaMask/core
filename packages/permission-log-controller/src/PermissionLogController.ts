@@ -2,13 +2,11 @@ import {
   BaseControllerV2,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type {
-  JsonRpcEngineEndCallback,
-  JsonRpcEngineNextCallback,
-} from '@metamask/json-rpc-engine';
-import type {
-  JsonRpcParams,
+  Json,
   JsonRpcRequest,
+  JsonRpcParams,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
@@ -20,19 +18,30 @@ import {
 } from './enums';
 import { CaveatTypes } from './permissions';
 
-export type PermissionActivityLog = {
-  id: string | number | null;
-  method: string;
-  methodType: LOG_METHOD_TYPES;
-  origin: string;
-  requestTime: number;
-  responseTime: number | null;
-  success: boolean | null;
+export type JsonRpcRequestWithOrigin<
+  Params extends JsonRpcParams = JsonRpcParams,
+> = JsonRpcRequest<Params> & {
+  origin?: string;
+};
+
+export type Caveat = {
+  type: string;
+  value: string[];
 };
 
 export type Permission = {
   parentCapability: string;
   caveats?: Caveat[];
+};
+
+export type PermissionActivityLog = {
+  id: string | number | null;
+  method: string;
+  methodType: LOG_METHOD_TYPES;
+  origin?: string;
+  requestTime: number;
+  responseTime: number | null;
+  success: boolean | null;
 };
 
 export type PermissionName = string;
@@ -45,19 +54,7 @@ export type PermissionEntry = Record<PermissionName, PermissionLog>;
 export type PermissionOrigin = string;
 export type PermissionHistory = Record<PermissionOrigin, PermissionEntry>;
 
-export type Caveat = {
-  type: string;
-  value: string[];
-};
-
-export type JsonRpcRequestWithOrigin<
-  Params extends JsonRpcParams = JsonRpcParams,
-> = JsonRpcRequest<Params> & {
-  origin: string;
-};
-
 /**
- * @type PermissionLogState
  *
  * Permission log controller state
  * @property permissionHistory - permission history
@@ -199,13 +196,8 @@ export class PermissionLogController extends BaseControllerV2<
    *
    * @returns The permissions log middleware.
    */
-  createMiddleware() {
-    return (
-      req: JsonRpcRequestWithOrigin,
-      res: PendingJsonRpcResponse<(string | Permission)[]>,
-      next: JsonRpcEngineNextCallback,
-      _end?: JsonRpcEngineEndCallback,
-    ) => {
+  createMiddleware(): JsonRpcMiddleware<JsonRpcParams, Json> {
+    return (req: JsonRpcRequestWithOrigin, res, next) => {
       let activityEntry: PermissionActivityLog,
         requestedMethods: string[] | null;
       const { origin, method } = req;
@@ -239,7 +231,7 @@ export class PermissionLogController extends BaseControllerV2<
         const time = Date.now();
         this.logResponse(activityEntry, res, time);
 
-        if (requestedMethods && !res.error && res.result) {
+        if (requestedMethods && !res.error && res.result && origin) {
           // any permissions or accounts changes will be recorded on the response,
           // so we only log permissions history here
           this.logPermissionsHistory(
@@ -291,7 +283,7 @@ export class PermissionLogController extends BaseControllerV2<
    */
   logResponse(
     entry: PermissionActivityLog,
-    response: PendingJsonRpcResponse<(string | Permission)[]>,
+    response: PendingJsonRpcResponse<Json>,
     time: number,
   ) {
     if (!entry || !response) {
@@ -340,7 +332,7 @@ export class PermissionLogController extends BaseControllerV2<
   logPermissionsHistory(
     requestedMethods: string[],
     origin: string,
-    result: (string | Permission)[],
+    result: Json,
     time: number,
     isEthRequestAccounts: boolean,
   ) {
