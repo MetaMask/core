@@ -50,6 +50,7 @@ import type {
   SecurityProviderRequest,
   SendFlowHistoryEntry,
   WalletDevice,
+  TxError,
 } from './types';
 import { TransactionType, TransactionStatus } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
@@ -208,7 +209,7 @@ export class TransactionController extends BaseController<
 
   private readonly pendingTransactionTracker: PendingTransactionTracker;
 
-  private failTransaction(transactionMeta: TransactionMeta, error: Error) {
+  private failTransaction(transactionMeta: TransactionMeta, error: TxError) {
     const newTransactionMeta = {
       ...transactionMeta,
       error,

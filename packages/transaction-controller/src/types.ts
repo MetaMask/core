@@ -8,7 +8,10 @@ export type TransactionMeta =
   | ({
       status: Exclude<TransactionStatus, TransactionStatus.failed>;
     } & TransactionMetaBase)
-  | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
+  | ({
+      status: TransactionStatus.failed;
+      error: TxError;
+    } & TransactionMetaBase);
 
 /**
  * Information about a single transaction such as status and block number.
@@ -688,4 +691,19 @@ export type DefaultGasEstimates = {
    * Maximum amount per gas to give to validator as incentive.
    */
   maxPriorityFeePerGas?: string;
+};
+
+/**
+ * Represents an error encountered during a transaction.
+ */
+export type TxError = Error & {
+  /**
+   * An optional error code associated with the error.
+   */
+  code?: string;
+
+  /**
+   * The rpc property holds additional information related to the error.
+   */
+  rpc?: unknown;
 };
