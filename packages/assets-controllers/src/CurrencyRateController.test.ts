@@ -81,7 +81,7 @@ function flushPromises(): Promise<unknown> {
 
 describe('CurrencyRateController', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    jest.useFakeTimers('legacy');
   });
 
   afterEach(() => {
