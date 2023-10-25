@@ -73,6 +73,9 @@ type SuggestedNftMeta = {
  * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
  * @property transactionId - Transaction Id associated with the NFT
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface Nft extends NftMetadata {
   tokenId: string;
   address: string;
@@ -94,6 +97,9 @@ export interface Nft extends NftMetadata {
  * @property schemaName - The schema followed by the contract, it could be `ERC721` or `ERC1155`
  * @property externalLink - External link containing additional information
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface NftContract {
   name?: string;
   logo?: string;
@@ -125,6 +131,9 @@ export interface NftContract {
  * @property creator - The NFT owner information object
  * @property standard - NFT standard name for the NFT, e.g., ERC-721 or ERC-1155
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface NftMetadata {
   name: string | null;
   description: string | null;
@@ -151,6 +160,9 @@ export interface NftMetadata {
  * NFT controller configuration
  * @property selectedAddress - Vault selected address
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface NftConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
@@ -168,6 +180,9 @@ export interface NftConfig extends BaseConfig {
  * @property allNfts - Object containing NFTs per account and network
  * @property ignoredNfts - List of NFTs that should be ignored
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface NftState extends BaseState {
   allNftContracts: {
     [key: string]: { [chainId: Hex]: NftContract[] };
@@ -179,6 +194,9 @@ export interface NftState extends BaseState {
 const ALL_NFTS_STATE_KEY = 'allNfts';
 const ALL_NFTS_CONTRACTS_STATE_KEY = 'allNftContracts';
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 interface NftAsset {
   address: string;
   tokenId: string;

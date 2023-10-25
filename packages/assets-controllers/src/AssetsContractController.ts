@@ -50,6 +50,9 @@ export const MISSING_PROVIDER_ERROR =
  * Assets Contract controller configuration
  * @property provider - Provider used to create a new web3 instance
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AssetsContractConfig extends BaseConfig {
   provider: any;
   ipfsGateway: string;
@@ -62,6 +65,9 @@ export interface AssetsContractConfig extends BaseConfig {
  * Key value object containing the balance for each tokenAddress
  * @property [tokenAddress] - Address of the token
  */
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface BalanceMap {
   [tokenAddress: string]: BN;
 }

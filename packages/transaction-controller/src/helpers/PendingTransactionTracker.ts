@@ -41,6 +41,9 @@ type Events = {
   'transaction-updated': [txMeta: TransactionMeta, note: string];
 };
 
+// This interface was created before this ESLint rule was added.
+// Convert to a `type` in a future major version.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
   on<T extends keyof Events>(
     eventName: T,

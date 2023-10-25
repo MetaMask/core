@@ -67,9 +67,9 @@ export type FakeProviderStub = {
  * @property stubs - A set of objects that allow specifying the behavior
  * of specific invocations of `sendAsync` matching a `method`.
  */
-interface FakeProviderEngineOptions {
+type FakeProviderEngineOptions = {
   stubs?: FakeProviderStub[];
-}
+};
 
 /**
  * An implementation of the provider that NetworkController exposes, which is
