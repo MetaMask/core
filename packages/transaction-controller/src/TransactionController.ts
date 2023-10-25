@@ -46,7 +46,6 @@ import {
   WalletDevice,
 } from './types';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import { pendingTransactionsLogger } from './logger';
 import { estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 
@@ -223,6 +222,8 @@ export class TransactionController extends BaseController<
    * @param options.incomingTransactions.updateTransactions - Whether or not to update local transactions using remote transaction data.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.pendingTransactions - Configuration options for pending transaction support.
+   * @param options.pendingTransactions.isResubmitEnabled - Whether transaction publishing is automatically retried.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -238,6 +239,7 @@ export class TransactionController extends BaseController<
       incomingTransactions = {},
       messenger,
       onNetworkStateChange,
+      pendingTransactions = {},
       provider,
     }: {
       blockTracker: BlockTrackerProxy;
@@ -254,6 +256,9 @@ export class TransactionController extends BaseController<
       };
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
+      pendingTransactions: {
+        isResubmitEnabled?: boolean;
+      };
       provider: ProviderProxy;
     },
     config?: Partial<TransactionConfig>,
@@ -323,31 +328,23 @@ export class TransactionController extends BaseController<
     );
 
     this.pendingTransactionTracker = new PendingTransactionTracker({
+      approveTransaction: this.approveTransaction.bind(this),
       blockTracker,
-      failTransaction: this.failTransaction.bind(this),
-      getChainId: () => this.getNetworkState().providerConfig.chainId,
+      getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
+      isResubmitEnabled: pendingTransactions.isResubmitEnabled,
+      nonceTracker: this.nonceTracker,
+      onStateChange: this.subscribe.bind(this),
+      publishTransaction: this.publishTransaction.bind(this),
     });
 
-    this.pendingTransactionTracker.hub.on(
-      'transactions',
-      this.onPendingTransactionsUpdate.bind(this),
-    );
-
-    this.pendingTransactionTracker.hub.on(
-      'transaction-confirmed',
-      (transactionMeta) => {
-        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta);
-      },
-    );
+    this.addPendingTransactionTrackerListeners();
 
     onNetworkStateChange(() => {
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
-
-    this.pendingTransactionTracker.start();
   }
 
   /**
@@ -453,6 +450,11 @@ export class TransactionController extends BaseController<
 
   async updateIncomingTransactions() {
     await this.incomingTransactionHelper.update();
+  }
+
+  private getChainId(): string {
+    const { providerConfig } = this.getNetworkState();
+    return providerConfig.chainId;
   }
 
   prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
@@ -998,7 +1000,7 @@ export class TransactionController extends BaseController<
 
       transactionMeta.rawTx = rawTx;
       this.updateTransaction(transactionMeta);
-      const hash = await query(this.ethQuery, 'sendRawTransaction', [rawTx]);
+      const hash = await this.publishTransaction(rawTx);
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
       this.updateTransaction(transactionMeta);
@@ -1012,6 +1014,10 @@ export class TransactionController extends BaseController<
       }
       releaseLock();
     }
+  }
+
+  private async publishTransaction(rawTransaction: string): Promise<string> {
+    return await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
   }
 
   /**
@@ -1111,6 +1117,16 @@ export class TransactionController extends BaseController<
     this.hub.emit('incomingTransactionBlock', blockNumber);
   }
 
+  /**
+   * Method to set transaction status to dropped.
+   *
+   * @param transactionMeta - TransactionMeta of transaction to be marked as dropped.
+   */
+  private setTransactionStatusDropped(transactionMeta: TransactionMeta) {
+    transactionMeta.status = TransactionStatus.dropped;
+    this.updateTransaction(transactionMeta);
+  }
+
   private getNonceTrackerTransactions(
     status: TransactionStatus,
     address: string,
@@ -1125,11 +1141,6 @@ export class TransactionController extends BaseController<
     );
   }
 
-  private onPendingTransactionsUpdate(transactions: TransactionMeta[]) {
-    pendingTransactionsLogger('Updated pending transactions');
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
-  }
-
   private async getEIP1559Compatibility() {
     const currentNetworkIsEIP1559Compatible =
       await this.getCurrentNetworkEIP1559Compatibility();
@@ -1139,6 +1150,29 @@ export class TransactionController extends BaseController<
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
+  }
+
+  private addPendingTransactionTrackerListeners() {
+    this.pendingTransactionTracker.hub.on(
+      'transaction-confirmed',
+      (transactionMeta: TransactionMeta) =>
+        this.hub.emit(`${transactionMeta.id}:confirmed`, transactionMeta),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-dropped',
+      this.setTransactionStatusDropped.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-failed',
+      this.failTransaction.bind(this),
+    );
+
+    this.pendingTransactionTracker.hub.on(
+      'transaction-updated',
+      this.updateTransaction.bind(this),
     );
   }
 }

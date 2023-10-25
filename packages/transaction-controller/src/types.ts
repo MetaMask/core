@@ -21,25 +21,29 @@ export type TransactionMeta =
     } & TransactionMetaBase)
   | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
 
+/**
+ * Information about a single transaction such as status and block number.
+ */
 type TransactionMetaBase = {
-  isTransfer?: boolean;
-  transferInformation?: {
-    symbol: string;
-    contractAddress: string;
-    decimals: number;
-  };
-  id: string;
-  networkID?: string;
-  chainId?: string;
-  origin?: string;
-  rawTx?: string;
-  time: number;
-  toSmartContract?: boolean;
-  transaction: Transaction;
-  hash?: string;
+  /**
+   * Base fee of the block as a hex value, introduced in EIP-1559.
+   */
+  baseFeePerGas?: string;
+
+  /**
+   * Number of the block where the transaction has been included.
+   */
   blockNumber?: string;
-  deviceConfirmedOn?: WalletDevice;
-  verifiedOnBlockchain?: boolean;
+
+  /**
+   * The timestamp for when the block was collated.
+   */
+  blockTimestamp?: string;
+
+  /**
+   * Network code as per EIP-155 for this transaction.
+   */
+  chainId: string;
 
   /**
    * The initial gas values set when the transaction was first created.
@@ -47,14 +51,91 @@ type TransactionMetaBase = {
   defaultGasEstimates?: DefaultGasEstimates;
 
   /**
+   * String to indicate what device the transaction was confirmed on.
+   */
+  deviceConfirmedOn?: WalletDevice;
+
+  /**
+   * The estimated base fee of the transaction.
+   */
+  estimatedBaseFee?: string;
+
+  /**
+   * Which estimate level that the API suggested.
+   */
+  estimateSuggested?: string;
+
+  /**
+   * Which estimate level was used
+   */
+  estimateUsed?: string;
+
+  /**
+   * The number of the latest block when the transaction submit was first retried.
+   */
+  firstRetryBlockNumber?: string;
+
+  /**
+   * A hex string of the transaction hash, used to identify the transaction on the network.
+   */
+  hash?: string;
+
+  /**
+   * Generated UUID associated with this transaction.
+   */
+  id: string;
+
+  /**
+   * Whether the transaction is a transfer.
+   */
+  isTransfer?: boolean;
+
+  /**
+   * Network code as per EIP-155 for this transaction
+   *
+   * @deprecated Use `chainId` instead.
+   */
+  readonly networkID?: string;
+
+  /**
+   * Origin this transaction was sent from.
+   */
+  origin?: string;
+
+  /**
    * The original gas estimation of the transaction.
    */
   originalGasEstimate?: string;
 
   /**
+   * Hex representation of the underlying transaction.
+   */
+  rawTx?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction hash.
+   */
+  replacedBy?: string;
+
+  /**
+   * When the transaction is dropped, this is the replacement transaction ID.
+   */
+  replacedById?: string;
+
+  /**
+   * The number of times that the transaction submit has been retried.
+   */
+  retryCount?: number;
+
+  /**
    * Response from security validator.
    */
   securityAlertResponse?: Record<string, unknown>;
+
+  /**
+   * Response from security provider.
+   */
+  securityProviderResponse?: Record<string, any>;
 
   /**
    * If the gas estimation fails, an object containing error and block information.
@@ -69,9 +150,61 @@ type TransactionMetaBase = {
   };
 
   /**
+   * The time the transaction was submitted to the network, in Unix epoch time (ms).
+   */
+  submittedTime?: number;
+
+  /**
+   * Timestamp associated with this transaction.
+   */
+  time: number;
+
+  /**
+   * Whether transaction recipient is a smart contract.
+   */
+  toSmartContract?: boolean;
+
+  /**
+   * Additional transfer information.
+   */
+  transferInformation?: {
+    contractAddress: string;
+    decimals: number;
+    symbol: string;
+  };
+
+  /**
+   * Underlying Transaction object.
+   */
+  transaction: Transaction;
+
+  /**
+   * Transaction receipt.
+   */
+  txReceipt?: TransactionReceipt;
+
+  /**
+   * The gas limit supplied by user.
+   */
+  userEditedGasLimit?: boolean;
+
+  /**
    * Estimate level user selected.
    */
   userFeeLevel?: string;
+
+  /**
+   * Whether the transaction is verified on the blockchain.
+   */
+  verifiedOnBlockchain?: boolean;
+
+  /**
+   * Warning information for the transaction.
+   */
+  warning?: {
+    error: string;
+    message: string;
+  };
 };
 
 /**
@@ -83,6 +216,7 @@ export enum TransactionStatus {
   approved = 'approved',
   cancelled = 'cancelled',
   confirmed = 'confirmed',
+  dropped = 'dropped',
   failed = 'failed',
   rejected = 'rejected',
   signed = 'signed',
@@ -128,6 +262,65 @@ export interface Transaction {
   estimatedBaseFee?: string;
   estimateGasError?: string;
   type?: string;
+}
+
+/**
+ * Standard data concerning a transaction processed by the blockchain.
+ */
+export interface TransactionReceipt {
+  /**
+   * The block hash of the block that this transaction was included in.
+   */
+  blockHash?: string;
+
+  /**
+   * The block number of the block that this transaction was included in.
+   */
+  blockNumber?: string;
+
+  /**
+   * Effective gas price the transaction was charged at.
+   */
+  effectiveGasPrice?: string;
+
+  /**
+   * Gas used in the transaction.
+   */
+  gasUsed?: string;
+
+  /**
+   * Total used gas in hex.
+   */
+  l1Fee?: string;
+
+  /**
+   * All the logs emitted by this transaction.
+   */
+  logs?: Log[];
+
+  /**
+   * The status of the transaction.
+   */
+  status?: string;
+
+  /**
+   * The index of this transaction in the list of transactions included in the block this transaction was mined in.
+   */
+  transactionIndex?: number;
+}
+
+/**
+ * Represents an event that has been included in a transaction using the EVM `LOG` opcode.
+ */
+export interface Log {
+  /**
+   * Address of the contract that generated log.
+   */
+  address?: string;
+  /**
+   * List of topics for log.
+   */
+  topics?: string;
 }
 
 /**
