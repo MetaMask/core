@@ -3,7 +3,7 @@
 source "$PWD/scripts/semver.sh"
 
 remote='origin'
-release_commits_regex='^\d\{1,3\}\.\d\{1,3\}\.\d\{1,3\}'
+release_commits_regex='^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}'
 version_before_package_rename='0.0.0'
 tag_prefix_before_package_rename="$1"
 dry_run=true
