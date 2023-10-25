@@ -71,6 +71,7 @@ import {
   validateGasValues,
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
+  normalizeTxError,
 } from './utils/utils';
 import {
   validateTransactionOrigin,
@@ -212,7 +213,7 @@ export class TransactionController extends BaseController<
   private failTransaction(transactionMeta: TransactionMeta, error: TxError) {
     const newTransactionMeta = {
       ...transactionMeta,
-      error,
+      error: normalizeTxError(error),
       status: TransactionStatus.failed,
     };
     this.updateTransaction(

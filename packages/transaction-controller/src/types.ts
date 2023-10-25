@@ -696,7 +696,22 @@ export type DefaultGasEstimates = {
 /**
  * Represents an error encountered during a transaction.
  */
-export type TxError = Error & {
+export type TxError = {
+  /**
+   * A descriptive error name.
+   */
+  name: string;
+
+  /**
+   * A descriptive error message providing details about the encountered error.
+   */
+  message: string;
+
+  /**
+   * The stack trace associated with the error, if available.
+   */
+  stack?: string;
+
   /**
    * An optional error code associated with the error.
    */
@@ -706,4 +721,9 @@ export type TxError = Error & {
    * The rpc property holds additional information related to the error.
    */
   rpc?: unknown;
+
+  /**
+   * The value property holds additional information related to the error.
+   */
+  value?: unknown;
 };
