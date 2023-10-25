@@ -1969,7 +1969,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream"
   dependencies:
-    "@metamask/auto-changelog": ^3.4.0
+    "@metamask/auto-changelog": ^3.4.2
     "@metamask/json-rpc-engine": ^7.1.1
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.1.0

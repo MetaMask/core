@@ -35,7 +35,7 @@
     "readable-stream": "^3.6.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.0",
+    "@metamask/auto-changelog": "^3.4.2",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
