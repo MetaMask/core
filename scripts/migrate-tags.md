@@ -147,6 +147,7 @@ These commands should NOT be run on the core repo.
 
 - ALWAYS delete local tags AFTER remote tags.
 - If something goes wrong and your local tags are still there, you can try `git push <remote-repo>` to push the local tags to remote.
+- If you have deleted your local tags, ask a teammate who has the correct tags on local to push them to remote.
 
 ### 2. Delete local tags
 
