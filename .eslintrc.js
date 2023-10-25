@@ -29,7 +29,6 @@ module.exports = {
         'jest/no-export': 'off',
         'jest/require-top-level-describe': 'off',
         'jest/no-if': 'off',
-        'jest/no-test-return-statement': 'off',
         // TODO: Re-enable this rule; we can accomodate this even in our test helpers
         'jest/expect-expect': 'off',
       },
