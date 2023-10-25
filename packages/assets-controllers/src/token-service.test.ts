@@ -2,7 +2,7 @@ import { toHex } from '@metamask/controller-utils';
 import nock from 'nock';
 
 import {
-  fetchTokenList,
+  fetchTokenListByChainId,
   fetchTokenMetadata,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
@@ -16,7 +16,7 @@ const sampleTokenList = [
     address: '0xbbbbca6a901c926f240b89eacb641d8aec7aeafd',
     symbol: 'LRC',
     decimals: 18,
-    occurances: 11,
+    occurrences: 11,
     aggregators: [
       'paraswap',
       'pmm',
@@ -35,7 +35,7 @@ const sampleTokenList = [
     address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
     symbol: 'SNX',
     decimals: 18,
-    occurances: 11,
+    occurrences: 11,
     aggregators: [
       'paraswap',
       'pmm',
@@ -55,7 +55,7 @@ const sampleTokenList = [
     address: '0x408e41876cccdc0f92210600ef50372656052a38',
     symbol: 'REN',
     decimals: 18,
-    occurances: 11,
+    occurrences: 11,
     aggregators: [
       'paraswap',
       'pmm',
@@ -74,7 +74,7 @@ const sampleTokenList = [
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',
     symbol: 'LINK',
     decimals: 18,
-    occurances: 11,
+    occurrences: 11,
     aggregators: [
       'paraswap',
       'pmm',
@@ -94,7 +94,7 @@ const sampleTokenList = [
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
     symbol: 'BNT',
     decimals: 18,
-    occurances: 11,
+    occurrences: 11,
     aggregators: [
       'paraswap',
       'pmm',
@@ -116,7 +116,7 @@ const sampleToken = {
   address: '0x514910771af9ca656af840dff83e8264ecf986ca',
   symbol: 'LINK',
   decimals: 18,
-  occurances: 11,
+  occurrences: 11,
   aggregators: [
     'paraswap',
     'pmm',
@@ -137,7 +137,7 @@ const sampleDecimalChainId = 1;
 const sampleChainId = toHex(sampleDecimalChainId);
 
 describe('Token service', () => {
-  describe('fetchTokenList', () => {
+  describe('fetchTokenListByChainId', () => {
     it('should call the tokens api and return the list of tokens', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
@@ -145,7 +145,7 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      const tokens = await fetchTokenList(sampleChainId, signal);
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(tokens).toStrictEqual(sampleTokenList);
     });
@@ -159,7 +159,7 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      const fetchPromise = fetchTokenList(
+      const fetchPromise = fetchTokenListByChainId(
         sampleChainId,
         abortController.signal,
       );
@@ -175,7 +175,7 @@ describe('Token service', () => {
         .replyWithError('Example network error')
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal);
+      const result = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(result).toBeUndefined();
     });
@@ -187,7 +187,7 @@ describe('Token service', () => {
         .reply(500)
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal);
+      const result = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(result).toBeUndefined();
     });
@@ -201,7 +201,7 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      const result = await fetchTokenList(sampleChainId, signal, {
+      const result = await fetchTokenListByChainId(sampleChainId, signal, {
         timeout: ONE_MILLISECOND,
       });
 
@@ -317,7 +317,7 @@ describe('Token service', () => {
       .reply(404, undefined)
       .persist();
 
-    const tokens = await fetchTokenList(sampleChainId, signal);
+    const tokens = await fetchTokenListByChainId(sampleChainId, signal);
 
     expect(tokens).toBeUndefined();
   });

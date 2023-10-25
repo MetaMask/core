@@ -1,6 +1,6 @@
 {
   "name": "@metamask/logging-controller",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Manages logging data to assist users and support staff",
   "keywords": [
     "MetaMask",
@@ -34,7 +34,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/auto-changelog": "^3.4.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

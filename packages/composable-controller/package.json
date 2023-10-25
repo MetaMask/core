@@ -1,6 +1,6 @@
 {
   "name": "@metamask/composable-controller",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "Consolidates the state from multiple controllers into one",
   "keywords": [
     "MetaMask",
@@ -32,7 +32,7 @@
     "@metamask/base-controller": "^3.2.3"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/auto-changelog": "^3.4.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",

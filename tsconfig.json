@@ -32,6 +32,9 @@
       "path": "./packages/ens-controller"
     },
     {
+      "path": "./packages/eth-json-rpc-provider"
+    },
+    {
       "path": "./packages/gas-fee-controller"
     },
     {
@@ -69,6 +72,9 @@
     },
     {
       "path": "./packages/transaction-controller"
+    },
+    {
+      "path": "./packages/queued-request-controller"
     }
   ],
   "files": [],

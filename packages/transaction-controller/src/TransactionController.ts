@@ -13,9 +13,6 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
-  BNToHex,
-  fractionBN,
-  hexToBN,
   query,
   NetworkType,
   RPC,
@@ -24,6 +21,7 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   BlockTracker,
   NetworkState,
@@ -37,15 +35,13 @@ import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
 import { merge, pickBy } from 'lodash';
 import NonceTracker from 'nonce-tracker';
+import type { NonceLock } from 'nonce-tracker/dist/NonceTracker';
 import { v1 as random } from 'uuid';
 
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import { validateConfirmedExternalTransaction } from './external-transactions';
-import { addInitialHistorySnapshot, updateTransactionHistory } from './history';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
+import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
+import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { pendingTransactionsLogger } from './logger';
-import { PendingTransactionTracker } from './PendingTransactionTracker';
-import { determineTransactionType } from './transaction-type';
 import type {
   DappSuggestedGasFees,
   TransactionParams,
@@ -56,6 +52,14 @@ import type {
   WalletDevice,
 } from './types';
 import { TransactionType, TransactionStatus } from './types';
+import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+import { estimateGas, updateGas } from './utils/gas';
+import { updateGasFees } from './utils/gas-fees';
+import {
+  addInitialHistorySnapshot,
+  updateTransactionHistory,
+} from './utils/history';
+import { determineTransactionType } from './utils/transaction-type';
 import {
   getAndFormatTransactionsForNonceTracker,
   getIncreasedPriceFromExisting,
@@ -66,9 +70,11 @@ import {
   validateGasValues,
   validateIfTransactionUnapproved,
   validateMinimumIncrease,
-  ESTIMATE_GAS_ERROR,
-} from './utils';
-import { validateTransactionOrigin, validateTxParams } from './validation';
+} from './utils/utils';
+import {
+  validateTransactionOrigin,
+  validateTxParams,
+} from './utils/validation';
 
 export const HARDFORK = Hardfork.London;
 
@@ -188,6 +194,8 @@ export class TransactionController extends BaseController<
 
   private readonly getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
 
+  private readonly getGasFeeEstimates: () => Promise<GasFeeState>;
+
   private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
 
   private readonly getSelectedAddress: () => string;
@@ -246,6 +254,7 @@ export class TransactionController extends BaseController<
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+   * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
@@ -268,6 +277,7 @@ export class TransactionController extends BaseController<
       disableSendFlowHistory,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
+      getGasFeeEstimates,
       getNetworkState,
       getPermittedAccounts,
       getSelectedAddress,
@@ -282,6 +292,7 @@ export class TransactionController extends BaseController<
       disableSendFlowHistory: boolean;
       getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
       getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+      getGasFeeEstimates?: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
       getPermittedAccounts: (origin?: string) => Promise<string[]>;
       getSelectedAddress: () => string;
@@ -316,6 +327,7 @@ export class TransactionController extends BaseController<
     this.provider = provider;
     this.messagingSystem = messenger;
     this.getNetworkState = getNetworkState;
+    // @ts-expect-error TODO: Provider type alignment
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
@@ -324,6 +336,8 @@ export class TransactionController extends BaseController<
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
+    this.getGasFeeEstimates =
+      getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getPermittedAccounts = getPermittedAccounts;
     this.getSelectedAddress = getSelectedAddress;
     this.securityProviderRequest = securityProviderRequest;
@@ -375,6 +389,7 @@ export class TransactionController extends BaseController<
       getChainId: this.getChainId.bind(this),
       getEthQuery: () => this.ethQuery,
       getTransactions: () => this.state.transactions,
+      nonceTracker: this.nonceTracker,
     });
 
     this.pendingTransactionTracker.hub.on(
@@ -389,6 +404,7 @@ export class TransactionController extends BaseController<
     );
 
     onNetworkStateChange(() => {
+      // @ts-expect-error TODO: Provider type alignment
       this.ethQuery = new EthQuery(this.provider);
       this.registry = new MethodRegistry({ provider: this.provider });
     });
@@ -502,15 +518,18 @@ export class TransactionController extends BaseController<
       type: transactionType,
     };
 
-    try {
-      const { gas, estimateGasError } = await this.estimateGas(txParams);
-      txParams.gas = gas;
-      txParams.estimateGasError = estimateGasError;
-      transactionMeta.originalGasEstimate = gas;
-    } catch (error: any) {
-      this.failTransaction(transactionMeta, error);
-      return Promise.reject(error);
-    }
+    await updateGas({
+      ethQuery: this.ethQuery,
+      providerConfig: this.getNetworkState().providerConfig,
+      txMeta: transactionMeta,
+    });
+
+    await updateGasFees({
+      eip1559: isEIP1559Compatible,
+      ethQuery: this.ethQuery,
+      getGasFeeEstimates: this.getGasFeeEstimates.bind(this),
+      txMeta: transactionMeta,
+    });
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
@@ -831,80 +850,12 @@ export class TransactionController extends BaseController<
    * @returns The gas and gas price.
    */
   async estimateGas(transaction: TransactionParams) {
-    const estimatedTransaction = { ...transaction };
-    const {
-      gas,
-      gasPrice: providedGasPrice,
-      to,
-      value,
-      data,
-    } = estimatedTransaction;
-    const gasPrice =
-      typeof providedGasPrice === 'undefined'
-        ? await query(this.ethQuery, 'gasPrice')
-        : providedGasPrice;
-    const { providerConfig } = this.getNetworkState();
-    const isCustomNetwork = providerConfig.type === NetworkType.rpc;
-    // 1. If gas is already defined on the transaction, use it
-    if (typeof gas !== 'undefined') {
-      return { gas, gasPrice };
-    }
-    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', [
-      'latest',
-      false,
-    ]);
+    const { estimatedGas, simulationFails } = await estimateGas(
+      transaction,
+      this.ethQuery,
+    );
 
-    // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
-    // If the network is a custom network then bypass this check and fetch 'estimateGas'.
-    /* istanbul ignore next */
-    const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
-    /* istanbul ignore next */
-    if (
-      !isCustomNetwork &&
-      (!to || (to && !data && (!code || code === '0x')))
-    ) {
-      return { gas: '0x5208', gasPrice };
-    }
-
-    // if data, should be hex string format
-    estimatedTransaction.data = !data
-      ? data
-      : /* istanbul ignore next */ addHexPrefix(data);
-
-    // 3. If this is a contract address, safely estimate gas using RPC
-    estimatedTransaction.value =
-      typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
-    const gasLimitBN = hexToBN(gasLimit);
-    estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
-
-    let gasHex;
-    let estimateGasError;
-    try {
-      gasHex = await query(this.ethQuery, 'estimateGas', [
-        estimatedTransaction,
-      ]);
-    } catch (error) {
-      estimateGasError = ESTIMATE_GAS_ERROR;
-    }
-    // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
-    // a custom network then return the eth_estimateGas value.
-    const gasBN = hexToBN(gasHex);
-    const maxGasBN = gasLimitBN.muln(0.9);
-    const paddedGasBN = gasBN.muln(1.5);
-    /* istanbul ignore next */
-    if (gasBN.gt(maxGasBN) || isCustomNetwork) {
-      return { gas: addHexPrefix(gasHex), gasPrice, estimateGasError };
-    }
-
-    /* istanbul ignore next */
-    if (paddedGasBN.lt(maxGasBN)) {
-      return {
-        gas: addHexPrefix(BNToHex(paddedGasBN)),
-        gasPrice,
-        estimateGasError,
-      };
-    }
-    return { gas: addHexPrefix(BNToHex(maxGasBN)), gasPrice, estimateGasError };
+    return { gas: estimatedGas, simulationFails };
   }
 
   /**
@@ -1143,6 +1094,17 @@ export class TransactionController extends BaseController<
     );
 
     return this.getTransaction(transactionId) as TransactionMeta;
+  }
+
+  /**
+   * Gets the next nonce according to the nonce-tracker.
+   * Ensure `releaseLock` is called once processing of the `nonce` value is complete.
+   *
+   * @param address - The hex string address for the transaction.
+   * @returns object with the `nextNonce` `nonceDetails`, and the releaseLock.
+   */
+  async getNonceLock(address: string): Promise<NonceLock> {
+    return this.nonceTracker.getNonceLock(address);
   }
 
   private async processApproval(
