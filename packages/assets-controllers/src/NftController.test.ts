@@ -2701,6 +2701,7 @@ describe('NftController', () => {
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
+        { nftMetadata: { name: '', description: '', image: '', standard: '' } },
       );
 
       nftController.updateNftFavoriteStatus(
@@ -2718,7 +2719,7 @@ describe('NftController', () => {
           favorite: true,
         }),
       );
-    }, 10000);
+    });
 
     it('should set NFT as favorite and then unset it', async () => {
       const { assetsContract, nftController } = setupController();
@@ -2727,6 +2728,7 @@ describe('NftController', () => {
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
+        { nftMetadata: { name: '', description: '', image: '', standard: '' } },
       );
 
       nftController.updateNftFavoriteStatus(
@@ -2760,7 +2762,7 @@ describe('NftController', () => {
           favorite: false,
         }),
       );
-    }, 10000);
+    });
 
     it('should keep the favorite status as true after updating metadata', async () => {
       const { assetsContract, nftController } = setupController();
@@ -2769,6 +2771,7 @@ describe('NftController', () => {
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
+        { nftMetadata: { name: '', description: '', image: '', standard: '' } },
       );
 
       nftController.updateNftFavoriteStatus(
@@ -2817,7 +2820,7 @@ describe('NftController', () => {
       expect(
         nftController.state.allNfts[selectedAddress][chainId],
       ).toHaveLength(1);
-    }, 10000);
+    });
 
     it('should keep the favorite status as false after updating metadata', async () => {
       const { assetsContract, nftController } = setupController();
@@ -2826,6 +2829,7 @@ describe('NftController', () => {
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
+        { nftMetadata: { name: '', description: '', image: '', standard: '' } },
       );
 
       expect(
@@ -2868,7 +2872,7 @@ describe('NftController', () => {
       expect(
         nftController.state.allNfts[selectedAddress][chainId],
       ).toHaveLength(1);
-    }, 10000);
+    });
 
     describe('checkAndUpdateNftsOwnershipStatus', () => {
       describe('checkAndUpdateAllNftsOwnershipStatus', () => {
