@@ -65,9 +65,9 @@ prepend-tag-name() {
 
 while read -r pair; do
   commit="$(echo "$pair" | cut -d' ' -f1)"
-  tag="$(echo "$pair" | cut -d' ' -f2)"
+  tag_name="$(echo "$pair" | cut -d' ' -f2)"
   if [ "$dry_run" = true ]; then
-    echo "$commit $tag"
+    echo "$commit $tag_name"
   else
     if ! git tag "$tag_name" "$commit"; then
       echo "Error creating tag $tag_name for commit $commit" >&2
