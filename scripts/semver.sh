@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # https://github.com/cloudflare/semver_bash/blob/master/semver.sh
 
