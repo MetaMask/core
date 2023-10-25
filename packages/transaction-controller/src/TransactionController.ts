@@ -840,7 +840,7 @@ export class TransactionController extends BaseController<
       originalGasEstimate: transactionMeta.txParams.gas,
       type: TransactionType.retry,
     };
-    const newTransactionMeta =
+    const updatedTransactionMeta =
       newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             ...baseTransactionMeta,
@@ -857,14 +857,20 @@ export class TransactionController extends BaseController<
               gasPrice: newGasPrice,
             },
           };
-    transactions.push(newTransactionMeta);
+    transactions.push(updatedTransactionMeta);
     this.update({ transactions: this.trimTransactionsForState(transactions) });
 
     // speedUpTransaction has no approval request, so we assume the user has already approved the transaction
-    this.hub.emit(TransactionEvent.approved, { transactionMeta, actionId });
-    this.hub.emit(TransactionEvent.submitted, { transactionMeta, actionId });
+    this.hub.emit(TransactionEvent.approved, {
+      transactionMeta: updatedTransactionMeta,
+      actionId,
+    });
+    this.hub.emit(TransactionEvent.submitted, {
+      transactionMeta: updatedTransactionMeta,
+      actionId,
+    });
 
-    this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
+    this.hub.emit(`${transactionMeta.id}:speedup`, updatedTransactionMeta);
   }
 
   /**
@@ -1195,7 +1201,6 @@ export class TransactionController extends BaseController<
         const cancelError = rpcErrors.internal(
           'User cancelled the transaction',
         );
-
         resultCallbacks?.error(cancelError);
         throw cancelError;
 
