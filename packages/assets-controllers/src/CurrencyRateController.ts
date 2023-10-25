@@ -2,7 +2,6 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import {
   TESTNET_TICKER_SYMBOLS,
   FALL_BACK_VS_CURRENCY,
-  safelyExecute,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -146,7 +145,9 @@ export class CurrencyRateController extends PollingController<
    * @param nativeCurrency - The ticker symbol for the chain.
    */
   async updateExchangeRate(nativeCurrency: string): Promise<void> {
+    console.log('updateExchangeRate lock');
     const releaseLock = await this.mutex.acquire();
+    console.log('updateExchangeRate lock acquired');
     const { currentCurrency, currencyRates } = this.state;
 
     let conversionDate: number | null = null;
@@ -160,6 +161,8 @@ export class CurrencyRateController extends PollingController<
       ? FALL_BACK_VS_CURRENCY // ETH
       : nativeCurrency;
 
+    console.log(currentCurrency, nativeCurrency);
+
     try {
       if (
         currentCurrency &&
@@ -170,17 +173,19 @@ export class CurrencyRateController extends PollingController<
         currentCurrency !== '' &&
         nativeCurrency !== ''
       ) {
+        console.log('updateExchangeRate fetchExchangeRate');
         const fetchExchangeRateResponse = await this.fetchExchangeRate(
           currentCurrency,
           nativeCurrencyForExchangeRate,
           this.includeUsdRate,
         );
-
+        console.log('updateExchangeRate success', fetchExchangeRateResponse);
         conversionRate = fetchExchangeRateResponse.conversionRate;
         usdConversionRate = fetchExchangeRateResponse.usdConversionRate;
         conversionDate = Date.now() / 1000;
       }
     } catch (error) {
+      console.log('updateExchangeRate error', error);
       if (
         !(
           error instanceof Error &&
