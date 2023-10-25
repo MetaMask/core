@@ -145,9 +145,7 @@ export class CurrencyRateController extends PollingController<
    * @param nativeCurrency - The ticker symbol for the chain.
    */
   async updateExchangeRate(nativeCurrency: string): Promise<void> {
-    console.log('updateExchangeRate lock');
     const releaseLock = await this.mutex.acquire();
-    console.log('updateExchangeRate lock acquired');
     const { currentCurrency, currencyRates } = this.state;
 
     let conversionDate: number | null = null;
@@ -161,8 +159,6 @@ export class CurrencyRateController extends PollingController<
       ? FALL_BACK_VS_CURRENCY // ETH
       : nativeCurrency;
 
-    console.log(currentCurrency, nativeCurrency);
-
     try {
       if (
         currentCurrency &&
@@ -173,19 +169,16 @@ export class CurrencyRateController extends PollingController<
         currentCurrency !== '' &&
         nativeCurrency !== ''
       ) {
-        console.log('updateExchangeRate fetchExchangeRate');
         const fetchExchangeRateResponse = await this.fetchExchangeRate(
           currentCurrency,
           nativeCurrencyForExchangeRate,
           this.includeUsdRate,
         );
-        console.log('updateExchangeRate success', fetchExchangeRateResponse);
         conversionRate = fetchExchangeRateResponse.conversionRate;
         usdConversionRate = fetchExchangeRateResponse.usdConversionRate;
         conversionDate = Date.now() / 1000;
       }
     } catch (error) {
-      console.log('updateExchangeRate error', error);
       if (
         !(
           error instanceof Error &&
@@ -232,14 +225,11 @@ export class CurrencyRateController extends PollingController<
    * @returns The controller state.
    */
   async _executePoll(networkClientId: NetworkClientId): Promise<void> {
-    console.log('_executePoll', networkClientId);
     const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
-    console.log('_executePoll before update', networkClientId);
     await this.updateExchangeRate(networkClient.configuration.ticker);
-    console.log('_executePoll after update', networkClientId);
   }
 }
 
