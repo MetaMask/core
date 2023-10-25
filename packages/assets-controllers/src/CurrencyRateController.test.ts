@@ -3,7 +3,6 @@ import {
   ChainId,
   NetworkType,
   NetworksTicker,
-  toHex,
 } from '@metamask/controller-utils';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import nock from 'nock';
@@ -44,14 +43,6 @@ function getRestrictedMessenger() {
               type: NetworkType.sepolia,
               chainId: ChainId.sepolia,
               ticker: NetworksTicker.sepolia,
-            },
-          };
-        case 'binance-network-client-id':
-          return {
-            configuration: {
-              type: NetworkType.rpc,
-              chainId: toHex(56),
-              ticker: 'BTC',
             },
           };
         default:
@@ -161,11 +152,14 @@ describe('CurrencyRateController', () => {
     });
 
     controller.startPollingByNetworkClientId('sepolia');
-    await Promise.all([jest.advanceTimersByTime(0), flushPromises()]);
+    jest.advanceTimersByTime(0);
+    await flushPromises();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
-    await Promise.all([jest.advanceTimersByTime(99), flushPromises()]);
+    jest.advanceTimersByTime(99);
+    await flushPromises();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
-    await Promise.all([jest.advanceTimersByTime(1), flushPromises()]);
+    jest.advanceTimersByTime(1);
+    await flushPromises();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
     controller.destroy();
