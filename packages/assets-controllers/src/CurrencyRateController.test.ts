@@ -201,7 +201,6 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    console.log('@@@@');
     controller.startPollingByNetworkClientId('sepolia');
     jest.advanceTimersByTime(0);
     await flushPromises();
@@ -210,18 +209,15 @@ describe('CurrencyRateController', () => {
     // called once upon initial start
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
-    console.log('@@@@ 1');
     controller.startPollingByNetworkClientId('sepolia');
 
     jest.advanceTimersByTime(0);
     await flushPromises();
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
-    console.log('@@@@ 2');
     jest.advanceTimersByTime(100);
     await flushPromises();
 
-    console.log('@@@@ back');
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(3);
   });
 
@@ -378,7 +374,6 @@ describe('CurrencyRateController', () => {
       state: { currentCurrency: 'xyz' },
     });
 
-    console.log('should throw @@');
     await expect(controller.updateExchangeRate('ETH')).rejects.toThrow(
       'this method has been deprecated',
     );
@@ -402,10 +397,8 @@ describe('CurrencyRateController', () => {
       state: { currentCurrency: 'xyz' },
     });
 
-    console.log('should catch expected');
     await controller.updateExchangeRate('ETH');
 
-    console.log('should catch expected?');
     expect(controller.state.currencyRates).toStrictEqual({
       ETH: {
         conversionDate: null,
