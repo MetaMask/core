@@ -215,7 +215,7 @@ gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
 % The following published packages use an ISC license instead of MIT.
 gen_enforced_field(WorkspaceCwd, 'license', 'ISC') :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
-  WorkspaceCwd \= 'packages/json-rpc-middleware-stream',
+  WorkspaceCwd == 'packages/json-rpc-middleware-stream';
   WorkspaceCwd == 'packages/eth-json-rpc-provider'.
 % Non-published packages do not have a license.
 gen_enforced_field(WorkspaceCwd, 'license', null) :-
