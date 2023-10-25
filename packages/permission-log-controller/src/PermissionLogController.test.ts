@@ -120,7 +120,6 @@ describe('PermissionLogController', () => {
       req.id = REQUEST_IDS.a;
       res = {
         ...PendingJsonRpcResponseStruct.TYPE,
-        id: null,
         result: ['bar'],
       };
 
@@ -167,7 +166,6 @@ describe('PermissionLogController', () => {
       req.id = REQUEST_IDS.c;
       res = {
         ...PendingJsonRpcResponseStruct.TYPE,
-        id: null,
         result: ACCOUNTS.c.permitted,
       };
 
@@ -245,7 +243,6 @@ describe('PermissionLogController', () => {
         {
           ...PendingJsonRpcResponseStruct.TYPE,
           ...res1,
-          id: null,
         },
         getSavedMockNext(handlerArray),
         noop,
