@@ -133,9 +133,9 @@ To https://github.com/[USERNAME]/[FORKNAME]
 
 ## E. Troubleshooting
 
-**WARNING**: DO NOT run this script on the core repo until you have tested the results on a fork. 
+**WARNING**: DO NOT run this script on the core repo until you have tested the results on a fork.
 
-These commands should NOT be run on the core repo. 
+These commands should NOT be run on the core repo.
 
 ### 1. Delete remote tags
 
@@ -156,4 +156,3 @@ These commands should NOT be run on the core repo.
 ```
 
 - If anything goes wrong, and you haven't deleted the remote tags, run `git pull --all` and the tags in the remote repo will be restored to local.
-
