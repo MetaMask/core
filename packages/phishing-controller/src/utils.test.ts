@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import { useFakeTimers } from 'sinon';
 
 import { ListKeys, ListNames } from './PhishingController';
 import { applyDiffs, fetchTimeNow } from './utils';
@@ -38,7 +38,7 @@ const exampleRemoveDiff = {
 describe('fetchTimeNow', () => {
   it('correctly converts time from milliseconds to seconds', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    useFakeTimers(testTime);
     const result = fetchTimeNow();
     expect(result).toBe(1674773005);
   });
